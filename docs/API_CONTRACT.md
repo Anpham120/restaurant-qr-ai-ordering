@@ -11,6 +11,28 @@ Tài liệu này là hợp đồng giữa Backend, Frontend, AI và Realtime. N�
 - Mock data frontend phải dùng cùng shape với contract này.
 - Status name, route name và shared type không được tự ý đổi theo sở thích UI/backend.
 
+## 1.1. Backend Setup Tuần 1
+
+- Solution backend: `backend/RestaurantQrAiOrdering.sln`.
+- API project: `backend/src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj`.
+- Test project: `backend/tests/RestaurantQrAiOrdering.Api.Tests/RestaurantQrAiOrdering.Api.Tests.csproj`.
+- Visual Studio 2026 nên mở trực tiếp file solution và chạy startup project `RestaurantQrAiOrdering.Api`.
+- Launch profile dùng cho local HTTPS: `https`.
+- Health check hiện tại: `GET /api/health`.
+
+Response health check dự kiến:
+
+```json
+{
+  "status": "Healthy",
+  "service": "RestaurantQrAiOrdering.Api",
+  "environment": "Development",
+  "checkedAtUtc": "2026-06-04T00:00:00Z"
+}
+```
+
+Endpoint này chỉ dùng để xác nhận API chạy được trong Visual Studio, .NET CLI và test integration. Không thêm logic Auth, Menu, Orders, Chat, AI hoặc Realtime trong issue scaffold backend.
+
 ## 2. Auth
 
 ### POST `/api/auth/register`
