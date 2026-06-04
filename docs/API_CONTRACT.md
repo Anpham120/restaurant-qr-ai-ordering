@@ -289,3 +289,25 @@ Dự kiến:
 ```
 
 Frontend phải hiển thị thông báo thân thiện cho người dùng và không được phụ thuộc vào nội dung database exception.
+
+## 9. Data Model Draft
+
+Enums:
+
+- `OrderType`: `DineIn`, `Pickup`, `DeliveryMock`
+- `OrderStatus`: `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`, `Cancelled`
+- `OrderItemStatus`: `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled`
+- `PaymentMethod`: `COD`, `MockOnline`
+- `PaymentStatus`: `Unpaid`, `Paid`, `Failed`, `Cancelled`
+
+Entities:
+
+- `RestaurantTable`: `id`, `tableCode`, `displayName`, `isActive`, optional `qrToken`.
+- `Category`: `id`, `name`, `displayOrder`, `isActive`.
+- `MenuItem`: `id`, `categoryId`, `name`, `description`, `price`, `imageUrl`, `isAvailable`, `tags`.
+- `Order`: `id`, `orderCode`, `orderType`, `status`, dine-in `tableCode`/`restaurantTableId`, pickup customer fields, delivery mock recipient/address fields, `subtotalAmount`, `totalAmount`.
+- `OrderItem`: `id`, `orderId`, `menuItemId`, snapshot `menuItemName`, `unitPrice`, `quantity`, item-level `status`.
+- `Payment`: `id`, `orderId`, `method`, `status`, `amount`, optional provider transaction id, payment timestamps.
+- `ChatSession`: `id`, optional `tableCode`, optional `orderId`, `isClosed`, timestamps, messages.
+- `ChatMessage`: `id`, `chatSessionId`, `role`, `content`, optional suggested cart actions payload, `createdAt`.
+- `KnowledgeEntry`: `id`, `title`, `content`, `sourceType`, optional `menuItemId`, `tags`, optional embedding, `isActive`.
