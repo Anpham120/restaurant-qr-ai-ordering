@@ -119,6 +119,57 @@
   padding: 18px;
 }
 
+.cmc-home-flow {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--cmc-line);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 44px rgba(92, 52, 31, 0.08);
+}
+
+.cmc-home-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cmc-step-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--cmc-line);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fffaf4;
+}
+
+.cmc-step-card span {
+  width: max-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #ffe8d7;
+  color: var(--cmc-orange-dark);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cmc-step-card h3,
+.cmc-step-card p {
+  margin: 0;
+}
+
+.cmc-step-card h3 {
+  color: #2f1f18;
+  font-size: 17px;
+}
+
+.cmc-step-card p {
+  color: var(--cmc-muted);
+  line-height: 1.5;
+}
+
 .cmc-table-badge {
   display: inline-flex;
   width: max-content;
@@ -495,6 +546,10 @@
     grid-template-columns: 1fr;
   }
 
+  .cmc-home-steps {
+    grid-template-columns: 1fr;
+  }
+
   .cmc-hero-collage {
     min-height: 220px;
   }
@@ -539,4 +594,3 @@
     height: 210px;
   }
 }
-

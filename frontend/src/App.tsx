@@ -1,60 +1,93 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-const navGroups = [
-  {
-    label: "Customer",
-    links: [
-      { to: "/", text: "Home" },
-      { to: "/table/TABLE-01", text: "QR Table" },
-      { to: "/menu", text: "Menu" },
-      { to: "/cart", text: "Cart" },
-      { to: "/orders/ORDER-001", text: "Order Status" },
-      { to: "/chat", text: "AI Chat" },
-    ],
-  },
-  {
-    label: "Operations",
-    links: [
-      { to: "/login", text: "Login" },
-      { to: "/admin", text: "Admin" },
-      { to: "/admin/menu", text: "Admin Menu" },
-      { to: "/admin/orders", text: "Admin Orders" },
-      { to: "/admin/tables", text: "QR Tables" },
-      { to: "/staff/orders", text: "Staff Orders" },
-      { to: "/kitchen", text: "Kitchen" },
-    ],
-  },
+const customerLinks = [
+  { to: "/", text: "Trang chủ" },
+  { to: "/menu", text: "Thực đơn" },
+  { to: "/cart", text: "Giỏ hàng" },
+  { to: "/orders/ORDER-001", text: "Đơn hàng" },
+  { to: "/chat", text: "AI Chat" },
+];
+
+const operationsLinks = [
+  { to: "/login", text: "Login" },
+  { to: "/admin", text: "Admin" },
+  { to: "/admin/menu", text: "Admin Menu" },
+  { to: "/admin/orders", text: "Admin Orders" },
+  { to: "/admin/tables", text: "QR Tables" },
+  { to: "/staff/orders", text: "Staff Orders" },
+  { to: "/kitchen", text: "Kitchen" },
 ];
 
 export default function App() {
+  const { pathname } = useLocation();
+  const isOperationsRoute =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/kitchen") ||
+    pathname.startsWith("/login");
+
+  if (!isOperationsRoute) {
+    return (
+      <div className="customer-app-shell">
+        <header className="customer-topbar">
+          <NavLink className="customer-brand" to="/">
+            <span className="customer-brand-mark">CMC</span>
+            <span>
+              <strong>CMC</strong>
+              <small>Restaurant</small>
+            </span>
+          </NavLink>
+          <nav className="customer-nav" aria-label="Customer navigation">
+            {customerLinks.map((link) => (
+              <NavLink
+                end={link.to === "/"}
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  isActive ? "customer-nav-link active" : "customer-nav-link"
+                }
+              >
+                {link.text}
+              </NavLink>
+            ))}
+          </nav>
+          <NavLink className="customer-login-link" to="/login">
+            Đăng nhập
+          </NavLink>
+        </header>
+        <main className="customer-content">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
         <div className="brand">
-          <span className="brand-mark">QR</span>
-          <p className="eyebrow">Restaurant QR</p>
-          <h1>AI Ordering</h1>
+          <span className="brand-mark">CMC</span>
+          <p className="eyebrow">Restaurant</p>
+          <h1>CMC Operations</h1>
         </div>
         <nav className="nav-groups">
-          {navGroups.map((group) => (
-            <section className="nav-group" key={group.label}>
-              <h2>{group.label}</h2>
-              <div className="nav-links">
-                {group.links.map((link) => (
-                  <NavLink
-                    end={link.to === "/"}
-                    key={link.to}
-                    to={link.to}
-                    className={({ isActive }) =>
-                      isActive ? "nav-link active" : "nav-link"
-                    }
-                  >
-                    {link.text}
-                  </NavLink>
-                ))}
-              </div>
-            </section>
-          ))}
+          <section className="nav-group">
+            <h2>Operations</h2>
+            <div className="nav-links">
+              {operationsLinks.map((link) => (
+                <NavLink
+                  end={link.to === "/"}
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) =>
+                    isActive ? "nav-link active" : "nav-link"
+                  }
+                >
+                  {link.text}
+                </NavLink>
+              ))}
+            </div>
+          </section>
         </nav>
       </aside>
       <main className="content">
