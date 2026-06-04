@@ -1,103 +1,103 @@
-# Project Context
+# Ngữ Cảnh Dự Án
 
-## 1. De Tai
+## 1. Đề Tài
 
-Ten du an: Restaurant QR AI Ordering.
+Tên dự án: **Restaurant QR AI Ordering**.
 
-Muc tieu: xay dung he thong dat do an va quan ly nha hang tich hop chatbot AI. He thong phai the hien duoc nghiep vu nha hang that: khach dat mon, nha hang tiep nhan, bep cap nhat tung mon, khach theo doi realtime, admin quan ly menu/ban/don hang.
+Mục tiêu là xây dựng hệ thống đặt đồ ăn và quản lý nhà hàng tích hợp chatbot AI. Hệ thống cần thể hiện được nghiệp vụ nhà hàng thực tế: khách đặt món, nhà hàng tiếp nhận, bếp cập nhật trạng thái từng món, khách theo dõi realtime, admin quản lý menu/bàn/đơn hàng và chatbot AI hỗ trợ tư vấn món.
 
 ## 2. Actors
 
 ### Customer / Guest
 
 - Xem menu.
-- Quet QR tai ban de dat mon dine-in.
-- Dat mon online pickup hoac delivery mock.
-- Hoi chatbot AI de duoc tu van mon.
-- Theo doi trang thai don va tung mon realtime.
-- Huy don khi don chua vao trang thai `Preparing`.
+- Quét QR tại bàn để đặt món dine-in.
+- Đặt món online theo hình thức pickup hoặc delivery mock.
+- Hỏi chatbot AI để được tư vấn món.
+- Theo dõi trạng thái đơn và từng món theo thời gian thực.
+- Hủy đơn khi đơn chưa chuyển sang trạng thái `Preparing`.
 
 ### Staff
 
-- Xac nhan don moi.
-- Phuc vu mon tai ban.
-- Xu ly pickup hoac delivery mock.
-- Xac nhan thanh toan COD/mock online.
-- Hoan tat don.
+- Xác nhận đơn mới.
+- Phục vụ món tại bàn.
+- Xử lý pickup hoặc delivery mock.
+- Xác nhận thanh toán COD/mock online.
+- Hoàn tất đơn.
 
 ### Kitchen
 
 - Xem kitchen board.
-- Cap nhat trang thai tung mon: `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled`.
-- Bao cho Staff khi mon da san sang.
+- Cập nhật trạng thái từng món: `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled`.
+- Báo cho Staff khi món đã sẵn sàng.
 
 ### Admin
 
-- Quan ly danh muc va mon an.
-- Bat/tat trang thai con mon.
-- Quan ly ban va link/QR cua ban.
-- Xem don hang.
-- Xem bao cao co ban: doanh thu ngay, mon ban chay.
+- Quản lý danh mục và món ăn.
+- Bật/tắt trạng thái còn món.
+- Quản lý bàn và link/QR của bàn.
+- Xem đơn hàng.
+- Xem báo cáo cơ bản: doanh thu ngày, món bán chạy.
 
 ### AI Chatbot
 
-- Dung external LLM API.
-- Dung RAG tren menu/FAQ de tra loi.
-- Tu van mon theo khau vi, ngan sach, so nguoi, tinh trang con hang.
-- De xuat them mon vao gio, nhung khach phai xac nhan.
-- Khong tu dat don, khong tu thanh toan, khong bia mon/gia.
+- Sử dụng external LLM API.
+- Sử dụng RAG trên menu/FAQ để trả lời.
+- Tư vấn món theo khẩu vị, ngân sách, số người và tình trạng còn hàng.
+- Đề xuất thêm món vào giỏ, nhưng khách phải xác nhận.
+- Không tự đặt đơn, không tự thanh toán, không bịa món hoặc giá.
 
-## 3. Core Business Flows
+## 3. Luồng Nghiệp Vụ Chính
 
 ### QR Dine-in Flow
 
-1. Admin tao hoac quan ly ban, vi du `T05`.
-2. He thong sinh link QR cho ban: `/table/T05`.
-3. Khach quet QR bang dien thoai.
-4. Frontend mo menu voi context `tableCode = T05`.
-5. Khach xem menu, hoi chatbot, them mon vao gio.
-6. Khach xac nhan dat mon.
-7. Backend tao don `OrderType = DineIn`, `tableCode = T05`.
-8. Staff xac nhan don.
-9. Kitchen nhan don tren kitchen board.
-10. Kitchen cap nhat tung mon.
-11. Customer tracking screen nhan realtime event va cap nhat trang thai.
-12. Staff phuc vu, thu tien, hoan tat don.
+1. Admin tạo hoặc quản lý bàn, ví dụ `T05`.
+2. Hệ thống sinh link QR cho bàn: `/table/T05`.
+3. Khách quét QR bằng điện thoại.
+4. Frontend mở menu với context `tableCode = T05`.
+5. Khách xem menu, hỏi chatbot, thêm món vào giỏ.
+6. Khách xác nhận đặt món.
+7. Backend tạo đơn `OrderType = DineIn`, `tableCode = T05`.
+8. Staff xác nhận đơn.
+9. Kitchen nhận đơn trên kitchen board.
+10. Kitchen cập nhật từng món.
+11. Customer tracking screen nhận realtime event và cập nhật trạng thái.
+12. Staff phục vụ, thu tiền và hoàn tất đơn.
 
 ### Online Pickup / Delivery Mock Flow
 
-1. Khach vao `/menu`.
-2. Khach chon mon va vao checkout.
-3. Khach chon `Pickup` hoac `DeliveryMock`.
-4. Neu delivery mock, khach nhap ten, so dien thoai, dia chi.
-5. Staff xac nhan don.
-6. Kitchen chuan bi mon.
-7. Pickup: khach nhan tai quan.
-8. DeliveryMock: Staff danh dau `Delivering`, sau do `Delivered`.
-9. Staff/Admin xac nhan thanh toan va hoan tat don.
+1. Khách vào `/menu`.
+2. Khách chọn món và vào checkout.
+3. Khách chọn `Pickup` hoặc `DeliveryMock`.
+4. Nếu delivery mock, khách nhập tên, số điện thoại và địa chỉ.
+5. Staff xác nhận đơn.
+6. Kitchen chuẩn bị món.
+7. Pickup: khách nhận tại quán.
+8. DeliveryMock: Staff đánh dấu `Delivering`, sau đó `Delivered`.
+9. Staff/Admin xác nhận thanh toán và hoàn tất đơn.
 
 ### Restaurant Management Flow
 
-1. Admin dang nhap.
-2. Admin quan ly category va menu item.
-3. Admin bat/tat `isAvailable` cua mon.
-4. Admin quan ly ban va QR link.
-5. Staff theo doi don moi va xac nhan don.
-6. Kitchen cap nhat tung mon.
-7. Staff phuc vu/giao mon va xac nhan thanh toan.
-8. Admin xem doanh thu ngay va mon ban chay.
+1. Admin đăng nhập.
+2. Admin quản lý category và menu item.
+3. Admin bật/tắt `isAvailable` của món.
+4. Admin quản lý bàn và QR link.
+5. Staff theo dõi đơn mới và xác nhận đơn.
+6. Kitchen cập nhật từng món.
+7. Staff phục vụ/giao món và xác nhận thanh toán.
+8. Admin xem doanh thu ngày và món bán chạy.
 
 ### AI Chatbot Flow
 
-1. Khach mo chatbot trong menu hoac trang chat.
-2. Khach hoi ve mon an, gia, khau vi, mon chay, mon cay, goi y cho nhom.
-3. Backend lay menu/FAQ lien quan bang RAG.
-4. LLM tra loi dua tren du lieu da truy xuat.
-5. Neu co goi y them vao gio, chatbot tra ve `SuggestedCartAction`.
-6. Frontend hien thi nut Confirm/Dismiss.
-7. Chi khi khach bam Confirm thi mon moi vao gio.
+1. Khách mở chatbot trong menu hoặc trang chat.
+2. Khách hỏi về món ăn, giá, khẩu vị, món chay, món cay hoặc gợi ý cho nhóm.
+3. Backend lấy menu/FAQ liên quan bằng RAG.
+4. LLM trả lời dựa trên dữ liệu đã truy xuất.
+5. Nếu có gợi ý thêm vào giỏ, chatbot trả về `SuggestedCartAction`.
+6. Frontend hiển thị nút Confirm/Dismiss.
+7. Chỉ khi khách bấm Confirm thì món mới được thêm vào giỏ.
 
-## 4. Important Status Names
+## 4. Trạng Thái Quan Trọng
 
 Order status:
 
@@ -138,9 +138,9 @@ Payment status:
 - `Failed`
 - `Cancelled`
 
-## 5. Scope For Version 1
+## 5. Phạm Vi Phiên Bản 1
 
-In scope:
+Trong phạm vi:
 
 - QR table ordering.
 - Customer menu/cart/checkout.
@@ -148,15 +148,14 @@ In scope:
 - Admin menu/order/table management.
 - Staff order handling.
 - Kitchen board.
-- Chatbot AI via LLM API + RAG.
+- Chatbot AI qua LLM API + RAG.
 - Docker/VPS deployment guide.
 
-Out of scope for v1:
+Ngoài phạm vi v1:
 
-- Real payment gateway.
-- Real delivery/shipper integration.
-- Reservation/booking table before arrival.
-- Inventory/ingredient stock deduction.
-- Training a custom AI model.
-- Multi-restaurant marketplace.
-
+- Cổng thanh toán thật.
+- Giao hàng thật hoặc tích hợp shipper.
+- Đặt bàn trước.
+- Quản lý tồn kho nguyên liệu.
+- Train custom AI model.
+- Marketplace nhiều nhà hàng.

@@ -1,22 +1,23 @@
-# API Contract
+# Hợp Đồng API
 
-Tai lieu nay la hop dong giua Backend, Frontend, AI va Realtime. Neu muon doi endpoint, field, enum hoac event payload, phai bao Lead va cap nhat tai lieu nay.
+Tài liệu này là hợp đồng giữa Backend, Frontend, AI và Realtime. Nếu muốn đổi endpoint, field, enum hoặc event payload, thành viên phải báo Lead và cập nhật tài liệu này trước khi sửa code.
 
-## 1. Common Rules
+## 1. Quy Tắc Chung
 
 - API base path: `/api`.
-- Response JSON dung camelCase.
-- Frontend khong goi `fetch` rai rac trong component; phai di qua service layer.
-- Backend khong tra truc tiep entity database neu response can on dinh; dung DTO.
-- Mock data frontend phai dung cung shape voi contract nay.
+- Response JSON dùng camelCase.
+- Frontend không gọi `fetch` rải rác trong component; phải đi qua service layer.
+- Backend không trả trực tiếp entity database nếu response cần ổn định; nên dùng DTO.
+- Mock data frontend phải dùng cùng shape với contract này.
+- Status name, route name và shared type không được tự ý đổi theo sở thích UI/backend.
 
 ## 2. Auth
 
 ### POST `/api/auth/register`
 
-Purpose: tao tai khoan customer.
+Mục đích: tạo tài khoản customer.
 
-Request draft:
+Request dự kiến:
 
 ```json
 {
@@ -26,7 +27,7 @@ Request draft:
 }
 ```
 
-Response draft:
+Response dự kiến:
 
 ```json
 {
@@ -39,7 +40,9 @@ Response draft:
 
 ### POST `/api/auth/login`
 
-Response draft:
+Mục đích: đăng nhập và nhận access token.
+
+Response dự kiến:
 
 ```json
 {
@@ -53,7 +56,7 @@ Response draft:
 }
 ```
 
-Roles:
+Vai trò:
 
 - `Customer`
 - `Staff`
@@ -64,9 +67,9 @@ Roles:
 
 ### GET `/api/tables/{tableCode}`
 
-Purpose: lay thong tin ban khi khach vao tu QR route `/table/:tableCode`.
+Mục đích: lấy thông tin bàn khi khách vào từ QR route `/table/:tableCode`.
 
-Response draft:
+Response dự kiến:
 
 ```json
 {
@@ -76,13 +79,19 @@ Response draft:
 }
 ```
 
+Quy tắc:
+
+- `tableCode` phải tồn tại.
+- Bàn phải đang active.
+- QR v1 có thể dùng `/table/:tableCode`; nếu cần bảo mật hơn có thể bổ sung `qrToken` ở phiên bản sau.
+
 ## 4. Menu
 
 ### GET `/api/menu`
 
-Purpose: lay menu cho customer, admin va chatbot.
+Mục đích: lấy menu cho customer, admin và chatbot.
 
-Response draft:
+Response dự kiến:
 
 ```json
 {
@@ -107,15 +116,15 @@ Response draft:
 }
 ```
 
-Menu item fields must stay aligned with frontend mocks and chatbot RAG data.
+Menu item fields phải giữ thống nhất với frontend mocks và dữ liệu RAG của chatbot.
 
 ## 5. Orders
 
 ### POST `/api/orders`
 
-Purpose: tao don tu QR dine-in, pickup hoac delivery mock.
+Mục đích: tạo đơn từ QR dine-in, pickup hoặc delivery mock.
 
-Request draft:
+Request dự kiến:
 
 ```json
 {
@@ -132,7 +141,7 @@ Request draft:
 }
 ```
 
-Response draft:
+Response dự kiến:
 
 ```json
 {
@@ -154,24 +163,26 @@ Response draft:
 }
 ```
 
-Business rules:
+Quy tắc nghiệp vụ:
 
-- Backend must reject unavailable menu items.
-- Customer can cancel only before order/item moves to `Preparing`.
-- `DineIn` requires valid active `tableCode`.
-- `DeliveryMock` requires delivery contact/address fields.
+- Backend phải từ chối món không còn hàng.
+- Customer chỉ được hủy trước khi đơn/món chuyển sang `Preparing`.
+- `DineIn` yêu cầu `tableCode` hợp lệ và đang active.
+- `DeliveryMock` yêu cầu thông tin người nhận và địa chỉ.
 
 ### GET `/api/orders/{orderCode}`
 
-Purpose: customer tracking screen.
+Mục đích: customer tracking screen.
 
-Response shape should match create order response plus timestamps and current item statuses.
+Response nên khớp với create order response, đồng thời bổ sung timestamps và trạng thái hiện tại của từng món.
 
 ## 6. Chat
 
 ### POST `/api/chat/sessions`
 
-Response draft:
+Mục đích: tạo phiên chat.
+
+Response dự kiến:
 
 ```json
 {
@@ -182,7 +193,9 @@ Response draft:
 
 ### POST `/api/chat/sessions/{chatSessionId}/messages`
 
-Request draft:
+Mục đích: gửi tin nhắn của khách và nhận phản hồi từ chatbot.
+
+Request dự kiến:
 
 ```json
 {
@@ -191,7 +204,7 @@ Request draft:
 }
 ```
 
-Response draft:
+Response dự kiến:
 
 ```json
 {
@@ -213,16 +226,16 @@ Response draft:
 }
 ```
 
-Rules:
+Quy tắc:
 
-- Chatbot can suggest cart actions.
-- Customer must confirm before item is added.
-- Chatbot cannot place order or pay.
-- Chatbot must not invent dishes, prices, or unavailable items.
+- Chatbot được đề xuất cart actions.
+- Customer phải xác nhận trước khi món được thêm vào giỏ.
+- Chatbot không được đặt đơn hoặc thanh toán.
+- Chatbot không được bịa món, giá hoặc món đã hết hàng.
 
 ## 7. SignalR Events
 
-Hub draft: `/hubs/orders`
+Hub dự kiến: `/hubs/orders`
 
 ### `order.created`
 
@@ -261,9 +274,9 @@ Hub draft: `/hubs/orders`
 }
 ```
 
-## 8. Error Shape
+## 8. Cấu Trúc Lỗi
 
-Draft:
+Dự kiến:
 
 ```json
 {
@@ -275,5 +288,4 @@ Draft:
 }
 ```
 
-Frontend must show user-friendly error messages and must not depend on database exception text.
-
+Frontend phải hiển thị thông báo thân thiện cho người dùng và không được phụ thuộc vào nội dung database exception.

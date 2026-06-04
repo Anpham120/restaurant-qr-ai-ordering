@@ -1,6 +1,6 @@
-# Team Workflow
+# Quy Trình Làm Việc Nhóm
 
-## 1. Team Ownership
+## 1. Phân Công Trách Nhiệm
 
 - `Anpham120`: Lead, Docs, DevOps, Testing, Integration, AI.
 - `buidaoducanh1210`: Backend.
@@ -8,38 +8,38 @@
 - `Tanh2k8-123`: Frontend.
 - `totototototoads`: Frontend.
 
-Moi tuan moi thanh vien co mot issue chinh. Moi issue co mot branch, mot PR va mot bao cao ket qua.
+Mỗi tuần mỗi thành viên có một issue chính. Mỗi issue phải có một branch, một Pull Request và một báo cáo kết quả.
 
-## 2. AI Agent Rules
+## 2. Quy Tắc Dùng AI Agent
 
-Moi thanh vien co the dung AI agent rieng, nhung agent phai doc:
+Mỗi thành viên có thể dùng AI agent riêng, nhưng agent phải đọc:
 
 - `README.md`
 - `docs/PROJECT_CONTEXT.md`
 - `docs/GIT_WORKFLOW.md`
 - `docs/TEAM_WORKFLOW.md`
 - `docs/API_CONTRACT.md`
-- Issue duoc giao
+- Issue được giao
 
-AI agent duoc phep:
+AI agent được phép:
 
-- Lam dung muc tieu issue.
-- Sua dung vung `Allowed Files / Areas`.
-- Tao test va tai lieu trong pham vi issue.
-- Bao cao neu can doi contract hoac scope.
+- Làm đúng mục tiêu issue.
+- Sửa đúng vùng `Allowed Files / Areas`.
+- Tạo test và tài liệu trong phạm vi issue.
+- Báo cáo nếu cần đổi contract hoặc scope.
 
-AI agent khong duoc phep:
+AI agent không được phép:
 
-- Push truc tiep vao `main` hoac `develop`.
-- Sua ngoai `Allowed Files / Areas`.
-- Sua vung `Do Not Touch`.
-- Doi API contract, status name, route, entity chung ma khong hoi Lead.
-- Xoa/refactor code cua thanh vien khac.
-- Tu y them feature moi ngoai issue.
+- Push trực tiếp vào `main` hoặc `develop`.
+- Sửa ngoài `Allowed Files / Areas`.
+- Sửa vùng `Do Not Touch`.
+- Đổi API contract, status name, route, entity chung mà không hỏi Lead.
+- Xóa hoặc refactor code của thành viên khác.
+- Tự ý thêm feature mới ngoài issue.
 
-## 3. Issue Standard
+## 3. Chuẩn Issue
 
-Moi issue phai co:
+Mỗi issue phải có:
 
 - Assignee.
 - Milestone.
@@ -55,52 +55,51 @@ Moi issue phai co:
 - Evidence required.
 - AI reviewer notes.
 
-Thay hoac AI reviewer co the dung cac muc tren de so sanh issue, commit va PR.
+Thầy hoặc AI reviewer có thể dùng các mục trên để so sánh issue, commit và Pull Request.
 
-## 4. Pull Request Standard
+## 4. Chuẩn Pull Request
 
-Moi PR phai:
+Mỗi Pull Request phải:
 
-- Target vao `develop`.
-- Link issue bang `Closes #<issue_number>`.
-- Co commit message ro rang.
-- Co test/build evidence.
-- Khong sua ngoai scope.
-- Co comment bao cao ket qua trong issue truoc khi review.
+- Target vào `develop`.
+- Link issue bằng `Closes #<issue_number>`.
+- Có commit message rõ ràng.
+- Có bằng chứng test/build.
+- Không sửa ngoài scope.
+- Có comment báo cáo kết quả trong issue trước khi review.
 
-Lead review truoc khi merge. Neu PR vuot scope, Lead co quyen yeu cau tach PR hoac rollback phan vuot scope.
+Lead review trước khi merge. Nếu PR vượt scope, Lead có quyền yêu cầu tách PR hoặc rollback phần vượt scope.
 
-## 5. Reporting Standard
+## 5. Chuẩn Báo Cáo
 
-Khi xong issue, thanh vien comment vao issue:
+Khi hoàn thành issue, thành viên comment vào issue:
 
 ```text
-## Bao cao ket qua
+## Báo cáo kết quả
 - Issue:
 - Branch:
 - PR:
-- Commit chinh:
-- Da lam:
-- File/chuc nang da thay doi:
-- Cach test:
-- Bang chung:
-- Phan chua lam / gioi han:
-- Co sua ngoai scope khong:
+- Commit chính:
+- Đã làm:
+- File/chức năng đã thay đổi:
+- Cách test:
+- Bằng chứng:
+- Phần chưa làm / giới hạn:
+- Có sửa ngoài scope không:
 ```
 
-Cuoi moi tuan Lead tong hop vao `docs/reports/week-N-report.md`.
+Cuối mỗi tuần Lead tổng hợp vào `docs/reports/week-N-report.md`.
 
-## 6. Contract Change Rule
+## 6. Quy Tắc Đổi Contract
 
-Neu can doi mot trong cac muc sau, phai comment hoi Lead:
+Nếu cần đổi một trong các mục sau, phải comment hỏi Lead:
 
 - API endpoint.
 - Request/response DTO.
 - Enum/status name.
 - Route frontend.
 - Shared type.
-- Database field dung chung.
+- Database field dùng chung.
 - SignalR event payload.
 
-Khong duoc tu y doi contract chi de lam UI hoac backend nhanh hon.
-
+Không được tự ý đổi contract chỉ để làm UI hoặc backend nhanh hơn.

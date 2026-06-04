@@ -1,60 +1,72 @@
 # Restaurant QR AI Ordering
 
-He thong dat do an va quan ly nha hang hybrid, ho tro khach quet QR tai ban, dat mon online, kitchen board realtime va chatbot AI tu van mon an.
+**Restaurant QR AI Ordering** là hệ thống đặt món và quản lý nhà hàng tích hợp chatbot AI. Dự án hướng tới một quy trình vận hành thực tế: khách quét mã QR tại bàn để đặt món, nhà hàng tiếp nhận và xử lý đơn, bếp cập nhật trạng thái từng món theo thời gian thực, khách theo dõi tiến độ món ăn, và chatbot AI hỗ trợ tư vấn món dựa trên menu/FAQ của nhà hàng.
 
-## Project Goals
+## Mục Tiêu Dự Án
 
-- Xay dung he thong dat mon hybrid: QR dine-in, pickup va delivery mock.
-- Cho khach theo doi trang thai tung mon theo realtime.
-- Cho nha hang cap nhat trang thai don/mon qua Staff va Kitchen board.
-- Tich hop chatbot AI dung LLM API + RAG tren menu/FAQ.
-- Trien khai production-like bang Docker/VPS, khong chi demo localhost.
-- Quan ly tien do bang GitHub milestones, issues, PR va bao cao tung thanh vien.
+- Xây dựng hệ thống đặt món hybrid gồm QR tại bàn, pickup và delivery mock.
+- Cho phép khách hàng theo dõi trạng thái từng món theo thời gian thực.
+- Cho phép nhân viên và bếp cập nhật trạng thái đơn/món qua màn hình vận hành.
+- Tích hợp chatbot AI sử dụng API mô hình ngôn ngữ lớn kết hợp RAG trên dữ liệu menu/FAQ.
+- Triển khai theo hướng production-like bằng Docker, VPS, Nginx và HTTPS.
+- Quản lý tiến độ bằng GitHub milestones, issues, pull requests, commits và báo cáo kết quả từng thành viên.
 
-## Tech Stack Du Kien
+## Công Nghệ Dự Kiến
 
 - Frontend: React + TypeScript
-- Backend: ASP.NET Core Web API, mo duoc bang Visual Studio 2026
+- Backend: ASP.NET Core Web API, mở và chạy được bằng Visual Studio 2026
 - Database: PostgreSQL + pgvector
 - Realtime: ASP.NET Core SignalR
-- AI: external LLM API + RAG dua tren menu/FAQ
+- AI: API mô hình ngôn ngữ lớn + RAG dựa trên menu/FAQ
 - Deployment: Docker + VPS + Nginx + HTTPS
 
-## Important Documents
+## Tài Liệu Quan Trọng
 
-- [Project Context](docs/PROJECT_CONTEXT.md)
-- [Git Workflow](docs/GIT_WORKFLOW.md)
-- [Team Workflow](docs/TEAM_WORKFLOW.md)
-- [API Contract](docs/API_CONTRACT.md)
-- [Weekly Report Template](docs/WEEKLY_REPORT_TEMPLATE.md)
+- [Ngữ cảnh dự án](docs/PROJECT_CONTEXT.md)
+- [Quy trình Git](docs/GIT_WORKFLOW.md)
+- [Quy trình làm việc nhóm](docs/TEAM_WORKFLOW.md)
+- [Hợp đồng API](docs/API_CONTRACT.md)
+- [Mẫu báo cáo tuần](docs/WEEKLY_REPORT_TEMPLATE.md)
 
-Moi thanh vien va AI agent phai doc cac tai lieu tren truoc khi code.
+Mọi thành viên và AI agent hỗ trợ lập trình phải đọc các tài liệu trên trước khi bắt đầu làm issue.
 
-## Branch Model
+## Mô Hình Nhánh
 
-Du an dung 3 tang nhanh:
+Dự án sử dụng ba tầng nhánh:
 
-- `main`: ban on dinh de demo, nop bai va deploy production.
-- `develop`: nhanh tich hop code cua ca nhom.
-- `issue-<number>/<github-username>-<short-task>`: nhanh ca nhan cho tung issue.
+- `main`: nhánh ổn định dùng để demo, nộp bài và triển khai production.
+- `develop`: nhánh tích hợp code của cả nhóm.
+- `issue-<number>/<github-username>-<short-task>`: nhánh cá nhân cho từng issue.
 
-Thanh vien khong push truc tiep vao `main` hoac `develop`. Moi thay doi phai di qua Pull Request vao `develop`.
+Không thành viên nào được push trực tiếp lên `main` hoặc `develop`. Mọi thay đổi phải đi qua Pull Request vào `develop`.
 
-## How To Contribute
+## Cách Đóng Góp
 
-1. Mo issue duoc giao va doc ky `Goal`, `Allowed files/areas`, `Do not touch`, `Acceptance criteria`.
-2. Cap nhat code moi nhat tu `develop`.
-3. Tao nhanh theo dung format: `issue-<number>/<github-username>-<short-task>`.
-4. Lam dung pham vi issue, khong sua file/vung cua thanh vien khac neu chua duoc Lead dong y.
-5. Commit theo Conventional Commits, vi du: `feat: add order placement api`.
-6. Push nhanh ca nhan va tao Pull Request vao `develop`.
-7. PR phai link issue bang `Closes #<issue_number>`.
-8. Comment bao cao ket qua trong issue truoc khi yeu cau review.
+1. Mở issue được giao và đọc kỹ `Goal`, `Allowed files / areas`, `Do not touch`, `Acceptance criteria`.
+2. Cập nhật code mới nhất từ `develop`.
+3. Tạo nhánh đúng format: `issue-<number>/<github-username>-<short-task>`.
+4. Chỉ làm đúng phạm vi issue, không sửa file hoặc vùng của thành viên khác nếu chưa được Lead đồng ý.
+5. Commit theo Conventional Commits, ví dụ: `feat: add order placement api`.
+6. Push nhánh cá nhân lên GitHub.
+7. Tạo Pull Request vào `develop`.
+8. PR phải link issue bằng `Closes #<issue_number>`.
+9. Comment báo cáo kết quả trong issue trước khi yêu cầu review.
 
-## Team
+## Thành Viên
 
-- Pham Duy An / `Anpham120`: Lead, Docs, DevOps, Testing, Integration, AI
-- Bui Dao Duc Anh / `buidaoducanh1210`: Backend
-- Nguyen Quang Hieu / `quanghieu1605`: Backend
-- Do Tuan Anh / `Tanh2k8-123`: Frontend
-- Le Anh / `totototototoads`: Frontend
+- Phạm Duy An / `Anpham120`: Lead, Docs, DevOps, Testing, Integration, AI
+- Bùi Đào Đức Anh / `buidaoducanh1210`: Backend
+- Nguyễn Quang Hiếu / `quanghieu1605`: Backend
+- Đỗ Tuấn Anh / `Tanh2k8-123`: Frontend
+- Lê Anh / `totototototoads`: Frontend
+
+## Nguyên Tắc Làm Việc Với AI Agent
+
+- AI agent chỉ được làm đúng phạm vi issue.
+- AI agent không được tự ý đổi API contract, route, enum trạng thái, shared type hoặc database field dùng chung.
+- Nếu cần sửa ngoài phạm vi issue, thành viên phải comment hỏi Lead trước.
+- Mỗi issue phải có branch, commit, PR và báo cáo kết quả rõ ràng để thầy hoặc AI reviewer đánh giá đóng góp.
+
+## Trạng Thái Hiện Tại
+
+Dự án đang ở giai đoạn nền tảng: thiết lập tài liệu quản trị, quy trình Git, hợp đồng API, milestones và issues cho 4 tuần phát triển.

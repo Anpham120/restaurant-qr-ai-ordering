@@ -1,45 +1,45 @@
-## Summary
+## Tóm Tắt
 
-- 
+-
 
-## Linked Issue
+## Issue Liên Quan
 
 Closes #
 
-## Scope Check
+## Kiểm Tra Phạm Vi
 
-- [ ] Branch tao tu `develop`.
-- [ ] Branch dung format `issue-<number>/<github-username>-<short-task>`.
-- [ ] PR merge vao `develop`, khong merge vao `main`.
-- [ ] PR link issue bang `Closes #<issue_number>`.
-- [ ] Chi sua file/vung duoc phep trong issue.
-- [ ] Khong sua file/vung nam trong `Do not touch`.
-- [ ] Neu co thay doi API/route/status/shared type, da cap nhat `docs/API_CONTRACT.md` va duoc Lead dong y.
+- [ ] Branch được tạo từ `develop`.
+- [ ] Branch đúng format `issue-<number>/<github-username>-<short-task>`.
+- [ ] PR merge vào `develop`, không merge vào `main`.
+- [ ] PR link issue bằng `Closes #<issue_number>`.
+- [ ] Chỉ sửa file/vùng được phép trong issue.
+- [ ] Không sửa file/vùng nằm trong `Do not touch`.
+- [ ] Nếu có thay đổi API/route/status/shared type, đã cập nhật `docs/API_CONTRACT.md` và được Lead đồng ý.
 
-## Test / Verification
+## Kiểm Thử / Xác Minh
 
-- [ ] Da chay test/build phu hop.
-- [ ] Da ghi ro lenh test/build da chay ben duoi.
-- [ ] Neu co UI, da dinh kem anh/video demo hoac mo ta man hinh.
+- [ ] Đã chạy test/build phù hợp.
+- [ ] Đã ghi rõ lệnh test/build đã chạy bên dưới.
+- [ ] Nếu có UI, đã đính kèm ảnh/video demo hoặc mô tả màn hình.
 
-Lenh da chay:
+Lệnh đã chạy:
 
 ```text
 
 ```
 
-## Result Report
+## Báo Cáo Kết Quả
 
-- [ ] Da comment bao cao ket qua trong issue.
-- [ ] Da ghi ro van de con ton tai neu co.
+- [ ] Đã comment báo cáo kết quả trong issue.
+- [ ] Đã ghi rõ vấn đề còn tồn tại nếu có.
 
-## AI Reviewer Checklist
+## Checklist Cho AI Reviewer
 
-- [ ] PR khong sua ngoai `Allowed files / areas`.
-- [ ] PR khong dung field/status/route khac `docs/API_CONTRACT.md`.
-- [ ] Commit message ro nghia, khong phai `update/fix/done`.
-- [ ] Evidence trong PR va issue du de danh gia dong gop.
+- [ ] PR không sửa ngoài `Allowed files / areas`.
+- [ ] PR không dùng field/status/route khác `docs/API_CONTRACT.md`.
+- [ ] Commit message rõ nghĩa, không phải `update/fix/done`.
+- [ ] Bằng chứng trong PR và issue đủ để đánh giá đóng góp.
 
-## Notes For Reviewer
+## Ghi Chú Cho Người Review
 
-- 
+-

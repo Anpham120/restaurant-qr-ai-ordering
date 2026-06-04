@@ -1,43 +1,43 @@
-# Git Workflow
+# Quy Trình Git
 
-Tai lieu nay quy dinh luong Git chuan cho du an Restaurant QR AI Ordering. Muc tieu la giup thay, Lead, thanh vien va AI agent cua tung thanh vien nhin ro: ai dang lam issue nao, code nam o nhanh nao, ket qua da bao cao chua.
+Tài liệu này quy định luồng Git chuẩn cho dự án **Restaurant QR AI Ordering**. Mục tiêu là giúp thầy, Lead, thành viên và AI agent của từng thành viên nhìn rõ: ai đang làm issue nào, code nằm ở nhánh nào, Pull Request nào, kết quả đã báo cáo chưa.
 
-## 1. Branch Model
+## 1. Mô Hình Nhánh
 
-Du an dung 3 tang nhanh:
+Dự án dùng ba tầng nhánh:
 
-- `main`: nhanh on dinh de demo, nop bai va deploy production.
-- `develop`: nhanh tich hop code cua ca nhom.
-- `issue-<number>/<github-username>-<short-task>`: nhanh ca nhan cho tung issue.
+- `main`: nhánh ổn định để demo, nộp bài và deploy production.
+- `develop`: nhánh tích hợp code của cả nhóm.
+- `issue-<number>/<github-username>-<short-task>`: nhánh cá nhân cho từng issue.
 
-Khong push truc tiep vao `main` hoac `develop`. Moi thay doi phai di qua Pull Request.
+Không push trực tiếp vào `main` hoặc `develop`. Mọi thay đổi phải đi qua Pull Request.
 
-## 2. Vai Tro Cua Tung Nhanh
+## 2. Vai Trò Của Từng Nhánh
 
 ### `main`
 
-- Chi chua code da on dinh.
-- Dung cho demo chinh thuc, deploy VPS va nop bao cao.
-- Chi nhan code tu PR `develop` -> `main`.
-- Lead `Anpham120` la nguoi review va merge cuoi cung.
+- Chỉ chứa code đã ổn định.
+- Dùng cho demo chính thức, deploy VPS và nộp báo cáo.
+- Chỉ nhận code từ PR `develop` -> `main`.
+- Lead `Anpham120` là người review và merge cuối cùng.
 
 ### `develop`
 
-- La nhanh tich hop tien do hang ngay cua nhom.
-- Tat ca issue branches merge vao `develop`.
-- Dung de test tich hop frontend, backend, AI va realtime.
+- Là nhánh tích hợp tiến độ hằng ngày của nhóm.
+- Tất cả issue branches merge vào `develop`.
+- Dùng để test tích hợp frontend, backend, AI và realtime.
 
-### Issue branch
+### Issue Branch
 
-- Tao tu `develop`, khong tao tu `main`.
-- Moi issue co mot branch rieng.
-- Format bat buoc:
+- Tạo từ `develop`, không tạo từ `main`.
+- Mỗi issue có một branch riêng.
+- Format bắt buộc:
 
 ```bash
 issue-<number>/<github-username>-<short-task>
 ```
 
-Vi du:
+Ví dụ:
 
 ```bash
 issue-3/quanghieu1605-efcore-menu-order
@@ -45,9 +45,9 @@ issue-7/tanh2k8-customer-cart
 issue-11/anpham120-rag-menu-faq
 ```
 
-## 3. Luong Lam Viec Chuan Cho Thanh Vien
+## 3. Luồng Làm Việc Chuẩn Cho Thành Viên
 
-Bat dau issue:
+Bắt đầu issue:
 
 ```bash
 git checkout develop
@@ -55,13 +55,13 @@ git pull origin develop
 git checkout -b issue-<number>/<github-username>-<short-task>
 ```
 
-Trong khi lam:
+Trong khi làm:
 
-- Chi sua file/vung duoc ghi trong `Allowed files/areas`.
-- Khong sua file/vung ghi trong `Do not touch`.
-- Neu can sua API contract, shared model, config chung hoac file cua nguoi khac, phai comment hoi Lead trong issue truoc.
+- Chỉ sửa file/vùng được ghi trong `Allowed files / areas`.
+- Không sửa file/vùng ghi trong `Do not touch`.
+- Nếu cần sửa API contract, shared model, config chung hoặc file của người khác, phải comment hỏi Lead trong issue trước.
 
-Hoan thanh issue:
+Hoàn thành issue:
 
 ```bash
 git status
@@ -70,44 +70,44 @@ git commit -m "feat: short description"
 git push origin issue-<number>/<github-username>-<short-task>
 ```
 
-Sau do tao Pull Request:
+Sau đó tạo Pull Request:
 
 - Base branch: `develop`
-- Compare branch: branch issue cua minh
-- PR description phai co `Closes #<issue_number>`
-- Dien day du checklist trong PR template
-- Comment bao cao ket qua vao issue
+- Compare branch: branch issue của mình
+- PR description phải có `Closes #<issue_number>`
+- Điền đầy đủ checklist trong PR template
+- Comment báo cáo kết quả vào issue
 
-## 4. Luong Merge
+## 4. Luồng Merge
 
-### Issue branch -> `develop`
+### Issue Branch -> `develop`
 
-Dung cho moi task hang ngay.
+Dùng cho mọi task hằng ngày.
 
-Dieu kien merge:
+Điều kiện merge:
 
-- PR dung base branch `develop`.
-- PR link issue bang `Closes #<issue_number>`.
-- Khong sua ngoai pham vi issue.
-- Da chay test/build phu hop.
-- Da comment bao cao ket qua trong issue.
-- Lead hoac nguoi duoc Lead chi dinh da review.
+- PR đúng base branch `develop`.
+- PR link issue bằng `Closes #<issue_number>`.
+- Không sửa ngoài phạm vi issue.
+- Đã chạy test/build phù hợp.
+- Đã comment báo cáo kết quả trong issue.
+- Lead hoặc người được Lead chỉ định đã review.
 
 ### `develop` -> `main`
 
-Chi thuc hien cuoi tuan hoac khi can demo.
+Chỉ thực hiện cuối tuần hoặc khi cần demo.
 
-Dieu kien merge:
+Điều kiện merge:
 
-- Cac issue trong milestone tuan da duoc tong hop.
-- Khong con loi nghiem trong.
-- Da chay test/build/integration.
-- Da co bao cao tuan.
-- Lead `Anpham120` merge cuoi cung.
+- Các issue trong milestone tuần đã được tổng hợp.
+- Không còn lỗi nghiêm trọng.
+- Đã chạy test/build/integration.
+- Đã có báo cáo tuần.
+- Lead `Anpham120` merge cuối cùng.
 
 ## 5. Conventional Commits
 
-Dung commit message ro nghia:
+Dùng commit message rõ nghĩa:
 
 ```bash
 feat: add customer order placement api
@@ -118,7 +118,7 @@ refactor: simplify menu query service
 chore: update docker compose config
 ```
 
-Khong dung commit mo ho:
+Không dùng commit mơ hồ:
 
 ```bash
 update
@@ -127,11 +127,11 @@ done
 new code
 ```
 
-## 6. Quy Tac Conflict
+## 6. Quy Tắc Xử Lý Conflict
 
-- Khong tu y resolve conflict o file ngoai pham vi issue.
-- Neu conflict lien quan file cua nguoi khac, comment vao issue/PR va tag Lead.
-- Truoc khi mo PR, nen cap nhat branch tu `develop`:
+- Không tự ý resolve conflict ở file ngoài phạm vi issue.
+- Nếu conflict liên quan file của người khác, comment vào issue/PR và tag Lead.
+- Trước khi mở PR, nên cập nhật branch từ `develop`:
 
 ```bash
 git checkout develop
@@ -140,53 +140,53 @@ git checkout issue-<number>/<github-username>-<short-task>
 git merge develop
 ```
 
-Neu merge conflict qua lon, dung lai va bao Lead, khong sua doan code khong hieu.
+Nếu merge conflict quá lớn, dừng lại và báo Lead, không sửa đoạn code không hiểu.
 
-## 7. Quy Tac Cho AI Agent
+## 7. Quy Tắc Cho AI Agent
 
-Khi moi thanh vien dung AI agent rieng, phai dua agent doc cac tai lieu sau truoc khi code:
+Khi mỗi thành viên dùng AI agent riêng, phải đưa agent đọc các tài liệu sau trước khi code:
 
 - `README.md`
+- `docs/PROJECT_CONTEXT.md`
 - `docs/GIT_WORKFLOW.md`
-- issue duoc giao
-- PR/issue lien quan neu co
+- issue được giao
+- PR/issue liên quan nếu có
 
-AI agent chi duoc:
+AI agent chỉ được:
 
-- Lam dung muc tieu issue.
-- Sua dung vung `Allowed files/areas`.
-- Bao cao neu can sua file ngoai pham vi.
+- Làm đúng mục tiêu issue.
+- Sửa đúng vùng `Allowed files / areas`.
+- Báo cáo nếu cần sửa file ngoài phạm vi.
 
-AI agent khong duoc:
+AI agent không được:
 
-- Push truc tiep vao `main` hoac `develop`.
-- Tu y sua API contract/shared model.
-- Tu y xoa/refactor code cua thanh vien khac.
-- Tu y thay doi scope issue.
+- Push trực tiếp vào `main` hoặc `develop`.
+- Tự ý sửa API contract/shared model.
+- Tự ý xóa hoặc refactor code của thành viên khác.
+- Tự ý thay đổi scope issue.
 
-## 8. Bao Cao Ket Qua Trong Issue
+## 8. Báo Cáo Kết Quả Trong Issue
 
-Truoc khi yeu cau review PR, thanh vien comment vao issue theo mau:
+Trước khi yêu cầu review PR, thành viên comment vào issue theo mẫu:
 
 ```text
-## Bao cao ket qua
-- Da lam:
-- File/chuc nang da thay doi:
-- Cach test:
-- Anh/video demo neu co:
-- Van de con ton tai:
-- PR lien quan:
+## Báo cáo kết quả
+- Đã làm:
+- File/chức năng đã thay đổi:
+- Cách test:
+- Ảnh/video demo nếu có:
+- Vấn đề còn tồn tại:
+- PR liên quan:
 ```
 
 ## 9. Checklist Nhanh
 
-Truoc khi mo PR:
+Trước khi mở PR:
 
-- [ ] Branch tao tu `develop`.
-- [ ] Branch dung format `issue-<number>/<github-username>-<short-task>`.
-- [ ] PR merge vao `develop`, khong merge vao `main`.
-- [ ] PR co `Closes #<issue_number>`.
-- [ ] Khong sua file ngoai pham vi issue.
-- [ ] Da chay test/build phu hop.
-- [ ] Da comment bao cao ket qua trong issue.
-
+- [ ] Branch tạo từ `develop`.
+- [ ] Branch đúng format `issue-<number>/<github-username>-<short-task>`.
+- [ ] PR merge vào `develop`, không merge vào `main`.
+- [ ] PR có `Closes #<issue_number>`.
+- [ ] Không sửa file ngoài phạm vi issue.
+- [ ] Đã chạy test/build phù hợp.
+- [ ] Đã comment báo cáo kết quả trong issue.
