@@ -20,6 +20,34 @@
 - AI: API mô hình ngôn ngữ lớn + RAG dựa trên menu/FAQ
 - Deployment: Docker + VPS + Nginx + HTTPS
 
+## Chạy Backend
+
+Backend được đặt trong thư mục `backend/` và được scaffold theo cấu trúc solution để mở trực tiếp bằng Visual Studio 2026.
+
+### Chạy bằng Visual Studio 2026
+
+1. Mở file `backend/RestaurantQrAiOrdering.sln`.
+2. Chọn project `RestaurantQrAiOrdering.Api` làm startup project.
+3. Chọn launch profile `https`.
+4. Chạy project và kiểm tra endpoint `GET /api/health`.
+
+### Chạy bằng .NET CLI
+
+```powershell
+dotnet restore backend/RestaurantQrAiOrdering.sln
+dotnet build backend/RestaurantQrAiOrdering.sln
+dotnet test backend/RestaurantQrAiOrdering.sln
+dotnet run --project backend/src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj --launch-profile https
+```
+
+Sau khi API chạy, kiểm tra health check:
+
+```powershell
+curl https://localhost:7296/api/health
+```
+
+Ghi chú: cấu hình Docker, Nginx, HTTPS production và VPS sẽ được bổ sung trong các issue DevOps riêng, không nằm trong phạm vi issue scaffold backend tuần 1.
+
 ## Tài Liệu Quan Trọng
 
 - [Ngữ cảnh dự án](docs/PROJECT_CONTEXT.md)
