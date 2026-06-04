@@ -30,7 +30,8 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
-        <div>
+        <div className="brand">
+          <span className="brand-mark">QR</span>
           <p className="eyebrow">Restaurant QR</p>
           <h1>AI Ordering</h1>
         </div>
@@ -62,4 +63,3 @@ export default function App() {
     </div>
   );
 }
-
