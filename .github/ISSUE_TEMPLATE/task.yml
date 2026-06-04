@@ -1,0 +1,154 @@
+name: Task Issue
+description: Giao viec theo tuan va theo thanh vien
+title: "[Week N] "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dien day du thong tin de thanh vien va AI agent hieu dung pham vi cong viec. Moi issue phai co branch rieng va PR rieng.
+
+  - type: input
+    id: assignee
+    attributes:
+      label: Assignee
+      description: GitHub username cua thanh vien phu trach.
+      placeholder: "Anpham120"
+    validations:
+      required: true
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      description: Tuan/milestone cua issue.
+      placeholder: "Week 1 - Foundation"
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Required branch name
+      description: Branch phai tao tu develop theo format issue-<number>/<github-username>-<short-task>.
+      placeholder: "issue-7/tanh2k8-customer-cart"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Muc tieu cu the cua issue.
+      placeholder: "Xay dung API tao don hang cho khach hang..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Business / technical context
+      description: Ngu canh nghiep vu/ky thuat can biet truoc khi lam.
+      placeholder: "Issue nay lien quan luong Customer dat mon va OrderStatus..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed
+    attributes:
+      label: Allowed files / areas
+      description: Chi duoc sua cac file hoac module trong muc nay.
+      placeholder: |
+        - backend/src/Orders/**
+        - backend/tests/Orders/**
+    validations:
+      required: true
+
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: Do not touch
+      description: File/vung khong duoc sua neu chua co dong y cua Lead.
+      placeholder: |
+        - frontend/**
+        - docs/API_CONTRACT.md
+        - database migrations cua issue khac
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Dieu kien de xem issue hoan thanh.
+      placeholder: |
+        - [ ] API tao don hang tra ve ma don va trang thai Placed.
+        - [ ] Khong cho dat mon da Unavailable.
+        - [ ] Co test cho truong hop thanh cong va that bai.
+    validations:
+      required: true
+
+  - type: textarea
+    id: test
+    attributes:
+      label: Required test / verification
+      description: Lenh test/build/check can chay truoc khi mo PR.
+      placeholder: |
+        - dotnet test
+        - npm run build
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: Bang chung thanh vien phai dua vao issue/PR de thay va AI reviewer danh gia dong gop.
+      placeholder: |
+        - PR link
+        - Commit chinh
+        - Test/build output
+        - Screenshot/video neu co UI
+        - Sample API response neu co backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Result report template
+      description: Khi lam xong, comment lai issue theo mau nay.
+      value: |
+        ## Bao cao ket qua
+        - Da lam:
+        - File/chuc nang da thay doi:
+        - Cach test:
+        - Anh/video demo neu co:
+        - Van de con ton tai:
+        - PR lien quan:
+    validations:
+      required: false
+
+  - type: textarea
+    id: ai_review
+    attributes:
+      label: AI reviewer notes
+      description: Huong dan cho thay hoac AI khac review PR cua issue nay.
+      value: |
+        Review this PR against:
+        - Allowed files / areas
+        - Do not touch
+        - Acceptance criteria
+        - docs/API_CONTRACT.md
+        - Required tests / verification
+        - Result report comment
+
+        Flag if:
+        - PR changes files outside scope
+        - API response or frontend type differs from contract
+        - Status names differ from agreed enums
+        - Feature is incomplete but marked done
+        - No evidence/test provided
+        - Commit messages are vague
+    validations:
+      required: false
