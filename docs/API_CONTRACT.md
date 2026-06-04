@@ -107,6 +107,12 @@ Quy tắc:
 - Bàn phải đang active.
 - QR v1 có thể dùng `/table/:tableCode`; nếu cần bảo mật hơn có thể bổ sung `qrToken` ở phiên bản sau.
 
+API issue 7 rules:
+
+- `tableCode` phai dung format `T01` den `T99`.
+- Neu format sai, tra `400` voi error code `TABLE_CODE_INVALID`.
+- Neu khong tim thay ban active, tra `404` voi error code `TABLE_NOT_FOUND`.
+
 ## 4. Menu
 
 ### GET `/api/menu`
@@ -129,6 +135,7 @@ Response dự kiến:
       "name": "Com ga xoi mo",
       "description": "Ga chien gion, com thom, dua chua.",
       "price": 45000,
+      "categoryId": "cat_main",
       "categoryName": "Mon chinh",
       "imageUrl": "https://example.com/com-ga.jpg",
       "isAvailable": true,
@@ -139,6 +146,110 @@ Response dự kiến:
 ```
 
 Menu item fields phải giữ thống nhất với frontend mocks và dữ liệu RAG của chatbot.
+
+API issue 7 rules:
+
+- Public menu tra ca mon available va unavailable, field `isAvailable` phai hien ro trang thai.
+- Public menu chi tra category dang active va item thuoc category dang active.
+- `price` phai lon hon `0`.
+- `name` va `categoryId` khong duoc rong.
+- `categoryId` phai ton tai va dang active khi tao/cap nhat menu item.
+
+### GET `/api/admin/categories`
+
+Response:
+
+```json
+[
+  {
+    "categoryId": "cat_main",
+    "name": "Mon chinh",
+    "displayOrder": 20,
+    "isActive": true,
+    "createdAt": "2026-06-04T00:00:00Z",
+    "updatedAt": "2026-06-04T00:00:00Z"
+  }
+]
+```
+
+### GET `/api/admin/categories/{categoryId}`
+
+Response: mot category theo shape cua `GET /api/admin/categories`.
+
+### POST `/api/admin/categories`
+
+Request:
+
+```json
+{
+  "name": "Mon chinh",
+  "displayOrder": 20,
+  "isActive": true
+}
+```
+
+Response: `201 Created` va category vua tao.
+
+### PUT `/api/admin/categories/{categoryId}`
+
+Request: cung shape voi `POST /api/admin/categories`.
+
+Response: category sau khi cap nhat.
+
+### DELETE `/api/admin/categories/{categoryId}`
+
+Response:
+
+- `204 No Content` neu xoa thanh cong.
+- `409` voi error code `CATEGORY_HAS_MENU_ITEMS` neu category con menu item.
+
+### GET `/api/admin/menu-items`
+
+Response: danh sach menu item theo shape item cua `GET /api/menu`.
+
+### GET `/api/admin/menu-items/{menuItemId}`
+
+Response: mot menu item theo shape item cua `GET /api/menu`.
+
+### POST `/api/admin/menu-items`
+
+Request:
+
+```json
+{
+  "categoryId": "cat_main",
+  "name": "Com ga xoi mo",
+  "description": "Ga chien gion, com thom, dua chua.",
+  "price": 45000,
+  "imageUrl": "https://example.com/com-ga.jpg",
+  "isAvailable": true,
+  "tags": ["pho bien"]
+}
+```
+
+Response: `201 Created` va menu item vua tao.
+
+### PUT `/api/admin/menu-items/{menuItemId}`
+
+Request: cung shape voi `POST /api/admin/menu-items`.
+
+Response: menu item sau khi cap nhat.
+
+### PATCH `/api/admin/menu-items/{menuItemId}/availability`
+
+Request:
+
+```json
+{
+  "isAvailable": false
+}
+```
+
+Response: menu item sau khi doi availability.
+
+### DELETE `/api/admin/menu-items/{menuItemId}`
+
+Response: `204 No Content` neu xoa thanh cong.
 
 ## 5. Orders
 
