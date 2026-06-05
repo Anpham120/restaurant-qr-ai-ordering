@@ -1,6 +1,11 @@
-import type { MenuCart } from "../../types";
+import type { MenuCart, TableCode } from "../../types";
 
 const CART_KEY = "cmc-restaurant-menu-cart";
+const ORDER_CONTEXT_KEY = "cmc-restaurant-order-context";
+
+export type CustomerOrderContext = {
+  tableCode?: TableCode;
+};
 
 export function loadMenuCart(): MenuCart {
   try {
@@ -13,5 +18,22 @@ export function loadMenuCart(): MenuCart {
 
 export function saveMenuCart(cart: MenuCart) {
   window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
+}
+
+export function clearMenuCart() {
+  window.localStorage.removeItem(CART_KEY);
+}
+
+export function loadOrderContext(): CustomerOrderContext {
+  try {
+    const rawContext = window.localStorage.getItem(ORDER_CONTEXT_KEY);
+    return rawContext ? (JSON.parse(rawContext) as CustomerOrderContext) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveOrderContext(context: CustomerOrderContext) {
+  window.localStorage.setItem(ORDER_CONTEXT_KEY, JSON.stringify(context));
 }
 
