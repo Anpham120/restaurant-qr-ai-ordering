@@ -1,42 +1,56 @@
 import { Link } from "react-router-dom";
-import { PageShell } from "./PageShell";
+import "../components/customer/customer-menu.css";
+import { menuItems } from "../mocks/menuItems";
 
 export function CustomerHomePage() {
   return (
-    <PageShell
-      eyebrow="Customer"
-      title="Welcome and table entry"
-      description="Landing shell for guests who arrive from QR codes or choose to browse the menu directly."
-      stats={[
-        { label: "Flow", value: "QR first", detail: "Table code starts the order" },
-        { label: "Scope", value: "Shell", detail: "No live API calls yet" },
-      ]}
-    >
-      <div className="action-row">
-        <Link className="button primary" to="/table/TABLE-01">
-          Open table flow
-        </Link>
-        <Link className="button" to="/menu">
-          Browse menu
-        </Link>
+    <section className="cmc-customer-page">
+      <header className="cmc-hero">
+        <div>
+          <p className="cmc-kicker">CMC Restaurant</p>
+          <h2>
+            Gọi món tại bàn <span>nhanh, ấm & dễ dùng</span>
+          </h2>
+          <p>
+            Trải nghiệm QR ordering phong cách cam đất sáng, thân thiện với mọi
+            lứa tuổi và sẵn sàng nối API ở các issue sau.
+          </p>
+          <div className="cmc-hero-actions">
+            <Link className="cmc-primary-link" to="/table/T-05">
+              Quét mã QR
+            </Link>
+            <Link className="cmc-secondary-link" to="/menu">
+              Xem thực đơn
+            </Link>
+          </div>
+        </div>
+        <div className="cmc-hero-collage" aria-label="Món nổi bật">
+          <img alt="Bò lúc lắc" src={menuItems[5].imageUrl} />
+          <img alt="Phở bò đặc biệt" src={menuItems[4].imageUrl} />
+          <img alt="Trà đào cam sả" src={menuItems[10].imageUrl} />
+        </div>
+      </header>
+
+      <div className="cmc-home-flow">
+        <span className="cmc-table-badge">Gọi món chỉ trong 3 bước</span>
+        <div className="cmc-home-steps">
+          <article className="cmc-step-card">
+            <span>Bước 1</span>
+            <h3>Quét mã bàn</h3>
+            <p>Khách vào đường dẫn QR của bàn để giữ đúng ngữ cảnh gọi món.</p>
+          </article>
+          <article className="cmc-step-card">
+            <span>Bước 2</span>
+            <h3>Chọn món</h3>
+            <p>Thực đơn có ảnh thật, lọc danh mục và tìm kiếm.</p>
+          </article>
+          <article className="cmc-step-card">
+            <span>Bước 3</span>
+            <h3>Xem giỏ hàng</h3>
+            <p>Cart summary mock hiển thị số món và tổng tiền.</p>
+          </article>
+        </div>
       </div>
-      <div className="panel-grid">
-        <article className="feature-panel">
-          <span className="panel-kicker">Step 1</span>
-          <h3>Scan table QR</h3>
-          <p>Guests land on `/table/:tableCode` before browsing the menu.</p>
-        </article>
-        <article className="feature-panel">
-          <span className="panel-kicker">Step 2</span>
-          <h3>Build cart</h3>
-          <p>Menu and cart shells are ready for later API integration.</p>
-        </article>
-        <article className="feature-panel">
-          <span className="panel-kicker">Step 3</span>
-          <h3>Track order</h3>
-          <p>Order status route is available for realtime updates later.</p>
-        </article>
-      </div>
-    </PageShell>
+    </section>
   );
 }
