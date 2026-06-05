@@ -1,100 +1,164 @@
-# Restaurant QR AI Ordering
+# CMC Restaurant - QR AI Ordering
 
-**Restaurant QR AI Ordering** là hệ thống đặt món và quản lý nhà hàng theo mô hình QR, tích hợp chatbot AI để tư vấn món ăn và hỗ trợ trải nghiệm khách hàng. Dự án hướng tới một quy trình vận hành gần thực tế: khách quét mã QR tại bàn, chọn món, theo dõi trạng thái đơn theo thời gian thực; nhân viên và bếp xử lý đơn qua màn hình vận hành; quản trị viên quản lý menu, bàn và đơn hàng.
+**CMC Restaurant - QR AI Ordering** là nền tảng đặt món tại bàn bằng QR dành cho nhà hàng, kết hợp menu điện tử, quản lý đơn hàng theo thời gian thực và chatbot AI hỗ trợ tư vấn món. Dự án mô phỏng một quy trình vận hành hiện đại: khách mở menu trên điện thoại, nhân viên theo dõi đơn, bếp cập nhật trạng thái chế biến và quản trị viên quản lý dữ liệu nhà hàng trên cùng một hệ thống.
 
-## Tổng Quan
+Mục tiêu của dự án không chỉ là một màn hình gọi món đẹp, mà là một bản demo đủ gần thực tế để trình bày cách một nhà hàng có thể số hóa luồng phục vụ từ lúc khách ngồi vào bàn đến khi đơn được xử lý.
 
-Trong nhiều nhà hàng, việc gọi món, ghi nhận đơn, chuyển thông tin xuống bếp và cập nhật trạng thái cho khách vẫn dễ bị chậm hoặc sai lệch. Dự án này giải quyết bài toán đó bằng một nền tảng thống nhất cho ba nhóm người dùng chính:
+## Điểm Nổi Bật
 
-- Khách hàng đặt món trực tiếp trên điện thoại qua QR hoặc trang menu.
-- Nhân viên và bếp tiếp nhận, chuẩn bị, cập nhật trạng thái món.
-- Quản trị viên quản lý menu, bàn, đơn hàng và dữ liệu vận hành.
+| Nhóm trải nghiệm | Giá trị chính |
+| --- | --- |
+| Khách hàng | Quét QR, xem menu, thêm món vào giỏ, gửi đơn và theo dõi trạng thái |
+| Nhân viên | Tiếp nhận đơn, kiểm tra bàn, hỗ trợ khách trong quá trình phục vụ |
+| Bếp | Xem danh sách món cần chuẩn bị và cập nhật tiến độ chế biến |
+| Quản trị viên | Quản lý menu, bàn, đơn hàng và trạng thái vận hành |
+| AI Chat | Tư vấn món, trả lời câu hỏi theo menu/FAQ và hỗ trợ lựa chọn nhanh |
+| DevOps | Kế hoạch CI/CD với auto-merge, merge queue, staging, production deploy và health check |
 
-Chatbot AI được dùng như một lớp hỗ trợ tư vấn món ăn, gợi ý lựa chọn theo nhu cầu của khách và khai thác dữ liệu menu/FAQ của nhà hàng.
+## Bài Toán
 
-## Trải Nghiệm Chính
+Trong nhiều nhà hàng, gọi món thủ công dễ gây chậm trễ, nhầm bàn, thiếu cập nhật giữa phục vụ và bếp, hoặc khiến khách phải chờ nhân viên trong những thao tác đơn giản. CMC Restaurant giải quyết vấn đề đó bằng một hệ thống thống nhất:
+
+- Khách tự gọi món trên điện thoại mà không cần cài app.
+- Đơn hàng được chuyển đến khu vực vận hành nhanh hơn.
+- Trạng thái đơn rõ ràng cho khách, nhân viên và bếp.
+- Menu, bàn và đơn hàng được quản lý tập trung.
+- Chatbot AI giúp khách chọn món tự nhiên hơn.
+
+## Luồng Sử Dụng Chính
+
+```mermaid
+flowchart LR
+  A["Khách quét QR tại bàn"] --> B["Xem menu điện tử"]
+  B --> C["Thêm món vào giỏ"]
+  C --> D["Gửi đơn hàng"]
+  D --> E["Nhân viên / bếp tiếp nhận"]
+  E --> F["Cập nhật trạng thái"]
+  F --> G["Khách theo dõi đơn"]
+  B --> H["AI Chat tư vấn món"]
+```
+
+## Tính Năng
 
 ### Khách Hàng
 
-- Quét QR tại bàn để mở menu theo đúng mã bàn.
-- Xem danh sách món ăn, đồ uống, giá và trạng thái còn hàng.
-- Thêm món vào giỏ hàng và xác nhận đặt món.
-- Theo dõi trạng thái đơn và từng món theo thời gian thực.
-- Hỏi chatbot AI để được tư vấn món theo khẩu vị, ngân sách hoặc số người.
+- Mở menu theo bàn bằng QR hoặc mã bàn.
+- Xem món ăn, đồ uống, giá và trạng thái còn hàng.
+- Thêm món vào giỏ và xác nhận đơn.
+- Theo dõi trạng thái đơn sau khi gửi.
+- Trò chuyện với AI để được gợi ý món phù hợp.
 
-### Nhân Viên Và Bếp
+### Vận Hành Nhà Hàng
 
-- Nhận đơn mới từ khách.
-- Cập nhật trạng thái chuẩn bị món.
-- Theo dõi các đơn đang chờ, đang làm, đã sẵn sàng hoặc đã phục vụ.
-- Giảm sai sót khi chuyển thông tin giữa khu vực phục vụ và bếp.
+- Màn hình nhân viên để theo dõi và xử lý đơn.
+- Màn hình bếp để quản lý danh sách món đang cần chuẩn bị.
+- Màn hình admin để quản lý menu, bàn và đơn hàng.
+- Trạng thái đơn hàng được thiết kế cho luồng phục vụ theo thời gian thực.
 
-### Quản Trị Viên
+### Nền Tảng Kỹ Thuật
 
-- Quản lý danh mục và món ăn.
-- Bật/tắt trạng thái còn hàng của món.
-- Quản lý bàn và mã QR.
-- Theo dõi đơn hàng và tình trạng vận hành.
+- Frontend React/TypeScript với các màn hình customer, staff, kitchen và admin.
+- Backend ASP.NET Core Web API với health endpoint, auth foundation, menu/table APIs.
+- Định hướng realtime bằng SignalR.
+- Tài liệu API, Git workflow, DevOps và deployment được tách trong thư mục `docs/`.
 
-## Chức Năng Nổi Bật
+## Kiến Trúc Tổng Quan
 
-- Đặt món tại bàn bằng QR.
-- Menu điện tử cho món ăn và đồ uống.
-- Giỏ hàng và xác nhận đơn.
-- Theo dõi trạng thái đơn theo thời gian thực.
-- Màn hình vận hành cho nhân viên, bếp và quản trị.
-- Chatbot AI tư vấn món dựa trên menu/FAQ.
-- Hướng triển khai production-like bằng Docker, VPS, Nginx và HTTPS.
-- Quy trình DevOps có CI/CD, health check, rollback và báo cáo triển khai.
+```mermaid
+flowchart TB
+  Customer["Customer Web App"] --> API["ASP.NET Core API"]
+  Staff["Staff / Kitchen / Admin UI"] --> API
+  API --> Auth["Auth & Roles"]
+  API --> Menu["Menu / Tables"]
+  API --> Realtime["Realtime Updates"]
+  API --> Data["Database Layer"]
+  API --> AI["External AI Provider"]
+```
 
-## Kiến Trúc Và Công Nghệ
+## Công Nghệ
 
 | Lớp | Công nghệ |
 | --- | --- |
 | Frontend | React, TypeScript, Vite |
 | Backend | ASP.NET Core Web API |
-| Realtime | ASP.NET Core SignalR |
-| Database | PostgreSQL, pgvector nếu dùng RAG |
-| AI | External LLM API kết hợp dữ liệu menu/FAQ |
-| Deployment | Docker, Docker Compose, VPS, Nginx, HTTPS |
-| CI/CD | GitHub Actions theo luồng `develop` và `main` |
+| Realtime | SignalR định hướng cho cập nhật đơn |
+| Auth | JWT/HMAC foundation, role-based access |
+| Testing | .NET integration tests, frontend build checks |
+| Deployment plan | GitHub Actions, Docker Compose, VPS, Nginx, HTTPS |
 
-## Luồng DevOps Dự Kiến
+## Chạy Dự Án Cục Bộ
 
-Dự án sử dụng định hướng DevOps Level 2.5 phù hợp phạm vi học thuật nhưng vẫn mô phỏng cách làm ngoài thực tế:
+### Yêu Cầu
 
-- Pull request vào `develop` phải chạy CI cho frontend và backend.
-- Khi code được merge/push vào `develop`, hệ thống tự triển khai staging nếu kiểm tra đạt.
-- Khi code được merge/push vào `main`, hệ thống tự chạy build, test và triển khai production nếu mọi kiểm tra đạt.
-- Sau khi `main` nhận code, không có bước bấm deploy hoặc duyệt deploy thủ công.
-- Health check, smoke check, monitoring cơ bản và rollback được ghi rõ trong tài liệu triển khai.
+- Node.js phù hợp với Vite/React toolchain.
+- .NET SDK phù hợp với solution backend.
+- Git.
 
-Chi tiết nằm tại:
+### Frontend
 
-- [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
-- [Tài liệu triển khai](docs/DEPLOYMENT.md)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Cấu Trúc Dự Án
+Build production:
+
+```bash
+cd frontend
+npm run build
+```
+
+### Backend
+
+```bash
+cd backend
+dotnet restore RestaurantQrAiOrdering.sln
+dotnet run --project src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj
+```
+
+Kiểm tra health endpoint:
+
+```bash
+curl https://localhost:<port>/api/health
+```
+
+Chạy test backend:
+
+```bash
+cd backend
+dotnet test RestaurantQrAiOrdering.sln
+```
+
+## Cấu Trúc Repository
 
 ```text
 .
-├── backend/          # ASP.NET Core API, solution và test backend
-├── frontend/         # React + TypeScript customer/admin/staff UI
-├── docs/             # Tài liệu nghiệp vụ, API, DevOps và báo cáo
-├── tools/            # Script kiểm tra hoặc hỗ trợ dự án
-└── site-demo/        # Tài nguyên demo nếu có
+├── backend/          # ASP.NET Core API, solution và integration tests
+├── frontend/         # React + TypeScript UI cho customer, staff, kitchen, admin
+├── docs/             # Tài liệu nghiệp vụ, API, Git, DevOps và deployment
+├── site-demo/        # Tài nguyên demo nếu có
+└── tools/            # Script kiểm tra hoặc hỗ trợ dự án
 ```
-
-## Tài Liệu
-
-- [Ngữ cảnh dự án](docs/PROJECT_CONTEXT.md)
-- [Hợp đồng API](docs/API_CONTRACT.md)
-- [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
-- [Tài liệu triển khai](docs/DEPLOYMENT.md)
-- [Quy trình Git](docs/GIT_WORKFLOW.md)
-- [Quy trình làm việc nhóm](docs/TEAM_WORKFLOW.md)
-- [Mẫu báo cáo tuần](docs/WEEKLY_REPORT_TEMPLATE.md)
 
 ## Trạng Thái Dự Án
 
-Dự án đang được phát triển theo từng issue và milestone. Mục tiêu cuối là có một bản demo nhà hàng CMC Restaurant đủ rõ để trình bày luồng QR ordering, quản lý menu/đơn hàng, vận hành bếp/nhân viên, chatbot AI và quy trình triển khai tự động.
+Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng issue. Các phần frontend, backend API foundation, auth/menu/table APIs và tài liệu vận hành đã có trong repo. Luồng DevOps chuyên nghiệp đã được chốt ở mức kế hoạch: required checks, merge queue, auto-merge, staging deploy, promote production, production deploy, health check và rollback. Pipeline CI/CD thật sẽ chỉ được xem là hoàn thành khi có workflow GitHub Actions và bằng chứng chạy thực tế.
+
+## Tài Liệu Liên Quan
+
+- [Ngữ cảnh dự án](docs/PROJECT_CONTEXT.md)
+- [Hợp đồng API](docs/API_CONTRACT.md)
+- [Quy trình Git](docs/GIT_WORKFLOW.md)
+- [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
+- [Tài liệu triển khai](docs/DEPLOYMENT.md)
+- [Quy trình làm việc nhóm](docs/TEAM_WORKFLOW.md)
+- [Mẫu báo cáo tuần](docs/WEEKLY_REPORT_TEMPLATE.md)
+
+## Định Hướng Tiếp Theo
+
+- Hoàn thiện luồng đặt món từ QR đến đơn hàng.
+- Đồng bộ realtime cho trạng thái đơn giữa khách, nhân viên và bếp.
+- Hoàn thiện chatbot AI theo dữ liệu menu/FAQ.
+- Triển khai CI/CD thật theo kế hoạch DevOps đã chốt.
+- Chuẩn hóa bằng chứng demo, health check và báo cáo triển khai.
