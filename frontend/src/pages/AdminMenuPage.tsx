@@ -4,20 +4,24 @@ export function AdminMenuPage() {
   return (
     <PageShell
       eyebrow="Admin"
-      title="Menu management shell"
-      description="Placeholder for creating, editing, hiding, and reordering menu items."
+      title="Quản lý thực đơn"
+      description="Điều chỉnh món ăn, danh mục, giá bán và trạng thái còn món theo nhận diện CMC."
       variant="admin"
       stats={[
-        { label: "Menu items", value: "18", detail: "Static management preview" },
-        { label: "Unavailable", value: "2", detail: "Visibility shell" },
+        { label: "Món đang bán", value: "18", detail: "Dữ liệu mẫu thực đơn" },
+        { label: "Tạm hết", value: "2", detail: "Cần ẩn trên menu khách" },
       ]}
     >
       <div className="panel-grid">
-        {["Categories", "Availability", "Pricing"].map((item) => (
+        {[
+          ["Danh mục", "Sắp xếp món theo nhóm để khách dễ tìm trên menu."],
+          ["Trạng thái món", "Bật/tắt còn món và nổi bật món nên gợi ý."],
+          ["Giá bán", "Kiểm tra giá hiển thị trước khi đồng bộ API."],
+        ].map(([item, detail]) => (
           <article className="feature-panel" key={item}>
-            <span className="panel-kicker">Admin</span>
+            <span className="panel-kicker">CMC Menu</span>
             <h3>{item}</h3>
-            <p>Placeholder card for future menu operations.</p>
+            <p>{detail}</p>
           </article>
         ))}
       </div>

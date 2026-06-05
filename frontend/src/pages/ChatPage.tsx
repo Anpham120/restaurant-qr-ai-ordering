@@ -3,19 +3,19 @@ import { PageShell } from "./PageShell";
 export function ChatPage() {
   return (
     <PageShell
-      eyebrow="Chatbot"
-      title="AI assistant shell"
-      description="Placeholder for chatbot sessions and messages aligned with the chat API contract."
+      eyebrow="AI Chat"
+      title="Trợ lý gọi món CMC"
+      description="Khung hỏi đáp gợi ý món ăn, khẩu vị và hỗ trợ đơn hàng theo nhận diện CMC."
       variant="chat"
       stats={[
-        { label: "Session", value: "Draft", detail: "No provider connected" },
-        { label: "Endpoint", value: "Chat", detail: "Contract shell only" },
+        { label: "Phiên chat", value: "Mock", detail: "Chưa nối provider" },
+        { label: "Ngữ cảnh", value: "Menu", detail: "Sẵn sàng nối API chat" },
       ]}
     >
       <div className="chat-shell">
-        <div className="message assistant">Ask about menu items, allergens, or order help.</div>
-        <div className="message customer">Can you suggest something light?</div>
-        <div className="message assistant">This is a static preview; AI integration comes later.</div>
+        <div className="message assistant">Bạn muốn món nhẹ, món no hay đồ uống mát?</div>
+        <div className="message customer">Gợi ý cho tôi món thanh nhẹ.</div>
+        <div className="message assistant">Gỏi cuốn tôm thịt và trà đào cam sả là cặp gợi ý hợp lý.</div>
       </div>
     </PageShell>
   );

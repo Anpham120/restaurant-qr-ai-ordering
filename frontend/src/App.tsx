@@ -9,13 +9,13 @@ const customerLinks = [
 ];
 
 const operationsLinks = [
-  { to: "/login", text: "Login" },
-  { to: "/admin", text: "Admin" },
-  { to: "/admin/menu", text: "Admin Menu" },
-  { to: "/admin/orders", text: "Admin Orders" },
-  { to: "/admin/tables", text: "QR Tables" },
-  { to: "/staff/orders", text: "Staff Orders" },
-  { to: "/kitchen", text: "Kitchen" },
+  { to: "/login", text: "Đăng nhập" },
+  { to: "/admin", text: "Tổng quan" },
+  { to: "/admin/menu", text: "Thực đơn" },
+  { to: "/admin/orders", text: "Đơn hàng" },
+  { to: "/admin/tables", text: "Bàn & QR" },
+  { to: "/staff/orders", text: "Nhân viên" },
+  { to: "/kitchen", text: "Bếp" },
 ];
 
 export default function App() {
@@ -63,16 +63,16 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell operations-shell">
       <aside className="sidebar" aria-label="Primary navigation">
         <div className="brand">
           <span className="brand-mark">CMC</span>
           <p className="eyebrow">Restaurant</p>
-          <h1>CMC Operations</h1>
+          <h1>Operations</h1>
         </div>
         <nav className="nav-groups">
           <section className="nav-group">
-            <h2>Operations</h2>
+            <h2>CMC Control</h2>
             <div className="nav-links">
               {operationsLinks.map((link) => (
                 <NavLink

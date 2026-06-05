@@ -4,12 +4,12 @@ export function KitchenPage() {
   return (
     <PageShell
       eyebrow="Kitchen"
-      title="Kitchen board shell"
-      description="Placeholder for realtime kitchen item queues and preparation status changes."
+      title="Bảng bếp CMC"
+      description="Hàng đợi chế biến cho bếp, giữ trạng thái món rõ ràng và dễ đọc trong giờ cao điểm."
       variant="kitchen"
       stats={[
-        { label: "Preparing", value: "6", detail: "Kitchen queue shell" },
-        { label: "Ready", value: "2", detail: "Future SignalR events" },
+        { label: "Đang chế biến", value: "6", detail: "Theo dõi theo lane" },
+        { label: "Sẵn sàng", value: "2", detail: "Chờ nhân viên phục vụ" },
       ]}
     >
       <div className="kitchen-board">
@@ -17,11 +17,11 @@ export function KitchenPage() {
           <section className="kitchen-lane" key={status}>
             <h3>{status}</h3>
             <article className="kitchen-ticket">
-              <strong>Bruschetta x2</strong>
+              <strong>Bò lúc lắc x2</strong>
               <p>Table T-05</p>
             </article>
             <article className="kitchen-ticket">
-              <strong>Soup of the Day x1</strong>
+              <strong>Gỏi cuốn tôm thịt x1</strong>
               <p>Table T-07</p>
             </article>
           </section>
