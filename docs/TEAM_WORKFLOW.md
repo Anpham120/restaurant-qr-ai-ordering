@@ -1,6 +1,41 @@
 # Quy Trình Làm Việc Nhóm
 
-## 1. Phân Công Trách Nhiệm
+Tài liệu này mô tả cách nhóm phối hợp khi phát triển **Restaurant QR AI Ordering**. README dùng để giới thiệu dự án; tài liệu này dùng cho phân công, review, báo cáo và phối hợp với AI agent.
+
+## 1. Vai Trò Chính
+
+### Lead
+
+- Điều phối milestone, issue và phạm vi công việc.
+- Review scope trước khi merge các thay đổi quan trọng.
+- Duyệt release từ `develop` sang `main`.
+- Đảm bảo tài liệu, demo và báo cáo cuối cùng nhất quán.
+
+### Developer
+
+- Làm issue được giao trên branch riêng.
+- Giữ thay đổi trong đúng phạm vi issue.
+- Chạy build/test phù hợp trước khi yêu cầu review.
+- Không deploy production thủ công.
+- Không giữ production secrets.
+
+### Reviewer
+
+- Kiểm tra scope, logic, UI/API contract và bằng chứng test.
+- Ưu tiên phát hiện lỗi, regression, thiếu test hoặc sửa ngoài phạm vi.
+- Không merge nếu PR thiếu evidence hoặc vi phạm issue.
+
+### DevOps / Release Owner
+
+- Sở hữu CI/CD, branch protection, secrets và release workflow.
+- Cấu hình staging deployment từ `develop`.
+- Cấu hình production build-test-deploy từ `main`.
+- Theo dõi health check, smoke check, monitoring và rollback.
+- Ghi deployment/release report.
+
+DevOps không đồng nghĩa với "developer tự deploy từ máy cá nhân". Developer tập trung viết và kiểm thử code; DevOps/Release Owner sở hữu hệ thống triển khai.
+
+## 2. Phân Công Theo Khu Vực
 
 - `Anpham120`: Lead, Docs, DevOps, Testing, Integration, AI.
 - `buidaoducanh1210`: Backend.
@@ -8,71 +43,38 @@
 - `Tanh2k8-123`: Frontend.
 - `totototototoads`: Frontend.
 
-Mỗi tuần mỗi thành viên có một issue chính. Mỗi issue phải có một branch, một Pull Request và một báo cáo kết quả.
+Nếu issue thay đổi người phụ trách hoặc phạm vi, ưu tiên thông tin mới nhất trong GitHub issue.
 
-## 2. Quy Tắc Dùng AI Agent
+## 3. Vòng Đời Issue
 
-Mỗi thành viên có thể dùng AI agent riêng, nhưng agent phải đọc:
+1. Lead tạo hoặc cập nhật issue.
+2. Issue ghi rõ mục tiêu, phạm vi file, điều không được chạm và tiêu chí hoàn thành.
+3. Người phụ trách tạo branch issue từ `develop`.
+4. Người phụ trách làm đúng scope.
+5. Người phụ trách chạy build/test phù hợp.
+6. Người phụ trách mở PR vào `develop`.
+7. Reviewer kiểm tra và yêu cầu sửa nếu cần.
+8. Khi CI đạt và có approval, PR có thể auto-merge.
+9. Sau khi merge vào `develop`, staging deployment tự chạy nếu workflow đã cấu hình.
+10. Issue chỉ được đóng khi có bằng chứng hoàn thành.
 
-- `README.md`
-- `docs/PROJECT_CONTEXT.md`
-- `docs/GIT_WORKFLOW.md`
-- `docs/TEAM_WORKFLOW.md`
-- `docs/API_CONTRACT.md`
-- Issue được giao
+## 4. Release Và Production
 
-AI agent được phép:
+Release production không đi thẳng từ issue branch.
 
-- Làm đúng mục tiêu issue.
-- Sửa đúng vùng `Allowed Files / Areas`.
-- Tạo test và tài liệu trong phạm vi issue.
-- Báo cáo nếu cần đổi contract hoặc scope.
+Luồng đúng:
 
-AI agent không được phép:
+1. Các issue merge vào `develop`.
+2. `develop` được kiểm tra trên staging.
+3. Lead/DevOps tạo PR từ `develop` sang `main`.
+4. Release PR phải pass CI và có approval.
+5. Sau khi code vào `main`, production build-test-deploy tự chạy.
+6. Không có bước duyệt deploy thủ công sau khi `main` nhận code.
+7. DevOps kiểm tra health/smoke check và ghi báo cáo.
 
-- Push trực tiếp vào `main` hoặc `develop`.
-- Sửa ngoài `Allowed Files / Areas`.
-- Sửa vùng `Do Not Touch`.
-- Đổi API contract, status name, route, entity chung mà không hỏi Lead.
-- Xóa hoặc refactor code của thành viên khác.
-- Tự ý thêm feature mới ngoài issue.
+## 5. Báo Cáo Kết Quả Issue
 
-## 3. Chuẩn Issue
-
-Mỗi issue phải có:
-
-- Assignee.
-- Milestone.
-- Required branch.
-- Goal.
-- Context.
-- Scope of work.
-- Step-by-step tasks.
-- Allowed files/areas.
-- Do not touch.
-- Acceptance criteria.
-- Required test/verification.
-- Evidence required.
-- AI reviewer notes.
-
-Thầy hoặc AI reviewer có thể dùng các mục trên để so sánh issue, commit và Pull Request.
-
-## 4. Chuẩn Pull Request
-
-Mỗi Pull Request phải:
-
-- Target vào `develop`.
-- Link issue bằng `Closes #<issue_number>`.
-- Có commit message rõ ràng.
-- Có bằng chứng test/build.
-- Không sửa ngoài scope.
-- Có comment báo cáo kết quả trong issue trước khi review.
-
-Lead review trước khi merge. Nếu PR vượt scope, Lead có quyền yêu cầu tách PR hoặc rollback phần vượt scope.
-
-## 5. Chuẩn Báo Cáo
-
-Khi hoàn thành issue, thành viên comment vào issue:
+Mỗi issue nên có báo cáo ngắn:
 
 ```text
 ## Báo cáo kết quả
@@ -83,23 +85,40 @@ Khi hoàn thành issue, thành viên comment vào issue:
 - Đã làm:
 - File/chức năng đã thay đổi:
 - Cách test:
-- Bằng chứng:
-- Phần chưa làm / giới hạn:
+- Bằng chứng build/test:
+- Bằng chứng CI/CD nếu có:
 - Có sửa ngoài scope không:
+- Phần chưa làm / giới hạn:
 ```
 
-Cuối mỗi tuần Lead tổng hợp vào `docs/reports/week-N-report.md`.
+## 6. Quy Tắc Khi Dùng AI Agent
 
-## 6. Quy Tắc Đổi Contract
+AI agent chỉ là công cụ hỗ trợ người phụ trách issue. Người phụ trách vẫn chịu trách nhiệm cuối cùng về scope, test và báo cáo.
 
-Nếu cần đổi một trong các mục sau, phải comment hỏi Lead:
+AI agent phải:
 
-- API endpoint.
-- Request/response DTO.
-- Enum/status name.
-- Route frontend.
-- Shared type.
-- Database field dùng chung.
-- SignalR event payload.
+- Đọc issue và tài liệu liên quan trước khi sửa.
+- Làm đúng phạm vi issue.
+- Không tự ý sửa file ngoài scope.
+- Không tự ý đổi API contract, enum, database schema hoặc shared type.
+- Không commit secrets thật.
+- Báo rõ test đã chạy và test chưa chạy.
 
-Không được tự ý đổi contract chỉ để làm UI hoặc backend nhanh hơn.
+AI agent không được:
+
+- Tự nhận đã hoàn thành khi chưa có bằng chứng.
+- Merge hoặc đóng issue khi chưa được yêu cầu.
+- Revert thay đổi của người khác nếu chưa được phép.
+- Tạo tài liệu mơ hồ chỉ để đủ hình thức.
+
+## 7. Checklist Review
+
+- [ ] PR đúng issue và đúng branch.
+- [ ] Diff không vượt scope.
+- [ ] Không có secrets thật.
+- [ ] Frontend build pass nếu có sửa frontend.
+- [ ] Backend restore/build/test pass nếu có sửa backend.
+- [ ] CI pass hoặc có lý do rõ nếu CI chưa kích hoạt.
+- [ ] DevOps evidence đầy đủ nếu PR liên quan deployment.
+- [ ] Báo cáo issue/PR đủ thông tin.
+- [ ] README không bị biến thành tài liệu nội bộ của team/agent.

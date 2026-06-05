@@ -1,58 +1,58 @@
 # Mẫu Báo Cáo Tuần
 
-Sao chép template này thành `docs/reports/week-N-report.md` vào cuối mỗi tuần.
+## 1. Thông Tin Chung
 
-## Week N - Tên Milestone
+- Tuần:
+- Thời gian:
+- Milestone:
+- Người báo cáo:
 
-Milestone:
+## 2. Mục Tiêu Tuần
 
-Khoảng thời gian:
-
-Lead:
-
-## 1. Tóm Tắt
-
-- Mục tiêu tuần:
-- Kết quả đạt được:
-- Demo có thể chạy:
-- Rủi ro còn lại:
-
-## 2. Tiến Độ Thành Viên
-
-| Thành viên | Issue | PR | Trạng thái | Bằng chứng |
-| --- | --- | --- | --- | --- |
-| Anpham120 | # | PR link | Done/In progress/Blocked | Test/build/screenshot |
-| buidaoducanh1210 | # | PR link | Done/In progress/Blocked | Test/build/screenshot |
-| quanghieu1605 | # | PR link | Done/In progress/Blocked | Test/build/screenshot |
-| Tanh2k8-123 | # | PR link | Done/In progress/Blocked | Test/build/screenshot |
-| totototototoads | # | PR link | Done/In progress/Blocked | Test/build/screenshot |
+- Mục tiêu chính:
+- Issue cần hoàn thành:
+- Phạm vi không làm trong tuần:
 
 ## 3. Công Việc Đã Hoàn Thành
 
--
+| Issue | Người phụ trách | Branch | PR | Kết quả |
+| --- | --- | --- | --- | --- |
+| # |  |  |  |  |
 
-## 4. Ghi Chú Tích Hợp
+## 4. Bằng Chứng Kỹ Thuật
 
-- Thay đổi API contract:
-- Mismatch frontend/backend:
-- Ghi chú realtime/AI:
-- Việc cần theo dõi tiếp:
+- Build frontend:
+- Build/test backend:
+- CI run:
+- Staging deploy:
+- Production deploy:
+- Health/smoke check:
+- No-secrets check:
 
-## 5. Bằng Chứng Kiểm Thử
+## 5. DevOps Và Release
 
-- Backend:
-- Frontend:
-- Integration:
-- Deployment:
+- Branch protection đã áp dụng hay mới document:
+- Auto-merge đã cấu hình hay mới document:
+- `develop` có staging auto-deploy:
+- `main` có production build-test-deploy tự động:
+- Có manual deploy sau khi `main` nhận code không:
+- Rollback đã test hay mới document:
+- Monitoring đã cấu hình hay mới document:
 
-## 6. Ảnh Chụp / Demo Evidence
+## 6. Vấn Đề Và Rủi Ro
 
--
+- Lỗi phát sinh:
+- Cách xử lý:
+- Rủi ro còn lại:
+- Việc cần Lead/DevOps quyết định:
 
-## 7. Blockers
+## 7. Kế Hoạch Tuần Tiếp Theo
 
--
+- Việc ưu tiên:
+- Issue dự kiến:
+- Kiểm thử cần bổ sung:
+- Demo cần chuẩn bị:
 
-## 8. Kế Hoạch Tuần Sau
+## 8. Kết Luận
 
--
+Tóm tắt ngắn gọn tiến độ, mức độ hoàn thành milestone và những bằng chứng quan trọng nhất.
