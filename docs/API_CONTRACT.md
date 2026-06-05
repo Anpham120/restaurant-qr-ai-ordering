@@ -1,17 +1,22 @@
 # Hợp Đồng API
 
-Tài liệu này là hợp đồng giữa Backend, Frontend, AI và Realtime. Nếu muốn đổi endpoint, field, enum hoặc event payload, thành viên phải báo Lead và cập nhật tài liệu này trước khi sửa code.
+Tài liệu này là hợp đồng giữa Backend, Frontend, AI và Realtime. Nếu muốn đổi endpoint, field, enum, error code hoặc event payload, thành viên phải báo Lead và cập nhật tài liệu này trước khi sửa code.
+
+Phạm vi cập nhật tuần 2 của issue #10: khóa contract cho auth, menu, tables, order creation, order detail, error shape, shared enum/status names, seed data plan và checklist tích hợp thủ công. Đây là thay đổi tài liệu, không implement feature code.
 
 ## 1. Quy Tắc Chung
 
 - API base path: `/api`.
-- Response JSON dùng camelCase.
+- Response JSON dùng `camelCase`.
+- Thời gian dùng ISO 8601 UTC, ví dụ `2026-06-05T10:30:00Z`.
+- Tiền tệ dùng VND, field amount/price là số nguyên hoặc decimal không âm theo DTO backend.
 - Frontend không gọi `fetch` rải rác trong component; phải đi qua service layer.
-- Backend không trả trực tiếp entity database nếu response cần ổn định; nên dùng DTO.
-- Mock data frontend phải dùng cùng shape với contract này.
-- Status name, route name và shared type không được tự ý đổi theo sở thích UI/backend.
+- Backend không trả trực tiếp entity database nếu response cần ổn định; dùng DTO để giữ contract.
+- Mock data frontend phải dùng cùng shape, enum và mã lỗi với contract này.
+- Status name, route name, shared type và error code không được tự ý đổi theo sở thích UI/backend.
+- Những endpoint chưa implement xong vẫn phải bám contract này khi member triển khai.
 
-## 1.1. Backend Setup Tuần 1
+### 1.1. Backend Setup Tuần 1
 
 - Solution backend: `backend/RestaurantQrAiOrdering.sln`.
 - API project: `backend/src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj`.
@@ -31,9 +36,77 @@ Response health check dự kiến:
 }
 ```
 
-Endpoint này chỉ dùng để xác nhận API chạy được trong Visual Studio, .NET CLI và test integration. Không thêm logic Auth, Menu, Orders, Chat, AI hoặc Realtime trong issue scaffold backend.
+Endpoint này chỉ dùng để xác nhận API chạy được trong Visual Studio, .NET CLI và test integration. Không gắn thêm logic Auth, Menu, Orders, Chat, AI hoặc Realtime vào health check.
 
-## 2. Auth
+## 2. Shared Enum / Status Names
+
+Các enum dưới đây là tên chuẩn cho backend DTO, frontend TypeScript type, mock data, seed data, SignalR event và báo cáo test.
+
+| Nhóm | Giá trị hợp lệ | Ghi chú |
+| --- | --- | --- |
+| `UserRole` | `Customer`, `Staff`, `Kitchen`, `Admin` | `Customer` tự đăng ký; các role vận hành do seed/admin tạo. |
+| `OrderType` | `DineIn`, `Pickup`, `DeliveryMock` | `DineIn` bắt buộc có `tableCode`; `DeliveryMock` bắt buộc có `deliveryInfo`. |
+| `OrderStatus` | `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`, `Cancelled` | UI có thể chỉ dùng subset, nhưng không được đổi tên. |
+| `OrderItemStatus` | `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled` | Trạng thái theo từng món trên kitchen/staff/customer tracking. |
+| `PaymentMethod` | `COD`, `MockOnline` | Chưa tích hợp cổng thanh toán thật trong v1. |
+| `PaymentStatus` | `Unpaid`, `Paid`, `Failed`, `Cancelled` | Không dùng `Pending` cho payment trong contract API. |
+| `ChatRole` | `user`, `assistant`, `system` | Dùng cho chatbot message. |
+| `TableCode` | `T01` đến `T99` | Tuần 2 seed tối thiểu `T01` đến `T08`; không dùng dạng `T-05`. |
+
+Quy tắc đặt tên:
+
+- Enum value dùng PascalCase, trừ `ChatRole` theo chuẩn message role viết thường.
+- Error code dùng UPPER_SNAKE_CASE.
+- ID seed menu dùng dạng `m_001`; category dùng dạng `cat_main`; order code dùng dạng `ORD-1001`.
+
+## 3. Error Shape Chuẩn
+
+Tất cả lỗi business/validation nên trả cùng shape:
+
+```json
+{
+  "error": {
+    "code": "MENU_ITEM_UNAVAILABLE",
+    "message": "Menu item is unavailable.",
+    "details": {}
+  }
+}
+```
+
+Quy tắc:
+
+- `error.code` là khóa ổn định để frontend map sang thông báo thân thiện.
+- `error.message` có thể là tiếng Anh kỹ thuật hoặc tiếng Việt, nhưng frontend không được phụ thuộc vào nội dung này để rẽ nhánh logic.
+- `error.details` là object; có thể rỗng `{}` hoặc chứa field-level validation như `{ "field": "email" }`.
+- `401 Unauthorized` và `403 Forbidden` có thể trả body rỗng nếu middleware mặc định chưa custom, nhưng khi custom API result thì phải dùng shape trên.
+
+Error code đang dùng hoặc phải dùng:
+
+| HTTP | Code | Khi nào |
+| --- | --- | --- |
+| `400` | `FULL_NAME_REQUIRED` | Register thiếu họ tên. |
+| `400` | `EMAIL_INVALID` | Email sai format. |
+| `400` | `PASSWORD_TOO_SHORT` | Password dưới 8 ký tự. |
+| `400` | `PASSWORD_REQUIRED` | Login thiếu password. |
+| `401` | `INVALID_CREDENTIALS` | Email/password không đúng. |
+| `409` | `EMAIL_ALREADY_REGISTERED` | Email đã tồn tại. |
+| `400` | `TABLE_CODE_INVALID` | `tableCode` không đúng format `T01`. |
+| `404` | `TABLE_NOT_FOUND` | Không tìm thấy bàn active. |
+| `400` | `CATEGORY_REQUIRED` | Tạo/sửa món thiếu category. |
+| `400` | `CATEGORY_INVALID` | Category không tồn tại hoặc inactive. |
+| `404` | `CATEGORY_NOT_FOUND` | Không tìm thấy category. |
+| `409` | `CATEGORY_HAS_MENU_ITEMS` | Không thể xóa category còn món. |
+| `400` | `MENU_ITEM_NAME_REQUIRED` | Tạo/sửa món thiếu tên. |
+| `400` | `MENU_ITEM_PRICE_INVALID` | Giá món không lớn hơn 0. |
+| `404` | `MENU_ITEM_NOT_FOUND` | Không tìm thấy món. |
+| `400` | `ORDER_ITEMS_REQUIRED` | Tạo đơn không có món. |
+| `400` | `ORDER_ITEM_QUANTITY_INVALID` | Số lượng món nhỏ hơn 1. |
+| `400` | `MENU_ITEM_UNAVAILABLE` | Món đang hết hàng. |
+| `400` | `DINE_IN_TABLE_REQUIRED` | `DineIn` thiếu `tableCode`. |
+| `400` | `DELIVERY_INFO_REQUIRED` | `DeliveryMock` thiếu thông tin giao hàng mock. |
+| `404` | `ORDER_NOT_FOUND` | Không tìm thấy đơn theo `orderCode`. |
+
+## 4. Auth
 
 ### POST `/api/auth/register`
 
@@ -62,8 +135,8 @@ Response `201 Created`:
 
 Lỗi:
 
-- `400` với `FULL_NAME_REQUIRED`, `EMAIL_INVALID`, hoặc `PASSWORD_TOO_SHORT`.
-- `409` với `EMAIL_ALREADY_REGISTERED` nếu email đã tồn tại.
+- `400` với `FULL_NAME_REQUIRED`, `EMAIL_INVALID` hoặc `PASSWORD_TOO_SHORT`.
+- `409` với `EMAIL_ALREADY_REGISTERED`.
 
 ### POST `/api/auth/login`
 
@@ -83,7 +156,7 @@ Response `200 OK`:
 ```json
 {
   "accessToken": "jwt-token",
-  "expiresAt": "2026-06-04T12:00:00Z",
+  "expiresAt": "2026-06-05T12:00:00Z",
   "user": {
     "userId": "usr_001",
     "fullName": "Nguyen Van A",
@@ -96,20 +169,13 @@ Response `200 OK`:
 Lỗi:
 
 - `400` với `EMAIL_INVALID` hoặc `PASSWORD_REQUIRED`.
-- `401` với `INVALID_CREDENTIALS` nếu email/password không đúng.
+- `401` với `INVALID_CREDENTIALS`.
 
 Auth header cho endpoint protected:
 
 ```http
 Authorization: Bearer <accessToken>
 ```
-
-Roles seeded:
-
-- `Customer`
-- `Staff`
-- `Kitchen`
-- `Admin`
 
 ### GET `/api/auth/me`
 
@@ -147,96 +213,92 @@ Response `200 OK`:
 
 Nếu chưa đăng nhập, trả `401 Unauthorized`. Nếu đăng nhập nhưng sai role, trả `403 Forbidden`.
 
-## 3. Tables / QR
+## 5. Tables / QR
 
 ### GET `/api/tables/{tableCode}`
 
 Mục đích: lấy thông tin bàn khi khách vào từ QR route `/table/:tableCode`.
 
-Response dự kiến:
+Response `200 OK`:
 
 ```json
 {
   "tableCode": "T05",
-  "displayName": "Ban 05",
+  "displayName": "Bàn 05",
   "isActive": true
 }
 ```
 
 Quy tắc:
 
-- `tableCode` phải tồn tại.
+- `tableCode` phải đúng format `T01` đến `T99`.
+- Seed tuần 2 dùng `T01` đến `T08`.
 - Bàn phải đang active.
-- QR v1 có thể dùng `/table/:tableCode`; nếu cần bảo mật hơn có thể bổ sung `qrToken` ở phiên bản sau.
+- QR v1 dùng route frontend `/table/:tableCode`; nếu cần bảo mật hơn có thể bổ sung `qrToken` ở phiên bản sau.
+- Format sai trả `400` với `TABLE_CODE_INVALID`.
+- Không tìm thấy bàn active trả `404` với `TABLE_NOT_FOUND`.
 
-API issue 7 rules:
-
-- `tableCode` phai dung format `T01` den `T99`.
-- Neu format sai, tra `400` voi error code `TABLE_CODE_INVALID`.
-- Neu khong tim thay ban active, tra `404` voi error code `TABLE_NOT_FOUND`.
-
-## 4. Menu
+## 6. Menu
 
 ### GET `/api/menu`
 
-Mục đích: lấy menu cho customer, admin và chatbot.
+Mục đích: lấy menu public cho customer, admin preview và chatbot RAG.
 
-Response dự kiến:
+Response `200 OK`:
 
 ```json
 {
   "categories": [
     {
       "categoryId": "cat_main",
-      "name": "Mon chinh"
+      "name": "Món chính"
     }
   ],
   "items": [
     {
       "id": "m_001",
-      "name": "Com ga xoi mo",
-      "description": "Ga chien gion, com thom, dua chua.",
+      "name": "Cơm gà xối mỡ",
+      "description": "Gà chiên giòn, cơm thơm, dưa chua.",
       "price": 45000,
       "categoryId": "cat_main",
-      "categoryName": "Mon chinh",
+      "categoryName": "Món chính",
       "imageUrl": "https://example.com/com-ga.jpg",
       "isAvailable": true,
-      "tags": ["pho bien"]
+      "tags": ["phổ biến"]
     }
   ]
 }
 ```
 
-Menu item fields phải giữ thống nhất với frontend mocks và dữ liệu RAG của chatbot.
+Quy tắc:
 
-API issue 7 rules:
-
-- Public menu tra ca mon available va unavailable, field `isAvailable` phai hien ro trang thai.
-- Public menu chi tra category dang active va item thuoc category dang active.
-- `price` phai lon hon `0`.
-- `name` va `categoryId` khong duoc rong.
-- `categoryId` phai ton tai va dang active khi tao/cap nhat menu item.
+- Public menu trả cả món available và unavailable để UI/chatbot biết trạng thái; field `isAvailable` phải rõ ràng.
+- Public menu chỉ trả category active và item thuộc category active.
+- `price` phải lớn hơn `0`.
+- `name` và `categoryId` không được rỗng.
+- `categoryId` phải tồn tại và đang active khi tạo/cập nhật menu item.
+- Menu item fields phải giữ thống nhất với frontend mocks và dữ liệu RAG của chatbot.
 
 ### GET `/api/admin/categories`
 
-Response:
+Response `200 OK`:
 
 ```json
 [
   {
     "categoryId": "cat_main",
-    "name": "Mon chinh",
+    "name": "Món chính",
     "displayOrder": 20,
     "isActive": true,
-    "createdAt": "2026-06-04T00:00:00Z",
-    "updatedAt": "2026-06-04T00:00:00Z"
+    "createdAt": "2026-06-05T00:00:00Z",
+    "updatedAt": "2026-06-05T00:00:00Z"
   }
 ]
 ```
 
 ### GET `/api/admin/categories/{categoryId}`
 
-Response: mot category theo shape cua `GET /api/admin/categories`.
+Response: một category theo shape của `GET /api/admin/categories`.
 
 ### POST `/api/admin/categories`
 
@@ -244,34 +306,35 @@ Request:
 
 ```json
 {
-  "name": "Mon chinh",
+  "name": "Món chính",
   "displayOrder": 20,
   "isActive": true
 }
 ```
 
-Response: `201 Created` va category vua tao.
+Response: `201 Created` và category vừa tạo.
 
 ### PUT `/api/admin/categories/{categoryId}`
 
-Request: cung shape voi `POST /api/admin/categories`.
+Request: cùng shape với `POST /api/admin/categories`.
 
-Response: category sau khi cap nhat.
+Response: category sau khi cập nhật.
 
 ### DELETE `/api/admin/categories/{categoryId}`
 
 Response:
 
-- `204 No Content` neu xoa thanh cong.
-- `409` voi error code `CATEGORY_HAS_MENU_ITEMS` neu category con menu item.
+- `204 No Content` nếu xóa thành công.
+- `404` với `CATEGORY_NOT_FOUND` nếu không tìm thấy.
+- `409` với `CATEGORY_HAS_MENU_ITEMS` nếu category còn menu item.
 
 ### GET `/api/admin/menu-items`
 
-Response: danh sach menu item theo shape item cua `GET /api/menu`.
+Response: danh sách menu item theo shape item của `GET /api/menu`, bao gồm item thuộc category inactive nếu admin cần quản trị.
 
 ### GET `/api/admin/menu-items/{menuItemId}`
 
-Response: mot menu item theo shape item cua `GET /api/menu`.
+Response: một menu item theo shape item của `GET /api/menu`.
 
 ### POST `/api/admin/menu-items`
 
@@ -280,22 +343,22 @@ Request:
 ```json
 {
   "categoryId": "cat_main",
-  "name": "Com ga xoi mo",
-  "description": "Ga chien gion, com thom, dua chua.",
+  "name": "Cơm gà xối mỡ",
+  "description": "Gà chiên giòn, cơm thơm, dưa chua.",
   "price": 45000,
   "imageUrl": "https://example.com/com-ga.jpg",
   "isAvailable": true,
-  "tags": ["pho bien"]
+  "tags": ["phổ biến"]
 }
 ```
 
-Response: `201 Created` va menu item vua tao.
+Response: `201 Created` và menu item vừa tạo.
 
 ### PUT `/api/admin/menu-items/{menuItemId}`
 
-Request: cung shape voi `POST /api/admin/menu-items`.
+Request: cùng shape với `POST /api/admin/menu-items`.
 
-Response: menu item sau khi cap nhat.
+Response: menu item sau khi cập nhật.
 
 ### PATCH `/api/admin/menu-items/{menuItemId}/availability`
 
@@ -307,19 +370,24 @@ Request:
 }
 ```
 
-Response: menu item sau khi doi availability.
+Response: menu item sau khi đổi availability.
 
 ### DELETE `/api/admin/menu-items/{menuItemId}`
 
-Response: `204 No Content` neu xoa thanh cong.
+Response:
 
-## 5. Orders
+- `204 No Content` nếu xóa thành công.
+- `404` với `MENU_ITEM_NOT_FOUND` nếu không tìm thấy.
+
+## 7. Orders
+
+Order endpoints là contract cho member triển khai Week 2. Nếu backend chưa có code tương ứng, frontend chỉ được mock theo đúng shape dưới đây.
 
 ### POST `/api/orders`
 
 Mục đích: tạo đơn từ QR dine-in, pickup hoặc delivery mock.
 
-Request dự kiến:
+Request:
 
 ```json
 {
@@ -336,7 +404,46 @@ Request dự kiến:
 }
 ```
 
-Response dự kiến:
+Request cho `Pickup`:
+
+```json
+{
+  "orderType": "Pickup",
+  "tableCode": null,
+  "paymentMethod": "COD",
+  "deliveryInfo": null,
+  "items": [
+    {
+      "menuItemId": "m_002",
+      "quantity": 1
+    }
+  ]
+}
+```
+
+Request cho `DeliveryMock`:
+
+```json
+{
+  "orderType": "DeliveryMock",
+  "tableCode": null,
+  "paymentMethod": "COD",
+  "deliveryInfo": {
+    "recipientName": "Nguyen Van A",
+    "phoneNumber": "0900000000",
+    "address": "12 Nguyen Trai, Quan 1",
+    "note": "Giao trong gio hanh chinh"
+  },
+  "items": [
+    {
+      "menuItemId": "m_009",
+      "quantity": 2
+    }
+  ]
+}
+```
+
+Response `201 Created`:
 
 ```json
 {
@@ -346,13 +453,18 @@ Response dự kiến:
   "tableCode": "T05",
   "status": "Placed",
   "paymentStatus": "Unpaid",
+  "subtotalAmount": 90000,
+  "totalAmount": 90000,
+  "createdAt": "2026-06-05T08:05:00Z",
   "items": [
     {
       "orderItemId": "oi_001",
       "menuItemId": "m_001",
-      "name": "Com ga xoi mo",
+      "name": "Cơm gà xối mỡ",
+      "unitPrice": 45000,
       "quantity": 2,
-      "status": "Pending"
+      "status": "Pending",
+      "lineTotal": 90000
     }
   ]
 }
@@ -360,29 +472,70 @@ Response dự kiến:
 
 Quy tắc nghiệp vụ:
 
-- Backend phải từ chối món không còn hàng.
+- `items` phải có ít nhất một dòng.
+- `quantity` phải lớn hơn hoặc bằng `1`.
+- Backend phải từ chối món không còn hàng bằng `MENU_ITEM_UNAVAILABLE`.
 - Customer chỉ được hủy trước khi đơn/món chuyển sang `Preparing`.
 - `DineIn` yêu cầu `tableCode` hợp lệ và đang active.
-- `DeliveryMock` yêu cầu thông tin người nhận và địa chỉ.
+- `Pickup` không cần `tableCode`, không cần `deliveryInfo`.
+- `DeliveryMock` yêu cầu `recipientName`, `phoneNumber` và `address`.
+- `MockOnline` chỉ mô phỏng; không gọi cổng thanh toán thật trong v1.
 
 ### GET `/api/orders/{orderCode}`
 
-Mục đích: customer tracking screen.
+Mục đích: customer tracking screen và admin/staff đối chiếu chi tiết đơn.
 
-Response nên khớp với create order response, đồng thời bổ sung timestamps và trạng thái hiện tại của từng món.
+Response `200 OK`:
 
-## 6. Chat
+```json
+{
+  "orderId": "ord_1024",
+  "orderCode": "ORD-1024",
+  "orderType": "DineIn",
+  "tableCode": "T05",
+  "status": "Preparing",
+  "paymentStatus": "Unpaid",
+  "paymentMethod": "COD",
+  "deliveryInfo": null,
+  "subtotalAmount": 90000,
+  "totalAmount": 90000,
+  "createdAt": "2026-06-05T08:05:00Z",
+  "updatedAt": "2026-06-05T08:10:00Z",
+  "items": [
+    {
+      "orderItemId": "oi_001",
+      "menuItemId": "m_001",
+      "name": "Cơm gà xối mỡ",
+      "unitPrice": 45000,
+      "quantity": 2,
+      "status": "Preparing",
+      "lineTotal": 90000,
+      "updatedAt": "2026-06-05T08:10:00Z"
+    }
+  ],
+  "events": [
+    {
+      "status": "Placed",
+      "createdAt": "2026-06-05T08:05:00Z"
+    }
+  ]
+}
+```
+
+Nếu không tìm thấy, trả `404` với `ORDER_NOT_FOUND`.
+
+## 8. Chat
 
 ### POST `/api/chat/sessions`
 
 Mục đích: tạo phiên chat.
 
-Response dự kiến:
+Response `201 Created`:
 
 ```json
 {
   "chatSessionId": "chat_001",
-  "createdAt": "2026-06-04T08:00:00Z"
+  "createdAt": "2026-06-05T08:00:00Z"
 }
 ```
 
@@ -390,32 +543,32 @@ Response dự kiến:
 
 Mục đích: gửi tin nhắn của khách và nhận phản hồi từ chatbot.
 
-Request dự kiến:
+Request:
 
 ```json
 {
-  "content": "Goi y mon cho 2 nguoi",
+  "content": "Gợi ý món cho 2 người",
   "tableCode": "T05"
 }
 ```
 
-Response dự kiến:
+Response `200 OK`:
 
 ```json
 {
   "message": {
     "id": "msg_002",
     "role": "assistant",
-    "content": "Ban co the chon Com ga xoi mo va Tra dao cam sa.",
-    "createdAt": "2026-06-04T08:01:00Z"
+    "content": "Bạn có thể chọn Cơm gà xối mỡ và Trà đào cam sả.",
+    "createdAt": "2026-06-05T08:01:00Z"
   },
   "suggestedCartActions": [
     {
       "menuItemId": "m_001",
-      "name": "Com ga xoi mo",
+      "name": "Cơm gà xối mỡ",
       "price": 45000,
       "quantity": 1,
-      "reason": "Mon pho bien, phu hop bua chinh."
+      "reason": "Món phổ biến, phù hợp bữa chính."
     }
   ]
 }
@@ -428,9 +581,9 @@ Quy tắc:
 - Chatbot không được đặt đơn hoặc thanh toán.
 - Chatbot không được bịa món, giá hoặc món đã hết hàng.
 
-## 7. SignalR Events
+## 9. SignalR Events
 
-Hub dự kiến: `/hubs/orders`
+Hub dự kiến: `/hubs/orders`.
 
 ### `order.created`
 
@@ -441,7 +594,7 @@ Hub dự kiến: `/hubs/orders`
   "orderType": "DineIn",
   "tableCode": "T05",
   "status": "Placed",
-  "createdAt": "2026-06-04T08:05:00Z"
+  "createdAt": "2026-06-05T08:05:00Z"
 }
 ```
 
@@ -452,7 +605,7 @@ Hub dự kiến: `/hubs/orders`
   "orderId": "ord_1024",
   "orderCode": "ORD-1024",
   "status": "Preparing",
-  "updatedAt": "2026-06-04T08:10:00Z"
+  "updatedAt": "2026-06-05T08:10:00Z"
 }
 ```
 
@@ -463,46 +616,80 @@ Hub dự kiến: `/hubs/orders`
   "orderId": "ord_1024",
   "orderCode": "ORD-1024",
   "orderItemId": "oi_001",
-  "menuItemName": "Com ga xoi mo",
+  "menuItemName": "Cơm gà xối mỡ",
   "status": "Ready",
-  "updatedAt": "2026-06-04T08:18:00Z"
+  "updatedAt": "2026-06-05T08:18:00Z"
 }
 ```
 
-## 8. Cấu Trúc Lỗi
+## 10. Seed Data Plan Tuần 2
 
-Dự kiến:
+Seed data tuần 2 phải hỗ trợ đủ 4 demo: QR customer order, menu/admin management, online pickup/delivery mock và chatbot RAG.
 
-```json
-{
-  "error": {
-    "code": "MENU_ITEM_UNAVAILABLE",
-    "message": "Menu item is unavailable.",
-    "details": {}
-  }
-}
-```
+### 10.1. Tables
 
-Frontend phải hiển thị thông báo thân thiện cho người dùng và không được phụ thuộc vào nội dung database exception.
+| Table code | Display name | Active | QR route demo |
+| --- | --- | --- | --- |
+| `T01` | `Bàn 01` | `true` | `/table/T01` |
+| `T02` | `Bàn 02` | `true` | `/table/T02` |
+| `T03` | `Bàn 03` | `true` | `/table/T03` |
+| `T04` | `Bàn 04` | `true` | `/table/T04` |
+| `T05` | `Bàn 05` | `true` | `/table/T05` |
+| `T06` | `Bàn 06` | `true` | `/table/T06` |
+| `T07` | `Bàn 07` | `true` | `/table/T07` |
+| `T08` | `Bàn 08` | `true` | `/table/T08` |
 
-## 9. Data Model Draft
+Ghi chú:
 
-Enums:
+- `qrToken` có thể seed dạng `qr-demo-t01` đến `qr-demo-t08`, nhưng frontend v1 vẫn dùng `tableCode`.
+- Không seed table inactive trong demo mặc định để tránh làm rối luồng QR.
 
-- `OrderType`: `DineIn`, `Pickup`, `DeliveryMock`
-- `OrderStatus`: `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`, `Cancelled`
-- `OrderItemStatus`: `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled`
-- `PaymentMethod`: `COD`, `MockOnline`
-- `PaymentStatus`: `Unpaid`, `Paid`, `Failed`, `Cancelled`
+### 10.2. Categories
 
-Entities:
+| Category ID | Name | Display order | Active | Demo dùng cho |
+| --- | --- | --- | --- | --- |
+| `cat_appetizer` | `Khai vị` | `10` | `true` | Menu, chatbot gợi ý món nhẹ. |
+| `cat_main` | `Món chính` | `20` | `true` | QR order, pickup. |
+| `cat_noodle` | `Phở & Bún` | `30` | `true` | Chatbot hỏi món nóng. |
+| `cat_seafood` | `Hải sản` | `40` | `true` | Delivery mock, nhóm khách. |
+| `cat_drink` | `Đồ uống` | `50` | `true` | Combo/gợi ý kèm món. |
+| `cat_dessert` | `Tráng miệng` | `60` | `true` | Upsell chatbot. |
 
-- `RestaurantTable`: `id`, `tableCode`, `displayName`, `isActive`, optional `qrToken`.
-- `Category`: `id`, `name`, `displayOrder`, `isActive`.
-- `MenuItem`: `id`, `categoryId`, `name`, `description`, `price`, `imageUrl`, `isAvailable`, `tags`.
-- `Order`: `id`, `orderCode`, `orderType`, `status`, dine-in `tableCode`/`restaurantTableId`, pickup customer fields, delivery mock recipient/address fields, `subtotalAmount`, `totalAmount`.
-- `OrderItem`: `id`, `orderId`, `menuItemId`, snapshot `menuItemName`, `unitPrice`, `quantity`, item-level `status`.
-- `Payment`: `id`, `orderId`, `method`, `status`, `amount`, optional provider transaction id, payment timestamps.
-- `ChatSession`: `id`, optional `tableCode`, optional `orderId`, `isClosed`, timestamps, messages.
-- `ChatMessage`: `id`, `chatSessionId`, `role`, `content`, optional suggested cart actions payload, `createdAt`.
-- `KnowledgeEntry`: `id`, `title`, `content`, `sourceType`, optional `menuItemId`, `tags`, optional embedding, `isActive`.
+### 10.3. Menu Items
+
+| ID | Category | Name | Price | Available | Tags demo |
+| --- | --- | --- | ---: | --- | --- |
+| `m_001` | `cat_appetizer` | `Gỏi cuốn tôm thịt` | `65000` | `true` | `fresh`, `light`, `signature` |
+| `m_002` | `cat_appetizer` | `Nem rán Hà Nội` | `75000` | `true` | `crispy`, `classic` |
+| `m_003` | `cat_appetizer` | `Bánh xèo miền Tây` | `85000` | `false` | `crispy`, `popular`, `unavailable-demo` |
+| `m_004` | `cat_noodle` | `Phở bò đặc biệt` | `95000` | `true` | `signature`, `beef`, `hot` |
+| `m_005` | `cat_main` | `Bò lúc lắc` | `245000` | `true` | `beef`, `premium` |
+| `m_006` | `cat_main` | `Chả cá Lã Vọng` | `285000` | `true` | `signature`, `fish` |
+| `m_007` | `cat_seafood` | `Tôm rang muối` | `185000` | `true` | `seafood`, `share` |
+| `m_008` | `cat_seafood` | `Lẩu Thái hải sản` | `345000` | `true` | `spicy`, `seafood`, `share` |
+| `m_009` | `cat_drink` | `Trà đào cam sả` | `55000` | `true` | `drink`, `fresh` |
+| `m_010` | `cat_drink` | `Cà phê sữa đá` | `45000` | `false` | `drink`, `coffee`, `unavailable-demo` |
+| `m_011` | `cat_dessert` | `Chè khúc bạch` | `55000` | `true` | `sweet`, `cool` |
+| `m_012` | `cat_dessert` | `Bánh flan caramel` | `35000` | `true` | `sweet`, `classic` |
+
+Seed descriptions và image URL có thể khác nhau theo môi trường, nhưng ID, category, price, `isAvailable` và tags demo phải thống nhất để frontend, admin và chatbot test cùng dữ liệu.
+
+## 11. Manual Integration Scenarios
+
+Checklist chi tiết nằm ở [docs/TEST_PLAN.md](TEST_PLAN.md). Tối thiểu phải có 4 scenario trước khi Week 2 merge:
+
+- QR customer order từ `/table/T05`.
+- Online pickup từ `/menu`.
+- Delivery mock với `deliveryInfo`.
+- Admin đổi `isAvailable` và kiểm tra customer/chatbot không đặt món hết hàng.
+
+## 12. Contract Drift Review
+
+Kiểm tra ngày `2026-06-05` bằng `gh pr list --repo Anpham120/restaurant-qr-ai-ordering --state open --json number,title,headRefName,baseRefName,author,url,updatedAt`: kết quả `[]`, tức là không có PR mở tại thời điểm kiểm tra nên không có drift từ PR mở.
+
+Drift/risk đang thấy trong code hiện tại nhưng không sửa trong issue #10 vì đây là docs-only:
+
+- Frontend admin mock đang dùng `tableCode: "T-05"`; contract chuẩn là `T05`.
+- Frontend admin mock đang dùng `paymentStatus: "Pending"`; contract chuẩn là `Unpaid`, `Paid`, `Failed`, `Cancelled`.
+- Frontend menu type/mock đang dùng ID `mi-001` và thiếu `categoryId`; contract/backend DTO chuẩn dùng `m_001` và có `categoryId`.
+- Backend hiện có auth/menu/table foundation; order/chat/realtime endpoints trong tài liệu là contract để member triển khai tiếp, không phải bằng chứng endpoint đã hoàn thành trong issue #10.
