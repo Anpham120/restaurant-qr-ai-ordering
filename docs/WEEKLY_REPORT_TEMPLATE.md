@@ -32,10 +32,15 @@
 ## 5. DevOps Và Release
 
 - Branch protection đã áp dụng hay mới document:
-- Auto-merge đã cấu hình hay mới document:
+- Trạng thái DevOps: kế hoạch đã chốt / đã triển khai thật:
+- Required checks đã cấu hình:
+- Merge queue đã cấu hình:
+- Auto-merge đã cấu hình:
 - `develop` có staging auto-deploy:
+- Staging health/smoke check:
+- Promote `develop` -> `main` tự động:
 - `main` có production build-test-deploy tự động:
-- Có manual deploy sau khi `main` nhận code không:
+- Có review/approval/deploy thủ công sau khi `main` nhận code không:
 - Rollback đã test hay mới document:
 - Monitoring đã cấu hình hay mới document:
 

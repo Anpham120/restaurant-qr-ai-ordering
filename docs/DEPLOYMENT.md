@@ -2,10 +2,13 @@
 
 Tài liệu này mô tả hướng triển khai production-like cho **Restaurant QR AI Ordering** bằng VPS, Docker Compose, Nginx, HTTPS và GitHub Actions.
 
+Trạng thái hiện tại: đây là **kế hoạch triển khai đã chốt cho issue #16**, chưa phải hệ thống deploy đang chạy. Chỉ xem là đã triển khai khi có workflow GitHub Actions, Docker/deploy config, secrets/environments và bằng chứng health check thật.
+
 ## Mục Tiêu Triển Khai
 
 - Không deploy chính thức từ máy cá nhân của developer.
 - Dùng GitHub Actions làm điểm điều phối CI/CD.
+- Tự động hóa merge bằng required checks, merge queue và auto-merge.
 - Tách staging từ `develop` và production từ `main`.
 - Production tự build-test-deploy khi có push/merge vào `main`.
 - Có health check, smoke check, monitoring cơ bản và rollback.
@@ -76,6 +79,7 @@ Khi merge/push vào `develop`:
 3. Workflow deploy staging hoặc demo environment.
 4. Workflow chạy health/smoke check.
 5. Nếu check lỗi, workflow fail và ghi log.
+6. Nếu check đạt, workflow promote tạo hoặc cập nhật PR `develop` -> `main` và bật auto-merge.
 
 ### Production Từ `main`
 
@@ -85,7 +89,7 @@ Khi merge/push vào `main`:
 2. Workflow chạy lại build/test trước deploy.
 3. Nếu build/test fail, deploy không được bắt đầu.
 4. Nếu build/test pass, deploy production tự động.
-5. Không có bước bấm deploy, SSH thủ công hoặc duyệt deploy sau khi `main` nhận code.
+5. Không có bước bấm deploy, SSH thủ công, review thủ công hoặc duyệt deploy sau khi `main` nhận code.
 6. Workflow chạy health/smoke check sau deploy.
 7. Nếu check fail, workflow fail và rollback hoặc in checklist rollback.
 
