@@ -524,9 +524,59 @@ Response `200 OK`:
 
 Nếu không tìm thấy, trả `404` với `ORDER_NOT_FOUND`.
 
-## 8. Chat
+## 8. Chat / AI
 
-### POST `/api/chat/sessions`
+Chi tiết thiết kế LLM, RAG và guardrails nằm ở `docs/AI_CHATBOT.md`. Contract trong mục này là ràng buộc tối thiểu cho backend, frontend và dữ liệu mock.
+
+### 8.1. Provider Và Môi Trường
+
+- LLM provider dùng `9router`.
+- Local hiện tại: backend local gọi 9router local qua `AI_BASE_URL=http://127.0.0.1:<9router_port>`.
+- CI/build test dùng mock/stub AI, không cần API key thật và không gọi provider thật.
+- Production/VPS: backend và 9router chạy cùng VPS hoặc cùng private network; backend gọi 9router bằng URL nội bộ.
+- Frontend không gọi 9router trực tiếp và không lưu API key.
+
+Biến môi trường backend dự kiến:
+
+```env
+AI_PROVIDER=9router
+AI_BASE_URL=http://127.0.0.1:<9router_port>
+AI_API_KEY=<secret>
+AI_MODEL=<model_name>
+AI_TIMEOUT_SECONDS=20
+AI_MAX_RETRY=1
+```
+
+### 8.2. KnowledgeEntry Cho RAG
+
+`KnowledgeEntry` là shape chuẩn cho menu, FAQ, policy và insight được đưa vào retrieval context.
+
+```json
+{
+  "id": "menu:m_001",
+  "source": "menu",
+  "title": "Cơm gà xối mỡ",
+  "content": "Cơm gà xối mỡ giá 45000 VND, thuộc nhóm Món chính, còn bán.",
+  "metadata": {
+    "menuItemId": "m_001",
+    "categoryId": "cat_main",
+    "categoryName": "Món chính",
+    "price": 45000,
+    "isAvailable": true,
+    "tags": ["phổ biến"]
+  },
+  "updatedAt": "2026-06-05T00:00:00Z"
+}
+```
+
+Quy tắc RAG:
+
+- `source` hợp lệ: `menu`, `faq`, `policy`, `insight`.
+- Giá, tên món và trạng thái còn/hết phải lấy từ menu hiện tại.
+- Món `isAvailable=false` không được xuất hiện trong `suggestedCartActions`.
+- Nếu context không có thông tin, chatbot phải fallback thay vì tự suy đoán.
+
+### 8.3. POST `/api/chat/sessions`
 
 Mục đích: tạo phiên chat.
 
@@ -539,7 +589,7 @@ Response `201 Created`:
 }
 ```
 
-### POST `/api/chat/sessions/{chatSessionId}/messages`
+### 8.4. POST `/api/chat/sessions/{chatSessionId}/messages`
 
 Mục đích: gửi tin nhắn của khách và nhận phản hồi từ chatbot.
 
@@ -559,7 +609,7 @@ Response `200 OK`:
   "message": {
     "id": "msg_002",
     "role": "assistant",
-    "content": "Bạn có thể chọn Cơm gà xối mỡ và Trà đào cam sả.",
+    "content": "Bạn có thể chọn Cơm gà xối mỡ và Trà đào cam sả. Mình chỉ đề xuất, bạn cần xác nhận trước khi thêm vào giỏ.",
     "createdAt": "2026-06-05T08:01:00Z"
   },
   "suggestedCartActions": [
@@ -568,18 +618,46 @@ Response `200 OK`:
       "name": "Cơm gà xối mỡ",
       "price": 45000,
       "quantity": 1,
-      "reason": "Món phổ biến, phù hợp bữa chính."
+      "reason": "Món phổ biến, phù hợp bữa chính.",
+      "requiresCustomerConfirmation": true
     }
-  ]
+  ],
+  "guardrailFlags": []
+}
+```
+
+Fallback khi AI provider lỗi hoặc timeout:
+
+```json
+{
+  "message": {
+    "id": "msg_003",
+    "role": "assistant",
+    "content": "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
+    "createdAt": "2026-06-05T08:02:00Z"
+  },
+  "suggestedCartActions": [],
+  "guardrailFlags": ["AI_PROVIDER_UNAVAILABLE"]
 }
 ```
 
 Quy tắc:
 
-- Chatbot được đề xuất cart actions.
+- Chatbot được đề xuất `suggestedCartActions`, nhưng không tự thêm món vào giỏ.
 - Customer phải xác nhận trước khi món được thêm vào giỏ.
 - Chatbot không được đặt đơn hoặc thanh toán.
-- Chatbot không được bịa món, giá hoặc món đã hết hàng.
+- Chatbot không được bịa món, giá, khuyến mãi hoặc món đã hết hàng.
+- Backend phải validate lại `menuItemId`, `name`, `price`, `quantity` và `isAvailable` trước khi trả action cho frontend.
+- `requiresCustomerConfirmation` luôn là `true`.
+
+### 8.5. Sample Guardrail Cases
+
+| Case | Input | Expected |
+| --- | --- | --- |
+| Món có thật và còn bán | "Có cơm gà không?" | Trả lời đúng tên, giá và trạng thái theo menu. |
+| Món không tồn tại | "Có pizza hải sản không?" | Không bịa món; nói menu hiện tại chưa có thông tin. |
+| Món hết hàng | "Thêm món đang hết hàng vào giỏ" | Không trả `suggestedCartActions` cho món hết hàng. |
+| Ngoài phạm vi | "Viết code Python giúp tôi" | Từ chối nhẹ và kéo về hỗ trợ chọn món/FAQ nhà hàng. |
 
 ## 9. SignalR Events
 
