@@ -159,3 +159,15 @@ Ngoài phạm vi v1:
 - Quản lý tồn kho nguyên liệu.
 - Train custom AI model.
 - Marketplace nhiều nhà hàng.
+
+## 6. Chuẩn Điều Phối Tuần 2
+
+Issue #10 khóa phần tài liệu điều phối cho Week 2. Đây là chuẩn để các member frontend, backend, admin, chatbot và testing cùng đối chiếu trước khi implement tiếp.
+
+- Contract chính: `docs/API_CONTRACT.md`.
+- Test/integration checklist: `docs/TEST_PLAN.md`.
+- Seed table demo: `T01` đến `T08`, route QR tương ứng `/table/T01` đến `/table/T08`.
+- Seed menu demo: ID chuẩn `m_001` đến `m_012`, có món available và unavailable để test admin availability, customer cart và chatbot suggestion.
+- Shared status names phải dùng đúng enum trong contract: `OrderType`, `OrderStatus`, `OrderItemStatus`, `PaymentMethod`, `PaymentStatus`, `UserRole`, `ChatRole`.
+- Nếu frontend mock, backend DTO hoặc chatbot data khác contract, member phải ghi rõ drift trong PR và cập nhật tài liệu trước khi đổi shape.
+- Review open PRs ngày `2026-06-05` cho issue #10 ghi nhận không có PR mở tại thời điểm kiểm tra.
