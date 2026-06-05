@@ -1,6 +1,9 @@
+using RestaurantQrAiOrdering.Api.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddRestaurantAuth(builder.Configuration);
 builder.Services.AddRestaurantMenuTableApis();
 
 var app = builder.Build();
@@ -11,7 +14,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
+app.MapAuthEndpoints();
 app.MapRestaurantMenuTableApis();
 
 app.MapGet("/api/health", () => Results.Ok(new
