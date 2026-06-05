@@ -37,9 +37,9 @@ Endpoint này chỉ dùng để xác nhận API chạy được trong Visual Stu
 
 ### POST `/api/auth/register`
 
-Mục đích: tạo tài khoản customer.
+Mục đích: tạo tài khoản customer. Register v1 chỉ tạo role `Customer`.
 
-Request dự kiến:
+Request:
 
 ```json
 {
@@ -49,7 +49,7 @@ Request dự kiến:
 }
 ```
 
-Response dự kiến:
+Response `201 Created`:
 
 ```json
 {
@@ -60,11 +60,25 @@ Response dự kiến:
 }
 ```
 
+Lỗi:
+
+- `400` với `FULL_NAME_REQUIRED`, `EMAIL_INVALID`, hoặc `PASSWORD_TOO_SHORT`.
+- `409` với `EMAIL_ALREADY_REGISTERED` nếu email đã tồn tại.
+
 ### POST `/api/auth/login`
 
-Mục đích: đăng nhập và nhận access token.
+Mục đích: đăng nhập và nhận JWT access token.
 
-Response dự kiến:
+Request:
+
+```json
+{
+  "email": "customer@example.com",
+  "password": "Password123!"
+}
+```
+
+Response `200 OK`:
 
 ```json
 {
@@ -73,17 +87,65 @@ Response dự kiến:
   "user": {
     "userId": "usr_001",
     "fullName": "Nguyen Van A",
+    "email": "customer@example.com",
     "role": "Customer"
   }
 }
 ```
 
-Vai trò:
+Lỗi:
+
+- `400` với `EMAIL_INVALID` hoặc `PASSWORD_REQUIRED`.
+- `401` với `INVALID_CREDENTIALS` nếu email/password không đúng.
+
+Auth header cho endpoint protected:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+Roles seeded:
 
 - `Customer`
 - `Staff`
 - `Kitchen`
 - `Admin`
+
+### GET `/api/auth/me`
+
+Mục đích: endpoint protected mẫu để kiểm tra JWT.
+
+Yêu cầu: `Authorization: Bearer <accessToken>`.
+
+Response `200 OK`:
+
+```json
+{
+  "userId": "usr_001",
+  "fullName": "Nguyen Van A",
+  "email": "customer@example.com",
+  "role": "Customer"
+}
+```
+
+Nếu không gửi token hoặc token không hợp lệ, trả `401 Unauthorized`.
+
+### GET `/api/auth/admin-check`
+
+Mục đích: endpoint role-restricted mẫu để kiểm tra policy `AdminOnly`.
+
+Yêu cầu: `Authorization: Bearer <accessToken>` của user role `Admin`.
+
+Response `200 OK`:
+
+```json
+{
+  "status": "Authorized",
+  "requiredRole": "Admin"
+}
+```
+
+Nếu chưa đăng nhập, trả `401 Unauthorized`. Nếu đăng nhập nhưng sai role, trả `403 Forbidden`.
 
 ## 3. Tables / QR
 
