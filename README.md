@@ -1,100 +1,100 @@
 # Restaurant QR AI Ordering
 
-**Restaurant QR AI Ordering** là hệ thống đặt món và quản lý nhà hàng tích hợp chatbot AI. Dự án hướng tới một quy trình vận hành thực tế: khách quét mã QR tại bàn để đặt món, nhà hàng tiếp nhận và xử lý đơn, bếp cập nhật trạng thái từng món theo thời gian thực, khách theo dõi tiến độ món ăn, và chatbot AI hỗ trợ tư vấn món dựa trên menu/FAQ của nhà hàng.
+**Restaurant QR AI Ordering** là hệ thống đặt món và quản lý nhà hàng theo mô hình QR, tích hợp chatbot AI để tư vấn món ăn và hỗ trợ trải nghiệm khách hàng. Dự án hướng tới một quy trình vận hành gần thực tế: khách quét mã QR tại bàn, chọn món, theo dõi trạng thái đơn theo thời gian thực; nhân viên và bếp xử lý đơn qua màn hình vận hành; quản trị viên quản lý menu, bàn và đơn hàng.
 
-## Mục Tiêu Dự Án
+## Tổng Quan
 
-- Xây dựng hệ thống đặt món hybrid gồm QR tại bàn, pickup và delivery mock.
-- Cho phép khách hàng theo dõi trạng thái từng món theo thời gian thực.
-- Cho phép nhân viên và bếp cập nhật trạng thái đơn/món qua màn hình vận hành.
-- Tích hợp chatbot AI sử dụng API mô hình ngôn ngữ lớn kết hợp RAG trên dữ liệu menu/FAQ.
-- Triển khai theo hướng production-like bằng Docker, VPS, Nginx và HTTPS.
-- Quản lý tiến độ bằng GitHub milestones, issues, pull requests, commits và báo cáo kết quả từng thành viên.
+Trong nhiều nhà hàng, việc gọi món, ghi nhận đơn, chuyển thông tin xuống bếp và cập nhật trạng thái cho khách vẫn dễ bị chậm hoặc sai lệch. Dự án này giải quyết bài toán đó bằng một nền tảng thống nhất cho ba nhóm người dùng chính:
 
-## Công Nghệ Dự Kiến
+- Khách hàng đặt món trực tiếp trên điện thoại qua QR hoặc trang menu.
+- Nhân viên và bếp tiếp nhận, chuẩn bị, cập nhật trạng thái món.
+- Quản trị viên quản lý menu, bàn, đơn hàng và dữ liệu vận hành.
 
-- Frontend: React + TypeScript
-- Backend: ASP.NET Core Web API, mở và chạy được bằng Visual Studio 2026
-- Database: PostgreSQL + pgvector
-- Realtime: ASP.NET Core SignalR
-- AI: API mô hình ngôn ngữ lớn + RAG dựa trên menu/FAQ
-- Deployment: Docker + VPS + Nginx + HTTPS
+Chatbot AI được dùng như một lớp hỗ trợ tư vấn món ăn, gợi ý lựa chọn theo nhu cầu của khách và khai thác dữ liệu menu/FAQ của nhà hàng.
 
-## Chạy Backend
+## Trải Nghiệm Chính
 
-Backend được đặt trong thư mục `backend/` và được scaffold theo cấu trúc solution để mở trực tiếp bằng Visual Studio 2026.
+### Khách Hàng
 
-### Chạy bằng Visual Studio 2026
+- Quét QR tại bàn để mở menu theo đúng mã bàn.
+- Xem danh sách món ăn, đồ uống, giá và trạng thái còn hàng.
+- Thêm món vào giỏ hàng và xác nhận đặt món.
+- Theo dõi trạng thái đơn và từng món theo thời gian thực.
+- Hỏi chatbot AI để được tư vấn món theo khẩu vị, ngân sách hoặc số người.
 
-1. Mở file `backend/RestaurantQrAiOrdering.sln`.
-2. Chọn project `RestaurantQrAiOrdering.Api` làm startup project.
-3. Chọn launch profile `https`.
-4. Chạy project và kiểm tra endpoint `GET /api/health`.
+### Nhân Viên Và Bếp
 
-### Chạy bằng .NET CLI
+- Nhận đơn mới từ khách.
+- Cập nhật trạng thái chuẩn bị món.
+- Theo dõi các đơn đang chờ, đang làm, đã sẵn sàng hoặc đã phục vụ.
+- Giảm sai sót khi chuyển thông tin giữa khu vực phục vụ và bếp.
 
-```powershell
-dotnet restore backend/RestaurantQrAiOrdering.sln
-dotnet build backend/RestaurantQrAiOrdering.sln
-dotnet test backend/RestaurantQrAiOrdering.sln
-dotnet run --project backend/src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj --launch-profile https
+### Quản Trị Viên
+
+- Quản lý danh mục và món ăn.
+- Bật/tắt trạng thái còn hàng của món.
+- Quản lý bàn và mã QR.
+- Theo dõi đơn hàng và tình trạng vận hành.
+
+## Chức Năng Nổi Bật
+
+- Đặt món tại bàn bằng QR.
+- Menu điện tử cho món ăn và đồ uống.
+- Giỏ hàng và xác nhận đơn.
+- Theo dõi trạng thái đơn theo thời gian thực.
+- Màn hình vận hành cho nhân viên, bếp và quản trị.
+- Chatbot AI tư vấn món dựa trên menu/FAQ.
+- Hướng triển khai production-like bằng Docker, VPS, Nginx và HTTPS.
+- Quy trình DevOps có CI/CD, health check, rollback và báo cáo triển khai.
+
+## Kiến Trúc Và Công Nghệ
+
+| Lớp | Công nghệ |
+| --- | --- |
+| Frontend | React, TypeScript, Vite |
+| Backend | ASP.NET Core Web API |
+| Realtime | ASP.NET Core SignalR |
+| Database | PostgreSQL, pgvector nếu dùng RAG |
+| AI | External LLM API kết hợp dữ liệu menu/FAQ |
+| Deployment | Docker, Docker Compose, VPS, Nginx, HTTPS |
+| CI/CD | GitHub Actions theo luồng `develop` và `main` |
+
+## Luồng DevOps Dự Kiến
+
+Dự án sử dụng định hướng DevOps Level 2.5 phù hợp phạm vi học thuật nhưng vẫn mô phỏng cách làm ngoài thực tế:
+
+- Pull request vào `develop` phải chạy CI cho frontend và backend.
+- Khi code được merge/push vào `develop`, hệ thống tự triển khai staging nếu kiểm tra đạt.
+- Khi code được merge/push vào `main`, hệ thống tự chạy build, test và triển khai production nếu mọi kiểm tra đạt.
+- Sau khi `main` nhận code, không có bước bấm deploy hoặc duyệt deploy thủ công.
+- Health check, smoke check, monitoring cơ bản và rollback được ghi rõ trong tài liệu triển khai.
+
+Chi tiết nằm tại:
+
+- [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
+- [Tài liệu triển khai](docs/DEPLOYMENT.md)
+
+## Cấu Trúc Dự Án
+
+```text
+.
+├── backend/          # ASP.NET Core API, solution và test backend
+├── frontend/         # React + TypeScript customer/admin/staff UI
+├── docs/             # Tài liệu nghiệp vụ, API, DevOps và báo cáo
+├── tools/            # Script kiểm tra hoặc hỗ trợ dự án
+└── site-demo/        # Tài nguyên demo nếu có
 ```
 
-Sau khi API chạy, kiểm tra health check:
-
-```powershell
-curl https://localhost:7296/api/health
-```
-
-Ghi chú: cấu hình Docker, Nginx, HTTPS production và VPS sẽ được bổ sung trong các issue DevOps riêng, không nằm trong phạm vi issue scaffold backend tuần 1.
-
-## Tài Liệu Quan Trọng
+## Tài Liệu
 
 - [Ngữ cảnh dự án](docs/PROJECT_CONTEXT.md)
+- [Hợp đồng API](docs/API_CONTRACT.md)
+- [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
+- [Tài liệu triển khai](docs/DEPLOYMENT.md)
 - [Quy trình Git](docs/GIT_WORKFLOW.md)
 - [Quy trình làm việc nhóm](docs/TEAM_WORKFLOW.md)
-- [Hợp đồng API](docs/API_CONTRACT.md)
 - [Mẫu báo cáo tuần](docs/WEEKLY_REPORT_TEMPLATE.md)
 
-Mọi thành viên và AI agent hỗ trợ lập trình phải đọc các tài liệu trên trước khi bắt đầu làm issue.
+## Trạng Thái Dự Án
 
-## Mô Hình Nhánh
-
-Dự án sử dụng ba tầng nhánh:
-
-- `main`: nhánh ổn định dùng để demo, nộp bài và triển khai production.
-- `develop`: nhánh tích hợp code của cả nhóm.
-- `issue-<number>/<github-username>-<short-task>`: nhánh cá nhân cho từng issue.
-
-Không thành viên nào được push trực tiếp lên `main` hoặc `develop`. Mọi thay đổi phải đi qua Pull Request vào `develop`.
-
-## Cách Đóng Góp
-
-1. Mở issue được giao và đọc kỹ `Goal`, `Allowed files / areas`, `Do not touch`, `Acceptance criteria`.
-2. Cập nhật code mới nhất từ `develop`.
-3. Tạo nhánh đúng format: `issue-<number>/<github-username>-<short-task>`.
-4. Chỉ làm đúng phạm vi issue, không sửa file hoặc vùng của thành viên khác nếu chưa được Lead đồng ý.
-5. Commit theo Conventional Commits, ví dụ: `feat: add order placement api`.
-6. Push nhánh cá nhân lên GitHub.
-7. Tạo Pull Request vào `develop`.
-8. PR phải link issue bằng `Closes #<issue_number>`.
-9. Comment báo cáo kết quả trong issue trước khi yêu cầu review.
-
-## Thành Viên
-
-- Phạm Duy An / `Anpham120`: Lead, Docs, DevOps, Testing, Integration, AI
-- Bùi Đào Đức Anh / `buidaoducanh1210`: Backend
-- Nguyễn Quang Hiếu / `quanghieu1605`: Backend
-- Đỗ Tuấn Anh / `Tanh2k8-123`: Frontend
-- Lê Anh / `totototototoads`: Frontend
-
-## Nguyên Tắc Làm Việc Với AI Agent
-
-- AI agent chỉ được làm đúng phạm vi issue.
-- AI agent không được tự ý đổi API contract, route, enum trạng thái, shared type hoặc database field dùng chung.
-- Nếu cần sửa ngoài phạm vi issue, thành viên phải comment hỏi Lead trước.
-- Mỗi issue phải có branch, commit, PR và báo cáo kết quả rõ ràng để thầy hoặc AI reviewer đánh giá đóng góp.
-
-## Trạng Thái Hiện Tại
-
-Dự án đang ở giai đoạn nền tảng: thiết lập tài liệu quản trị, quy trình Git, hợp đồng API, milestones và issues cho 4 tuần phát triển.
+Dự án đang được phát triển theo từng issue và milestone. Mục tiêu cuối là có một bản demo nhà hàng CMC Restaurant đủ rõ để trình bày luồng QR ordering, quản lý menu/đơn hàng, vận hành bếp/nhân viên, chatbot AI và quy trình triển khai tự động.
