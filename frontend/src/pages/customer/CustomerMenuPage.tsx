@@ -1,20 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomerCartBar } from "../../components/customer/CustomerCartBar";
 import { TableContextBadge } from "../../components/customer/TableContextBadge";
 import {
   loadMenuCart,
+  saveOrderContext,
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
-import { menuCategories, menuItems } from "../../mocks/menuItems";
+import { getCustomerMenu } from "../../services/menuService";
 import type { MenuCart } from "../../types";
 
 type CustomerMenuPageProps = {
   tableCode?: string;
 };
+
+const customerMenu = getCustomerMenu();
+const menuItems = customerMenu.items;
+const menuCategories = ["Tất cả", ...customerMenu.categories.map((category) => category.name)];
 
 function getInitialCart() {
   if (typeof window === "undefined") {
@@ -41,6 +46,12 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
+
+  useEffect(() => {
+    if (tableCode) {
+      saveOrderContext({ tableCode });
+    }
+  }, [tableCode]);
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
