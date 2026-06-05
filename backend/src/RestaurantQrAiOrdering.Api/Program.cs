@@ -1,10 +1,14 @@
 using RestaurantQrAiOrdering.Api.Auth;
+using RestaurantQrAiOrdering.Api.Orders;
+using RestaurantQrAiOrdering.Api.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddRestaurantAuth(builder.Configuration);
 builder.Services.AddRestaurantMenuTableApis();
+builder.Services.AddRestaurantOrderApis();
+builder.Services.AddRestaurantRealtimeApis();
 
 var app = builder.Build();
 
@@ -19,6 +23,8 @@ app.UseAuthorization();
 
 app.MapAuthEndpoints();
 app.MapRestaurantMenuTableApis();
+app.MapOrderEndpoints();
+app.MapRestaurantRealtimeApis();
 
 app.MapGet("/api/health", () => Results.Ok(new
 {

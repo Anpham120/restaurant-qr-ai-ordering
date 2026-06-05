@@ -524,6 +524,53 @@ Response `200 OK`:
 
 Nếu không tìm thấy, trả `404` với `ORDER_NOT_FOUND`.
 
+### PATCH `/api/orders/{orderCode}/status`
+
+Purpose: Staff/Admin update the overall order status and backend emits `order.statusChanged`.
+
+Auth: `Authorization: Bearer <accessToken>` with role `Staff` or `Admin`.
+
+Request:
+
+```json
+{
+  "status": "Preparing"
+}
+```
+
+Response `200 OK`: same shape as `GET /api/orders/{orderCode}` after update.
+
+Errors:
+
+- `401 Unauthorized` when no valid token is provided.
+- `403 Forbidden` when the token role is not `Staff` or `Admin`.
+- `400` with `ORDER_STATUS_INVALID` when `status` is not a valid `OrderStatus`.
+- `404` with `ORDER_NOT_FOUND` when `orderCode` does not exist.
+
+### PATCH `/api/orders/{orderCode}/items/{orderItemId}/status`
+
+Purpose: Kitchen/Staff/Admin update one dish status and backend emits `order.itemStatusChanged`.
+
+Auth: `Authorization: Bearer <accessToken>` with role `Kitchen`, `Staff`, or `Admin`.
+
+Request:
+
+```json
+{
+  "status": "Ready"
+}
+```
+
+Response `200 OK`: same shape as `GET /api/orders/{orderCode}` after update.
+
+Errors:
+
+- `401 Unauthorized` when no valid token is provided.
+- `403 Forbidden` when the token role is not `Kitchen`, `Staff`, or `Admin`.
+- `400` with `ORDER_ITEM_STATUS_INVALID` when `status` is not a valid `OrderItemStatus`.
+- `404` with `ORDER_NOT_FOUND` when `orderCode` does not exist.
+- `404` with `ORDER_ITEM_NOT_FOUND` when `orderItemId` does not exist in the order.
+
 ## 8. Chat / AI
 
 Chi tiết thiết kế LLM, RAG và guardrails nằm ở `docs/AI_CHATBOT.md`. Contract trong mục này là ràng buộc tối thiểu cho backend, frontend và dữ liệu mock.
@@ -661,7 +708,14 @@ Quy tắc:
 
 ## 9. SignalR Events
 
-Hub dự kiến: `/hubs/orders`.
+Hub: `/hubs/orders`.
+
+Client subscriptions:
+
+- Operations roles (`Kitchen`, `Staff`, `Admin`) are added to the operations group after connecting with a valid JWT.
+- Customers/anonymous tracking clients call `WatchOrder(orderCode, tableCode)` to join only that order. For dine-in orders, `tableCode` must match the order table.
+- Customers/anonymous table screens call `WatchTable(tableCode)` to join an active table group.
+- Events are sent only to order, table, and operations groups; there is no broadcast to all connected clients.
 
 ### `order.created`
 
@@ -697,6 +751,27 @@ Hub dự kiến: `/hubs/orders`.
   "menuItemName": "Cơm gà xối mỡ",
   "status": "Ready",
   "updatedAt": "2026-06-05T08:18:00Z"
+}
+```
+
+Manual SignalR verification sample:
+
+1. Connect to `/hubs/orders`.
+2. Call `WatchOrder("ORD-1001", "T05")` or `WatchTable("T05")`.
+3. Update `PATCH /api/orders/ORD-1001/items/oi_001/status` with a `Kitchen`, `Staff`, or `Admin` token.
+4. Expected client event:
+
+```json
+{
+  "event": "order.itemStatusChanged",
+  "payload": {
+    "orderId": "ord_1001",
+    "orderCode": "ORD-1001",
+    "orderItemId": "oi_001",
+    "menuItemName": "Com ga xoi mo",
+    "status": "Ready",
+    "updatedAt": "2026-06-05T08:18:00Z"
+  }
 }
 ```
 
