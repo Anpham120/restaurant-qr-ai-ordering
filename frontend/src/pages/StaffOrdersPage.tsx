@@ -4,12 +4,12 @@ export function StaffOrdersPage() {
   return (
     <PageShell
       eyebrow="Staff"
-      title="Service orders shell"
-      description="Placeholder for staff order triage, customer notes, and service status updates."
+      title="Đơn cần phục vụ"
+      description="Bảng theo dõi để nhân viên CMC xác nhận, phục vụ món và cập nhật trạng thái bàn."
       variant="staff"
       stats={[
-        { label: "Pending items", value: "5", detail: "Item status shell" },
-        { label: "Ready items", value: "3", detail: "Pickup preview" },
+        { label: "Món chờ xử lý", value: "5", detail: "Cần theo dõi với bếp" },
+        { label: "Món sẵn sàng", value: "3", detail: "Cần mang ra bàn" },
       ]}
     >
       <div className="kanban-grid">
@@ -18,7 +18,7 @@ export function StaffOrdersPage() {
             <h3>{status}</h3>
             <article className="ticket-card">
               <strong>Table T-07</strong>
-              <p>Staff service card placeholder.</p>
+              <p>Theo dõi ghi chú khách và thời điểm phục vụ món.</p>
             </article>
           </section>
         ))}

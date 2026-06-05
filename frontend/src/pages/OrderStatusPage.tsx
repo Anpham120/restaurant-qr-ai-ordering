@@ -6,12 +6,12 @@ export function OrderStatusPage() {
 
   return (
     <PageShell
-      eyebrow="Customer"
-      title={`Order ${orderCode ?? "unknown"}`}
-      description="Realtime order status and item progress updates will be connected in a later issue."
+      eyebrow="CMC Restaurant"
+      title={`Đơn ${orderCode ?? "unknown"}`}
+      description="Theo dõi tiến độ đơn hàng và trạng thái từng bước phục vụ theo phong cách CMC."
       stats={[
-        { label: "Order status", value: "Placed", detail: "Contract-aligned placeholder" },
-        { label: "Kitchen", value: "Preparing", detail: "Future SignalR update" },
+        { label: "Trạng thái đơn", value: "Placed", detail: "Dữ liệu mẫu theo contract" },
+        { label: "Bếp", value: "Preparing", detail: "Sẵn sàng nối realtime" },
       ]}
     >
       <div className="timeline">
@@ -20,7 +20,7 @@ export function OrderStatusPage() {
             <span>{index + 1}</span>
             <div>
               <h3>{step}</h3>
-              <p>{index === 0 ? "Order accepted shell" : "Realtime event placeholder"}</p>
+              <p>{index === 0 ? "Đơn đã được tiếp nhận" : "Chờ sự kiện realtime"}</p>
             </div>
           </div>
         ))}

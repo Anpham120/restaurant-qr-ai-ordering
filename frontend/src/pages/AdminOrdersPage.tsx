@@ -4,13 +4,13 @@ export function AdminOrdersPage() {
   return (
     <PageShell
       eyebrow="Admin"
-      title="Order management shell"
-      description="Placeholder for monitoring all customer orders and resolving operational issues."
+      title="Quản lý đơn hàng"
+      description="Theo dõi đơn mới, tiến độ bếp và các đơn cần nhân viên xử lý trong ca."
       variant="admin"
       stats={[
-        { label: "Placed", value: "2", detail: "Contract status" },
-        { label: "Preparing", value: "1", detail: "Contract status" },
-        { label: "Ready", value: "1", detail: "Contract status" },
+        { label: "Mới đặt", value: "2", detail: "Chờ xác nhận" },
+        { label: "Đang làm", value: "1", detail: "Bếp đang xử lý" },
+        { label: "Sẵn sàng", value: "1", detail: "Chờ phục vụ" },
       ]}
     >
       <div className="kanban-grid">
@@ -19,7 +19,7 @@ export function AdminOrdersPage() {
             <h3>{status}</h3>
             <article className="ticket-card">
               <strong>Table T-05</strong>
-              <p>Order shell using contract-aligned status text.</p>
+              <p>Đơn mẫu dùng đúng status contract để sẵn sàng nối API.</p>
             </article>
           </section>
         ))}
