@@ -1,14 +1,17 @@
 # Quy Trình DevOps Và Release
 
-Tài liệu này mô tả cách dự án **Restaurant QR AI Ordering** tách vai trò Developer, Reviewer/Lead và DevOps/Release Owner. Mục tiêu là tránh mô hình "developer tự deploy từ máy cá nhân" và chuyển sang quy trình CI/CD có kiểm soát.
+Tài liệu này mô tả cách dự án **Restaurant QR AI Ordering** tách vai trò Developer, Lead và DevOps/Release Owner. Mục tiêu là tránh mô hình "developer tự deploy từ máy cá nhân" và chuyển sang quy trình CI/CD có kiểm soát.
+
+Trạng thái hiện tại: đây là **kế hoạch DevOps đã chốt cho issue #16**, chưa phải pipeline đã triển khai. Khi chưa có `.github/workflows/**`, Docker/deploy config và branch ruleset thật trên GitHub, dự án chưa được xem là có CI/CD tự động hoàn chỉnh.
 
 ## Mục Tiêu
 
-Dự án áp dụng mức **DevOps Level 2.5** phù hợp phạm vi học thuật:
+Dự án áp dụng mức **DevOps Level 3 cho phạm vi học thuật/MVP**:
 
 - Có CI bắt buộc cho frontend và backend.
 - Có branch protection cho `develop` và `main`.
-- Có auto-merge sau khi CI đạt và có approval cần thiết.
+- Có required status checks, ruleset, auto-merge và merge queue.
+- Không yêu cầu review/approval thủ công trong luồng bình thường.
 - Có staging deployment tự động từ `develop`.
 - Có production build-test-deploy tự động từ `main`.
 - Có health check, smoke check, monitoring cơ bản và rollback.
@@ -26,11 +29,11 @@ Dự án áp dụng mức **DevOps Level 2.5** phù hợp phạm vi học thuậ
 - Không giữ production secrets.
 - Không tắt CI để merge code.
 
-### Reviewer / Lead
+### Lead
 
-- Review scope, code và bằng chứng kiểm thử.
-- Duyệt PR trước khi auto-merge được phép chạy.
-- Duyệt release PR từ `develop` sang `main` trước khi code đi vào `main`.
+- Thiết lập tiêu chuẩn chất lượng, required checks và ruleset.
+- Theo dõi issue/PR ở mức quản trị, không làm bước review thủ công bắt buộc trong luồng bình thường.
+- Can thiệp khi pipeline fail, PR sai phạm vi, hoặc có rủi ro lớn.
 - Không deploy production từ máy cá nhân.
 - Không duyệt deploy thủ công sau khi `main` đã nhận code.
 
@@ -38,6 +41,7 @@ Dự án áp dụng mức **DevOps Level 2.5** phù hợp phạm vi học thuậ
 
 - Sở hữu workflow CI/CD.
 - Sở hữu branch protection, GitHub Environments và secrets.
+- Cấu hình auto-merge, merge queue và required status checks.
 - Cấu hình staging deployment từ `develop`.
 - Cấu hình production build-test-deploy từ `main`.
 - Thiết lập health check, smoke check và rollback.
@@ -51,19 +55,23 @@ Dự án áp dụng mức **DevOps Level 2.5** phù hợp phạm vi học thuậ
 4. Developer mở PR từ branch issue vào `develop`.
 5. GitHub Actions CI tự chạy trên PR.
 6. CI kiểm tra frontend build và backend restore/build/test.
-7. Reviewer/Lead review scope và bằng chứng.
-8. Auto-merge chỉ được chạy khi CI đạt, PR đúng scope và có approval.
-9. Sau khi merge/push vào `develop`, staging deployment tự chạy.
-10. Staging health check và smoke check tự chạy.
+7. Bot/workflow kiểm tra scope cơ bản, required checks và điều kiện ruleset.
+8. Nếu mọi điều kiện đạt, auto-merge đưa PR vào merge queue.
+9. Merge queue chạy lại required checks trên trạng thái mới nhất của `develop`.
+10. Nếu merge queue pass, GitHub tự hợp nhất vào `develop`.
+11. Sau khi merge/push vào `develop`, staging deployment tự chạy.
+12. Staging health check và smoke check tự chạy.
 
-## Luồng B - Release Từ `develop` Sang `main`
+## Luồng B - Promote Từ `develop` Sang `main`
 
-1. Lead/Release Owner xác nhận `develop` đã sẵn sàng release.
-2. Tạo PR từ `develop` sang `main`.
-3. GitHub Actions CI chạy lại trên release PR.
-4. Release PR chỉ được merge khi CI đạt, checklist demo sẵn sàng và có approval.
-5. Sau khi merge/push vào `main`, production workflow tự chạy.
-6. Không có bước duyệt deploy thủ công sau khi `main` nhận code.
+1. Staging deployment từ `develop` hoàn tất.
+2. Staging health check và smoke check đạt.
+3. Workflow `promote-production` tự tạo hoặc cập nhật PR từ `develop` sang `main`.
+4. GitHub Actions CI chạy lại trên release PR.
+5. Release PR đi qua required checks và merge queue, không cần review thủ công trong luồng bình thường.
+6. Nếu queue pass, GitHub tự merge PR vào `main`.
+7. Sau khi merge/push vào `main`, production workflow tự chạy.
+8. Không có bước duyệt deploy thủ công sau khi `main` nhận code.
 
 ## Luồng C - Production Tự Động Từ `main`
 
@@ -113,6 +121,21 @@ dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-buil
 - Deploy stack staging hoặc bản demo tương đương.
 - Chạy health/smoke check.
 - Fail workflow nếu check lỗi.
+- Nếu check đạt, kích hoạt hoặc cho phép workflow promote production.
+
+### `.github/workflows/auto-merge.yml`
+
+- Trigger khi PR vào `develop` hoặc `main` được mở/cập nhật.
+- Kiểm tra PR đúng nhánh nguồn, đúng target và không có file ngoài phạm vi issue nếu có rule.
+- Bật auto-merge cho PR khi required checks đủ điều kiện.
+- Không thay thế CI; chỉ điều phối merge sau khi CI/ruleset đạt.
+
+### `.github/workflows/promote-production.yml`
+
+- Trigger sau khi staging deploy và smoke check từ `develop` đạt.
+- Tạo hoặc cập nhật PR `develop` -> `main`.
+- Gắn auto-merge cho release PR.
+- Không yêu cầu người bấm review/approve trong luồng bình thường.
 
 ### `.github/workflows/deploy-production.yml`
 
@@ -123,14 +146,21 @@ dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-buil
 - Chạy health/smoke check.
 - Fail workflow và rollback nếu deployment lỗi.
 
+### `.github/workflows/rollback.yml`
+
+- Trigger khi deploy production fail hoặc chạy thủ công trong tình huống khẩn cấp.
+- Rollback về image/artifact gần nhất đã pass health check.
+- Ghi rõ commit/image rollback, nguyên nhân và kết quả kiểm tra sau rollback.
+
 ## Branch Protection
 
 ### `develop`
 
 - Require pull request before merge.
-- Require CI pass.
-- Require ít nhất một approval.
-- Cho phép auto-merge sau khi đủ điều kiện.
+- Require status checks: frontend build, backend build/test, secret/security checks nếu có.
+- Require merge queue.
+- Cho phép auto-merge sau khi required checks và merge queue đạt.
+- Không require human review trong luồng bình thường.
 - Không cho force push.
 - Không cho delete branch.
 - Merge/push vào `develop` sẽ kích hoạt staging deployment.
@@ -138,10 +168,11 @@ dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-buil
 ### `main`
 
 - Require pull request before merge.
-- Require CI pass.
-- Require Lead/DevOps approval.
-- Chỉ chấp nhận release PR từ `develop` sang `main`.
-- Cho phép auto-merge sau khi đủ điều kiện.
+- Require status checks: CI release, Docker/artifact build, smoke plan nếu có.
+- Require merge queue.
+- Chỉ chấp nhận release PR từ `develop` sang `main` do workflow promote tạo/cập nhật.
+- Cho phép auto-merge sau khi required checks và merge queue đạt.
+- Không require human review trong luồng bình thường.
 - Không cho force push.
 - Không cho delete branch.
 - Merge/push vào `main` sẽ kích hoạt production build-test-deploy tự động.

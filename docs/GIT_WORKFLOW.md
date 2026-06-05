@@ -2,6 +2,8 @@
 
 Tài liệu này quy định cách dùng branch, pull request và release cho dự án **Restaurant QR AI Ordering**. README chỉ giới thiệu dự án; toàn bộ quy trình làm việc, review và CI/CD được đặt trong tài liệu này và các tài liệu DevOps liên quan.
 
+Trạng thái hiện tại: phần CI/CD trong tài liệu này là **kế hoạch đã chốt cho issue #16**, chưa phải workflow đã triển khai. Chỉ xem pipeline là có thật khi repo đã có GitHub Actions, Docker/deploy config và branch ruleset tương ứng.
+
 ## 1. Mô Hình Branch
 
 Dự án sử dụng ba nhóm branch chính:
@@ -45,8 +47,10 @@ PR vào `develop` phải đạt:
 - Không sửa file ngoài scope nếu chưa được Lead đồng ý.
 - Có bằng chứng build/test.
 - CI frontend/backend pass.
-- Có reviewer approval.
-- Có thể bật auto-merge sau khi đủ điều kiện.
+- Required status checks pass.
+- Merge queue pass trên trạng thái mới nhất của `develop`.
+- Auto-merge được bật sau khi đủ điều kiện.
+- Không yêu cầu review/approval thủ công trong luồng bình thường.
 
 Sau khi PR được merge vào `develop`, staging deployment tự chạy. Developer không deploy staging hoặc production từ máy cá nhân.
 
@@ -59,7 +63,9 @@ Release production đi qua PR từ `develop` sang `main`.
 - CI chạy lại và pass trên release PR.
 - Checklist demo đã sẵn sàng.
 - Không còn issue critical mở.
-- Lead/DevOps approval đã có.
+- Release PR do workflow promote tạo hoặc cập nhật từ `develop`.
+- Required status checks và merge queue đạt.
+- Auto-merge được bật cho release PR.
 - Branch protection không bị tắt để merge nhanh.
 
 Sau khi code vào `main`, production workflow tự chạy. Không có bước duyệt deploy thủ công sau khi `main` nhận code.
@@ -84,19 +90,21 @@ Sau khi code vào `main`, production workflow tự chạy. Không có bước du
 ### `develop`
 
 - Require pull request before merge.
-- Require CI pass.
-- Require ít nhất một approval.
-- Allow auto-merge sau khi đủ điều kiện.
+- Require status checks.
+- Require merge queue.
+- Allow auto-merge sau khi required checks và merge queue đạt.
+- Không require human review trong luồng bình thường.
 - Block force push.
 - Block deletion.
 
 ### `main`
 
 - Require pull request before merge.
-- Require CI pass.
-- Require Lead/DevOps approval.
-- Chỉ chấp nhận release PR từ `develop`.
-- Allow auto-merge sau khi đủ điều kiện.
+- Require status checks.
+- Require merge queue.
+- Chỉ chấp nhận release PR từ `develop` do workflow promote tạo/cập nhật.
+- Allow auto-merge sau khi required checks và merge queue đạt.
+- Không require human review trong luồng bình thường.
 - Block force push.
 - Block deletion.
 
