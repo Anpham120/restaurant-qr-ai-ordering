@@ -14,7 +14,13 @@ export type {
   CreateOrderResponse,
   CustomerOrderType,
   DeliveryInfo,
+  OrderCreatedRealtimeEvent,
   OrderItemStatus,
+  OrderItemStatusChangedRealtimeEvent,
+  OrderRealtimeEvent,
+  OrderStatusChangedRealtimeEvent,
+  OrderTrackingItem,
+  OrderTrackingOrder,
   PaymentMethod,
 } from "./order";
 export type {
