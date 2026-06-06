@@ -582,6 +582,7 @@ Chi tiết thiết kế LLM, RAG và guardrails nằm ở `docs/AI_CHATBOT.md`. 
 - CI/build test dùng mock/stub AI, không cần API key thật và không gọi provider thật.
 - Production/VPS: backend và 9router chạy cùng VPS hoặc cùng private network; backend gọi 9router bằng URL nội bộ.
 - Frontend không gọi 9router trực tiếp và không lưu API key.
+- Backend gọi 9router theo OpenAI-compatible endpoint `{AI_BASE_URL}/chat/completions`; ví dụ local `AI_BASE_URL=http://localhost:20128/v1`.
 
 Biến môi trường backend dự kiến:
 
@@ -590,7 +591,7 @@ AI_PROVIDER=9router
 AI_BASE_URL=http://127.0.0.1:<9router_port>
 AI_API_KEY=<secret>
 AI_MODEL=<model_name>
-AI_TIMEOUT_SECONDS=20
+AI_TIMEOUT_SECONDS=60
 AI_MAX_RETRY=1
 ```
 
@@ -697,7 +698,37 @@ Quy tắc:
 - Backend phải validate lại `menuItemId`, `name`, `price`, `quantity` và `isAvailable` trước khi trả action cho frontend.
 - `requiresCustomerConfirmation` luôn là `true`.
 
-### 8.5. Sample Guardrail Cases
+### 8.5. GET `/api/chat/sessions/{chatSessionId}/messages`
+
+Mục đích: lấy lịch sử tin nhắn của một phiên chat.
+
+Response `200 OK`:
+
+```json
+{
+  "chatSessionId": "chat_001",
+  "createdAt": "2026-06-05T08:00:00Z",
+  "updatedAt": "2026-06-05T08:01:00Z",
+  "messages": [
+    {
+      "id": "msg_001",
+      "role": "user",
+      "content": "Gợi ý món cho 2 người",
+      "createdAt": "2026-06-05T08:01:00Z"
+    },
+    {
+      "id": "msg_002",
+      "role": "assistant",
+      "content": "Bạn có thể chọn Cơm gà xối mỡ. Mình chỉ đề xuất, bạn cần xác nhận trước khi thêm vào giỏ.",
+      "createdAt": "2026-06-05T08:01:01Z"
+    }
+  ]
+}
+```
+
+Nếu không tìm thấy phiên chat, trả `404` với `CHAT_SESSION_NOT_FOUND`.
+
+### 8.6. Sample Guardrail Cases
 
 | Case | Input | Expected |
 | --- | --- | --- |
