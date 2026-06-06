@@ -17,5 +17,14 @@ export type {
   OrderItemStatus,
   PaymentMethod,
 } from "./order";
+export type {
+  ChatGuardrailFlag,
+  ChatMessage,
+  ChatRole,
+  CreateChatSessionResponse,
+  SendChatMessageRequest,
+  SendChatMessageResponse,
+  SuggestedCartAction,
+} from "./chat";
 
 
