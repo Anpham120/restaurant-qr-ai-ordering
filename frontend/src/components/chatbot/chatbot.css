@@ -229,6 +229,15 @@
   text-transform: uppercase;
 }
 
+.cmc-suggestion-confirmation {
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff1e7;
+  color: #8f3a1b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .cmc-suggestion-card dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
