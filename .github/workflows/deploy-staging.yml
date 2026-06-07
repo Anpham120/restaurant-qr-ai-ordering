@@ -1,0 +1,53 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-staging
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      DEPLOY_ENV: staging
+      SSH_HOST: ${{ secrets.STAGING_HOST }}
+      SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      COMPOSE_PROJECT_NAME: cmc-restaurant-staging
+      FRONTEND_PORT: "8081"
+      BACKEND_PORT: "5001"
+      FRONTEND_SERVER_NAMES: staging.cmcrestaurant.app
+      API_SERVER_NAME: api-staging.cmcrestaurant.app
+      PUBLIC_API_BASE_URL: https://api-staging.cmcrestaurant.app/api
+      ASPNETCORE_ENVIRONMENT: Staging
+      JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
+      AI_PROVIDER: 9router
+      AI_BASE_URL: http://127.0.0.1:20128/v1
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_MODEL: ${{ secrets.AI_MODEL }}
+      CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging VPS
+        run: bash deploy/scripts/deploy-vps.sh
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Staging deployment"
+            echo "- Frontend: https://staging.cmcrestaurant.app"
+            echo "- API health: https://api-staging.cmcrestaurant.app/api/health"
+            echo "- Result: workflow reached post-deploy summary"
+          } >> "$GITHUB_STEP_SUMMARY"

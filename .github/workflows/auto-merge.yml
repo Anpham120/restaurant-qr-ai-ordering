@@ -1,0 +1,35 @@
+name: Auto Merge
+
+on:
+  pull_request_target:
+    branches:
+      - develop
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-auto-merge:
+    name: enable-auto-merge
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - name: Enable auto-merge for eligible PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          if gh pr merge "$PR_URL" --auto --merge; then
+            echo "Auto-merge enabled for $PR_URL"
+          else
+            echo "Auto-merge could not be enabled automatically."
+            echo "Check repository setting: allow auto-merge, required checks, and merge queue/ruleset."
+          fi

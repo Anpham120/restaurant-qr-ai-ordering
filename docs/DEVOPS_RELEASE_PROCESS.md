@@ -220,3 +220,20 @@ Không được đánh dấu deployment thành công nếu rollback chưa đư�
 - Bằng chứng không commit secrets thật.
 - Ghi chú branch protection đã áp dụng trực tiếp hay mới document.
 - Báo cáo rollback nếu có lỗi.
+
+## Issue #16 DevOps Implementation Update
+
+Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
+
+- PR vao `develop`/`main` kich hoat `CI`.
+- `Auto Merge` co gang bat auto-merge cho PR khong phai draft.
+- Push vao `develop` kich hoat `Deploy Staging`.
+- Staging pass kich hoat `Promote Production`, tao/cap nhat PR tu `develop`
+  sang `main` va co gang bat auto-merge.
+- Push vao `main` kich hoat `Deploy Production`.
+- `Rollback` cho phep quay lai ban deploy truoc do theo environment.
+
+Lead/DevOps van phai bat repository settings tuong ung: allow auto-merge,
+required checks va merge queue/ruleset cho `develop` va `main`. GitHub Secrets
+bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`
+va `AI_API_KEY`. Khong dong issue #16 neu chua co Actions run/deploy evidence.
