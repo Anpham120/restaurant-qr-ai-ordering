@@ -1,0 +1,154 @@
+name: Issue công việc
+description: Giao việc theo tuần và theo thành viên
+title: "[Week N] "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Điền đầy đủ thông tin để thành viên và AI agent hiểu đúng phạm vi công việc. Mỗi issue phải có branch riêng và PR riêng.
+
+  - type: input
+    id: assignee
+    attributes:
+      label: Người phụ trách
+      description: GitHub username của thành viên phụ trách.
+      placeholder: "Anpham120"
+    validations:
+      required: true
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      description: Tuần/milestone của issue.
+      placeholder: "Week 1 - Foundation"
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Tên branch bắt buộc
+      description: Branch phải tạo từ develop theo format issue-<number>/<github-username>-<short-task>.
+      placeholder: "issue-7/tanh2k8-customer-cart"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Mục tiêu
+      description: Mục tiêu cụ thể của issue.
+      placeholder: "Xây dựng API tạo đơn hàng cho khách hàng..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Ngữ cảnh nghiệp vụ / kỹ thuật
+      description: Ngữ cảnh nghiệp vụ/kỹ thuật cần biết trước khi làm.
+      placeholder: "Issue này liên quan luồng Customer đặt món và OrderStatus..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed
+    attributes:
+      label: File / vùng được phép sửa
+      description: Chỉ được sửa các file hoặc module trong mục này.
+      placeholder: |
+        - backend/src/Orders/**
+        - backend/tests/Orders/**
+    validations:
+      required: true
+
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: Không được sửa
+      description: File/vùng không được sửa nếu chưa có đồng ý của Lead.
+      placeholder: |
+        - frontend/**
+        - docs/API_CONTRACT.md
+        - database migrations của issue khác
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Tiêu chí hoàn thành
+      description: Điều kiện để xem issue hoàn thành.
+      placeholder: |
+        - [ ] API tạo đơn hàng trả về mã đơn và trạng thái Placed.
+        - [ ] Không cho đặt món đã Unavailable.
+        - [ ] Có test cho trường hợp thành công và thất bại.
+    validations:
+      required: true
+
+  - type: textarea
+    id: test
+    attributes:
+      label: Kiểm thử / xác minh bắt buộc
+      description: Lệnh test/build/check cần chạy trước khi mở PR.
+      placeholder: |
+        - dotnet test
+        - npm run build
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Bằng chứng bắt buộc
+      description: Bằng chứng thành viên phải đưa vào issue/PR để thầy và AI reviewer đánh giá đóng góp.
+      placeholder: |
+        - PR link
+        - Commit chính
+        - Test/build output
+        - Screenshot/video nếu có UI
+        - Sample API response nếu có backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Mẫu báo cáo kết quả
+      description: Khi làm xong, comment lại issue theo mẫu này.
+      value: |
+        ## Báo cáo kết quả
+        - Đã làm:
+        - File/chức năng đã thay đổi:
+        - Cách test:
+        - Ảnh/video demo nếu có:
+        - Vấn đề còn tồn tại:
+        - PR liên quan:
+    validations:
+      required: false
+
+  - type: textarea
+    id: ai_review
+    attributes:
+      label: Ghi chú cho AI reviewer
+      description: Hướng dẫn cho thầy hoặc AI khác review PR của issue này.
+      value: |
+        Review PR dựa trên:
+        - File / vùng được phép sửa
+        - Không được sửa
+        - Tiêu chí hoàn thành
+        - docs/API_CONTRACT.md
+        - Kiểm thử / xác minh bắt buộc
+        - Comment báo cáo kết quả
+
+        Báo lỗi nếu:
+        - PR sửa file ngoài phạm vi
+        - API response hoặc frontend type khác contract
+        - Tên trạng thái khác enum đã thống nhất
+        - Tính năng chưa hoàn chỉnh nhưng đánh dấu đã xong
+        - Không có bằng chứng/test
+        - Commit message mơ hồ
+    validations:
+      required: false

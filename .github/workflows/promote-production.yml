@@ -1,0 +1,48 @@
+name: Promote Production
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy Staging
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    name: promote-develop-to-main
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'develop') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Create or update release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing_pr="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing_pr" ]; then
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "chore: promote develop to production" \
+              --body "Automated release PR created after staging deployment passed."
+            existing_pr="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')"
+          else
+            gh pr comment "$existing_pr" --body "Staging deployment passed again; release PR remains ready for auto-merge."
+          fi
+
+          if gh pr merge "$existing_pr" --auto --merge; then
+            echo "Auto-merge enabled for release PR #${existing_pr}"
+          else
+            echo "Auto-merge could not be enabled for release PR #${existing_pr}."
+            echo "Check repository setting: allow auto-merge, required checks, and merge queue/ruleset."
+          fi
