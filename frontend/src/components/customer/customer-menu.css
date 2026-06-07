@@ -473,6 +473,10 @@
   color: var(--cmc-muted);
 }
 
+.cmc-cart-panel.side .cmc-secondary-link {
+  width: 100%;
+}
+
 .cmc-cart-list {
   display: grid;
   gap: 10px;
@@ -608,6 +612,10 @@
 
 .cmc-checkout-note strong {
   color: #3d2317;
+}
+
+.cmc-checkout-note span {
+  line-height: 1.55;
 }
 
 .cmc-checkout-note.small {

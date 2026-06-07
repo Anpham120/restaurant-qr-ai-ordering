@@ -28,6 +28,27 @@ type CheckoutForm = {
   note: string;
 };
 
+const orderTypeCopy: Record<
+  CustomerOrderType,
+  { label: string; shortLabel: string; description: string }
+> = {
+  DineIn: {
+    label: "Ăn tại bàn",
+    shortLabel: "Tại bàn",
+    description: "Gửi đơn kèm mã bàn QR để nhân viên và bếp nhận đúng vị trí phục vụ.",
+  },
+  Pickup: {
+    label: "Mang về",
+    shortLabel: "Mang về",
+    description: "Khách để lại tên và số điện thoại để nhà hàng xác nhận khi món sẵn sàng.",
+  },
+  DeliveryMock: {
+    label: "Giao hàng demo",
+    shortLabel: "Giao hàng",
+    description: "Luồng giao hàng mô phỏng cho demo, yêu cầu thông tin nhận hàng đầy đủ.",
+  },
+};
+
 function getInitialCart() {
   if (typeof window === "undefined") {
     return {};
@@ -107,6 +128,7 @@ export function CustomerCartPage() {
   const payloadPreview = buildOrderPayload(orderType, tableCode, cart, selectedItems, form);
   const requiresContact = orderType === "Pickup" || orderType === "DeliveryMock";
   const requiresDelivery = orderType === "DeliveryMock";
+  const orderTypeDetails = orderTypeCopy[orderType];
   const isContactMissing =
     requiresContact && (form.contactName.trim().length === 0 || form.phoneNumber.trim().length === 0);
   const isDeliveryMissing = requiresDelivery && form.deliveryAddress.trim().length === 0;
@@ -172,8 +194,8 @@ export function CustomerCartPage() {
             Kiểm tra món và <span>gửi đơn cho CMC</span>
           </h2>
           <p>
-            Luồng checkout mock theo contract `POST /api/orders`, sẵn sàng nối backend khi
-            endpoint đặt món được mở.
+            Kiểm tra giỏ, chọn hình thức nhận món và gửi đơn theo contract `POST /api/orders`.
+            Sau khi đặt, khách có thể mở màn hình theo dõi trạng thái món.
           </p>
           <div className="cmc-hero-actions">
             <Link className="cmc-secondary-link" to={tableCode ? `/table/${tableCode}` : "/menu"}>
@@ -243,7 +265,7 @@ export function CustomerCartPage() {
         <form className="cmc-checkout-panel" onSubmit={submitOrder}>
           <div className="cmc-section-title">
             <h3>Thông tin đặt món</h3>
-            <span>{orderType}</span>
+            <span>{orderTypeDetails.shortLabel}</span>
           </div>
 
           <div className="cmc-order-type-tabs" role="tablist" aria-label="Order type">
@@ -255,21 +277,27 @@ export function CustomerCartPage() {
                 onClick={() => setOrderType(type)}
                 type="button"
               >
-                {type}
+                {orderTypeCopy[type].label}
               </button>
             ))}
           </div>
 
+          <div className="cmc-checkout-note">
+            <strong>{orderTypeDetails.label}</strong>
+            <span>{orderTypeDetails.description}</span>
+          </div>
+
           {isDineInMissingTable ? (
             <p className="cmc-inline-error">
-              DineIn cần mã bàn từ QR. Hãy vào lại đường dẫn `/table/:tableCode` hoặc chọn Pickup.
+              Đơn tại bàn cần mã bàn từ QR. Hãy vào lại đường dẫn `/table/:tableCode` hoặc chọn
+              mang về.
             </p>
           ) : null}
 
           {orderType === "DineIn" ? (
             <div className="cmc-checkout-note">
               <strong>Đơn tại bàn</strong>
-              <span>Payload sẽ gửi kèm tableCode: {tableCode ?? "chưa có"}</span>
+              <span>Mã bàn gửi kèm đơn: {tableCode ?? "chưa có"}</span>
             </div>
           ) : null}
 
@@ -319,7 +347,7 @@ export function CustomerCartPage() {
           </label>
 
           <details className="cmc-payload-preview">
-            <summary>Payload createOrder</summary>
+            <summary>Evidence payload gửi lên API</summary>
             <pre>{JSON.stringify(payloadPreview, null, 2)}</pre>
           </details>
 
@@ -328,7 +356,9 @@ export function CustomerCartPage() {
           {successOrder ? (
             <div className="cmc-success-state" role="status">
               <strong>Đã tạo đơn {successOrder.orderCode}</strong>
-              <span>Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}</span>
+              <span>
+                Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}
+              </span>
               <Link to={`/orders/${successOrder.orderCode}`}>Theo dõi đơn</Link>
             </div>
           ) : null}
@@ -339,7 +369,8 @@ export function CustomerCartPage() {
 
           {submittedPayload ? (
             <p className="cmc-checkout-note small">
-              Payload cuối đã gửi: {submittedPayload.orderType} - {submittedPayload.items.length} dòng món.
+              Evidence: đã gửi {orderTypeCopy[submittedPayload.orderType].label.toLowerCase()} với{" "}
+              {submittedPayload.items.length} dòng món.
             </p>
           ) : null}
         </form>
