@@ -25,15 +25,15 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_001",
-        menuItemId: "m_001",
-        name: "Cơm gà xối mỡ",
+        menuItemId: "mi-006",
+        name: "Bò lúc lắc",
         quantity: 2,
         status: "Preparing",
         updatedAt: "2026-06-05T08:12:00Z",
       },
       {
         orderItemId: "oi_002",
-        menuItemId: "m_007",
+        menuItemId: "mi-011",
         name: "Trà đào cam sả",
         quantity: 2,
         status: "Ready",
@@ -41,7 +41,7 @@ const mockOrders: OrderTrackingOrder[] = [
       },
       {
         orderItemId: "oi_003",
-        menuItemId: "m_005",
+        menuItemId: "mi-001",
         name: "Gỏi cuốn tôm thịt",
         quantity: 1,
         status: "Pending",
@@ -61,16 +61,16 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_004",
-        menuItemId: "m_002",
-        name: "Cơm sườn nướng",
+        menuItemId: "mi-005",
+        name: "Phở bò đặc biệt",
         quantity: 1,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
       },
       {
         orderItemId: "oi_005",
-        menuItemId: "m_003",
-        name: "Phở bò tái",
+        menuItemId: "mi-003",
+        name: "Nem rán Hà Nội",
         quantity: 1,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
@@ -89,8 +89,8 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_006",
-        menuItemId: "m_006",
-        name: "Chả giò hải sản",
+        menuItemId: "mi-008",
+        name: "Tôm rang muối",
         quantity: 2,
         status: "Ready",
         updatedAt: "2026-06-05T08:18:00Z",

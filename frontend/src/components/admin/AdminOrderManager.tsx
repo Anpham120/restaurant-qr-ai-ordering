@@ -1,15 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAdminOrders } from "../../services/adminOrderService";
-import type { AdminOrder, OrderStatus } from "../../types";
+import type { AdminOrder } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
-const statuses: Array<OrderStatus | "All"> = ["All", "Placed", "Preparing", "Ready"];
+type OrderFilterStatus = "All" | "Placed" | "Preparing" | "Ready" | "Served" | "Delivered";
+
+const statuses: OrderFilterStatus[] = [
+  "All",
+  "Placed",
+  "Preparing",
+  "Ready",
+  "Served",
+  "Delivered",
+];
+
+const statusLabels: Record<OrderFilterStatus, string> = {
+  All: "Tất cả",
+  Placed: "Mới đặt",
+  Preparing: "Đang chế biến",
+  Ready: "Sẵn sàng",
+  Served: "Đã phục vụ",
+  Delivered: "Đã giao",
+};
+
 const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
 export function AdminOrderManager() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "All">("All");
+  const [selectedStatus, setSelectedStatus] = useState<OrderFilterStatus>("All");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +54,22 @@ export function AdminOrderManager() {
   const selectedOrder =
     orders.find((order) => order.id === selectedOrderId) ?? visibleOrders[0] ?? orders[0];
 
+  const orderSummary = useMemo(
+    () => ({
+      ready: orders.filter((order) => order.status === "Ready").length,
+      unpaid: orders.filter((order) => order.paymentStatus === "Pending").length,
+      revenue: orders.reduce((total, order) => total + order.total, 0),
+    }),
+    [orders],
+  );
+
   if (isLoading) {
-    return <AdminStatePanel title="Đang tải đơn hàng" description="Chuẩn bị dữ liệu đơn mẫu." />;
+    return (
+      <AdminStatePanel
+        title="Đang tải đơn hàng"
+        description="Chuẩn bị dữ liệu đơn mẫu cho màn điều phối."
+      />
+    );
   }
 
   if (error) {
@@ -49,21 +82,36 @@ export function AdminOrderManager() {
         <div>
           <span className="panel-kicker">Order control</span>
           <h3>{orders.length} đơn đang theo dõi</h3>
-          <p>Danh sách và chi tiết đơn dùng status contract, sẵn sàng nối service thật.</p>
+          <p>
+            Danh sách và chi tiết đơn giữ đúng status contract, có placeholder rõ cho
+            xác nhận, phục vụ và thanh toán.
+          </p>
+        </div>
+        <div className="admin-toolbar-metrics">
+          <span>{orderSummary.ready} đơn Ready</span>
+          <span>{orderSummary.unpaid} chờ COD</span>
+          <span>{formatCurrency(orderSummary.revenue)}</span>
         </div>
       </section>
 
       <section className="admin-category-strip" aria-label="Lọc trạng thái đơn">
-        {statuses.map((status) => (
-          <button
-            className={selectedStatus === status ? "admin-chip active" : "admin-chip"}
-            key={status}
-            type="button"
-            onClick={() => setSelectedStatus(status)}
-          >
-            {status === "All" ? "Tất cả" : status}
-          </button>
-        ))}
+        {statuses.map((status) => {
+          const count =
+            status === "All"
+              ? orders.length
+              : orders.filter((order) => order.status === status).length;
+
+          return (
+            <button
+              className={selectedStatus === status ? "admin-chip active" : "admin-chip"}
+              key={status}
+              type="button"
+              onClick={() => setSelectedStatus(status)}
+            >
+              {statusLabels[status]} ({count})
+            </button>
+          );
+        })}
       </section>
 
       <div className="admin-split-layout orders">
@@ -73,6 +121,7 @@ export function AdminOrderManager() {
               <span className="panel-kicker">Danh sách đơn</span>
               <h3>Ưu tiên xử lý</h3>
             </div>
+            <span className="admin-status admin-status-placed">Theo ca sáng</span>
           </div>
 
           {visibleOrders.length === 0 ? (
@@ -93,7 +142,9 @@ export function AdminOrderManager() {
                 >
                   <span>{order.code}</span>
                   <strong>{order.tableCode ?? order.customerName}</strong>
-                  <small>{order.placedAt} · {order.type}</small>
+                  <small>
+                    {order.placedAt} · {formatOrderType(order.type)}
+                  </small>
                   <AdminStatusBadge status={order.status} />
                   <b>{formatCurrency(order.total)}</b>
                 </button>
@@ -119,7 +170,7 @@ export function AdminOrderManager() {
                 </div>
                 <div>
                   <dt>Loại đơn</dt>
-                  <dd>{selectedOrder.type}</dd>
+                  <dd>{formatOrderType(selectedOrder.type)}</dd>
                 </div>
                 <div>
                   <dt>Thanh toán</dt>
@@ -148,12 +199,19 @@ export function AdminOrderManager() {
 
               <div className="admin-action-row">
                 <button className="button primary" type="button">
-                  Cập nhật trạng thái
+                  Xác nhận xử lý
+                </button>
+                <button className="button" type="button">
+                  Gửi staff
                 </button>
                 <button className="button" type="button">
                   Xem phiếu bếp
                 </button>
               </div>
+              <p className="admin-helper-note">
+                Các nút đang là placeholder giao diện. Khi backend sẵn sàng, chúng sẽ gọi
+                API cập nhật OrderStatus theo contract.
+              </p>
             </>
           ) : (
             <AdminStatePanel title="Chưa chọn đơn" description="Chọn một đơn để xem chi tiết." />
@@ -162,4 +220,16 @@ export function AdminOrderManager() {
       </div>
     </div>
   );
+}
+
+function formatOrderType(type: AdminOrder["type"]) {
+  if (type === "DineIn") {
+    return "Tại bàn";
+  }
+
+  if (type === "Pickup") {
+    return "Mang về";
+  }
+
+  return "Giao hàng demo";
 }
