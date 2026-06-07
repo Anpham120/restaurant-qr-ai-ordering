@@ -34,3 +34,10 @@
 
 - Staff payment and admin status actions are UI placeholders until backend endpoints are ready.
 - Kitchen realtime remains the existing mock event adapter and does not change backend contracts.
+
+## Encoding Follow-up
+
+- After PR #50 was auto-merged, the merge commit message kept an old encoding artifact in the Vietnamese word "và".
+- PR title, PR body, issue result comment, and the implementation commit message were corrected and verified through the GitHub API with UTF-8 content.
+- The old merge commit message was not rewritten because `develop` is protected by repository rules: changes must go through pull requests and force-push is blocked.
+- This evidence note records the limitation without changing backend, AI/RAG, status enums, or customer cart flow.
