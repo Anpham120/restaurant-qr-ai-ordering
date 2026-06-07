@@ -28,7 +28,7 @@ public static class CategoryEndpoints
         })
         .WithName("AdminGetCategory");
 
-        adminCategories.MapPost("/", (CategoryRequest request, RestaurantDataStore store) =>
+        adminCategories.MapPost("/", (CategoryRequest? request, RestaurantDataStore store) =>
         {
             var validationError = ValidateCategoryRequest(request);
             if (validationError is not null)
@@ -36,13 +36,14 @@ public static class CategoryEndpoints
                 return validationError;
             }
 
-            var category = store.CreateCategory(request.Name!, request.DisplayOrder, request.IsActive);
+            var validatedRequest = request!;
+            var category = store.CreateCategory(validatedRequest.Name!, validatedRequest.DisplayOrder, validatedRequest.IsActive);
 
             return Results.Created($"/api/admin/categories/{category.Id}", ToAdminCategoryResponse(category));
         })
         .WithName("AdminCreateCategory");
 
-        adminCategories.MapPut("/{categoryId}", (string categoryId, CategoryRequest request, RestaurantDataStore store) =>
+        adminCategories.MapPut("/{categoryId}", (string categoryId, CategoryRequest? request, RestaurantDataStore store) =>
         {
             var validationError = ValidateCategoryRequest(request);
             if (validationError is not null)
@@ -50,7 +51,8 @@ public static class CategoryEndpoints
                 return validationError;
             }
 
-            var category = store.UpdateCategory(categoryId, request.Name!, request.DisplayOrder, request.IsActive);
+            var validatedRequest = request!;
+            var category = store.UpdateCategory(categoryId, validatedRequest.Name!, validatedRequest.DisplayOrder, validatedRequest.IsActive);
 
             return category is null
                 ? ApiResults.NotFound("CATEGORY_NOT_FOUND", "Category was not found.")
@@ -83,8 +85,13 @@ public static class CategoryEndpoints
             category.UpdatedAt);
     }
 
-    private static IResult? ValidateCategoryRequest(CategoryRequest request)
+    private static IResult? ValidateCategoryRequest(CategoryRequest? request)
     {
+        if (request is null)
+        {
+            return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return ApiResults.BadRequest("CATEGORY_NAME_REQUIRED", "Category name is required.");

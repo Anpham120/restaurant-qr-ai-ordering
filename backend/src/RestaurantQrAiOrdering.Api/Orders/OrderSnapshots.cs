@@ -43,6 +43,6 @@ public sealed record CreateOrderCommand(
     DeliveryInfoRequest? DeliveryInfo,
     IReadOnlyList<CreateOrderItemRequest> Items);
 
-public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order);
+public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order, string? ErrorCode = null);
 
 public sealed record UpdateOrderItemStatusResult(bool IsOrderFound, bool IsItemFound, OrderSnapshot? Order, OrderItemSnapshot? Item);
