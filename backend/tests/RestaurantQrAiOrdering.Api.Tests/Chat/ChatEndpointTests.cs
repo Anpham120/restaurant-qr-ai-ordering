@@ -111,6 +111,20 @@ public sealed class ChatEndpointTests
             missingBody.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task SendMessage_RejectsMissingBodyWithStandardError()
+    {
+        await using var factory = CreateFactoryWithProvider(new AvailableChatAiProvider());
+        using var client = factory.CreateClient();
+        var chatSessionId = await CreateSessionAsync(client);
+
+        using var response = await client.PostAsync($"/api/chat/sessions/{chatSessionId}/messages", content: null);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
     private static WebApplicationFactory<Program> CreateFactoryWithProvider(IChatAiProvider provider)
     {
         return new WebApplicationFactory<Program>()
