@@ -3,9 +3,33 @@ using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Realtime;
 
+const string CorsPolicyName = "CmcRestaurantCors";
+
 var builder = WebApplication.CreateBuilder(args);
+var defaultCorsOrigins = new[]
+{
+    "https://cmcrestaurant.app",
+    "https://customer.cmcrestaurant.app",
+    "https://admin.cmcrestaurant.app",
+    "https://staging.cmcrestaurant.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+};
+
+var configuredCorsOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 builder.Services.AddOpenApi();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy
+            .WithOrigins(configuredCorsOrigins is { Length: > 0 } ? configuredCorsOrigins : defaultCorsOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.AddRestaurantAuth(builder.Configuration);
 builder.Services.AddRestaurantMenuTableApis();
 builder.Services.AddRestaurantOrderApis();
@@ -20,6 +44,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
