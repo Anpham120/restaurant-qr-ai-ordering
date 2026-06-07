@@ -1,1 +1,21 @@
 *.csproj.user
+
+# .NET build output
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Frontend build output and dependencies
+node_modules/
+dist/
+frontend/node_modules/
+frontend/dist/
+
+# Local environment and generated artifacts
+.env
+.env.*
+!.env.example
+*.log
+tmp/
+.playwright-cli/

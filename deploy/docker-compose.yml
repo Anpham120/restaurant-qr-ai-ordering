@@ -1,0 +1,49 @@
+name: ${COMPOSE_PROJECT_NAME:-cmc-restaurant}
+
+services:
+  api:
+    image: ${BACKEND_IMAGE:-cmc-restaurant-api:${DEPLOY_ENV:-local}}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://127.0.0.1:${BACKEND_PORT:-5000}
+      Jwt__Issuer: ${JWT_ISSUER:-RestaurantQrAiOrdering}
+      Jwt__Audience: ${JWT_AUDIENCE:-RestaurantQrAiOrdering.Client}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}
+      Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-60}
+      AI_PROVIDER: ${AI_PROVIDER:-9router}
+      AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:20128/v1}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-9router}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+      AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
+    network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${BACKEND_PORT:-5000}/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-cmc-restaurant-frontend:${DEPLOY_ENV:-local}}
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://api.cmcrestaurant.app/api}
+        VITE_USE_MOCK_CHAT: ${VITE_USE_MOCK_CHAT:-false}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s

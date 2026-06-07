@@ -162,3 +162,11 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 - Hoàn thiện chatbot AI theo dữ liệu menu/FAQ.
 - Triển khai CI/CD thật theo kế hoạch DevOps đã chốt.
 - Chuẩn hóa bằng chứng demo, health check và báo cáo triển khai.
+
+## DevOps Status
+
+Issue #16 adds real CI/CD configuration for GitHub Actions, Docker Compose,
+Nginx/Certbot deployment, staging/production environments, health checks and
+rollback. The project should only be considered fully deployed after the
+workflows run successfully, required deployment secrets are configured and the
+GitHub branch ruleset is enabled.

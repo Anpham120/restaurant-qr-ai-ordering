@@ -210,3 +210,27 @@ Nếu dự án chưa có VPS hoặc domain thật, PR DevOps vẫn phải cung c
 - Lệnh health/smoke check.
 - Rollback checklist.
 - Ghi chú rõ rằng production auto-deploy đã được thiết kế nhưng chưa chạy thật do thiếu deployment target.
+
+## Issue #16 Deployment Implementation Update
+
+Repo da co cau hinh trien khai production-like bang GitHub Actions, Docker
+Compose, Nginx va Certbot:
+
+- CI: `.github/workflows/ci.yml`
+- Auto-merge attempt: `.github/workflows/auto-merge.yml`
+- Staging deploy tu `develop`: `.github/workflows/deploy-staging.yml`
+- Promote `develop` sang `main`: `.github/workflows/promote-production.yml`
+- Production deploy tu `main`: `.github/workflows/deploy-production.yml`
+- Rollback thu cong co kiem soat: `.github/workflows/rollback.yml`
+- Docker/deploy config: `backend/Dockerfile`, `frontend/Dockerfile`,
+  `deploy/docker-compose.yml`, `deploy/scripts/**`
+- Branch ruleset can bat theo: `docs/BRANCH_RULESET.md`
+- Required secrets: `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`,
+  `PRODUCTION_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY`,
+  `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`
+- 9router tren VPS giu private tai `127.0.0.1:20128`; backend container dung
+  host network de goi `AI_BASE_URL=http://127.0.0.1:20128/v1`.
+
+Issue #16 chi duoc dong khi co bang chung workflow chay that: CI pass,
+staging/production deploy pass, health/smoke check pass va branch/ruleset duoc
+bat tren GitHub.
