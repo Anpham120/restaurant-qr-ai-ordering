@@ -78,12 +78,14 @@ Quy tắc:
 - `error.code` là khóa ổn định để frontend map sang thông báo thân thiện.
 - `error.message` có thể là tiếng Anh kỹ thuật hoặc tiếng Việt, nhưng frontend không được phụ thuộc vào nội dung này để rẽ nhánh logic.
 - `error.details` là object; có thể rỗng `{}` hoặc chứa field-level validation như `{ "field": "email" }`.
+- Request body thieu/null/malformed tra `400` voi `REQUEST_INVALID` theo cung shape.
 - `401 Unauthorized` và `403 Forbidden` có thể trả body rỗng nếu middleware mặc định chưa custom, nhưng khi custom API result thì phải dùng shape trên.
 
 Error code đang dùng hoặc phải dùng:
 
 | HTTP | Code | Khi nào |
 | --- | --- | --- |
+| `400` | `REQUEST_INVALID` | Request body thieu, null hoac JSON khong hop le. |
 | `400` | `FULL_NAME_REQUIRED` | Register thiếu họ tên. |
 | `400` | `EMAIL_INVALID` | Email sai format. |
 | `400` | `PASSWORD_TOO_SHORT` | Password dưới 8 ký tự. |
@@ -102,6 +104,7 @@ Error code đang dùng hoặc phải dùng:
 | `400` | `ORDER_ITEMS_REQUIRED` | Tạo đơn không có món. |
 | `400` | `ORDER_ITEM_QUANTITY_INVALID` | Số lượng món nhỏ hơn 1. |
 | `400` | `MENU_ITEM_UNAVAILABLE` | Món đang hết hàng. |
+| `400` | `ORDER_CANCEL_NOT_ALLOWED` | Khong the huy don sau khi don hoac mot mon da toi `Preparing`. |
 | `400` | `DINE_IN_TABLE_REQUIRED` | `DineIn` thiếu `tableCode`. |
 | `400` | `DELIVERY_INFO_REQUIRED` | `DeliveryMock` thiếu thông tin giao hàng mock. |
 | `404` | `ORDER_NOT_FOUND` | Không tìm thấy đơn theo `orderCode`. |
@@ -476,6 +479,7 @@ Quy tắc nghiệp vụ:
 - `quantity` phải lớn hơn hoặc bằng `1`.
 - Backend phải từ chối món không còn hàng bằng `MENU_ITEM_UNAVAILABLE`.
 - Customer chỉ được hủy trước khi đơn/món chuyển sang `Preparing`.
+- Backend chan status `Cancelled` bang `ORDER_CANCEL_NOT_ALLOWED` neu order hoac bat ky item nao da toi `Preparing`.
 - `DineIn` yêu cầu `tableCode` hợp lệ và đang active.
 - `Pickup` không cần `tableCode`, không cần `deliveryInfo`.
 - `DeliveryMock` yêu cầu `recipientName`, `phoneNumber` và `address`.
@@ -545,6 +549,7 @@ Errors:
 - `401 Unauthorized` when no valid token is provided.
 - `403 Forbidden` when the token role is not `Staff` or `Admin`.
 - `400` with `ORDER_STATUS_INVALID` when `status` is not a valid `OrderStatus`.
+- `400` with `ORDER_CANCEL_NOT_ALLOWED` when cancelling after the order or any item reaches `Preparing`.
 - `404` with `ORDER_NOT_FOUND` when `orderCode` does not exist.
 
 ### PATCH `/api/orders/{orderCode}/items/{orderItemId}/status`

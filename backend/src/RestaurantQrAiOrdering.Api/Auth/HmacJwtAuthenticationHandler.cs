@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using RestaurantQrAiOrdering.Api.Errors;
 
 namespace RestaurantQrAiOrdering.Api.Auth;
 
@@ -26,11 +27,19 @@ public sealed class HmacJwtAuthenticationHandler : AuthenticationHandler<Authent
         var authorization = Request.Headers.Authorization.ToString();
         if (string.IsNullOrWhiteSpace(authorization))
         {
+            Logger.LogDebug(
+                "Authentication skipped because no Authorization header was provided for {Path}.",
+                Request.Path);
+
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
+            Logger.LogWarning(
+                "Authentication failed because Authorization header used an unsupported scheme for {Path}.",
+                Request.Path);
+
             return Task.FromResult(AuthenticateResult.Fail("Authorization header must use Bearer scheme."));
         }
 
@@ -38,10 +47,45 @@ public sealed class HmacJwtAuthenticationHandler : AuthenticationHandler<Authent
         var principal = jwtTokenService.ValidateAccessToken(token);
         if (principal is null)
         {
+            Logger.LogWarning("Authentication failed because the access token is invalid for {Path}.", Request.Path);
+
             return Task.FromResult(AuthenticateResult.Fail("Invalid access token."));
         }
 
+        Logger.LogInformation(
+            "Authenticated user {UserId} with role {Role} for {Path}.",
+            principal.FindFirstValue(ClaimTypes.NameIdentifier),
+            principal.FindFirstValue(ClaimTypes.Role),
+            Request.Path);
+
         var ticket = new AuthenticationTicket(principal, HmacJwtAuthenticationHandler.SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Logger.LogWarning(
+            "Authorization challenge returned 401 for {Path}.",
+            Request.Path);
+
+        await ApiErrorFactory.WriteAsync(
+            Response,
+            StatusCodes.Status401Unauthorized,
+            "AUTHENTICATION_REQUIRED",
+            "A valid bearer token is required.");
+    }
+
+    protected override async Task HandleForbiddenAsync(AuthenticationProperties properties)
+    {
+        Logger.LogWarning(
+            "Authorization returned 403 for user {UserId} on {Path}.",
+            Context.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            Request.Path);
+
+        await ApiErrorFactory.WriteAsync(
+            Response,
+            StatusCodes.Status403Forbidden,
+            "FORBIDDEN",
+            "The current user does not have permission to perform this action.");
     }
 }

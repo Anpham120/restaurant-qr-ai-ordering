@@ -63,6 +63,19 @@ public sealed class AuthEndpointTests
     }
 
     [Fact]
+    public async Task Login_RejectsNullBody()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync("/api/auth/login", content: null);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Register_RejectsEmptyFullName()
     {
         await using var factory = new WebApplicationFactory<Program>();
@@ -78,6 +91,19 @@ public sealed class AuthEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("FULL_NAME_REQUIRED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Register_RejectsNullBody()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync("/api/auth/register", content: null);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -139,8 +165,10 @@ public sealed class AuthEndpointTests
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/auth/me");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("AUTHENTICATION_REQUIRED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -190,8 +218,10 @@ public sealed class AuthEndpointTests
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await client.GetAsync("/api/auth/admin-check");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("FORBIDDEN", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
