@@ -109,8 +109,8 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
             Ẩm thực Việt Nam <span>tinh tế & đậm đà</span>
           </h2>
           <p>
-            Thực đơn mock dùng ảnh món thật, có lọc danh mục, tìm kiếm, trạng thái
-            còn món và giỏ hàng để nối backend ở các issue sau.
+            Quét mã QR tại bàn để xem thực đơn, chọn món, xác nhận giỏ hàng và
+            theo dõi trạng thái phục vụ ngay trên điện thoại.
           </p>
           <div className="cmc-hero-actions">
             <a className="cmc-primary-link" href="#cmc-menu-list">
@@ -127,6 +127,36 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
           <img alt="Trà đào cam sả" src={menuItems[10].imageUrl} />
         </div>
       </header>
+
+      <section className="cmc-home-flow" aria-label="Customer order journey">
+        <div className="cmc-section-title">
+          <h3>Luồng gọi món dành cho khách</h3>
+          <span>{tableCode ? `Bàn ${tableCode}` : "QR / Pickup"}</span>
+        </div>
+        <div className="cmc-home-steps">
+          <article className="cmc-step-card">
+            <span>Bước 1</span>
+            <h3>Quét QR hoặc chọn mang về</h3>
+            <p>
+              Mã bàn được giữ xuyên suốt giỏ hàng để bếp biết đúng vị trí phục vụ.
+            </p>
+          </article>
+          <article className="cmc-step-card">
+            <span>Bước 2</span>
+            <h3>Chọn món và xác nhận giỏ</h3>
+            <p>
+              Món hết hàng được khóa trước khi đặt, tránh gửi đơn sai cho bếp.
+            </p>
+          </article>
+          <article className="cmc-step-card">
+            <span>Bước 3</span>
+            <h3>Theo dõi trạng thái món</h3>
+            <p>
+              Sau khi gửi đơn, khách có thể mở trang tracking và xem cập nhật realtime.
+            </p>
+          </article>
+        </div>
+      </section>
 
       <section className="cmc-menu-toolbar" aria-label="Menu filters">
         <TableContextBadge tableCode={tableCode} />
@@ -187,7 +217,7 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
 
         <aside className="cmc-cart-panel side" aria-label="Cart summary">
           <h3>Giỏ hàng</h3>
-          <p>Mock cart summary cho customer menu UI.</p>
+          <p>Kiểm tra nhanh số lượng và tổng tiền trước khi sang bước xác nhận.</p>
           <div className="cmc-cart-list">
             {menuItems
               .filter((item) => (cart[item.id] ?? 0) > 0)
@@ -207,6 +237,9 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
             <strong>{formatVnd(summary.totalPrice)}</strong>
           </div>
           {tableCode ? <TableContextBadge tableCode={tableCode} /> : null}
+          <Link className="cmc-secondary-link" to="/cart">
+            Xem giỏ & đặt món
+          </Link>
         </aside>
       </div>
 

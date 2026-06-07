@@ -27,6 +27,9 @@ export function SuggestedCartActionCard({
         <p className="cmc-suggestion-eyebrow">Gợi ý cần xác nhận</p>
         <h3>{action.name}</h3>
         <p>{action.reason}</p>
+        <p className="cmc-suggestion-confirmation">
+          AI chỉ đề xuất món này. Giỏ hàng chỉ thay đổi sau khi bạn bấm xác nhận.
+        </p>
       </div>
       <dl>
         <div>

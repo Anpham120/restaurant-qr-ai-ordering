@@ -47,7 +47,12 @@ export function AdminMenuManager() {
   };
 
   if (isLoading) {
-    return <AdminStatePanel title="Đang tải thực đơn" description="Chuẩn bị dữ liệu món ăn mẫu." />;
+    return (
+      <AdminStatePanel
+        title="Đang tải thực đơn"
+        description="Chuẩn bị dữ liệu món ăn mẫu cho màn quản trị."
+      />
+    );
   }
 
   if (error) {
@@ -61,9 +66,13 @@ export function AdminMenuManager() {
           <span className="panel-kicker">Menu control</span>
           <h3>{items.length} món trong thực đơn</h3>
           <p>
-            {availableCount} món đang bán, {unavailableCount} món tạm hết. Dữ liệu dùng cùng shape
-            với menu contract.
+            {availableCount} món đang bán, {unavailableCount} món tạm hết. Dữ liệu giữ
+            đúng shape với menu contract để dễ thay mock bằng API thật.
           </p>
+        </div>
+        <div className="admin-toolbar-metrics">
+          <span>{categories.length} danh mục</span>
+          <span>{visibleItems.length} món đang xem</span>
         </div>
         <button className="button primary" type="button" onClick={() => setIsCreating(true)}>
           + Tạo món
@@ -76,7 +85,7 @@ export function AdminMenuManager() {
           type="button"
           onClick={() => setSelectedCategory("all")}
         >
-          Tất cả
+          Tất cả ({items.length})
         </button>
         {categories.map((category) => (
           <button
@@ -97,6 +106,7 @@ export function AdminMenuManager() {
               <span className="panel-kicker">Danh sách món</span>
               <h3>Trạng thái hiển thị</h3>
             </div>
+            <span className="admin-status admin-status-ready">Demo-ready</span>
           </div>
 
           {visibleItems.length === 0 ? (
@@ -144,6 +154,10 @@ export function AdminMenuManager() {
         <aside className="admin-panel admin-form-panel">
           <span className="panel-kicker">{isCreating ? "Create" : "Edit"}</span>
           <h3>{isCreating ? "Tạo món mới" : selectedItem?.name ?? "Chọn món"}</h3>
+          <p>
+            Form đang là placeholder giao diện. Khi nối backend, các trường này map về
+            menu item trong API contract.
+          </p>
           <form className="admin-form">
             <label>
               Tên món
