@@ -217,7 +217,8 @@ Repo da co cau hinh trien khai production-like bang GitHub Actions, Docker
 Compose, Nginx va Certbot:
 
 - CI: `.github/workflows/ci.yml`
-- Auto-merge attempt: `.github/workflows/auto-merge.yml`
+- Auto-merge attempt: `.github/workflows/auto-merge.yml`, dong thoi dispatch
+  staging/production deploy sau khi PR merge.
 - Staging deploy tu `develop`: `.github/workflows/deploy-staging.yml`
 - Promote `develop` sang `main`: `.github/workflows/promote-production.yml`
   tao release branch, doi required checks, merge PR va dispatch production deploy.
