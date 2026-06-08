@@ -220,6 +220,7 @@ Compose, Nginx va Certbot:
 - Auto-merge attempt: `.github/workflows/auto-merge.yml`
 - Staging deploy tu `develop`: `.github/workflows/deploy-staging.yml`
 - Promote `develop` sang `main`: `.github/workflows/promote-production.yml`
+  tao release branch, doi required checks, merge PR va dispatch production deploy.
 - Production deploy tu `main`: `.github/workflows/deploy-production.yml`
 - Rollback thu cong co kiem soat: `.github/workflows/rollback.yml`
 - Docker/deploy config: `backend/Dockerfile`, `frontend/Dockerfile`,
@@ -227,7 +228,8 @@ Compose, Nginx va Certbot:
 - Branch ruleset can bat theo: `docs/BRANCH_RULESET.md`
 - Required secrets: `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`,
   `PRODUCTION_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY`,
-  `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`
+  `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`,
+  `RELEASE_BOT_TOKEN`
 - 9router tren VPS giu private tai `127.0.0.1:20128`; backend container dung
   host network de goi `AI_BASE_URL=http://127.0.0.1:20128/v1`.
 
