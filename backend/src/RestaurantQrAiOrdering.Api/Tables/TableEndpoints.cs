@@ -27,6 +27,6 @@ public static partial class TableEndpoints
         return app;
     }
 
-    [GeneratedRegex("^T\\d{2}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^T(0[1-9]|[1-9][0-9])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TableCodeRegex();
 }
