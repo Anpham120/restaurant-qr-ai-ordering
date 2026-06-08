@@ -94,6 +94,7 @@ Error code đang dùng hoặc phải dùng:
 | `409` | `EMAIL_ALREADY_REGISTERED` | Email đã tồn tại. |
 | `400` | `TABLE_CODE_INVALID` | `tableCode` không đúng format `T01`. |
 | `404` | `TABLE_NOT_FOUND` | Không tìm thấy bàn active. |
+| `400` | `CATEGORY_NAME_REQUIRED` | Tạo/sửa category thiếu tên. |
 | `400` | `CATEGORY_REQUIRED` | Tạo/sửa món thiếu category. |
 | `400` | `CATEGORY_INVALID` | Category không tồn tại hoặc inactive. |
 | `404` | `CATEGORY_NOT_FOUND` | Không tìm thấy category. |
@@ -104,10 +105,17 @@ Error code đang dùng hoặc phải dùng:
 | `400` | `ORDER_ITEMS_REQUIRED` | Tạo đơn không có món. |
 | `400` | `ORDER_ITEM_QUANTITY_INVALID` | Số lượng món nhỏ hơn 1. |
 | `400` | `MENU_ITEM_UNAVAILABLE` | Món đang hết hàng. |
+| `400` | `ORDER_TYPE_INVALID` | `orderType` không thuộc `OrderType`. |
+| `400` | `PAYMENT_METHOD_INVALID` | `paymentMethod` không thuộc `PaymentMethod`. |
+| `400` | `ORDER_STATUS_INVALID` | `status` không thuộc `OrderStatus`. |
+| `400` | `ORDER_ITEM_STATUS_INVALID` | `status` không thuộc `OrderItemStatus`. |
 | `400` | `ORDER_CANCEL_NOT_ALLOWED` | Khong the huy don sau khi don hoac mot mon da toi `Preparing`. |
 | `400` | `DINE_IN_TABLE_REQUIRED` | `DineIn` thiếu `tableCode`. |
 | `400` | `DELIVERY_INFO_REQUIRED` | `DeliveryMock` thiếu thông tin giao hàng mock. |
 | `404` | `ORDER_NOT_FOUND` | Không tìm thấy đơn theo `orderCode`. |
+| `404` | `ORDER_ITEM_NOT_FOUND` | Không tìm thấy món trong đơn theo `orderItemId`. |
+| `400` | `CHAT_MESSAGE_EMPTY` | Nội dung chat rỗng. |
+| `404` | `CHAT_SESSION_NOT_FOUND` | Không tìm thấy phiên chat. |
 
 ## 4. Auth
 
@@ -837,29 +845,29 @@ Ghi chú:
 
 | Category ID | Name | Display order | Active | Demo dùng cho |
 | --- | --- | --- | --- | --- |
-| `cat_appetizer` | `Khai vị` | `10` | `true` | Menu, chatbot gợi ý món nhẹ. |
-| `cat_main` | `Món chính` | `20` | `true` | QR order, pickup. |
-| `cat_noodle` | `Phở & Bún` | `30` | `true` | Chatbot hỏi món nóng. |
-| `cat_seafood` | `Hải sản` | `40` | `true` | Delivery mock, nhóm khách. |
-| `cat_drink` | `Đồ uống` | `50` | `true` | Combo/gợi ý kèm món. |
-| `cat_dessert` | `Tráng miệng` | `60` | `true` | Upsell chatbot. |
+| `cat_appetizer` | `Khai vi` | `10` | `true` | Menu, chatbot goi y mon nhe. |
+| `cat_main` | `Mon chinh` | `20` | `true` | QR order, pickup. |
+| `cat_noodle` | `Pho va bun` | `30` | `true` | Chatbot hoi mon nong. |
+| `cat_seafood` | `Hai san` | `40` | `true` | Delivery mock, nhom khach. |
+| `cat_drink` | `Do uong` | `50` | `true` | Combo/goi y kem mon. |
+| `cat_dessert` | `Trang mieng` | `60` | `true` | Upsell chatbot. |
 
 ### 10.3. Menu Items
 
 | ID | Category | Name | Price | Available | Tags demo |
 | --- | --- | --- | ---: | --- | --- |
-| `m_001` | `cat_appetizer` | `Gỏi cuốn tôm thịt` | `65000` | `true` | `fresh`, `light`, `signature` |
-| `m_002` | `cat_appetizer` | `Nem rán Hà Nội` | `75000` | `true` | `crispy`, `classic` |
-| `m_003` | `cat_appetizer` | `Bánh xèo miền Tây` | `85000` | `false` | `crispy`, `popular`, `unavailable-demo` |
-| `m_004` | `cat_noodle` | `Phở bò đặc biệt` | `95000` | `true` | `signature`, `beef`, `hot` |
-| `m_005` | `cat_main` | `Bò lúc lắc` | `245000` | `true` | `beef`, `premium` |
-| `m_006` | `cat_main` | `Chả cá Lã Vọng` | `285000` | `true` | `signature`, `fish` |
-| `m_007` | `cat_seafood` | `Tôm rang muối` | `185000` | `true` | `seafood`, `share` |
-| `m_008` | `cat_seafood` | `Lẩu Thái hải sản` | `345000` | `true` | `spicy`, `seafood`, `share` |
-| `m_009` | `cat_drink` | `Trà đào cam sả` | `55000` | `true` | `drink`, `fresh` |
-| `m_010` | `cat_drink` | `Cà phê sữa đá` | `45000` | `false` | `drink`, `coffee`, `unavailable-demo` |
-| `m_011` | `cat_dessert` | `Chè khúc bạch` | `55000` | `true` | `sweet`, `cool` |
-| `m_012` | `cat_dessert` | `Bánh flan caramel` | `35000` | `true` | `sweet`, `classic` |
+| `m_001` | `cat_main` | `Com ga xoi mo` | `45000` | `true` | `pho bien`, `mon chinh`, `signature` |
+| `m_002` | `cat_main` | `Com suon nuong` | `52000` | `true` | `pho bien`, `nuong` |
+| `m_003` | `cat_noodle` | `Pho bo tai` | `55000` | `true` | `nong`, `pho`, `bo` |
+| `m_004` | `cat_noodle` | `Bun bo Hue` | `60000` | `false` | `cay`, `het hang`, `unavailable-demo` |
+| `m_005` | `cat_appetizer` | `Goi cuon tom thit` | `39000` | `true` | `fresh`, `light` |
+| `m_006` | `cat_appetizer` | `Cha gio hai san` | `42000` | `true` | `chien gion`, `seafood` |
+| `m_007` | `cat_seafood` | `Tom rang muoi` | `185000` | `true` | `seafood`, `share` |
+| `m_008` | `cat_seafood` | `Lau Thai hai san` | `345000` | `true` | `spicy`, `seafood`, `share` |
+| `m_009` | `cat_drink` | `Tra dao cam sa` | `55000` | `true` | `drink`, `fresh` |
+| `m_010` | `cat_drink` | `Ca phe sua da` | `45000` | `false` | `drink`, `coffee`, `unavailable-demo` |
+| `m_011` | `cat_dessert` | `Che khuc bach` | `55000` | `true` | `sweet`, `cool` |
+| `m_012` | `cat_dessert` | `Banh flan caramel` | `35000` | `true` | `sweet`, `classic` |
 
 Seed descriptions và image URL có thể khác nhau theo môi trường, nhưng ID, category, price, `isAvailable` và tags demo phải thống nhất để frontend, admin và chatbot test cùng dữ liệu.
 
@@ -882,3 +890,16 @@ Drift/risk đang thấy trong code hiện tại nhưng không sửa trong issue 
 - Frontend admin mock đang dùng `paymentStatus: "Pending"`; contract chuẩn là `Unpaid`, `Paid`, `Failed`, `Cancelled`.
 - Frontend menu type/mock đang dùng ID `mi-001` và thiếu `categoryId`; contract/backend DTO chuẩn dùng `m_001` và có `categoryId`.
 - Backend hiện có auth/menu/table foundation; order/chat/realtime endpoints trong tài liệu là contract để member triển khai tiếp, không phải bằng chứng endpoint đã hoàn thành trong issue #10.
+
+## 13. Issue #18 Integration Review Notes
+
+Ket qua review backend truoc final demo:
+
+- EF Core migration: backend hien tai chua co EF Core `DbContext`, package EF Core hoac thu muc migration. Data demo dang la in-memory store trong API process, nen khong co migration de apply vao local/test DB trong issue nay.
+- Migration/schema risk: khong tao destructive migration va khong sua schema persistence vi EF pipeline chua ton tai.
+- Seed tables: `T01` den `T08` active, `qrToken` dang seed `qr-demo-t01` den `qr-demo-t08`; API table chi chap nhan `T01` den `T99`.
+- Seed menu: 6 category active va 12 menu item demo, co ca item available/unavailable de test order, admin availability va chatbot guardrail.
+- Roles: role catalog co `Customer`, `Staff`, `Kitchen`, `Admin`. Demo Admin/Staff/Kitchen login account chua seed trong code vi auth user store nam ngoai allowed files cua issue #18.
+- API contract fixes: bo sung error codes backend dang tra (`CATEGORY_NAME_REQUIRED`, enum invalid codes, `ORDER_ITEM_NOT_FOUND`, `CHAT_MESSAGE_EMPTY`, `CHAT_SESSION_NOT_FOUND`) va dong bo seed menu/category voi backend response.
+- Status persistence: order status va order item status duoc luu trong `OrderStore` in-memory va GET `/api/orders/{orderCode}` tra lai trang thai moi trong cung API process.
+- Limitation: vi data in-memory, restart API se reset orders, chat sessions, admin menu changes va user registers.
