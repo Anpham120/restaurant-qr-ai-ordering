@@ -1,0 +1,6 @@
+antecedent_items,consequent_items,support,confidence,lift,interpretation
+"Gỏi cuốn tôm thịt","Lẩu Thái hải sản",0.20,1.00,3.33,"Hai món cùng xuất hiện trong các đơn gia đình; có thể gợi ý lẩu sau khai vị nhẹ."
+"Bò lúc lắc","Nem rán Hà Nội",0.30,1.00,3.33,"Món chính bò thường đi kèm khai vị giòn trong đơn nhóm nhỏ."
+"Tôm rang muối","Lẩu Thái hải sản",0.20,0.67,2.22,"Khách thích hải sản có xu hướng gọi thêm lẩu hải sản."
+"Phở bò đặc biệt","Trà đào cam sả",0.20,1.00,2.00,"Đơn pickup phở thường kèm đồ uống thanh mát."
+"Lẩu Thái hải sản","Trà đào cam sả",0.10,0.33,0.67,"Luật này support thấp hơn, chỉ dùng như insight phụ."

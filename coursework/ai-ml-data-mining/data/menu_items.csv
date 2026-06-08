@@ -1,0 +1,13 @@
+menu_item_id,name,category,price_vnd,tags,description,is_available,spice_level
+mi-001,Gỏi cuốn tôm thịt,Khai vị,65000,"fresh;light;signature","Cuốn tươi tôm thịt với rau sống và tương đậu phộng",true,low
+mi-002,Gỏi xoài tôm sú,Khai vị,125000,"fresh;seafood;sour","Xoài xanh tôm sú rau thơm và đậu phộng rang",true,medium
+mi-003,Nem rán Hà Nội,Khai vị,75000,"crispy;classic;share","Nem giòn nhân tôm thịt ăn kèm rau sống",true,low
+mi-004,Bánh xèo miền Tây,Khai vị,85000,"crispy;popular;share","Bánh xèo giòn nhân tôm thịt và giá đỗ",false,low
+mi-005,Phở bò đặc biệt,Phở & Bún,95000,"signature;beef;warm","Nước dùng bò hầm lâu thịt bò mềm và bánh phở",true,low
+mi-006,Bò lúc lắc,Món chính,245000,"beef;premium;main","Bò áp chảo cùng ớt chuông hành tây khoai tây chiên",true,medium
+mi-007,Chả cá Lã Vọng,Món chính,285000,"signature;fish;premium","Cá ướp nghệ thì là ăn cùng bún và mắm tôm",true,medium
+mi-008,Tôm rang muối,Hải sản,185000,"seafood;share;salty","Tôm tươi rang muối giòn thơm",true,medium
+mi-009,Lẩu Thái hải sản,Lẩu,345000,"spicy;seafood;share","Lẩu chua cay tôm mực rau và nấm cho nhóm nhỏ",true,high
+mi-010,Chè khúc bạch,Tráng miệng,55000,"sweet;cool;dessert","Khúc bạch mềm với vải hạnh nhân và nước đường",true,low
+mi-011,Trà đào cam sả,Đồ uống,55000,"drink;fresh;cool","Trà đào thơm cam tươi và sả nhẹ",true,low
+mi-012,Cà phê sữa đá,Đồ uống,45000,"drink;coffee;classic","Cà phê phin đậm vị với sữa đặc và đá viên",false,low
