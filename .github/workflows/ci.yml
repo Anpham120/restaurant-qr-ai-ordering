@@ -60,6 +60,23 @@ jobs:
       - name: Test backend
         run: dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-build --verbosity normal
 
+  ai-service-test:
+    name: ai-service-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test Python RAG core
+        env:
+          PYTHONPATH: ai
+        run: python -m unittest discover -s ai/tests
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest
@@ -72,8 +89,12 @@ jobs:
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
       JWT_SIGNING_KEY: ci-placeholder-signing-key-change-me
+      AI_PROVIDER: python-rag
+      AI_SERVICE_URL: http://127.0.0.1:8001
+      AI_SERVICE_PORT: "8001"
+      AI_LLM_PROVIDER: 9router
       AI_BASE_URL: http://127.0.0.1:20128/v1
-      AI_MODEL: 9router
+      AI_MODEL: gh/gemini-3.1-pro-preview
       AI_API_KEY: ci-placeholder
     steps:
       - name: Checkout

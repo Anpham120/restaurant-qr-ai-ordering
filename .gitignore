@@ -12,6 +12,12 @@ dist/
 frontend/node_modules/
 frontend/dist/
 
+# Python AI service cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+ai/.venv/
+
 # Local environment and generated artifacts
 .env
 .env.*
