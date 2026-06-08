@@ -52,6 +52,11 @@ public sealed class NineRouterChatProvider : IChatAiProvider
     public async Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
     {
         var provider = configuration["AI_PROVIDER"] ?? configuration["Ai:Provider"];
+        if (string.Equals(provider, "python-rag", StringComparison.OrdinalIgnoreCase))
+        {
+            return await GenerateWithPythonRagAsync(request, cancellationToken);
+        }
+
         var baseUrl = configuration["AI_BASE_URL"] ?? configuration["Ai:BaseUrl"];
         var apiKey = configuration["AI_API_KEY"] ?? configuration["Ai:ApiKey"];
         var model = configuration["AI_MODEL"] ?? configuration["Ai:Model"];
@@ -108,6 +113,73 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
             {
                 logger.LogWarning(exception, "AI provider request failed.");
+            }
+        }
+
+        return Unavailable();
+    }
+
+    private async Task<ChatAiResult> GenerateWithPythonRagAsync(ChatAiRequest request, CancellationToken cancellationToken)
+    {
+        var serviceUrl = configuration["AI_SERVICE_URL"] ?? configuration["Ai:ServiceUrl"];
+        if (string.IsNullOrWhiteSpace(serviceUrl))
+        {
+            return Unavailable();
+        }
+
+        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 30);
+        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 1);
+        var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat";
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        var payload = new
+        {
+            message = request.UserMessage,
+            history = request.History
+                .TakeLast(8)
+                .Select(message => new
+                {
+                    role = message.Role,
+                    content = message.Content
+                }),
+            menu_items = request.AvailableMenuItems.Select(item => new
+            {
+                id = item.Id,
+                category_id = item.CategoryId,
+                name = item.Name,
+                description = item.Description,
+                price_vnd = item.Price,
+                tags = item.Tags,
+                is_available = item.IsAvailable
+            })
+        };
+
+        for (var attempt = 0; attempt <= maxRetry; attempt++)
+        {
+            try
+            {
+                using var response = await httpClient.PostAsJsonAsync(endpoint, payload, timeoutCts.Token);
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
+                    continue;
+                }
+
+                using var json = await JsonDocument.ParseAsync(
+                    await response.Content.ReadAsStreamAsync(timeoutCts.Token),
+                    cancellationToken: timeoutCts.Token);
+
+                var content = ExtractPythonRagContent(json.RootElement);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    return new ChatAiResult(content.Trim(), ProviderAvailable: ExtractProviderAvailable(json.RootElement));
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                logger.LogWarning(exception, "Python AI service request failed.");
             }
         }
 
@@ -186,10 +258,23 @@ public sealed class NineRouterChatProvider : IChatAiProvider
         return null;
     }
 
+    private static string? ExtractPythonRagContent(JsonElement root)
+    {
+        return root.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String
+            ? content.GetString()
+            : null;
+    }
+
+    private static bool ExtractProviderAvailable(JsonElement root)
+    {
+        return root.TryGetProperty("provider_available", out var providerAvailable)
+            && providerAvailable.ValueKind == JsonValueKind.True;
+    }
+
     private static ChatAiResult Unavailable()
     {
         return new ChatAiResult(
-            "Hien tai tro ly AI chua san sang. Ban van co the xem thuc don va dat mon truc tiep tren he thong.",
+            "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
             ProviderAvailable: false);
     }
 }
@@ -214,7 +299,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         if (IsOutOfScope(normalizedMessage))
         {
             return new ChatAssistantReply(
-                "Minh chi ho tro chon mon, hoi dap thuc don va goi y gio hang an toan cho CMC Restaurant.",
+                "Mình chỉ hỗ trợ chọn món, hỏi đáp thực đơn và gợi ý giỏ hàng an toàn cho CMC Restaurant.",
                 [],
                 ["OUT_OF_SCOPE"]);
         }
@@ -226,7 +311,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         if (unavailableMatch is not null)
         {
             return new ChatAssistantReply(
-                $"{unavailableMatch.Name} hien dang het hang nen minh khong the goi y them mon nay vao gio.",
+                $"{unavailableMatch.Name} hiện đang hết hàng nên mình không thể gợi ý thêm món này vào giỏ.",
                 [],
                 ["MENU_ITEM_UNAVAILABLE"]);
         }

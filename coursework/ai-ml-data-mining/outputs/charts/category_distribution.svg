@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-label="Category distribution chart">
+  <rect width="760" height="360" fill="#fff8f0"/>
+  <text x="32" y="42" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#2f1f18">CMC Restaurant - Phân bố danh mục món</text>
+  <g font-family="Arial, sans-serif" font-size="14" fill="#4f3428">
+    <text x="36" y="90">Khai vị</text><rect x="160" y="72" width="240" height="24" rx="6" fill="#df6429"/><text x="416" y="90">4</text>
+    <text x="36" y="130">Món chính</text><rect x="160" y="112" width="120" height="24" rx="6" fill="#f39a54"/><text x="296" y="130">2</text>
+    <text x="36" y="170">Đồ uống</text><rect x="160" y="152" width="120" height="24" rx="6" fill="#f39a54"/><text x="296" y="170">2</text>
+    <text x="36" y="210">Hải sản</text><rect x="160" y="192" width="60" height="24" rx="6" fill="#f8bd7f"/><text x="236" y="210">1</text>
+    <text x="36" y="250">Lẩu</text><rect x="160" y="232" width="60" height="24" rx="6" fill="#f8bd7f"/><text x="236" y="250">1</text>
+    <text x="36" y="290">Khác</text><rect x="160" y="272" width="120" height="24" rx="6" fill="#f7d7bc"/><text x="296" y="290">2</text>
+  </g>
+</svg>

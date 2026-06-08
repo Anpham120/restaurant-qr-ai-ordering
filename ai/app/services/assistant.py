@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+from app.clients.nine_router import NineRouterClient
+from app.config import AiServiceConfig
+from app.rag.guardrails import detect_guardrail_flags
+from app.rag.knowledge_base import load_markdown_knowledge_base
+from app.rag.prompts import build_fallback_answer, build_messages
+from app.rag.retriever import LexicalRetriever
+
+
+class AiAssistantService:
+    def __init__(self, config: AiServiceConfig) -> None:
+        self._config = config
+        self._chunks = load_markdown_knowledge_base(config.knowledge_base_path)
+        self._retriever = LexicalRetriever(self._chunks)
+
+    def search(self, query: str, top_k: int | None = None) -> list[dict]:
+        results = self._retriever.search(query, top_k or self._config.top_k)
+        return [
+            {
+                "source": item.chunk.source,
+                "title": item.chunk.title,
+                "content": item.chunk.content,
+                "score": item.score,
+                "tags": list(item.chunk.tags),
+            }
+            for item in results
+        ]
+
+    async def chat(self, payload: dict) -> dict:
+        message = str(payload.get("message") or "").strip()
+        history = payload.get("history") or []
+        menu_items = payload.get("menu_items") or []
+        retrieved = self._retriever.search(message, self._config.top_k)
+        chunks = [item.chunk for item in retrieved]
+        flags = detect_guardrail_flags(message)
+        provider_available = False
+        answer: str | None = None
+
+        if self._config.llm_enabled:
+            client = NineRouterClient(
+                self._config.base_url,
+                self._config.api_key,
+                self._config.model,
+                self._config.timeout_seconds,
+            )
+            try:
+                answer = await client.complete(build_messages(message, chunks, menu_items, history))
+                provider_available = bool(answer)
+            except Exception:
+                answer = None
+
+        if not answer:
+            answer = build_fallback_answer(message, chunks)
+
+        return {
+            "content": answer,
+            "provider_available": provider_available,
+            "model": self._config.model,
+            "retrieved_sources": [
+                {
+                    "source": item.chunk.source,
+                    "title": item.chunk.title,
+                    "score": item.score,
+                }
+                for item in retrieved
+            ],
+            "guardrail_flags": flags,
+            "suggested_cart_actions": [],
+        }

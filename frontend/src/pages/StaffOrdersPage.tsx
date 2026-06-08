@@ -1,3 +1,4 @@
+import { StaffOrderBoard } from "../components/staff/StaffOrderBoard";
 import { PageShell } from "./PageShell";
 
 export function StaffOrdersPage() {
@@ -5,24 +6,15 @@ export function StaffOrdersPage() {
     <PageShell
       eyebrow="Staff"
       title="Đơn cần phục vụ"
-      description="Bảng theo dõi để nhân viên CMC xác nhận, phục vụ món và cập nhật trạng thái bàn."
+      description="Bảng theo dõi để nhân viên CMC nhận món từ bếp, phục vụ khách, chuyển thu COD và hoàn tất đơn trong ca."
       variant="staff"
       stats={[
-        { label: "Món chờ xử lý", value: "5", detail: "Cần theo dõi với bếp" },
-        { label: "Món sẵn sàng", value: "3", detail: "Cần mang ra bàn" },
+        { label: "Món chờ mang ra", value: "5", detail: "Theo dõi với bếp" },
+        { label: "Đơn COD", value: "2", detail: "Cần thu ngân xác nhận" },
+        { label: "Luồng xử lý", value: "Ready -> Served", detail: "Có placeholder thanh toán" },
       ]}
     >
-      <div className="kanban-grid">
-        {["Pending", "Preparing", "Ready"].map((status) => (
-          <section className="kanban-column" key={status}>
-            <h3>{status}</h3>
-            <article className="ticket-card">
-              <strong>Table T-07</strong>
-              <p>Theo dõi ghi chú khách và thời điểm phục vụ món.</p>
-            </article>
-          </section>
-        ))}
-      </div>
+      <StaffOrderBoard />
     </PageShell>
   );
 }

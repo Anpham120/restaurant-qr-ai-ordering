@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -125,6 +126,126 @@ public sealed class OrderEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("MENU_ITEM_UNAVAILABLE", body.RootElement.GetProperty("error").GetProperty("code").GetString());
         Assert.Empty(realtime.Created);
+    }
+
+    [Fact]
+    public async Task CreateOrder_RejectsMalformedJsonWithStandardError()
+    {
+        var realtime = new RecordingOrderRealtimeNotifier();
+        await using var factory = CreateFactory(realtime);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync(
+            "/api/orders",
+            new StringContent("{", Encoding.UTF8, "application/json"));
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.True(body.RootElement.GetProperty("error").TryGetProperty("details", out var details));
+        Assert.Equal(JsonValueKind.Object, details.ValueKind);
+        Assert.Empty(realtime.Created);
+    }
+
+    [Fact]
+    public async Task CreateOrder_RejectsMissingItemsWithStandardError()
+    {
+        var realtime = new RecordingOrderRealtimeNotifier();
+        await using var factory = CreateFactory(realtime);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "DineIn",
+            tableCode = "T05",
+            paymentMethod = "COD",
+            deliveryInfo = (object?)null,
+            items = Array.Empty<object>()
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("ORDER_ITEMS_REQUIRED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(realtime.Created);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_RejectsNullBody()
+    {
+        var realtime = new RecordingOrderRealtimeNotifier();
+        await using var factory = CreateFactory(realtime);
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var response = await client.PatchAsync($"/api/orders/{orderCode}/status", content: null);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(realtime.StatusChanged);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_RejectsCancellationAfterPreparing()
+    {
+        var realtime = new RecordingOrderRealtimeNotifier();
+        await using var factory = CreateFactory(realtime);
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var preparingResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
+        {
+            status = "Preparing"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, preparingResponse.StatusCode);
+
+        using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
+        {
+            status = "Cancelled"
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("ORDER_CANCEL_NOT_ALLOWED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Single(realtime.StatusChanged);
+        Assert.Equal("Preparing", realtime.StatusChanged[0].Payload.Status);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_RejectsCancellationWhenItemIsPreparing()
+    {
+        var realtime = new RecordingOrderRealtimeNotifier();
+        await using var factory = CreateFactory(realtime);
+        using var client = factory.CreateClient();
+        var order = await CreateOrderAsync(client);
+        var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
+        var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Kitchen);
+        using var itemPreparingResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{orderCode}/items/{orderItemId}/status",
+            new
+            {
+                status = "Preparing"
+            });
+
+        Assert.Equal(HttpStatusCode.OK, itemPreparingResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
+        {
+            status = "Cancelled"
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("ORDER_CANCEL_NOT_ALLOWED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(realtime.StatusChanged);
+        Assert.Single(realtime.ItemStatusChanged);
+        Assert.Equal("Preparing", realtime.ItemStatusChanged[0].Payload.Status);
     }
 
     private static WebApplicationFactory<Program> CreateFactory(RecordingOrderRealtimeNotifier realtime)

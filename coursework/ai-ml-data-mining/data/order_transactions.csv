@@ -1,0 +1,29 @@
+order_id,order_date,session_id,table_code,order_type,customer_segment,party_size,menu_item_id,item_name,quantity,unit_price_vnd,item_status
+ord-001,2026-06-01,ses-001,T-01,DineIn,family,4,mi-001,Gỏi cuốn tôm thịt,2,65000,Served
+ord-001,2026-06-01,ses-001,T-01,DineIn,family,4,mi-009,Lẩu Thái hải sản,1,345000,Served
+ord-001,2026-06-01,ses-001,T-01,DineIn,family,4,mi-011,Trà đào cam sả,4,55000,Served
+ord-002,2026-06-01,ses-002,T-04,DineIn,couple,2,mi-003,Nem rán Hà Nội,1,75000,Served
+ord-002,2026-06-01,ses-002,T-04,DineIn,couple,2,mi-006,Bò lúc lắc,1,245000,Served
+ord-002,2026-06-01,ses-002,T-04,DineIn,couple,2,mi-011,Trà đào cam sả,2,55000,Served
+ord-003,2026-06-02,ses-003,,Pickup,office,1,mi-005,Phở bò đặc biệt,1,95000,Delivered
+ord-003,2026-06-02,ses-003,,Pickup,office,1,mi-011,Trà đào cam sả,1,55000,Delivered
+ord-004,2026-06-02,ses-004,T-07,DineIn,family,5,mi-002,Gỏi xoài tôm sú,1,125000,Served
+ord-004,2026-06-02,ses-004,T-07,DineIn,family,5,mi-008,Tôm rang muối,2,185000,Served
+ord-004,2026-06-02,ses-004,T-07,DineIn,family,5,mi-009,Lẩu Thái hải sản,1,345000,Served
+ord-004,2026-06-02,ses-004,T-07,DineIn,family,5,mi-010,Chè khúc bạch,3,55000,Served
+ord-005,2026-06-03,ses-005,,DeliveryMock,group,3,mi-003,Nem rán Hà Nội,2,75000,Delivered
+ord-005,2026-06-03,ses-005,,DeliveryMock,group,3,mi-006,Bò lúc lắc,1,245000,Delivered
+ord-005,2026-06-03,ses-005,,DeliveryMock,group,3,mi-011,Trà đào cam sả,3,55000,Delivered
+ord-006,2026-06-03,ses-006,T-03,DineIn,couple,2,mi-007,Chả cá Lã Vọng,1,285000,Served
+ord-006,2026-06-03,ses-006,T-03,DineIn,couple,2,mi-010,Chè khúc bạch,2,55000,Served
+ord-007,2026-06-04,ses-007,T-06,DineIn,family,4,mi-001,Gỏi cuốn tôm thịt,2,65000,Served
+ord-007,2026-06-04,ses-007,T-06,DineIn,family,4,mi-008,Tôm rang muối,1,185000,Served
+ord-007,2026-06-04,ses-007,T-06,DineIn,family,4,mi-009,Lẩu Thái hải sản,1,345000,Served
+ord-008,2026-06-04,ses-008,,Pickup,office,2,mi-005,Phở bò đặc biệt,2,95000,Delivered
+ord-008,2026-06-04,ses-008,,Pickup,office,2,mi-011,Trà đào cam sả,2,55000,Delivered
+ord-009,2026-06-05,ses-009,T-02,DineIn,group,3,mi-003,Nem rán Hà Nội,1,75000,Served
+ord-009,2026-06-05,ses-009,T-02,DineIn,group,3,mi-006,Bò lúc lắc,1,245000,Served
+ord-009,2026-06-05,ses-009,T-02,DineIn,group,3,mi-010,Chè khúc bạch,2,55000,Served
+ord-010,2026-06-05,ses-010,T-05,DineIn,family,4,mi-002,Gỏi xoài tôm sú,1,125000,Served
+ord-010,2026-06-05,ses-010,T-05,DineIn,family,4,mi-008,Tôm rang muối,1,185000,Served
+ord-010,2026-06-05,ses-010,T-05,DineIn,family,4,mi-011,Trà đào cam sả,4,55000,Served

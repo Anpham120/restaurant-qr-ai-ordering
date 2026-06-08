@@ -45,5 +45,31 @@ export async function getAdminOrders(): Promise<AdminOrder[]> {
         { id: "oi-006", name: "Chè khúc bạch", quantity: 2, status: "Ready" },
       ],
     },
+    {
+      id: "ord-004",
+      code: "ORDER-004",
+      type: "DineIn",
+      tableCode: "T-02",
+      customerName: "Bàn T-02",
+      status: "Served",
+      total: 250000,
+      placedAt: "11:18",
+      paymentStatus: "Pending",
+      items: [
+        { id: "oi-007", name: "Phở bò đặc biệt", quantity: 2, status: "Served" },
+        { id: "oi-008", name: "Cà phê sữa đá", quantity: 1, status: "Served" },
+      ],
+    },
+    {
+      id: "ord-005",
+      code: "ORDER-005",
+      type: "DeliveryMock",
+      customerName: "Anh Quân",
+      status: "Delivered",
+      total: 185000,
+      placedAt: "11:34",
+      paymentStatus: "Paid",
+      items: [{ id: "oi-009", name: "Tôm rang muối", quantity: 1, status: "Delivered" }],
+    },
   ];
 }
