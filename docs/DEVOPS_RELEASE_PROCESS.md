@@ -226,14 +226,25 @@ Không được đánh dấu deployment thành công nếu rollback chưa đư�
 Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
 
 - PR vao `develop`/`main` kich hoat `CI`.
-- `Auto Merge` co gang bat auto-merge cho PR khong phai draft.
+- `Auto Merge` co gang bat auto-merge cho PR khong phai draft bang
+  `RELEASE_BOT_TOKEN` neu secret nay duoc cau hinh.
+- Sau khi PR merge vao `develop` hoac `main`, `Auto Merge` dispatch workflow
+  deploy tuong ung de tranh truong hop push event bi GitHub token suppression.
 - Push vao `develop` kich hoat `Deploy Staging`.
 - Staging pass kich hoat `Promote Production`, tao/cap nhat PR tu `develop`
-  sang `main` va co gang bat auto-merge.
-- Push vao `main` kich hoat `Deploy Production`.
+  sang `main`, doi required checks pass, merge PR va dispatch `Deploy Production`.
+- `Promote Production` can secret `RELEASE_BOT_TOKEN` cua release bot/PAT rieng
+  de push release branch va kich hoat pull request checks. Khong nen phu thuoc
+  vao `GITHUB_TOKEN` cho buoc nay vi GitHub co the chan workflow tiep theo do
+  chinh Actions tao ra.
+- Push vao `main` van co the kich hoat `Deploy Production`, nhung promote
+  workflow phai dispatch production deploy sau khi merge de tranh bi token
+  suppression.
 - `Rollback` cho phep quay lai ban deploy truoc do theo environment.
 
 Lead/DevOps van phai bat repository settings tuong ung: allow auto-merge,
 required checks va merge queue/ruleset cho `develop` va `main`. GitHub Secrets
-bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`
-va `AI_API_KEY`. Khong dong issue #16 neu chua co Actions run/deploy evidence.
+bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`,
+`AI_API_KEY` va `RELEASE_BOT_TOKEN`. `RELEASE_BOT_TOKEN` nen la token cua bot
+hoac tai khoan release rieng co quyen contents, pull requests va actions trong
+repo. Khong dong issue #16 neu chua co Actions run/deploy evidence.

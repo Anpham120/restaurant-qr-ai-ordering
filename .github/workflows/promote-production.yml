@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -24,14 +25,17 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Create or update release PR
+      - name: Create, verify, and merge release PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           RELEASE_BRANCH: release/promote-develop-to-main
         run: |
           set -euo pipefail
+          required_checks=("frontend-build" "backend-test" "docker-compose-config")
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           git fetch origin main develop
           git checkout -B "$RELEASE_BRANCH" origin/main
@@ -50,9 +54,29 @@ jobs:
             gh pr comment "$existing_pr" --body "Staging deployment passed again; release PR remains ready for auto-merge."
           fi
 
-          if gh pr merge "$existing_pr" --auto --merge; then
-            echo "Auto-merge enabled for release PR #${existing_pr}"
+          if gh pr merge "$existing_pr" --auto --merge >/dev/null 2>&1; then
+            echo "Auto-merge enabled for release PR #${existing_pr}."
           else
-            echo "Auto-merge could not be enabled for release PR #${existing_pr}."
-            echo "Check repository setting: allow auto-merge, required checks, and merge queue/ruleset."
+            echo "Auto-merge is already enabled or cannot be enabled automatically."
           fi
+
+          echo "Waiting for required checks on release PR #${existing_pr}..."
+          gh pr checks "$existing_pr" --required --watch --fail-fast --interval 10
+
+          for check_name in "${required_checks[@]}"; do
+            state="$(gh pr checks "$existing_pr" --required --json name,bucket --jq ".[] | select(.name == \"${check_name}\") | .bucket" | head -n 1)"
+            if [ "$state" != "pass" ]; then
+              echo "Required check ${check_name} did not pass; got '${state:-missing}'."
+              exit 1
+            fi
+          done
+
+          pr_state="$(gh pr view "$existing_pr" --json state --jq .state)"
+          if [ "$pr_state" != "MERGED" ]; then
+            gh pr merge "$existing_pr" --merge --delete-branch
+          else
+            echo "Release PR #${existing_pr} was already merged by auto-merge."
+          fi
+
+          echo "Dispatching production deployment from main..."
+          gh workflow run deploy-production.yml --ref main
