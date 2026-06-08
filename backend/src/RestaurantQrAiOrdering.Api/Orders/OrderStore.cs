@@ -104,6 +104,11 @@ public sealed class OrderStore : IOrderStore
                 return new UpdateOrderStatusResult(false, null);
             }
 
+            if (status == OrderStatus.Cancelled && IsCancellationLocked(order))
+            {
+                return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_CANCEL_NOT_ALLOWED");
+            }
+
             var now = DateTimeOffset.UtcNow;
             order.Status = status;
             order.UpdatedAt = now;
@@ -148,6 +153,19 @@ public sealed class OrderStore : IOrderStore
     {
         return orders.FirstOrDefault(order =>
             order.OrderCode.Equals(orderCode.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsCancellationLocked(Order order)
+    {
+        return order.Status is OrderStatus.Preparing
+                or OrderStatus.Ready
+                or OrderStatus.Served
+                or OrderStatus.Delivering
+                or OrderStatus.Delivered
+                or OrderStatus.Completed
+            || order.OrderItems.Any(item => item.Status is OrderItemStatus.Preparing
+                or OrderItemStatus.Ready
+                or OrderItemStatus.Served);
     }
 
     private OrderSnapshot ToSnapshot(Order order)

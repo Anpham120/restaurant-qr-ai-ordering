@@ -60,7 +60,7 @@ public static class MenuEndpoints
         })
         .WithName("AdminGetMenuItem");
 
-        adminMenu.MapPost("/", (MenuItemRequest request, RestaurantDataStore store) =>
+        adminMenu.MapPost("/", (MenuItemRequest? request, RestaurantDataStore store) =>
         {
             var validationError = ValidateMenuItemRequest(request, store);
             if (validationError is not null)
@@ -68,21 +68,22 @@ public static class MenuEndpoints
                 return validationError;
             }
 
+            var validatedRequest = request!;
             var item = store.CreateMenuItem(
-                request.CategoryId!.Trim(),
-                request.Name!,
-                request.Description ?? string.Empty,
-                request.Price,
-                request.ImageUrl,
-                request.IsAvailable,
-                request.Tags ?? []);
+                validatedRequest.CategoryId!.Trim(),
+                validatedRequest.Name!,
+                validatedRequest.Description ?? string.Empty,
+                validatedRequest.Price,
+                validatedRequest.ImageUrl,
+                validatedRequest.IsAvailable,
+                validatedRequest.Tags ?? []);
 
             var category = store.GetCategory(item.CategoryId, includeInactive: true);
             return Results.Created($"/api/admin/menu-items/{item.Id}", ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
         .WithName("AdminCreateMenuItem");
 
-        adminMenu.MapPut("/{menuItemId}", (string menuItemId, MenuItemRequest request, RestaurantDataStore store) =>
+        adminMenu.MapPut("/{menuItemId}", (string menuItemId, MenuItemRequest? request, RestaurantDataStore store) =>
         {
             var validationError = ValidateMenuItemRequest(request, store);
             if (validationError is not null)
@@ -90,15 +91,16 @@ public static class MenuEndpoints
                 return validationError;
             }
 
+            var validatedRequest = request!;
             var item = store.UpdateMenuItem(
                 menuItemId,
-                request.CategoryId!.Trim(),
-                request.Name!,
-                request.Description ?? string.Empty,
-                request.Price,
-                request.ImageUrl,
-                request.IsAvailable,
-                request.Tags ?? []);
+                validatedRequest.CategoryId!.Trim(),
+                validatedRequest.Name!,
+                validatedRequest.Description ?? string.Empty,
+                validatedRequest.Price,
+                validatedRequest.ImageUrl,
+                validatedRequest.IsAvailable,
+                validatedRequest.Tags ?? []);
 
             if (item is null)
             {
@@ -110,8 +112,13 @@ public static class MenuEndpoints
         })
         .WithName("AdminUpdateMenuItem");
 
-        adminMenu.MapPatch("/{menuItemId}/availability", (string menuItemId, ToggleAvailabilityRequest request, RestaurantDataStore store) =>
+        adminMenu.MapPatch("/{menuItemId}/availability", (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDataStore store) =>
         {
+            if (request is null)
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
             var item = store.ToggleAvailability(menuItemId, request.IsAvailable);
             if (item is null)
             {
@@ -134,8 +141,13 @@ public static class MenuEndpoints
         return app;
     }
 
-    private static IResult? ValidateMenuItemRequest(MenuItemRequest request, RestaurantDataStore store)
+    private static IResult? ValidateMenuItemRequest(MenuItemRequest? request, RestaurantDataStore store)
     {
+        if (request is null)
+        {
+            return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.CategoryId))
         {
             return ApiResults.BadRequest("CATEGORY_REQUIRED", "Category is required.");

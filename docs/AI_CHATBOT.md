@@ -1,247 +1,124 @@
-# AI Chatbot: 9router, RAG Và Guardrails
+# AI Chatbot: Gemini 3.1, 9router, Python RAG Và Guardrails
 
-Tài liệu này chốt thiết kế AI chatbot cho issue #11. Mục tiêu là dùng LLM API thật qua 9router nhưng vẫn kiểm soát được câu trả lời bằng menu, FAQ, quy tắc nhà hàng và guardrails rõ ràng.
+Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng cấp lên kiến trúc Python RAG service. Mục tiêu là để AI trong app không chỉ là một ô chat gọi model, mà có dữ liệu, luật an toàn, đánh giá và ranh giới nghiệp vụ rõ ràng.
 
-## 1. Phạm Vi
+## 1. Bản Chất Hệ AI
 
-AI chatbot hỗ trợ khách hàng:
+Hệ thống sử dụng:
 
-- hỏi thông tin món ăn, giá, mô tả, tình trạng còn/hết;
-- hỏi gợi ý món theo nhu cầu, khẩu vị hoặc số người;
-- hỏi FAQ cơ bản như giờ mở cửa, thanh toán, phục vụ tại bàn;
-- đề xuất hành động thêm món vào giỏ qua `SuggestedCartAction`.
+- **Model:** Gemini 3.1.
+- **Cách truy cập model:** 9router API gateway.
+- **AI service:** Python FastAPI service trong thư mục `ai/`.
+- **Knowledge grounding:** RAG từ `ai/knowledge-base/`.
+- **Backend nghiệp vụ:** .NET backend vẫn kiểm tra menu, giá, trạng thái món, giỏ hàng và đơn hàng.
+
+Không gọi mô hình là "9router model". Cách gọi đúng là:
+
+> CMC Restaurant dùng Gemini 3.1 thông qua 9router API gateway, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
+
+## 2. Luồng Kiến Trúc
+
+```text
+Customer Web
+  -> .NET Backend API
+    -> Python AI Service
+      -> RAG retriever
+      -> 9router API gateway
+        -> Gemini 3.1
+```
+
+Backend không để frontend gọi 9router trực tiếp. Frontend chỉ gọi API chat của backend. Backend có thể bật provider `python-rag` để chuyển phần AI sang service Python.
+
+## 3. Biến Môi Trường
+
+Backend:
+
+```env
+AI_PROVIDER=python-rag
+AI_SERVICE_URL=http://127.0.0.1:8001
+AI_TIMEOUT_SECONDS=30
+AI_MAX_RETRY=1
+```
+
+Python AI service:
+
+```env
+AI_PROVIDER=9router
+AI_BASE_URL=http://127.0.0.1:20128/v1
+AI_MODEL=gh/gemini-3.1-pro-preview
+AI_API_KEY=<secret>
+RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
+RAG_TOP_K=5
+```
+
+Không commit `AI_API_KEY`, `.env` thật hoặc log chứa secret.
+
+## 4. RAG Là Gì Trong Dự Án Này?
+
+RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả lời. Gemini 3.1 không tự đoán menu. Service Python lấy context từ:
+
+- menu và tag món;
+- chính sách đặt món, mang về, thanh toán;
+- FAQ nhà hàng;
+- phong cách trả lời CMC Restaurant;
+- insight từ notebook học máy và khai phá dữ liệu ở `coursework/ai-ml-data-mining/`.
+
+Nếu context không đủ, AI phải nói chưa có đủ thông tin thay vì bịa.
+
+## 5. Guardrails Bắt Buộc
 
 AI chatbot không được:
 
 - tự tạo đơn hàng;
 - tự thanh toán;
 - tự thêm món vào giỏ khi khách chưa xác nhận;
-- bịa món, bịa giá, bịa khuyến mãi hoặc gợi ý món đang hết hàng;
+- bịa món, bịa giá, bịa khuyến mãi;
+- gợi ý món đang hết hàng như món có thể đặt;
 - trả lời ngoài phạm vi nhà hàng nếu câu hỏi không liên quan.
 
-## 2. Chiến Lược LLM API
+Backend luôn là lớp kiểm tra cuối cùng. Dù Python service trả về gợi ý, backend vẫn phải validate món, giá, availability và quyền thao tác.
 
-Provider chốt dùng `9router`. Frontend không gọi 9router trực tiếp. Luồng đúng:
+## 6. Ranh Giới Với Fine-Tune
 
-```text
-Frontend/browser
-  -> Backend API: /api/chat/sessions/{chatSessionId}/messages
-    -> AI service
-      -> RAG retriever
-      -> 9router
-        -> LLM provider
-```
+Nhóm không fine-tune Gemini 3.1. Hướng triển khai hiện tại là:
 
-### 2.1. Biến Môi Trường
+- RAG để kiểm soát tri thức;
+- prompt engineering để kiểm soát hành vi;
+- evaluation set để đo chất lượng;
+- feedback loop để cập nhật knowledge base.
 
-Backend đọc cấu hình từ environment hoặc secret store:
+Fine-tune chỉ phù hợp ở giai đoạn nâng cao khi có nhiều dữ liệu thật, ví dụ fine-tune intent classifier hoặc một model nhỏ riêng. Với menu/giá thay đổi thường xuyên, RAG phù hợp hơn.
 
-```env
-AI_PROVIDER=9router
-AI_BASE_URL=http://127.0.0.1:<9router_port>
-AI_API_KEY=<secret>
-AI_MODEL=<model_name>
-AI_TIMEOUT_SECONDS=20
-AI_MAX_RETRY=1
-```
+## 7. Output Của AI Service
 
-Quy ước môi trường:
-
-- Local hiện tại: backend chạy local và gọi 9router local bằng `AI_BASE_URL=http://127.0.0.1:<9router_port>`.
-- CI/build test: dùng mock/stub AI, không cần API key thật và không gọi 9router thật.
-- Production/VPS: backend và 9router chạy cùng VPS hoặc cùng private network; backend gọi 9router bằng URL nội bộ.
-- Docker Compose production-like: nếu 9router là service trong cùng compose network, dùng `AI_BASE_URL=http://ai-router:<port>`.
-
-Không commit `AI_API_KEY`, `.env` thật hoặc log chứa secret.
-
-### 2.2. Provider Abstraction
-
-Backend nên tách interface provider để dễ mock và đổi model:
-
-```text
-IAiChatProvider
-  - GenerateChatAsync(AiChatRequest request, CancellationToken ct)
-
-Implementations:
-  - NineRouterChatProvider
-  - MockAiChatProvider
-```
-
-`NineRouterChatProvider` chỉ nhận prompt đã được backend dựng sẵn từ RAG context và policy. Frontend không được tự gửi system prompt hoặc provider config.
-
-## 3. Nguồn Dữ Liệu RAG
-
-RAG lấy context từ dữ liệu có kiểm soát:
-
-- menu public: `GET /api/menu`;
-- FAQ nhà hàng;
-- quy tắc vận hành: khách phải xác nhận trước khi thêm món, không đặt món đã hết hàng, không tự thanh toán;
-- insight ML/Data Mining từ issue #39 nếu có, ví dụ món thường đi kèm nhau.
-
-Notebook issue #39 không gọi 9router và không gọi LLM API. Notebook chỉ sinh insight/data mining để có thể đưa vào context sau này.
-
-### 3.1. KnowledgeEntry Shape
+Python service trả về:
 
 ```json
 {
-  "id": "menu:m_001",
-  "source": "menu",
-  "title": "Cơm gà xối mỡ",
-  "content": "Cơm gà xối mỡ giá 45000 VND, thuộc nhóm Món chính, còn bán.",
-  "metadata": {
-    "menuItemId": "m_001",
-    "categoryId": "cat_main",
-    "categoryName": "Món chính",
-    "price": 45000,
-    "isAvailable": true,
-    "tags": ["phổ biến"]
-  },
-  "updatedAt": "2026-06-05T00:00:00Z"
+  "content": "Câu trả lời tiếng Việt có dấu",
+  "provider_available": true,
+  "model": "gh/gemini-3.1-pro-preview",
+  "retrieved_sources": [
+    {
+      "source": "menu.md",
+      "title": "Đồ Uống Và Tráng Miệng",
+      "score": 0.42
+    }
+  ],
+  "guardrail_flags": ["CUSTOMER_CONFIRMATION_REQUIRED"],
+  "suggested_cart_actions": []
 }
 ```
 
-`source` hợp lệ:
+Ở giai đoạn này Python service **không trực tiếp tạo cart action**. Việc thêm món vào giỏ vẫn do backend/frontend thực hiện sau khi khách xác nhận.
 
-| Source | Mục đích |
-| --- | --- |
-| `menu` | Món ăn, giá, danh mục, trạng thái còn/hết. |
-| `faq` | Câu hỏi thường gặp về vận hành nhà hàng. |
-| `policy` | Quy tắc guardrail bắt buộc. |
-| `insight` | Gợi ý từ data mining/recommendation nếu có. |
+## 8. Kiểm Thử Và Đánh Giá
 
-### 3.2. Retrieval Rules
+Evaluation nằm trong `ai/evaluation/`:
 
-- Chỉ đưa vào prompt các entry liên quan nhất, ưu tiên `menu`, `faq`, `policy`.
-- Không đưa món `isAvailable=false` vào danh sách gợi ý mua; chỉ được nhắc rằng món đang hết hàng.
-- Nếu câu hỏi về giá, giá trong response phải lấy từ `metadata.price`.
-- Nếu context không đủ, chatbot phải nói chưa có thông tin thay vì tự suy đoán.
-- `insight` chỉ là tín hiệu phụ; không được ghi đè giá, tên món hoặc trạng thái món từ `menu`.
+- câu hỏi vàng;
+- expected sources;
+- expected guardrail flags;
+- tiêu chí retrieval accuracy, faithfulness, hallucination rate và safety.
 
-## 4. Prompt Policy
-
-System prompt backend cần thể hiện các quy tắc sau:
-
-```text
-Bạn là trợ lý AI của CMC Restaurant.
-Chỉ trả lời dựa trên context menu, FAQ, policy và insight được cung cấp.
-Không bịa món, giá, tình trạng còn hàng, khuyến mãi hoặc chính sách.
-Nếu context không có thông tin, hãy nói chưa có thông tin trong hệ thống.
-Không tự tạo đơn hàng, không tự thanh toán và không tự thêm món vào giỏ.
-Nếu muốn đề xuất món, chỉ trả SuggestedCartAction để khách xác nhận.
-Không gợi ý món isAvailable=false như món có thể đặt.
-```
-
-Backend không nên để model tự quyết định toàn bộ JSON. Sau khi gọi LLM, backend phải validate lại `suggestedCartActions` bằng menu hiện tại.
-
-## 5. API Output Và SuggestedCartAction
-
-Chat response có thể có `suggestedCartActions`, nhưng đây chỉ là đề xuất.
-
-```json
-{
-  "menuItemId": "m_001",
-  "name": "Cơm gà xối mỡ",
-  "price": 45000,
-  "quantity": 1,
-  "reason": "Món chính phổ biến, phù hợp bữa trưa.",
-  "requiresCustomerConfirmation": true
-}
-```
-
-Validation bắt buộc:
-
-- `menuItemId` phải tồn tại trong menu.
-- `name` và `price` phải khớp menu hiện tại.
-- `isAvailable` phải là `true`.
-- `quantity` phải từ `1` đến `10`.
-- `requiresCustomerConfirmation` luôn là `true`.
-
-Nếu validation fail, backend loại bỏ action đó và có thể trả `guardrailFlags`.
-
-## 6. Guardrails
-
-| Rủi ro | Cách chặn |
-| --- | --- |
-| Bịa món | Chỉ cho phép action với `menuItemId` tồn tại trong menu. |
-| Bịa giá | Backend ghi đè/validate `price` theo menu, không tin giá từ LLM. |
-| Gợi ý món hết hàng | Lọc `isAvailable=false` khỏi cart action. |
-| Tự đặt đơn | Không có endpoint AI tạo order; khách phải dùng cart/order flow. |
-| Lộ secret | API key chỉ ở backend env/secrets, không log raw request chứa key. |
-| Trả lời ngoài phạm vi | Nếu không liên quan nhà hàng, trả lời ngắn và kéo về menu/FAQ. |
-| Prompt injection | Không cho user override system prompt, policy hoặc source priority. |
-
-## 7. Fallback
-
-Nếu 9router lỗi, timeout hoặc response không hợp lệ:
-
-```json
-{
-  "message": {
-    "role": "assistant",
-    "content": "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống."
-  },
-  "suggestedCartActions": [],
-  "guardrailFlags": ["AI_PROVIDER_UNAVAILABLE"]
-}
-```
-
-Fallback không được tạo action giả.
-
-## 8. Sample Q&A
-
-### Case 1: Hỏi món còn bán
-
-User: "Có cơm gà không?"
-
-Expected:
-
-- Nếu `m_001` còn bán, trả lời có món, mô tả ngắn và giá đúng.
-- Nếu hết hàng, nói món đang hết hàng và gợi ý món thay thế còn bán.
-
-### Case 2: Hỏi món không tồn tại
-
-User: "Nhà hàng có pizza hải sản không?"
-
-Expected:
-
-- Không bịa món.
-- Trả lời chưa có thông tin/món này trong menu hiện tại.
-- Có thể gợi ý món cùng nhóm nếu context có.
-
-### Case 3: Gợi ý cho 2 người
-
-User: "Gợi ý món cho 2 người ăn trưa"
-
-Expected:
-
-- Trả lời bằng món có trong menu và còn bán.
-- Có thể trả `suggestedCartActions`.
-- Mọi action đều `requiresCustomerConfirmation=true`.
-
-### Case 4: Hỏi ngoài phạm vi
-
-User: "Viết code Python giúp tôi"
-
-Expected:
-
-- Từ chối nhẹ.
-- Kéo về nhiệm vụ nhà hàng: "Mình có thể hỗ trợ chọn món hoặc giải đáp thông tin CMC Restaurant."
-
-## 9. Evaluation Checklist
-
-Khi review issue/PR AI, kiểm tra:
-
-- câu trả lời dùng đúng món và giá trong menu;
-- món hết hàng không xuất hiện trong `suggestedCartActions`;
-- món không tồn tại không bị bịa ra;
-- `SuggestedCartAction` luôn yêu cầu khách xác nhận;
-- lỗi provider có fallback an toàn;
-- CI/unit test không cần API key thật;
-- không có secret trong commit, log, README hoặc notebook.
-
-## 10. Quan Hệ Với Issue Khác
-
-- Issue #12 implement backend chat/session/API theo contract này.
-- Issue #14 implement UI chatbot nhưng chỉ gọi backend, không gọi 9router trực tiếp.
-- Issue #16 triển khai production/VPS cho backend và 9router.
-- Issue #39 làm notebook ML/Data Mining, không gọi 9router/LLM API.
+Notebook trong `coursework/ai-ml-data-mining/` chứng minh phần học máy và khai phá dữ liệu. Python AI service dùng các insight đó như context hỗ trợ, không thay thế menu backend.

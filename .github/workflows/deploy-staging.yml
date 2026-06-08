@@ -31,10 +31,14 @@ jobs:
       PUBLIC_API_BASE_URL: https://api-staging.cmcrestaurant.app/api
       ASPNETCORE_ENVIRONMENT: Staging
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-      AI_PROVIDER: 9router
+      AI_PROVIDER: python-rag
+      AI_SERVICE_URL: http://127.0.0.1:8001
+      AI_SERVICE_PORT: "8001"
+      AI_LLM_PROVIDER: 9router
       AI_BASE_URL: http://127.0.0.1:20128/v1
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
-      AI_MODEL: ${{ secrets.AI_MODEL }}
+      AI_MODEL: ${{ vars.AI_MODEL || 'gh/gemini-3.1-pro-preview' }}
+      RAG_TOP_K: "5"
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
     steps:
       - name: Checkout

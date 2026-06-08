@@ -9,21 +9,27 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
-        group.MapPost("/register", (RegisterRequest request, IUserStore users) =>
+        group.MapPost("/register", (RegisterRequest? request, IUserStore users, ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Auth.AuthEndpoints");
             var validationError = ValidateRegisterRequest(request);
             if (validationError is not null)
             {
+                logger.LogWarning("Rejected customer registration request during validation.");
                 return validationError;
             }
 
-            var result = users.RegisterCustomer(request.FullName!, request.Email!, request.Password!);
+            var validatedRequest = request!;
+            var result = users.RegisterCustomer(validatedRequest.FullName!, validatedRequest.Email!, validatedRequest.Password!);
             if (result.IsDuplicateEmail)
             {
+                logger.LogWarning("Rejected customer registration because email {Email} already exists.", validatedRequest.Email);
                 return AuthApiResults.Conflict("EMAIL_ALREADY_REGISTERED", "Email is already registered.");
             }
 
             var user = result.User!;
+            logger.LogInformation("Registered customer {UserId} with role {Role}.", user.Id, user.Role);
+
             return Results.Created(
                 $"/api/users/{user.Id}",
                 new RegisterResponse(user.Id, user.FullName, user.Email, user.Role));
@@ -31,18 +37,27 @@ public static class AuthEndpoints
         .AllowAnonymous()
         .WithName("RegisterCustomer");
 
-        group.MapPost("/login", (LoginRequest request, IUserStore users, IJwtTokenService jwtTokenService) =>
+        group.MapPost("/login", (LoginRequest? request, IUserStore users, IJwtTokenService jwtTokenService, ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Auth.AuthEndpoints");
             var validationError = ValidateLoginRequest(request);
             if (validationError is not null)
             {
+                logger.LogWarning("Rejected login request during validation.");
                 return validationError;
             }
 
-            var user = users.ValidateCredentials(request.Email!, request.Password!);
-            return user is null
-                ? AuthApiResults.Unauthorized("INVALID_CREDENTIALS", "Email or password is incorrect.")
-                : Results.Ok(jwtTokenService.CreateLoginResponse(user));
+            var validatedRequest = request!;
+            var user = users.ValidateCredentials(validatedRequest.Email!, validatedRequest.Password!);
+            if (user is null)
+            {
+                logger.LogWarning("Rejected login for email {Email} because credentials were invalid.", validatedRequest.Email);
+                return AuthApiResults.Unauthorized("INVALID_CREDENTIALS", "Email or password is incorrect.");
+            }
+
+            logger.LogInformation("User {UserId} logged in with role {Role}.", user.Id, user.Role);
+
+            return Results.Ok(jwtTokenService.CreateLoginResponse(user));
         })
         .AllowAnonymous()
         .WithName("Login");
@@ -65,8 +80,13 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static IResult? ValidateRegisterRequest(RegisterRequest request)
+    private static IResult? ValidateRegisterRequest(RegisterRequest? request)
     {
+        if (request is null)
+        {
+            return AuthApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.FullName))
         {
             return AuthApiResults.BadRequest("FULL_NAME_REQUIRED", "Full name is required.");
@@ -85,8 +105,13 @@ public static class AuthEndpoints
         return null;
     }
 
-    private static IResult? ValidateLoginRequest(LoginRequest request)
+    private static IResult? ValidateLoginRequest(LoginRequest? request)
     {
+        if (request is null)
+        {
+            return AuthApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+        }
+
         if (!IsValidEmail(request.Email))
         {
             return AuthApiResults.BadRequest("EMAIL_INVALID", "Email is invalid.");

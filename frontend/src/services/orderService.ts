@@ -6,6 +6,8 @@ import type {
   OrderTrackingOrder,
 } from "../types";
 
+const CUSTOMER_ORDER_STORAGE_KEY = "cmc.customer.orders";
+
 function waitForMockNetwork() {
   return new Promise((resolve) => window.setTimeout(resolve, 450));
 }
@@ -23,24 +25,24 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_001",
-        menuItemId: "m_001",
-        name: "Com ga xoi mo",
+        menuItemId: "mi-006",
+        name: "Bò lúc lắc",
         quantity: 2,
         status: "Preparing",
         updatedAt: "2026-06-05T08:12:00Z",
       },
       {
         orderItemId: "oi_002",
-        menuItemId: "m_007",
-        name: "Tra dao cam sa",
+        menuItemId: "mi-011",
+        name: "Trà đào cam sả",
         quantity: 2,
         status: "Ready",
         updatedAt: "2026-06-05T08:14:00Z",
       },
       {
         orderItemId: "oi_003",
-        menuItemId: "m_005",
-        name: "Goi cuon tom thit",
+        menuItemId: "mi-001",
+        name: "Gỏi cuốn tôm thịt",
         quantity: 1,
         status: "Pending",
         updatedAt: "2026-06-05T08:16:00Z",
@@ -59,16 +61,16 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_004",
-        menuItemId: "m_002",
-        name: "Com suon nuong",
+        menuItemId: "mi-005",
+        name: "Phở bò đặc biệt",
         quantity: 1,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
       },
       {
         orderItemId: "oi_005",
-        menuItemId: "m_003",
-        name: "Pho bo tai",
+        menuItemId: "mi-003",
+        name: "Nem rán Hà Nội",
         quantity: 1,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
@@ -87,8 +89,8 @@ const mockOrders: OrderTrackingOrder[] = [
     items: [
       {
         orderItemId: "oi_006",
-        menuItemId: "m_006",
-        name: "Cha gio hai san",
+        menuItemId: "mi-008",
+        name: "Tôm rang muối",
         quantity: 2,
         status: "Ready",
         updatedAt: "2026-06-05T08:18:00Z",
@@ -102,6 +104,46 @@ function cloneOrder(order: OrderTrackingOrder): OrderTrackingOrder {
     ...order,
     items: order.items.map((item) => ({ ...item })),
   };
+}
+
+function loadStoredOrders() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CUSTOMER_ORDER_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed) ? (parsed as OrderTrackingOrder[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredOrders(orders: OrderTrackingOrder[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(CUSTOMER_ORDER_STORAGE_KEY, JSON.stringify(orders.slice(0, 12)));
+}
+
+function saveStoredOrder(order: OrderTrackingOrder) {
+  const nextOrders = [
+    order,
+    ...loadStoredOrders().filter(
+      (storedOrder) => storedOrder.orderCode.toLowerCase() !== order.orderCode.toLowerCase(),
+    ),
+  ];
+
+  saveStoredOrders(nextOrders);
+}
+
+function findStoredOrder(orderCode: string) {
+  return loadStoredOrders().find(
+    (order) => order.orderCode.toLowerCase() === orderCode.toLowerCase(),
+  );
 }
 
 function findMockOrder(orderCode: string) {
@@ -132,47 +174,63 @@ export async function createOrder(
     .find((item) => item && !item.isAvailable);
 
   if (unavailableItem) {
-    throw new Error(`Mon ${unavailableItem.name} dang tam het.`);
+    throw new Error(`Món ${unavailableItem.name} đang tạm hết.`);
   }
 
   if (payload.orderType === "DineIn" && !payload.tableCode) {
-    throw new Error("Don DineIn can co ma ban tu QR.");
+    throw new Error("Đơn tại bàn cần có mã bàn từ QR.");
   }
 
   if (payload.orderType === "DeliveryMock" && !payload.deliveryInfo?.address) {
-    throw new Error("DeliveryMock can thong tin nguoi nhan va dia chi.");
+    throw new Error("Đơn giao hàng demo cần thông tin người nhận và địa chỉ.");
   }
 
+  const now = new Date().toISOString();
   const orderCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+  const orderItems = payload.items.map((orderItem, index) => {
+    const menuItem = menuItems.find((item) => item.id === orderItem.menuItemId);
 
-  return {
+    return {
+      orderItemId: `oi_${String(index + 1).padStart(3, "0")}`,
+      menuItemId: orderItem.menuItemId,
+      name: menuItem?.name ?? orderItem.menuItemId,
+      quantity: orderItem.quantity,
+      status: "Pending" as const,
+      updatedAt: now,
+    };
+  });
+  const response: CreateOrderResponse = {
     orderId: `ord_${Date.now()}`,
     orderCode,
     orderType: payload.orderType,
     tableCode: payload.tableCode,
     status: "Placed",
     paymentStatus: "Unpaid",
-    items: payload.items.map((orderItem, index) => {
-      const menuItem = menuItems.find((item) => item.id === orderItem.menuItemId);
-
-      return {
-        orderItemId: `oi_${String(index + 1).padStart(3, "0")}`,
-        menuItemId: orderItem.menuItemId,
-        name: menuItem?.name ?? orderItem.menuItemId,
-        quantity: orderItem.quantity,
-        status: "Pending",
-      };
-    }),
+    items: orderItems.map(({ updatedAt: _updatedAt, ...item }) => item),
   };
+
+  saveStoredOrder({
+    ...response,
+    createdAt: now,
+    updatedAt: now,
+    items: orderItems,
+  });
+
+  return response;
 }
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
   await waitForMockNetwork();
-  return mockOrders.map(cloneOrder);
+  return [...loadStoredOrders(), ...mockOrders].map(cloneOrder);
 }
 
 export async function getOrderTracking(orderCode: string): Promise<OrderTrackingOrder> {
   await waitForMockNetwork();
+
+  const storedOrder = findStoredOrder(orderCode);
+  if (storedOrder) {
+    return cloneOrder(storedOrder);
+  }
 
   const order = findMockOrder(orderCode);
   if (order) {
@@ -193,6 +251,27 @@ export async function updateOrderItemStatus(
   status: OrderItemStatus,
 ): Promise<OrderTrackingOrder> {
   await waitForMockNetwork();
+
+  const storedOrders = loadStoredOrders();
+  const storedOrderIndex = storedOrders.findIndex(
+    (order) => order.orderCode.toLowerCase() === orderCode.toLowerCase(),
+  );
+  if (storedOrderIndex >= 0) {
+    const storedOrder = storedOrders[storedOrderIndex];
+    const storedItem = storedOrder.items.find((orderItem) => orderItem.orderItemId === orderItemId);
+    if (!storedItem) {
+      throw new Error("ORDER_ITEM_NOT_FOUND");
+    }
+
+    const updatedAt = new Date().toISOString();
+    storedItem.status = status;
+    storedItem.updatedAt = updatedAt;
+    storedOrder.status = calculateOrderStatus(storedOrder.items);
+    storedOrder.updatedAt = updatedAt;
+    saveStoredOrders(storedOrders);
+
+    return cloneOrder(storedOrder);
+  }
 
   const order = findMockOrder(orderCode);
   if (!order) {

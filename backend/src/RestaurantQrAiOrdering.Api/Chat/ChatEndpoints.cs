@@ -6,9 +6,12 @@ public static class ChatEndpoints
 {
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/chat/sessions", (IChatStore chatStore) =>
+        app.MapPost("/api/chat/sessions", (IChatStore chatStore, ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
             var session = chatStore.CreateSession();
+            logger.LogInformation("Created chat session {ChatSessionId}.", session.Id);
+
             return Results.Created(
                 $"/api/chat/sessions/{session.Id}",
                 new CreateChatSessionResponse(session.Id, session.CreatedAt));
@@ -18,24 +21,35 @@ public static class ChatEndpoints
 
         app.MapPost("/api/chat/sessions/{chatSessionId}/messages", async (
             string chatSessionId,
-            SendChatMessageRequest request,
+            SendChatMessageRequest? request,
             IChatStore chatStore,
             IChatAssistantService assistant,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
+            if (request is null)
+            {
+                logger.LogWarning("Rejected chat message for session {ChatSessionId} because request body is missing.", chatSessionId);
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Content))
             {
+                logger.LogWarning("Rejected empty chat message for session {ChatSessionId}.", chatSessionId);
                 return ApiResults.BadRequest("CHAT_MESSAGE_EMPTY", "Chat message content is required.");
             }
 
             if (chatStore.GetSession(chatSessionId) is null)
             {
+                logger.LogWarning("Rejected chat message because session {ChatSessionId} was not found.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
             var userMessage = chatStore.AddMessage(chatSessionId, "user", request.Content.Trim());
             if (userMessage is null)
             {
+                logger.LogWarning("Rejected chat message because session {ChatSessionId} disappeared before storage.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
@@ -47,21 +61,33 @@ public static class ChatEndpoints
                 assistantReply.Content,
                 assistantReply.SuggestedCartActions);
 
-            return assistantMessage is null
-                ? ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.")
-                : Results.Ok(new SendChatMessageResponse(
-                    ToResponse(assistantMessage),
-                    assistantReply.SuggestedCartActions,
-                    assistantReply.GuardrailFlags));
+            if (assistantMessage is null)
+            {
+                logger.LogWarning("Failed to store assistant reply because session {ChatSessionId} was not found.", chatSessionId);
+                return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
+            }
+
+            logger.LogInformation(
+                "Stored chat exchange for session {ChatSessionId} with {SuggestedActionCount} suggested actions and {GuardrailCount} guardrail flags.",
+                chatSessionId,
+                assistantReply.SuggestedCartActions.Count,
+                assistantReply.GuardrailFlags.Count);
+
+            return Results.Ok(new SendChatMessageResponse(
+                ToResponse(assistantMessage),
+                assistantReply.SuggestedCartActions,
+                assistantReply.GuardrailFlags));
         })
         .WithName("SendChatMessage")
         .WithTags("Chat");
 
-        app.MapGet("/api/chat/sessions/{chatSessionId}/messages", (string chatSessionId, IChatStore chatStore) =>
+        app.MapGet("/api/chat/sessions/{chatSessionId}/messages", (string chatSessionId, IChatStore chatStore, ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
             var session = chatStore.GetSession(chatSessionId);
             if (session is null)
             {
+                logger.LogWarning("Rejected chat history request because session {ChatSessionId} was not found.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 

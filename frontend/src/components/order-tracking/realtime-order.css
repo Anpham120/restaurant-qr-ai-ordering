@@ -115,6 +115,15 @@
   color: #25150e;
 }
 
+.realtime-lane-heading p {
+  margin: 4px 0 0;
+  color: #9a6b50;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .realtime-lane-heading span,
 .realtime-empty,
 .realtime-ticket small,
@@ -231,7 +240,20 @@
 }
 
 @media (max-width: 820px) {
-  .realtime-kitchen-board,
+  .realtime-kitchen-board {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .realtime-kitchen-lane {
+    flex: 0 0 min(86vw, 360px);
+    scroll-snap-align: start;
+  }
+
   .tracking-timeline {
     grid-template-columns: 1fr;
   }

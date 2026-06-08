@@ -12,26 +12,35 @@ public static partial class OrderEndpoints
     public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/orders", async (
-            CreateOrderRequest request,
+            CreateOrderRequest? request,
             RestaurantDataStore restaurantData,
             IOrderStore orders,
             IOrderRealtimeNotifier realtime,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
             var validationError = ValidateCreateOrderRequest(request, restaurantData);
             if (validationError is not null)
             {
+                logger.LogWarning("Rejected order creation request during validation.");
                 return validationError;
             }
 
+            var validatedRequest = request!;
             var order = orders.CreateOrder(new CreateOrderCommand(
-                request.OrderType!.Trim(),
-                request.TableCode?.Trim().ToUpperInvariant(),
-                request.PaymentMethod!.Trim(),
-                request.DeliveryInfo,
-                request.Items!));
+                validatedRequest.OrderType!.Trim(),
+                validatedRequest.TableCode?.Trim().ToUpperInvariant(),
+                validatedRequest.PaymentMethod!.Trim(),
+                validatedRequest.DeliveryInfo,
+                validatedRequest.Items!));
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
+            logger.LogInformation(
+                "Created order {OrderCode} with {ItemCount} items for order type {OrderType}.",
+                order.OrderCode,
+                order.Items.Count,
+                order.OrderType);
 
             return Results.Created($"/api/orders/{order.OrderCode}", ToResponse(order));
         })
@@ -50,23 +59,49 @@ public static partial class OrderEndpoints
 
         app.MapPatch("/api/orders/{orderCode}/status", async (
             string orderCode,
-            UpdateOrderStatusRequest request,
+            UpdateOrderStatusRequest? request,
             IOrderStore orders,
             IOrderRealtimeNotifier realtime,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
+            if (request is null)
+            {
+                logger.LogWarning("Rejected status update for order {OrderCode} because request body is missing.", orderCode);
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
             if (!TryParseEnum<OrderStatus>(request.Status, out var status))
             {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because status {Status} is invalid.",
+                    orderCode,
+                    request.Status);
+
                 return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
             }
 
             var result = orders.UpdateOrderStatus(orderCode, status);
             if (!result.IsFound || result.Order is null)
             {
+                logger.LogWarning("Rejected status update because order {OrderCode} was not found.", orderCode);
                 return ApiResults.NotFound("ORDER_NOT_FOUND", "Order was not found.");
             }
 
+            if (result.ErrorCode == "ORDER_CANCEL_NOT_ALLOWED")
+            {
+                logger.LogWarning(
+                    "Rejected cancellation for order {OrderCode} because the order or an item has reached Preparing.",
+                    orderCode);
+
+                return ApiResults.BadRequest(
+                    "ORDER_CANCEL_NOT_ALLOWED",
+                    "Order cannot be cancelled after it or any item reaches Preparing.");
+            }
+
             await realtime.OrderStatusChangedAsync(ToOrderStatusChangedEvent(result.Order), result.Order.TableCode, cancellationToken);
+            logger.LogInformation("Updated order {OrderCode} status to {Status}.", result.Order.OrderCode, result.Order.Status);
 
             return Results.Ok(ToResponse(result.Order));
         })
@@ -77,24 +112,48 @@ public static partial class OrderEndpoints
         app.MapPatch("/api/orders/{orderCode}/items/{orderItemId}/status", async (
             string orderCode,
             string orderItemId,
-            UpdateOrderItemStatusRequest request,
+            UpdateOrderItemStatusRequest? request,
             IOrderStore orders,
             IOrderRealtimeNotifier realtime,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
+            if (request is null)
+            {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode}, item {OrderItemId} because request body is missing.",
+                    orderCode,
+                    orderItemId);
+
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
             if (!TryParseEnum<OrderItemStatus>(request.Status, out var status))
             {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode}, item {OrderItemId} because status {Status} is invalid.",
+                    orderCode,
+                    orderItemId,
+                    request.Status);
+
                 return ApiResults.BadRequest("ORDER_ITEM_STATUS_INVALID", "Order item status is invalid.");
             }
 
             var result = orders.UpdateOrderItemStatus(orderCode, orderItemId, status);
             if (!result.IsOrderFound || result.Order is null)
             {
+                logger.LogWarning("Rejected item status update because order {OrderCode} was not found.", orderCode);
                 return ApiResults.NotFound("ORDER_NOT_FOUND", "Order was not found.");
             }
 
             if (!result.IsItemFound || result.Item is null)
             {
+                logger.LogWarning(
+                    "Rejected item status update because item {OrderItemId} was not found in order {OrderCode}.",
+                    orderItemId,
+                    orderCode);
+
                 return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
             }
 
@@ -102,6 +161,11 @@ public static partial class OrderEndpoints
                 ToOrderItemStatusChangedEvent(result.Order, result.Item),
                 result.Order.TableCode,
                 cancellationToken);
+            logger.LogInformation(
+                "Updated order {OrderCode} item {OrderItemId} status to {Status}.",
+                result.Order.OrderCode,
+                result.Item.OrderItemId,
+                result.Item.Status);
 
             return Results.Ok(ToResponse(result.Order));
         })
@@ -112,8 +176,13 @@ public static partial class OrderEndpoints
         return app;
     }
 
-    private static IResult? ValidateCreateOrderRequest(CreateOrderRequest request, RestaurantDataStore restaurantData)
+    private static IResult? ValidateCreateOrderRequest(CreateOrderRequest? request, RestaurantDataStore restaurantData)
     {
+        if (request is null)
+        {
+            return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+        }
+
         if (!TryParseEnum<OrderType>(request.OrderType, out var orderType))
         {
             return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type is invalid.");
@@ -261,6 +330,6 @@ public static partial class OrderEndpoints
             item.UpdatedAt);
     }
 
-    [GeneratedRegex("^T\\d{2}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^T(0[1-9]|[1-9][0-9])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TableCodeRegex();
 }
