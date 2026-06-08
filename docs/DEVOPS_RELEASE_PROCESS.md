@@ -229,11 +229,18 @@ Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
 - `Auto Merge` co gang bat auto-merge cho PR khong phai draft.
 - Push vao `develop` kich hoat `Deploy Staging`.
 - Staging pass kich hoat `Promote Production`, tao/cap nhat PR tu `develop`
-  sang `main` va co gang bat auto-merge.
-- Push vao `main` kich hoat `Deploy Production`.
+  sang `main`, doi required checks pass, merge PR va dispatch `Deploy Production`.
+- `Promote Production` can secret `RELEASE_BOT_TOKEN` cua release bot/PAT rieng
+  de push release branch va kich hoat pull request checks. Khong nen phu thuoc
+  vao `GITHUB_TOKEN` cho buoc nay vi GitHub co the chan workflow tiep theo do
+  chinh Actions tao ra.
+- Push vao `main` van co the kich hoat `Deploy Production`, nhung promote
+  workflow phai dispatch production deploy sau khi merge de tranh bi token
+  suppression.
 - `Rollback` cho phep quay lai ban deploy truoc do theo environment.
 
 Lead/DevOps van phai bat repository settings tuong ung: allow auto-merge,
 required checks va merge queue/ruleset cho `develop` va `main`. GitHub Secrets
-bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`
-va `AI_API_KEY`. Khong dong issue #16 neu chua co Actions run/deploy evidence.
+bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`,
+`AI_API_KEY` va `RELEASE_BOT_TOKEN`. Khong dong issue #16 neu chua co Actions
+run/deploy evidence.
