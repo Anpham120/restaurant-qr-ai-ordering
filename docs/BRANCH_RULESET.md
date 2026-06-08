@@ -19,7 +19,9 @@ repository settings must match this document before issue #16 can be closed.
 ## main
 
 - Require pull request before merging.
-- Release PR should be created from `develop` by `Promote Production`.
+- Release PR should be created from a workflow-managed release branch by
+  `Promote Production`. The release branch is based on `main` and merges
+  `develop` before opening the PR.
 - Require status checks before merging.
 - Required checks:
   - `frontend-build`
@@ -36,3 +38,6 @@ repository settings must match this document before issue #16 can be closed.
   be enabled in GitHub settings so these checks become mandatory gates.
 - Human review is not required in the normal flow. People intervene only when
   checks fail, scope is wrong, or production risk is high.
+- `Promote Production` should use `RELEASE_BOT_TOKEN` instead of relying only on
+  `GITHUB_TOKEN`, because release PR checks must be triggered as normal
+  pull-request checks before `main` accepts the merge.
