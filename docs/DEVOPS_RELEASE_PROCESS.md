@@ -226,7 +226,10 @@ Không được đánh dấu deployment thành công nếu rollback chưa đư�
 Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
 
 - PR vao `develop`/`main` kich hoat `CI`.
-- `Auto Merge` co gang bat auto-merge cho PR khong phai draft.
+- `Auto Merge` co gang bat auto-merge cho PR khong phai draft bang
+  `RELEASE_BOT_TOKEN` neu secret nay duoc cau hinh.
+- Sau khi PR merge vao `develop` hoac `main`, `Auto Merge` dispatch workflow
+  deploy tuong ung de tranh truong hop push event bi GitHub token suppression.
 - Push vao `develop` kich hoat `Deploy Staging`.
 - Staging pass kich hoat `Promote Production`, tao/cap nhat PR tu `develop`
   sang `main`, doi required checks pass, merge PR va dispatch `Deploy Production`.
@@ -242,5 +245,6 @@ Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
 Lead/DevOps van phai bat repository settings tuong ung: allow auto-merge,
 required checks va merge queue/ruleset cho `develop` va `main`. GitHub Secrets
 bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`,
-`AI_API_KEY` va `RELEASE_BOT_TOKEN`. Khong dong issue #16 neu chua co Actions
-run/deploy evidence.
+`AI_API_KEY` va `RELEASE_BOT_TOKEN`. `RELEASE_BOT_TOKEN` nen la token cua bot
+hoac tai khoan release rieng co quyen contents, pull requests va actions trong
+repo. Khong dong issue #16 neu chua co Actions run/deploy evidence.

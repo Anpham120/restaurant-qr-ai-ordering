@@ -10,8 +10,10 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      - closed
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -19,11 +21,11 @@ jobs:
   enable-auto-merge:
     name: enable-auto-merge
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.draft == false }}
+    if: ${{ github.event.action != 'closed' && github.event.pull_request.draft == false }}
     steps:
       - name: Enable auto-merge for eligible PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
@@ -33,3 +35,26 @@ jobs:
             echo "Auto-merge could not be enabled automatically."
             echo "Check repository setting: allow auto-merge, required checks, and merge queue/ruleset."
           fi
+
+  dispatch-post-merge:
+    name: dispatch-post-merge
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == true }}
+    steps:
+      - name: Dispatch environment workflow
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          case "$BASE_BRANCH" in
+            develop)
+              gh workflow run deploy-staging.yml --ref develop
+              ;;
+            main)
+              gh workflow run deploy-production.yml --ref main
+              ;;
+            *)
+              echo "No deployment workflow mapped for ${BASE_BRANCH}."
+              ;;
+          esac
