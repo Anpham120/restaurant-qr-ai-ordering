@@ -890,6 +890,7 @@ Drift/risk đang thấy trong code hiện tại nhưng không sửa trong issue 
 - Frontend admin mock đang dùng `paymentStatus: "Pending"`; contract chuẩn là `Unpaid`, `Paid`, `Failed`, `Cancelled`.
 - Frontend menu type/mock đang dùng ID `mi-001` và thiếu `categoryId`; contract/backend DTO chuẩn dùng `m_001` và có `categoryId`.
 - Backend hiện có auth/menu/table foundation; order/chat/realtime endpoints trong tài liệu là contract để member triển khai tiếp, không phải bằng chứng endpoint đã hoàn thành trong issue #10.
+- Cac frontend drift items o tren van con ton tai vi frontend/** thuoc Do Not Touch trong issue #18. Can frontend team sua trong issue rieng.
 
 ## 13. Issue #18 Integration Review Notes
 
@@ -900,6 +901,7 @@ Ket qua review backend truoc final demo:
 - Seed tables: `T01` den `T08` active, `qrToken` dang seed `qr-demo-t01` den `qr-demo-t08`; API table chi chap nhan `T01` den `T99`.
 - Seed menu: 6 category active va 12 menu item demo, co ca item available/unavailable de test order, admin availability va chatbot guardrail.
 - Roles: role catalog co `Customer`, `Staff`, `Kitchen`, `Admin`. Demo Admin/Staff/Kitchen login account chua seed trong code vi auth user store nam ngoai allowed files cua issue #18.
+- Demo admin/staff/kitchen accounts: UserStore nam trong thu muc Users/ khong thuoc allowed files cua issue #18 (chi cho phep Data/, Orders/, Menu/, Tables/, Chat/), nen khong seed demo accounts trong issue nay. Can tao issue rieng hoac xin Lead approval neu muon bo sung.
 - API contract fixes: bo sung error codes backend dang tra (`CATEGORY_NAME_REQUIRED`, enum invalid codes, `ORDER_ITEM_NOT_FOUND`, `CHAT_MESSAGE_EMPTY`, `CHAT_SESSION_NOT_FOUND`) va dong bo seed menu/category voi backend response.
 - Status persistence: order status va order item status duoc luu trong `OrderStore` in-memory va GET `/api/orders/{orderCode}` tra lai trang thai moi trong cung API process.
 - Limitation: vi data in-memory, restart API se reset orders, chat sessions, admin menu changes va user registers.
