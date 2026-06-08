@@ -21,21 +21,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: main
+          fetch-depth: 0
 
       - name: Create or update release PR
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: release/promote-develop-to-main
         run: |
           set -euo pipefail
-          existing_pr="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number // empty')"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main develop
+          git checkout -B "$RELEASE_BRANCH" origin/main
+          git merge --no-ff --no-edit origin/develop
+          git push --force-with-lease origin "$RELEASE_BRANCH"
+
+          existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing_pr" ]; then
             gh pr create \
               --base main \
-              --head develop \
+              --head "$RELEASE_BRANCH" \
               --title "chore: promote develop to production" \
               --body "Automated release PR created after staging deployment passed."
-            existing_pr="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')"
+            existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json number --jq '.[0].number')"
           else
             gh pr comment "$existing_pr" --body "Staging deployment passed again; release PR remains ready for auto-merge."
           fi
