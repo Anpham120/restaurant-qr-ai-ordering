@@ -72,7 +72,10 @@ flowchart TB
   API --> Menu["Menu / Tables"]
   API --> Realtime["Realtime Updates"]
   API --> Data["Database Layer"]
-  API --> AI["External AI Provider"]
+  API --> AiService["Python RAG AI Service"]
+  AiService --> RAG["Knowledge Base"]
+  AiService --> Router["9router API Gateway"]
+  Router --> Gemini["Gemini 3.1"]
 ```
 
 ## Công Nghệ
@@ -81,9 +84,11 @@ flowchart TB
 | --- | --- |
 | Frontend | React, TypeScript, Vite |
 | Backend | ASP.NET Core Web API |
+| AI service | Python, FastAPI, RAG knowledge base |
+| LLM access | Gemini 3.1 thông qua 9router API gateway |
 | Realtime | SignalR định hướng cho cập nhật đơn |
 | Auth | JWT/HMAC foundation, role-based access |
-| Testing | .NET integration tests, frontend build checks |
+| Testing | .NET integration tests, Python RAG tests, frontend build checks |
 | Deployment plan | GitHub Actions, Docker Compose, VPS, Nginx, HTTPS |
 
 ## Chạy Dự Án Cục Bộ

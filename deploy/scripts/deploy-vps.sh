@@ -13,6 +13,7 @@ required_vars=(
   API_SERVER_NAME
   PUBLIC_API_BASE_URL
   JWT_SIGNING_KEY
+  AI_SERVICE_URL
   AI_BASE_URL
   AI_MODEL
   AI_API_KEY
@@ -74,12 +75,16 @@ API_SERVER_NAME=$(env_quote "$API_SERVER_NAME")
 PUBLIC_API_BASE_URL=$(env_quote "$PUBLIC_API_BASE_URL")
 ASPNETCORE_ENVIRONMENT=$(env_quote "${ASPNETCORE_ENVIRONMENT:-Production}")
 JWT_SIGNING_KEY=$(env_quote "$JWT_SIGNING_KEY")
-AI_PROVIDER=$(env_quote "${AI_PROVIDER:-9router}")
+AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
+AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
+AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
+AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-9router}")
 AI_BASE_URL=$(env_quote "$AI_BASE_URL")
 AI_API_KEY=$(env_quote "$AI_API_KEY")
 AI_MODEL=$(env_quote "$AI_MODEL")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
+RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")
 VITE_USE_MOCK_CHAT=$(env_quote "${VITE_USE_MOCK_CHAT:-false}")
 ENABLE_CERTBOT=$(env_quote "${ENABLE_CERTBOT:-true}")
 CERTBOT_EMAIL=$(env_quote "${CERTBOT_EMAIL:-}")
