@@ -761,7 +761,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 01",
                             IsActive = true,
-                            QrToken = "qr-demo-t01",
+                            QrToken = "cmc-table-t01-qr",
                             TableCode = "T01",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -771,7 +771,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 02",
                             IsActive = true,
-                            QrToken = "qr-demo-t02",
+                            QrToken = "cmc-table-t02-qr",
                             TableCode = "T02",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -781,7 +781,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 03",
                             IsActive = true,
-                            QrToken = "qr-demo-t03",
+                            QrToken = "cmc-table-t03-qr",
                             TableCode = "T03",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -791,7 +791,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 04",
                             IsActive = true,
-                            QrToken = "qr-demo-t04",
+                            QrToken = "cmc-table-t04-qr",
                             TableCode = "T04",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -801,7 +801,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 05",
                             IsActive = true,
-                            QrToken = "qr-demo-t05",
+                            QrToken = "cmc-table-t05-qr",
                             TableCode = "T05",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -811,7 +811,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 06",
                             IsActive = true,
-                            QrToken = "qr-demo-t06",
+                            QrToken = "cmc-table-t06-qr",
                             TableCode = "T06",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -821,7 +821,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 07",
                             IsActive = true,
-                            QrToken = "qr-demo-t07",
+                            QrToken = "cmc-table-t07-qr",
                             TableCode = "T07",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -831,7 +831,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 08",
                             IsActive = true,
-                            QrToken = "qr-demo-t08",
+                            QrToken = "cmc-table-t08-qr",
                             TableCode = "T08",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 3, 11, 23, 195, DateTimeKind.Unspecified).AddTicks(5563), new TimeSpan(0, 0, 0, 0, 0))
                         });

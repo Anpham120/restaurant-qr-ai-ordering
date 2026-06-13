@@ -758,7 +758,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 01",
                             IsActive = true,
-                            QrToken = "qr-demo-t01",
+                            QrToken = "cmc-table-t01-qr",
                             TableCode = "T01",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -768,7 +768,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 02",
                             IsActive = true,
-                            QrToken = "qr-demo-t02",
+                            QrToken = "cmc-table-t02-qr",
                             TableCode = "T02",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -778,7 +778,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 03",
                             IsActive = true,
-                            QrToken = "qr-demo-t03",
+                            QrToken = "cmc-table-t03-qr",
                             TableCode = "T03",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -788,7 +788,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 04",
                             IsActive = true,
-                            QrToken = "qr-demo-t04",
+                            QrToken = "cmc-table-t04-qr",
                             TableCode = "T04",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -798,7 +798,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 05",
                             IsActive = true,
-                            QrToken = "qr-demo-t05",
+                            QrToken = "cmc-table-t05-qr",
                             TableCode = "T05",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -808,7 +808,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 06",
                             IsActive = true,
-                            QrToken = "qr-demo-t06",
+                            QrToken = "cmc-table-t06-qr",
                             TableCode = "T06",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -818,7 +818,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 07",
                             IsActive = true,
-                            QrToken = "qr-demo-t07",
+                            QrToken = "cmc-table-t07-qr",
                             TableCode = "T07",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         },
@@ -828,10 +828,79 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayName = "Ban 08",
                             IsActive = true,
-                            QrToken = "qr-demo-t08",
+                            QrToken = "cmc-table-t08-qr",
                             TableCode = "T08",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629), new TimeSpan(0, 0, 0, 0, 0))
                         });
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSession", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<string>("OrderType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("order_type");
+
+                    b.Property<string>("QrToken")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qr_token");
+
+                    b.Property<string>("RestaurantTableId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("restaurant_table_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TableCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("table_code");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("QrToken");
+
+                    b.HasIndex("RestaurantTableId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TableCode");
+
+                    b.ToTable("table_sessions", (string)null);
                 });
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.User", b =>
@@ -982,6 +1051,16 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("RestaurantTable");
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSession", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.RestaurantTable", "RestaurantTable")
+                        .WithMany("TableSessions")
+                        .HasForeignKey("RestaurantTableId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("RestaurantTable");
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.OrderItem", b =>
                 {
                     b.HasOne("RestaurantQrAiOrdering.Entities.MenuItem", "MenuItem")
@@ -1032,6 +1111,8 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.RestaurantTable", b =>
                 {
                     b.Navigation("Orders");
+
+                    b.Navigation("TableSessions");
                 });
 #pragma warning restore 612, 618
         }
