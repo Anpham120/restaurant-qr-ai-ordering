@@ -87,7 +87,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     keyColumn: "id",
                     keyValue: $"tbl_{tableNumber:00}",
                     column: "qr_token",
-                    value: $"qr-demo-t{tableNumber:00}");
+                    value: $"cmc-table-t{tableNumber:00}-qr");
             }
         }
     }
