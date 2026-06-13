@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -8,9 +9,10 @@ namespace RestaurantQrAiOrdering.Api.Tests.Menu;
 public sealed class MenuEndpointTests
 {
     [Fact]
-    public async Task GetMenu_ReturnsCategoriesAndAvailabilityState()
+    public async Task GetMenu_ReturnsActiveCategoriesAndAvailableItems()
     {
         await using var factory = new TestWebApplicationFactory();
+        await factory.SeedDatabaseAsync();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/menu");
@@ -22,15 +24,15 @@ public sealed class MenuEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotEmpty(root.GetProperty("categories").EnumerateArray());
         Assert.Contains(items, item => item.GetProperty("isAvailable").GetBoolean());
-        Assert.Contains(items, item => !item.GetProperty("isAvailable").GetBoolean());
-        Assert.Contains(items, item => item.GetProperty("id").GetString() == "m_004");
+        Assert.DoesNotContain(items, item => !item.GetProperty("isAvailable").GetBoolean());
     }
 
     [Fact]
     public async Task AdminCategoryCrud_CreatesUpdatesAndDeletesCategory()
     {
         await using var factory = new TestWebApplicationFactory();
-        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+        using var client = await CreateAdminClientAsync(factory);
 
         using var createResponse = await client.PostAsJsonAsync("/api/admin/categories", new
         {
@@ -67,7 +69,8 @@ public sealed class MenuEndpointTests
     public async Task AdminMenuItemCrud_CreatesUpdatesTogglesAvailabilityAndDeletesItem()
     {
         await using var factory = new TestWebApplicationFactory();
-        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+        using var client = await CreateAdminClientAsync(factory);
 
         var categoryId = await CreateCategoryAsync(client);
 
@@ -126,7 +129,8 @@ public sealed class MenuEndpointTests
     public async Task AdminCreateMenuItem_RejectsInvalidPriceAndCategory()
     {
         await using var factory = new TestWebApplicationFactory();
-        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+        using var client = await CreateAdminClientAsync(factory);
 
         using var response = await client.PostAsJsonAsync("/api/admin/menu-items", new
         {
@@ -159,5 +163,25 @@ public sealed class MenuEndpointTests
         Assert.Equal(HttpStatusCode.Created, createCategoryResponse.StatusCode);
 
         return createCategoryBody.RootElement.GetProperty("categoryId").GetString()!;
+    }
+
+    private static async Task<HttpClient> CreateAdminClientAsync(TestWebApplicationFactory factory)
+    {
+        var client = factory.CreateClient();
+        using var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "admin@restaurant.local",
+            password = "Admin@1234"
+        });
+
+        using var loginBody = await JsonDocument.ParseAsync(await loginResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+
+        var token = loginBody.RootElement.GetProperty("accessToken").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(token));
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
     }
 }
