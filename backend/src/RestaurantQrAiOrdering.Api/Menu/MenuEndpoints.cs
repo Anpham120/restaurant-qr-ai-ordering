@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -8,19 +9,38 @@ public static class MenuEndpoints
 {
     public static IEndpointRouteBuilder MapMenuEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/menu", (RestaurantDataStore store) =>
+        app.MapGet("/api/menu", async (RestaurantDbContext db) =>
         {
-            var categories = store.GetCategories();
+            var categories = await db.Categories
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.DisplayOrder)
+                .ThenBy(c => c.Name)
+                .ToListAsync();
+
             var categoryLookup = categories.ToDictionary(
-                category => category.Id,
-                category => category,
+                c => c.Id,
+                c => c,
                 StringComparer.OrdinalIgnoreCase);
 
+            var items = await db.MenuItems
+                .Where(i => categoryLookup.ContainsKey(i.CategoryId))
+                .ToListAsync();
+
+            var sortedItems = items
+                .OrderBy(i => categoryLookup[i.CategoryId].DisplayOrder)
+                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var sortedCategories = categoryLookup.Values
+                .OrderBy(c => c.DisplayOrder)
+                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(ToPublicCategoryResponse)
+                .ToList();
+
             var response = new MenuResponse(
-                categories.Select(ToPublicCategoryResponse).ToList(),
-                store.GetMenuItems()
-                    .Where(item => categoryLookup.ContainsKey(item.CategoryId))
-                    .Select(item => ToMenuItemResponse(item, categoryLookup[item.CategoryId].Name))
+                sortedCategories,
+                sortedItems
+                    .Select(i => ToMenuItemResponse(i, categoryLookup[i.CategoryId].Name))
                     .ToList());
 
             return Results.Ok(response);
@@ -30,118 +50,175 @@ public static class MenuEndpoints
 
         var adminMenu = app.MapGroup("/api/admin/menu-items").WithTags("Admin Menu");
 
-        adminMenu.MapGet("/", (RestaurantDataStore store) =>
+        adminMenu.MapGet("/", async (bool includeInactiveCategories = false, RestaurantDbContext db = null!) =>
         {
-            var categories = store.GetCategories(includeInactive: true).ToDictionary(
-                category => category.Id,
-                category => category.Name,
+            var categories = await db.Categories
+                .ToListAsync();
+
+            var categoriesDict = categories.ToDictionary(
+                c => c.Id,
+                c => c.Name,
                 StringComparer.OrdinalIgnoreCase);
 
-            var response = store.GetMenuItems(includeInactiveCategories: true)
-                .Select(item => ToMenuItemResponse(
-                    item,
-                    categories.GetValueOrDefault(item.CategoryId, string.Empty)))
+            var activeCategoryIds = categories
+                .Where(c => c.IsActive)
+                .Select(c => c.Id)
+                .ToList();
+
+            var query = db.MenuItems.AsQueryable();
+
+            if (!includeInactiveCategories)
+            {
+                query = query.Where(i => activeCategoryIds.Contains(i.CategoryId));
+            }
+
+            var items = await query
+                .OrderBy(i => i.Name)
+                .ToListAsync();
+
+            var response = items
+                .Select(i => ToMenuItemResponse(i, categoriesDict.GetValueOrDefault(i.CategoryId, string.Empty)))
                 .ToList();
 
             return Results.Ok(response);
         })
         .WithName("AdminGetMenuItems");
 
-        adminMenu.MapGet("/{menuItemId}", (string menuItemId, RestaurantDataStore store) =>
+        adminMenu.MapGet("/{menuItemId}", async (string menuItemId, RestaurantDbContext db) =>
         {
-            var item = store.GetMenuItem(menuItemId);
+            var item = await db.MenuItems
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
+
             if (item is null)
             {
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
             }
 
-            var category = store.GetCategory(item.CategoryId, includeInactive: true);
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+
             return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
         .WithName("AdminGetMenuItem");
 
-        adminMenu.MapPost("/", (MenuItemRequest? request, RestaurantDataStore store) =>
+        adminMenu.MapPost("/", async (MenuItemRequest? request, RestaurantDbContext db) =>
         {
-            var validationError = ValidateMenuItemRequest(request, store);
+            var validationError = await ValidateMenuItemRequestAsync(request, db);
             if (validationError is not null)
             {
                 return validationError;
             }
 
             var validatedRequest = request!;
-            var item = store.CreateMenuItem(
-                validatedRequest.CategoryId!.Trim(),
-                validatedRequest.Name!,
-                validatedRequest.Description ?? string.Empty,
-                validatedRequest.Price,
-                validatedRequest.ImageUrl,
-                validatedRequest.IsAvailable,
-                validatedRequest.Tags ?? []);
+            var now = DateTimeOffset.UtcNow;
 
-            var category = store.GetCategory(item.CategoryId, includeInactive: true);
+            var item = new MenuItem
+            {
+                Id = await CreateUniqueMenuItemIdAsync(db),
+                CategoryId = validatedRequest.CategoryId!.Trim(),
+                Name = validatedRequest.Name!.Trim(),
+                Description = validatedRequest.Description?.Trim() ?? string.Empty,
+                Price = validatedRequest.Price,
+                ImageUrl = NormalizeOptional(validatedRequest.ImageUrl),
+                IsAvailable = validatedRequest.IsAvailable,
+                Tags = NormalizeTags(validatedRequest.Tags ?? []),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            db.MenuItems.Add(item);
+            await db.SaveChangesAsync();
+
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+
             return Results.Created($"/api/admin/menu-items/{item.Id}", ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
         .WithName("AdminCreateMenuItem");
 
-        adminMenu.MapPut("/{menuItemId}", (string menuItemId, MenuItemRequest? request, RestaurantDataStore store) =>
+        adminMenu.MapPut("/{menuItemId}", async (string menuItemId, MenuItemRequest? request, RestaurantDbContext db) =>
         {
-            var validationError = ValidateMenuItemRequest(request, store);
+            var validationError = await ValidateMenuItemRequestAsync(request, db);
             if (validationError is not null)
             {
                 return validationError;
             }
 
-            var validatedRequest = request!;
-            var item = store.UpdateMenuItem(
-                menuItemId,
-                validatedRequest.CategoryId!.Trim(),
-                validatedRequest.Name!,
-                validatedRequest.Description ?? string.Empty,
-                validatedRequest.Price,
-                validatedRequest.ImageUrl,
-                validatedRequest.IsAvailable,
-                validatedRequest.Tags ?? []);
+            var item = await db.MenuItems
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
 
             if (item is null)
             {
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
             }
 
-            var category = store.GetCategory(item.CategoryId, includeInactive: true);
+            var validatedRequest = request!;
+            item.CategoryId = validatedRequest.CategoryId!.Trim();
+            item.Name = validatedRequest.Name!.Trim();
+            item.Description = validatedRequest.Description?.Trim() ?? string.Empty;
+            item.Price = validatedRequest.Price;
+            item.ImageUrl = NormalizeOptional(validatedRequest.ImageUrl);
+            item.IsAvailable = validatedRequest.IsAvailable;
+            item.Tags = NormalizeTags(validatedRequest.Tags ?? []);
+            item.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync();
+
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+
             return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
         .WithName("AdminUpdateMenuItem");
 
-        adminMenu.MapPatch("/{menuItemId}/availability", (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDataStore store) =>
+        adminMenu.MapPatch("/{menuItemId}/availability", async (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDbContext db) =>
         {
             if (request is null)
             {
                 return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
             }
 
-            var item = store.ToggleAvailability(menuItemId, request.IsAvailable);
+            var item = await db.MenuItems
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
+
             if (item is null)
             {
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
             }
 
-            var category = store.GetCategory(item.CategoryId, includeInactive: true);
+            item.IsAvailable = request.IsAvailable;
+            item.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync();
+
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+
             return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
         .WithName("AdminToggleMenuItemAvailability");
 
-        adminMenu.MapDelete("/{menuItemId}", (string menuItemId, RestaurantDataStore store) =>
+        adminMenu.MapDelete("/{menuItemId}", async (string menuItemId, RestaurantDbContext db) =>
         {
-            return store.DeleteMenuItem(menuItemId)
-                ? Results.NoContent()
-                : ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
+            var item = await db.MenuItems
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
+
+            if (item is null)
+            {
+                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
+            }
+
+            db.MenuItems.Remove(item);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
         })
         .WithName("AdminDeleteMenuItem");
 
         return app;
     }
 
-    private static IResult? ValidateMenuItemRequest(MenuItemRequest? request, RestaurantDataStore store)
+    private static async Task<IResult?> ValidateMenuItemRequestAsync(MenuItemRequest? request, RestaurantDbContext db)
     {
         if (request is null)
         {
@@ -153,7 +230,10 @@ public static class MenuEndpoints
             return ApiResults.BadRequest("CATEGORY_REQUIRED", "Category is required.");
         }
 
-        if (!store.CategoryExists(request.CategoryId.Trim()))
+        var categoryExists = await db.Categories
+            .AnyAsync(c => c.Id == request.CategoryId.Trim() && c.IsActive);
+
+        if (!categoryExists)
         {
             return ApiResults.BadRequest("CATEGORY_INVALID", "Category must exist and be active.");
         }
@@ -188,5 +268,33 @@ public static class MenuEndpoints
             item.ImageUrl,
             item.IsAvailable,
             item.Tags.ToList());
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static ICollection<string> NormalizeTags(IReadOnlyCollection<string> tags)
+    {
+        return tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static async Task<string> CreateUniqueMenuItemIdAsync(RestaurantDbContext db)
+    {
+        var allIds = await db.MenuItems
+            .Select(i => i.Id)
+            .ToListAsync();
+
+        var lastNumber = allIds
+            .Select(id => id.StartsWith("m_") && int.TryParse(id.AsSpan(2), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return $"m_{lastNumber + 1:000}";
     }
 }
