@@ -17,6 +17,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
+    public DbSet<TableSession> TableSessions => Set<TableSession>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Payment> Payments => Set<Payment>();
@@ -32,6 +33,7 @@ public class RestaurantDbContext : DbContext
         ConfigureCategory(modelBuilder);
         ConfigureMenuItem(modelBuilder);
         ConfigureRestaurantTable(modelBuilder);
+        ConfigureTableSession(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigurePayment(modelBuilder);
@@ -187,15 +189,72 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.IsActive);
 
             entity.HasData(
-                new RestaurantTable { Id = "tbl_01", TableCode = "T01", DisplayName = "Ban 01", IsActive = true, QrToken = "qr-demo-t01", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_02", TableCode = "T02", DisplayName = "Ban 02", IsActive = true, QrToken = "qr-demo-t02", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_03", TableCode = "T03", DisplayName = "Ban 03", IsActive = true, QrToken = "qr-demo-t03", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_04", TableCode = "T04", DisplayName = "Ban 04", IsActive = true, QrToken = "qr-demo-t04", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_05", TableCode = "T05", DisplayName = "Ban 05", IsActive = true, QrToken = "qr-demo-t05", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_06", TableCode = "T06", DisplayName = "Ban 06", IsActive = true, QrToken = "qr-demo-t06", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_07", TableCode = "T07", DisplayName = "Ban 07", IsActive = true, QrToken = "qr-demo-t07", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_08", TableCode = "T08", DisplayName = "Ban 08", IsActive = true, QrToken = "qr-demo-t08", CreatedAt = now, UpdatedAt = now }
+                new RestaurantTable { Id = "tbl_01", TableCode = "T01", DisplayName = "Ban 01", IsActive = true, QrToken = "cmc-table-t01-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_02", TableCode = "T02", DisplayName = "Ban 02", IsActive = true, QrToken = "cmc-table-t02-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_03", TableCode = "T03", DisplayName = "Ban 03", IsActive = true, QrToken = "cmc-table-t03-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_04", TableCode = "T04", DisplayName = "Ban 04", IsActive = true, QrToken = "cmc-table-t04-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_05", TableCode = "T05", DisplayName = "Ban 05", IsActive = true, QrToken = "cmc-table-t05-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_06", TableCode = "T06", DisplayName = "Ban 06", IsActive = true, QrToken = "cmc-table-t06-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_07", TableCode = "T07", DisplayName = "Ban 07", IsActive = true, QrToken = "cmc-table-t07-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_08", TableCode = "T08", DisplayName = "Ban 08", IsActive = true, QrToken = "cmc-table-t08-qr", CreatedAt = now, UpdatedAt = now }
             );
+        });
+    }
+
+    private static void ConfigureTableSession(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableSession>(entity =>
+        {
+            entity.ToTable("table_sessions");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.RestaurantTableId)
+                .HasColumnName("restaurant_table_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.TableCode)
+                .HasColumnName("table_code")
+                .HasMaxLength(20);
+            entity.Property(e => e.QrToken)
+                .HasColumnName("qr_token")
+                .HasMaxLength(100);
+            entity.Property(e => e.OrderType)
+                .HasColumnName("order_type")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.OpenedAt)
+                .HasColumnName("opened_at")
+                .IsRequired();
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnName("expires_at")
+                .IsRequired();
+            entity.Property(e => e.ClosedAt)
+                .HasColumnName("closed_at");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.RestaurantTable)
+                .WithMany(t => t.TableSessions)
+                .HasForeignKey(e => e.RestaurantTableId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.TableCode);
+            entity.HasIndex(e => e.QrToken);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiresAt);
         });
     }
 

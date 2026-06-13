@@ -86,6 +86,7 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
         ConfigureCategoryForTest(modelBuilder);
         ConfigureMenuItemForTest(modelBuilder);
         ConfigureRestaurantTableForTest(modelBuilder);
+        ConfigureTableSessionForTest(modelBuilder);
         ConfigureOrderForTest(modelBuilder);
         ConfigureOrderItemForTest(modelBuilder);
         ConfigurePaymentForTest(modelBuilder);
@@ -152,6 +153,32 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             entity.HasIndex(e => e.TableCode).IsUnique();
             entity.HasIndex(e => e.QrToken).IsUnique();
             entity.HasIndex(e => e.IsActive);
+        });
+    }
+
+    private static void ConfigureTableSessionForTest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableSession>(entity =>
+        {
+            entity.ToTable("table_sessions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.RestaurantTableId).HasColumnName("restaurant_table_id").HasMaxLength(50);
+            entity.Property(e => e.TableCode).HasColumnName("table_code").HasMaxLength(20);
+            entity.Property(e => e.QrToken).HasColumnName("qr_token").HasMaxLength(100);
+            entity.Property(e => e.OrderType).HasColumnName("order_type").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            entity.Property(e => e.ClosedAt).HasColumnName("closed_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasOne(e => e.RestaurantTable).WithMany(t => t.TableSessions).HasForeignKey(e => e.RestaurantTableId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.TableCode);
+            entity.HasIndex(e => e.QrToken);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiresAt);
         });
     }
 
@@ -357,6 +384,17 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             new MenuItem { Id = "m_011", CategoryId = "cat_dessert", Name = "Che khuc bach", Description = "Khuc bach beo nhe, vai, hanh nhan va siro duong phen.", Price = 55000, ImageUrl = "https://example.com/images/che-khuc-bach.jpg", IsAvailable = true, Tags = new List<string> { "sweet", "cool" }, CreatedAt = now, UpdatedAt = now },
             new MenuItem { Id = "m_012", CategoryId = "cat_dessert", Name = "Banh flan caramel", Description = "Banh flan min, caramel thom, dung lanh.", Price = 35000, ImageUrl = "https://example.com/images/banh-flan.jpg", IsAvailable = true, Tags = new List<string> { "sweet", "classic" }, CreatedAt = now, UpdatedAt = now }
         );
+
+        RestaurantTables.AddRange(Enumerable.Range(1, 8).Select(number => new RestaurantTable
+        {
+            Id = $"tbl_{number:00}",
+            TableCode = $"T{number:00}",
+            DisplayName = $"Ban {number:00}",
+            IsActive = true,
+            QrToken = $"cmc-table-t{number:00}-qr",
+            CreatedAt = now,
+            UpdatedAt = now
+        }));
 
         await SaveChangesAsync();
     }
