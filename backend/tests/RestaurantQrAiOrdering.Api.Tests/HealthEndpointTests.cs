@@ -8,7 +8,7 @@ public sealed class HealthEndpointTests
     [Fact]
     public async Task GetHealth_ReturnsHealthyPayload()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/health");
