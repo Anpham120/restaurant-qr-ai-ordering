@@ -20,7 +20,7 @@ public sealed class OrderEndpointTests
         realtime.Clear();
         using var client = factory.CreateClient();
 
-        using var response = await CreateDineInOrderAsync(client);
+        using var response = await CreateDineInOrderAsync(client, factory);
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -29,6 +29,27 @@ public sealed class OrderEndpointTests
         Assert.Equal("DineIn", realtime.Created[0].OrderType);
         Assert.Equal("T05", realtime.Created[0].TableCode);
         Assert.Equal("Placed", realtime.Created[0].Status);
+    }
+
+    [Fact]
+    public async Task CreateOrder_PersistsOrderSoAnotherClientCanReadIt()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var firstClient = factory.CreateClient();
+        using var secondClient = factory.CreateClient();
+
+        using var createResponse = await CreateDineInOrderAsync(firstClient, factory);
+        using var createBody = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var orderCode = createBody.RootElement.GetProperty("orderCode").GetString();
+
+        using var getResponse = await secondClient.GetAsync($"/api/orders/{orderCode}");
+        using var getBody = await JsonDocument.ParseAsync(await getResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(orderCode, getBody.RootElement.GetProperty("orderCode").GetString());
+        Assert.Equal("T05", getBody.RootElement.GetProperty("tableCode").GetString());
+        Assert.Equal(90000, getBody.RootElement.GetProperty("subtotalAmount").GetDecimal());
     }
 
     [Fact]
@@ -110,6 +131,7 @@ public sealed class OrderEndpointTests
         var realtime = factory.GetRealtimeNotifier();
         realtime.Clear();
         using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
@@ -156,6 +178,7 @@ public sealed class OrderEndpointTests
         var realtime = factory.GetRealtimeNotifier();
         realtime.Clear();
         using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
@@ -254,8 +277,12 @@ public sealed class OrderEndpointTests
         Assert.Equal("Preparing", realtime.ItemStatusChanged[0].Payload.Status);
     }
 
-    private static async Task<HttpResponseMessage> CreateDineInOrderAsync(HttpClient client)
+    private static async Task<HttpResponseMessage> CreateDineInOrderAsync(
+        HttpClient client,
+        TestWebApplicationFactory factory)
     {
+        await factory.SeedDatabaseAsync();
+
         return await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
@@ -277,7 +304,7 @@ public sealed class OrderEndpointTests
 
     private static async Task<JsonDocument> CreateOrderAsync(HttpClient client, TestWebApplicationFactory factory)
     {
-        using var response = await CreateDineInOrderAsync(client);
+        using var response = await CreateDineInOrderAsync(client, factory);
         var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

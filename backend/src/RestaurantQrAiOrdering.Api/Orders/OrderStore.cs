@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -17,142 +18,204 @@ public interface IOrderStore
 
 public sealed class OrderStore : IOrderStore
 {
-    private readonly object syncRoot = new();
-    private readonly RestaurantDataStore restaurantData;
-    private readonly List<Order> orders = [];
-    private readonly Dictionary<string, List<OrderStatusEventSnapshot>> orderEvents = new(StringComparer.OrdinalIgnoreCase);
-    private int nextOrderNumber = 1001;
-    private int nextOrderItemNumber = 1;
+    private readonly RestaurantDbContext db;
 
-    public OrderStore(RestaurantDataStore restaurantData)
+    public OrderStore(RestaurantDbContext db)
     {
-        this.restaurantData = restaurantData;
+        this.db = db;
     }
 
     public OrderSnapshot CreateOrder(CreateOrderCommand command)
     {
-        lock (syncRoot)
+        var now = DateTimeOffset.UtcNow;
+        var orderType = Enum.Parse<OrderType>(command.OrderType);
+        var paymentMethod = Enum.Parse<PaymentMethod>(command.PaymentMethod);
+        var tableCode = NormalizeOptional(command.TableCode)?.ToUpperInvariant();
+        var table = orderType == OrderType.DineIn && tableCode is not null
+            ? db.RestaurantTables.FirstOrDefault(t => t.TableCode == tableCode && t.IsActive)
+            : null;
+        var menuItems = LoadMenuItems(command);
+
+        var order = new Order
         {
-            var now = DateTimeOffset.UtcNow;
-            var orderNumber = nextOrderNumber++;
-            var order = new Order
+            Id = $"ord_{Guid.NewGuid():N}",
+            OrderCode = CreateNextOrderCode(),
+            OrderType = orderType,
+            Status = OrderStatus.Placed,
+            RestaurantTableId = table?.Id,
+            RestaurantTable = table,
+            TableCode = table?.TableCode ?? tableCode,
+            CreatedAt = now,
+            UpdatedAt = now,
+            Payment = new Payment
             {
-                Id = $"ord_{orderNumber}",
-                OrderCode = $"ORD-{orderNumber}",
-                OrderType = Enum.Parse<OrderType>(command.OrderType),
-                Status = OrderStatus.Placed,
-                TableCode = NormalizeOptional(command.TableCode),
+                Id = $"pay_{Guid.NewGuid():N}",
+                Method = paymentMethod,
+                Status = PaymentStatus.Unpaid,
                 CreatedAt = now,
-                UpdatedAt = now,
-                Payment = new Payment
-                {
-                    Id = $"pay_{orderNumber}",
-                    Method = Enum.Parse<PaymentMethod>(command.PaymentMethod),
-                    Status = PaymentStatus.Unpaid,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                }
-            };
-
-            ApplyDeliveryInfo(order, command.DeliveryInfo);
-
-            foreach (var requestItem in command.Items)
-            {
-                var menuItem = restaurantData.GetMenuItem(requestItem.MenuItemId!);
-                var orderItem = new OrderItem
-                {
-                    Id = $"oi_{nextOrderItemNumber++:000}",
-                    OrderId = order.Id,
-                    MenuItemId = menuItem!.Id,
-                    MenuItemName = menuItem.Name,
-                    UnitPrice = menuItem.Price,
-                    Quantity = requestItem.Quantity,
-                    Status = OrderItemStatus.Pending,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-
-                order.OrderItems.Add(orderItem);
+                UpdatedAt = now
             }
+        };
 
-            order.SubtotalAmount = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
-            order.TotalAmount = order.SubtotalAmount + order.MockDeliveryFee; // TODO(issue-64): Calculate from Payment module when ready
-            order.Payment.Amount = order.TotalAmount;
-            orderEvents[order.OrderCode] = [new OrderStatusEventSnapshot(order.Status.ToString(), now)];
-            orders.Add(order);
+        ApplyDeliveryInfo(order, command.DeliveryInfo);
 
-            return ToSnapshot(order);
+        foreach (var requestItem in command.Items)
+        {
+            var menuItem = menuItems[requestItem.MenuItemId!.Trim()];
+            order.OrderItems.Add(new OrderItem
+            {
+                Id = $"oi_{Guid.NewGuid():N}",
+                OrderId = order.Id,
+                MenuItemId = menuItem.Id,
+                MenuItemName = menuItem.Name,
+                UnitPrice = menuItem.Price,
+                Quantity = requestItem.Quantity,
+                Status = OrderItemStatus.Pending,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
         }
+
+        order.SubtotalAmount = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
+        order.TotalAmount = order.SubtotalAmount + order.MockDeliveryFee; // TODO(issue-70): Calculate final fees in Payment module.
+        order.Payment.Amount = order.TotalAmount;
+
+        db.Orders.Add(order);
+        db.SaveChanges();
+
+        return ToSnapshot(order, [new OrderStatusEventSnapshot(order.Status.ToString(), now)]);
     }
 
     public OrderSnapshot? GetOrder(string orderCode)
     {
-        lock (syncRoot)
-        {
-            var order = FindOrder(orderCode);
-            return order is null ? null : ToSnapshot(order);
-        }
+        var order = LoadOrder(orderCode, tracking: false);
+        return order is null ? null : ToSnapshot(order);
     }
 
     public UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status)
     {
-        lock (syncRoot)
+        var order = LoadOrder(orderCode, tracking: true);
+        if (order is null)
         {
-            var order = FindOrder(orderCode);
-            if (order is null)
-            {
-                return new UpdateOrderStatusResult(false, null);
-            }
-
-            if (status == OrderStatus.Cancelled && IsCancellationLocked(order))
-            {
-                return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_CANCEL_NOT_ALLOWED");
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            order.Status = status;
-            order.UpdatedAt = now;
-            orderEvents[order.OrderCode].Add(new OrderStatusEventSnapshot(status.ToString(), now));
-
-            return new UpdateOrderStatusResult(true, ToSnapshot(order));
+            return new UpdateOrderStatusResult(false, null);
         }
+
+        if (status == OrderStatus.Cancelled && IsCancellationLocked(order))
+        {
+            return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_CANCEL_NOT_ALLOWED");
+        }
+
+        if (!CanTransition(order.Status, status))
+        {
+            return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_STATUS_TRANSITION_INVALID");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        order.Status = status;
+        order.UpdatedAt = now;
+        db.SaveChanges();
+
+        return new UpdateOrderStatusResult(
+            true,
+            ToSnapshot(order, [new OrderStatusEventSnapshot(order.Status.ToString(), now)]));
     }
 
     public UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status)
     {
-        lock (syncRoot)
+        var order = LoadOrder(orderCode, tracking: true);
+        if (order is null)
         {
-            var order = FindOrder(orderCode);
-            if (order is null)
-            {
-                return new UpdateOrderItemStatusResult(false, false, null, null);
-            }
-
-            var item = order.OrderItems.FirstOrDefault(item =>
-                item.Id.Equals(orderItemId, StringComparison.OrdinalIgnoreCase));
-
-            if (item is null)
-            {
-                return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            item.Status = status;
-            item.UpdatedAt = now;
-            order.UpdatedAt = now;
-
-            var orderSnapshot = ToSnapshot(order);
-            var itemSnapshot = orderSnapshot.Items.First(snapshot =>
-                snapshot.OrderItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
-
-            return new UpdateOrderItemStatusResult(true, true, orderSnapshot, itemSnapshot);
+            return new UpdateOrderItemStatusResult(false, false, null, null);
         }
+
+        var item = order.OrderItems.FirstOrDefault(item =>
+            item.Id.Equals(orderItemId, StringComparison.OrdinalIgnoreCase));
+
+        if (item is null)
+        {
+            return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        item.Status = status;
+        item.UpdatedAt = now;
+        order.UpdatedAt = now;
+        db.SaveChanges();
+
+        var orderSnapshot = ToSnapshot(order);
+        var itemSnapshot = orderSnapshot.Items.First(snapshot =>
+            snapshot.OrderItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
+
+        return new UpdateOrderItemStatusResult(true, true, orderSnapshot, itemSnapshot);
     }
 
-    private Order? FindOrder(string orderCode)
+    private Dictionary<string, MenuItem> LoadMenuItems(CreateOrderCommand command)
     {
-        return orders.FirstOrDefault(order =>
-            order.OrderCode.Equals(orderCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        var menuItemIds = command.Items
+            .Select(item => item.MenuItemId!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return db.MenuItems
+            .Where(menuItem => menuItemIds.Contains(menuItem.Id))
+            .ToList()
+            .ToDictionary(menuItem => menuItem.Id, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private Order? LoadOrder(string orderCode, bool tracking)
+    {
+        var normalizedOrderCode = orderCode.Trim();
+        var query = db.Orders
+            .Include(order => order.Payment)
+            .Include(order => order.OrderItems)
+            .Include(order => order.RestaurantTable)
+            .Where(order => order.OrderCode == normalizedOrderCode);
+
+        if (!tracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return query.FirstOrDefault();
+    }
+
+    private string CreateNextOrderCode()
+    {
+        var nextNumber = db.Orders.Count() + 1001;
+        string orderCode;
+        do
+        {
+            orderCode = $"ORD-{nextNumber++}";
+        }
+        while (db.Orders.Any(order => order.OrderCode == orderCode));
+
+        return orderCode;
+    }
+
+    private static bool CanTransition(OrderStatus current, OrderStatus next)
+    {
+        if (current == next)
+        {
+            return true;
+        }
+
+        if (next == OrderStatus.Cancelled)
+        {
+            return current is OrderStatus.Draft or OrderStatus.Placed or OrderStatus.Confirmed;
+        }
+
+        return current switch
+        {
+            OrderStatus.Draft => next is OrderStatus.Placed,
+            OrderStatus.Placed => next is OrderStatus.Confirmed or OrderStatus.Preparing,
+            OrderStatus.Confirmed => next is OrderStatus.Preparing,
+            OrderStatus.Preparing => next is OrderStatus.Ready,
+            OrderStatus.Ready => next is OrderStatus.Served or OrderStatus.Completed,
+            OrderStatus.Served => next is OrderStatus.Completed,
+            OrderStatus.Delivering => next is OrderStatus.Delivered,
+            OrderStatus.Delivered => next is OrderStatus.Completed,
+            _ => false
+        };
     }
 
     private static bool IsCancellationLocked(Order order)
@@ -168,7 +231,9 @@ public sealed class OrderStore : IOrderStore
                 or OrderItemStatus.Served);
     }
 
-    private OrderSnapshot ToSnapshot(Order order)
+    private static OrderSnapshot ToSnapshot(
+        Order order,
+        IReadOnlyList<OrderStatusEventSnapshot>? events = null)
     {
         var payment = order.Payment ?? new Payment();
         return new OrderSnapshot(
@@ -185,10 +250,10 @@ public sealed class OrderStore : IOrderStore
             order.CreatedAt,
             order.UpdatedAt,
             order.OrderItems
-                .OrderBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(item => item.CreatedAt)
                 .Select(ToItemSnapshot)
                 .ToList(),
-            orderEvents.GetValueOrDefault(order.OrderCode, []).ToList());
+            events ?? [new OrderStatusEventSnapshot(order.Status.ToString(), order.UpdatedAt)]);
     }
 
     private static OrderItemSnapshot ToItemSnapshot(OrderItem item)

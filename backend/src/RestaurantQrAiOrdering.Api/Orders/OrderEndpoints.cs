@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Realtime;
@@ -13,14 +14,14 @@ public static partial class OrderEndpoints
     {
         app.MapPost("/api/orders", async (
             CreateOrderRequest? request,
-            RestaurantDataStore restaurantData,
+            RestaurantDbContext db,
             IOrderStore orders,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
-            var validationError = ValidateCreateOrderRequest(request, restaurantData);
+            var validationError = await ValidateCreateOrderRequestAsync(request, db, cancellationToken);
             if (validationError is not null)
             {
                 logger.LogWarning("Rejected order creation request during validation.");
@@ -100,6 +101,18 @@ public static partial class OrderEndpoints
                     "Order cannot be cancelled after it or any item reaches Preparing.");
             }
 
+            if (result.ErrorCode == "ORDER_STATUS_TRANSITION_INVALID")
+            {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because transition to {Status} is invalid.",
+                    orderCode,
+                    status);
+
+                return ApiResults.BadRequest(
+                    "ORDER_STATUS_TRANSITION_INVALID",
+                    "Order status transition is not allowed.");
+            }
+
             await realtime.OrderStatusChangedAsync(ToOrderStatusChangedEvent(result.Order), result.Order.TableCode, cancellationToken);
             logger.LogInformation("Updated order {OrderCode} status to {Status}.", result.Order.OrderCode, result.Order.Status);
 
@@ -176,7 +189,10 @@ public static partial class OrderEndpoints
         return app;
     }
 
-    private static IResult? ValidateCreateOrderRequest(CreateOrderRequest? request, RestaurantDataStore restaurantData)
+    private static async Task<IResult?> ValidateCreateOrderRequestAsync(
+        CreateOrderRequest? request,
+        RestaurantDbContext db,
+        CancellationToken cancellationToken)
     {
         if (request is null)
         {
@@ -215,7 +231,11 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
             }
 
-            if (restaurantData.GetActiveTable(request.TableCode) is null)
+            var normalizedTableCode = request.TableCode.Trim().ToUpperInvariant();
+            var tableExists = await db.RestaurantTables
+                .AsNoTracking()
+                .AnyAsync(table => table.TableCode == normalizedTableCode && table.IsActive, cancellationToken);
+            if (!tableExists)
             {
                 return ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.");
             }
@@ -233,7 +253,10 @@ public static partial class OrderEndpoints
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
             }
 
-            var menuItem = restaurantData.GetMenuItem(item.MenuItemId);
+            var menuItemId = item.MenuItemId.Trim();
+            var menuItem = await db.MenuItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(menuItem => menuItem.Id == menuItemId, cancellationToken);
             if (menuItem is null)
             {
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
