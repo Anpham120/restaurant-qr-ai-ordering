@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Chat;
+using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Realtime;
@@ -32,6 +34,31 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddDbContext<RestaurantDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString, npgsql =>
+        {
+            npgsql.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null);
+        });
+    });
+}
+
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(connectionString, name: "postgresql", tags: ["db", "ready"]);
+}
+else
+{
+    builder.Services.AddHealthChecks();
+}
 builder.Services.AddRestaurantAuth(builder.Configuration);
 builder.Services.AddRestaurantMenuTableApis();
 builder.Services.AddRestaurantOrderApis();
@@ -95,6 +122,9 @@ app.MapGet("/api/health", () => Results.Ok(new
 }))
 .WithName("GetHealth")
 .WithTags("Health");
+
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
 
 app.Run();
 
