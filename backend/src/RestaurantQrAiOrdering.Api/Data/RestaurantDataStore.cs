@@ -362,6 +362,8 @@ public sealed class RestaurantDataStore
 
     private static List<Category> SeedCategories()
     {
+        // Seed data for development/demo only.
+        // In production, categories will be managed via admin API or database migration.
         var now = DateTimeOffset.UtcNow;
 
         return
@@ -377,6 +379,9 @@ public sealed class RestaurantDataStore
 
     private static List<MenuItem> SeedMenuItems()
     {
+        // Seed data for development/demo only.
+        // In production, menu items will be managed via admin API or database migration.
+        // Note: Some items have isAvailable=false to test out-of-stock scenarios.
         var now = DateTimeOffset.UtcNow;
 
         return
@@ -424,6 +429,8 @@ public sealed class RestaurantDataStore
 
     private static List<RestaurantTable> SeedTables()
     {
+        // Seed data for development/demo only.
+        // In production, tables will be created via admin API or database migration.
         var now = DateTimeOffset.UtcNow;
 
         return Enumerable
@@ -434,7 +441,7 @@ public sealed class RestaurantDataStore
                 TableCode = $"T{number:00}",
                 DisplayName = $"Ban {number:00}",
                 IsActive = true,
-                QrToken = $"qr-demo-t{number:00}",
+                QrToken = $"qr-demo-t{number:00}", // TODO(issue-64): Use proper QR generation in production
                 CreatedAt = now,
                 UpdatedAt = now
             })

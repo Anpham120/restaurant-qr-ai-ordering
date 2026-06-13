@@ -36,7 +36,7 @@ public class Order
 
     public string? DeliveryNote { get; set; }
 
-    public decimal MockDeliveryFee { get; set; }
+    public decimal MockDeliveryFee { get; set; } // TODO(issue-64): Replace with calculated delivery fee from Payment module
 
     public decimal SubtotalAmount { get; set; }
 
