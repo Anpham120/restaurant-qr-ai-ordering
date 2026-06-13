@@ -21,6 +21,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
@@ -37,6 +38,7 @@ public class RestaurantDbContext : DbContext
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigurePayment(modelBuilder);
+        ConfigurePaymentTransaction(modelBuilder);
         ConfigureChatSession(modelBuilder);
         ConfigureChatMessage(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
@@ -444,6 +446,59 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.OrderId).IsUnique();
             entity.HasIndex(e => e.Status);
+        });
+    }
+
+    private static void ConfigurePaymentTransaction(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("payment_transactions");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.PaymentId)
+                .HasColumnName("payment_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Method)
+                .HasColumnName("method")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Amount)
+                .HasColumnName("amount")
+                .HasPrecision(18, 2)
+                .IsRequired();
+            entity.Property(e => e.Provider)
+                .HasColumnName("provider")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.ProviderTransactionId)
+                .HasColumnName("provider_transaction_id")
+                .HasMaxLength(200);
+            entity.Property(e => e.Note)
+                .HasColumnName("note")
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.Payment)
+                .WithMany(p => p.Transactions)
+                .HasForeignKey(e => e.PaymentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ProviderTransactionId);
         });
     }
 

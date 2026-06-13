@@ -11,7 +11,7 @@ namespace RestaurantQrAiOrdering.Api.Tests;
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private static readonly RecordingOrderRealtimeNotifier SharedRealtimeNotifier = new();
+    private readonly RecordingOrderRealtimeNotifier _realtimeNotifier = new();
     private readonly string _dbName = $"TestDb_{Guid.NewGuid():N}";
     private bool _seeded;
 
@@ -57,11 +57,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             {
                 services.Remove(d);
             }
-            services.AddSingleton<IOrderRealtimeNotifier>(SharedRealtimeNotifier);
+            services.AddSingleton<IOrderRealtimeNotifier>(_realtimeNotifier);
         });
     }
 
-    public RecordingOrderRealtimeNotifier GetRealtimeNotifier() => SharedRealtimeNotifier;
+    public RecordingOrderRealtimeNotifier GetRealtimeNotifier() => _realtimeNotifier;
 
     public async Task SeedDatabaseAsync()
     {
@@ -90,6 +90,7 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
         ConfigureOrderForTest(modelBuilder);
         ConfigureOrderItemForTest(modelBuilder);
         ConfigurePaymentForTest(modelBuilder);
+        ConfigurePaymentTransactionForTest(modelBuilder);
         ConfigureChatSessionForTest(modelBuilder);
         ConfigureChatMessageForTest(modelBuilder);
         ConfigureKnowledgeEntryForTest(modelBuilder);
@@ -255,6 +256,28 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             entity.HasOne(e => e.Order).WithOne(o => o.Payment).HasForeignKey<Payment>(e => e.OrderId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.OrderId).IsUnique();
             entity.HasIndex(e => e.Status);
+        });
+    }
+
+    private static void ConfigurePaymentTransactionForTest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("payment_transactions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.PaymentId).HasColumnName("payment_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Method).HasColumnName("method").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.Provider).HasColumnName("provider").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ProviderTransactionId).HasColumnName("provider_transaction_id").HasMaxLength(200);
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.HasOne(e => e.Payment).WithMany(p => p.Transactions).HasForeignKey(e => e.PaymentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ProviderTransactionId);
         });
     }
 

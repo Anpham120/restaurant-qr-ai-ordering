@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Entities;
@@ -26,4 +27,6 @@ public class Payment
     public DateTimeOffset? PaidAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public ICollection<PaymentTransaction> Transactions { get; set; } = new List<PaymentTransaction>();
 }
