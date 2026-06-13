@@ -23,6 +23,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +38,7 @@ public class RestaurantDbContext : DbContext
         ConfigureChatSession(modelBuilder);
         ConfigureChatMessage(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
+        ConfigureUser(modelBuilder);
     }
 
     private static void ConfigureCategory(ModelBuilder modelBuilder)
@@ -519,5 +521,72 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.MenuItemId);
         });
+    }
+
+    private static void ConfigureUser(ModelBuilder modelBuilder)
+    {
+        var now = DateTimeOffset.UtcNow;
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("users");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.FullName)
+                .HasColumnName("full_name")
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Email)
+                .HasColumnName("email")
+                .HasMaxLength(255)
+                .IsRequired();
+            entity.Property(e => e.PasswordHash)
+                .HasColumnName("password_hash")
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Role)
+                .HasColumnName("role")
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasIndex(e => e.Email).IsUnique();
+
+            var adminPasswordHash = HashPasswordForSeed("Admin@1234");
+            var staffPasswordHash = HashPasswordForSeed("Staff@1234");
+            var kitchenPasswordHash = HashPasswordForSeed("Kitchen@1234");
+            var customerPasswordHash = HashPasswordForSeed("Customer@1234");
+
+            entity.HasData(
+                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = adminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = staffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = kitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = customerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
+            );
+        });
+    }
+
+    private static string HashPasswordForSeed(string password)
+    {
+        const int saltSize = 16;
+        const int hashSize = 32;
+        const int iterations = 100_000;
+
+        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(saltSize);
+        var hash = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+            password,
+            salt,
+            iterations,
+            System.Security.Cryptography.HashAlgorithmName.SHA256,
+            hashSize);
+
+        return $"v1.{iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
     }
 }

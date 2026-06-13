@@ -8,7 +8,7 @@ public sealed class CorsEndpointTests
     [Fact]
     public async Task OptionsChatEndpoint_FromCustomerDomain_AllowsCorsPreflight()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Options, "/api/chat/sessions/chat_001/messages");
 

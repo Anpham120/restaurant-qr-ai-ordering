@@ -1,10 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using RestaurantQrAiOrdering.Api.Chat;
 
 namespace RestaurantQrAiOrdering.Api.Tests.Chat;
@@ -56,8 +54,7 @@ public sealed class ChatEndpointTests
     [Fact]
     public async Task SendMessage_WhenProviderMissing_ReturnsSafeFallbackAndStoresHistory()
     {
-        await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("AI_PROVIDER", "mock"));
+        await using var factory = CreateFactoryWithMockUnavailable();
         using var client = factory.CreateClient();
 
         var chatSessionId = await CreateSessionAsync(client);
@@ -125,17 +122,14 @@ public sealed class ChatEndpointTests
         Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
-    private static WebApplicationFactory<Program> CreateFactoryWithProvider(IChatAiProvider provider)
+    private static TestWebApplicationFactory CreateFactoryWithProvider(IChatAiProvider provider)
     {
-        return new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IChatAiProvider>();
-                    services.AddSingleton(provider);
-                });
-            });
+        return new ChatTestWebApplicationFactory(provider);
+    }
+
+    private static TestWebApplicationFactory CreateFactoryWithMockUnavailable()
+    {
+        return new ChatTestWebApplicationFactory(new MockUnavailableChatAiProvider());
     }
 
     private static async Task<string> CreateSessionAsync(HttpClient client)
@@ -155,5 +149,32 @@ public sealed class ChatEndpointTests
                 "Ban co the chon Com ga xoi mo. Minh chi de xuat va can ban xac nhan truoc khi them vao gio.",
                 ProviderAvailable: true));
         }
+    }
+
+    private sealed class MockUnavailableChatAiProvider : IChatAiProvider
+    {
+        public Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new ChatAiResult(
+                "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
+                ProviderAvailable: false));
+        }
+    }
+}
+
+internal sealed class ChatTestWebApplicationFactory(IChatAiProvider provider) : TestWebApplicationFactory
+{
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureServices(services =>
+        {
+            var descriptors = services.Where(d => d.ServiceType == typeof(IChatAiProvider)).ToList();
+            foreach (var d in descriptors)
+            {
+                services.Remove(d);
+            }
+            services.AddSingleton(provider);
+        });
     }
 }

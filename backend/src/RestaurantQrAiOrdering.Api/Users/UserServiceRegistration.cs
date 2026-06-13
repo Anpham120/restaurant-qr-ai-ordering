@@ -6,7 +6,7 @@ public static class UserServiceRegistration
     {
         services.AddSingleton<IRoleCatalog, RoleCatalog>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddSingleton<IUserStore, UserStore>();
+        services.AddScoped<IUserStore, DbUserStore>();
 
         return services;
     }

@@ -9,7 +9,7 @@ public sealed class TableEndpointTests
     [Fact]
     public async Task GetTable_ReturnsActiveTableByCode()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/tables/T05");
@@ -24,7 +24,7 @@ public sealed class TableEndpointTests
     [Fact]
     public async Task GetTable_RejectsInvalidTableCode()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/tables/table-5");
@@ -37,7 +37,7 @@ public sealed class TableEndpointTests
     [Fact]
     public async Task GetTable_ReturnsNotFoundForMissingActiveTable()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/tables/T99");
