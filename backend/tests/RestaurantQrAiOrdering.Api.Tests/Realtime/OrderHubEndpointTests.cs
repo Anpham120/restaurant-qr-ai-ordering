@@ -8,7 +8,7 @@ public sealed class OrderHubEndpointTests
     [Fact]
     public async Task OrdersHub_NegotiateEndpointIsMapped()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsync("/hubs/orders/negotiate?negotiateVersion=1", content: null);

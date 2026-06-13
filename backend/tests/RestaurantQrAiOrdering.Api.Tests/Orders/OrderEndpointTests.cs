@@ -3,13 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using RestaurantQrAiOrdering.Api.Auth;
-using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 
 namespace RestaurantQrAiOrdering.Api.Tests.Orders;
@@ -19,8 +15,9 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task CreateOrder_EmitsOrderCreatedEvent()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
 
         using var response = await CreateDineInOrderAsync(client);
@@ -37,10 +34,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderStatus_RequiresStaffOrAdminAndEmitsEvent()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client);
+        var orderCode = await CreateOrderCodeAsync(client, factory);
 
         client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
         using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
@@ -60,10 +58,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderItemStatus_RequiresOperationsRoleAndEmitsEvent()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var order = await CreateOrderAsync(client);
+        var order = await CreateOrderAsync(client, factory);
         var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
         var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
 
@@ -86,10 +85,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderItemStatus_RejectsCustomerRole()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var order = await CreateOrderAsync(client);
+        var order = await CreateOrderAsync(client, factory);
         var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
         var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
 
@@ -106,8 +106,9 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task CreateOrder_RejectsUnavailableMenuItem()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
@@ -131,8 +132,9 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task CreateOrder_RejectsMalformedJsonWithStandardError()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsync(
@@ -150,8 +152,9 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task CreateOrder_RejectsMissingItemsWithStandardError()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
@@ -172,10 +175,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderStatus_RejectsNullBody()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client);
+        var orderCode = await CreateOrderCodeAsync(client, factory);
 
         client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
         using var response = await client.PatchAsync($"/api/orders/{orderCode}/status", content: null);
@@ -189,10 +193,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderStatus_RejectsCancellationAfterPreparing()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client);
+        var orderCode = await CreateOrderCodeAsync(client, factory);
 
         client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
         using var preparingResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
@@ -217,10 +222,11 @@ public sealed class OrderEndpointTests
     [Fact]
     public async Task UpdateOrderStatus_RejectsCancellationWhenItemIsPreparing()
     {
-        var realtime = new RecordingOrderRealtimeNotifier();
-        await using var factory = CreateFactory(realtime);
+        await using var factory = new TestWebApplicationFactory();
+        var realtime = factory.GetRealtimeNotifier();
+        realtime.Clear();
         using var client = factory.CreateClient();
-        var order = await CreateOrderAsync(client);
+        var order = await CreateOrderAsync(client, factory);
         var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
         var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
 
@@ -248,19 +254,6 @@ public sealed class OrderEndpointTests
         Assert.Equal("Preparing", realtime.ItemStatusChanged[0].Payload.Status);
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(RecordingOrderRealtimeNotifier realtime)
-    {
-        return new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureTestServices(services =>
-                {
-                    services.RemoveAll<IOrderRealtimeNotifier>();
-                    services.AddSingleton<IOrderRealtimeNotifier>(realtime);
-                });
-            });
-    }
-
     private static async Task<HttpResponseMessage> CreateDineInOrderAsync(HttpClient client)
     {
         return await client.PostAsJsonAsync("/api/orders", new
@@ -276,13 +269,13 @@ public sealed class OrderEndpointTests
         });
     }
 
-    private static async Task<string> CreateOrderCodeAsync(HttpClient client)
+    private static async Task<string> CreateOrderCodeAsync(HttpClient client, TestWebApplicationFactory factory)
     {
-        using var order = await CreateOrderAsync(client);
+        using var order = await CreateOrderAsync(client, factory);
         return order.RootElement.GetProperty("orderCode").GetString()!;
     }
 
-    private static async Task<JsonDocument> CreateOrderAsync(HttpClient client)
+    private static async Task<JsonDocument> CreateOrderAsync(HttpClient client, TestWebApplicationFactory factory)
     {
         using var response = await CreateDineInOrderAsync(client);
         var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
@@ -292,7 +285,7 @@ public sealed class OrderEndpointTests
         return body;
     }
 
-    private static AuthenticationHeaderValue CreateAuthorization(WebApplicationFactory<Program> factory, string role)
+    private static AuthenticationHeaderValue CreateAuthorization(TestWebApplicationFactory factory, string role)
     {
         var tokenService = factory.Services.GetRequiredService<IJwtTokenService>();
         var login = tokenService.CreateLoginResponse(new UserAccount
@@ -306,38 +299,5 @@ public sealed class OrderEndpointTests
         });
 
         return new AuthenticationHeaderValue("Bearer", login.AccessToken);
-    }
-
-    private sealed class RecordingOrderRealtimeNotifier : IOrderRealtimeNotifier
-    {
-        public List<OrderCreatedEvent> Created { get; } = [];
-
-        public List<(OrderStatusChangedEvent Payload, string? TableCode)> StatusChanged { get; } = [];
-
-        public List<(OrderItemStatusChangedEvent Payload, string? TableCode)> ItemStatusChanged { get; } = [];
-
-        public Task OrderCreatedAsync(OrderCreatedEvent payload, CancellationToken cancellationToken)
-        {
-            Created.Add(payload);
-            return Task.CompletedTask;
-        }
-
-        public Task OrderStatusChangedAsync(
-            OrderStatusChangedEvent payload,
-            string? tableCode,
-            CancellationToken cancellationToken)
-        {
-            StatusChanged.Add((payload, tableCode));
-            return Task.CompletedTask;
-        }
-
-        public Task OrderItemStatusChangedAsync(
-            OrderItemStatusChangedEvent payload,
-            string? tableCode,
-            CancellationToken cancellationToken)
-        {
-            ItemStatusChanged.Add((payload, tableCode));
-            return Task.CompletedTask;
-        }
     }
 }

@@ -13,7 +13,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task RegisterAndLogin_ReturnsJwtAccessToken()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         var email = CreateUniqueEmail();
 
@@ -44,7 +44,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Login_RejectsInvalidCredentials()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         var email = CreateUniqueEmail();
 
@@ -65,7 +65,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Login_RejectsNullBody()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsync("/api/auth/login", content: null);
@@ -78,7 +78,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Register_RejectsEmptyFullName()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/auth/register", new
@@ -96,7 +96,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Register_RejectsNullBody()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsync("/api/auth/register", content: null);
@@ -109,7 +109,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Register_RejectsInvalidEmail()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/auth/register", new
@@ -127,7 +127,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Register_RejectsShortPassword()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/auth/register", new
@@ -145,7 +145,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task Register_RejectsDuplicateEmail()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         var email = CreateUniqueEmail();
 
@@ -161,7 +161,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task ProtectedEndpoint_RejectsUnauthenticatedRequest()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/auth/me");
@@ -174,7 +174,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task ProtectedEndpoint_ReturnsCurrentUserWithValidToken()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         var email = CreateUniqueEmail();
 
@@ -199,7 +199,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task ProtectedEndpoint_RejectsForgedToken()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "invalid.token.here");
@@ -211,7 +211,7 @@ public sealed class AuthEndpointTests
     [Fact]
     public async Task RoleRestrictedEndpoint_RejectsWrongRole()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
         var email = CreateUniqueEmail();
         var accessToken = await RegisterAndLoginAsync(client, email);
