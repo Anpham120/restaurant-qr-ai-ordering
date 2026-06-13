@@ -129,12 +129,14 @@ Order type:
 Payment method:
 
 - `COD`
-- `MockOnline`
+- `VietQR`
 
 Payment status:
 
 - `Unpaid`
+- `Pending`
 - `Paid`
+- `Confirmed`
 - `Failed`
 - `Cancelled`
 

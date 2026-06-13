@@ -48,8 +48,8 @@ Các enum dưới đây là tên chuẩn cho backend DTO, frontend TypeScript ty
 | `OrderType` | `DineIn`, `Pickup`, `DeliveryMock` | `DineIn` bắt buộc có `tableCode`; `DeliveryMock` bắt buộc có `deliveryInfo`. |
 | `OrderStatus` | `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`, `Cancelled` | UI có thể chỉ dùng subset, nhưng không được đổi tên. |
 | `OrderItemStatus` | `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled` | Trạng thái theo từng món trên kitchen/staff/customer tracking. |
-| `PaymentMethod` | `COD`, `MockOnline` | Chưa tích hợp cổng thanh toán thật trong v1. |
-| `PaymentStatus` | `Unpaid`, `Paid`, `Failed`, `Cancelled` | Không dùng `Pending` cho payment trong contract API. |
+| `PaymentMethod` | `COD`, `VietQR` | COD do staff xác nhận thu tiền; VietQR tạo QR và staff xác nhận thủ công sau đối soát. |
+| `PaymentStatus` | `Unpaid`, `Pending`, `Paid`, `Confirmed`, `Failed`, `Cancelled` | `Pending` dùng sau khi tạo VietQR; `Confirmed` dùng khi staff xác nhận thanh toán. |
 | `ChatRole` | `user`, `assistant`, `system` | Dùng cho chatbot message. |
 | `TableCode` | `T01` đến `T99` | Tuần 2 seed tối thiểu `T01` đến `T08`; không dùng dạng `T-05`. |
 
@@ -491,7 +491,7 @@ Quy tắc nghiệp vụ:
 - `DineIn` yêu cầu `tableCode` hợp lệ và đang active.
 - `Pickup` không cần `tableCode`, không cần `deliveryInfo`.
 - `DeliveryMock` yêu cầu `recipientName`, `phoneNumber` và `address`.
-- `MockOnline` chỉ mô phỏng; không gọi cổng thanh toán thật trong v1.
+- `VietQR` không tự động xác nhận thanh toán; staff phải đối soát và gọi API confirm.
 
 ### GET `/api/orders/{orderCode}`
 
