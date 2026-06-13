@@ -10,7 +10,7 @@ public sealed class MenuEndpointTests
     [Fact]
     public async Task GetMenu_ReturnsCategoriesAndAvailabilityState()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/api/menu");
@@ -29,7 +29,7 @@ public sealed class MenuEndpointTests
     [Fact]
     public async Task AdminCategoryCrud_CreatesUpdatesAndDeletesCategory()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var createResponse = await client.PostAsJsonAsync("/api/admin/categories", new
@@ -66,7 +66,7 @@ public sealed class MenuEndpointTests
     [Fact]
     public async Task AdminMenuItemCrud_CreatesUpdatesTogglesAvailabilityAndDeletesItem()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         var categoryId = await CreateCategoryAsync(client);
@@ -125,7 +125,7 @@ public sealed class MenuEndpointTests
     [Fact]
     public async Task AdminCreateMenuItem_RejectsInvalidPriceAndCategory()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.PostAsJsonAsync("/api/admin/menu-items", new

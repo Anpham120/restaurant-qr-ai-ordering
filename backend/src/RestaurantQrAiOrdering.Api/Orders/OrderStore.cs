@@ -76,7 +76,7 @@ public sealed class OrderStore : IOrderStore
             }
 
             order.SubtotalAmount = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
-            order.TotalAmount = order.SubtotalAmount + order.MockDeliveryFee;
+            order.TotalAmount = order.SubtotalAmount + order.MockDeliveryFee; // TODO(issue-64): Calculate from Payment module when ready
             order.Payment.Amount = order.TotalAmount;
             orderEvents[order.OrderCode] = [new OrderStatusEventSnapshot(order.Status.ToString(), now)];
             orders.Add(order);
