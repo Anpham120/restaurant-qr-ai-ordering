@@ -9,6 +9,10 @@ required_vars=(
   COMPOSE_PROJECT_NAME
   FRONTEND_PORT
   BACKEND_PORT
+  POSTGRES_PORT
+  POSTGRES_DB
+  POSTGRES_USER
+  POSTGRES_PASSWORD
   FRONTEND_SERVER_NAMES
   API_SERVER_NAME
   PUBLIC_API_BASE_URL
@@ -70,11 +74,18 @@ DEPLOY_ENV=$(env_quote "$DEPLOY_ENV")
 COMPOSE_PROJECT_NAME=$(env_quote "$COMPOSE_PROJECT_NAME")
 FRONTEND_PORT=$(env_quote "$FRONTEND_PORT")
 BACKEND_PORT=$(env_quote "$BACKEND_PORT")
+POSTGRES_PORT=$(env_quote "$POSTGRES_PORT")
+POSTGRES_DB=$(env_quote "$POSTGRES_DB")
+POSTGRES_USER=$(env_quote "$POSTGRES_USER")
+POSTGRES_PASSWORD=$(env_quote "$POSTGRES_PASSWORD")
+DB_MIN_POOL_SIZE=$(env_quote "${DB_MIN_POOL_SIZE:-2}")
+DB_MAX_POOL_SIZE=$(env_quote "${DB_MAX_POOL_SIZE:-50}")
 FRONTEND_SERVER_NAMES=$(env_quote "$FRONTEND_SERVER_NAMES")
 API_SERVER_NAME=$(env_quote "$API_SERVER_NAME")
 PUBLIC_API_BASE_URL=$(env_quote "$PUBLIC_API_BASE_URL")
 ASPNETCORE_ENVIRONMENT=$(env_quote "${ASPNETCORE_ENVIRONMENT:-Production}")
 JWT_SIGNING_KEY=$(env_quote "$JWT_SIGNING_KEY")
+RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-true}")
 AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
@@ -101,6 +112,7 @@ EOF
   rm -f release.tgz && \
   set -a && . ./.env && set +a && \
   docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' up -d --build --remove-orphans && \
+  bash repo/deploy/scripts/backup-postgres.sh pre-health-check && \
   bash repo/deploy/scripts/write-nginx-config.sh && \
   bash repo/deploy/scripts/issue-certbot.sh && \
   bash repo/deploy/scripts/health-check.sh"
