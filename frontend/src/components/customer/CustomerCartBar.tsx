@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { formatVnd } from "../menu/MenuItemCard";
 
 type CustomerCartBarProps = {
@@ -11,13 +12,12 @@ export function CustomerCartBar({ itemCount, totalPrice }: CustomerCartBarProps)
   }
 
   return (
-    <aside className="cmc-cart-bar" aria-label="Cart summary">
+    <aside className="cmc-cart-bar" aria-label="Tóm tắt giỏ hàng">
       <div>
         <span>{itemCount} món trong giỏ</span>
         <strong>{formatVnd(totalPrice)}</strong>
       </div>
-      <a href="/cart">Xem giỏ hàng</a>
+      <Link to="/cart">Xem giỏ hàng</Link>
     </aside>
   );
 }
-

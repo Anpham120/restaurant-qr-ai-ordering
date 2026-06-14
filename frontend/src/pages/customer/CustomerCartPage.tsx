@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   clearMenuCart,
   loadMenuCart,
@@ -12,14 +12,11 @@ import { getCustomerMenu } from "../../services/menuService";
 import { createOrder } from "../../services/orderService";
 import type {
   CreateOrderRequest,
-  CreateOrderResponse,
   CustomerOrderType,
   MenuCart,
   MenuItem,
+  PaymentMethod,
 } from "../../types";
-
-const customerMenu = getCustomerMenu();
-const menuItems = customerMenu.items;
 
 type CheckoutForm = {
   contactName: string;
@@ -43,9 +40,20 @@ const orderTypeCopy: Record<
     description: "Khách để lại tên và số điện thoại để nhà hàng xác nhận khi món sẵn sàng.",
   },
   DeliveryMock: {
-    label: "Giao hàng demo",
-    shortLabel: "Giao hàng",
-    description: "Luồng giao hàng mô phỏng cho demo, yêu cầu thông tin nhận hàng đầy đủ.",
+    label: "Giao tận nơi",
+    shortLabel: "Giao tận nơi",
+    description: "Khách cung cấp địa chỉ nhận món để nhà hàng xử lý theo luồng giao hàng.",
+  },
+};
+
+const paymentCopy: Record<PaymentMethod, { label: string; description: string }> = {
+  COD: {
+    label: "Thanh toán tại quầy",
+    description: "Khách thanh toán khi nhận món hoặc sau khi dùng bữa.",
+  },
+  VietQR: {
+    label: "VietQR",
+    description: "Hệ thống tạo đơn với phương thức VietQR để nhân viên đối soát thanh toán.",
   },
 };
 
@@ -73,13 +81,14 @@ function getStoredTableCode() {
   return loadOrderContext().tableCode;
 }
 
-function getCartItems(cart: MenuCart) {
+function getCartItems(cart: MenuCart, menuItems: MenuItem[]) {
   return menuItems.filter((item) => (cart[item.id] ?? 0) > 0);
 }
 
 function buildOrderPayload(
   orderType: CustomerOrderType,
   tableCode: string | undefined,
+  paymentMethod: PaymentMethod,
   cart: MenuCart,
   selectedItems: MenuItem[],
   form: CheckoutForm,
@@ -87,7 +96,7 @@ function buildOrderPayload(
   return {
     orderType,
     tableCode: orderType === "DineIn" ? tableCode ?? null : null,
-    paymentMethod: "COD",
+    paymentMethod,
     deliveryInfo:
       orderType === "DeliveryMock"
         ? {
@@ -105,8 +114,12 @@ function buildOrderPayload(
 }
 
 export function CustomerCartPage() {
+  const navigate = useNavigate();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isMenuLoading, setIsMenuLoading] = useState(true);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
   const [orderType, setOrderType] = useState<CustomerOrderType>(getInitialOrderType);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [tableCode] = useState(getStoredTableCode);
   const [form, setForm] = useState<CheckoutForm>({
     contactName: "",
@@ -116,19 +129,42 @@ export function CustomerCartPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
-  const [submittedPayload, setSubmittedPayload] = useState<CreateOrderRequest | null>(null);
 
-  const selectedItems = useMemo(() => getCartItems(cart), [cart]);
+  useEffect(() => {
+    let isMounted = true;
+
+    getCustomerMenu()
+      .then((menu) => {
+        if (isMounted) {
+          setMenuItems(menu.items);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setErrorMessage(error instanceof Error ? error.message : "Không tải được thực đơn.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsMenuLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedItems = useMemo(() => getCartItems(cart, menuItems), [cart, menuItems]);
   const unavailableItems = selectedItems.filter((item) => !item.isAvailable);
   const totalPrice = selectedItems.reduce(
     (total, item) => total + (cart[item.id] ?? 0) * item.price,
     0,
   );
-  const payloadPreview = buildOrderPayload(orderType, tableCode, cart, selectedItems, form);
   const requiresContact = orderType === "Pickup" || orderType === "DeliveryMock";
   const requiresDelivery = orderType === "DeliveryMock";
   const orderTypeDetails = orderTypeCopy[orderType];
+  const paymentDetails = paymentCopy[paymentMethod];
   const isContactMissing =
     requiresContact && (form.contactName.trim().length === 0 || form.phoneNumber.trim().length === 0);
   const isDeliveryMissing = requiresDelivery && form.deliveryAddress.trim().length === 0;
@@ -139,6 +175,7 @@ export function CustomerCartPage() {
     !isContactMissing &&
     !isDeliveryMissing &&
     !isDineInMissingTable &&
+    !isMenuLoading &&
     !isSubmitting;
 
   function updateQuantity(itemId: string, nextQuantity: number) {
@@ -151,8 +188,6 @@ export function CustomerCartPage() {
 
     setCart(nextCart);
     saveMenuCart(nextCart);
-    setSuccessOrder(null);
-    setSubmittedPayload(null);
   }
 
   function updateForm(field: keyof CheckoutForm, value: string) {
@@ -162,22 +197,25 @@ export function CustomerCartPage() {
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
-    setSuccessOrder(null);
 
     if (!canSubmit) {
       setErrorMessage("Vui lòng kiểm tra giỏ hàng và thông tin nhận đơn trước khi gửi.");
       return;
     }
 
-    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems, form);
+    const payload = buildOrderPayload(orderType, tableCode, paymentMethod, cart, selectedItems, form);
     setIsSubmitting(true);
-    setSubmittedPayload(payload);
 
     try {
       const response = await createOrder(payload);
-      setSuccessOrder(response);
       setCart({});
       clearMenuCart();
+      navigate(`/orders/${response.orderCode}`, {
+        state: {
+          paymentMethod,
+          paymentStatus: response.paymentStatus,
+        },
+      });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Không thể gửi đơn lúc này.");
     } finally {
@@ -189,13 +227,13 @@ export function CustomerCartPage() {
     <section className="cmc-customer-page cmc-cart-page">
       <header className="cmc-hero cmc-checkout-hero">
         <div>
-          <p className="cmc-kicker">Giỏ hàng & thanh toán</p>
+          <p className="cmc-kicker">Giỏ hàng và thanh toán</p>
           <h2>
             Kiểm tra món và <span>gửi đơn cho CMC</span>
           </h2>
           <p>
-            Kiểm tra giỏ, chọn hình thức nhận món và gửi đơn theo contract `POST /api/orders`.
-            Sau khi đặt, khách có thể mở màn hình theo dõi trạng thái món.
+            Chọn hình thức nhận món, phương thức thanh toán và gửi đơn để bếp xử lý trên hệ thống.
+            Sau khi đặt, khách được chuyển sang màn hình theo dõi trạng thái.
           </p>
           <div className="cmc-hero-actions">
             <Link className="cmc-secondary-link" to={tableCode ? `/table/${tableCode}` : "/menu"}>
@@ -207,13 +245,15 @@ export function CustomerCartPage() {
       </header>
 
       <div className="cmc-checkout-layout">
-        <div className="cmc-cart-panel" aria-label="Cart details">
+        <div className="cmc-cart-panel" aria-label="Chi tiết giỏ hàng">
           <div className="cmc-section-title">
             <h3>Món đã chọn</h3>
             <span>{selectedItems.length} món</span>
           </div>
 
-          {selectedItems.length === 0 ? (
+          {isMenuLoading ? <div className="cmc-empty-state">Đang tải giỏ hàng...</div> : null}
+
+          {!isMenuLoading && selectedItems.length === 0 ? (
             <div className="cmc-empty-state">
               Giỏ hàng đang trống. Quay lại thực đơn để chọn món.
             </div>
@@ -268,7 +308,7 @@ export function CustomerCartPage() {
             <span>{orderTypeDetails.shortLabel}</span>
           </div>
 
-          <div className="cmc-order-type-tabs" role="tablist" aria-label="Order type">
+          <div className="cmc-order-type-tabs" role="tablist" aria-label="Hình thức nhận món">
             {(["DineIn", "Pickup", "DeliveryMock"] as CustomerOrderType[]).map((type) => (
               <button
                 aria-selected={orderType === type}
@@ -289,8 +329,7 @@ export function CustomerCartPage() {
 
           {isDineInMissingTable ? (
             <p className="cmc-inline-error">
-              Đơn tại bàn cần mã bàn từ QR. Hãy vào lại đường dẫn `/table/:tableCode` hoặc chọn
-              mang về.
+              Đơn tại bàn cần mã bàn từ QR. Hãy vào lại đường dẫn mã bàn hoặc chọn mang về.
             </p>
           ) : null}
 
@@ -346,33 +385,33 @@ export function CustomerCartPage() {
             />
           </label>
 
-          <details className="cmc-payload-preview">
-            <summary>Evidence payload gửi lên API</summary>
-            <pre>{JSON.stringify(payloadPreview, null, 2)}</pre>
-          </details>
+          <div className="cmc-section-title">
+            <h3>Thanh toán</h3>
+            <span>{paymentDetails.label}</span>
+          </div>
+          <div className="cmc-order-type-tabs" role="tablist" aria-label="Phương thức thanh toán">
+            {(["COD", "VietQR"] as PaymentMethod[]).map((method) => (
+              <button
+                aria-selected={paymentMethod === method}
+                className={paymentMethod === method ? "active" : ""}
+                key={method}
+                onClick={() => setPaymentMethod(method)}
+                type="button"
+              >
+                {paymentCopy[method].label}
+              </button>
+            ))}
+          </div>
+          <div className="cmc-checkout-note">
+            <strong>{paymentDetails.label}</strong>
+            <span>{paymentDetails.description}</span>
+          </div>
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
-
-          {successOrder ? (
-            <div className="cmc-success-state" role="status">
-              <strong>Đã tạo đơn {successOrder.orderCode}</strong>
-              <span>
-                Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}
-              </span>
-              <Link to={`/orders/${successOrder.orderCode}`}>Theo dõi đơn</Link>
-            </div>
-          ) : null}
 
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
             {isSubmitting ? "Đang gửi đơn..." : "Gửi đơn đặt món"}
           </button>
-
-          {submittedPayload ? (
-            <p className="cmc-checkout-note small">
-              Evidence: đã gửi {orderTypeCopy[submittedPayload.orderType].label.toLowerCase()} với{" "}
-              {submittedPayload.items.length} dòng món.
-            </p>
-          ) : null}
         </form>
       </div>
     </section>

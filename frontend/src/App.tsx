@@ -4,7 +4,6 @@ const customerLinks = [
   { to: "/", text: "Trang chủ" },
   { to: "/menu", text: "Thực đơn" },
   { to: "/cart", text: "Giỏ hàng" },
-  { to: "/orders/ORDER-001", text: "Đơn hàng" },
   { to: "/chat", text: "AI Chat" },
 ];
 
