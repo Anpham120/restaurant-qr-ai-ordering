@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   clearMenuCart,
@@ -8,18 +8,23 @@ import {
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
-import { getCustomerMenu } from "../../services/menuService";
-import { createOrder } from "../../services/orderService";
+import { fetchCustomerMenu, getCustomerMenu } from "../../services/menuService";
+import type { CustomerMenuResponse } from "../../services/menuService";
+import { createOrder, generateVietQrPayment } from "../../services/orderService";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
   CustomerOrderType,
   MenuCart,
   MenuItem,
+  PaymentMethod,
+  VietQrPaymentResponse,
 } from "../../types";
 
-const customerMenu = getCustomerMenu();
-const menuItems = customerMenu.items;
+const initialMenu: CustomerMenuResponse =
+  import.meta.env.VITE_USE_MOCK_MENU === "true"
+    ? getCustomerMenu()
+    : { categories: [], items: [] };
 
 type CheckoutForm = {
   contactName: string;
@@ -68,8 +73,8 @@ function getStoredTableCode() {
   return loadOrderContext().tableCode;
 }
 
-function getCartItems(cart: MenuCart) {
-  return menuItems.filter((item) => (cart[item.id] ?? 0) > 0);
+function getCartItems(cart: MenuCart, items: MenuItem[]) {
+  return items.filter((item) => (cart[item.id] ?? 0) > 0);
 }
 
 function buildOrderPayload(
@@ -77,11 +82,12 @@ function buildOrderPayload(
   tableCode: string | undefined,
   cart: MenuCart,
   selectedItems: MenuItem[],
+  paymentMethod: PaymentMethod,
 ): CreateOrderRequest {
   return {
     orderType,
     tableCode: orderType === "DineIn" ? tableCode ?? null : null,
-    paymentMethod: "COD",
+    paymentMethod,
     deliveryInfo: null,
     items: selectedItems.map((item) => ({
       menuItemId: item.id,
@@ -91,6 +97,7 @@ function buildOrderPayload(
 }
 
 export function CustomerCartPage() {
+  const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
   const [orderType, setOrderType] = useState<ActiveOrderType>(getInitialOrderType);
   const [tableCode] = useState(getStoredTableCode);
@@ -98,12 +105,35 @@ export function CustomerCartPage() {
     contactName: "",
     phoneNumber: "",
   });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
+  const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
   const [submittedPayload, setSubmittedPayload] = useState<CreateOrderRequest | null>(null);
 
-  const selectedItems = useMemo(() => getCartItems(cart), [cart]);
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchCustomerMenu()
+      .then((menu) => {
+        if (isMounted) {
+          setCustomerMenu(menu);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setErrorMessage("Không tải được thực đơn từ hệ thống.");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const menuItems = customerMenu.items;
+  const selectedItems = useMemo(() => getCartItems(cart, menuItems), [cart, menuItems]);
   const unavailableItems = selectedItems.filter((item) => !item.isAvailable);
   const totalPrice = selectedItems.reduce(
     (total, item) => total + (cart[item.id] ?? 0) * item.price,
@@ -132,6 +162,7 @@ export function CustomerCartPage() {
     setCart(nextCart);
     saveMenuCart(nextCart);
     setSuccessOrder(null);
+    setVietQrPayment(null);
     setSubmittedPayload(null);
   }
 
@@ -143,19 +174,23 @@ export function CustomerCartPage() {
     event.preventDefault();
     setErrorMessage("");
     setSuccessOrder(null);
+    setVietQrPayment(null);
 
     if (!canSubmit) {
       setErrorMessage("Vui lòng kiểm tra giỏ hàng và thông tin nhận đơn trước khi gửi.");
       return;
     }
 
-    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems);
+    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems, paymentMethod);
     setIsSubmitting(true);
     setSubmittedPayload(payload);
 
     try {
       const response = await createOrder(payload);
       setSuccessOrder(response);
+      if (payload.paymentMethod === "VietQR") {
+        setVietQrPayment(await generateVietQrPayment(response.orderCode));
+      }
       setCart({});
       clearMenuCart();
     } catch (error) {
@@ -304,6 +339,24 @@ export function CustomerCartPage() {
             </div>
           ) : null}
 
+
+          <div className="cmc-checkout-note">
+            <strong>Phương thức thanh toán</strong>
+            <div className="cmc-order-type-tabs" role="tablist" aria-label="Payment method">
+              {(["COD", "VietQR"] as PaymentMethod[]).map((method) => (
+                <button
+                  aria-selected={paymentMethod === method}
+                  className={paymentMethod === method ? "active" : ""}
+                  key={method}
+                  onClick={() => setPaymentMethod(method)}
+                  type="button"
+                >
+                  {method === "COD" ? "Thanh toán tại quầy" : "VietQR"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
 
           {successOrder ? (
@@ -313,6 +366,17 @@ export function CustomerCartPage() {
                 Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}
               </span>
               <Link to={`/orders/${successOrder.orderCode}`}>Theo dõi đơn</Link>
+            </div>
+          ) : null}
+
+
+
+          {vietQrPayment ? (
+            <div className="cmc-success-state" role="status">
+              <strong>VietQR đã sẵn sàng</strong>
+              <span>{formatVnd(vietQrPayment.amount)} - Nội dung: {vietQrPayment.transferContent}</span>
+              <img alt={`VietQR ${vietQrPayment.orderCode}`} src={vietQrPayment.qrImageDataUri} />
+              <a href={vietQrPayment.quickLink} target="_blank" rel="noreferrer">Mở link thanh toán</a>
             </div>
           ) : null}
 

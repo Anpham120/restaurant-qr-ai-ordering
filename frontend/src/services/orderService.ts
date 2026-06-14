@@ -4,12 +4,17 @@ import type {
   CreateOrderRequest,
   CreateOrderResponse,
   OrderItemStatus,
+  PaymentResponse,
   OrderTrackingOrder,
+  VietQrPaymentResponse,
 } from "../types";
 
 const CUSTOMER_ORDER_STORAGE_KEY = "cmc.customer.orders";
 const useMockOrders = import.meta.env.VITE_USE_MOCK_ORDER === "true";
-const api = createApiClient();
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 function waitForMockNetwork() {
   return new Promise((resolve) => window.setTimeout(resolve, 450));
@@ -23,6 +28,10 @@ const mockOrders: OrderTrackingOrder[] = [
     tableCode: "T05",
     status: "Preparing",
     paymentStatus: "Unpaid",
+    paymentMethod: "COD",
+    deliveryInfo: null,
+    subtotalAmount: 0,
+    totalAmount: 0,
     createdAt: "2026-06-05T08:05:00Z",
     updatedAt: "2026-06-05T08:16:00Z",
     items: [
@@ -31,6 +40,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-006",
         name: "Bò lúc lắc",
         quantity: 2,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Preparing",
         updatedAt: "2026-06-05T08:12:00Z",
       },
@@ -39,6 +50,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-011",
         name: "Trà đào cam sả",
         quantity: 2,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Ready",
         updatedAt: "2026-06-05T08:14:00Z",
       },
@@ -47,6 +60,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-001",
         name: "Gỏi cuốn tôm thịt",
         quantity: 1,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Pending",
         updatedAt: "2026-06-05T08:16:00Z",
       },
@@ -59,6 +74,10 @@ const mockOrders: OrderTrackingOrder[] = [
     tableCode: "T07",
     status: "Placed",
     paymentStatus: "Unpaid",
+    paymentMethod: "COD",
+    deliveryInfo: null,
+    subtotalAmount: 0,
+    totalAmount: 0,
     createdAt: "2026-06-05T08:09:00Z",
     updatedAt: "2026-06-05T08:15:00Z",
     items: [
@@ -67,6 +86,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-005",
         name: "Phở bò đặc biệt",
         quantity: 1,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
       },
@@ -75,6 +96,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-003",
         name: "Nem rán Hà Nội",
         quantity: 1,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Pending",
         updatedAt: "2026-06-05T08:15:00Z",
       },
@@ -87,6 +110,10 @@ const mockOrders: OrderTrackingOrder[] = [
     tableCode: null,
     status: "Ready",
     paymentStatus: "Unpaid",
+    paymentMethod: "COD",
+    deliveryInfo: null,
+    subtotalAmount: 0,
+    totalAmount: 0,
     createdAt: "2026-06-05T08:02:00Z",
     updatedAt: "2026-06-05T08:18:00Z",
     items: [
@@ -95,6 +122,8 @@ const mockOrders: OrderTrackingOrder[] = [
         menuItemId: "mi-008",
         name: "Tôm rang muối",
         quantity: 2,
+        unitPrice: 0,
+        lineTotal: 0,
         status: "Ready",
         updatedAt: "2026-06-05T08:18:00Z",
       },
@@ -171,13 +200,7 @@ export async function createOrder(
   payload: CreateOrderRequest,
 ): Promise<CreateOrderResponse> {
   if (!useMockOrders) {
-    const response = await api.orders.create({
-      ...payload,
-      items: payload.items.map(item => ({
-        ...item,
-        menuItemId: item.menuItemId.replace(/^mi-/, "m_"),
-      })),
-    });
+    const response = await api.orders.create(payload);
     return response as CreateOrderResponse;
   }
   await waitForMockNetwork();
@@ -202,16 +225,20 @@ export async function createOrder(
   const orderCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
   const orderItems = payload.items.map((orderItem, index) => {
     const menuItem = menuItems.find((item) => item.id === orderItem.menuItemId);
+    const unitPrice = menuItem?.price ?? 0;
 
     return {
       orderItemId: `oi_${String(index + 1).padStart(3, "0")}`,
       menuItemId: orderItem.menuItemId,
       name: menuItem?.name ?? orderItem.menuItemId,
+      unitPrice,
       quantity: orderItem.quantity,
       status: "Pending" as const,
+      lineTotal: unitPrice * orderItem.quantity,
       updatedAt: now,
     };
   });
+  const totalAmount = orderItems.reduce((total, item) => total + item.lineTotal, 0);
   const response: CreateOrderResponse = {
     orderId: `ord_${Date.now()}`,
     orderCode,
@@ -219,7 +246,13 @@ export async function createOrder(
     tableCode: payload.tableCode,
     status: "Placed",
     paymentStatus: "Unpaid",
-    items: orderItems.map(({ updatedAt: _updatedAt, ...item }) => item),
+    paymentMethod: payload.paymentMethod,
+    deliveryInfo: payload.deliveryInfo,
+    subtotalAmount: totalAmount,
+    totalAmount,
+    createdAt: now,
+    updatedAt: now,
+    items: orderItems,
   };
 
   saveStoredOrder({
@@ -233,6 +266,11 @@ export async function createOrder(
 }
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
+  if (!useMockOrders) {
+    const response = await api.orders.list();
+    return response.orders as OrderTrackingOrder[];
+  }
+
   await waitForMockNetwork();
   return [...loadStoredOrders(), ...mockOrders].map(cloneOrder);
 }
@@ -309,4 +347,51 @@ export async function updateOrderItemStatus(
   order.updatedAt = updatedAt;
 
   return cloneOrder(order);
+}
+
+export async function updateOrderStatus(
+  orderCode: string,
+  status: OrderTrackingOrder["status"],
+): Promise<OrderTrackingOrder> {
+  if (!useMockOrders) {
+    return api.orders.updateStatus(orderCode, status) as Promise<OrderTrackingOrder>;
+  }
+
+  await waitForMockNetwork();
+  const storedOrders = loadStoredOrders();
+  const storedOrderIndex = storedOrders.findIndex(
+    (order) => order.orderCode.toLowerCase() === orderCode.toLowerCase(),
+  );
+
+  if (storedOrderIndex >= 0) {
+    const now = new Date().toISOString();
+    storedOrders[storedOrderIndex] = {
+      ...storedOrders[storedOrderIndex],
+      status,
+      updatedAt: now,
+    };
+    saveStoredOrders(storedOrders);
+    return cloneOrder(storedOrders[storedOrderIndex]);
+  }
+
+  const order = findMockOrder(orderCode);
+  if (!order) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
+  order.status = status;
+  order.updatedAt = new Date().toISOString();
+  return cloneOrder(order);
+}
+
+export async function getOrderPayment(orderCode: string): Promise<PaymentResponse> {
+  return api.payments.get(orderCode) as Promise<PaymentResponse>;
+}
+
+export async function generateVietQrPayment(orderCode: string): Promise<VietQrPaymentResponse> {
+  return api.payments.generateVietQr(orderCode) as Promise<VietQrPaymentResponse>;
+}
+
+export async function confirmOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
+  return api.payments.confirm(orderCode, { note }) as Promise<PaymentResponse>;
 }
