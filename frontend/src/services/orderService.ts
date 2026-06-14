@@ -1,8 +1,10 @@
 import { getApiBaseUrl } from "./apiClient";
+import { getAuthHeaders } from "./authService";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
   OrderItemStatus,
+  OrderStatus,
   OrderTrackingOrder,
 } from "../types";
 
@@ -47,7 +49,7 @@ export async function createOrder(payload: CreateOrderRequest): Promise<CreateOr
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
   const response = await fetch(apiUrl("/orders"), {
-    headers: getOperationsHeaders(),
+    headers: getAuthHeaders(),
   });
   const body = await parseJson<OrderListResponse>(response);
 
@@ -56,6 +58,22 @@ export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
 
 export async function getOrderTracking(orderCode: string): Promise<OrderTrackingOrder> {
   const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}`));
+
+  return parseJson<OrderTrackingOrder>(response);
+}
+
+export async function updateOrderStatus(
+  orderCode: string,
+  status: OrderStatus,
+): Promise<OrderTrackingOrder> {
+  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}/status`), {
+    method: "PATCH",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status }),
+  });
 
   return parseJson<OrderTrackingOrder>(response);
 }
@@ -70,7 +88,7 @@ export async function updateOrderItemStatus(
     {
       method: "PATCH",
       headers: {
-        ...getOperationsHeaders(),
+        ...getAuthHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ status }),
@@ -80,20 +98,17 @@ export async function updateOrderItemStatus(
   return parseJson<OrderTrackingOrder>(response);
 }
 
-function getOperationsHeaders(): Record<string, string> {
-  const token = getStoredAccessToken();
+export async function confirmOrderPayment(orderCode: string): Promise<unknown> {
+  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`), {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      note: "Confirmed from staff operations board.",
+    }),
+  });
 
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
-}
-
-function getStoredAccessToken() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem("cmc.accessToken");
+  return parseJson<unknown>(response);
 }

@@ -24,7 +24,7 @@ export type AdminOrderItem = {
   name: string;
   quantity: number;
   note?: string;
-  status: OrderStatus;
+  status: OrderStatus | "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
 };
 
 export type AdminOrder = {

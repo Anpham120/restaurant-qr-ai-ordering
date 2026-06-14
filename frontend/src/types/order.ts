@@ -63,6 +63,9 @@ export type OrderTrackingOrder = {
   tableCode: TableCode | null;
   status: OrderStatus;
   paymentStatus: "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled";
+  paymentMethod?: PaymentMethod;
+  subtotalAmount?: number;
+  totalAmount: number;
   createdAt: string;
   updatedAt: string;
   items: OrderTrackingItem[];
