@@ -53,6 +53,67 @@ public sealed class OrderEndpointTests
     }
 
     [Fact]
+    public async Task ListOrders_ReturnsDatabaseOrdersForKitchenPollingFallback()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var customerClient = factory.CreateClient();
+        using var kitchenClient = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(customerClient, factory);
+        kitchenClient.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Kitchen);
+
+        using var response = await kitchenClient.GetAsync("/api/orders?tableCode=T05");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(body.RootElement.GetProperty("total").GetInt32() >= 1);
+        var order = body.RootElement.GetProperty("orders")
+            .EnumerateArray()
+            .Single(element => element.GetProperty("orderCode").GetString() == orderCode);
+        Assert.Equal("T05", order.GetProperty("tableCode").GetString());
+        Assert.Equal("Placed", order.GetProperty("status").GetString());
+        Assert.Equal("Unpaid", order.GetProperty("paymentStatus").GetString());
+    }
+
+    [Fact]
+    public async Task ListOrders_FiltersByUpdatedSinceAfterKitchenStatusChange()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        var updatedSince = DateTimeOffset.UtcNow.AddMinutes(-1);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Kitchen);
+
+        using var updateResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new
+        {
+            status = "Preparing"
+        });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        using var response = await client.GetAsync($"/api/orders?status=Preparing&updatedSince={Uri.EscapeDataString(updatedSince.ToString("O"))}");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var order = Assert.Single(body.RootElement.GetProperty("orders").EnumerateArray());
+        Assert.Equal(orderCode, order.GetProperty("orderCode").GetString());
+        Assert.Equal("Preparing", order.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task ListOrders_RequiresOperationsRole()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await CreateOrderCodeAsync(client, factory);
+
+        using var anonymousResponse = await client.GetAsync("/api/orders");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Customer);
+        using var customerResponse = await client.GetAsync("/api/orders");
+        Assert.Equal(HttpStatusCode.Forbidden, customerResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task UpdateOrderStatus_RequiresStaffOrAdminAndEmitsEvent()
     {
         await using var factory = new TestWebApplicationFactory();
