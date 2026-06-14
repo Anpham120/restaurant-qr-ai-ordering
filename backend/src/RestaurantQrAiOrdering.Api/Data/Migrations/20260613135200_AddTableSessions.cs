@@ -13,12 +13,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
         {
             for (var tableNumber = 1; tableNumber <= 8; tableNumber++)
             {
-                migrationBuilder.UpdateData(
-                    table: "restaurant_tables",
-                    keyColumn: "id",
-                    keyValue: $"tbl_{tableNumber:00}",
-                    column: "qr_token",
-                    value: $"cmc-table-t{tableNumber:00}-qr");
+                migrationBuilder.Sql($"""
+                    UPDATE restaurant_tables
+                    SET qr_token = 'cmc-table-t{tableNumber:00}-qr'
+                    WHERE id = 'tbl_{tableNumber:00}';
+                    """);
             }
 
             migrationBuilder.CreateTable(
@@ -82,12 +81,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
 
             for (var tableNumber = 1; tableNumber <= 8; tableNumber++)
             {
-                migrationBuilder.UpdateData(
-                    table: "restaurant_tables",
-                    keyColumn: "id",
-                    keyValue: $"tbl_{tableNumber:00}",
-                    column: "qr_token",
-                    value: $"cmc-table-t{tableNumber:00}-qr");
+                migrationBuilder.Sql($"""
+                    UPDATE restaurant_tables
+                    SET qr_token = 'cmc-table-t{tableNumber:00}-qr'
+                    WHERE id = 'tbl_{tableNumber:00}';
+                    """);
             }
         }
     }
