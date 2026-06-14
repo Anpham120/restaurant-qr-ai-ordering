@@ -32,11 +32,16 @@ jobs:
       COMPOSE_PROJECT_NAME: cmc-restaurant-production
       FRONTEND_PORT: "8080"
       BACKEND_PORT: "5000"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: restaurant_qr
+      POSTGRES_USER: restaurant_user
+      POSTGRES_PASSWORD: ${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
       FRONTEND_SERVER_NAMES: cmcrestaurant.app customer.cmcrestaurant.app admin.cmcrestaurant.app
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
       ASPNETCORE_ENVIRONMENT: Production
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
+      RUN_DB_MIGRATIONS_ON_STARTUP: "true"
       AI_PROVIDER: python-rag
       AI_SERVICE_URL: http://127.0.0.1:8001
       AI_SERVICE_PORT: "8001"

@@ -69,6 +69,14 @@ builder.Services.AddRestaurantChatApis();
 
 var app = builder.Build();
 
+if (!string.IsNullOrEmpty(connectionString)
+    && builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

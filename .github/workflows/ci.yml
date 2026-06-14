@@ -85,6 +85,10 @@ jobs:
       COMPOSE_PROJECT_NAME: cmc-restaurant-ci
       FRONTEND_PORT: "8080"
       BACKEND_PORT: "5000"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: restaurant_qr_ci
+      POSTGRES_USER: restaurant_user
+      POSTGRES_PASSWORD: ci-postgres-placeholder
       FRONTEND_SERVER_NAMES: cmcrestaurant.app
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
