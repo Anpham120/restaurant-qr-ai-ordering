@@ -7,7 +7,7 @@ import type {
   SuggestedCartAction,
 } from "../types";
 
-const useMockChat = import.meta.env.VITE_USE_MOCK_CHAT !== "false";
+const useMockChat = import.meta.env.VITE_USE_MOCK_CHAT === "true";
 
 function wait(ms: number) {
   return new Promise((resolve) => {
@@ -35,8 +35,8 @@ async function postJson<TResponse>(path: string, body?: unknown): Promise<TRespo
   return (await response.json()) as TResponse;
 }
 
-function buildSuggestedAction(): SuggestedCartAction | null {
-  const menu = getCustomerMenu();
+async function buildSuggestedAction(): Promise<SuggestedCartAction | null> {
+  const menu = await getCustomerMenu();
   const item =
     menu.items.find((menuItem) => menuItem.isAvailable && menuItem.tags.includes("fresh")) ??
     menu.items.find((menuItem) => menuItem.isAvailable);
@@ -55,7 +55,7 @@ function buildSuggestedAction(): SuggestedCartAction | null {
   };
 }
 
-function buildMockResponse(request: SendChatMessageRequest): SendChatMessageResponse {
+async function buildMockResponse(request: SendChatMessageRequest): Promise<SendChatMessageResponse> {
   const content = request.content.toLowerCase();
   const createdAt = new Date().toISOString();
 
@@ -87,7 +87,7 @@ function buildMockResponse(request: SendChatMessageRequest): SendChatMessageResp
     };
   }
 
-  const suggestedAction = buildSuggestedAction();
+  const suggestedAction = await buildSuggestedAction();
 
   if (!suggestedAction) {
     return {

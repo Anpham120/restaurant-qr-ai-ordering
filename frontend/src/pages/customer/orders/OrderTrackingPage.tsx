@@ -1,148 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import "../../../components/order-tracking/realtime-order.css";
-import {
-  publishOrderRealtimeEvent,
-  simulateRealtimeError,
-  simulateReconnectCycle,
-  subscribeOrderRealtime,
-  subscribeRealtimeConnection,
-  type RealtimeConnectionStatus,
-} from "../../../services/realtimeOrderService";
 import { getOrderTracking } from "../../../services/orderService";
 import type {
   OrderItemStatus,
-  OrderRealtimeEvent,
+  OrderStatus,
   OrderTrackingItem,
   OrderTrackingOrder,
 } from "../../../types";
 import { PageShell } from "../../PageShell";
 
-export function OrderTrackingPage() {
-  const { orderCode = "ORD-1001" } = useParams();
-  const [order, setOrder] = useState<OrderTrackingOrder | null>(null);
-  const [connectionStatus, setConnectionStatus] =
-    useState<RealtimeConnectionStatus>("connected");
-  const [eventLog, setEventLog] = useState<OrderRealtimeEvent[]>([]);
-  const [errorMessage, setErrorMessage] = useState("");
+const orderStatusLabels: Record<OrderStatus, string> = {
+  Draft: "Đang tạo",
+  Placed: "Đã ghi nhận",
+  Confirmed: "Đã xác nhận",
+  Preparing: "Đang chuẩn bị",
+  Ready: "Sẵn sàng phục vụ",
+  Served: "Đã phục vụ",
+  Delivering: "Đang giao",
+  Delivered: "Đã giao",
+  Completed: "Hoàn tất",
+  Cancelled: "Đã hủy",
+};
 
-  useEffect(() => {
-    getOrderTracking(orderCode)
-      .then(setOrder)
-      .catch(() => setErrorMessage("Không tải được trạng thái đơn hàng."));
-  }, [orderCode]);
-
-  useEffect(() => {
-    const unsubscribeConnection = subscribeRealtimeConnection(setConnectionStatus);
-    const unsubscribeRealtime = subscribeOrderRealtime((event) => {
-      if (event.payload.orderCode !== orderCode) {
-        return;
-      }
-
-      setEventLog((current) => [event, ...current].slice(0, 4));
-      setOrder((current) => (current ? applyRealtimeEvent(current, event) : current));
-    });
-
-    return () => {
-      unsubscribeConnection();
-      unsubscribeRealtime();
-    };
-  }, [orderCode]);
-
-  const stats = useMemo(() => {
-    const items = order?.items ?? [];
-
-    return [
-      {
-        label: "Trạng thái đơn",
-        value: order?.status ?? "Loading",
-        detail: "Dùng enum OrderStatus trong contract",
-      },
-      {
-        label: "Món đang bếp",
-        value: String(items.filter((item) => item.status === "Preparing").length),
-        detail: "Cập nhật bằng sự kiện demo realtime",
-      },
-      {
-        label: "Món Ready",
-        value: String(items.filter((item) => item.status === "Ready").length),
-        detail: "Không cần reload trang",
-      },
-    ];
-  }, [order]);
-
-  function publishNextMockEvent() {
-    if (!order) {
-      return;
-    }
-
-    const nextItem =
-      order.items.find((item) => item.status === "Pending") ??
-      order.items.find((item) => item.status === "Preparing");
-
-    if (!nextItem) {
-      simulateRealtimeError();
-      return;
-    }
-
-    const nextStatus: OrderItemStatus =
-      nextItem.status === "Pending" ? "Preparing" : "Ready";
-
-    publishOrderRealtimeEvent({
-      event: "order.itemStatusChanged",
-      payload: {
-        orderId: order.orderId,
-        orderCode: order.orderCode,
-        orderItemId: nextItem.orderItemId,
-        menuItemName: nextItem.name,
-        status: nextStatus,
-        updatedAt: new Date().toISOString(),
-      },
-    });
-  }
-
-  return (
-    <PageShell
-      eyebrow="CMC Restaurant"
-      title={`Đơn ${orderCode}`}
-      description="Khách theo dõi trạng thái từng món qua sự kiện realtime theo contract SignalR, không cần tải lại trang."
-      stats={stats}
-    >
-      <section className="realtime-status-bar">
-        <div>
-          <strong>Theo dõi món theo thời gian thực</strong>
-          <p>Đang nghe sự kiện `order.itemStatusChanged` cho {orderCode}.</p>
-        </div>
-        <span className={`connection-pill connection-${connectionStatus}`}>
-          {connectionStatus}
-        </span>
-        <div className="tracking-action-row">
-          <button onClick={publishNextMockEvent} type="button">
-            Cập nhật món tiếp theo
-          </button>
-          <button onClick={simulateReconnectCycle} type="button">
-            Giả lập reconnect
-          </button>
-          <button onClick={simulateRealtimeError} type="button">
-            Giả lập lỗi
-          </button>
-        </div>
-      </section>
-
-      {errorMessage ? <p className="realtime-error">{errorMessage}</p> : null}
-      {order ? <CustomerOrderTrackingPanel order={order} /> : <p>Đang tải đơn hàng...</p>}
-
-      <section className="tracking-summary-card">
-        <div>
-          <p className="tracking-kicker">Payload realtime gần nhất</p>
-          <h3>{eventLog[0]?.event ?? "Chưa có sự kiện"}</h3>
-          <span>Phần này dùng làm evidence khi review E2E customer flow.</span>
-        </div>
-        <pre>{eventLog[0] ? JSON.stringify(eventLog[0].payload, null, 2) : "{}"}</pre>
-      </section>
-    </PageShell>
-  );
-}
+const paymentStatusLabels: Record<string, string> = {
+  Unpaid: "Chưa thanh toán",
+  Pending: "Đang chờ đối soát",
+  Paid: "Đã thanh toán",
+  Confirmed: "Đã xác nhận",
+  Failed: "Thanh toán lỗi",
+  Cancelled: "Đã hủy",
+};
 
 const itemStatusDescriptions: Record<OrderItemStatus, string> = {
   Pending: "Bếp đã nhận món và đang xếp hàng xử lý.",
@@ -156,20 +44,134 @@ const timelineLabels: Record<string, string> = {
   Placed: "Đã ghi nhận",
   Preparing: "Đang chế biến",
   Ready: "Sẵn sàng",
-  Served: "Đã phục vụ",
+  Served: "Hoàn tất",
 };
+
+export function OrderTrackingPage() {
+  const { orderCode = "" } = useParams();
+  const [order, setOrder] = useState<OrderTrackingOrder | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!orderCode) {
+      setErrorMessage("Không tìm thấy mã đơn hàng.");
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadOrder(showLoading: boolean) {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+
+      try {
+        const nextOrder = await getOrderTracking(orderCode);
+        if (!isMounted) {
+          return;
+        }
+
+        setOrder(nextOrder);
+        setLastUpdatedAt(new Date().toISOString());
+        setErrorMessage("");
+      } catch {
+        if (isMounted) {
+          setErrorMessage("Không tải được trạng thái đơn hàng. Vui lòng thử lại sau.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadOrder(true);
+    const intervalId = window.setInterval(() => {
+      void loadOrder(false);
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [orderCode]);
+
+  const stats = useMemo(() => {
+    const items = order?.items ?? [];
+
+    return [
+      {
+        label: "Trạng thái đơn",
+        value: order ? orderStatusLabels[order.status] : "Đang tải",
+        detail: "Cập nhật tự động sau mỗi 10 giây",
+      },
+      {
+        label: "Món đang bếp",
+        value: String(items.filter((item) => item.status === "Preparing").length),
+        detail: "Các món đang được chế biến",
+      },
+      {
+        label: "Thanh toán",
+        value: order ? paymentStatusLabels[order.paymentStatus] ?? order.paymentStatus : "Đang tải",
+        detail: order?.paymentMethod === "VietQR" ? "Theo dõi đối soát VietQR" : "Thanh toán tại quầy",
+      },
+    ];
+  }, [order]);
+
+  return (
+    <PageShell
+      eyebrow="CMC Restaurant"
+      title={orderCode ? `Đơn ${orderCode}` : "Theo dõi đơn"}
+      description="Khách theo dõi trạng thái từng món và trạng thái thanh toán sau khi gửi đơn."
+      stats={stats}
+    >
+      <section className="realtime-status-bar">
+        <div>
+          <strong>Theo dõi đơn hàng</strong>
+          <p>
+            {lastUpdatedAt
+              ? `Cập nhật gần nhất: ${new Date(lastUpdatedAt).toLocaleTimeString("vi-VN")}`
+              : "Đang lấy trạng thái mới nhất từ hệ thống."}
+          </p>
+        </div>
+        <button onClick={() => window.location.reload()} type="button">
+          Tải lại
+        </button>
+      </section>
+
+      {errorMessage ? <p className="realtime-error">{errorMessage}</p> : null}
+      {isLoading ? <p>Đang tải đơn hàng...</p> : null}
+      {!isLoading && order ? <CustomerOrderTrackingPanel order={order} /> : null}
+      {!isLoading && !order && !errorMessage ? (
+        <section className="tracking-summary-card">
+          <div>
+            <p className="tracking-kicker">Chưa có đơn</p>
+            <h3>Không tìm thấy thông tin đơn hàng</h3>
+            <span>Hãy quay lại thực đơn để tạo đơn mới.</span>
+          </div>
+          <Link className="cmc-secondary-link" to="/menu">
+            Xem thực đơn
+          </Link>
+        </section>
+      ) : null}
+    </PageShell>
+  );
+}
 
 function CustomerOrderTrackingPanel({ order }: { order: OrderTrackingOrder }) {
   const readyCount = order.items.filter((item) => item.status === "Ready").length;
 
   return (
-    <section className="order-tracking-panel" aria-label="Customer order tracking">
+    <section className="order-tracking-panel" aria-label="Theo dõi đơn hàng">
       <div className="tracking-summary-card">
         <div>
           <p className="tracking-kicker">Order tracking</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} - {order.status}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} - {orderStatusLabels[order.status]}
           </span>
         </div>
         <strong>
@@ -200,7 +202,7 @@ function CustomerOrderTrackingPanel({ order }: { order: OrderTrackingOrder }) {
               </p>
             </div>
             <span className={`status-pill status-${item.status.toLowerCase()}`}>
-              {item.status}
+              {getItemStatusLabel(item.status)}
             </span>
           </article>
         ))}
@@ -209,50 +211,19 @@ function CustomerOrderTrackingPanel({ order }: { order: OrderTrackingOrder }) {
   );
 }
 
-function applyRealtimeEvent(
-  order: OrderTrackingOrder,
-  event: OrderRealtimeEvent,
-): OrderTrackingOrder {
-  if (event.event === "order.statusChanged") {
-    return {
-      ...order,
-      status: event.payload.status,
-      updatedAt: event.payload.updatedAt,
-    };
+function getItemStatusLabel(status: OrderItemStatus) {
+  switch (status) {
+    case "Pending":
+      return "Đang chờ";
+    case "Preparing":
+      return "Đang nấu";
+    case "Ready":
+      return "Sẵn sàng";
+    case "Served":
+      return "Đã phục vụ";
+    default:
+      return "Đã hủy";
   }
-
-  if (event.event !== "order.itemStatusChanged") {
-    return order;
-  }
-
-  const items = order.items.map((item) =>
-    item.orderItemId === event.payload.orderItemId
-      ? {
-          ...item,
-          status: event.payload.status,
-          updatedAt: event.payload.updatedAt,
-        }
-      : item,
-  );
-
-  return {
-    ...order,
-    status: calculateOrderStatus(items),
-    updatedAt: event.payload.updatedAt,
-    items,
-  };
-}
-
-function calculateOrderStatus(items: OrderTrackingItem[]) {
-  if (items.every((item) => item.status === "Ready" || item.status === "Served")) {
-    return "Ready" as const;
-  }
-
-  if (items.some((item) => item.status === "Preparing" || item.status === "Ready")) {
-    return "Preparing" as const;
-  }
-
-  return "Placed" as const;
 }
 
 function getTimelineCopy(status: string) {
