@@ -9,6 +9,24 @@ namespace RestaurantQrAiOrdering.Api.Data;
 
 public class RestaurantDbContext : DbContext
 {
+    private static readonly DateTimeOffset CategorySeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 704, DateTimeKind.Unspecified).AddTicks(8638),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset MenuItemSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset TableSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset UserSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 707, DateTimeKind.Unspecified).AddTicks(7962),
+        TimeSpan.Zero);
+
+    private const string AdminPasswordHash = "v1.100000.2FZk9K5Yru/klQtpkjDGJQ==.9gGU3IU+rG4JGkMgsvORd0Cqmsykp5xeaZCAQ95S4cM=";
+    private const string StaffPasswordHash = "v1.100000.c9UhEBod8mtmPQLeP2nnWQ==.an2Aa1goSjTZ8uS8joy2I3W11iWwNhiOsg4YreIn9mU=";
+    private const string KitchenPasswordHash = "v1.100000.u76cG06YBTjLue+rOz5B1w==.vNcRBLo2BXctMwTDqX3/p55jgxk6Dfki+Jx7CkRKSBc=";
+    private const string CustomerPasswordHash = "v1.100000.uSV+rreaBwKjA3WUTqZD8Q==.8pVVHQiXquhg7U1O6soESBvdr6tDM+Ibi3vwe0uHXaY=";
+
     public RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
         : base(options)
     {
@@ -47,7 +65,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureCategory(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = CategorySeededAt;
         modelBuilder.Entity<Category>(entity =>
         {
             entity.ToTable("categories");
@@ -89,7 +107,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureMenuItem(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = MenuItemSeededAt;
         modelBuilder.Entity<MenuItem>(entity =>
         {
             entity.ToTable("menu_items");
@@ -156,7 +174,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureRestaurantTable(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = TableSeededAt;
         modelBuilder.Entity<RestaurantTable>(entity =>
         {
             entity.ToTable("restaurant_tables");
@@ -639,7 +657,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = UserSeededAt;
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
@@ -673,34 +691,12 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.Email).IsUnique();
 
-            var adminPasswordHash = HashPasswordForSeed("Admin@1234");
-            var staffPasswordHash = HashPasswordForSeed("Staff@1234");
-            var kitchenPasswordHash = HashPasswordForSeed("Kitchen@1234");
-            var customerPasswordHash = HashPasswordForSeed("Customer@1234");
-
             entity.HasData(
-                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = adminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = staffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = kitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = customerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
+                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = AdminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = StaffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = KitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = CustomerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
             );
         });
-    }
-
-    private static string HashPasswordForSeed(string password)
-    {
-        const int saltSize = 16;
-        const int hashSize = 32;
-        const int iterations = 100_000;
-
-        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(saltSize);
-        var hash = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
-            password,
-            salt,
-            iterations,
-            System.Security.Cryptography.HashAlgorithmName.SHA256,
-            hashSize);
-
-        return $"v1.{iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
     }
 }
