@@ -293,11 +293,6 @@ public static partial class OrderEndpoints
             }
         }
 
-        if (orderType == OrderType.DeliveryMock && !HasDeliveryInfo(request.DeliveryInfo))
-        {
-            return ApiResults.BadRequest("DELIVERY_INFO_REQUIRED", "Delivery mock orders require recipient, phone, and address.");
-        }
-
         foreach (var item in request.Items)
         {
             if (string.IsNullOrWhiteSpace(item.MenuItemId))

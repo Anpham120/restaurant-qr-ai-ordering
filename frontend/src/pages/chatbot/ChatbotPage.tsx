@@ -9,7 +9,8 @@ import {
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
 import { chatApi } from "../../services/chatService";
-import { getCustomerMenu } from "../../services/menuService";
+import { fetchCustomerMenu } from "../../services/menuService";
+import type { CustomerMenuResponse } from "../../services/menuService";
 import type { ChatMessage, SuggestedCartAction } from "../../types";
 import { PageShell } from "../PageShell";
 
@@ -63,6 +64,7 @@ export function ChatbotPage() {
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
   const [cartTotal, setCartTotal] = useState(getCartTotal);
   const [cartNotice, setCartNotice] = useState("");
+  const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
   const tableCode = useMemo(() => {
     if (typeof window === "undefined") {
@@ -91,6 +93,10 @@ export function ChatbotPage() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    fetchCustomerMenu().then(setMenuData).catch(() => {});
   }, []);
 
   async function sendMessage(event?: FormEvent<HTMLFormElement>, overrideContent?: string) {
@@ -138,7 +144,7 @@ export function ChatbotPage() {
   }
 
   function confirmSuggestedAction(action: SuggestedCartAction) {
-    const menuItem = getCustomerMenu().items.find((item) => item.id === action.menuItemId);
+    const menuItem = menuData.items.find((item) => item.id === action.menuItemId);
 
     if (!menuItem || !menuItem.isAvailable) {
       setErrorMessage("Món này không còn khả dụng nên không thể thêm vào giỏ.");

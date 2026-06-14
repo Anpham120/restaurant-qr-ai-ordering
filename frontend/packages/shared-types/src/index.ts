@@ -1,5 +1,5 @@
 export type UserRole = "Customer" | "Staff" | "Kitchen" | "Admin";
-export type OrderType = "DineIn" | "Pickup" | "DeliveryMock";
+export type OrderType = "DineIn" | "Pickup";
 export type OrderStatus = "Draft" | "Placed" | "Confirmed" | "Preparing" | "Ready" | "Served" | "Delivering" | "Delivered" | "Completed" | "Cancelled";
 export type OrderItemStatus = "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
 export type PaymentMethod = "COD" | "VietQR";
@@ -28,3 +28,7 @@ export type OrderCreatedEvent = { orderId: string; orderCode: string; orderType:
 export type OrderStatusChangedEvent = { orderId: string; orderCode: string; status: OrderStatus; updatedAt: string };
 export type OrderItemStatusChangedEvent = { orderId: string; orderCode: string; orderItemId: string; menuItemName: string; status: OrderItemStatus; updatedAt: string };
 export type RealtimeConnectionStatus = "connecting" | "connected" | "reconnecting" | "disconnected" | "error";
+
+export type AdminCategory = { categoryId: string; name: string; displayOrder: number; isActive: boolean; createdAt: string; updatedAt: string };
+export type AdminCategoryRequest = { name: string; displayOrder: number; isActive: boolean };
+export type RegisterRequest = { fullName: string; email: string; password: string };

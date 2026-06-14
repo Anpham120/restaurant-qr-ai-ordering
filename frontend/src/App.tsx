@@ -1,4 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@cmc/auth";
+import type { UserRole } from "@cmc/shared-types";
 import logoUrl from "./mocks/images/logo.png";
 import { CustomerAiLauncher } from "./components/customer/CustomerAiLauncher";
 
@@ -9,23 +11,34 @@ const customerLinks = [
   { to: "/chat", text: "Hỏi AI" },
 ];
 
-const operationsLinks = [
+const operationsLinks: Array<{ to: string; text: string; roles?: UserRole[] }> = [
   { to: "/login", text: "Đăng nhập" },
-  { to: "/admin", text: "Tổng quan" },
-  { to: "/admin/menu", text: "Thực đơn" },
-  { to: "/admin/orders", text: "Đơn hàng" },
-  { to: "/admin/tables", text: "Bàn & QR" },
-  { to: "/staff/orders", text: "Nhân viên" },
-  { to: "/kitchen", text: "Bếp" },
+  { to: "/admin", text: "Tổng quan", roles: ["Admin"] },
+  { to: "/admin/menu", text: "Thực đơn", roles: ["Admin"] },
+  { to: "/admin/categories", text: "Danh mục", roles: ["Admin"] },
+  { to: "/admin/orders", text: "Đơn hàng", roles: ["Admin", "Staff"] },
+  { to: "/admin/tables", text: "Bàn & QR", roles: ["Admin"] },
+  { to: "/admin/users", text: "Người dùng", roles: ["Admin"] },
+  { to: "/staff/orders", text: "Nhân viên", roles: ["Admin", "Staff"] },
+  { to: "/kitchen", text: "Bếp", roles: ["Admin", "Kitchen"] },
 ];
 
 export default function App() {
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
   const isOperationsRoute =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/staff") ||
     pathname.startsWith("/kitchen") ||
-    pathname.startsWith("/login");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/unauthorized");
+
+  const visibleOperationsLinks = operationsLinks.filter((link) => {
+    if (!link.roles) {
+      return !user;
+    }
+    return user ? link.roles.includes(user.role) : false;
+  });
 
   if (!isOperationsRoute) {
     return (
@@ -76,7 +89,7 @@ export default function App() {
           <section className="nav-group">
             <h2>CMC Control</h2>
             <div className="nav-links">
-              {operationsLinks.map((link) => (
+              {visibleOperationsLinks.map((link) => (
                 <NavLink
                   end={link.to === "/"}
                   key={link.to}
@@ -91,6 +104,16 @@ export default function App() {
             </div>
           </section>
         </nav>
+        {user ? (
+          <section className="auth-sidebar-card" aria-label="Phiên đăng nhập">
+            <span>{user.role}</span>
+            <strong>{user.fullName}</strong>
+            <small>{user.email}</small>
+            <button type="button" onClick={logout}>
+              Đăng xuất
+            </button>
+          </section>
+        ) : null}
       </aside>
       <main className="content">
         <Outlet />

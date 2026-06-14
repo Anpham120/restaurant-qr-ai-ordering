@@ -1,26 +1,11 @@
-const serviceHighlights = [
-  {
-    label: "Luồng QR",
-    value: "/table/T05",
-    detail: "Khách quét QR, vào menu và tạo đơn tại bàn.",
-  },
-  {
-    label: "Điều phối đơn",
-    value: "Admin -> Staff -> Bếp",
-    detail: "Mỗi vai trò nhìn đúng trạng thái cần xử lý trong ca.",
-  },
-  {
-    label: "Cập nhật realtime",
-    value: "Đang hoạt động",
-    detail: "Bảng bếp cập nhật trạng thái để các màn hình theo dõi đồng bộ.",
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import { getAdminOrders } from "../../services/adminOrderService";
+import { getAdminMenuOverview } from "../../services/adminMenuService";
+import type { AdminOrder } from "../../types";
+import { AdminStatePanel } from "./AdminStatePanel";
+import { AdminStatusBadge } from "./AdminStatusBadge";
 
-const activeOrders = [
-  { code: "ORDER-001", table: "T05", status: "Preparing", total: "310.000đ" },
-  { code: "ORDER-002", table: "Pickup", status: "Ready", total: "430.000đ" },
-  { code: "ORDER-003", table: "Delivery", status: "Delivered", total: "565.000đ" },
-];
+const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
 const shiftChecklist = [
   "Kiểm tra QR của từng bàn trước giờ mở ca.",
@@ -30,65 +15,130 @@ const shiftChecklist = [
 ];
 
 export function AdminDashboardOverview() {
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [menuStats, setMenuStats] = useState({ total: 0, available: 0, categories: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      getAdminOrders().catch(() => [] as AdminOrder[]),
+      getAdminMenuOverview().catch(() => ({ categories: [], items: [] })),
+    ])
+      .then(([ordersData, menuData]) => {
+        setOrders(ordersData);
+        setMenuStats({
+          total: menuData.items.length,
+          available: menuData.items.filter((item) => item.isAvailable).length,
+          categories: menuData.categories.length,
+        });
+      })
+      .catch(() => setError("Không tải được dữ liệu tổng quan."))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const summary = useMemo(() => {
+    const activeOrders = orders.filter(
+      (o) => o.status !== "Completed" && o.status !== "Cancelled",
+    );
+    const revenue = orders.reduce((total, o) => total + o.total, 0);
+    const readyCount = orders.filter((o) => o.status === "Ready").length;
+    const unpaidCount = orders.filter(
+      (o) => o.paymentStatus !== "Paid" && o.paymentStatus !== "Confirmed",
+    ).length;
+
+    return { activeOrders, revenue, readyCount, unpaidCount };
+  }, [orders]);
+
+  if (isLoading) {
+    return (
+      <AdminStatePanel
+        title="Đang tải dữ liệu"
+        description="Đang kết nối API để lấy thông tin tổng quan."
+      />
+    );
+  }
+
+  if (error) {
+    return <AdminStatePanel title="Có lỗi" description={error} />;
+  }
+
   return (
     <div className="ops-dashboard-grid">
       <section className="ops-hero-panel">
         <span className="panel-kicker">Ca vận hành hôm nay</span>
         <h3>Nhà hàng đang hoạt động ổn định</h3>
         <p>
-          Màn tổng quan gom nhanh trạng thái đơn, QR, bếp và staff để quản lý ca
-          vận hành phía nhà hàng.
+          Dữ liệu thực từ API — {orders.length} đơn tổng cộng,{" "}
+          {summary.activeOrders.length} đơn đang xử lý.
         </p>
         <div className="ops-health-row">
-          <span>Menu online</span>
-          <span>Bếp sẵn sàng</span>
-          <span>QR hợp lệ</span>
+          <span>🟢 Menu: {menuStats.available}/{menuStats.total} món</span>
+          <span>🟢 {menuStats.categories} danh mục</span>
+          <span>🟢 {summary.readyCount} đơn Ready</span>
         </div>
       </section>
 
       <section className="ops-panel">
         <div className="admin-panel-heading">
           <div>
-            <span className="panel-kicker">Đơn nổi bật</span>
+            <span className="panel-kicker">Đơn đang xử lý</span>
             <h3>Ưu tiên trong ca</h3>
           </div>
-          <span className="admin-status admin-status-ready">Đang cập nhật</span>
+          <span className="admin-status admin-status-ready">
+            {formatCurrency(summary.revenue)} doanh thu
+          </span>
         </div>
-        <div className="table-shell ops-order-table">
-          <div className="table-row table-head">
-            <span>Đơn</span>
-            <span>Bàn/Kênh</span>
-            <span>Trạng thái</span>
-            <span>Tổng</span>
-          </div>
-          {activeOrders.map((order) => (
-            <div className="table-row" key={order.code}>
-              <strong>{order.code}</strong>
-              <span>{order.table}</span>
-              <span className={`mini-badge ${order.status.toLowerCase()}`}>
-                {order.status}
-              </span>
-              <strong>{order.total}</strong>
+        {summary.activeOrders.length === 0 ? (
+          <AdminStatePanel
+            title="Không có đơn đang xử lý"
+            description="Tất cả đơn đã hoàn tất hoặc chưa có đơn mới."
+          />
+        ) : (
+          <div className="table-shell ops-order-table">
+            <div className="table-row table-head">
+              <span>Đơn</span>
+              <span>Bàn/Kênh</span>
+              <span>Trạng thái</span>
+              <span>Thanh toán</span>
+              <span>Tổng</span>
             </div>
-          ))}
-        </div>
+            {summary.activeOrders.slice(0, 8).map((order) => (
+              <div className="table-row" key={order.id}>
+                <strong>{order.code}</strong>
+                <span>{order.tableCode ?? order.customerName}</span>
+                <AdminStatusBadge status={order.status} />
+                <AdminStatusBadge status={order.paymentStatus} />
+                <strong>{formatCurrency(order.total)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="ops-panel">
         <div className="admin-panel-heading">
           <div>
-            <span className="panel-kicker">Luồng vận hành</span>
-            <h3>Chức năng chính</h3>
+            <span className="panel-kicker">Thống kê nhanh</span>
+            <h3>Chỉ số quan trọng</h3>
           </div>
         </div>
         <div className="ops-feature-list">
-          {serviceHighlights.map((item) => (
-            <article className="ops-feature-card" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <p>{item.detail}</p>
-            </article>
-          ))}
+          <article className="ops-feature-card">
+            <span>Đơn chờ xử lý</span>
+            <strong>{summary.activeOrders.length}</strong>
+            <p>Chưa hoàn tất hoặc hủy</p>
+          </article>
+          <article className="ops-feature-card">
+            <span>Chưa thanh toán</span>
+            <strong>{summary.unpaidCount}</strong>
+            <p>COD hoặc VietQR chờ xác nhận</p>
+          </article>
+          <article className="ops-feature-card">
+            <span>Doanh thu</span>
+            <strong>{formatCurrency(summary.revenue)}</strong>
+            <p>Tổng giá trị các đơn</p>
+          </article>
         </div>
       </section>
 

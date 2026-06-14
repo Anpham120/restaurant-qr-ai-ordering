@@ -1,4 +1,6 @@
 import type {
+  AdminCategory,
+  AdminCategoryRequest,
   ApiErrorBody,
   AuthUser,
   CreateOrderRequest,
@@ -10,6 +12,7 @@ import type {
   OrderListResponse,
   OrderStatus,
   Payment,
+  RegisterRequest,
   Table,
   TableSession,
   VietQrPayment,
@@ -41,6 +44,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     auth: {
       login: (payload: LoginRequest) => request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
       me: () => request<AuthUser>("/auth/me"),
+      register: (payload: RegisterRequest) => request<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
     },
     menu: { get: () => request<MenuResponse>("/menu") },
     tables: {
@@ -73,6 +77,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`, { method: "POST", body: JSON.stringify(payload) }),
       fail: (orderCode: string, payload: { note?: string | null } = {}) =>
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/fail`, { method: "POST", body: JSON.stringify(payload) }),
+    },
+    categories: {
+      list: () => request<AdminCategory[]>("/admin/categories"),
+      get: (id: string) => request<AdminCategory>(`/admin/categories/${encodeURIComponent(id)}`),
+      create: (payload: AdminCategoryRequest) => request<AdminCategory>("/admin/categories", { method: "POST", body: JSON.stringify(payload) }),
+      update: (id: string, payload: AdminCategoryRequest) => request<AdminCategory>(`/admin/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      delete: (id: string) => request<void>(`/admin/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
     },
   };
 }

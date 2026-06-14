@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminOrders } from "../../services/adminOrderService";
+import { getAdminOrders, failOrderPayment } from "../../services/adminOrderService";
 import { confirmOrderPayment, updateOrderStatus } from "../../services/orderService";
 import type { AdminOrder, OrderStatus } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
@@ -109,6 +109,32 @@ export function AdminOrderManager() {
       await reloadOrders(selectedOrder.code);
     } catch {
       setError("Không thể xác nhận thanh toán.");
+    }
+  }
+
+  async function failSelectedPayment() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await failOrderPayment(selectedOrder.code, "Rejected from admin order manager");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể từ chối thanh toán.");
+    }
+  }
+
+  async function cancelSelectedOrder() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await updateOrderStatus(selectedOrder.code, "Cancelled");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể hủy đơn. Có thể đơn đã bắt đầu chế biến.");
     }
   }
 
@@ -265,6 +291,29 @@ export function AdminOrderManager() {
                   }
                 >
                   Xác nhận thanh toán
+                </button>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={failSelectedPayment}
+                  disabled={
+                    selectedOrder.paymentStatus === "Paid" ||
+                    selectedOrder.paymentStatus === "Confirmed" ||
+                    selectedOrder.paymentStatus === "Failed"
+                  }
+                >
+                  Từ chối thanh toán
+                </button>
+                <button
+                  className="button danger"
+                  type="button"
+                  onClick={cancelSelectedOrder}
+                  disabled={
+                    selectedOrder.status === "Completed" ||
+                    selectedOrder.status === "Cancelled"
+                  }
+                >
+                  Hủy đơn
                 </button>
                 <button className="button" type="button" onClick={() => reloadOrders(selectedOrder.code)}>
                   Tải lại đơn

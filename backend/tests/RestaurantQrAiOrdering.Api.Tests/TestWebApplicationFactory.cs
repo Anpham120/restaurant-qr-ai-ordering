@@ -202,7 +202,6 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             entity.Property(e => e.DeliveryPhoneNumber).HasColumnName("delivery_phone_number").HasMaxLength(20);
             entity.Property(e => e.DeliveryAddress).HasColumnName("delivery_address").HasMaxLength(500);
             entity.Property(e => e.DeliveryNote).HasColumnName("delivery_note").HasMaxLength(500);
-            entity.Property(e => e.MockDeliveryFee).HasColumnName("mock_delivery_fee").HasPrecision(18, 2);
             entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
