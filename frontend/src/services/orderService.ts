@@ -1,81 +1,32 @@
-import { getApiBaseUrl } from "./apiClient";
-import { getAuthHeaders } from "./authService";
+import { createApiClient } from "@cmc/api-client";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
   OrderItemStatus,
-  OrderStatus,
+  PaymentResponse,
   OrderTrackingOrder,
+  VietQrPaymentResponse,
 } from "../types";
 
-type OrderListResponse = {
-  orders: OrderTrackingOrder[];
-  total: number;
-};
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
-type ApiErrorPayload = {
-  error?: {
-    code?: string;
-    message?: string;
-  };
-};
-
-function apiUrl(path: string) {
-  return `${getApiBaseUrl()}${path}`;
-}
-
-async function parseJson<T>(response: Response): Promise<T> {
-  const payload = (await response.json().catch(() => ({}))) as T & ApiErrorPayload;
-  if (!response.ok) {
-    const code = payload.error?.code ?? "API_ERROR";
-    const message = payload.error?.message ?? "Không thể xử lý yêu cầu.";
-    throw new Error(`${code}: ${message}`);
-  }
-
-  return payload;
-}
-
-export async function createOrder(payload: CreateOrderRequest): Promise<CreateOrderResponse> {
-  const response = await fetch(apiUrl("/orders"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return parseJson<CreateOrderResponse>(response);
+export async function createOrder(
+  payload: CreateOrderRequest,
+): Promise<CreateOrderResponse> {
+  const response = await api.orders.create(payload);
+  return response as CreateOrderResponse;
 }
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
-  const response = await fetch(apiUrl("/orders"), {
-    headers: getAuthHeaders(),
-  });
-  const body = await parseJson<OrderListResponse>(response);
-
-  return body.orders;
+  const response = await api.orders.list();
+  return response.orders as OrderTrackingOrder[];
 }
 
 export async function getOrderTracking(orderCode: string): Promise<OrderTrackingOrder> {
-  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}`));
-
-  return parseJson<OrderTrackingOrder>(response);
-}
-
-export async function updateOrderStatus(
-  orderCode: string,
-  status: OrderStatus,
-): Promise<OrderTrackingOrder> {
-  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}/status`), {
-    method: "PATCH",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ status }),
-  });
-
-  return parseJson<OrderTrackingOrder>(response);
+  return api.orders.get(orderCode) as Promise<OrderTrackingOrder>;
 }
 
 export async function updateOrderItemStatus(
@@ -83,32 +34,24 @@ export async function updateOrderItemStatus(
   orderItemId: string,
   status: OrderItemStatus,
 ): Promise<OrderTrackingOrder> {
-  const response = await fetch(
-    apiUrl(`/orders/${encodeURIComponent(orderCode)}/items/${encodeURIComponent(orderItemId)}/status`),
-    {
-      method: "PATCH",
-      headers: {
-        ...getAuthHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status }),
-    },
-  );
-
-  return parseJson<OrderTrackingOrder>(response);
+  return api.orders.updateItemStatus(orderCode, orderItemId, status) as Promise<OrderTrackingOrder>;
 }
 
-export async function confirmOrderPayment(orderCode: string): Promise<unknown> {
-  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`), {
-    method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      note: "Confirmed from staff operations board.",
-    }),
-  });
+export async function updateOrderStatus(
+  orderCode: string,
+  status: OrderTrackingOrder["status"],
+): Promise<OrderTrackingOrder> {
+  return api.orders.updateStatus(orderCode, status) as Promise<OrderTrackingOrder>;
+}
 
-  return parseJson<unknown>(response);
+export async function getOrderPayment(orderCode: string): Promise<PaymentResponse> {
+  return api.payments.get(orderCode) as Promise<PaymentResponse>;
+}
+
+export async function generateVietQrPayment(orderCode: string): Promise<VietQrPaymentResponse> {
+  return api.payments.generateVietQr(orderCode) as Promise<VietQrPaymentResponse>;
+}
+
+export async function confirmOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
+  return api.payments.confirm(orderCode, { note }) as Promise<PaymentResponse>;
 }

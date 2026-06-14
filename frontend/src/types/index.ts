@@ -21,7 +21,11 @@ export type {
   OrderStatusChangedRealtimeEvent,
   OrderTrackingItem,
   OrderTrackingOrder,
+  PaymentResponse,
   PaymentMethod,
+  PaymentStatus,
+  PaymentTransaction,
+  VietQrPaymentResponse,
 } from "./order";
 export type {
   ChatGuardrailFlag,

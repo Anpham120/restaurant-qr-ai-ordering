@@ -3,20 +3,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid #efd8c9;
-  border-radius: 8px;
+  border: 1px solid #CFEAF5;
+  border-radius: 20px;
   padding: 14px 16px;
-  background: #fff8f1;
-  color: #5c3320;
+  background: #F2FAFD;
+  color: #08233E;
 }
 
 .realtime-status-bar strong {
-  color: #25150e;
+  color: #08233E;
 }
 
 .realtime-status-bar p {
   margin: 4px 0 0;
-  color: #8a6149;
+  color: #667A91;
 }
 
 .realtime-status-actions,
@@ -30,24 +30,24 @@
 .realtime-status-actions button,
 .realtime-ticket-actions button,
 .tracking-action-row button {
-  border: 1px solid #d9662f;
-  border-radius: 8px;
+  border: 1px solid #005BAC;
+  border-radius: 20px;
   padding: 9px 12px;
   background: #ffffff;
-  color: #d65f29;
+  color: #005BAC;
   font-weight: 900;
 }
 
 .realtime-status-actions button:hover,
 .realtime-ticket-actions button:hover,
 .tracking-action-row button:hover {
-  background: #fff1e7;
+  background: #EAF7FC;
 }
 
 .realtime-ticket-actions button:disabled {
-  border-color: #e6d6cb;
-  color: #9a8171;
-  background: #f5eee8;
+  border-color: #CFEAF5;
+  color: #667A91;
+  background: #EAF7FC;
   cursor: not-allowed;
 }
 
@@ -65,25 +65,25 @@
 .connection-connected,
 .status-ready,
 .status-served {
-  background: #e7f8ef;
-  color: #237349;
+  background: #F2FAFD;
+  color: #00A99D;
 }
 
 .connection-reconnecting,
 .status-preparing {
-  background: #fff2d9;
-  color: #9a5a00;
+  background: #EAF7FC;
+  color: #005BAC;
 }
 
 .connection-error,
 .status-cancelled {
-  background: #ffe7e2;
-  color: #a23a27;
+  background: #EAF7FC;
+  color: #005BAC;
 }
 
 .status-pending {
-  background: #eef2f6;
-  color: #4a6078;
+  background: #EAF7FC;
+  color: #667A91;
 }
 
 .realtime-kitchen-board {
@@ -94,10 +94,10 @@
 
 .realtime-kitchen-lane {
   min-height: 320px;
-  border: 1px solid #ead6c8;
-  border-radius: 8px;
+  border: 1px solid #CFEAF5;
+  border-radius: 20px;
   padding: 14px;
-  background: #fffaf5;
+  background: #F2FAFD;
 }
 
 .realtime-lane-heading {
@@ -112,12 +112,12 @@
 .tracking-summary-card h3,
 .tracking-step h3 {
   margin: 0;
-  color: #25150e;
+  color: #08233E;
 }
 
 .realtime-lane-heading p {
   margin: 4px 0 0;
-  color: #9a6b50;
+  color: #667A91;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
@@ -130,19 +130,19 @@
 .tracking-summary-card span,
 .tracking-item p,
 .tracking-step p {
-  color: #84624f;
+  color: #667A91;
 }
 
 .realtime-ticket {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border: 1px solid #ebd7c9;
-  border-radius: 8px;
+  border: 1px solid #CFEAF5;
+  border-radius: 20px;
   padding: 12px;
   margin-bottom: 10px;
   background: #ffffff;
-  box-shadow: 0 12px 22px rgba(92, 51, 32, 0.08);
+  box-shadow: 0 12px 22px rgba(0, 91, 172, 0.08);
 }
 
 .realtime-ticket-topline,
@@ -156,7 +156,7 @@
 
 .realtime-ticket p {
   margin: 0;
-  color: #5c3320;
+  color: #08233E;
 }
 
 .order-tracking-panel {
@@ -167,16 +167,16 @@
 .tracking-summary-card,
 .tracking-timeline,
 .tracking-item-list {
-  border: 1px solid #ead6c8;
-  border-radius: 8px;
+  border: 1px solid #CFEAF5;
+  border-radius: 20px;
   padding: 16px;
   background: #ffffff;
-  box-shadow: 0 12px 24px rgba(92, 51, 32, 0.08);
+  box-shadow: 0 12px 24px rgba(0, 91, 172, 0.08);
 }
 
 .tracking-kicker {
   margin: 0 0 6px;
-  color: #d65f29;
+  color: #005BAC;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
@@ -184,13 +184,13 @@
 }
 
 .tracking-summary-card strong {
-  color: #d65f29;
+  color: #005BAC;
   font-size: 28px;
 }
 
 .tracking-summary-card small {
   display: block;
-  color: #84624f;
+  color: #667A91;
   font-size: 12px;
 }
 
@@ -218,13 +218,13 @@
   width: 30px;
   height: 30px;
   border-radius: 999px;
-  background: #f0e3d9;
-  color: #7a4a32;
+  background: #EAF7FC;
+  color: #667A91;
   font-weight: 900;
 }
 
 .tracking-step-active > span {
-  background: #d9662f;
+  background: #005BAC;
   color: #ffffff;
 }
 
@@ -234,8 +234,8 @@
 }
 
 .tracking-item {
-  border: 1px solid #f0dfd4;
-  border-radius: 8px;
+  border: 1px solid #CFEAF5;
+  border-radius: 20px;
   padding: 12px;
 }
 

@@ -2,101 +2,109 @@ import { useEffect, useMemo, useState } from "react";
 import {
   confirmOrderPayment,
   getKitchenOrders,
-  updateOrderItemStatus,
   updateOrderStatus,
 } from "../../services/orderService";
 import type { OrderTrackingOrder } from "../../types";
-import { AdminStatePanel } from "../admin/AdminStatePanel";
 
-type StaffLane = "Ready" | "Served" | "PaymentPending" | "Completed";
+type StaffTicketStatus = "Ready" | "Served" | "PaymentPending" | "Completed";
+
+type StaffTicket = {
+  id: string;
+  orderCode: string;
+  tableLabel: string;
+  customerNote: string;
+  status: StaffTicketStatus;
+  payment: "COD" | "Paid" | "VietQR";
+  items: Array<{
+    name: string;
+    quantity: number;
+  }>;
+};
 
 const lanes: Array<{
-  status: StaffLane;
+  status: StaffTicketStatus;
   title: string;
   hint: string;
 }> = [
-  { status: "Ready", title: "Sẵn sàng phục vụ", hint: "Món bếp đã hoàn thành và cần mang ra." },
-  { status: "Served", title: "Đã phục vụ", hint: "Đơn đã ra bàn, chờ thanh toán hoặc hoàn tất." },
-  { status: "PaymentPending", title: "Chờ xác nhận thanh toán", hint: "COD/VietQR cần staff xác nhận." },
+  { status: "Ready", title: "Sẵn sàng phục vụ", hint: "Nhận món Ready từ bếp và mang ra bàn." },
+  { status: "Served", title: "Đã phục vụ", hint: "Theo dõi phản hồi và chuẩn bị thanh toán." },
+  { status: "PaymentPending", title: "Chờ thu tiền", hint: "COD/VietQR cần xác nhận thu ngân." },
   { status: "Completed", title: "Hoàn tất", hint: "Đơn đã kết thúc trong ca." },
 ];
 
+function toTicket(order: OrderTrackingOrder): StaffTicket | null {
+  const paid = order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed";
+  let status: StaffTicketStatus | null = null;
+
+  if (order.status === "Ready") {
+    status = "Ready";
+  } else if (order.status === "Served" && !paid) {
+    status = "PaymentPending";
+  } else if (order.status === "Served") {
+    status = "Served";
+  } else if (order.status === "Completed" || paid) {
+    status = "Completed";
+  }
+
+  if (!status) {
+    return null;
+  }
+
+  return {
+    id: order.orderId,
+    orderCode: order.orderCode,
+    tableLabel: order.tableCode ? "Bàn " + order.tableCode : order.deliveryInfo?.recipientName ?? "Pickup",
+    customerNote: order.deliveryInfo?.note ?? order.deliveryInfo?.phoneNumber ?? "Không có ghi chú.",
+    status,
+    payment: paid ? "Paid" : order.paymentMethod,
+    items: order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
+  };
+}
+
 export function StaffOrderBoard() {
-  const [orders, setOrders] = useState<OrderTrackingOrder[]>([]);
+  const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [busyOrderCode, setBusyOrderCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reloadTickets() {
+    const orders = await getKitchenOrders();
+    setTickets(orders.map(toTicket).filter((ticket): ticket is StaffTicket => Boolean(ticket)));
+  }
 
   useEffect(() => {
-    refreshOrders();
+    reloadTickets()
+      .catch(() => setError("Không tải được danh sách đơn cho staff."))
+      .finally(() => setIsLoading(false));
   }, []);
-
-  async function refreshOrders() {
-    setError("");
-    setIsLoading(true);
-
-    try {
-      setOrders(await getKitchenOrders());
-    } catch {
-      setError("Không tải được danh sách đơn từ backend.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   const summary = useMemo(
     () => ({
-      ready: orders.filter((order) => getLane(order) === "Ready").length,
-      payment: orders.filter((order) => getLane(order) === "PaymentPending").length,
-      completed: orders.filter((order) => getLane(order) === "Completed").length,
+      ready: tickets.filter((ticket) => ticket.status === "Ready").length,
+      payment: tickets.filter((ticket) => ticket.status === "PaymentPending").length,
+      completed: tickets.filter((ticket) => ticket.status === "Completed").length,
     }),
-    [orders],
+    [tickets],
   );
 
-  async function markServed(order: OrderTrackingOrder) {
-    setBusyOrderCode(order.orderCode);
-    setError("");
-
-    try {
-      for (const item of order.items.filter((nextItem) => nextItem.status === "Ready")) {
-        await updateOrderItemStatus(order.orderCode, item.orderItemId, "Served");
-      }
-
-      const updatedOrder = await updateOrderStatus(order.orderCode, "Served");
-      setOrders((current) => replaceOrder(current, updatedOrder));
-    } catch {
-      setError("Không thể chuyển đơn sang trạng thái đã phục vụ.");
-    } finally {
-      setBusyOrderCode(null);
-    }
+  async function serveTicket(ticket: StaffTicket) {
+    await updateOrderStatus(ticket.orderCode, "Served");
+    await reloadTickets();
   }
 
-  async function confirmPayment(order: OrderTrackingOrder) {
-    setBusyOrderCode(order.orderCode);
-    setError("");
-
-    try {
-      await confirmOrderPayment(order.orderCode);
-      const updatedOrder = await updateOrderStatus(order.orderCode, "Completed");
-      setOrders((current) => replaceOrder(current, updatedOrder));
-    } catch {
-      setError("Không thể xác nhận thanh toán cho đơn này.");
-    } finally {
-      setBusyOrderCode(null);
+  async function completeTicket(ticket: StaffTicket) {
+    if (ticket.payment !== "Paid") {
+      await confirmOrderPayment(ticket.orderCode, "Confirmed from staff board");
     }
+    await updateOrderStatus(ticket.orderCode, "Completed");
+    await reloadTickets();
   }
 
   if (isLoading) {
-    return (
-      <AdminStatePanel
-        title="Đang tải đơn vận hành"
-        description="Staff board đang lấy dữ liệu đơn hàng thật từ backend."
-      />
-    );
+    return <div className="staff-workspace"><p>Đang tải đơn cho staff...</p></div>;
   }
 
-  if (error && orders.length === 0) {
-    return <AdminStatePanel title="Không tải được đơn" description={error} />;
+  if (error) {
+    return <div className="staff-workspace"><p>{error}</p></div>;
   }
 
   return (
@@ -104,27 +112,21 @@ export function StaffOrderBoard() {
       <section className="admin-toolbar">
         <div>
           <span className="panel-kicker">Staff station</span>
-          <h3>Luồng phục vụ theo backend</h3>
+          <h3>Luồng phục vụ theo dữ liệu backend</h3>
           <p>
-            Board này đọc đơn từ API thật, chuyển món Ready sang Served và xác nhận thanh toán
-            COD/VietQR bằng endpoint vận hành.
+            Nhận món Ready từ bếp, đánh dấu đã phục vụ, xác nhận thanh toán và hoàn tất đơn.
           </p>
         </div>
         <div className="admin-toolbar-metrics">
-          <span>{summary.ready} đơn cần mang ra</span>
-          <span>{summary.payment} đơn chờ thanh toán</span>
+          <span>{summary.ready} món cần mang ra</span>
+          <span>{summary.payment} đơn chờ thu tiền</span>
           <span>{summary.completed} hoàn tất</span>
         </div>
-        <button className="button" onClick={refreshOrders} type="button">
-          Tải lại
-        </button>
       </section>
-
-      {error ? <p className="realtime-error">{error}</p> : null}
 
       <section className="staff-board" aria-label="Staff order board">
         {lanes.map((lane) => {
-          const laneOrders = orders.filter((order) => getLane(order) === lane.status);
+          const laneTickets = tickets.filter((ticket) => ticket.status === lane.status);
 
           return (
             <article className="staff-lane" key={lane.status}>
@@ -133,51 +135,42 @@ export function StaffOrderBoard() {
                   <h3>{lane.title}</h3>
                   <p>{lane.hint}</p>
                 </div>
-                <span>{laneOrders.length}</span>
+                <span>{laneTickets.length}</span>
               </div>
 
-              {laneOrders.length === 0 ? (
+              {laneTickets.length === 0 ? (
                 <p className="realtime-empty">Chưa có đơn trong cột này.</p>
               ) : (
-                laneOrders.map((order) => (
-                  <div className="staff-ticket" key={order.orderId}>
+                laneTickets.map((ticket) => (
+                  <div className="staff-ticket" key={ticket.id}>
                     <div className="staff-ticket-meta">
-                      <span>{order.orderCode}</span>
-                      <strong>{order.tableCode ? `Bàn ${order.tableCode}` : "Pickup"}</strong>
-                      <small>{formatPayment(order)}</small>
+                      <span>{ticket.orderCode}</span>
+                      <strong>{ticket.tableLabel}</strong>
+                      <small>{ticket.payment === "Paid" ? "Đã thanh toán" : ticket.payment}</small>
                     </div>
                     <ul>
-                      {order.items.map((item) => (
-                        <li key={item.orderItemId}>
+                      {ticket.items.map((item) => (
+                        <li key={ticket.id + item.name}>
                           <span>{item.name}</span>
-                          <b>
-                            x{item.quantity} - {item.status}
-                          </b>
+                          <b>x{item.quantity}</b>
                         </li>
                       ))}
                     </ul>
-                    <p>Cập nhật: {formatTime(order.updatedAt)}</p>
+                    <p>{ticket.customerNote}</p>
                     <div className="staff-action-row">
-                      {getLane(order) === "Ready" ? (
-                        <button
-                          className="button primary"
-                          disabled={busyOrderCode === order.orderCode}
-                          onClick={() => markServed(order)}
-                          type="button"
-                        >
+                      {ticket.status === "Ready" ? (
+                        <button className="button primary" type="button" onClick={() => serveTicket(ticket)}>
                           Đã phục vụ
                         </button>
                       ) : null}
-                      {getLane(order) === "PaymentPending" ? (
-                        <button
-                          className="button primary"
-                          disabled={busyOrderCode === order.orderCode}
-                          onClick={() => confirmPayment(order)}
-                          type="button"
-                        >
-                          Xác nhận thanh toán
+                      {ticket.status === "Served" || ticket.status === "PaymentPending" ? (
+                        <button className="button primary" type="button" onClick={() => completeTicket(ticket)}>
+                          Hoàn tất đơn
                         </button>
                       ) : null}
+                      <button className="button" type="button" onClick={reloadTickets}>
+                        Tải lại
+                      </button>
                     </div>
                   </div>
                 ))
@@ -188,41 +181,4 @@ export function StaffOrderBoard() {
       </section>
     </div>
   );
-}
-
-function getLane(order: OrderTrackingOrder): StaffLane {
-  if (order.status === "Completed" || order.status === "Delivered") {
-    return "Completed";
-  }
-
-  if (order.status === "Served") {
-    return order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed"
-      ? "Completed"
-      : "PaymentPending";
-  }
-
-  if (order.items.some((item) => item.status === "Ready")) {
-    return "Ready";
-  }
-
-  return "PaymentPending";
-}
-
-function replaceOrder(orders: OrderTrackingOrder[], updatedOrder: OrderTrackingOrder) {
-  return orders.map((order) => (order.orderId === updatedOrder.orderId ? updatedOrder : order));
-}
-
-function formatPayment(order: OrderTrackingOrder) {
-  if (order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed") {
-    return "Đã thanh toán";
-  }
-
-  return `${order.paymentMethod ?? "COD"} - chờ xác nhận`;
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

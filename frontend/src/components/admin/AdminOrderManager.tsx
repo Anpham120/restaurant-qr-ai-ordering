@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminOrders } from "../../services/adminOrderService";
-import type { AdminOrder } from "../../types";
+import { getAdminOrders, failOrderPayment } from "../../services/adminOrderService";
+import { confirmOrderPayment, updateOrderStatus } from "../../services/orderService";
+import type { AdminOrder, OrderStatus } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
@@ -26,6 +27,15 @@ const statusLabels: Record<OrderFilterStatus, string> = {
 
 const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
+const nextStatuses: Partial<Record<OrderStatus, OrderStatus>> = {
+  Placed: "Confirmed",
+  Confirmed: "Preparing",
+  Preparing: "Ready",
+  Ready: "Served",
+  Served: "Completed",
+  Delivered: "Completed",
+};
+
 export function AdminOrderManager() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<OrderFilterStatus>("All");
@@ -39,7 +49,7 @@ export function AdminOrderManager() {
         setOrders(nextOrders);
         setSelectedOrderId(nextOrders[0]?.id ?? null);
       })
-      .catch(() => setError("Không tải được danh sách đơn mẫu."))
+      .catch(() => setError("Không tải được danh sách đơn."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -63,11 +73,76 @@ export function AdminOrderManager() {
     [orders],
   );
 
+  async function reloadOrders(selectedCode?: string) {
+    const nextOrders = await getAdminOrders();
+    setOrders(nextOrders);
+    setSelectedOrderId(
+      nextOrders.find((order) => order.code === selectedCode)?.id ?? nextOrders[0]?.id ?? null,
+    );
+  }
+
+  async function advanceSelectedOrder() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    const nextStatus = nextStatuses[selectedOrder.status];
+    if (!nextStatus) {
+      return;
+    }
+
+    try {
+      await updateOrderStatus(selectedOrder.code, nextStatus);
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể cập nhật trạng thái đơn.");
+    }
+  }
+
+  async function confirmSelectedPayment() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await confirmOrderPayment(selectedOrder.code, "Confirmed from admin order manager");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể xác nhận thanh toán.");
+    }
+  }
+
+  async function failSelectedPayment() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await failOrderPayment(selectedOrder.code, "Rejected from admin order manager");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể từ chối thanh toán.");
+    }
+  }
+
+  async function cancelSelectedOrder() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await updateOrderStatus(selectedOrder.code, "Cancelled");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể hủy đơn. Có thể đơn đã bắt đầu chế biến.");
+    }
+  }
+
   if (isLoading) {
     return (
       <AdminStatePanel
         title="Đang tải đơn hàng"
-        description="Chuẩn bị dữ liệu đơn mẫu cho màn điều phối."
+        description="Đang tải danh sách đơn cho màn điều phối."
       />
     );
   }
@@ -83,8 +158,8 @@ export function AdminOrderManager() {
           <span className="panel-kicker">Order control</span>
           <h3>{orders.length} đơn đang theo dõi</h3>
           <p>
-            Danh sách và chi tiết đơn giữ đúng status contract, có placeholder rõ cho
-            xác nhận, phục vụ và thanh toán.
+            Theo dõi danh sách đơn, chi tiết món, trạng thái xử lý và thanh toán
+            trong ca vận hành.
           </p>
         </div>
         <div className="admin-toolbar-metrics">
@@ -198,20 +273,52 @@ export function AdminOrderManager() {
               </div>
 
               <div className="admin-action-row">
-                <button className="button primary" type="button">
+                <button
+                  className="button primary"
+                  type="button"
+                  onClick={advanceSelectedOrder}
+                  disabled={!nextStatuses[selectedOrder.status]}
+                >
                   Xác nhận xử lý
                 </button>
-                <button className="button" type="button">
-                  Gửi staff
+                <button
+                  className="button"
+                  type="button"
+                  onClick={confirmSelectedPayment}
+                  disabled={
+                    selectedOrder.paymentStatus === "Paid" ||
+                    selectedOrder.paymentStatus === "Confirmed"
+                  }
+                >
+                  Xác nhận thanh toán
                 </button>
-                <button className="button" type="button">
-                  Xem phiếu bếp
+                <button
+                  className="button"
+                  type="button"
+                  onClick={failSelectedPayment}
+                  disabled={
+                    selectedOrder.paymentStatus === "Paid" ||
+                    selectedOrder.paymentStatus === "Confirmed" ||
+                    selectedOrder.paymentStatus === "Failed"
+                  }
+                >
+                  Từ chối thanh toán
+                </button>
+                <button
+                  className="button danger"
+                  type="button"
+                  onClick={cancelSelectedOrder}
+                  disabled={
+                    selectedOrder.status === "Completed" ||
+                    selectedOrder.status === "Cancelled"
+                  }
+                >
+                  Hủy đơn
+                </button>
+                <button className="button" type="button" onClick={() => reloadOrders(selectedOrder.code)}>
+                  Tải lại đơn
                 </button>
               </div>
-              <p className="admin-helper-note">
-                Các nút đang là placeholder giao diện. Khi backend sẵn sàng, chúng sẽ gọi
-                API cập nhật OrderStatus theo contract.
-              </p>
             </>
           ) : (
             <AdminStatePanel title="Chưa chọn đơn" description="Chọn một đơn để xem chi tiết." />
@@ -231,5 +338,5 @@ function formatOrderType(type: AdminOrder["type"]) {
     return "Mang về";
   }
 
-  return "Giao hàng demo";
+  return "Giao hàng";
 }

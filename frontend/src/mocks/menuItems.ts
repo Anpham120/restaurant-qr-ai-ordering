@@ -1,15 +1,15 @@
-import banhXeoUrl from "./images/banh-xeo-mien-tay.jpg";
-import boLucLacUrl from "./images/bo-luc-lac.jpg";
-import caPheSuaDaUrl from "./images/ca-phe-sua-da.jpg";
-import chaCaLaVongUrl from "./images/cha-ca-la-vong.jpg";
-import cheKhucBachUrl from "./images/che-khuc-bach.jpg";
-import goiCuonUrl from "./images/goi-cuon-tom-thit.jpg";
-import goiXoaiUrl from "./images/goi-xoai-tom-su.jpg";
-import lauThaiUrl from "./images/lau-thai-hai-san.jpg";
-import nemRanUrl from "./images/nem-ran-ha-noi.jpg";
-import phoBoUrl from "./images/pho-bo-dac-biet.jpg";
-import tomRangMuoiUrl from "./images/tom-rang-muoi.jpg";
-import traDaoUrl from "./images/tra-dao-cam-sa.jpg";
+import banhXeoUrl from "./images-hd/banh-xeo-mien-tay.webp";
+import boLucLacUrl from "./images-hd/bo-luc-lac.webp";
+import caPheSuaDaUrl from "./images-hd/ca-phe-sua-da.webp";
+import chaCaLaVongUrl from "./images-hd/cha-ca-la-vong.webp";
+import cheKhucBachUrl from "./images-hd/che-khuc-bach.webp";
+import goiCuonUrl from "./images-hd/goi-cuon-tom-thit.webp";
+import goiXoaiUrl from "./images-hd/goi-xoai-tom-su.webp";
+import lauThaiUrl from "./images-hd/lau-thai-hai-san.webp";
+import nemRanUrl from "./images-hd/nem-ran-ha-noi.webp";
+import phoBoUrl from "./images-hd/pho-bo-dac-biet.webp";
+import tomRangMuoiUrl from "./images-hd/tom-rang-muoi.webp";
+import traDaoUrl from "./images-hd/tra-dao-cam-sa.webp";
 import type { MenuItem } from "../types";
 
 export const menuItems: MenuItem[] = [

@@ -1,12 +1,11 @@
-import type { AdminOrder, OrderStatus } from "../../types";
+import type { AdminOrder, OrderStatus, PaymentStatus } from "../../types";
 
 type AdminBadgeStatus =
   | AdminOrder["status"]
   | OrderStatus
+  | PaymentStatus
   | "Available"
   | "Unavailable"
-  | "Paid"
-  | "Pending"
   | "Serving"
   | "Cleaning";
 

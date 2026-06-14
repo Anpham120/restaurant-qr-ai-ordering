@@ -11,7 +11,7 @@ export function AdminDashboardPage() {
       stats={[
         { label: "Đơn đang xử lý", value: "4", detail: "Cần theo dõi trong ca" },
         { label: "Bàn có khách", value: "7 / 12", detail: "Trạng thái bàn hiện tại" },
-        { label: "Giá trị TB", value: "385.000đ", detail: "Dữ liệu mẫu vận hành" },
+        { label: "Giá trị TB", value: "385.000đ", detail: "Theo dõi doanh thu trong ca" },
       ]}
     >
       <AdminDashboardOverview />

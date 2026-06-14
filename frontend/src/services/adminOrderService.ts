@@ -1,28 +1,45 @@
-import type { AdminOrder } from "../types";
-import { getKitchenOrders } from "./orderService";
+import { createApiClient } from "@cmc/api-client";
+import type { AdminOrder, OrderTrackingOrder, PaymentResponse } from "../types";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 export async function getAdminOrders(): Promise<AdminOrder[]> {
-  const orders = await getKitchenOrders();
+  const response = await api.orders.list();
+  return response.orders.map(toAdminOrder);
+}
 
-  return orders.map((order) => ({
+export async function failOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
+  return api.payments.fail(orderCode, { note }) as Promise<PaymentResponse>;
+}
+
+export async function getOrderPaymentDetail(orderCode: string): Promise<PaymentResponse> {
+  return api.payments.get(orderCode) as Promise<PaymentResponse>;
+}
+
+function toAdminOrder(order: OrderTrackingOrder): AdminOrder {
+  return {
     id: order.orderId,
     code: order.orderCode,
     type: order.orderType,
     tableCode: order.tableCode ?? undefined,
-    customerName: order.tableCode ? `Bàn ${order.tableCode}` : "Khách pickup",
+    customerName:
+      order.deliveryInfo?.recipientName ??
+      (order.tableCode ? `Bàn ${order.tableCode}` : "Khách mang về"),
     status: order.status,
     total: order.totalAmount,
     placedAt: new Intl.DateTimeFormat("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(order.createdAt)),
-    paymentStatus:
-      order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed" ? "Paid" : "Pending",
+    paymentStatus: order.paymentStatus,
     items: order.items.map((item) => ({
       id: item.orderItemId,
       name: item.name,
       quantity: item.quantity,
       status: item.status,
     })),
-  }));
+  };
 }

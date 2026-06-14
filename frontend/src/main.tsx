@@ -1,11 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { AuthProvider, ProtectedRoute } from "@cmc/auth";
 import App from "./App";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminMenuPage } from "./pages/AdminMenuPage";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage";
 import { AdminTablesPage } from "./pages/AdminTablesPage";
+import { AdminCategoriesPage } from "./pages/admin/AdminCategoriesPage";
+import { AdminUserManagementPage } from "./pages/admin/AdminUserManagementPage";
 import { CartPage } from "./pages/CartPage";
 import { ChatPage } from "./pages/ChatPage";
 import { CustomerHomePage } from "./pages/CustomerHomePage";
@@ -15,8 +18,12 @@ import { MenuPage } from "./pages/MenuPage";
 import { OrderStatusPage } from "./pages/OrderStatusPage";
 import { StaffOrdersPage } from "./pages/StaffOrdersPage";
 import { TableEntryPage } from "./pages/TableEntryPage";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { UnauthorizedPage } from "./pages/UnauthorizedPage";
 import "./styles.css";
+
+const adminOnly = ["Admin"] as const;
+const staffOrAdmin = ["Staff", "Admin"] as const;
+const kitchenOrAdmin = ["Kitchen", "Admin"] as const;
 
 const router = createBrowserRouter([
   {
@@ -30,10 +37,11 @@ const router = createBrowserRouter([
       { path: "orders/:orderCode", element: <OrderStatusPage /> },
       { path: "chat", element: <ChatPage /> },
       { path: "login", element: <LoginPage /> },
+      { path: "unauthorized", element: <UnauthorizedPage /> },
       {
         path: "admin",
         element: (
-          <ProtectedRoute roles={["Admin"]}>
+          <ProtectedRoute allowedRoles={[...adminOnly]}>
             <AdminDashboardPage />
           </ProtectedRoute>
         ),
@@ -41,7 +49,7 @@ const router = createBrowserRouter([
       {
         path: "admin/menu",
         element: (
-          <ProtectedRoute roles={["Admin"]}>
+          <ProtectedRoute allowedRoles={[...adminOnly]}>
             <AdminMenuPage />
           </ProtectedRoute>
         ),
@@ -49,7 +57,7 @@ const router = createBrowserRouter([
       {
         path: "admin/orders",
         element: (
-          <ProtectedRoute roles={["Admin", "Staff"]}>
+          <ProtectedRoute allowedRoles={[...staffOrAdmin]}>
             <AdminOrdersPage />
           </ProtectedRoute>
         ),
@@ -57,15 +65,31 @@ const router = createBrowserRouter([
       {
         path: "admin/tables",
         element: (
-          <ProtectedRoute roles={["Admin"]}>
+          <ProtectedRoute allowedRoles={[...adminOnly]}>
             <AdminTablesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/categories",
+        element: (
+          <ProtectedRoute allowedRoles={[...adminOnly]}>
+            <AdminCategoriesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/users",
+        element: (
+          <ProtectedRoute allowedRoles={[...adminOnly]}>
+            <AdminUserManagementPage />
           </ProtectedRoute>
         ),
       },
       {
         path: "staff/orders",
         element: (
-          <ProtectedRoute roles={["Staff", "Admin"]}>
+          <ProtectedRoute allowedRoles={[...staffOrAdmin]}>
             <StaffOrdersPage />
           </ProtectedRoute>
         ),
@@ -73,7 +97,7 @@ const router = createBrowserRouter([
       {
         path: "kitchen",
         element: (
-          <ProtectedRoute roles={["Kitchen", "Admin"]}>
+          <ProtectedRoute allowedRoles={[...kitchenOrAdmin]}>
             <KitchenPage />
           </ProtectedRoute>
         ),
@@ -84,7 +108,9 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>,
 );
 

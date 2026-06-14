@@ -69,13 +69,12 @@ public static class AuthEndpoints
         .RequireAuthorization()
         .WithName("GetCurrentUser");
 
-        group.MapGet("/admin-check", () => Results.Ok(new
+        group.MapGet("/admin-check", (ClaimsPrincipal principal) =>
         {
-            status = "Authorized",
-            requiredRole = UserRole.Admin
-        }))
+            return Results.Ok(ToAuthUserResponse(principal));
+        })
         .RequireAuthorization("AdminOnly")
-        .WithName("AdminAuthorizationCheck");
+        .WithName("AdminCheck");
 
         return app;
     }

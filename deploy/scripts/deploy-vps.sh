@@ -47,9 +47,10 @@ tar -C "$root_dir" \
   --exclude='.playwright-cli' \
   --exclude='tmp' \
   --exclude='**/node_modules' \
+  --exclude='**/dist' \
   --exclude='**/bin' \
   --exclude='**/obj' \
-  --exclude='frontend/dist' \
+  --exclude='*.log' \
   -czf "$tarball" .
 
 remote_root="/opt/cmc-restaurant/${DEPLOY_ENV}"
@@ -83,6 +84,7 @@ DB_MAX_POOL_SIZE=$(env_quote "${DB_MAX_POOL_SIZE:-50}")
 FRONTEND_SERVER_NAMES=$(env_quote "$FRONTEND_SERVER_NAMES")
 API_SERVER_NAME=$(env_quote "$API_SERVER_NAME")
 PUBLIC_API_BASE_URL=$(env_quote "$PUBLIC_API_BASE_URL")
+PUBLIC_ORDER_HUB_URL=$(env_quote "${PUBLIC_ORDER_HUB_URL:-${PUBLIC_API_BASE_URL%/api}/hubs/orders}")
 ASPNETCORE_ENVIRONMENT=$(env_quote "${ASPNETCORE_ENVIRONMENT:-Production}")
 JWT_SIGNING_KEY=$(env_quote "$JWT_SIGNING_KEY")
 RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-true}")
@@ -97,6 +99,7 @@ AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
 RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")
 VITE_USE_MOCK_CHAT=$(env_quote "${VITE_USE_MOCK_CHAT:-false}")
+VITE_USE_MOCK_ORDER=$(env_quote "${VITE_USE_MOCK_ORDER:-false}")
 ENABLE_CERTBOT=$(env_quote "${ENABLE_CERTBOT:-true}")
 CERTBOT_EMAIL=$(env_quote "${CERTBOT_EMAIL:-}")
 EOF

@@ -9,8 +9,9 @@ import {
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
 import { chatApi } from "../../services/chatService";
-import { getCustomerMenu } from "../../services/menuService";
-import type { ChatMessage, MenuItem, SuggestedCartAction } from "../../types";
+import { fetchCustomerMenu } from "../../services/menuService";
+import type { CustomerMenuResponse } from "../../services/menuService";
+import type { ChatMessage, SuggestedCartAction } from "../../types";
 import { PageShell } from "../PageShell";
 
 type ActionStatus = "pending" | "confirmed" | "dismissed";
@@ -19,7 +20,7 @@ const quickPrompts = [
   "Gợi ý món nhẹ cho 2 người",
   "Có món nào hợp ăn trưa không?",
   "Tôi muốn đồ uống thanh mát",
-  "Có món hải sản nào không?",
+  "Có pizza hải sản không?",
 ];
 
 const initialMessages: ChatMessage[] = [
@@ -63,7 +64,7 @@ export function ChatbotPage() {
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
   const [cartTotal, setCartTotal] = useState(getCartTotal);
   const [cartNotice, setCartNotice] = useState("");
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
   const tableCode = useMemo(() => {
     if (typeof window === "undefined") {
@@ -71,26 +72,6 @@ export function ChatbotPage() {
     }
 
     return loadOrderContext().tableCode;
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    getCustomerMenu()
-      .then((menu) => {
-        if (isMounted) {
-          setMenuItems(menu.items);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setMenuItems([]);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -105,7 +86,7 @@ export function ChatbotPage() {
       })
       .catch(() => {
         if (isMounted) {
-          setErrorMessage("Chưa kết nối được trợ lý AI. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp.");
+          setErrorMessage("Không tạo được phiên chat. Vui lòng thử lại sau.");
         }
       });
 
@@ -114,12 +95,21 @@ export function ChatbotPage() {
     };
   }, []);
 
+  useEffect(() => {
+    fetchCustomerMenu().then(setMenuData).catch(() => {});
+  }, []);
+
   async function sendMessage(event?: FormEvent<HTMLFormElement>, overrideContent?: string) {
     event?.preventDefault();
 
     const content = (overrideContent ?? composerValue).trim();
 
-    if (!content || isAssistantThinking || !chatSessionId) {
+    if (!content || isAssistantThinking) {
+      return;
+    }
+
+    if (!chatSessionId) {
+      setErrorMessage("Phiên chat chưa sẵn sàng. Vui lòng thử lại sau.");
       return;
     }
 
@@ -146,25 +136,15 @@ export function ChatbotPage() {
         }, {}),
       );
     } catch {
-      setMessages((current) => [
-        ...current,
-        {
-          id: `fallback_${Date.now().toString(36)}`,
-          role: "assistant",
-          content:
-            "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
-          createdAt: new Date().toISOString(),
-        },
-      ]);
       setSuggestedActions([]);
-      setErrorMessage("AI không tự tạo đơn và không tự thêm món khi gặp lỗi kết nối.");
+      setErrorMessage("Trợ lý AI chưa phản hồi được. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp.");
     } finally {
       setIsAssistantThinking(false);
     }
   }
 
   function confirmSuggestedAction(action: SuggestedCartAction) {
-    const menuItem = menuItems.find((item) => item.id === action.menuItemId);
+    const menuItem = menuData.items.find((item) => item.id === action.menuItemId);
 
     if (!menuItem || !menuItem.isAvailable) {
       setErrorMessage("Món này không còn khả dụng nên không thể thêm vào giỏ.");
@@ -203,8 +183,8 @@ export function ChatbotPage() {
       stats={[
         {
           label: "Phiên chat",
-          value: chatSessionId ? "Sẵn sàng" : "Đang kết nối",
-          detail: "Frontend gọi lớp chat API qua backend",
+          value: chatSessionId ? "Sẵn sàng" : "Đang tạo",
+          detail: "Frontend chỉ gọi lớp chat API an toàn qua backend",
         },
         {
           label: "Giỏ hiện tại",
@@ -226,7 +206,7 @@ export function ChatbotPage() {
               <h3>Hỏi món, nhận gợi ý, xác nhận thủ công</h3>
             </div>
             <span className="cmc-chat-muted">
-              {tableCode ? `Bàn ${tableCode}` : "Khách online / mang về"}
+              {tableCode ? `Bàn ${tableCode}` : "Khách online / pickup"}
             </span>
           </div>
 
@@ -251,11 +231,7 @@ export function ChatbotPage() {
               onChange={(event) => setComposerValue(event.target.value)}
             />
             <div className="cmc-chat-composer-actions">
-              <button
-                className="cmc-chat-button primary"
-                disabled={isAssistantThinking || !chatSessionId}
-                type="submit"
-              >
+              <button className="cmc-chat-button primary" disabled={isAssistantThinking} type="submit">
                 Gửi tin nhắn
               </button>
               <span className="cmc-chat-muted">AI chỉ đề xuất, không tự sửa giỏ hàng.</span>
@@ -268,12 +244,7 @@ export function ChatbotPage() {
             <p className="cmc-chat-muted">Gợi ý nhanh</p>
             <div className="cmc-chat-quick-prompts">
               {quickPrompts.map((prompt) => (
-                <button
-                  disabled={!chatSessionId || isAssistantThinking}
-                  key={prompt}
-                  type="button"
-                  onClick={() => sendMessage(undefined, prompt)}
-                >
+                <button key={prompt} type="button" onClick={() => sendMessage(undefined, prompt)}>
                   {prompt}
                 </button>
               ))}
@@ -301,7 +272,7 @@ export function ChatbotPage() {
               ))
             ) : (
               <p className="cmc-chat-muted">
-                Chưa có gợi ý nào. Hãy gửi câu hỏi để chatbot đề xuất món phù hợp.
+                Chưa có gợi ý nào. Hãy gửi câu hỏi để nhận đề xuất món phù hợp.
               </p>
             )}
           </div>

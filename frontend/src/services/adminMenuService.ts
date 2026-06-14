@@ -1,142 +1,79 @@
-import { getApiBaseUrl } from "./apiClient";
-import { getAuthHeaders } from "./authService";
+import { menuItems } from "../mocks/menuItems";
+import { createApiClient } from "@cmc/api-client";
 import type { AdminMenuCategory, AdminMenuItem, AdminMenuOverview } from "../types";
 
-export type AdminMenuItemInput = {
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
+
+export type AdminMenuItemPayload = {
   categoryId: string;
   name: string;
   description: string;
   price: number;
-  imageUrl: string;
+  imageUrl?: string | null;
   isAvailable: boolean;
   tags: string[];
 };
 
-type ApiAdminCategory = {
-  categoryId: string;
-  name: string;
-  displayOrder: number;
-  isActive: boolean;
-};
-
-type ApiAdminMenuItem = AdminMenuItem & {
-  imageUrl?: string | null;
-};
-
-type ApiErrorPayload = {
-  error?: {
-    code?: string;
-    message?: string;
-  };
-};
-
-const fallbackImage =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80";
-
-function apiUrl(path: string) {
-  return `${getApiBaseUrl()}${path}`;
-}
-
-async function parseJson<T>(response: Response): Promise<T> {
-  const payload = (await response.json().catch(() => ({}))) as T & ApiErrorPayload;
-  if (!response.ok) {
-    throw new Error(payload.error?.message ?? "Không thể xử lý yêu cầu thực đơn.");
-  }
-
-  return payload;
-}
-
-function mapMenuItem(item: ApiAdminMenuItem): AdminMenuItem {
+function enrichMenuItem(item: AdminMenuItem, index: number): AdminMenuItem {
   return {
     ...item,
-    imageUrl: item.imageUrl?.trim() || fallbackImage,
+    imageUrl: item.imageUrl || menuItems[index % menuItems.length]?.imageUrl || "",
     tags: item.tags ?? [],
   };
 }
 
-function buildPayload(input: AdminMenuItemInput) {
+export async function getAdminMenuOverview(): Promise<AdminMenuOverview> {
+  const backendItems = await api.request<AdminMenuItem[]>("/admin/menu-items?includeInactiveCategories=true");
+  const categoriesById = new Map<string, AdminMenuCategory>();
+
+  backendItems.forEach((item) => {
+    const existing = categoriesById.get(item.categoryId);
+    categoriesById.set(item.categoryId, {
+      id: item.categoryId,
+      name: item.categoryName,
+      isActive: existing?.isActive ?? true,
+      itemCount: (existing?.itemCount ?? 0) + 1,
+    });
+  });
+
   return {
-    categoryId: input.categoryId,
-    name: input.name.trim(),
-    description: input.description.trim(),
-    price: input.price,
-    imageUrl: input.imageUrl.trim() || null,
-    isAvailable: input.isAvailable,
-    tags: input.tags,
+    categories: Array.from(categoriesById.values()),
+    items: backendItems.map(enrichMenuItem),
   };
 }
 
-export async function getAdminMenuOverview(): Promise<AdminMenuOverview> {
-  const [categoriesResponse, itemsResponse] = await Promise.all([
-    fetch(apiUrl("/admin/categories"), {
-      headers: getAuthHeaders(),
-    }),
-    fetch(apiUrl("/admin/menu-items?includeInactiveCategories=true"), {
-      headers: getAuthHeaders(),
-    }),
-  ]);
-
-  const [categoriesPayload, itemsPayload] = await Promise.all([
-    parseJson<ApiAdminCategory[]>(categoriesResponse),
-    parseJson<ApiAdminMenuItem[]>(itemsResponse),
-  ]);
-
-  const items = itemsPayload.map(mapMenuItem);
-  const categories = categoriesPayload.map<AdminMenuCategory>((category) => ({
-    id: category.categoryId,
-    name: category.name,
-    displayOrder: category.displayOrder,
-    isActive: category.isActive,
-    itemCount: items.filter((item) => item.categoryId === category.categoryId).length,
-  }));
-
-  return { categories, items };
+export async function setAdminMenuItemAvailability(
+  itemId: string,
+  isAvailable: boolean,
+): Promise<AdminMenuItem> {
+  return api.request<AdminMenuItem>(`/admin/menu-items/${encodeURIComponent(itemId)}/availability`, {
+    method: "PATCH",
+    body: JSON.stringify({ isAvailable }),
+  });
 }
 
-export async function createAdminMenuItem(input: AdminMenuItemInput): Promise<AdminMenuItem> {
-  const response = await fetch(apiUrl("/admin/menu-items"), {
+export async function createAdminMenuItem(payload: AdminMenuItemPayload): Promise<AdminMenuItem> {
+  return api.request<AdminMenuItem>("/admin/menu-items/", {
     method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildPayload(input)),
+    body: JSON.stringify(payload),
   });
-
-  return mapMenuItem(await parseJson<ApiAdminMenuItem>(response));
 }
 
 export async function updateAdminMenuItem(
-  menuItemId: string,
-  input: AdminMenuItemInput,
+  itemId: string,
+  payload: AdminMenuItemPayload,
 ): Promise<AdminMenuItem> {
-  const response = await fetch(apiUrl(`/admin/menu-items/${encodeURIComponent(menuItemId)}`), {
+  return api.request<AdminMenuItem>(`/admin/menu-items/${encodeURIComponent(itemId)}`, {
     method: "PUT",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(buildPayload(input)),
+    body: JSON.stringify(payload),
   });
-
-  return mapMenuItem(await parseJson<ApiAdminMenuItem>(response));
 }
 
-export async function updateAdminMenuItemAvailability(
-  menuItemId: string,
-  isAvailable: boolean,
-): Promise<AdminMenuItem> {
-  const response = await fetch(
-    apiUrl(`/admin/menu-items/${encodeURIComponent(menuItemId)}/availability`),
-    {
-      method: "PATCH",
-      headers: {
-        ...getAuthHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ isAvailable }),
-    },
-  );
-
-  return mapMenuItem(await parseJson<ApiAdminMenuItem>(response));
+export async function deleteAdminMenuItem(itemId: string): Promise<void> {
+  await api.request<void>(`/admin/menu-items/${encodeURIComponent(itemId)}`, {
+    method: "DELETE",
+  });
 }
