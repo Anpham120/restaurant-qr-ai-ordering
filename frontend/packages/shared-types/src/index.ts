@@ -1,0 +1,24 @@
+export type UserRole = "Customer" | "Staff" | "Kitchen" | "Admin";
+export type OrderType = "DineIn" | "Pickup" | "DeliveryMock";
+export type OrderStatus = "Draft" | "Placed" | "Confirmed" | "Preparing" | "Ready" | "Served" | "Delivering" | "Delivered" | "Completed" | "Cancelled";
+export type OrderItemStatus = "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
+export type PaymentMethod = "COD" | "MockOnline";
+export type PaymentStatus = "Unpaid" | "Paid" | "Failed" | "Cancelled";
+export type ChatRole = "user" | "assistant" | "system";
+
+export type AuthUser = { userId: string; fullName: string; email: string; role: UserRole };
+export type LoginRequest = { email: string; password: string };
+export type LoginResponse = { accessToken: string; expiresAt: string; user: AuthUser };
+export type ApiErrorBody = { error: { code: string; message: string; details: Record<string, unknown> } };
+export type Table = { tableCode: string; displayName: string; isActive: boolean };
+export type MenuCategory = { categoryId: string; name: string };
+export type MenuItem = { id: string; name: string; description: string; price: number; categoryId: string; categoryName: string; imageUrl: string | null; isAvailable: boolean; tags: string[] };
+export type MenuResponse = { categories: MenuCategory[]; items: MenuItem[] };
+export type DeliveryInfo = { recipientName: string; phoneNumber: string; address: string; note?: string };
+export type CreateOrderRequest = { orderType: OrderType; tableCode: string | null; paymentMethod: PaymentMethod; deliveryInfo: DeliveryInfo | null; items: Array<{ menuItemId: string; quantity: number }> };
+export type OrderItem = { orderItemId: string; menuItemId: string; name: string; unitPrice?: number; quantity: number; status: OrderItemStatus; lineTotal?: number; updatedAt?: string };
+export type Order = { orderId: string; orderCode: string; orderType: OrderType; tableCode: string | null; status: OrderStatus; paymentStatus: PaymentStatus; subtotalAmount?: number; totalAmount?: number; createdAt: string; updatedAt?: string; items: OrderItem[] };
+export type OrderCreatedEvent = { orderId: string; orderCode: string; orderType: OrderType; tableCode: string | null; status: OrderStatus; createdAt: string };
+export type OrderStatusChangedEvent = { orderId: string; orderCode: string; status: OrderStatus; updatedAt: string };
+export type OrderItemStatusChangedEvent = { orderId: string; orderCode: string; orderItemId: string; menuItemName: string; status: OrderItemStatus; updatedAt: string };
+export type RealtimeConnectionStatus = "connecting" | "connected" | "reconnecting" | "disconnected" | "error";

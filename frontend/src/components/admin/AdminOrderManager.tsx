@@ -39,7 +39,7 @@ export function AdminOrderManager() {
         setOrders(nextOrders);
         setSelectedOrderId(nextOrders[0]?.id ?? null);
       })
-      .catch(() => setError("Không tải được danh sách đơn mẫu."))
+      .catch(() => setError("Không tải được danh sách đơn."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -67,7 +67,7 @@ export function AdminOrderManager() {
     return (
       <AdminStatePanel
         title="Đang tải đơn hàng"
-        description="Chuẩn bị dữ liệu đơn mẫu cho màn điều phối."
+        description="Đang tải danh sách đơn cho màn điều phối."
       />
     );
   }
@@ -83,8 +83,8 @@ export function AdminOrderManager() {
           <span className="panel-kicker">Order control</span>
           <h3>{orders.length} đơn đang theo dõi</h3>
           <p>
-            Danh sách và chi tiết đơn giữ đúng status contract, có placeholder rõ cho
-            xác nhận, phục vụ và thanh toán.
+            Theo dõi danh sách đơn, chi tiết món, trạng thái xử lý và thanh toán
+            trong ca vận hành.
           </p>
         </div>
         <div className="admin-toolbar-metrics">
@@ -208,10 +208,6 @@ export function AdminOrderManager() {
                   Xem phiếu bếp
                 </button>
               </div>
-              <p className="admin-helper-note">
-                Các nút đang là placeholder giao diện. Khi backend sẵn sàng, chúng sẽ gọi
-                API cập nhật OrderStatus theo contract.
-              </p>
             </>
           ) : (
             <AdminStatePanel title="Chưa chọn đơn" description="Chọn một đơn để xem chi tiết." />
@@ -231,5 +227,5 @@ function formatOrderType(type: AdminOrder["type"]) {
     return "Mang về";
   }
 
-  return "Giao hàng demo";
+  return "Giao hàng";
 }

@@ -2,7 +2,7 @@ import type { OrderStatus, TableCode } from "./api";
 
 export type CustomerOrderType = "DineIn" | "Pickup" | "DeliveryMock";
 
-export type PaymentMethod = "COD" | "VietQR";
+export type PaymentMethod = "COD";
 
 export type OrderItemStatus =
   | "Pending"
@@ -37,7 +37,7 @@ export type CreateOrderResponse = {
   orderType: CustomerOrderType;
   tableCode: TableCode | null;
   status: OrderStatus;
-  paymentStatus: "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled";
+  paymentStatus: "Unpaid" | "Paid";
   items: Array<{
     orderItemId: string;
     menuItemId: string;
@@ -62,10 +62,7 @@ export type OrderTrackingOrder = {
   orderType: CustomerOrderType;
   tableCode: TableCode | null;
   status: OrderStatus;
-  paymentStatus: "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled";
-  paymentMethod?: PaymentMethod;
-  subtotalAmount?: number;
-  totalAmount: number;
+  paymentStatus: "Unpaid" | "Paid" | "Failed" | "Cancelled";
   createdAt: string;
   updatedAt: string;
   items: OrderTrackingItem[];

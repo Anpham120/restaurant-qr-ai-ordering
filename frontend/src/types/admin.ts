@@ -4,7 +4,6 @@ import type { MenuItem } from "./menu";
 export type AdminMenuCategory = {
   id: string;
   name: string;
-  displayOrder: number;
   isActive: boolean;
   itemCount: number;
 };
@@ -25,7 +24,7 @@ export type AdminOrderItem = {
   name: string;
   quantity: number;
   note?: string;
-  status: OrderStatus | "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
+  status: OrderStatus;
 };
 
 export type AdminOrder = {

@@ -1,7 +1,7 @@
 const serviceHighlights = [
   {
     label: "Luồng QR",
-    value: "/table/T-05",
+    value: "/table/T05",
     detail: "Khách quét QR, vào menu và tạo đơn tại bàn.",
   },
   {
@@ -10,16 +10,16 @@ const serviceHighlights = [
     detail: "Mỗi vai trò nhìn đúng trạng thái cần xử lý trong ca.",
   },
   {
-    label: "Theo dõi trạng thái",
-    value: "API orders",
-    detail: "Bảng vận hành lấy đơn qua service layer và cập nhật theo trạng thái backend.",
+    label: "Cập nhật realtime",
+    value: "Đang hoạt động",
+    detail: "Bảng bếp cập nhật trạng thái để các màn hình theo dõi đồng bộ.",
   },
 ];
 
 const activeOrders = [
-  { code: "ORD-1008", table: "T-05", status: "Preparing", total: "310.000đ" },
-  { code: "ORD-1009", table: "Pickup", status: "Ready", total: "430.000đ" },
-  { code: "ORD-1010", table: "Delivery", status: "Delivered", total: "565.000đ" },
+  { code: "ORDER-001", table: "T05", status: "Preparing", total: "310.000đ" },
+  { code: "ORDER-002", table: "Pickup", status: "Ready", total: "430.000đ" },
+  { code: "ORDER-003", table: "Delivery", status: "Delivered", total: "565.000đ" },
 ];
 
 const shiftChecklist = [
@@ -36,8 +36,8 @@ export function AdminDashboardOverview() {
         <span className="panel-kicker">Ca vận hành hôm nay</span>
         <h3>Nhà hàng đang hoạt động ổn định</h3>
         <p>
-          Màn tổng quan này gom nhanh trạng thái đơn, QR, bếp và staff để nhóm vận hành
-          theo dõi các điểm quan trọng trong ca.
+          Màn tổng quan gom nhanh trạng thái đơn, QR, bếp và staff để quản lý ca
+          vận hành phía nhà hàng.
         </p>
         <div className="ops-health-row">
           <span>Menu online</span>
@@ -52,7 +52,7 @@ export function AdminDashboardOverview() {
             <span className="panel-kicker">Đơn nổi bật</span>
             <h3>Ưu tiên trong ca</h3>
           </div>
-          <span className="admin-status admin-status-ready">API-ready</span>
+          <span className="admin-status admin-status-ready">Đang cập nhật</span>
         </div>
         <div className="table-shell ops-order-table">
           <div className="table-row table-head">
@@ -77,8 +77,8 @@ export function AdminDashboardOverview() {
       <section className="ops-panel">
         <div className="admin-panel-heading">
           <div>
-            <span className="panel-kicker">Điểm vận hành</span>
-            <h3>Luồng cần theo dõi</h3>
+            <span className="panel-kicker">Luồng vận hành</span>
+            <h3>Chức năng chính</h3>
           </div>
         </div>
         <div className="ops-feature-list">
@@ -96,7 +96,7 @@ export function AdminDashboardOverview() {
         <div className="admin-panel-heading">
           <div>
             <span className="panel-kicker">Checklist</span>
-            <h3>Trước khi kết ca</h3>
+            <h3>Trước ca phục vụ</h3>
           </div>
         </div>
         <ol className="ops-checklist">

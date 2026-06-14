@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./apiClient";
+import { menuCategories, menuItems } from "../mocks/menuItems";
 import type { MenuItem } from "../types";
 
 export type CustomerMenuCategory = {
@@ -11,44 +11,23 @@ export type CustomerMenuResponse = {
   items: MenuItem[];
 };
 
-type ApiMenuItem = Omit<MenuItem, "price" | "imageUrl" | "tags"> & {
-  price: number | string;
-  imageUrl?: string | null;
-  tags?: string[] | null;
-};
-
-type ApiMenuResponse = {
-  categories?: CustomerMenuCategory[];
-  items?: ApiMenuItem[];
-};
-
-const fallbackImage =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80";
-
-function mapMenuItem(item: ApiMenuItem): MenuItem {
-  return {
-    id: item.id,
-    name: item.name,
-    description: item.description,
-    price: Number(item.price),
-    categoryName: item.categoryName,
-    imageUrl: item.imageUrl?.trim() || fallbackImage,
-    isAvailable: item.isAvailable,
-    tags: item.tags ?? [],
-  };
+function toCategoryId(categoryName: string) {
+  return `cat_${categoryName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")}`;
 }
 
-export async function getCustomerMenu(): Promise<CustomerMenuResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/menu`);
-
-  if (!response.ok) {
-    throw new Error("Không tải được thực đơn. Vui lòng thử lại sau.");
-  }
-
-  const payload = (await response.json()) as ApiMenuResponse;
-
+export function getCustomerMenu(): CustomerMenuResponse {
   return {
-    categories: payload.categories ?? [],
-    items: (payload.items ?? []).map(mapMenuItem),
+    categories: menuCategories
+      .filter((categoryName) => categoryName !== "Tất cả")
+      .map((categoryName) => ({
+        categoryId: toCategoryId(categoryName),
+        name: categoryName,
+      })),
+    items: menuItems,
   };
 }
