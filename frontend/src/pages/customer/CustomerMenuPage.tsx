@@ -16,7 +16,7 @@ import {
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
-import { fetchCustomerMenu, getCustomerMenu } from "../../services/menuService";
+import { fetchCustomerMenu } from "../../services/menuService";
 import type { CustomerMenuResponse } from "../../services/menuService";
 import type { MenuCart, MenuItem } from "../../types";
 
@@ -25,10 +25,7 @@ type CustomerMenuPageProps = {
 };
 
 const ALL_CATEGORY = "\u0054\u1ea5\u0074 \u0063\u1ea3";
-const initialMenu: CustomerMenuResponse =
-  import.meta.env.VITE_USE_MOCK_MENU === "true"
-    ? getCustomerMenu()
-    : { categories: [], items: [] };
+const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
 function getInitialCart() {
   if (typeof window === "undefined") {

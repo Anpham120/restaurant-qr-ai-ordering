@@ -7,6 +7,7 @@ using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Payments;
 using RestaurantQrAiOrdering.Api.Realtime;
+using RestaurantQrAiOrdering.Api.Users;
 
 const string CorsPolicyName = "CmcRestaurantCors";
 
@@ -14,11 +15,20 @@ var builder = WebApplication.CreateBuilder(args);
 var defaultCorsOrigins = new[]
 {
     "https://cmcrestaurant.app",
-    "https://customer.cmcrestaurant.app",
     "https://admin.cmcrestaurant.app",
     "https://staging.cmcrestaurant.app",
     "http://localhost:5173",
-    "http://127.0.0.1:5173"
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
+    "http://localhost:5177",
+    "http://localhost:5178",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+    "http://127.0.0.1:5176",
+    "http://127.0.0.1:5177",
+    "http://127.0.0.1:5178"
 };
 
 var configuredCorsOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
@@ -75,6 +85,29 @@ if (!string.IsNullOrEmpty(connectionString)
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    // In development, re-hash seed passwords so quick-login always works
+    if (app.Environment.IsDevelopment())
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var seedPasswords = new Dictionary<string, string>
+        {
+            ["admin@restaurant.local"] = "Admin@123",
+            ["staff@restaurant.local"] = "Staff@123",
+            ["kitchen@restaurant.local"] = "Kitchen@123",
+            ["customer@restaurant.local"] = "Customer@123",
+        };
+
+        foreach (var (email, password) in seedPasswords)
+        {
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user is not null)
+            {
+                user.PasswordHash = hasher.HashPassword(password);
+            }
+        }
+        await dbContext.SaveChangesAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())

@@ -307,7 +307,7 @@ public sealed class RestaurantDataStore
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static ICollection<string> NormalizeTags(IReadOnlyCollection<string> tags)
+    private static IList<string> NormalizeTags(IReadOnlyCollection<string> tags)
     {
         return tags
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
@@ -409,7 +409,7 @@ public sealed class RestaurantDataStore
         decimal price,
         string imageUrl,
         bool isAvailable,
-        ICollection<string> tags,
+        IList<string> tags,
         DateTimeOffset now)
     {
         return new MenuItem

@@ -9,6 +9,7 @@
   --cmc-green: #00A99D;
   display: grid;
   gap: 22px;
+  overflow-x: hidden;
   color: var(--cmc-brown);
 }
 
@@ -1668,17 +1669,17 @@
 }
 
 .cmc-order-type-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  gap: 6px;
   border-radius: 999px;
   padding: 6px;
   background: var(--cmc-soft);
-  overflow-x: auto;
 }
 
 .cmc-order-type-tabs button {
+  flex: 1 1 0;
   min-height: 42px;
+  min-width: 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -2036,11 +2037,12 @@
   }
 
   .cmc-order-type-tabs {
-    grid-template-columns: repeat(3, max-content);
+    gap: 6px;
   }
 
   .cmc-order-type-tabs button {
-    padding: 0 14px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 
   .cmc-form-grid {

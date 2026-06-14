@@ -8,7 +8,7 @@ import {
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
-import { fetchCustomerMenu, getCustomerMenu } from "../../services/menuService";
+import { fetchCustomerMenu } from "../../services/menuService";
 import type { CustomerMenuResponse } from "../../services/menuService";
 import { createOrder, generateVietQrPayment } from "../../services/orderService";
 import type {
@@ -21,10 +21,7 @@ import type {
   VietQrPaymentResponse,
 } from "../../types";
 
-const initialMenu: CustomerMenuResponse =
-  import.meta.env.VITE_USE_MOCK_MENU === "true"
-    ? getCustomerMenu()
-    : { categories: [], items: [] };
+const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
 type CheckoutForm = {
   contactName: string;

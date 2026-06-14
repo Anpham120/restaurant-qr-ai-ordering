@@ -1,13 +1,22 @@
 import { createApiClient } from "@cmc/api-client";
-import type { AdminOrder, OrderTrackingOrder } from "../types";
+import type { AdminOrder, OrderTrackingOrder, PaymentResponse } from "../types";
 
 const api = createApiClient({
-  getAccessToken: () => localStorage.getItem("cmc.accessToken"),
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
 });
 
 export async function getAdminOrders(): Promise<AdminOrder[]> {
   const response = await api.orders.list();
   return response.orders.map(toAdminOrder);
+}
+
+export async function failOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
+  return api.payments.fail(orderCode, { note }) as Promise<PaymentResponse>;
+}
+
+export async function getOrderPaymentDetail(orderCode: string): Promise<PaymentResponse> {
+  return api.payments.get(orderCode) as Promise<PaymentResponse>;
 }
 
 function toAdminOrder(order: OrderTrackingOrder): AdminOrder {

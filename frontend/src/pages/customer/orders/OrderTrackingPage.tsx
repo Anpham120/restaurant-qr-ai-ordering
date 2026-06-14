@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { VietQrPaymentModal } from "../../../components/customer/VietQrPaymentModal";
 import "../../../components/order-tracking/realtime-order.css";
 import {
   connectOrderRealtime,
@@ -24,6 +25,11 @@ export function OrderTrackingPage() {
   const [connectionStatus, setConnectionStatus] =
     useState<RealtimeConnectionStatus>("connected");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showVietQr, setShowVietQr] = useState(false);
+
+  const handlePaymentConfirmed = useCallback(() => {
+    getOrderTracking(orderCode).then(setOrder).catch(() => {});
+  }, [orderCode]);
 
   useEffect(() => {
     getOrderTracking(orderCode)
@@ -92,7 +98,18 @@ export function OrderTrackingPage() {
       </section>
 
       {errorMessage ? <p className="realtime-error">{errorMessage}</p> : null}
-      {order ? <CustomerOrderTrackingPanel order={order} /> : <p>Đang tải đơn hàng...</p>}
+      {order ? (
+        <>
+          <CustomerOrderTrackingPanel order={order} onShowVietQr={() => setShowVietQr(true)} />
+          {showVietQr ? (
+            <VietQrPaymentModal
+              orderCode={order.orderCode}
+              onClose={() => setShowVietQr(false)}
+              onPaymentConfirmed={handlePaymentConfirmed}
+            />
+          ) : null}
+        </>
+      ) : <p>Đang tải đơn hàng...</p>}
     </PageShell>
   );
 }
@@ -112,8 +129,11 @@ const timelineLabels: Record<string, string> = {
   Served: "Đã phục vụ",
 };
 
-function CustomerOrderTrackingPanel({ order }: { order: OrderTrackingOrder }) {
+function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrackingOrder; onShowVietQr: () => void }) {
   const readyCount = order.items.filter((item) => item.status === "Ready").length;
+  const canPayVietQr =
+    order.paymentMethod === "VietQR" &&
+    (order.paymentStatus === "Unpaid" || order.paymentStatus === "Pending");
 
   return (
     <section className="order-tracking-panel" aria-label="Customer order tracking">
@@ -158,6 +178,15 @@ function CustomerOrderTrackingPanel({ order }: { order: OrderTrackingOrder }) {
           </article>
         ))}
       </div>
+
+      {canPayVietQr ? (
+        <div className="tracking-vietqr-action">
+          <button className="button primary" type="button" onClick={onShowVietQr}>
+            💳 Thanh toán VietQR
+          </button>
+          <p>Quét mã QR để chuyển khoản nhanh</p>
+        </div>
+      ) : null}
     </section>
   );
 }

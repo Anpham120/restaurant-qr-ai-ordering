@@ -1,6 +1,6 @@
 import type { OrderStatus, TableCode } from "./api";
 
-export type CustomerOrderType = "DineIn" | "Pickup" | "DeliveryMock";
+export type CustomerOrderType = "DineIn" | "Pickup";
 
 export type PaymentMethod = "COD" | "VietQR";
 export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled";

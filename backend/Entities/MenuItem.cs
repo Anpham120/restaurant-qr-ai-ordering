@@ -23,7 +23,7 @@ public class MenuItem
 
     public bool IsAvailable { get; set; } = true;
 
-    public ICollection<string> Tags { get; set; } = new List<string>();
+    public IList<string> Tags { get; set; } = new List<string>();
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
