@@ -1,239 +1,196 @@
 # Tài Liệu Triển Khai
 
-Tài liệu này mô tả hướng triển khai production-like cho **Restaurant QR AI Ordering** bằng VPS, Docker Compose, Nginx, HTTPS và GitHub Actions.
+Tài liệu này mô tả hướng triển khai production-like cho **CMC Restaurant - Restaurant QR AI Ordering** bằng GitHub Actions, VPS, Docker Compose, PostgreSQL, Nginx, HTTPS và 9router.
 
-Trạng thái hiện tại: đây là **kế hoạch triển khai đã chốt cho issue #16**, chưa phải hệ thống deploy đang chạy. Chỉ xem là đã triển khai khi có workflow GitHub Actions, Docker/deploy config, secrets/environments và bằng chứng health check thật.
+## Mục Tiêu
 
-## Mục Tiêu Triển Khai
-
-- Không deploy chính thức từ máy cá nhân của developer.
-- Dùng GitHub Actions làm điểm điều phối CI/CD.
-- Tự động hóa merge bằng required checks, merge queue và auto-merge.
-- Tách staging từ `develop` và production từ `main`.
-- Production tự build-test-deploy khi có push/merge vào `main`.
-- Có health check, smoke check, monitoring cơ bản và rollback.
+- Không deploy production trực tiếp từ máy cá nhân của developer.
+- GitHub Actions là điểm điều phối build, test, deploy và rollback.
+- Tách rõ staging từ `develop` và production từ `main`.
+- Production tự build, test và deploy khi có code hợp lệ vào `main`.
+- Không lưu secret thật trong repository hoặc log.
+- Có health check, smoke test, backup PostgreSQL và rollback có kiểm chứng.
 
 ## Kiến Trúc Production-Like
 
-Mô hình v1 khuyến nghị:
+- VPS Ubuntu chạy Docker Compose.
+- Nginx reverse proxy domain về frontend và backend API.
+- Frontend React build static và phục vụ qua container Nginx.
+- Backend ASP.NET Core Web API chạy theo modular monolith.
+- PostgreSQL lưu dữ liệu thật, có volume persistent và health check.
+- AI service Python RAG gọi 9router nội bộ tại `http://127.0.0.1:20128/v1`.
+- 9router không public trực tiếp ra internet.
 
-- Một VPS hoặc production-like host.
-- Docker Compose để chạy các service.
-- Nginx làm reverse proxy.
-- HTTPS bằng Let's Encrypt hoặc cấu hình tương đương.
-- Frontend React build static.
-- Backend ASP.NET Core Web API.
-- PostgreSQL nếu cần lưu dữ liệu.
-- pgvector nếu dùng RAG.
-- Redis nếu cần cache hoặc queue.
-- External LLM API cho chatbot AI, không yêu cầu GPU.
+## Luồng CI/CD
 
-## Biến Môi Trường Và Secrets
+### Pull Request
 
-Không commit secrets thật vào repository. Các giá trị nhạy cảm phải nằm trong GitHub Secrets, GitHub Environments hoặc `.env` trên VPS.
-
-Nhóm biến cần document:
-
-```text
-ASPNETCORE_ENVIRONMENT=Production
-DATABASE_URL=
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-POSTGRES_DB=
-REDIS_URL=
-JWT_SECRET=
-LLM_API_KEY=
-LLM_API_BASE_URL=
-FRONTEND_PUBLIC_API_URL=
-FRONTEND_PUBLIC_SIGNALR_URL=
-DEPLOY_HOST=
-DEPLOY_USER=
-DEPLOY_SSH_KEY=
-PRODUCTION_DOMAIN=
-STAGING_DOMAIN=
-```
-
-## CI/CD Tự Động
-
-### CI
-
-CI chạy trên:
-
-- PR vào `develop`.
-- PR vào `main`.
-- Push vào `develop`.
-- Manual rerun qua `workflow_dispatch` nếu cần.
-
-CI phải kiểm tra:
+PR vào `main` hoặc `develop` phải qua CI:
 
 - Frontend install và build.
 - Backend restore, build và test.
-- Docker Compose syntax nếu đã có compose file.
+- AI service unit test.
+- Docker Compose config validation.
 
-### Staging Từ `develop`
+### Staging
 
-Khi merge/push vào `develop`:
+Khi push hoặc merge vào `develop`:
 
-1. GitHub Actions chạy workflow staging.
-2. Workflow dùng staging secrets.
-3. Workflow deploy staging hoặc demo environment.
-4. Workflow chạy health/smoke check.
-5. Nếu check lỗi, workflow fail và ghi log.
-6. Nếu check đạt, workflow promote tạo hoặc cập nhật PR `develop` -> `main` và bật auto-merge.
+1. Workflow `Deploy Staging` chạy với environment `staging`.
+2. GitHub Secrets được ghi thành `.env` trên VPS.
+3. Docker Compose build/start các service.
+4. Nginx và Certbot được cấu hình.
+5. Health check kiểm tra frontend và API.
+6. Kết quả ghi vào report trên VPS.
 
-### Production Từ `main`
+### Production
 
-Khi merge/push vào `main`:
+Khi push hoặc merge vào `main`:
 
-1. GitHub Actions chạy production workflow tự động.
-2. Workflow chạy lại build/test trước deploy.
-3. Nếu build/test fail, deploy không được bắt đầu.
-4. Nếu build/test pass, deploy production tự động.
-5. Không có bước bấm deploy, SSH thủ công, review thủ công hoặc duyệt deploy sau khi `main` nhận code.
-6. Workflow chạy health/smoke check sau deploy.
-7. Nếu check fail, workflow fail và rollback hoặc in checklist rollback.
+1. Workflow `Deploy Production` chạy lại CI thông qua reusable workflow.
+2. Nếu CI fail, deploy không bắt đầu.
+3. Nếu CI pass, workflow deploy production lên VPS.
+4. PostgreSQL migration chạy tự động nếu `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
+5. Backup PostgreSQL được tạo trước health check.
+6. Health check và smoke check xác nhận release.
 
-## Docker Compose Plan
+## Secrets Và Variables
 
-Nếu triển khai bằng Docker Compose, cấu trúc service nên gồm:
+Không commit giá trị thật. Các biến nhạy cảm phải nằm trong GitHub Secrets hoặc `.env` trên VPS.
 
-```yaml
-services:
-  frontend:
-    # React static build served by Nginx or container web server
+Staging:
 
-  backend:
-    # ASP.NET Core API
-
-  postgres:
-    # PostgreSQL database
-
-  redis:
-    # Optional cache/queue service
-
-  nginx:
-    # Reverse proxy and HTTPS entrypoint
+```text
+STAGING_HOST
+STAGING_SSH_USER
+STAGING_SSH_KEY
+STAGING_POSTGRES_PASSWORD
+JWT_SIGNING_KEY
+AI_API_KEY
+CERTBOT_EMAIL
 ```
 
-Yêu cầu tối thiểu:
+Production:
 
-- Service backend đọc env từ secrets hoặc `.env`.
-- Database data dùng volume.
-- Nginx route frontend và `/api`.
-- Không hard-code secrets vào image hoặc compose file.
-- `docker compose config` chạy được trước khi deploy.
+```text
+PRODUCTION_HOST
+PRODUCTION_SSH_USER
+PRODUCTION_SSH_KEY
+PRODUCTION_POSTGRES_PASSWORD
+JWT_SIGNING_KEY
+AI_API_KEY
+CERTBOT_EMAIL
+```
 
-## Health Check
+Variables khuyến nghị:
 
-Sau mỗi deployment:
+```text
+AI_MODEL=gh/gemini-3.1-pro-preview
+```
+
+## Docker Compose
+
+File triển khai chính: `deploy/docker-compose.yml`.
+
+Service bắt buộc:
+
+- `postgres`: PostgreSQL 16, persistent volume, health check.
+- `api`: ASP.NET Core API, đọc `ConnectionStrings__DefaultConnection`.
+- `ai-service`: Python RAG service.
+- `frontend`: React static build.
+
+Kiểm tra cấu hình:
 
 ```bash
-curl -fsS https://<domain>/api/health
-curl -I https://<domain>/
-curl -I https://<domain>/menu
-curl -I https://<domain>/cart
+docker compose -f deploy/docker-compose.yml config
 ```
 
-Kết quả kỳ vọng:
+## Health Check Và Smoke Test
 
-- `/api/health` trả HTTP 200.
-- Frontend route trả HTTP 200 hoặc SPA fallback hợp lệ.
-- Không có lỗi 500, 502, 503.
+Backend:
 
-Nếu chưa có domain thật, dùng IP/VPS hoặc môi trường local tương đương và ghi rõ trong báo cáo.
+```bash
+curl -fsS https://api.cmcrestaurant.app/api/health
+curl -fsS https://api-staging.cmcrestaurant.app/api/health
+```
 
-## Monitoring Cơ Bản
+Frontend:
 
-Khuyến nghị dùng UptimeRobot, Better Stack hoặc dịch vụ tương đương.
+```bash
+curl -fsS https://cmcrestaurant.app/ >/dev/null
+curl -fsS https://staging.cmcrestaurant.app/ >/dev/null
+```
 
-Monitor tối thiểu:
+Report sau deploy:
 
-- `https://<domain>/`
-- `https://<domain>/api/health`
+```text
+/opt/cmc-restaurant/<environment>/reports/last-deployment.md
+```
 
-Cấu hình khuyến nghị:
+## Backup Và Restore
 
-- Interval: 5 phút nếu gói miễn phí cho phép.
-- Failure condition: HTTP 5xx, timeout hoặc endpoint health không trả 200.
-- Người nhận cảnh báo: DevOps/Release Owner.
-- Phản ứng đầu tiên: kiểm tra GitHub Actions deployment run, log Nginx, log backend và trạng thái container.
+Runbook chi tiết nằm tại `docs/PRODUCTION_OPERATIONS.md`.
+
+Backup PostgreSQL production:
+
+```bash
+cd /opt/cmc-restaurant/production
+set -a && . ./.env && set +a
+bash repo/deploy/scripts/backup-postgres.sh manual
+```
+
+Restore PostgreSQL production:
+
+```bash
+cd /opt/cmc-restaurant/production
+set -a && . ./.env && set +a
+bash repo/deploy/scripts/restore-postgres.sh /opt/cmc-restaurant/production/backups/<file>.dump
+```
 
 ## Rollback
 
-Rollback cần rõ ràng trước khi production được xem là ổn định.
+Rollback dùng workflow `Rollback` với input `staging` hoặc `production`.
 
-Checklist:
-
-1. Xác nhận deployment hiện tại failed.
-2. Xác định commit, tag hoặc image gần nhất chạy ổn.
-3. Redeploy phiên bản gần nhất chạy ổn.
-4. Restart service bằng Docker Compose.
-5. Chạy lại backend health check.
-6. Chạy lại frontend smoke check.
-7. Ghi rollback result vào báo cáo.
-
-Ví dụ lệnh khi dùng Docker Compose:
-
-```bash
-docker compose pull
-docker compose up -d
-docker compose ps
-docker compose logs --tail=100 backend
-```
-
-## Báo Cáo Triển Khai
-
-Mỗi lần staging hoặc production deploy cần ghi:
+Script rollback trên VPS:
 
 ```text
-Môi trường:
-Branch:
-Commit:
-Workflow run:
-Người chịu trách nhiệm:
-Thời gian deploy:
-Kết quả build/test:
-Kết quả health check:
-Kết quả smoke check:
-Rollback có cần không:
-Ghi chú secrets/no-secrets:
-Kết luận:
+deploy/scripts/rollback-vps.sh
 ```
 
-## Khi Chưa Có VPS Thật
+Rollback thành công khi:
 
-Nếu dự án chưa có VPS hoặc domain thật, PR DevOps vẫn phải cung cấp:
+- `repo.previous` được đưa lại làm bản chạy chính.
+- Docker Compose start lại thành công.
+- Backup sau rollback được tạo.
+- Health check pass.
+- Report deploy mới được ghi.
 
-- Workflow YAML dự kiến hoặc bản document chính xác.
-- Danh sách GitHub Secrets cần có.
-- Lệnh deploy dự kiến.
-- Lệnh health/smoke check.
-- Rollback checklist.
-- Ghi chú rõ rằng production auto-deploy đã được thiết kế nhưng chưa chạy thật do thiếu deployment target.
+## Evidence Khi Đóng Issue DevOps
 
-## Issue #16 Deployment Implementation Update
+Mỗi issue DevOps triển khai phải có comment evidence riêng, gồm:
 
-Repo da co cau hinh trien khai production-like bang GitHub Actions, Docker
-Compose, Nginx va Certbot:
+- PR link.
+- CI hoặc workflow run link.
+- `docker compose config` result.
+- Smoke/health check result.
+- Backup command hoặc log.
+- Danh sách secret/env đã cấu hình, không lộ giá trị thật.
+
+## Trạng Thái Issue #16 Và #78
+
+Issue #16 thiết kế luồng CI/CD tự động:
 
 - CI: `.github/workflows/ci.yml`
-- Auto-merge attempt: `.github/workflows/auto-merge.yml`, dong thoi dispatch
-  staging/production deploy sau khi PR merge.
-- Staging deploy tu `develop`: `.github/workflows/deploy-staging.yml`
-- Promote `develop` sang `main`: `.github/workflows/promote-production.yml`
-  tao release branch, doi required checks, merge PR va dispatch production deploy.
-- Production deploy tu `main`: `.github/workflows/deploy-production.yml`
-- Rollback thu cong co kiem soat: `.github/workflows/rollback.yml`
-- Docker/deploy config: `backend/Dockerfile`, `frontend/Dockerfile`,
-  `deploy/docker-compose.yml`, `deploy/scripts/**`
-- Branch ruleset can bat theo: `docs/BRANCH_RULESET.md`
-- Required secrets: `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`,
-  `PRODUCTION_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY`,
-  `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`,
-  `RELEASE_BOT_TOKEN`
-- 9router tren VPS giu private tai `127.0.0.1:20128`; backend container dung
-  host network de goi `AI_BASE_URL=http://127.0.0.1:20128/v1`.
+- Auto-merge: `.github/workflows/auto-merge.yml`
+- Staging deploy: `.github/workflows/deploy-staging.yml`
+- Production deploy: `.github/workflows/deploy-production.yml`
+- Promote production: `.github/workflows/promote-production.yml`
+- Rollback: `.github/workflows/rollback.yml`
 
-Issue #16 chi duoc dong khi co bang chung workflow chay that: CI pass,
-staging/production deploy pass, health/smoke check pass va branch/ruleset duoc
-bat tren GitHub.
+Issue #78 gia cố vận hành production:
+
+- PostgreSQL trong Docker Compose deploy.
+- Secrets tách khỏi repo.
+- Backup/restore PostgreSQL.
+- Health report sau deploy.
+- Runbook vận hành: `docs/PRODUCTION_OPERATIONS.md`.

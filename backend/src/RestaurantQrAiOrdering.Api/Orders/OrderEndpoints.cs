@@ -1,8 +1,10 @@
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
+using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Api.Orders;
@@ -13,14 +15,14 @@ public static partial class OrderEndpoints
     {
         app.MapPost("/api/orders", async (
             CreateOrderRequest? request,
-            RestaurantDataStore restaurantData,
+            RestaurantDbContext db,
             IOrderStore orders,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
-            var validationError = ValidateCreateOrderRequest(request, restaurantData);
+            var validationError = await ValidateCreateOrderRequestAsync(request, db, cancellationToken);
             if (validationError is not null)
             {
                 logger.LogWarning("Rejected order creation request during validation.");
@@ -55,6 +57,57 @@ public static partial class OrderEndpoints
                 : Results.Ok(ToResponse(order));
         })
         .WithName("GetOrder")
+        .WithTags("Orders");
+
+        app.MapGet("/api/orders", async (
+            string? status,
+            string? tableCode,
+            DateTimeOffset? updatedSince,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var query = db.Orders
+                .AsNoTracking()
+                .Include(order => order.Payment)
+                .Include(order => order.OrderItems)
+                .Include(order => order.RestaurantTable)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!TryParseEnum<OrderStatus>(status, out var parsedStatus))
+                {
+                    return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
+                }
+
+                query = query.Where(order => order.Status == parsedStatus);
+            }
+
+            if (!string.IsNullOrWhiteSpace(tableCode))
+            {
+                var normalizedTableCode = tableCode.Trim().ToUpperInvariant();
+                query = query.Where(order => order.TableCode == normalizedTableCode);
+            }
+
+            if (updatedSince is not null)
+            {
+                query = query.Where(order => order.UpdatedAt >= updatedSince.Value);
+            }
+
+            var orders = await query
+                .OrderByDescending(order => order.UpdatedAt)
+                .ThenByDescending(order => order.CreatedAt)
+                .Take(100)
+                .ToListAsync(cancellationToken);
+
+            var response = orders
+                .Select(order => ToResponse(order))
+                .ToList();
+
+            return Results.Ok(new OrderListResponse(response, response.Count));
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
+        .WithName("ListOrders")
         .WithTags("Orders");
 
         app.MapPatch("/api/orders/{orderCode}/status", async (
@@ -100,12 +153,24 @@ public static partial class OrderEndpoints
                     "Order cannot be cancelled after it or any item reaches Preparing.");
             }
 
+            if (result.ErrorCode == "ORDER_STATUS_TRANSITION_INVALID")
+            {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because transition to {Status} is invalid.",
+                    orderCode,
+                    status);
+
+                return ApiResults.BadRequest(
+                    "ORDER_STATUS_TRANSITION_INVALID",
+                    "Order status transition is not allowed.");
+            }
+
             await realtime.OrderStatusChangedAsync(ToOrderStatusChangedEvent(result.Order), result.Order.TableCode, cancellationToken);
             logger.LogInformation("Updated order {OrderCode} status to {Status}.", result.Order.OrderCode, result.Order.Status);
 
             return Results.Ok(ToResponse(result.Order));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
         .WithName("UpdateOrderStatus")
         .WithTags("Orders");
 
@@ -176,7 +241,10 @@ public static partial class OrderEndpoints
         return app;
     }
 
-    private static IResult? ValidateCreateOrderRequest(CreateOrderRequest? request, RestaurantDataStore restaurantData)
+    private static async Task<IResult?> ValidateCreateOrderRequestAsync(
+        CreateOrderRequest? request,
+        RestaurantDbContext db,
+        CancellationToken cancellationToken)
     {
         if (request is null)
         {
@@ -215,7 +283,11 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
             }
 
-            if (restaurantData.GetActiveTable(request.TableCode) is null)
+            var normalizedTableCode = request.TableCode.Trim().ToUpperInvariant();
+            var tableExists = await db.RestaurantTables
+                .AsNoTracking()
+                .AnyAsync(table => table.TableCode == normalizedTableCode && table.IsActive, cancellationToken);
+            if (!tableExists)
             {
                 return ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.");
             }
@@ -233,7 +305,10 @@ public static partial class OrderEndpoints
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
             }
 
-            var menuItem = restaurantData.GetMenuItem(item.MenuItemId);
+            var menuItemId = item.MenuItemId.Trim();
+            var menuItem = await db.MenuItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(menuItem => menuItem.Id == menuItemId, cancellationToken);
             if (menuItem is null)
             {
                 return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
@@ -297,6 +372,55 @@ public static partial class OrderEndpoints
             order.Events
                 .Select(item => new OrderStatusEventResponse(item.Status, item.CreatedAt))
                 .ToList());
+    }
+
+    private static OrderResponse ToResponse(Order order)
+    {
+        var payment = order.Payment;
+        var deliveryInfo = HasPersistedDeliveryInfo(order)
+            ? new DeliveryInfoResponse(
+                order.DeliveryRecipientName!,
+                order.DeliveryPhoneNumber!,
+                order.DeliveryAddress!,
+                order.DeliveryNote)
+            : null;
+
+        return new OrderResponse(
+            order.Id,
+            order.OrderCode,
+            order.OrderType.ToString(),
+            order.TableCode,
+            order.Status.ToString(),
+            (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
+            (payment?.Method ?? PaymentMethod.COD).ToString(),
+            deliveryInfo,
+            order.SubtotalAmount,
+            order.TotalAmount,
+            order.CreatedAt,
+            order.UpdatedAt,
+            order.OrderItems
+                .OrderBy(item => item.CreatedAt)
+                .Select(item => new OrderItemResponse(
+                    item.Id,
+                    item.MenuItemId,
+                    item.MenuItemName,
+                    item.UnitPrice,
+                    item.Quantity,
+                    item.Status.ToString(),
+                    item.UnitPrice * item.Quantity,
+                    item.UpdatedAt))
+                .ToList(),
+            new[]
+            {
+                new OrderStatusEventResponse(order.Status.ToString(), order.UpdatedAt)
+            });
+    }
+
+    private static bool HasPersistedDeliveryInfo(Order order)
+    {
+        return !string.IsNullOrWhiteSpace(order.DeliveryRecipientName)
+            && !string.IsNullOrWhiteSpace(order.DeliveryPhoneNumber)
+            && !string.IsNullOrWhiteSpace(order.DeliveryAddress);
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)

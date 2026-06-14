@@ -1,19 +1,43 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../components/customer/customer-menu.css";
-import { menuItems } from "../mocks/menuItems";
+import { getCustomerMenu } from "../services/menuService";
+import type { MenuItem } from "../types";
 
 export function CustomerHomePage() {
+  const [featuredItems, setFeaturedItems] = useState<MenuItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getCustomerMenu()
+      .then((menu) => {
+        if (isMounted) {
+          setFeaturedItems(menu.items.filter((item) => item.isAvailable).slice(0, 3));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setFeaturedItems([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="cmc-customer-page">
       <header className="cmc-hero">
         <div>
           <p className="cmc-kicker">CMC Restaurant</p>
           <h2>
-            Gọi món tại bàn <span>nhanh, ấm & dễ dùng</span>
+            Gọi món tại bàn <span>nhanh, rõ ràng và dễ dùng</span>
           </h2>
           <p>
-            Trải nghiệm QR ordering phong cách cam đất sáng, thân thiện với mọi
-            lứa tuổi và sẵn sàng nối API ở các issue sau.
+            Khách có thể quét QR tại bàn, xem thực đơn đang bán, đặt món mang về hoặc theo dõi
+            trạng thái đơn ngay trên điện thoại.
           </p>
           <div className="cmc-hero-actions">
             <Link className="cmc-primary-link" to="/table/T-05">
@@ -24,11 +48,13 @@ export function CustomerHomePage() {
             </Link>
           </div>
         </div>
-        <div className="cmc-hero-collage" aria-label="Món nổi bật">
-          <img alt="Bò lúc lắc" src={menuItems[5].imageUrl} />
-          <img alt="Phở bò đặc biệt" src={menuItems[4].imageUrl} />
-          <img alt="Trà đào cam sả" src={menuItems[10].imageUrl} />
-        </div>
+        {featuredItems.length > 0 ? (
+          <div className="cmc-hero-collage" aria-label="Món nổi bật">
+            {featuredItems.map((item) => (
+              <img alt={item.name} key={item.id} src={item.imageUrl} />
+            ))}
+          </div>
+        ) : null}
       </header>
 
       <div className="cmc-home-flow">
@@ -42,12 +68,12 @@ export function CustomerHomePage() {
           <article className="cmc-step-card">
             <span>Bước 2</span>
             <h3>Chọn món</h3>
-            <p>Thực đơn có ảnh thật, lọc danh mục và tìm kiếm.</p>
+            <p>Thực đơn có ảnh, danh mục, tìm kiếm và chỉ cho đặt món còn bán.</p>
           </article>
           <article className="cmc-step-card">
             <span>Bước 3</span>
-            <h3>Xem giỏ hàng</h3>
-            <p>Cart summary mock hiển thị số món và tổng tiền.</p>
+            <h3>Theo dõi đơn</h3>
+            <p>Đơn sau khi gửi được theo dõi bằng mã đơn để khách biết tiến độ phục vụ.</p>
           </article>
         </div>
       </div>

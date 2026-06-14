@@ -17,6 +17,12 @@ curl --fail --show-error --silent --retry 10 --retry-delay 5 "$api_health_url"
 
 report_dir="/opt/cmc-restaurant/${DEPLOY_ENV}/reports"
 mkdir -p "$report_dir"
+compose_file="/opt/cmc-restaurant/${DEPLOY_ENV}/repo/deploy/docker-compose.yml"
+compose_status="not checked"
+if [ -f "$compose_file" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ]; then
+  compose_status="$(docker compose --env-file "/opt/cmc-restaurant/${DEPLOY_ENV}/.env" -f "$compose_file" -p "$COMPOSE_PROJECT_NAME" ps --format json 2>/dev/null || true)"
+fi
+
 cat > "${report_dir}/last-deployment.md" <<EOF
 # Deployment Report
 
@@ -25,6 +31,12 @@ cat > "${report_dir}/last-deployment.md" <<EOF
 - API health URL: ${api_health_url}
 - Checked at UTC: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 - Result: PASS
+
+## Compose Status
+
+\`\`\`json
+${compose_status}
+\`\`\`
 EOF
 
 echo "Health check passed for ${DEPLOY_ENV}"

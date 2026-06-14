@@ -590,6 +590,27 @@ input {
   padding: 12px;
 }
 
+.form-error {
+  margin: 0;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.auth-blocked {
+  max-width: 680px;
+  margin: 64px auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.auth-blocked h2 {
+  margin: 6px 0 10px;
+  color: var(--ink);
+}
+
 .table-shell {
   overflow: hidden;
 }

@@ -441,7 +441,7 @@ public sealed class RestaurantDataStore
                 TableCode = $"T{number:00}",
                 DisplayName = $"Ban {number:00}",
                 IsActive = true,
-                QrToken = $"qr-demo-t{number:00}", // TODO(issue-64): Use proper QR generation in production
+                QrToken = $"cmc-table-t{number:00}-qr",
                 CreatedAt = now,
                 UpdatedAt = now
             })

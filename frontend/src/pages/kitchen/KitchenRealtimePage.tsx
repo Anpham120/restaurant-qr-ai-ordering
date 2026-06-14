@@ -97,7 +97,7 @@ export function KitchenRealtimePage() {
     <PageShell
       eyebrow="Kitchen realtime"
       title="Bảng bếp CMC"
-      description="Bếp nhận món theo cột Pending, Preparing, Ready và phát mock realtime event đúng contract để màn hình khách cập nhật không cần reload."
+      description="Bếp nhận món theo cột Pending, Preparing, Ready từ backend và cập nhật trạng thái món bằng API thật."
       variant="kitchen"
       stats={stats}
     >
@@ -112,7 +112,7 @@ export function KitchenRealtimePage() {
       {isLoading ? (
         <AdminStatePanel
           title="Đang tải bảng bếp"
-          description="Lấy đơn mẫu và đơn khách đã đặt trong localStorage."
+          description="Đang lấy đơn khách đã đặt từ backend."
         />
       ) : (
         <KitchenBoard orders={orders} onUpdateItemStatus={handleUpdateItemStatus} />
@@ -143,7 +143,7 @@ function RealtimeStatusBar({
     <section className="realtime-status-bar">
       <div>
         <strong>Realtime adapter</strong>
-        <p>Mock event source theo contract SignalR `/hubs/orders`.</p>
+        <p>Adapter sự kiện nội bộ theo contract SignalR `/hubs/orders`.</p>
       </div>
       <span className={`connection-pill connection-${connectionStatus}`}>
         {statusLabel}

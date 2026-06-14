@@ -49,11 +49,19 @@ dotnet ef migrations add <MigrationName> \
 
 ### 4. Seed data
 
-Seed data được chạy tự động trong migration `InitialCreate`. Gồm:
+Seed data được chạy tự động qua EF Core migrations. Các giá trị seed phải ổn định để khi scaffold migration mới không sinh `UpdateData` giả chỉ vì timestamp hoặc password salt thay đổi. Gồm:
 
 - **6 categories**: Khai vi, Mon chinh, Pho va bun, Hai san, Do uong, Trang mieng
 - **12 menu items**: Com ga, Com suon nuong, Pho bo, Bun bo Hue, Goi cuon, Cha gio, Tom rang muoi, Lau Thai, Tra dao, Ca phe sua da, Che khuc bach, Banh flan
 - **8 tables**: T01 - T08
+- **4 demo users**: Admin, Staff, Kitchen, Customer seed account.
+
+Quy ước seed auth:
+
+- Không lưu mật khẩu plaintext trong database hoặc migration.
+- `password_hash` của demo users là chuỗi PBKDF2 đã generate sẵn theo định dạng `v1.<iterations>.<salt>.<hash>`.
+- Không gọi password hasher ngẫu nhiên trong `HasData`; nếu cần đổi demo password phải generate hash mới một lần và commit hash cố định.
+- Timestamp của seed data dùng hằng số cố định, không dùng `DateTimeOffset.UtcNow` trong `HasData`.
 
 ### 5. Khởi động app
 
