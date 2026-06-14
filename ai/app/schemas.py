@@ -27,3 +27,27 @@ class ChatRequest(BaseModel):
 class RagSearchRequest(BaseModel):
     query: str
     top_k: int = Field(default=5, ge=1, le=10)
+
+
+class RetrievedSource(BaseModel):
+    source: str
+    title: str
+    score: float
+
+
+class SuggestedCartAction(BaseModel):
+    menu_item_id: str
+    name: str
+    price_vnd: float | int | None = None
+    quantity: int = Field(default=1, ge=1, le=20)
+    reason: str | None = None
+    requires_customer_confirmation: bool = True
+
+
+class ChatResponse(BaseModel):
+    content: str
+    provider_available: bool
+    model: str
+    retrieved_sources: list[RetrievedSource] = Field(default_factory=list)
+    guardrail_flags: list[str] = Field(default_factory=list)
+    suggested_cart_actions: list[SuggestedCartAction] = Field(default_factory=list)

@@ -41,5 +41,5 @@ def validate_suggested_item_ids(suggested_ids: Iterable[str], menu_items: Iterab
 
 
 def _normalize(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text.lower()).replace("đ", "d")
+    normalized = unicodedata.normalize("NFKD", text.lower().replace("đ", "d"))
     return "".join(char for char in normalized if not unicodedata.combining(char))
