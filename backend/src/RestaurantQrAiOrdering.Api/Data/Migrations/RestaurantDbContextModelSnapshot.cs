@@ -703,6 +703,67 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.ToTable("payments", (string)null);
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.PaymentTransaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("PaymentId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ProviderTransactionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("provider_transaction_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentId");
+
+                    b.HasIndex("ProviderTransactionId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("payment_transactions", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.RestaurantTable", b =>
                 {
                     b.Property<string>("Id")
@@ -1051,16 +1112,6 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("RestaurantTable");
                 });
 
-            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSession", b =>
-                {
-                    b.HasOne("RestaurantQrAiOrdering.Entities.RestaurantTable", "RestaurantTable")
-                        .WithMany("TableSessions")
-                        .HasForeignKey("RestaurantTableId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("RestaurantTable");
-                });
-
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.OrderItem", b =>
                 {
                     b.HasOne("RestaurantQrAiOrdering.Entities.MenuItem", "MenuItem")
@@ -1091,6 +1142,27 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.PaymentTransaction", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.Payment", "Payment")
+                        .WithMany("Transactions")
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSession", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.RestaurantTable", "RestaurantTable")
+                        .WithMany("TableSessions")
+                        .HasForeignKey("RestaurantTableId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("RestaurantTable");
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Category", b =>
                 {
                     b.Navigation("MenuItems");
@@ -1106,6 +1178,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("OrderItems");
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Payment", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.RestaurantTable", b =>
