@@ -4,7 +4,7 @@ public static class OrderApiRegistration
 {
     public static IServiceCollection AddRestaurantOrderApis(this IServiceCollection services)
     {
-        services.AddSingleton<IOrderStore, OrderStore>();
+        services.AddScoped<IOrderStore, OrderStore>();
 
         return services;
     }

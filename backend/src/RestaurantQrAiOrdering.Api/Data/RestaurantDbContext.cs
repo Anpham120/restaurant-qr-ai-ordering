@@ -9,6 +9,24 @@ namespace RestaurantQrAiOrdering.Api.Data;
 
 public class RestaurantDbContext : DbContext
 {
+    private static readonly DateTimeOffset CategorySeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 704, DateTimeKind.Unspecified).AddTicks(8638),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset MenuItemSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset TableSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629),
+        TimeSpan.Zero);
+    private static readonly DateTimeOffset UserSeededAt = new(
+        new DateTime(2026, 6, 13, 7, 30, 44, 707, DateTimeKind.Unspecified).AddTicks(7962),
+        TimeSpan.Zero);
+
+    private const string AdminPasswordHash = "v1.100000.2FZk9K5Yru/klQtpkjDGJQ==.9gGU3IU+rG4JGkMgsvORd0Cqmsykp5xeaZCAQ95S4cM=";
+    private const string StaffPasswordHash = "v1.100000.c9UhEBod8mtmPQLeP2nnWQ==.an2Aa1goSjTZ8uS8joy2I3W11iWwNhiOsg4YreIn9mU=";
+    private const string KitchenPasswordHash = "v1.100000.u76cG06YBTjLue+rOz5B1w==.vNcRBLo2BXctMwTDqX3/p55jgxk6Dfki+Jx7CkRKSBc=";
+    private const string CustomerPasswordHash = "v1.100000.uSV+rreaBwKjA3WUTqZD8Q==.8pVVHQiXquhg7U1O6soESBvdr6tDM+Ibi3vwe0uHXaY=";
+
     public RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
         : base(options)
     {
@@ -17,9 +35,11 @@ public class RestaurantDbContext : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
+    public DbSet<TableSession> TableSessions => Set<TableSession>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
@@ -32,9 +52,11 @@ public class RestaurantDbContext : DbContext
         ConfigureCategory(modelBuilder);
         ConfigureMenuItem(modelBuilder);
         ConfigureRestaurantTable(modelBuilder);
+        ConfigureTableSession(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigurePayment(modelBuilder);
+        ConfigurePaymentTransaction(modelBuilder);
         ConfigureChatSession(modelBuilder);
         ConfigureChatMessage(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
@@ -43,7 +65,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureCategory(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = CategorySeededAt;
         modelBuilder.Entity<Category>(entity =>
         {
             entity.ToTable("categories");
@@ -85,7 +107,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureMenuItem(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = MenuItemSeededAt;
         modelBuilder.Entity<MenuItem>(entity =>
         {
             entity.ToTable("menu_items");
@@ -152,7 +174,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureRestaurantTable(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = TableSeededAt;
         modelBuilder.Entity<RestaurantTable>(entity =>
         {
             entity.ToTable("restaurant_tables");
@@ -187,15 +209,72 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.IsActive);
 
             entity.HasData(
-                new RestaurantTable { Id = "tbl_01", TableCode = "T01", DisplayName = "Ban 01", IsActive = true, QrToken = "qr-demo-t01", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_02", TableCode = "T02", DisplayName = "Ban 02", IsActive = true, QrToken = "qr-demo-t02", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_03", TableCode = "T03", DisplayName = "Ban 03", IsActive = true, QrToken = "qr-demo-t03", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_04", TableCode = "T04", DisplayName = "Ban 04", IsActive = true, QrToken = "qr-demo-t04", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_05", TableCode = "T05", DisplayName = "Ban 05", IsActive = true, QrToken = "qr-demo-t05", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_06", TableCode = "T06", DisplayName = "Ban 06", IsActive = true, QrToken = "qr-demo-t06", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_07", TableCode = "T07", DisplayName = "Ban 07", IsActive = true, QrToken = "qr-demo-t07", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_08", TableCode = "T08", DisplayName = "Ban 08", IsActive = true, QrToken = "qr-demo-t08", CreatedAt = now, UpdatedAt = now }
+                new RestaurantTable { Id = "tbl_01", TableCode = "T01", DisplayName = "Ban 01", IsActive = true, QrToken = "cmc-table-t01-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_02", TableCode = "T02", DisplayName = "Ban 02", IsActive = true, QrToken = "cmc-table-t02-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_03", TableCode = "T03", DisplayName = "Ban 03", IsActive = true, QrToken = "cmc-table-t03-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_04", TableCode = "T04", DisplayName = "Ban 04", IsActive = true, QrToken = "cmc-table-t04-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_05", TableCode = "T05", DisplayName = "Ban 05", IsActive = true, QrToken = "cmc-table-t05-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_06", TableCode = "T06", DisplayName = "Ban 06", IsActive = true, QrToken = "cmc-table-t06-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_07", TableCode = "T07", DisplayName = "Ban 07", IsActive = true, QrToken = "cmc-table-t07-qr", CreatedAt = now, UpdatedAt = now },
+                new RestaurantTable { Id = "tbl_08", TableCode = "T08", DisplayName = "Ban 08", IsActive = true, QrToken = "cmc-table-t08-qr", CreatedAt = now, UpdatedAt = now }
             );
+        });
+    }
+
+    private static void ConfigureTableSession(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableSession>(entity =>
+        {
+            entity.ToTable("table_sessions");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.RestaurantTableId)
+                .HasColumnName("restaurant_table_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.TableCode)
+                .HasColumnName("table_code")
+                .HasMaxLength(20);
+            entity.Property(e => e.QrToken)
+                .HasColumnName("qr_token")
+                .HasMaxLength(100);
+            entity.Property(e => e.OrderType)
+                .HasColumnName("order_type")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.OpenedAt)
+                .HasColumnName("opened_at")
+                .IsRequired();
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnName("expires_at")
+                .IsRequired();
+            entity.Property(e => e.ClosedAt)
+                .HasColumnName("closed_at");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.RestaurantTable)
+                .WithMany(t => t.TableSessions)
+                .HasForeignKey(e => e.RestaurantTableId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.TableCode);
+            entity.HasIndex(e => e.QrToken);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiresAt);
         });
     }
 
@@ -388,6 +467,59 @@ public class RestaurantDbContext : DbContext
         });
     }
 
+    private static void ConfigurePaymentTransaction(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("payment_transactions");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.PaymentId)
+                .HasColumnName("payment_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Method)
+                .HasColumnName("method")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Amount)
+                .HasColumnName("amount")
+                .HasPrecision(18, 2)
+                .IsRequired();
+            entity.Property(e => e.Provider)
+                .HasColumnName("provider")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.ProviderTransactionId)
+                .HasColumnName("provider_transaction_id")
+                .HasMaxLength(200);
+            entity.Property(e => e.Note)
+                .HasColumnName("note")
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.Payment)
+                .WithMany(p => p.Transactions)
+                .HasForeignKey(e => e.PaymentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ProviderTransactionId);
+        });
+    }
+
     private static void ConfigureChatSession(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ChatSession>(entity =>
@@ -525,7 +657,7 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = UserSeededAt;
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
@@ -559,34 +691,12 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.Email).IsUnique();
 
-            var adminPasswordHash = HashPasswordForSeed("Admin@1234");
-            var staffPasswordHash = HashPasswordForSeed("Staff@1234");
-            var kitchenPasswordHash = HashPasswordForSeed("Kitchen@1234");
-            var customerPasswordHash = HashPasswordForSeed("Customer@1234");
-
             entity.HasData(
-                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = adminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = staffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = kitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = customerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
+                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = AdminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = StaffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = KitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
+                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = CustomerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
             );
         });
-    }
-
-    private static string HashPasswordForSeed(string password)
-    {
-        const int saltSize = 16;
-        const int hashSize = 32;
-        const int iterations = 100_000;
-
-        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(saltSize);
-        var hash = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
-            password,
-            salt,
-            iterations,
-            System.Security.Cryptography.HashAlgorithmName.SHA256,
-            hashSize);
-
-        return $"v1.{iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
     }
 }

@@ -5,6 +5,7 @@ using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Orders;
+using RestaurantQrAiOrdering.Api.Payments;
 using RestaurantQrAiOrdering.Api.Realtime;
 
 const string CorsPolicyName = "CmcRestaurantCors";
@@ -62,10 +63,19 @@ else
 builder.Services.AddRestaurantAuth(builder.Configuration);
 builder.Services.AddRestaurantMenuTableApis();
 builder.Services.AddRestaurantOrderApis();
+builder.Services.AddRestaurantPaymentApis(builder.Configuration);
 builder.Services.AddRestaurantRealtimeApis();
 builder.Services.AddRestaurantChatApis();
 
 var app = builder.Build();
+
+if (!string.IsNullOrEmpty(connectionString)
+    && builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -110,6 +120,7 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapRestaurantMenuTableApis();
 app.MapOrderEndpoints();
+app.MapPaymentEndpoints();
 app.MapRestaurantRealtimeApis();
 app.MapRestaurantChatApis();
 

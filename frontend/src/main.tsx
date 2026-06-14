@@ -15,6 +15,7 @@ import { MenuPage } from "./pages/MenuPage";
 import { OrderStatusPage } from "./pages/OrderStatusPage";
 import { StaffOrdersPage } from "./pages/StaffOrdersPage";
 import { TableEntryPage } from "./pages/TableEntryPage";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import "./styles.css";
 
 const router = createBrowserRouter([
@@ -29,12 +30,54 @@ const router = createBrowserRouter([
       { path: "orders/:orderCode", element: <OrderStatusPage /> },
       { path: "chat", element: <ChatPage /> },
       { path: "login", element: <LoginPage /> },
-      { path: "admin", element: <AdminDashboardPage /> },
-      { path: "admin/menu", element: <AdminMenuPage /> },
-      { path: "admin/orders", element: <AdminOrdersPage /> },
-      { path: "admin/tables", element: <AdminTablesPage /> },
-      { path: "staff/orders", element: <StaffOrdersPage /> },
-      { path: "kitchen", element: <KitchenPage /> },
+      {
+        path: "admin",
+        element: (
+          <ProtectedRoute roles={["Admin"]}>
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/menu",
+        element: (
+          <ProtectedRoute roles={["Admin"]}>
+            <AdminMenuPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/orders",
+        element: (
+          <ProtectedRoute roles={["Admin", "Staff"]}>
+            <AdminOrdersPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/tables",
+        element: (
+          <ProtectedRoute roles={["Admin"]}>
+            <AdminTablesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "staff/orders",
+        element: (
+          <ProtectedRoute roles={["Staff", "Admin"]}>
+            <StaffOrdersPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "kitchen",
+        element: (
+          <ProtectedRoute roles={["Kitchen", "Admin"]}>
+            <KitchenPage />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
 ]);

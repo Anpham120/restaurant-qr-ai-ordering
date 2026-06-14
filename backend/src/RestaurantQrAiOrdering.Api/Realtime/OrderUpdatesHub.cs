@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Orders;
@@ -9,12 +10,12 @@ namespace RestaurantQrAiOrdering.Api.Realtime;
 public sealed class OrderUpdatesHub : Hub
 {
     private readonly IOrderStore orders;
-    private readonly RestaurantDataStore restaurantData;
+    private readonly RestaurantDbContext db;
 
-    public OrderUpdatesHub(IOrderStore orders, RestaurantDataStore restaurantData)
+    public OrderUpdatesHub(IOrderStore orders, RestaurantDbContext db)
     {
         this.orders = orders;
-        this.restaurantData = restaurantData;
+        this.db = db;
     }
 
     public override async Task OnConnectedAsync()
@@ -45,7 +46,10 @@ public sealed class OrderUpdatesHub : Hub
 
     public async Task WatchTable(string tableCode)
     {
-        var table = restaurantData.GetActiveTable(tableCode);
+        var normalizedTableCode = tableCode.Trim().ToUpperInvariant();
+        var table = await db.RestaurantTables
+            .AsNoTracking()
+            .FirstOrDefaultAsync(table => table.TableCode == normalizedTableCode && table.IsActive);
         if (table is null)
         {
             throw new HubException("TABLE_NOT_FOUND");

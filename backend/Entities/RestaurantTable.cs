@@ -22,4 +22,6 @@ public class RestaurantTable
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+
+    public ICollection<TableSession> TableSessions { get; set; } = new List<TableSession>();
 }
