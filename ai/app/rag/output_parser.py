@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(frozen=True)
+class ParsedAiResponse:
+    content: str
+    suggested_cart_actions: list[dict[str, Any]]
+    guardrail_flags: list[str]
+
+
+def parse_model_response(raw_response: str, menu_items: list[dict]) -> ParsedAiResponse | None:
+    payload = _extract_json(raw_response)
+    if payload is None:
+        return None
+
+    content = payload.get("content")
+    if not isinstance(content, str) or not content.strip():
+        return None
+
+    flags = _normalize_flags(payload.get("guardrail_flags"))
+    actions, action_flags = _parse_suggested_actions(payload.get("suggested_cart_actions"), menu_items)
+    flags = _dedupe([*flags, *action_flags])
+
+    return ParsedAiResponse(
+        content=content.strip(),
+        suggested_cart_actions=actions,
+        guardrail_flags=flags,
+    )
+
+
+def _extract_json(raw_response: str) -> dict[str, Any] | None:
+    text = (raw_response or "").strip()
+    if not text:
+        return None
+
+    candidates = [text]
+    first = text.find("{")
+    last = text.rfind("}")
+    if first >= 0 and last > first:
+        candidates.append(text[first : last + 1])
+
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+
+    return None
+
+
+def _parse_suggested_actions(value: Any, menu_items: list[dict]) -> tuple[list[dict[str, Any]], list[str]]:
+    if value is None:
+        return [], []
+    if not isinstance(value, list):
+        return [], ["AI_OUTPUT_SCHEMA_INVALID"]
+
+    available_by_id = {
+        str(item.get("id") or item.get("menu_item_id") or "").strip(): item
+        for item in menu_items
+        if str(item.get("id") or item.get("menu_item_id") or "").strip()
+        and bool(item.get("is_available", True))
+    }
+
+    actions: list[dict[str, Any]] = []
+    rejected_count = 0
+    for item in value:
+        if not isinstance(item, dict):
+            rejected_count += 1
+            continue
+
+        item_id = str(item.get("menu_item_id") or item.get("id") or "").strip()
+        menu_item = available_by_id.get(item_id)
+        if menu_item is None:
+            rejected_count += 1
+            continue
+
+        quantity = _parse_quantity(item.get("quantity"))
+        actions.append(
+            {
+                "menu_item_id": item_id,
+                "name": str(item.get("name") or menu_item.get("name") or "").strip(),
+                "price_vnd": _parse_price(item.get("price_vnd") or menu_item.get("price_vnd") or menu_item.get("price")),
+                "quantity": quantity,
+                "reason": _clean_optional_string(item.get("reason")),
+                "requires_customer_confirmation": True,
+            }
+        )
+
+    flags: list[str] = []
+    if actions:
+        flags.append("CUSTOMER_CONFIRMATION_REQUIRED")
+    if rejected_count:
+        flags.append("MENU_FABRICATION_BLOCKED")
+    return actions, flags
+
+
+def _normalize_flags(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return _dedupe(str(flag).strip().upper() for flag in value if str(flag).strip())
+
+
+def _parse_quantity(value: Any) -> int:
+    try:
+        quantity = int(value)
+    except (TypeError, ValueError):
+        return 1
+    return min(max(quantity, 1), 20)
+
+
+def _parse_price(value: Any) -> float | int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _clean_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _dedupe(values) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value).strip()
+        if text and text not in seen:
+            seen.add(text)
+            result.append(text)
+    return result

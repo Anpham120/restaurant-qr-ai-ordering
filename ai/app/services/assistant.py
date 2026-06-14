@@ -4,8 +4,10 @@ from app.clients.nine_router import NineRouterClient
 from app.config import AiServiceConfig
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
+from app.rag.output_parser import parse_model_response
 from app.rag.prompts import build_fallback_answer, build_messages
 from app.rag.retriever import LexicalRetriever
+from app.schemas import ChatResponse, RetrievedSource
 
 
 class AiAssistantService:
@@ -36,6 +38,7 @@ class AiAssistantService:
         flags = detect_guardrail_flags(message)
         provider_available = False
         answer: str | None = None
+        suggested_actions: list[dict] = []
 
         if self._config.llm_enabled:
             client = NineRouterClient(
@@ -45,26 +48,44 @@ class AiAssistantService:
                 self._config.timeout_seconds,
             )
             try:
-                answer = await client.complete(build_messages(message, chunks, menu_items, history))
-                provider_available = bool(answer)
+                raw_answer = await client.complete(build_messages(message, chunks, menu_items, history))
+                parsed = parse_model_response(raw_answer, menu_items)
+                if parsed is None:
+                    flags = _dedupe([*flags, "AI_OUTPUT_SCHEMA_INVALID"])
+                else:
+                    answer = parsed.content
+                    suggested_actions = parsed.suggested_cart_actions
+                    flags = _dedupe([*flags, *parsed.guardrail_flags])
+                    provider_available = True
             except Exception:
-                answer = None
+                flags = _dedupe([*flags, "AI_PROVIDER_UNAVAILABLE"])
 
         if not answer:
             answer = build_fallback_answer(message, chunks)
 
-        return {
-            "content": answer,
-            "provider_available": provider_available,
-            "model": self._config.model,
-            "retrieved_sources": [
-                {
-                    "source": item.chunk.source,
-                    "title": item.chunk.title,
-                    "score": item.score,
-                }
+        return ChatResponse(
+            content=answer,
+            provider_available=provider_available,
+            model=self._config.model,
+            retrieved_sources=[
+                RetrievedSource(
+                    source=item.chunk.source,
+                    title=item.chunk.title,
+                    score=item.score,
+                )
                 for item in retrieved
             ],
-            "guardrail_flags": flags,
-            "suggested_cart_actions": [],
-        }
+            guardrail_flags=flags,
+            suggested_cart_actions=suggested_actions,
+        ).model_dump()
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value).strip()
+        if text and text not in seen:
+            seen.add(text)
+            result.append(text)
+    return result
