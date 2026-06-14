@@ -14,6 +14,16 @@ ENV VITE_USE_MOCK_ORDER=$VITE_USE_MOCK_ORDER
 ENV VITE_USE_MOCK_MENU=$VITE_USE_MOCK_MENU
 
 COPY frontend/package*.json ./
+COPY frontend/apps/admin-web/package.json ./apps/admin-web/package.json
+COPY frontend/apps/customer-web/package.json ./apps/customer-web/package.json
+COPY frontend/apps/kitchen-web/package.json ./apps/kitchen-web/package.json
+COPY frontend/apps/staff-web/package.json ./apps/staff-web/package.json
+COPY frontend/packages/api-client/package.json ./packages/api-client/package.json
+COPY frontend/packages/auth/package.json ./packages/auth/package.json
+COPY frontend/packages/realtime-client/package.json ./packages/realtime-client/package.json
+COPY frontend/packages/shared-types/package.json ./packages/shared-types/package.json
+COPY frontend/packages/shared-ui/package.json ./packages/shared-ui/package.json
+COPY frontend/packages/utils/package.json ./packages/utils/package.json
 RUN npm ci
 
 COPY frontend/ ./
