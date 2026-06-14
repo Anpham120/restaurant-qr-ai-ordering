@@ -3,10 +3,10 @@ import { AdminStatePanel } from "../../components/admin/AdminStatePanel";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
 import "../../components/order-tracking/realtime-order.css";
 import {
+  connectOrderRealtime,
+  disconnectOrderRealtime,
   createItemStatusChangedEvent,
   publishOrderRealtimeEvent,
-  simulateRealtimeError,
-  simulateReconnectCycle,
   subscribeOrderRealtime,
   subscribeRealtimeConnection,
   type RealtimeConnectionStatus,
@@ -24,7 +24,6 @@ export function KitchenRealtimePage() {
   const [orders, setOrders] = useState<OrderTrackingOrder[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<RealtimeConnectionStatus>("connected");
-  const [eventLog, setEventLog] = useState<OrderRealtimeEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -38,13 +37,14 @@ export function KitchenRealtimePage() {
   useEffect(() => {
     const unsubscribeConnection = subscribeRealtimeConnection(setConnectionStatus);
     const unsubscribeRealtime = subscribeOrderRealtime((event) => {
-      setEventLog((current) => [event, ...current].slice(0, 4));
       setOrders((current) => applyRealtimeEvent(current, event));
     });
+    void connectOrderRealtime().catch(() => setConnectionStatus("error"));
 
     return () => {
       unsubscribeConnection();
       unsubscribeRealtime();
+      void disconnectOrderRealtime();
     };
   }, []);
 
@@ -89,7 +89,6 @@ export function KitchenRealtimePage() {
       );
     } catch {
       setErrorMessage("Không cập nhật được trạng thái món.");
-      simulateRealtimeError();
     }
   }
 
@@ -97,14 +96,12 @@ export function KitchenRealtimePage() {
     <PageShell
       eyebrow="Kitchen realtime"
       title="Bảng bếp CMC"
-      description="Bếp nhận món theo cột Pending, Preparing, Ready từ backend và cập nhật trạng thái món bằng API thật."
+      description="Bếp nhận món theo cột Pending, Preparing, Ready và cập nhật trạng thái để khách cùng nhân viên theo dõi."
       variant="kitchen"
       stats={stats}
     >
       <RealtimeStatusBar
         connectionStatus={connectionStatus}
-        onError={simulateRealtimeError}
-        onReconnect={simulateReconnectCycle}
       />
 
       {errorMessage ? <p className="realtime-error">{errorMessage}</p> : null}
@@ -112,25 +109,20 @@ export function KitchenRealtimePage() {
       {isLoading ? (
         <AdminStatePanel
           title="Đang tải bảng bếp"
-          description="Đang lấy đơn khách đã đặt từ backend."
+          description="Đang lấy danh sách đơn hiện có cho bếp."
         />
       ) : (
         <KitchenBoard orders={orders} onUpdateItemStatus={handleUpdateItemStatus} />
       )}
 
-      <EventPreview events={eventLog} />
     </PageShell>
   );
 }
 
 function RealtimeStatusBar({
   connectionStatus,
-  onError,
-  onReconnect,
 }: {
   connectionStatus: RealtimeConnectionStatus;
-  onError: () => void;
-  onReconnect: () => void;
 }) {
   const statusLabel =
     connectionStatus === "connected"
@@ -142,33 +134,12 @@ function RealtimeStatusBar({
   return (
     <section className="realtime-status-bar">
       <div>
-        <strong>Realtime adapter</strong>
-        <p>Adapter sự kiện nội bộ theo contract SignalR `/hubs/orders`.</p>
+        <strong>Kết nối cập nhật trạng thái</strong>
+        <p>Bếp cập nhật món để khách và nhân viên theo dõi cùng một luồng.</p>
       </div>
       <span className={`connection-pill connection-${connectionStatus}`}>
         {statusLabel}
       </span>
-      <div className="realtime-status-actions">
-        <button onClick={onReconnect} type="button">
-          Test reconnect
-        </button>
-        <button onClick={onError} type="button">
-          Test error
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function EventPreview({ events }: { events: OrderRealtimeEvent[] }) {
-  return (
-    <section className="tracking-summary-card">
-      <div>
-        <p className="tracking-kicker">Event payload</p>
-        <h3>{events[0]?.event ?? "Chưa có event"}</h3>
-        <span>Cập nhật item trên bếp sẽ tạo payload `order.itemStatusChanged`.</span>
-      </div>
-      <pre>{events[0] ? JSON.stringify(events[0].payload, null, 2) : "{}"}</pre>
     </section>
   );
 }

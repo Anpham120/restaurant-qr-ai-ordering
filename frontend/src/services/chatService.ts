@@ -7,7 +7,7 @@ import type {
   SuggestedCartAction,
 } from "../types";
 
-const useDemoChat = import.meta.env.VITE_USE_DEMO_CHAT === "true";
+const useMockChat = import.meta.env.VITE_USE_MOCK_CHAT === "true";
 
 function wait(ms: number) {
   return new Promise((resolve) => {
@@ -35,8 +35,8 @@ async function postJson<TResponse>(path: string, body?: unknown): Promise<TRespo
   return (await response.json()) as TResponse;
 }
 
-async function buildSuggestedAction(): Promise<SuggestedCartAction | null> {
-  const menu = await getCustomerMenu();
+function buildSuggestedAction(): SuggestedCartAction | null {
+  const menu = getCustomerMenu();
   const item =
     menu.items.find((menuItem) => menuItem.isAvailable && menuItem.tags.includes("fresh")) ??
     menu.items.find((menuItem) => menuItem.isAvailable);
@@ -55,7 +55,7 @@ async function buildSuggestedAction(): Promise<SuggestedCartAction | null> {
   };
 }
 
-async function buildDemoResponse(request: SendChatMessageRequest): Promise<SendChatMessageResponse> {
+function buildMockResponse(request: SendChatMessageRequest): SendChatMessageResponse {
   const content = request.content.toLowerCase();
   const createdAt = new Date().toISOString();
 
@@ -87,7 +87,7 @@ async function buildDemoResponse(request: SendChatMessageRequest): Promise<SendC
     };
   }
 
-  const suggestedAction = await buildSuggestedAction();
+  const suggestedAction = buildSuggestedAction();
 
   if (!suggestedAction) {
     return {
@@ -117,7 +117,7 @@ async function buildDemoResponse(request: SendChatMessageRequest): Promise<SendC
 
 export const chatApi = {
   async createSession(): Promise<CreateChatSessionResponse> {
-    if (!useDemoChat) {
+    if (!useMockChat) {
       return postJson<CreateChatSessionResponse>("/chat/sessions");
     }
 
@@ -133,7 +133,7 @@ export const chatApi = {
     chatSessionId: string,
     request: SendChatMessageRequest,
   ): Promise<SendChatMessageResponse> {
-    if (!useDemoChat) {
+    if (!useMockChat) {
       return postJson<SendChatMessageResponse>(
         `/chat/sessions/${chatSessionId}/messages`,
         request,
@@ -141,6 +141,6 @@ export const chatApi = {
     }
 
     await wait(760);
-    return buildDemoResponse(request);
+    return buildMockResponse(request);
   },
 };
