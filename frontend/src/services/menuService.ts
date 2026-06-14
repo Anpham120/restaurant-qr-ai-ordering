@@ -1,4 +1,5 @@
-import { getApiBaseUrl } from "./apiClient";
+import { menuItems } from "../mocks/menuItems";
+import { createApiClient } from "@cmc/api-client";
 import type { MenuItem } from "../types";
 
 export type CustomerMenuCategory = {
@@ -11,44 +12,57 @@ export type CustomerMenuResponse = {
   items: MenuItem[];
 };
 
-type ApiMenuItem = Omit<MenuItem, "price" | "imageUrl" | "tags"> & {
-  price: number | string;
-  imageUrl?: string | null;
-  tags?: string[] | null;
-};
+const api = createApiClient();
 
-type ApiMenuResponse = {
-  categories?: CustomerMenuCategory[];
-  items?: ApiMenuItem[];
-};
+function getFallbackImage(index: number) {
+  return menuItems[index % menuItems.length]?.imageUrl ?? menuItems[0]?.imageUrl ?? "";
+}
 
-const fallbackImage =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80";
+function normalizeVN(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
 
-function mapMenuItem(item: ApiMenuItem): MenuItem {
+function mapBackendMenu(menu: CustomerMenuResponse): CustomerMenuResponse {
+  const imageByNormName = new Map(
+    menuItems.map((item) => [normalizeVN(item.name), item.imageUrl]),
+  );
+
+  const keywordImages: Array<[string[], string]> = [
+    [["com ga", "ga xoi"], menuItems.find((i) => normalizeVN(i.name).includes("bo luc lac"))?.imageUrl ?? ""],
+    [["com suon", "suon nuong"], menuItems.find((i) => normalizeVN(i.name).includes("nem ran"))?.imageUrl ?? ""],
+    [["cha gio"], menuItems.find((i) => normalizeVN(i.name).includes("nem ran"))?.imageUrl ?? ""],
+    [["banh flan", "flan"], menuItems.find((i) => normalizeVN(i.name).includes("che khuc bach"))?.imageUrl ?? ""],
+    [["bun bo"], menuItems.find((i) => normalizeVN(i.name).includes("pho bo"))?.imageUrl ?? ""],
+  ];
+
+  function findImage(normName: string, index: number): string {
+    const exact = imageByNormName.get(normName);
+    if (exact) return exact;
+    for (const [key, url] of imageByNormName) {
+      if (key.includes(normName) || normName.includes(key)) return url;
+    }
+    for (const [keywords, url] of keywordImages) {
+      if (url && keywords.some((kw) => normName.includes(kw))) return url;
+    }
+    return getFallbackImage(index);
+  }
+
   return {
-    id: item.id,
-    name: item.name,
-    description: item.description,
-    price: Number(item.price),
-    categoryName: item.categoryName,
-    imageUrl: item.imageUrl?.trim() || fallbackImage,
-    isAvailable: item.isAvailable,
-    tags: item.tags ?? [],
+    categories: menu.categories,
+    items: menu.items.map((item, index) => ({
+      ...item,
+      imageUrl: findImage(normalizeVN(item.name), index),
+      tags: item.tags ?? [],
+    })),
   };
 }
 
-export async function getCustomerMenu(): Promise<CustomerMenuResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/menu`);
-
-  if (!response.ok) {
-    throw new Error("Không tải được thực đơn. Vui lòng thử lại sau.");
-  }
-
-  const payload = (await response.json()) as ApiMenuResponse;
-
-  return {
-    categories: payload.categories ?? [],
-    items: (payload.items ?? []).map(mapMenuItem),
-  };
+export async function fetchCustomerMenu(): Promise<CustomerMenuResponse> {
+  return mapBackendMenu(await api.menu.get() as CustomerMenuResponse);
 }

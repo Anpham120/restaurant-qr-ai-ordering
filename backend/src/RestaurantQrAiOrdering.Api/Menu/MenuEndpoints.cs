@@ -22,8 +22,10 @@ public static class MenuEndpoints
                 c => c,
                 StringComparer.OrdinalIgnoreCase);
 
+            var activeCategoryIds = categories.Select(c => c.Id).ToList();
+
             var items = await db.MenuItems
-                .Where(i => categoryLookup.ContainsKey(i.CategoryId))
+                .Where(i => activeCategoryIds.Contains(i.CategoryId))
                 .Where(i => i.IsAvailable)
                 .ToListAsync();
 
@@ -278,7 +280,7 @@ public static class MenuEndpoints
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static ICollection<string> NormalizeTags(IReadOnlyCollection<string> tags)
+    private static IList<string> NormalizeTags(IReadOnlyCollection<string> tags)
     {
         return tags
             .Where(tag => !string.IsNullOrWhiteSpace(tag))

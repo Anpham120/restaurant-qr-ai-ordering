@@ -1,58 +1,59 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createAdminMenuItem,
+  deleteAdminMenuItem,
   getAdminMenuOverview,
+  setAdminMenuItemAvailability,
   updateAdminMenuItem,
-  updateAdminMenuItemAvailability,
-  type AdminMenuItemInput,
+  type AdminMenuItemPayload,
 } from "../../services/adminMenuService";
 import type { AdminMenuCategory, AdminMenuItem } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
-const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
-
-type MenuFormState = {
+type FormState = {
   name: string;
   categoryId: string;
   price: string;
-  imageUrl: string;
   description: string;
+  imageUrl: string;
   tags: string;
   isAvailable: boolean;
 };
 
-function buildEmptyForm(categoryId = ""): MenuFormState {
+const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
+
+function createEmptyForm(categoryId = ""): FormState {
   return {
     name: "",
     categoryId,
     price: "",
-    imageUrl: "",
     description: "",
+    imageUrl: "",
     tags: "",
     isAvailable: true,
   };
 }
 
-function buildFormFromItem(item: AdminMenuItem): MenuFormState {
+function formFromItem(item: AdminMenuItem): FormState {
   return {
     name: item.name,
     categoryId: item.categoryId,
     price: String(item.price),
-    imageUrl: item.imageUrl,
     description: item.description,
+    imageUrl: item.imageUrl ?? "",
     tags: item.tags.join(", "),
     isAvailable: item.isAvailable,
   };
 }
 
-function toMenuInput(form: MenuFormState): AdminMenuItemInput {
+function toPayload(form: FormState): AdminMenuItemPayload {
   return {
-    name: form.name,
     categoryId: form.categoryId,
-    description: form.description,
+    name: form.name.trim(),
+    description: form.description.trim(),
     price: Number(form.price),
-    imageUrl: form.imageUrl,
+    imageUrl: form.imageUrl.trim() || null,
     isAvailable: form.isAvailable,
     tags: form.tags
       .split(",")
@@ -67,25 +68,28 @@ export function AdminMenuManager() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<MenuFormState>(buildEmptyForm);
+  const [form, setForm] = useState<FormState>(() => createEmptyForm());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const loadOverview = async (preferredItemId?: string | null) => {
+    const overview = await getAdminMenuOverview();
+    const nextSelectedId = preferredItemId ?? overview.items[0]?.id ?? null;
+
+    setItems(overview.items);
+    setCategories(overview.categories);
+    setSelectedItemId(nextSelectedId);
+    setIsCreating(false);
+
+    const nextSelectedItem = overview.items.find((item) => item.id === nextSelectedId);
+    setForm(nextSelectedItem ? formFromItem(nextSelectedItem) : createEmptyForm(overview.categories[0]?.id));
+  };
 
   useEffect(() => {
-    getAdminMenuOverview()
-      .then((overview) => {
-        setItems(overview.items);
-        setCategories(overview.categories);
-        const firstItem = overview.items[0] ?? null;
-        const firstCategoryId = overview.categories[0]?.id ?? "";
-        setSelectedItemId(firstItem?.id ?? null);
-        setForm(firstItem ? buildFormFromItem(firstItem) : buildEmptyForm(firstCategoryId));
-      })
-      .catch((loadError) =>
-        setError(loadError instanceof Error ? loadError.message : "Không tải được dữ liệu thực đơn."),
-      )
+    loadOverview()
+      .catch(() => setError("Không tải được dữ liệu thực đơn từ backend."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -101,90 +105,123 @@ export function AdminMenuManager() {
   const availableCount = items.filter((item) => item.isAvailable).length;
   const unavailableCount = items.length - availableCount;
 
-  function updateForm(field: keyof MenuFormState, value: string | boolean) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  function beginCreate() {
+  const startCreate = () => {
     setIsCreating(true);
     setSelectedItemId(null);
-    setNotice("");
-    setForm(buildEmptyForm(categories[0]?.id ?? ""));
-  }
+    setForm(createEmptyForm(categories[0]?.id));
+    setActionMessage(null);
+  };
 
-  function beginEdit(item: AdminMenuItem) {
+  const startEdit = (item: AdminMenuItem) => {
     setIsCreating(false);
     setSelectedItemId(item.id);
-    setNotice("");
-    setForm(buildFormFromItem(item));
-  }
+    setForm(formFromItem(item));
+    setActionMessage(null);
+  };
 
-  async function toggleAvailability(item: AdminMenuItem) {
-    setError(null);
-    setNotice("");
+  const updateForm = (patch: Partial<FormState>) => {
+    setForm((current) => ({ ...current, ...patch }));
+  };
 
-    try {
-      const updatedItem = await updateAdminMenuItemAvailability(item.id, !item.isAvailable);
-      setItems((currentItems) =>
-        currentItems.map((currentItem) =>
-          currentItem.id === updatedItem.id ? updatedItem : currentItem,
-        ),
-      );
-      if (selectedItemId === updatedItem.id) {
-        setForm(buildFormFromItem(updatedItem));
-      }
-      setNotice(`${updatedItem.name} đã được cập nhật trạng thái.`);
-    } catch (toggleError) {
-      setError(toggleError instanceof Error ? toggleError.message : "Không cập nhật được trạng thái món.");
+  const validateForm = () => {
+    if (!form.name.trim()) {
+      return "Tên món là bắt buộc.";
     }
-  }
+    if (!form.categoryId) {
+      return "Vui lòng chọn danh mục.";
+    }
+    if (!Number.isFinite(Number(form.price)) || Number(form.price) <= 0) {
+      return "Giá bán phải lớn hơn 0.";
+    }
+    return null;
+  };
 
-  async function saveMenuItem(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setNotice("");
-
-    if (!form.name.trim() || !form.categoryId || Number(form.price) <= 0) {
-      setError("Vui lòng nhập tên món, danh mục và giá bán hợp lệ.");
+  const saveMenuItem = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setActionMessage(validationError);
       return;
     }
 
     setIsSaving(true);
+    setActionMessage(null);
 
     try {
-      const input = toMenuInput(form);
-      const savedItem =
-        isCreating || !selectedItem
-          ? await createAdminMenuItem(input)
-          : await updateAdminMenuItem(selectedItem.id, input);
+      const savedItem = isCreating
+        ? await createAdminMenuItem(toPayload(form))
+        : selectedItemId
+          ? await updateAdminMenuItem(selectedItemId, toPayload(form))
+          : null;
 
-      setItems((currentItems) => {
-        const exists = currentItems.some((item) => item.id === savedItem.id);
-        return exists
-          ? currentItems.map((item) => (item.id === savedItem.id ? savedItem : item))
-          : [...currentItems, savedItem];
-      });
-      setSelectedItemId(savedItem.id);
-      setIsCreating(false);
-      setForm(buildFormFromItem(savedItem));
-      setNotice(`${savedItem.name} đã được lưu qua API.`);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Không lưu được món.");
+      await loadOverview(savedItem?.id ?? selectedItemId);
+      setActionMessage(isCreating ? "Đã tạo món mới." : "Đã lưu thay đổi món.");
+    } catch {
+      setActionMessage("Không lưu được món. Kiểm tra quyền admin hoặc dữ liệu nhập.");
     } finally {
       setIsSaving(false);
     }
-  }
+  };
+
+  const removeSelectedItem = async () => {
+    if (!selectedItemId || isCreating) {
+      return;
+    }
+
+    setIsSaving(true);
+    setActionMessage(null);
+
+    try {
+      await deleteAdminMenuItem(selectedItemId);
+      await loadOverview(null);
+      setActionMessage("Đã xóa món khỏi thực đơn.");
+    } catch {
+      setActionMessage("Không xóa được món. Có thể món đang được tham chiếu bởi đơn hàng.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleAvailability = async (itemId: string) => {
+    const currentItem = items.find((item) => item.id === itemId);
+    if (!currentItem) {
+      return;
+    }
+
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === itemId ? { ...item, isAvailable: !item.isAvailable } : item,
+      ),
+    );
+    setActionMessage(null);
+
+    try {
+      const updatedItem = await setAdminMenuItemAvailability(itemId, !currentItem.isAvailable);
+      setItems((currentItems) =>
+        currentItems.map((item) => (item.id === itemId ? { ...item, ...updatedItem } : item)),
+      );
+      if (selectedItemId === itemId) {
+        setForm(formFromItem({ ...currentItem, ...updatedItem }));
+      }
+    } catch {
+      setItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === itemId ? { ...item, isAvailable: currentItem.isAvailable } : item,
+        ),
+      );
+      setActionMessage("Không thể cập nhật trạng thái món.");
+    }
+  };
 
   if (isLoading) {
     return (
       <AdminStatePanel
         title="Đang tải thực đơn"
-        description="Đang lấy danh mục và món ăn từ backend."
+        description="Đang tải dữ liệu món ăn cho màn quản trị."
       />
     );
   }
 
-  if (error && items.length === 0) {
+  if (error) {
     return <AdminStatePanel title="Có lỗi dữ liệu" description={error} />;
   }
 
@@ -195,21 +232,18 @@ export function AdminMenuManager() {
           <span className="panel-kicker">Menu control</span>
           <h3>{items.length} món trong thực đơn</h3>
           <p>
-            {availableCount} món đang bán, {unavailableCount} món tạm hết. Dữ liệu được lấy và cập
-            nhật qua API quản trị thực đơn.
+            {availableCount} món đang bán, {unavailableCount} món tạm hết. Quản lý danh mục,
+            giá bán và trạng thái hiển thị cho khách.
           </p>
         </div>
         <div className="admin-toolbar-metrics">
           <span>{categories.length} danh mục</span>
           <span>{visibleItems.length} món đang xem</span>
         </div>
-        <button className="button primary" type="button" onClick={beginCreate}>
+        <button className="button primary" type="button" onClick={startCreate}>
           + Tạo món
         </button>
       </section>
-
-      {notice ? <p className="admin-status admin-status-ready">{notice}</p> : null}
-      {error ? <p className="admin-status admin-status-alert">{error}</p> : null}
 
       <section className="admin-category-strip" aria-label="Lọc danh mục">
         <button
@@ -238,7 +272,7 @@ export function AdminMenuManager() {
               <span className="panel-kicker">Danh sách món</span>
               <h3>Trạng thái hiển thị</h3>
             </div>
-            <span className="admin-status admin-status-ready">API-ready</span>
+            <span className="admin-status admin-status-ready">Đang hoạt động</span>
           </div>
 
           {visibleItems.length === 0 ? (
@@ -264,10 +298,10 @@ export function AdminMenuManager() {
                   <div className="admin-row-actions">
                     <strong>{formatCurrency(item.price)}</strong>
                     <AdminStatusBadge status={item.isAvailable ? "Available" : "Unavailable"} />
-                    <button type="button" onClick={() => toggleAvailability(item)}>
+                    <button type="button" onClick={() => toggleAvailability(item.id)}>
                       {item.isAvailable ? "Tạm hết" : "Mở bán"}
                     </button>
-                    <button type="button" onClick={() => beginEdit(item)}>
+                    <button type="button" onClick={() => startEdit(item)}>
                       Sửa
                     </button>
                   </div>
@@ -280,25 +314,31 @@ export function AdminMenuManager() {
         <aside className="admin-panel admin-form-panel">
           <span className="panel-kicker">{isCreating ? "Create" : "Edit"}</span>
           <h3>{isCreating ? "Tạo món mới" : selectedItem?.name ?? "Chọn món"}</h3>
-          <p>
-            Form này gửi trực tiếp lên API quản trị thực đơn. Thay đổi thành công sẽ cập nhật lại
-            danh sách đang hiển thị.
-          </p>
-          <form className="admin-form" onSubmit={saveMenuItem}>
+          <p>Cập nhật món qua API admin để khách, bếp và nhân viên cùng dùng một nguồn dữ liệu.</p>
+          <form
+            className="admin-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveMenuItem();
+            }}
+          >
             <label>
               Tên món
               <input
-                onChange={(event) => updateForm("name", event.target.value)}
-                placeholder="Nhập tên món"
                 value={form.name}
+                onChange={(event) => updateForm({ name: event.target.value })}
+                placeholder="Nhập tên món"
               />
             </label>
             <label>
               Danh mục
               <select
-                onChange={(event) => updateForm("categoryId", event.target.value)}
                 value={form.categoryId}
+                onChange={(event) => updateForm({ categoryId: event.target.value })}
               >
+                <option value="" disabled>
+                  Chọn danh mục
+                </option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -309,47 +349,57 @@ export function AdminMenuManager() {
             <label>
               Giá bán
               <input
-                inputMode="numeric"
-                onChange={(event) => updateForm("price", event.target.value)}
-                placeholder="65000"
                 value={form.price}
+                onChange={(event) => updateForm({ price: event.target.value })}
+                inputMode="numeric"
+                placeholder="65000"
               />
             </label>
             <label>
               Ảnh món
               <input
-                onChange={(event) => updateForm("imageUrl", event.target.value)}
-                placeholder="https://..."
                 value={form.imageUrl}
+                onChange={(event) => updateForm({ imageUrl: event.target.value })}
+                placeholder="https://..."
               />
             </label>
             <label>
               Mô tả
               <textarea
-                onChange={(event) => updateForm("description", event.target.value)}
-                placeholder="Mô tả ngắn cho khách và admin"
                 value={form.description}
+                onChange={(event) => updateForm({ description: event.target.value })}
+                placeholder="Mô tả ngắn cho khách và admin"
               />
             </label>
             <label>
               Tags
               <input
-                onChange={(event) => updateForm("tags", event.target.value)}
-                placeholder="fresh, lunch, spicy"
                 value={form.tags}
+                onChange={(event) => updateForm({ tags: event.target.value })}
+                placeholder="signature, cay nhẹ, bán chạy"
               />
             </label>
             <label className="admin-check-row">
               <input
                 checked={form.isAvailable}
-                onChange={(event) => updateForm("isAvailable", event.target.checked)}
+                onChange={(event) => updateForm({ isAvailable: event.target.checked })}
                 type="checkbox"
               />
               Hiển thị là còn món
             </label>
-            <button className="button primary" disabled={isSaving} type="submit">
+            {actionMessage ? (
+              <p className="admin-form-note" role="status">
+                {actionMessage}
+              </p>
+            ) : null}
+            <button className="button primary" type="submit" disabled={isSaving}>
               {isSaving ? "Đang lưu..." : isCreating ? "Lưu món mới" : "Lưu thay đổi"}
             </button>
+            {!isCreating && selectedItemId ? (
+              <button className="button" type="button" onClick={removeSelectedItem} disabled={isSaving}>
+                Xóa món
+              </button>
+            ) : null}
           </form>
 
           <div className="admin-category-summary">

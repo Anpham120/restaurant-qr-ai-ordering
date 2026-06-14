@@ -1,10 +1,10 @@
 import type { OrderStatus, TableCode } from "./api";
 import type { MenuItem } from "./menu";
+import type { OrderItemStatus, PaymentStatus } from "./order";
 
 export type AdminMenuCategory = {
   id: string;
   name: string;
-  displayOrder: number;
   isActive: boolean;
   itemCount: number;
 };
@@ -18,14 +18,14 @@ export type AdminMenuOverview = {
   items: AdminMenuItem[];
 };
 
-export type AdminOrderType = "DineIn" | "Pickup" | "DeliveryMock";
+export type AdminOrderType = "DineIn" | "Pickup";
 
 export type AdminOrderItem = {
   id: string;
   name: string;
   quantity: number;
   note?: string;
-  status: OrderStatus | "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
+  status: OrderItemStatus;
 };
 
 export type AdminOrder = {
@@ -37,6 +37,6 @@ export type AdminOrder = {
   status: OrderStatus;
   total: number;
   placedAt: string;
-  paymentStatus: "Pending" | "Paid";
+  paymentStatus: PaymentStatus;
   items: AdminOrderItem[];
 };
