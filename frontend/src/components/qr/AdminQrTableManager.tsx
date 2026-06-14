@@ -10,10 +10,10 @@ type QrTable = {
 
 const tables: QrTable[] = [
   { tableCode: "T-01", zone: "Sảnh chính", seats: 2, status: "Available" },
-  { tableCode: "T-02", zone: "Sảnh chính", seats: 4, status: "Serving", currentOrder: "ORDER-008" },
+  { tableCode: "T-02", zone: "Sảnh chính", seats: 4, status: "Serving", currentOrder: "ORD-1008" },
   { tableCode: "T-03", zone: "Sảnh chính", seats: 4, status: "Available" },
   { tableCode: "T-04", zone: "Cửa sổ", seats: 2, status: "Cleaning" },
-  { tableCode: "T-05", zone: "Cửa sổ", seats: 6, status: "Serving", currentOrder: "ORDER-001" },
+  { tableCode: "T-05", zone: "Cửa sổ", seats: 6, status: "Serving", currentOrder: "ORD-1009" },
   { tableCode: "T-06", zone: "Phòng riêng", seats: 8, status: "Available" },
 ];
 

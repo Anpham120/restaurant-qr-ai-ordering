@@ -7,7 +7,7 @@ import type {
   SuggestedCartAction,
 } from "../types";
 
-const useMockChat = import.meta.env.VITE_USE_MOCK_CHAT === "true";
+const useDemoChat = import.meta.env.VITE_USE_DEMO_CHAT === "true";
 
 function wait(ms: number) {
   return new Promise((resolve) => {
@@ -55,7 +55,7 @@ async function buildSuggestedAction(): Promise<SuggestedCartAction | null> {
   };
 }
 
-async function buildMockResponse(request: SendChatMessageRequest): Promise<SendChatMessageResponse> {
+async function buildDemoResponse(request: SendChatMessageRequest): Promise<SendChatMessageResponse> {
   const content = request.content.toLowerCase();
   const createdAt = new Date().toISOString();
 
@@ -117,7 +117,7 @@ async function buildMockResponse(request: SendChatMessageRequest): Promise<SendC
 
 export const chatApi = {
   async createSession(): Promise<CreateChatSessionResponse> {
-    if (!useMockChat) {
+    if (!useDemoChat) {
       return postJson<CreateChatSessionResponse>("/chat/sessions");
     }
 
@@ -133,7 +133,7 @@ export const chatApi = {
     chatSessionId: string,
     request: SendChatMessageRequest,
   ): Promise<SendChatMessageResponse> {
-    if (!useMockChat) {
+    if (!useDemoChat) {
       return postJson<SendChatMessageResponse>(
         `/chat/sessions/${chatSessionId}/messages`,
         request,
@@ -141,6 +141,6 @@ export const chatApi = {
     }
 
     await wait(760);
-    return buildMockResponse(request);
+    return buildDemoResponse(request);
   },
 };

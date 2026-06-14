@@ -4,6 +4,7 @@ import type { MenuItem } from "./menu";
 export type AdminMenuCategory = {
   id: string;
   name: string;
+  displayOrder: number;
   isActive: boolean;
   itemCount: number;
 };

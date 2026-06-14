@@ -6,11 +6,11 @@ export function AdminMenuManagementPage() {
     <PageShell
       eyebrow="Admin"
       title="Quản lý thực đơn"
-      description="Quản lý món ăn, danh mục, giá bán và trạng thái còn món theo contract menu."
+      description="Quản lý món ăn, danh mục, giá bán và trạng thái còn món bằng API thật của backend."
       variant="admin"
       stats={[
-        { label: "Màn hình", value: "Menu", detail: "List, form, category" },
-        { label: "Nguồn dữ liệu", value: "Mock", detail: "Qua adminMenuService" },
+        { label: "Màn hình", value: "Menu", detail: "Danh sách, form, danh mục" },
+        { label: "Nguồn dữ liệu", value: "API", detail: "Qua adminMenuService" },
       ]}
     >
       <AdminMenuManager />
