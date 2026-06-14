@@ -16,16 +16,19 @@ import {
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
-import { getCustomerMenu } from "../../services/menuService";
-import type { MenuCart } from "../../types";
+import { fetchCustomerMenu, getCustomerMenu } from "../../services/menuService";
+import type { CustomerMenuResponse } from "../../services/menuService";
+import type { MenuCart, MenuItem } from "../../types";
 
 type CustomerMenuPageProps = {
   tableCode?: string;
 };
 
-const customerMenu = getCustomerMenu();
-const menuItems = customerMenu.items;
-const menuCategories = ["Tất cả", ...customerMenu.categories.map((category) => category.name)];
+const ALL_CATEGORY = "\u0054\u1ea5\u0074 \u0063\u1ea3";
+const initialMenu: CustomerMenuResponse =
+  import.meta.env.VITE_USE_MOCK_MENU === "true"
+    ? getCustomerMenu()
+    : { categories: [], items: [] };
 
 function getInitialCart() {
   if (typeof window === "undefined") {
@@ -34,8 +37,8 @@ function getInitialCart() {
 
   return loadMenuCart();
 }
-function getCartSummary(cart: MenuCart) {
-  return menuItems.reduce(
+function getCartSummary(cart: MenuCart, items: MenuItem[]) {
+  return items.reduce(
     (summary, item) => {
       const quantity = cart[item.id] ?? 0;
       return {
@@ -47,9 +50,31 @@ function getCartSummary(cart: MenuCart) {
   );
 }
 export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
-  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const [customerMenu, setCustomerMenu] = useState(initialMenu);
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
+  const [menuError, setMenuError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchCustomerMenu()
+      .then((menu) => {
+        if (isMounted) {
+          setCustomerMenu(menu);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMenuError("Không tải được thực đơn từ hệ thống.");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (tableCode) {
@@ -57,12 +82,18 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
     }
   }, [tableCode]);
 
+  const menuItems = customerMenu.items;
+  const menuCategories = useMemo(
+    () => [ALL_CATEGORY, ...customerMenu.categories.map((category) => category.name)],
+    [customerMenu.categories],
+  );
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return menuItems.filter((item) => {
       const matchesCategory =
-        selectedCategory === "Tất cả" || item.categoryName === selectedCategory;
+        selectedCategory === ALL_CATEGORY || item.categoryName === selectedCategory;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         [item.name, item.description, item.categoryName, ...item.tags]
@@ -72,10 +103,11 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
 
       return matchesCategory && matchesSearch;
     });
-  }, [search, selectedCategory]);
+  }, [menuItems, search, selectedCategory]);
 
   const featuredItems = menuItems.filter((item) => item.isAvailable).slice(0, 6);
-  const summary = getCartSummary(cart);
+  const summary = getCartSummary(cart, menuItems);
+  const heroItems = featuredItems.length >= 3 ? featuredItems : menuItems.slice(0, 3);
 
   function updateCart(nextCart: MenuCart) {
     setCart(nextCart);
@@ -125,11 +157,13 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
             </Link>
           </div>
         </div>
-        <div className="cmc-hero-collage" aria-label="Featured dishes">
-          <img alt="Bò lúc lắc" src={menuItems[5].imageUrl} />
-          <img alt="Phở bò đặc biệt" src={menuItems[4].imageUrl} />
-          <img alt="Trà đào cam sả" src={menuItems[10].imageUrl} />
-        </div>
+        {heroItems.length > 0 ? (
+          <div className="cmc-hero-collage" aria-label="Featured dishes">
+            {heroItems.slice(0, 3).map((item) => (
+              <img alt={item.name} key={item.id} src={item.imageUrl} />
+            ))}
+          </div>
+        ) : null}
       </header>
 
       <section className="cmc-home-flow" aria-label="Customer order journey">
@@ -163,6 +197,7 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
       </section>
 
       <section className="cmc-menu-toolbar" aria-label="Menu filters">
+        {menuError ? <p className="cmc-inline-error">{menuError}</p> : null}
         <TableContextBadge tableCode={tableCode} />
         <div className="cmc-search-row">
           <input
@@ -181,7 +216,7 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
         />
       </section>
 
-      {search.trim().length === 0 && selectedCategory === "Tất cả" ? (
+      {search.trim().length === 0 && selectedCategory === ALL_CATEGORY ? (
         <section className="cmc-featured-strip" aria-label="Featured menu items">
           <div className="cmc-section-title">
             <h3>Gợi ý hôm nay</h3>

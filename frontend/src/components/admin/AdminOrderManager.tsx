@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAdminOrders } from "../../services/adminOrderService";
-import type { AdminOrder } from "../../types";
+import { confirmOrderPayment, updateOrderStatus } from "../../services/orderService";
+import type { AdminOrder, OrderStatus } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
@@ -25,6 +26,15 @@ const statusLabels: Record<OrderFilterStatus, string> = {
 };
 
 const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
+
+const nextStatuses: Partial<Record<OrderStatus, OrderStatus>> = {
+  Placed: "Confirmed",
+  Confirmed: "Preparing",
+  Preparing: "Ready",
+  Ready: "Served",
+  Served: "Completed",
+  Delivered: "Completed",
+};
 
 export function AdminOrderManager() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -62,6 +72,45 @@ export function AdminOrderManager() {
     }),
     [orders],
   );
+
+  async function reloadOrders(selectedCode?: string) {
+    const nextOrders = await getAdminOrders();
+    setOrders(nextOrders);
+    setSelectedOrderId(
+      nextOrders.find((order) => order.code === selectedCode)?.id ?? nextOrders[0]?.id ?? null,
+    );
+  }
+
+  async function advanceSelectedOrder() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    const nextStatus = nextStatuses[selectedOrder.status];
+    if (!nextStatus) {
+      return;
+    }
+
+    try {
+      await updateOrderStatus(selectedOrder.code, nextStatus);
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể cập nhật trạng thái đơn.");
+    }
+  }
+
+  async function confirmSelectedPayment() {
+    if (!selectedOrder) {
+      return;
+    }
+
+    try {
+      await confirmOrderPayment(selectedOrder.code, "Confirmed from admin order manager");
+      await reloadOrders(selectedOrder.code);
+    } catch {
+      setError("Không thể xác nhận thanh toán.");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -198,14 +247,27 @@ export function AdminOrderManager() {
               </div>
 
               <div className="admin-action-row">
-                <button className="button primary" type="button">
+                <button
+                  className="button primary"
+                  type="button"
+                  onClick={advanceSelectedOrder}
+                  disabled={!nextStatuses[selectedOrder.status]}
+                >
                   Xác nhận xử lý
                 </button>
-                <button className="button" type="button">
-                  Gửi staff
+                <button
+                  className="button"
+                  type="button"
+                  onClick={confirmSelectedPayment}
+                  disabled={
+                    selectedOrder.paymentStatus === "Paid" ||
+                    selectedOrder.paymentStatus === "Confirmed"
+                  }
+                >
+                  Xác nhận thanh toán
                 </button>
-                <button className="button" type="button">
-                  Xem phiếu bếp
+                <button className="button" type="button" onClick={() => reloadOrders(selectedOrder.code)}>
+                  Tải lại đơn
                 </button>
               </div>
             </>

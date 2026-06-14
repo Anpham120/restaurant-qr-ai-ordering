@@ -1,5 +1,6 @@
 import type { OrderStatus, TableCode } from "./api";
 import type { MenuItem } from "./menu";
+import type { OrderItemStatus, PaymentStatus } from "./order";
 
 export type AdminMenuCategory = {
   id: string;
@@ -24,7 +25,7 @@ export type AdminOrderItem = {
   name: string;
   quantity: number;
   note?: string;
-  status: OrderStatus;
+  status: OrderItemStatus;
 };
 
 export type AdminOrder = {
@@ -36,6 +37,6 @@ export type AdminOrder = {
   status: OrderStatus;
   total: number;
   placedAt: string;
-  paymentStatus: "Pending" | "Paid";
+  paymentStatus: PaymentStatus;
   items: AdminOrderItem[];
 };

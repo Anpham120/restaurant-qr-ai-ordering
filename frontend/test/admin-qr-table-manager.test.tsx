@@ -1,20 +1,43 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminQrTableManager } from "../src/components/qr/AdminQrTableManager";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const tableCode = String(input).split("/").pop() ?? "T01";
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tableCode,
+          displayName: `Bàn ${tableCode}`,
+          isActive: true,
+          qrToken: `cmc-table-${tableCode.toLowerCase()}-qr`,
+          customerPath: `/table/${tableCode}`,
+        }),
+      } as Response;
+    }),
+  );
 });
 
 describe("AdminQrTableManager", () => {
-  it("renders zones, table links, and current status counts", () => {
+  it("renders backend tables grouped by zone", async () => {
     render(<AdminQrTableManager />);
 
-    expect(screen.getByRole("heading", { name: "Sơ đồ bàn cho một ca phục vụ liền mạch" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Khu vực Sảnh chính" })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Mở bàn/ })).toHaveLength(6);
-    expect(screen.getAllByText("Đang phục vụ")).toHaveLength(3);
+    expect(
+      await screen.findByRole("heading", { name: "Sơ đồ bàn đồng bộ với backend" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Khu vực Sảnh chính" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Mở bàn" })).toHaveLength(8);
+    expect(screen.getAllByText("Sẵn sàng")).toHaveLength(8);
   });
 
   it("copies the selected table link and announces success", async () => {
@@ -25,11 +48,11 @@ describe("AdminQrTableManager", () => {
     });
 
     render(<AdminQrTableManager />);
-    fireEvent.click(screen.getByRole("button", { name: "Sao chép link bàn T-01" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Sao chép link bàn T01" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/table/T-01`);
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/table/T01`);
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Đã sao chép link bàn T-01.");
+    expect(screen.getByRole("status")).toHaveTextContent("Đã sao chép link bàn T01.");
   });
 });

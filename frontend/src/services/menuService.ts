@@ -1,4 +1,5 @@
 import { menuCategories, menuItems } from "../mocks/menuItems";
+import { createApiClient } from "@cmc/api-client";
 import type { MenuItem } from "../types";
 
 export type CustomerMenuCategory = {
@@ -11,6 +12,9 @@ export type CustomerMenuResponse = {
   items: MenuItem[];
 };
 
+const api = createApiClient();
+const useMockMenu = import.meta.env.VITE_USE_MOCK_MENU === "true";
+
 function toCategoryId(categoryName: string) {
   return `cat_${categoryName
     .normalize("NFD")
@@ -18,6 +22,23 @@ function toCategoryId(categoryName: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "")}`;
+}
+
+function getFallbackImage(index: number) {
+  return menuItems[index % menuItems.length]?.imageUrl ?? menuItems[0]?.imageUrl ?? "";
+}
+
+function mapBackendMenu(menu: CustomerMenuResponse): CustomerMenuResponse {
+  const imageByName = new Map(menuItems.map((item) => [item.name.toLowerCase(), item.imageUrl]));
+
+  return {
+    categories: menu.categories,
+    items: menu.items.map((item, index) => ({
+      ...item,
+      imageUrl: imageByName.get(item.name.toLowerCase()) ?? item.imageUrl ?? getFallbackImage(index),
+      tags: item.tags ?? [],
+    })),
+  };
 }
 
 export function getCustomerMenu(): CustomerMenuResponse {
@@ -30,4 +51,12 @@ export function getCustomerMenu(): CustomerMenuResponse {
       })),
     items: menuItems,
   };
+}
+
+export async function fetchCustomerMenu(): Promise<CustomerMenuResponse> {
+  if (useMockMenu) {
+    return getCustomerMenu();
+  }
+
+  return mapBackendMenu(await api.menu.get() as CustomerMenuResponse);
 }
