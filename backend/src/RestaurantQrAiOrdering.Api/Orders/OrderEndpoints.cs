@@ -4,6 +4,7 @@ using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
+using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Api.Orders;
@@ -56,6 +57,57 @@ public static partial class OrderEndpoints
                 : Results.Ok(ToResponse(order));
         })
         .WithName("GetOrder")
+        .WithTags("Orders");
+
+        app.MapGet("/api/orders", async (
+            string? status,
+            string? tableCode,
+            DateTimeOffset? updatedSince,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var query = db.Orders
+                .AsNoTracking()
+                .Include(order => order.Payment)
+                .Include(order => order.OrderItems)
+                .Include(order => order.RestaurantTable)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!TryParseEnum<OrderStatus>(status, out var parsedStatus))
+                {
+                    return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
+                }
+
+                query = query.Where(order => order.Status == parsedStatus);
+            }
+
+            if (!string.IsNullOrWhiteSpace(tableCode))
+            {
+                var normalizedTableCode = tableCode.Trim().ToUpperInvariant();
+                query = query.Where(order => order.TableCode == normalizedTableCode);
+            }
+
+            if (updatedSince is not null)
+            {
+                query = query.Where(order => order.UpdatedAt >= updatedSince.Value);
+            }
+
+            var orders = await query
+                .OrderByDescending(order => order.UpdatedAt)
+                .ThenByDescending(order => order.CreatedAt)
+                .Take(100)
+                .ToListAsync(cancellationToken);
+
+            var response = orders
+                .Select(order => ToResponse(order))
+                .ToList();
+
+            return Results.Ok(new OrderListResponse(response, response.Count));
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
+        .WithName("ListOrders")
         .WithTags("Orders");
 
         app.MapPatch("/api/orders/{orderCode}/status", async (
@@ -118,7 +170,7 @@ public static partial class OrderEndpoints
 
             return Results.Ok(ToResponse(result.Order));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
         .WithName("UpdateOrderStatus")
         .WithTags("Orders");
 
@@ -320,6 +372,55 @@ public static partial class OrderEndpoints
             order.Events
                 .Select(item => new OrderStatusEventResponse(item.Status, item.CreatedAt))
                 .ToList());
+    }
+
+    private static OrderResponse ToResponse(Order order)
+    {
+        var payment = order.Payment;
+        var deliveryInfo = HasPersistedDeliveryInfo(order)
+            ? new DeliveryInfoResponse(
+                order.DeliveryRecipientName!,
+                order.DeliveryPhoneNumber!,
+                order.DeliveryAddress!,
+                order.DeliveryNote)
+            : null;
+
+        return new OrderResponse(
+            order.Id,
+            order.OrderCode,
+            order.OrderType.ToString(),
+            order.TableCode,
+            order.Status.ToString(),
+            (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
+            (payment?.Method ?? PaymentMethod.COD).ToString(),
+            deliveryInfo,
+            order.SubtotalAmount,
+            order.TotalAmount,
+            order.CreatedAt,
+            order.UpdatedAt,
+            order.OrderItems
+                .OrderBy(item => item.CreatedAt)
+                .Select(item => new OrderItemResponse(
+                    item.Id,
+                    item.MenuItemId,
+                    item.MenuItemName,
+                    item.UnitPrice,
+                    item.Quantity,
+                    item.Status.ToString(),
+                    item.UnitPrice * item.Quantity,
+                    item.UpdatedAt))
+                .ToList(),
+            new[]
+            {
+                new OrderStatusEventResponse(order.Status.ToString(), order.UpdatedAt)
+            });
+    }
+
+    private static bool HasPersistedDeliveryInfo(Order order)
+    {
+        return !string.IsNullOrWhiteSpace(order.DeliveryRecipientName)
+            && !string.IsNullOrWhiteSpace(order.DeliveryPhoneNumber)
+            && !string.IsNullOrWhiteSpace(order.DeliveryAddress);
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)

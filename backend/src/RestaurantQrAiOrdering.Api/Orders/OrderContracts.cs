@@ -21,6 +21,10 @@ public sealed record UpdateOrderStatusRequest(string? Status);
 
 public sealed record UpdateOrderItemStatusRequest(string? Status);
 
+public sealed record OrderListResponse(
+    IReadOnlyList<OrderResponse> Orders,
+    int Total);
+
 public sealed record OrderResponse(
     string OrderId,
     string OrderCode,
