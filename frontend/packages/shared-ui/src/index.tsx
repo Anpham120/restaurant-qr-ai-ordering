@@ -140,43 +140,7 @@ export function LoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [quickBusy, setQuickBusy] = useState<string | null>(null);
   const target = (location.state as { from?: string } | null)?.from ?? "/";
-
-  const allQuickAccounts: Array<{
-    role: UserRole;
-    email: string;
-    password: string;
-    icon: string;
-    label: string;
-    description: string;
-  }> = [
-    {
-      role: "Admin",
-      email: "admin@restaurant.local",
-      password: "Admin@123",
-      icon: "AD",
-      label: "Quản trị viên",
-      description: "Toàn quyền hệ thống",
-    },
-    {
-      role: "Staff",
-      email: "staff@restaurant.local",
-      password: "Staff@123",
-      icon: "ST",
-      label: "Nhân viên",
-      description: "Phục vụ, thu ngân",
-    },
-    {
-      role: "Kitchen",
-      email: "kitchen@restaurant.local",
-      password: "Kitchen@123",
-      icon: "KT",
-      label: "Đầu bếp",
-      description: "Chế biến, bảng bếp",
-    },
-  ];
-  const quickAccounts = allQuickAccounts.filter((account) => allowedRoles.includes(account.role));
 
   function resolveTarget(role: UserRole) {
     if (target !== "/") {
@@ -203,58 +167,13 @@ export function LoginPage({
     }
   }
 
-  async function quickLogin(account: (typeof quickAccounts)[number]) {
-    setQuickBusy(account.role);
-    setError("");
-    try {
-      const user = await login({ email: account.email, password: account.password });
-      if (!allowedRoles.includes(user.role)) {
-        setError(`Tài khoản ${user.role} không phù hợp.`);
-        return;
-      }
-      navigate(resolveTarget(user.role), { replace: true });
-    } catch {
-      setError(`Không đăng nhập được ${account.role}. Kiểm tra seed password.`);
-    } finally {
-      setQuickBusy(null);
-    }
-  }
-
   return (
     <main className="cmc-login-shell">
       <div className="cmc-login-premium">
-        <section className="cmc-quick-section">
-          <p className="cmc-eyebrow">Đăng nhập nhanh</p>
-          <h2>Chọn vai trò</h2>
-          <p className="cmc-login-hint">
-            Nhấn vào vai trò để đăng nhập tự động với tài khoản mặc định.
-          </p>
-          <div className="cmc-quick-cards">
-            {quickAccounts.map((account) => (
-              <button
-                key={account.role}
-                className={`cmc-quick-card ${quickBusy === account.role ? "is-loading" : ""}`}
-                onClick={() => quickLogin(account)}
-                disabled={busy || quickBusy !== null}
-                type="button"
-              >
-                <span className="cmc-quick-icon">{account.icon}</span>
-                <div className="cmc-quick-info">
-                  <strong>{account.label}</strong>
-                  <small>{account.description}</small>
-                </div>
-                <span className={`cmc-role-badge cmc-role-${account.role.toLowerCase()}`}>
-                  {account.role}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-
         <section className="cmc-form-section">
           <Card className="cmc-login-card">
             <p className="cmc-eyebrow">{portalName}</p>
-            <h2>Đăng nhập thủ công</h2>
+            <h2>Đăng nhập hệ thống</h2>
             <p>Nhập email và mật khẩu tài khoản vận hành.</p>
             <form onSubmit={submit}>
               <label>
