@@ -86,28 +86,27 @@ if (!string.IsNullOrEmpty(connectionString)
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    // In development, re-hash seed passwords so quick-login always works
-    if (app.Environment.IsDevelopment())
+    // Keep demo operation accounts usable after database migrations in deployed environments.
+    // Customer self-registration remains separate from these fixed operational accounts.
+    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    var seedPasswords = new Dictionary<string, string>
     {
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        var seedPasswords = new Dictionary<string, string>
-        {
-            ["admin@restaurant.local"] = "Admin@123",
-            ["staff@restaurant.local"] = "Staff@123",
-            ["kitchen@restaurant.local"] = "Kitchen@123",
-            ["customer@restaurant.local"] = "Customer@123",
-        };
+        ["admin@restaurant.local"] = "Admin@123",
+        ["staff@restaurant.local"] = "Staff@123",
+        ["kitchen@restaurant.local"] = "Kitchen@123",
+        ["customer@restaurant.local"] = "Customer@123",
+    };
 
-        foreach (var (email, password) in seedPasswords)
+    foreach (var (email, password) in seedPasswords)
+    {
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user is not null && !hasher.VerifyPassword(password, user.PasswordHash))
         {
-            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user is not null)
-            {
-                user.PasswordHash = hasher.HashPassword(password);
-            }
+            user.PasswordHash = hasher.HashPassword(password);
         }
-        await dbContext.SaveChangesAsync();
     }
+
+    await dbContext.SaveChangesAsync();
 }
 
 if (app.Environment.IsDevelopment())
