@@ -8,6 +8,7 @@ import {
   type AdminMenuItemPayload,
 } from "../../services/adminMenuService";
 import type { AdminMenuCategory, AdminMenuItem } from "../../types";
+import { resolveMenuImage } from "../../utils/menuImages";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
@@ -282,9 +283,9 @@ export function AdminMenuManager() {
             />
           ) : (
             <div className="admin-menu-table">
-              {visibleItems.map((item) => (
+              {visibleItems.map((item, index) => (
                 <article className="admin-menu-row" key={item.id}>
-                  <img alt={item.name} src={item.imageUrl} />
+                  <img alt={item.name} src={resolveMenuImage(item.name, item.imageUrl, index)} />
                   <div>
                     <span className="panel-kicker">{item.categoryName}</span>
                     <h4>{item.name}</h4>
