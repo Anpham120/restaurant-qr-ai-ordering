@@ -2468,121 +2468,33 @@ input {
 
 .login-premium-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
-  max-width: 960px;
+  width: min(100%, 520px);
+  max-width: 520px;
+  margin: 0 auto;
 }
 
-.login-quick-section,
 .login-form-section {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.login-quick-section h3,
 .login-form-section h3 {
   margin: 0 0 4px;
   font-size: 20px;
   color: var(--ink);
 }
 
-.login-quick-section > p {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.quick-login-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.quick-login-card {
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  gap: 14px;
-  align-items: center;
-  border: 1.5px solid var(--line);
-  border-radius: 16px;
-  padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  cursor: pointer;
-  transition: all 200ms ease;
-  text-align: left;
-  font: inherit;
-  color: var(--ink);
-}
-
-.quick-login-card:hover {
-  border-color: var(--role-accent, var(--blue));
-  background: rgba(255, 255, 255, 1);
-  box-shadow: 0 8px 28px rgba(0, 91, 172, 0.12);
-  transform: translateY(-2px);
-}
-
-.quick-login-card.is-loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.quick-login-icon {
-  display: grid;
+.login-premium-layout-centered {
+  min-height: min(620px, calc(100vh - 220px));
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: var(--blue-soft);
-  font-size: 24px;
-}
-
-.quick-login-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.quick-login-info strong {
-  font-size: 15px;
-}
-
-.quick-login-info small {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.quick-login-role-badge {
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.quick-login-role-badge.role-admin {
-  background: #ede9fe;
-  color: #7c3aed;
-}
-
-.quick-login-role-badge.role-staff {
-  background: #e0f2fe;
-  color: #0284c7;
-}
-
-.quick-login-role-badge.role-kitchen {
-  background: #fff7ed;
-  color: #ea580c;
 }
 
 .login-card-glass {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
-  max-width: 100%;
+  width: 100%;
+  max-width: 520px;
 }
 
 .login-form-header {

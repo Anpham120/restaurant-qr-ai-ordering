@@ -12,6 +12,20 @@ afterEach(() => {
 });
 
 describe("LoginPage role routing", () => {
+  it("renders only the manual login form", () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <LoginPage />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Đăng nhập hệ thống" })).toBeInTheDocument();
+    expect(screen.queryByText("Đăng nhập nhanh")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chọn vai trò")).not.toBeInTheDocument();
+  });
+
   it("logs in through the backend contract and redirects kitchen users to the kitchen board", async () => {
     vi.stubGlobal(
       "fetch",
