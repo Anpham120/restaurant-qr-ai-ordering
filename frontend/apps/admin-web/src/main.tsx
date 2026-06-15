@@ -115,7 +115,7 @@ const router = createBrowserRouter([
     path: "/kitchen",
     element: (
       <ProtectedRoute allowedRoles={["Kitchen", "Admin"]}>
-        <OperationsLayout title="Bảng Bếp" subtitle="Kitchen Realtime" links={kitchenLinks} />
+        <OperationsLayout title="Bảng bếp" subtitle="Kitchen Realtime" links={kitchenLinks} />
       </ProtectedRoute>
     ),
     children: [
