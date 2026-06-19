@@ -4,6 +4,16 @@
 
 Mục tiêu của dự án không chỉ là một màn hình gọi món đẹp, mà là một bản demo đủ gần thực tế để trình bày cách một nhà hàng có thể số hóa luồng phục vụ từ lúc khách ngồi vào bàn đến khi đơn được xử lý.
 
+## Demo Trực Tuyến
+
+Hệ thống đã được triển khai trực tuyến qua pipeline CI/CD (Nginx + HTTPS), với hai tên miền giao diện tách theo nhóm người dùng:
+
+| Tên miền | Dành cho |
+| --- | --- |
+| [cmcrestaurant.app](https://cmcrestaurant.app) | Khách hàng — quét QR, xem menu, đặt món, chat AI |
+| [admin.cmcrestaurant.app](https://admin.cmcrestaurant.app) | Vận hành — quản trị, bếp, nhân viên |
+| [api.cmcrestaurant.app/api](https://api.cmcrestaurant.app/api) | API backend (health `/api/health`) |
+
 ## Điểm Nổi Bật
 
 | Nhóm trải nghiệm | Giá trị chính |
@@ -148,7 +158,7 @@ dotnet test RestaurantQrAiOrdering.sln
 
 ## Trạng Thái Dự Án
 
-Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng issue. Các phần frontend, backend API foundation, auth/menu/table APIs và tài liệu vận hành đã có trong repo. Luồng DevOps chuyên nghiệp đã được chốt ở mức kế hoạch: required checks, merge queue, auto-merge, staging deploy, promote production, production deploy, health check và rollback. Pipeline CI/CD thật sẽ chỉ được xem là hoàn thành khi có workflow GitHub Actions và bằng chứng chạy thực tế.
+Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng issue. Frontend, backend API (auth, menu, tables, orders, payments, chat, realtime) trên EF Core/PostgreSQL và tài liệu vận hành đã có trong repo. Luồng DevOps đã được triển khai bằng GitHub Actions: CI, auto-merge, staging deploy, promote production, production deploy, health check và rollback. Phần còn lại để pipeline trở thành cổng bắt buộc là bật branch ruleset, required checks/merge queue và cấu hình GitHub Secrets trên repo.
 
 ## Tài Liệu Liên Quan
 
@@ -165,13 +175,13 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 - Hoàn thiện luồng đặt món từ QR đến đơn hàng.
 - Đồng bộ realtime cho trạng thái đơn giữa khách, nhân viên và bếp.
 - Hoàn thiện chatbot AI theo dữ liệu menu/FAQ.
-- Triển khai CI/CD thật theo kế hoạch DevOps đã chốt.
+- Bật branch ruleset, required checks và lưu bằng chứng deploy thực tế cho CI/CD.
 - Chuẩn hóa bằng chứng demo, health check và báo cáo triển khai.
 
 ## DevOps Status
 
-Issue #16 adds real CI/CD configuration for GitHub Actions, Docker Compose,
-Nginx/Certbot deployment, staging/production environments, health checks and
-rollback. The project should only be considered fully deployed after the
-workflows run successfully, required deployment secrets are configured and the
-GitHub branch ruleset is enabled.
+The CI/CD configuration for GitHub Actions, Docker Compose, Nginx/Certbot
+deployment, staging/production environments, health checks and rollback is
+implemented under `.github/workflows/**`. The pipeline runs end to end and the
+system is deployed live at the domains listed in [Demo Trực Tuyến](#demo-trực-tuyến),
+with deployment secrets managed through GitHub Environments.

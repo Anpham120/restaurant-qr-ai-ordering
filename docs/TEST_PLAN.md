@@ -2,6 +2,8 @@
 
 Tài liệu này ghi checklist tích hợp thủ công cho issue #10. Phạm vi là review contract, seed data plan và scenario test; không implement feature code.
 
+> Lưu ý lịch sử: đây là snapshot tại thời điểm issue #10 (Tuần 2). Backend hiện đã có order/chat/payment/realtime endpoints kèm test; tài liệu giữ lại làm hồ sơ kịch bản kiểm thử thủ công.
+
 ## 1. Nguồn Kiểm Tra
 
 - Issue: [#10](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/10).
@@ -18,7 +20,7 @@ Các điểm dưới đây được ghi nhận để member xử lý trong issue
 - Frontend admin mock đang dùng `paymentStatus: "Pending"`; contract chuẩn là `Unpaid`, `Paid`, `Failed`, `Cancelled`.
 - Frontend menu mock đang dùng menu ID `mi-001`; contract/backend DTO chuẩn dùng `m_001`.
 - Frontend `MenuItem` type hiện thiếu `categoryId`; contract public menu cần `categoryId` để admin/chatbot đồng bộ.
-- Backend hiện chưa có order/chat/realtime endpoints hoàn chỉnh; các phần này trong contract là mục tiêu triển khai tiếp, không phải feature được implement bởi issue #10.
+- Tại thời điểm issue #10, backend chưa có order/chat/realtime endpoints hoàn chỉnh nên các scenario dưới đây là kế hoạch kiểm thử; hiện các endpoint Orders/Chat/Payments/Realtime đã được implement kèm test.
 
 ## 3. Scenario QR Customer Order
 
@@ -125,7 +127,7 @@ Kỳ vọng:
 Do issue #10 là docs-only, verification bắt buộc:
 
 - `git diff --check`.
-- Kiểm tra file tồn tại: `docs/API_CONTRACT.md`, `docs/PROJECT_CONTEXT.md`, `docs/TEST_PLAN.md`, `docs/reports/week-2-report.md`.
+- Kiểm tra file tồn tại: `docs/API_CONTRACT.md`, `docs/PROJECT_CONTEXT.md`, `docs/TEST_PLAN.md`.
 - Kiểm tra link nội bộ trong docs trỏ tới file tồn tại.
 - Review open PRs cho contract drift.
 

@@ -13,6 +13,7 @@ backend/
 │   ├── Menu/                         # Menu & Category management
 │   ├── Tables/                       # Restaurant table & QR management
 │   ├── Orders/                       # Order lifecycle
+│   ├── Payments/                     # Payment transactions (VietQR)
 │   ├── Chat/                         # AI Chat assistant
 │   ├── Realtime/                     # SignalR notifications
 │   ├── Categories/                   # Category management (legacy - see Menu)
@@ -166,6 +167,20 @@ backend/
 - `SignalROrderRealtimeNotifier.cs` - SignalR implementation
 - `OrderRealtimeContracts.cs` - notification DTOs
 
+### 2.8 Payments Module (`Payments/`)
+
+**Trách nhiệm**: Payment transactions và VietQR integration
+
+**Public API**:
+- Registration: `AddRestaurantPaymentApis(config)`
+- VietQR payload generation và payment status tracking
+
+**Dependencies**: `Orders` module (gắn payment vào order)
+
+**Key files**:
+- `PaymentEndpoints.cs` - API endpoints
+- Migration `AddPaymentTransactions` - bảng `payment_transactions`
+
 ## 3. Dependency Flow
 
 ```
@@ -214,7 +229,9 @@ backend/
 
 ## 4. Data Layer
 
-### 4.1 In-Memory Stores (Current)
+### 4.1 In-Memory Stores (mặc định khi chưa cấu hình DB)
+
+Khi `ConnectionStrings:DefaultConnection` trống, app chạy bằng các in-memory store dưới đây. Khi có connection string, EF Core + PostgreSQL (xem 4.3) được kích hoạt.
 
 | Store | Module | Entity | Thread-Safe | Notes |
 |-------|--------|--------|-------------|-------|
@@ -235,16 +252,14 @@ Seed data được định nghĩa trong `RestaurantDataStore`:
 
 **NOTE**: Seed data này là **initial data for development/demo only**. Khi có database thật, seed sẽ được thay thế bằng migration seed hoặc database seeding.
 
-### 4.3 Future: Database Migration
+### 4.3 EF Core + PostgreSQL (đã triển khai, tùy chọn)
 
-Kế hoạch chuyển sang PostgreSQL (xem `BACKEND_FIRST_UPGRADE_PLAN.md`):
+Lớp database đã có sẵn và được kích hoạt khi cấu hình `ConnectionStrings:DefaultConnection` (xem `BACKEND_DATABASE_SETUP.md`):
 
-```
-Phase 1: Add EF Core + PostgreSQL
-Phase 2: Create RestaurantDbContext
-Phase 3: Write initial migration
-Phase 4: Replace in-memory stores with DbContext-backed implementations
-```
+- EF Core + Npgsql, `RestaurantDbContext`.
+- Migrations: `InitialCreate`, `AddUsers`, `AddTableSessions`, `AddPaymentTransactions`.
+- Seed bằng `HasData` (categories, menu items, tables, demo users).
+- `DbUserStore` thay cho `UserStore` in-memory khi dùng DB.
 
 ## 5. Cross-Cutting Concerns
 
@@ -308,10 +323,12 @@ Tests được đặt trong `tests/RestaurantQrAiOrdering.Api.Tests/`:
 tests/
 ├── Auth/AuthEndpointTests.cs
 ├── Orders/OrderEndpointTests.cs
+├── Payments/PaymentEndpointTests.cs
 ├── Tables/TableEndpointTests.cs
 ├── Menu/MenuEndpointTests.cs
 ├── Chat/ChatEndpointTests.cs
 ├── Realtime/OrderHubEndpointTests.cs
+├── E2E/MultiDeviceE2ETests.cs
 ├── HealthEndpointTests.cs
 └── CorsEndpointTests.cs
 ```
@@ -322,7 +339,7 @@ tests/
 
 1. **`Order.MockDeliveryFee`** (line 39 in `Entities/Order.cs`)
    - Giá trị fixed 0 - chỉ là placeholder
-   - Khi có payment module thật, sẽ được thay bằng calculated delivery fee
+   - Cần thay bằng calculated delivery fee (đã có `Payments/` module để mở rộng)
 
 2. **Seed Data Hardcoded**
    - Menu items, categories, tables đều là sample data
@@ -341,13 +358,13 @@ tests/
 
 3. **Order Contains Embedded Payment**: `Order.cs` has embedded `Payment` entity
    - Tight coupling between Order và Payment bounded contexts
-   - Fix: Tách Payment thành module riêng khi Payment module được implement
+   - Đã có `Payments/` module (PaymentEndpoints + `payment_transactions`); cần tách dần `Payment` entity nhúng trong `Order` ra khỏi Order context
 
 4. **Thread-Safety Duplication**: Mỗi store re-implements `lock`-based thread safety
    - Fix: Extract thành shared `SynchronizedCollection<T>` hoặc `ThreadSafeStore` base class
 
 5. **Flat Entities**: Tất cả entities trong `Entities/`
-   - Fix: Khi có PostgreSQL, tổ chức theo module (xem BACKEND_FIRST_UPGRADE_PLAN.md)
+   - Fix: Tổ chức entities theo module thay vì để phẳng trong `Entities/`
 
 ### 8.3 Reserved Folders
 
@@ -357,6 +374,6 @@ tests/
 
 ## 9. References
 
-- [BACKEND_FIRST_UPGRADE_PLAN.md](./BACKEND_FIRST_UPGRADE_PLAN.md) - Kế hoạch nâng cấp lên PostgreSQL + production-ready
+- [BACKEND_DATABASE_SETUP.md](./BACKEND_DATABASE_SETUP.md) - Hướng dẫn cấu hình PostgreSQL + EF Core migrations
 - [API_CONTRACT.md](./API_CONTRACT.md) - API specification
 - [AI_CHATBOT.md](./AI_CHATBOT.md) - AI integration details
