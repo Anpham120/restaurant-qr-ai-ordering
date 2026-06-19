@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả cách nhóm phối hợp khi phát triển **Restaurant QR AI Ordering**. README dùng để giới thiệu dự án; tài liệu này dùng cho phân công, policy CI/CD, báo cáo và phối hợp với AI agent.
 
-Trạng thái hiện tại: phần DevOps tự động là **kế hoạch đã chốt cho issue #16**, chưa phải pipeline đã triển khai.
+Trạng thái hiện tại: pipeline DevOps tự động đã được triển khai trong `.github/workflows/**`; phần còn lại để hoàn tất là bật branch ruleset, required checks/merge queue và cấu hình GitHub Secrets trên repo.
 
 ## 1. Vai Trò Chính
 

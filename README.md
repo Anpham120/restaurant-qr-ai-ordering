@@ -148,7 +148,7 @@ dotnet test RestaurantQrAiOrdering.sln
 
 ## Trạng Thái Dự Án
 
-Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng issue. Các phần frontend, backend API foundation, auth/menu/table APIs và tài liệu vận hành đã có trong repo. Luồng DevOps chuyên nghiệp đã được chốt ở mức kế hoạch: required checks, merge queue, auto-merge, staging deploy, promote production, production deploy, health check và rollback. Pipeline CI/CD thật sẽ chỉ được xem là hoàn thành khi có workflow GitHub Actions và bằng chứng chạy thực tế.
+Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng issue. Frontend, backend API (auth, menu, tables, orders, payments, chat, realtime) trên EF Core/PostgreSQL và tài liệu vận hành đã có trong repo. Luồng DevOps đã được triển khai bằng GitHub Actions: CI, auto-merge, staging deploy, promote production, production deploy, health check và rollback. Phần còn lại để pipeline trở thành cổng bắt buộc là bật branch ruleset, required checks/merge queue và cấu hình GitHub Secrets trên repo.
 
 ## Tài Liệu Liên Quan
 
@@ -165,13 +165,13 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 - Hoàn thiện luồng đặt món từ QR đến đơn hàng.
 - Đồng bộ realtime cho trạng thái đơn giữa khách, nhân viên và bếp.
 - Hoàn thiện chatbot AI theo dữ liệu menu/FAQ.
-- Triển khai CI/CD thật theo kế hoạch DevOps đã chốt.
+- Bật branch ruleset, required checks và lưu bằng chứng deploy thực tế cho CI/CD.
 - Chuẩn hóa bằng chứng demo, health check và báo cáo triển khai.
 
 ## DevOps Status
 
-Issue #16 adds real CI/CD configuration for GitHub Actions, Docker Compose,
-Nginx/Certbot deployment, staging/production environments, health checks and
-rollback. The project should only be considered fully deployed after the
-workflows run successfully, required deployment secrets are configured and the
-GitHub branch ruleset is enabled.
+The CI/CD configuration for GitHub Actions, Docker Compose, Nginx/Certbot
+deployment, staging/production environments, health checks and rollback is
+implemented under `.github/workflows/**`. The project is considered fully
+deployed only after the workflows run successfully, required deployment secrets
+are configured and the GitHub branch ruleset is enabled.
