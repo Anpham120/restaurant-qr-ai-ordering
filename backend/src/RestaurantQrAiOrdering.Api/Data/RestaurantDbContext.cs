@@ -18,14 +18,6 @@ public class RestaurantDbContext : DbContext
     private static readonly DateTimeOffset TableSeededAt = new(
         new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(4629),
         TimeSpan.Zero);
-    private static readonly DateTimeOffset UserSeededAt = new(
-        new DateTime(2026, 6, 13, 7, 30, 44, 707, DateTimeKind.Unspecified).AddTicks(7962),
-        TimeSpan.Zero);
-
-    private const string AdminPasswordHash = "v1.100000.2FZk9K5Yru/klQtpkjDGJQ==.9gGU3IU+rG4JGkMgsvORd0Cqmsykp5xeaZCAQ95S4cM=";
-    private const string StaffPasswordHash = "v1.100000.c9UhEBod8mtmPQLeP2nnWQ==.an2Aa1goSjTZ8uS8joy2I3W11iWwNhiOsg4YreIn9mU=";
-    private const string KitchenPasswordHash = "v1.100000.u76cG06YBTjLue+rOz5B1w==.vNcRBLo2BXctMwTDqX3/p55jgxk6Dfki+Jx7CkRKSBc=";
-    private const string CustomerPasswordHash = "v1.100000.uSV+rreaBwKjA3WUTqZD8Q==.8pVVHQiXquhg7U1O6soESBvdr6tDM+Ibi3vwe0uHXaY=";
 
     public RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
         : base(options)
@@ -654,7 +646,6 @@ public class RestaurantDbContext : DbContext
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
     {
-        var now = UserSeededAt;
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
@@ -687,13 +678,6 @@ public class RestaurantDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(e => e.Email).IsUnique();
-
-            entity.HasData(
-                new User { Id = "usr_admin", FullName = "Quan Tri Vien", Email = "admin@restaurant.local", PasswordHash = AdminPasswordHash, Role = "Admin", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_staff", FullName = "Nhan Vien Thu Ngan", Email = "staff@restaurant.local", PasswordHash = StaffPasswordHash, Role = "Staff", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_kitchen", FullName = "Dau Bep", Email = "kitchen@restaurant.local", PasswordHash = KitchenPasswordHash, Role = "Kitchen", CreatedAt = now, UpdatedAt = now },
-                new User { Id = "usr_customer_seed", FullName = "Khach Hang Mau", Email = "customer@restaurant.local", PasswordHash = CustomerPasswordHash, Role = "Customer", CreatedAt = now, UpdatedAt = now }
-            );
         });
     }
 }

@@ -8,6 +8,7 @@ using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Payments;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
+using RestaurantQrAiOrdering.Entities;
 
 const string CorsPolicyName = "CmcRestaurantCors";
 
@@ -79,34 +80,76 @@ builder.Services.AddRestaurantChatApis();
 
 var app = builder.Build();
 
-if (!string.IsNullOrEmpty(connectionString)
-    && builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
+if (!string.IsNullOrEmpty(connectionString))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-    await dbContext.Database.MigrateAsync();
 
-    // Keep demo operation accounts usable after database migrations in deployed environments.
-    // Customer self-registration remains separate from these fixed operational accounts.
+    if (builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    var seedPasswords = new Dictionary<string, string>
-    {
-        ["admin@restaurant.local"] = "Admin@123",
-        ["staff@restaurant.local"] = "Staff@123",
-        ["kitchen@restaurant.local"] = "Kitchen@123",
-        ["customer@restaurant.local"] = "Customer@123",
-    };
+    var nowUtc = DateTimeOffset.UtcNow;
 
-    foreach (var (email, password) in seedPasswords)
+    // Bootstrap a single real administrator from environment configuration only.
+    // The account is created once when missing and is never reset on later boots,
+    // so a rotated password stays rotated.
+    var bootstrapEmail = builder.Configuration["BOOTSTRAP_ADMIN_EMAIL"];
+    var bootstrapPassword = builder.Configuration["BOOTSTRAP_ADMIN_PASSWORD"];
+    if (!string.IsNullOrWhiteSpace(bootstrapEmail) && !string.IsNullOrWhiteSpace(bootstrapPassword))
     {
-        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user is not null && !hasher.VerifyPassword(password, user.PasswordHash))
+        var adminExists = await dbContext.Users.AnyAsync(u => u.Email == bootstrapEmail);
+        if (!adminExists)
         {
-            user.PasswordHash = hasher.HashPassword(password);
+            dbContext.Users.Add(new User
+            {
+                Id = $"usr_{Guid.NewGuid():N}",
+                FullName = "System Admin",
+                Email = bootstrapEmail,
+                PasswordHash = hasher.HashPassword(bootstrapPassword),
+                Role = UserRole.Admin,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            });
+            await dbContext.SaveChangesAsync();
         }
     }
 
-    await dbContext.SaveChangesAsync();
+    // Demo operational accounts are opt-in via SEED_DEMO_USERS and must stay disabled
+    // in production. Each account is created only when missing; existing passwords are
+    // never overwritten, so these are not a permanent reset-on-boot backdoor.
+    if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
+    {
+        var demoUsers = new[]
+        {
+            (Id: "usr_admin", Email: "admin@restaurant.local", Password: "Admin@1234", Role: UserRole.Admin, FullName: "Demo Admin"),
+            (Id: "usr_staff", Email: "staff@restaurant.local", Password: "Staff@1234", Role: UserRole.Staff, FullName: "Demo Staff"),
+            (Id: "usr_kitchen", Email: "kitchen@restaurant.local", Password: "Kitchen@1234", Role: UserRole.Kitchen, FullName: "Demo Kitchen"),
+            (Id: "usr_customer_seed", Email: "customer@restaurant.local", Password: "Customer@1234", Role: UserRole.Customer, FullName: "Demo Customer"),
+        };
+
+        foreach (var demo in demoUsers)
+        {
+            var exists = await dbContext.Users.AnyAsync(u => u.Email == demo.Email);
+            if (!exists)
+            {
+                dbContext.Users.Add(new User
+                {
+                    Id = demo.Id,
+                    FullName = demo.FullName,
+                    Email = demo.Email,
+                    PasswordHash = hasher.HashPassword(demo.Password),
+                    Role = demo.Role,
+                    CreatedAt = nowUtc,
+                    UpdatedAt = nowUtc
+                });
+            }
+        }
+
+        await dbContext.SaveChangesAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())
