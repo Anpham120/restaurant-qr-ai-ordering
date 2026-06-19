@@ -2,6 +2,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminQrTableManager } from "../src/components/qr/AdminQrTableManager";
 
+vi.mock("qrcode", () => {
+  const toDataURL = () => Promise.resolve("data:image/png;base64,QRMOCK");
+  return { default: { toDataURL }, toDataURL };
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -38,6 +43,8 @@ describe("AdminQrTableManager", () => {
     expect(await screen.findByRole("region", { name: "Khu vực Sảnh chính" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Mở bàn" })).toHaveLength(8);
     expect(screen.getAllByText("Sẵn sàng")).toHaveLength(8);
+    expect(await screen.findAllByRole("img", { name: /QR bàn/ })).toHaveLength(8);
+    expect(screen.getAllByRole("link", { name: "Tải QR" })).toHaveLength(8);
   });
 
   it("copies the selected table link and announces success", async () => {
