@@ -6,6 +6,7 @@ import "@fontsource/manrope/latin-700.css";
 import "@fontsource/manrope/vietnamese-700.css";
 import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "@cmc/api-client";
+import { TableQrCode } from "./TableQrCode";
 
 type BackendTable = {
   tableCode: string;
@@ -179,12 +180,11 @@ export function AdminQrTableManager() {
                         </div>
                       </dl>
                       <div className="table-qr-asset">
-                        <div className="table-qr-preview" aria-label={`QR bàn ${table.tableCode}`}>
-                          <i className="finder top-left" aria-hidden="true" />
-                          <i className="finder top-right" aria-hidden="true" />
-                          <i className="finder bottom-left" aria-hidden="true" />
-                          <span>{table.tableCode}</span>
-                        </div>
+                        <TableQrCode
+                          downloadName={`qr-ban-${table.tableCode}.png`}
+                          label={`QR bàn ${table.tableCode}`}
+                          value={getTableLink(table)}
+                        />
                         <div className="table-qr-link-copy">
                           <span>Đường dẫn bàn</span>
                           <code title={getTableLink(table)}>{getTableLink(table)}</code>
