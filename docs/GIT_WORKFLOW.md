@@ -2,7 +2,7 @@
 
 Tài liệu này quy định cách dùng branch, pull request và release cho dự án **Restaurant QR AI Ordering**. README chỉ giới thiệu dự án; toàn bộ quy trình làm việc, review và CI/CD được đặt trong tài liệu này và các tài liệu DevOps liên quan.
 
-Trạng thái hiện tại: phần CI/CD trong tài liệu này là **kế hoạch đã chốt cho issue #16**, chưa phải workflow đã triển khai. Chỉ xem pipeline là có thật khi repo đã có GitHub Actions, Docker/deploy config và branch ruleset tương ứng.
+Trạng thái hiện tại: CI/CD đã được triển khai bằng GitHub Actions (`.github/workflows/**`) và Docker/deploy config. Phần còn lại để pipeline trở thành cổng bắt buộc là bật branch ruleset và required checks tương ứng trên repo.
 
 ## 1. Mô Hình Branch
 
