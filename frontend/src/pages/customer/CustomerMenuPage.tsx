@@ -13,6 +13,7 @@ import {
   saveOrderContext,
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
+import { openDineInSession } from "../../services/tableSessionService";
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
@@ -22,6 +23,7 @@ import type { MenuCart, MenuItem } from "../../types";
 
 type CustomerMenuPageProps = {
   tableCode?: string;
+  qrToken?: string;
 };
 
 const ALL_CATEGORY = "\u0054\u1ea5\u0074 \u0063\u1ea3";
@@ -46,12 +48,13 @@ function getCartSummary(cart: MenuCart, items: MenuItem[]) {
     { itemCount: 0, totalPrice: 0 },
   );
 }
-export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
+export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) {
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
   const [menuError, setMenuError] = useState("");
+  const [sessionNotice, setSessionNotice] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -74,10 +77,42 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
   }, []);
 
   useEffect(() => {
-    if (tableCode) {
-      saveOrderContext({ tableCode });
+    if (!tableCode) {
+      return;
     }
-  }, [tableCode]);
+
+    if (!qrToken) {
+      saveOrderContext({ tableCode });
+      setSessionNotice("");
+      return;
+    }
+
+    let isMounted = true;
+
+    openDineInSession(qrToken, tableCode).then((result) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (result.status === "open") {
+        saveOrderContext({ tableCode, qrToken, sessionId: result.session.sessionId });
+        setSessionNotice("");
+      } else if (result.status === "expired") {
+        saveOrderContext({ tableCode });
+        setSessionNotice("Phiên bàn đã hết hạn. Vui lòng quét lại mã QR tại bàn.");
+      } else if (result.status === "invalid") {
+        saveOrderContext({ tableCode });
+        setSessionNotice("Mã QR không hợp lệ cho bàn này. Vui lòng quét lại mã QR tại bàn.");
+      } else {
+        saveOrderContext({ tableCode });
+        setSessionNotice("");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tableCode, qrToken]);
 
   const menuItems = customerMenu.items;
   const menuCategories = useMemo(
@@ -195,6 +230,11 @@ export function CustomerMenuPage({ tableCode }: CustomerMenuPageProps) {
 
       <section className="cmc-menu-toolbar" aria-label="Menu filters">
         {menuError ? <p className="cmc-inline-error">{menuError}</p> : null}
+        {sessionNotice ? (
+          <p className="cmc-inline-error" role="alert">
+            {sessionNotice}
+          </p>
+        ) : null}
         <TableContextBadge tableCode={tableCode} />
         <div className="cmc-search-row">
           <input

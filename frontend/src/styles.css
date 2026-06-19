@@ -2166,6 +2166,42 @@ input {
   font-weight: 700;
 }
 
+.table-qr-image {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 96px;
+}
+
+.table-qr-image img {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(8, 35, 62, 0.12);
+}
+
+.table-qr-image.is-loading,
+.table-qr-image.is-error {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: 1px dashed var(--table-qr-line);
+  border-radius: 10px;
+  color: #7b8e9a;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.table-qr-download {
+  color: var(--table-qr-navy);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .table-qr-link-copy {
   display: grid;
   align-content: center;
@@ -2337,7 +2373,7 @@ input {
 
   .table-qr-asset {
     display: grid;
-    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-columns: 96px minmax(0, 1fr);
   }
 
   .table-qr-actions {
