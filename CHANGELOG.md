@@ -32,8 +32,11 @@ weekly milestones (Tuần 1–5) covering 42 closed issues.
   and customer order tracking (#41, #44).
 - **Backend-first modular monolith** architecture on ASP.NET Core (net10) with
   PostgreSQL + EF Core / Npgsql persistence (#83, #84).
-- **CI/CD & deployment** — GitHub Actions pipeline, Docker Compose stack, staging
-  and production promotion with health checks (#45).
+- **CI/CD & deployment** — GitHub Actions pipeline (CI, staging deploy, promote,
+  production deploy, rollback), Docker Compose stack, and health checks. Deployed
+  live behind Nginx + HTTPS with two front-end domains: `cmcrestaurant.app`
+  (customer) and `admin.cmcrestaurant.app` (operations: admin/kitchen/staff),
+  plus the `api.cmcrestaurant.app` backend (#45).
 
 ### Changed
 - Replaced the legacy single-app UI with dedicated role-based portals (#107, #108).
@@ -57,7 +60,9 @@ weekly milestones (Tuần 1–5) covering 42 closed issues.
 - Unstable production health check during promotion (#105).
 
 ### Known Issues
-- This is an MVP/demo release and is **not** production-hardened.
+- This is an MVP milestone: feature scope is core-only and sample data is used for
+  demonstration. The system is deployed live, but secrets must still be kept
+  current (see below).
 - AI retrieval is lexical (token-overlap scoring), not vector embeddings; semantic
   search is on the roadmap.
 - Before any real deployment, operators must set `BOOTSTRAP_ADMIN_EMAIL` /

@@ -4,6 +4,16 @@
 
 Mục tiêu của dự án không chỉ là một màn hình gọi món đẹp, mà là một bản demo đủ gần thực tế để trình bày cách một nhà hàng có thể số hóa luồng phục vụ từ lúc khách ngồi vào bàn đến khi đơn được xử lý.
 
+## Demo Trực Tuyến
+
+Hệ thống đã được triển khai trực tuyến qua pipeline CI/CD (Nginx + HTTPS), với hai tên miền giao diện tách theo nhóm người dùng:
+
+| Tên miền | Dành cho |
+| --- | --- |
+| [cmcrestaurant.app](https://cmcrestaurant.app) | Khách hàng — quét QR, xem menu, đặt món, chat AI |
+| [admin.cmcrestaurant.app](https://admin.cmcrestaurant.app) | Vận hành — quản trị, bếp, nhân viên |
+| [api.cmcrestaurant.app/api](https://api.cmcrestaurant.app/api) | API backend (health `/api/health`) |
+
 ## Điểm Nổi Bật
 
 | Nhóm trải nghiệm | Giá trị chính |
@@ -172,6 +182,6 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 
 The CI/CD configuration for GitHub Actions, Docker Compose, Nginx/Certbot
 deployment, staging/production environments, health checks and rollback is
-implemented under `.github/workflows/**`. The project is considered fully
-deployed only after the workflows run successfully, required deployment secrets
-are configured and the GitHub branch ruleset is enabled.
+implemented under `.github/workflows/**`. The pipeline runs end to end and the
+system is deployed live at the domains listed in [Demo Trực Tuyến](#demo-trực-tuyến),
+with deployment secrets managed through GitHub Environments.
