@@ -51,6 +51,9 @@ jobs:
       AI_MODEL: ${{ vars.AI_MODEL || 'gh/gemini-3.1-pro-preview' }}
       RAG_TOP_K: "5"
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
+      BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
+      BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}
+      SEED_DEMO_USERS: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
