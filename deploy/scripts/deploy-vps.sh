@@ -102,6 +102,9 @@ VITE_USE_MOCK_CHAT=$(env_quote "${VITE_USE_MOCK_CHAT:-false}")
 VITE_USE_MOCK_ORDER=$(env_quote "${VITE_USE_MOCK_ORDER:-false}")
 ENABLE_CERTBOT=$(env_quote "${ENABLE_CERTBOT:-true}")
 CERTBOT_EMAIL=$(env_quote "${CERTBOT_EMAIL:-}")
+BOOTSTRAP_ADMIN_EMAIL=$(env_quote "${BOOTSTRAP_ADMIN_EMAIL:-}")
+BOOTSTRAP_ADMIN_PASSWORD=$(env_quote "${BOOTSTRAP_ADMIN_PASSWORD:-}")
+SEED_DEMO_USERS=$(env_quote "${SEED_DEMO_USERS:-false}")
 EOF
 
 "${scp_base[@]}" "$env_file" "${SSH_USER}@${SSH_HOST}:${remote_root}/.env"
