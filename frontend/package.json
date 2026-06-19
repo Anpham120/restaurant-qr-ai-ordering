@@ -9,13 +9,11 @@
   ],
   "scripts": {
     "dev": "npm run dev:customer",
-    "dev:legacy": "vite",
     "dev:customer": "npm run dev -w @cmc/customer-web",
     "dev:admin": "npm run dev -w @cmc/admin-web",
     "dev:kitchen": "npm run dev -w @cmc/kitchen-web",
     "dev:staff": "npm run dev -w @cmc/staff-web",
     "build": "npm run typecheck && npm run build:all",
-    "build:legacy": "tsc -b && vite build",
     "build:all": "npm run build --workspaces --if-present",
     "build:customer": "npm run build -w @cmc/customer-web",
     "build:admin": "npm run build -w @cmc/admin-web",
