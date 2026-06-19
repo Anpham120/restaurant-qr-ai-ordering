@@ -1,6 +1,0 @@
-faq_id,question,intent,linked_menu_item_ids,answer_source
-faq-001,"Có món nào phù hợp ăn nhẹ không?",light_meal,"mi-001;mi-002;mi-003","Dùng menu_items và chỉ gợi ý món đang còn bán"
-faq-002,"Gợi ý món cho nhóm 4 người?",group_recommendation,"mi-001;mi-008;mi-009;mi-011","Dùng association rules và top sellers theo nhóm"
-faq-003,"Có đồ uống thanh mát không?",drink_recommendation,"mi-011","Dùng category Đồ uống và availability"
-faq-004,"Tôi thích hải sản thì nên gọi gì?",seafood_recommendation,"mi-002;mi-008;mi-009","Dùng tags seafood và association rules"
-faq-005,"Có món nào đang tạm hết không?",availability_check,"mi-004;mi-012","Không gợi ý món unavailable cho khách đặt"

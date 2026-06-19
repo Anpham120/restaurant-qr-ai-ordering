@@ -1,5 +1,0 @@
-case_id,scenario,method,seed_context,recommended_items,precision_at_3,recall_at_3,explanation
-case-001,"Khách hỏi món cho nhóm 4 người","association_rule + popularity","family;party_size=4","Lẩu Thái hải sản;Gỏi cuốn tôm thịt;Trà đào cam sả",0.67,0.67,"Kết hợp luật Gỏi cuốn -> Lẩu và món phổ biến theo nhóm."
-case-002,"Khách thích hải sản","content_based","tags=seafood","Tôm rang muối;Lẩu Thái hải sản;Gỏi xoài tôm sú",1.00,1.00,"Lọc món còn bán có tag seafood và ưu tiên giá/độ phù hợp."
-case-003,"Khách pickup bữa trưa nhanh","baseline_popular","order_type=Pickup","Phở bò đặc biệt;Trà đào cam sả;Nem rán Hà Nội",0.67,1.00,"Baseline dựa trên tần suất đơn pickup và loại món dễ đóng gói."
-case-004,"Khách hỏi đồ uống thanh mát","content_based","category=Đồ uống;tag=cool","Trà đào cam sả",1.00,1.00,"Không gợi ý Cà phê sữa đá vì dataset đánh dấu tạm hết."
