@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả cách dự án **Restaurant QR AI Ordering** tách vai trò Developer, Lead và DevOps/Release Owner. Mục tiêu là tránh mô hình "developer tự deploy từ máy cá nhân" và chuyển sang quy trình CI/CD có kiểm soát.
 
-Trạng thái hiện tại: đây là **kế hoạch DevOps đã chốt cho issue #16**, chưa phải pipeline đã triển khai. Khi chưa có `.github/workflows/**`, Docker/deploy config và branch ruleset thật trên GitHub, dự án chưa được xem là có CI/CD tự động hoàn chỉnh.
+Trạng thái hiện tại: pipeline CI/CD đã được triển khai trong `.github/workflows/**` (`ci`, `auto-merge`, `deploy-staging`, `promote-production`, `deploy-production`, `rollback`) cùng Docker/deploy config. Phần còn lại để pipeline trở thành cổng bắt buộc là bật branch ruleset, required checks/merge queue và cấu hình GitHub Secrets trên repo.
 
 ## Mục Tiêu
 

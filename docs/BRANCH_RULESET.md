@@ -1,7 +1,9 @@
 # Branch Ruleset And Required Checks
 
-This file records the branch protection settings required by issue #16. The
-repository settings must match this document before issue #16 can be closed.
+This file records the branch protection settings the repository ruleset must
+enforce. The GitHub Actions workflows already define these check names; the
+repository settings must match this document so the checks become mandatory
+gates.
 
 ## develop
 
