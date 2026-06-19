@@ -5,6 +5,8 @@ const ORDER_CONTEXT_KEY = "cmc-restaurant-order-context";
 
 export type CustomerOrderContext = {
   tableCode?: TableCode;
+  sessionId?: string;
+  qrToken?: string;
 };
 
 export function loadMenuCart(): MenuCart {
