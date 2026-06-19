@@ -30,6 +30,9 @@ services:
       ASPNETCORE_URLS: http://127.0.0.1:${BACKEND_PORT:-5000}
       ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-restaurant_qr};Username=${POSTGRES_USER:-restaurant_user};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required};Pooling=true;Minimum Pool Size=${DB_MIN_POOL_SIZE:-2};Maximum Pool Size=${DB_MAX_POOL_SIZE:-50}
       RUN_DB_MIGRATIONS_ON_STARTUP: ${RUN_DB_MIGRATIONS_ON_STARTUP:-true}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-false}
       Jwt__Issuer: ${JWT_ISSUER:-RestaurantQrAiOrdering}
       Jwt__Audience: ${JWT_AUDIENCE:-RestaurantQrAiOrdering.Client}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}
