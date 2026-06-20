@@ -1,6 +1,6 @@
 import { StrictMode } from "react"; import { createRoot } from "react-dom/client"; import { RouterProvider, createBrowserRouter } from "react-router-dom";
-import { AuthProvider, ProtectedRoute } from "@cmc/auth"; import { LoginPage, NotFoundPage, OperationsLayout, StatePanel, UnauthorizedPage } from "@cmc/shared-ui"; import "@cmc/shared-ui/styles.css"; import "../../../src/styles.css";
+import { AuthProvider, ProtectedRoute } from "@cmc/auth"; import { LoginPage, NotFoundPage, OperationsLayout, UnauthorizedPage } from "@cmc/shared-ui"; import "@cmc/shared-ui/styles.css"; import "../../../src/styles.css";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
-const links=[{to:"/",label:"Bảng bếp"},{to:"/history",label:"Lịch sử"}];
-const router=createBrowserRouter([{path:"/login",element:<LoginPage portalName="Kitchen Portal" allowedRoles={["Kitchen","Admin"]}/>},{path:"/unauthorized",element:<UnauthorizedPage/>},{path:"/",element:<ProtectedRoute allowedRoles={["Kitchen","Admin"]}><OperationsLayout title="Bảng Bếp" subtitle="Kitchen Realtime" links={links}/></ProtectedRoute>,children:[{index:true,element:<KitchenPage/>},{path:"board",element:<KitchenPage/>},{path:"history",element:<StatePanel title="Lịch sử bếp" message="Contract hiện tại chưa cung cấp endpoint lịch sử riêng."/>},{path:"*",element:<NotFoundPage/>}]}]);
+const links=[{to:"/",label:"Bảng bếp"}];
+const router=createBrowserRouter([{path:"/login",element:<LoginPage portalName="Kitchen Portal" allowedRoles={["Kitchen","Admin"]}/>},{path:"/unauthorized",element:<UnauthorizedPage/>},{path:"/",element:<ProtectedRoute allowedRoles={["Kitchen","Admin"]}><OperationsLayout title="Bảng Bếp" subtitle="Kitchen Realtime" links={links}/></ProtectedRoute>,children:[{index:true,element:<KitchenPage/>},{path:"*",element:<NotFoundPage/>}]}]);
 createRoot(document.getElementById("root")!).render(<StrictMode><AuthProvider><RouterProvider router={router}/></AuthProvider></StrictMode>);
