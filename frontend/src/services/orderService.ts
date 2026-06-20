@@ -55,3 +55,24 @@ export async function generateVietQrPayment(orderCode: string): Promise<VietQrPa
 export async function confirmOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
   return api.payments.confirm(orderCode, { note }) as Promise<PaymentResponse>;
 }
+
+// An order needs staff to collect/resolve payment when it is not already paid and
+// either a payment attempt is open (Pending/Failed) or the order has reached the
+// customer (Served/Delivering/Delivered/Completed) still unpaid.
+export function isAwaitingPayment(order: OrderTrackingOrder): boolean {
+  if (order.status === "Cancelled") return false;
+  if (
+    order.paymentStatus === "Paid" ||
+    order.paymentStatus === "Confirmed" ||
+    order.paymentStatus === "Cancelled"
+  ) {
+    return false;
+  }
+  if (order.paymentStatus === "Pending" || order.paymentStatus === "Failed") return true;
+  return (
+    order.status === "Served" ||
+    order.status === "Delivering" ||
+    order.status === "Delivered" ||
+    order.status === "Completed"
+  );
+}

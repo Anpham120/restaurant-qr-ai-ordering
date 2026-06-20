@@ -6,7 +6,6 @@ import {
   LoginPage,
   NotFoundPage,
   OperationsLayout,
-  StatePanel,
   UnauthorizedPage,
 } from "@cmc/shared-ui";
 import "@cmc/shared-ui/styles.css";
@@ -19,6 +18,7 @@ import { AdminCategoriesPage } from "../../../src/pages/admin/AdminCategoriesPag
 import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManagementPage";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
 import { StaffOrdersPage } from "../../../src/pages/StaffOrdersPage";
+import { StaffPaymentsPage } from "../../../src/pages/StaffPaymentsPage";
 
 const roleRedirects = {
   Admin: "/",
@@ -33,20 +33,14 @@ const adminLinks = [
   { to: "/orders", label: "Đơn hàng" },
   { to: "/tables", label: "Bàn & QR" },
   { to: "/users", label: "Người dùng" },
-  { to: "/settings", label: "Cài đặt" },
 ];
 
 const staffLinks = [
   { to: "/staff", label: "Đơn hàng" },
-  { to: "/staff/serve", label: "Phục vụ" },
-  { to: "/staff/tables", label: "Bàn" },
-  { to: "/staff/payments", label: "Thanh toán" },
+  { to: "/staff/payments", label: "Thu ngân" },
 ];
 
-const kitchenLinks = [
-  { to: "/kitchen", label: "Bảng bếp" },
-  { to: "/kitchen/history", label: "Lịch sử" },
-];
+const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp" }];
 
 const router = createBrowserRouter([
   {
@@ -74,10 +68,6 @@ const router = createBrowserRouter([
       { path: "orders", element: <AdminOrdersPage /> },
       { path: "tables", element: <AdminTablesPage /> },
       { path: "users", element: <AdminUserManagementPage /> },
-      {
-        path: "settings",
-        element: <StatePanel title="Cài đặt" message="Chưa có API settings trong contract hiện tại." />,
-      },
     ],
   },
   {
@@ -89,26 +79,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <StaffOrdersPage /> },
-      { path: "orders", element: <StaffOrdersPage /> },
-      { path: "serve", element: <StaffOrdersPage /> },
-      {
-        path: "tables",
-        element: (
-          <StatePanel
-            title="Trạng thái bàn"
-            message="Backend hiện chỉ có endpoint tra cứu từng mã bàn."
-          />
-        ),
-      },
-      {
-        path: "payments",
-        element: (
-          <StatePanel
-            title="Thanh toán"
-            message="Contract chưa có endpoint cập nhật payment status độc lập."
-          />
-        ),
-      },
+      { path: "payments", element: <StaffPaymentsPage /> },
     ],
   },
   {
@@ -118,19 +89,7 @@ const router = createBrowserRouter([
         <OperationsLayout title="Bảng bếp" subtitle="Kitchen Realtime" links={kitchenLinks} />
       </ProtectedRoute>
     ),
-    children: [
-      { index: true, element: <KitchenPage /> },
-      { path: "board", element: <KitchenPage /> },
-      {
-        path: "history",
-        element: (
-          <StatePanel
-            title="Lịch sử bếp"
-            message="Contract hiện tại chưa cung cấp endpoint lịch sử riêng."
-          />
-        ),
-      },
-    ],
+    children: [{ index: true, element: <KitchenPage /> }],
   },
   { path: "*", element: <NotFoundPage /> },
 ]);
