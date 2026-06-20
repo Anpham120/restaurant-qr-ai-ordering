@@ -1242,6 +1242,66 @@
   padding: 18px;
 }
 
+.cmc-ai-cta-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-radius: 24px;
+  padding: 22px 26px;
+  background: linear-gradient(135deg, #005BAC 0%, #08BCEF 100%);
+  color: #ffffff;
+  box-shadow: 0 20px 46px rgba(0, 91, 172, 0.22);
+}
+
+.cmc-ai-cta-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cmc-ai-cta-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.cmc-ai-cta-copy h3 {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 26px);
+}
+
+.cmc-ai-cta-copy > p:last-child {
+  max-width: 560px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.55;
+}
+
+.cmc-ai-cta-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  border-radius: 999px;
+  padding: 0 24px;
+  background: #ffffff;
+  color: #005BAC;
+  font-weight: 900;
+  box-shadow: 0 14px 30px rgba(0, 35, 77, 0.24);
+}
+
+@media (max-width: 620px) {
+  .cmc-ai-cta-button {
+    width: 100%;
+  }
+}
+
 .cmc-home-flow {
   display: grid;
   gap: 14px;
