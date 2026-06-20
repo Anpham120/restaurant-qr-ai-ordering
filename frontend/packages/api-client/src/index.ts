@@ -3,7 +3,9 @@ import type {
   AdminCategoryRequest,
   ApiErrorBody,
   AuthUser,
+  ChangePasswordRequest,
   CreateOrderRequest,
+  CreateUserRequest,
   LoginRequest,
   LoginResponse,
   MenuResponse,
@@ -13,8 +15,11 @@ import type {
   OrderStatus,
   Payment,
   RegisterRequest,
+  ResetPasswordRequest,
   Table,
   TableSession,
+  UserListResponse,
+  UserSummary,
   VietQrPayment,
 } from "@cmc/shared-types";
 
@@ -45,6 +50,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
       login: (payload: LoginRequest) => request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
       me: () => request<AuthUser>("/auth/me"),
       register: (payload: RegisterRequest) => request<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+      changePassword: (payload: ChangePasswordRequest) => request<void>("/auth/change-password", { method: "POST", body: JSON.stringify(payload) }),
+    },
+    users: {
+      list: () => request<UserListResponse>("/users"),
+      create: (payload: CreateUserRequest) => request<UserSummary>("/users", { method: "POST", body: JSON.stringify(payload) }),
+      resetPassword: (userId: string, payload: ResetPasswordRequest) => request<void>(`/users/${encodeURIComponent(userId)}/reset-password`, { method: "POST", body: JSON.stringify(payload) }),
     },
     menu: { get: () => request<MenuResponse>("/menu") },
     tables: {
