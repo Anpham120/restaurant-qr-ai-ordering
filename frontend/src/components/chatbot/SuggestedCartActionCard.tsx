@@ -3,6 +3,7 @@ import type { SuggestedCartAction } from "../../types";
 type SuggestedCartActionCardProps = {
   action: SuggestedCartAction;
   status: "pending" | "confirmed" | "dismissed";
+  imageUrl?: string | null;
   onConfirm: (action: SuggestedCartAction) => void;
   onDismiss: (action: SuggestedCartAction) => void;
 };
@@ -18,11 +19,15 @@ function formatVnd(value: number) {
 export function SuggestedCartActionCard({
   action,
   status,
+  imageUrl,
   onConfirm,
   onDismiss,
 }: SuggestedCartActionCardProps) {
   return (
     <article className={`cmc-suggestion-card ${status}`}>
+      {imageUrl ? (
+        <img className="cmc-suggestion-image" alt={action.name} src={imageUrl} loading="lazy" />
+      ) : null}
       <div>
         <p className="cmc-suggestion-eyebrow">Gợi ý cần xác nhận</p>
         <h3>{action.name}</h3>

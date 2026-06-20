@@ -198,6 +198,20 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         ) : null}
       </header>
 
+      <section className="cmc-ai-cta-banner" aria-label="Gọi AI đặt món">
+        <div className="cmc-ai-cta-copy">
+          <p className="cmc-ai-cta-eyebrow">Trợ lý gọi món AI</p>
+          <h3>Gọi AI đặt món nhanh tại bàn</h3>
+          <p>
+            Mô tả khẩu vị hoặc số người ăn, AI gợi ý món kèm hình ảnh và thêm vào
+            giỏ ngay khi bạn xác nhận.
+          </p>
+        </div>
+        <Link className="cmc-ai-cta-button" to="/chat">
+          Gọi AI đặt món
+        </Link>
+      </section>
+
       <section className="cmc-home-flow" aria-label="Customer order journey">
         <div className="cmc-section-title">
           <h3>Luồng gọi món dành cho khách</h3>
