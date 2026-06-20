@@ -74,7 +74,16 @@ public static class PaymentEndpoints
                 Note = "VietQR generated for manual reconciliation.",
                 CreatedAt = now
             });
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Payment was modified by another request. Reload and try again.");
+            }
 
             return Results.Ok(new VietQrResponse(
                 payment.Order.OrderCode,
@@ -132,7 +141,16 @@ public static class PaymentEndpoints
                 Note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual staff confirmation." : request.Note.Trim(),
                 CreatedAt = now
             });
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Payment was modified by another request. Reload and try again.");
+            }
 
             return Results.Ok(ToResponse(payment));
         })
@@ -171,7 +189,16 @@ public static class PaymentEndpoints
                 Note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual payment failure." : request.Note.Trim(),
                 CreatedAt = now
             });
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Payment was modified by another request. Reload and try again.");
+            }
 
             return Results.Ok(ToResponse(payment));
         })

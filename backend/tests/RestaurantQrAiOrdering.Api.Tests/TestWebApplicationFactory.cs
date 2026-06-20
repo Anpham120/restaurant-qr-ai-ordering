@@ -81,6 +81,27 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
     {
     }
 
+    // EF InMemory ignores xmin, so tests toggle this to exercise the
+    // DbUpdateConcurrencyException handling in the store/endpoints.
+    public bool ThrowConcurrencyOnSave { get; set; }
+
+    // EF InMemory can't run the Postgres nextval sequence; derive a sequential
+    // order-code number from the shared in-memory store instead.
+    public override long NextOrderCodeNumber()
+    {
+        return Orders.Count() + 1001;
+    }
+
+    public override int SaveChanges()
+    {
+        if (ThrowConcurrencyOnSave)
+        {
+            throw new DbUpdateConcurrencyException("Simulated concurrent update.");
+        }
+
+        return base.SaveChanges();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureCategoryForTest(modelBuilder);
