@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantQrAiOrdering.Api.Auth;
+using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 
 namespace RestaurantQrAiOrdering.Api.Tests.Orders;
@@ -41,6 +42,8 @@ public sealed class OrderEndpointTests
         using var createResponse = await CreateDineInOrderAsync(firstClient, factory);
         using var createBody = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var orderCode = createBody.RootElement.GetProperty("orderCode").GetString();
+        var accessToken = createBody.RootElement.GetProperty("customerAccessToken").GetString();
+        secondClient.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, accessToken);
 
         using var getResponse = await secondClient.GetAsync($"/api/orders/{orderCode}");
         using var getBody = await JsonDocument.ParseAsync(await getResponse.Content.ReadAsStreamAsync());
@@ -336,6 +339,90 @@ public sealed class OrderEndpointTests
         Assert.Empty(realtime.StatusChanged);
         Assert.Single(realtime.ItemStatusChanged);
         Assert.Equal("Preparing", realtime.ItemStatusChanged[0].Payload.Status);
+    }
+
+    [Fact]
+    public async Task CreateOrder_ReturnsCustomerAccessToken()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var (_, accessToken) = await CreateOrderWithTokenAsync(client, factory);
+
+        Assert.False(string.IsNullOrWhiteSpace(accessToken));
+    }
+
+    [Fact]
+    public async Task GetOrder_WithoutAccessToken_Returns404()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderWithTokenAsync(createClient, factory);
+
+        using var response = await probeClient.GetAsync($"/api/orders/{orderCode}");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("ORDER_NOT_FOUND", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task GetOrder_WithWrongAccessToken_Returns404()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderWithTokenAsync(createClient, factory);
+        probeClient.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, "not-the-real-token");
+
+        using var response = await probeClient.GetAsync($"/api/orders/{orderCode}");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("ORDER_NOT_FOUND", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task GetOrder_WithCorrectAccessToken_Returns200()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, accessToken) = await CreateOrderWithTokenAsync(createClient, factory);
+        probeClient.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, accessToken);
+
+        using var response = await probeClient.GetAsync($"/api/orders/{orderCode}");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(orderCode, body.RootElement.GetProperty("orderCode").GetString());
+    }
+
+    [Fact]
+    public async Task GetOrder_AsOperatorWithoutToken_Returns200()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderWithTokenAsync(createClient, factory);
+        staffClient.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await staffClient.GetAsync($"/api/orders/{orderCode}");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(orderCode, body.RootElement.GetProperty("orderCode").GetString());
+    }
+
+    private static async Task<(string OrderCode, string AccessToken)> CreateOrderWithTokenAsync(
+        HttpClient client,
+        TestWebApplicationFactory factory)
+    {
+        using var order = await CreateOrderAsync(client, factory);
+        return (
+            order.RootElement.GetProperty("orderCode").GetString()!,
+            order.RootElement.GetProperty("customerAccessToken").GetString()!);
     }
 
     private static async Task<HttpResponseMessage> CreateDineInOrderAsync(

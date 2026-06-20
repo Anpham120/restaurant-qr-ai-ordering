@@ -12,6 +12,10 @@ public class Order
 
     public string OrderCode { get; set; } = string.Empty;
 
+    // Unguessable per-order token issued at creation. Customers present it (X-Order-Token)
+    // to read their own order/payment so sequential order codes can't be enumerated.
+    public string? CustomerAccessToken { get; set; }
+
     public OrderType OrderType { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Draft;

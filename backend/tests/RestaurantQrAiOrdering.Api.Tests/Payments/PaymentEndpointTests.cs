@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantQrAiOrdering.Api.Auth;
+using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 
 namespace RestaurantQrAiOrdering.Api.Tests.Payments;
@@ -15,7 +16,8 @@ public sealed class PaymentEndpointTests
     {
         await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client, factory, "VietQR");
+        var (orderCode, accessToken) = await CreateOrderAsync(client, factory, "VietQR");
+        client.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, accessToken);
 
         using var response = await client.PostAsync($"/api/orders/{orderCode}/payment/vietqr", content: null);
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
@@ -44,7 +46,7 @@ public sealed class PaymentEndpointTests
     {
         await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client, factory, "COD");
+        var (orderCode, _) = await CreateOrderAsync(client, factory, "COD");
 
         using var unauthorizedResponse = await client.PostAsJsonAsync(
             $"/api/orders/{orderCode}/payment/confirm",
@@ -74,7 +76,7 @@ public sealed class PaymentEndpointTests
     {
         await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
-        var orderCode = await CreateOrderCodeAsync(client, factory, "VietQR");
+        var (orderCode, _) = await CreateOrderAsync(client, factory, "VietQR");
         client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
 
         using var failResponse = await client.PostAsJsonAsync(
@@ -91,7 +93,67 @@ public sealed class PaymentEndpointTests
         Assert.Equal("PAYMENT_ALREADY_FAILED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
-    private static async Task<string> CreateOrderCodeAsync(
+    [Fact]
+    public async Task GetPayment_WithoutAccessToken_Returns404()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(createClient, factory, "COD");
+
+        using var response = await probeClient.GetAsync($"/api/orders/{orderCode}/payment");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("PAYMENT_NOT_FOUND", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task GetPayment_WithCorrectAccessToken_Returns200()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, accessToken) = await CreateOrderAsync(createClient, factory, "COD");
+        probeClient.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, accessToken);
+
+        using var response = await probeClient.GetAsync($"/api/orders/{orderCode}/payment");
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(orderCode, body.RootElement.GetProperty("orderCode").GetString());
+    }
+
+    [Fact]
+    public async Task GetPayment_AsOperatorWithoutToken_Returns200()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(createClient, factory, "COD");
+        staffClient.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await staffClient.GetAsync($"/api/orders/{orderCode}/payment");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GenerateVietQr_WithoutAccessToken_Returns404()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var createClient = factory.CreateClient();
+        using var probeClient = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(createClient, factory, "VietQR");
+
+        using var response = await probeClient.PostAsync($"/api/orders/{orderCode}/payment/vietqr", content: null);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("PAYMENT_NOT_FOUND", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    private static async Task<(string OrderCode, string AccessToken)> CreateOrderAsync(
         HttpClient client,
         TestWebApplicationFactory factory,
         string paymentMethod)
@@ -112,7 +174,9 @@ public sealed class PaymentEndpointTests
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return body.RootElement.GetProperty("orderCode").GetString()!;
+        return (
+            body.RootElement.GetProperty("orderCode").GetString()!,
+            body.RootElement.GetProperty("customerAccessToken").GetString()!);
     }
 
     private static AuthenticationHeaderValue CreateAuthorization(TestWebApplicationFactory factory, string role)

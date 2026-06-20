@@ -13,11 +13,37 @@ const api = createApiClient({
     typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
 });
 
+// Per-order customer access tokens, keyed by order code. Issued by the backend at create
+// time and replayed (X-Order-Token) on customer reads so guessable order codes can't be
+// enumerated. Operators read via their bearer token instead and don't need this.
+const ORDER_TOKENS_KEY = "cmc.orderTokens";
+
+function readOrderTokens(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(ORDER_TOKENS_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function rememberOrderToken(orderCode: string, token: string | null | undefined): void {
+  if (typeof window === "undefined" || !token) return;
+  const tokens = readOrderTokens();
+  tokens[orderCode] = token;
+  window.localStorage.setItem(ORDER_TOKENS_KEY, JSON.stringify(tokens));
+}
+
+function getOrderToken(orderCode: string): string | undefined {
+  return readOrderTokens()[orderCode];
+}
+
 export async function createOrder(
   payload: CreateOrderRequest,
 ): Promise<CreateOrderResponse> {
-  const response = await api.orders.create(payload);
-  return response as CreateOrderResponse;
+  const response = (await api.orders.create(payload)) as CreateOrderResponse;
+  rememberOrderToken(response.orderCode, response.customerAccessToken);
+  return response;
 }
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
@@ -26,7 +52,7 @@ export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
 }
 
 export async function getOrderTracking(orderCode: string): Promise<OrderTrackingOrder> {
-  return api.orders.get(orderCode) as Promise<OrderTrackingOrder>;
+  return api.orders.get(orderCode, getOrderToken(orderCode)) as Promise<OrderTrackingOrder>;
 }
 
 export async function updateOrderItemStatus(
@@ -45,11 +71,11 @@ export async function updateOrderStatus(
 }
 
 export async function getOrderPayment(orderCode: string): Promise<PaymentResponse> {
-  return api.payments.get(orderCode) as Promise<PaymentResponse>;
+  return api.payments.get(orderCode, getOrderToken(orderCode)) as Promise<PaymentResponse>;
 }
 
 export async function generateVietQrPayment(orderCode: string): Promise<VietQrPaymentResponse> {
-  return api.payments.generateVietQr(orderCode) as Promise<VietQrPaymentResponse>;
+  return api.payments.generateVietQr(orderCode, getOrderToken(orderCode)) as Promise<VietQrPaymentResponse>;
 }
 
 export async function confirmOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
