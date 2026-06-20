@@ -284,6 +284,9 @@ public class RestaurantDbContext : DbContext
                 .HasColumnName("order_code")
                 .HasMaxLength(50)
                 .IsRequired();
+            entity.Property(e => e.CustomerAccessToken)
+                .HasColumnName("customer_access_token")
+                .HasMaxLength(64);
             entity.Property(e => e.OrderType)
                 .HasColumnName("order_type")
                 .HasConversion<string>()

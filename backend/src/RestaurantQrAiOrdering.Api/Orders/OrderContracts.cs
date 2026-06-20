@@ -39,7 +39,8 @@ public sealed record OrderResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<OrderItemResponse> Items,
-    IReadOnlyList<OrderStatusEventResponse> Events);
+    IReadOnlyList<OrderStatusEventResponse> Events,
+    string? CustomerAccessToken);
 
 public sealed record DeliveryInfoResponse(
     string RecipientName,
