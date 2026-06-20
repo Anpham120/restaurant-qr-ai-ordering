@@ -28,6 +28,8 @@ const statusLabels: Partial<Record<AdminBadgeStatus, string>> = {
   Unavailable: "Tạm hết",
   Paid: "Đã thanh toán",
   Pending: "Chờ xử lý",
+  Unpaid: "Chưa thanh toán",
+  Failed: "Thất bại",
   Serving: "Đang phục vụ",
   Cleaning: "Đang dọn",
 };
