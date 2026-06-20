@@ -219,10 +219,7 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             entity.Property(e => e.PickupCustomerName).HasColumnName("pickup_customer_name").HasMaxLength(200);
             entity.Property(e => e.PickupCustomerPhoneNumber).HasColumnName("pickup_customer_phone").HasMaxLength(20);
             entity.Property(e => e.PickupRequestedAt).HasColumnName("pickup_requested_at");
-            entity.Property(e => e.DeliveryRecipientName).HasColumnName("delivery_recipient_name").HasMaxLength(200);
-            entity.Property(e => e.DeliveryPhoneNumber).HasColumnName("delivery_phone_number").HasMaxLength(20);
-            entity.Property(e => e.DeliveryAddress).HasColumnName("delivery_address").HasMaxLength(500);
-            entity.Property(e => e.DeliveryNote).HasColumnName("delivery_note").HasMaxLength(500);
+            entity.Property(e => e.TableSessionId).HasColumnName("table_session_id").HasMaxLength(50);
             entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();

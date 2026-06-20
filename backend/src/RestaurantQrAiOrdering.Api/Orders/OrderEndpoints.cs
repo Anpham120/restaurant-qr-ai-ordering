@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
@@ -17,6 +18,7 @@ public static partial class OrderEndpoints
             CreateOrderRequest? request,
             RestaurantDbContext db,
             IOrderStore orders,
+            ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -30,12 +32,14 @@ public static partial class OrderEndpoints
             }
 
             var validatedRequest = request!;
-            var order = orders.CreateOrder(new CreateOrderCommand(
-                validatedRequest.OrderType!.Trim(),
-                validatedRequest.TableCode?.Trim().ToUpperInvariant(),
-                validatedRequest.PaymentMethod!.Trim(),
-                validatedRequest.DeliveryInfo,
-                validatedRequest.Items!));
+            var order = orders.CreateOrder(
+                new CreateOrderCommand(
+                    validatedRequest.OrderType!.Trim(),
+                    validatedRequest.TableCode?.Trim().ToUpperInvariant(),
+                    validatedRequest.PaymentMethod!.Trim(),
+                    validatedRequest.PickupInfo,
+                    validatedRequest.Items!),
+                ActorContext.FromPrincipal(user));
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
             logger.LogInformation(
@@ -71,6 +75,7 @@ public static partial class OrderEndpoints
                 .Include(order => order.Payment)
                 .Include(order => order.OrderItems)
                 .Include(order => order.RestaurantTable)
+                .Include(order => order.StatusHistory)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(status))
@@ -114,6 +119,7 @@ public static partial class OrderEndpoints
             string orderCode,
             UpdateOrderStatusRequest? request,
             IOrderStore orders,
+            ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -135,7 +141,7 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
             }
 
-            var result = orders.UpdateOrderStatus(orderCode, status);
+            var result = orders.UpdateOrderStatus(orderCode, status, ActorContext.FromPrincipal(user));
             if (!result.IsFound || result.Order is null)
             {
                 logger.LogWarning("Rejected status update because order {OrderCode} was not found.", orderCode);
@@ -315,6 +321,33 @@ public static partial class OrderEndpoints
             }
         }
 
+        if (orderType == OrderType.Pickup)
+        {
+            var pickup = request.PickupInfo;
+            if (pickup is null
+                || string.IsNullOrWhiteSpace(pickup.CustomerName)
+                || string.IsNullOrWhiteSpace(pickup.PhoneNumber))
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_CONTACT_REQUIRED",
+                    "Pickup orders require a customer name and phone number.");
+            }
+
+            if (pickup.CustomerName.Trim().Length > 200)
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_NAME_TOO_LONG",
+                    "Pickup customer name must be at most 200 characters.");
+            }
+
+            if (pickup.PhoneNumber.Trim().Length > 20)
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_PHONE_TOO_LONG",
+                    "Pickup phone number must be at most 20 characters.");
+            }
+        }
+
         foreach (var item in request.Items)
         {
             if (string.IsNullOrWhiteSpace(item.MenuItemId))
@@ -340,14 +373,6 @@ public static partial class OrderEndpoints
         return null;
     }
 
-    private static bool HasDeliveryInfo(DeliveryInfoRequest? deliveryInfo)
-    {
-        return deliveryInfo is not null
-            && !string.IsNullOrWhiteSpace(deliveryInfo.RecipientName)
-            && !string.IsNullOrWhiteSpace(deliveryInfo.PhoneNumber)
-            && !string.IsNullOrWhiteSpace(deliveryInfo.Address);
-    }
-
     private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed)
         where TEnum : struct
     {
@@ -361,16 +386,16 @@ public static partial class OrderEndpoints
             order.OrderCode,
             order.OrderType,
             order.TableCode,
+            order.TableSessionId,
             order.Status,
             order.PaymentStatus,
             order.PaymentMethod,
-            order.DeliveryInfo is null
+            order.PickupInfo is null
                 ? null
-                : new DeliveryInfoResponse(
-                    order.DeliveryInfo.RecipientName,
-                    order.DeliveryInfo.PhoneNumber,
-                    order.DeliveryInfo.Address,
-                    order.DeliveryInfo.Note),
+                : new PickupInfoResponse(
+                    order.PickupInfo.CustomerName,
+                    order.PickupInfo.PhoneNumber,
+                    order.PickupInfo.RequestedAt),
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -387,7 +412,12 @@ public static partial class OrderEndpoints
                     item.UpdatedAt))
                 .ToList(),
             order.Events
-                .Select(item => new OrderStatusEventResponse(item.Status, item.CreatedAt))
+                .Select(item => new OrderStatusEventResponse(
+                    item.Status,
+                    item.Source,
+                    item.ChangedByRole,
+                    item.Note,
+                    item.CreatedAt))
                 .ToList(),
             order.CustomerAccessToken);
     }
@@ -395,12 +425,11 @@ public static partial class OrderEndpoints
     private static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
-        var deliveryInfo = HasPersistedDeliveryInfo(order)
-            ? new DeliveryInfoResponse(
-                order.DeliveryRecipientName!,
-                order.DeliveryPhoneNumber!,
-                order.DeliveryAddress!,
-                order.DeliveryNote)
+        var pickupInfo = HasPickupContact(order)
+            ? new PickupInfoResponse(
+                order.PickupCustomerName!,
+                order.PickupCustomerPhoneNumber!,
+                order.PickupRequestedAt)
             : null;
 
         return new OrderResponse(
@@ -408,10 +437,11 @@ public static partial class OrderEndpoints
             order.OrderCode,
             order.OrderType.ToString(),
             order.TableCode,
+            order.TableSessionId,
             order.Status.ToString(),
             (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
             (payment?.Method ?? PaymentMethod.COD).ToString(),
-            deliveryInfo,
+            pickupInfo,
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -428,19 +458,24 @@ public static partial class OrderEndpoints
                     item.UnitPrice * item.Quantity,
                     item.UpdatedAt))
                 .ToList(),
-            new[]
-            {
-                new OrderStatusEventResponse(order.Status.ToString(), order.UpdatedAt)
-            },
+            order.StatusHistory
+                .OrderBy(history => history.CreatedAt)
+                .ThenBy(history => history.Id)
+                .Select(history => new OrderStatusEventResponse(
+                    history.ToStatus.ToString(),
+                    history.Source.ToString(),
+                    history.ChangedByRole,
+                    history.Note,
+                    history.CreatedAt))
+                .ToList(),
             // Listing is operators-only; don't bulk-expose per-order customer tokens.
             null);
     }
 
-    private static bool HasPersistedDeliveryInfo(Order order)
+    private static bool HasPickupContact(Order order)
     {
-        return !string.IsNullOrWhiteSpace(order.DeliveryRecipientName)
-            && !string.IsNullOrWhiteSpace(order.DeliveryPhoneNumber)
-            && !string.IsNullOrWhiteSpace(order.DeliveryAddress);
+        return !string.IsNullOrWhiteSpace(order.PickupCustomerName)
+            && !string.IsNullOrWhiteSpace(order.PickupCustomerPhoneNumber);
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)
