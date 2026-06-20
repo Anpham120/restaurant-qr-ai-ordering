@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -40,6 +41,7 @@ public sealed class OrderStore : IOrderStore
         {
             Id = $"ord_{Guid.NewGuid():N}",
             OrderCode = CreateNextOrderCode(),
+            CustomerAccessToken = GenerateAccessToken(),
             OrderType = orderType,
             Status = OrderStatus.Placed,
             RestaurantTableId = table?.Id,
@@ -179,6 +181,14 @@ public sealed class OrderStore : IOrderStore
         return query.FirstOrDefault();
     }
 
+    private static string GenerateAccessToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
     private string CreateNextOrderCode()
     {
         var nextNumber = db.Orders.Count() + 1001;
@@ -253,7 +263,8 @@ public sealed class OrderStore : IOrderStore
                 .OrderBy(item => item.CreatedAt)
                 .Select(ToItemSnapshot)
                 .ToList(),
-            events ?? [new OrderStatusEventSnapshot(order.Status.ToString(), order.UpdatedAt)]);
+            events ?? [new OrderStatusEventSnapshot(order.Status.ToString(), order.UpdatedAt)],
+            order.CustomerAccessToken);
     }
 
     private static OrderItemSnapshot ToItemSnapshot(OrderItem item)

@@ -35,6 +35,7 @@ export type CreateOrderRequest = {
 export type CreateOrderResponse = {
   orderId: string;
   orderCode: string;
+  customerAccessToken?: string | null;
   orderType: CustomerOrderType;
   tableCode: TableCode | null;
   status: OrderStatus;

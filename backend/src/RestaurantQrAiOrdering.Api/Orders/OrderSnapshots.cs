@@ -14,7 +14,8 @@ public sealed record OrderSnapshot(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<OrderItemSnapshot> Items,
-    IReadOnlyList<OrderStatusEventSnapshot> Events);
+    IReadOnlyList<OrderStatusEventSnapshot> Events,
+    string? CustomerAccessToken);
 
 public sealed record DeliveryInfoSnapshot(
     string RecipientName,
