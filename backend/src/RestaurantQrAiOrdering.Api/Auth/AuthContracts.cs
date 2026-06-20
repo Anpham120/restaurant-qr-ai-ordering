@@ -9,3 +9,5 @@ public sealed record AuthUserResponse(string UserId, string FullName, string Ema
 public sealed record RegisterResponse(string UserId, string FullName, string Email, string Role);
 
 public sealed record LoginResponse(string AccessToken, DateTimeOffset ExpiresAt, AuthUserResponse User);
+
+public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);

@@ -76,6 +76,48 @@ public static class AuthEndpoints
         .RequireAuthorization("AdminOnly")
         .WithName("AdminCheck");
 
+        group.MapPost("/change-password", (ChangePasswordRequest? request, ClaimsPrincipal principal, IUserStore users, ILoggerFactory loggerFactory) =>
+        {
+            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Auth.AuthEndpoints");
+
+            if (request is null)
+            {
+                return AuthApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                return AuthApiResults.BadRequest("CURRENT_PASSWORD_REQUIRED", "Current password is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            {
+                return AuthApiResults.BadRequest("PASSWORD_TOO_SHORT", "Password must be at least 8 characters.");
+            }
+
+            var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return AuthApiResults.Unauthorized("AUTHENTICATION_REQUIRED", "Authentication is required.");
+            }
+
+            var result = users.ChangePassword(userId, request.CurrentPassword, request.NewPassword);
+            switch (result.Outcome)
+            {
+                case ChangePasswordOutcome.UserNotFound:
+                    logger.LogWarning("Change-password failed because user {UserId} was not found.", userId);
+                    return AuthApiResults.NotFound("USER_NOT_FOUND", "User account was not found.");
+                case ChangePasswordOutcome.InvalidCurrentPassword:
+                    logger.LogWarning("Change-password rejected for user {UserId} due to invalid current password.", userId);
+                    return AuthApiResults.BadRequest("CURRENT_PASSWORD_INVALID", "Current password is incorrect.");
+                default:
+                    logger.LogInformation("User {UserId} changed their password.", userId);
+                    return Results.NoContent();
+            }
+        })
+        .RequireAuthorization()
+        .WithName("ChangePassword");
+
         return app;
     }
 

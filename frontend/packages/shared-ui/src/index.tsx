@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@cmc/auth";
+import { ApiError, createApiClient } from "@cmc/api-client";
+import { authStorage, useAuth } from "@cmc/auth";
 import type { UserRole } from "@cmc/shared-types";
 
 export function Button({
@@ -68,6 +69,121 @@ export function UnauthorizedPage() {
   );
 }
 
+function ChangePasswordControl() {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  function reset() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setNote(null);
+
+    if (newPassword.length < 8) {
+      setNote({ type: "error", text: "Mật khẩu mới tối thiểu 8 ký tự." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setNote({ type: "error", text: "Xác nhận mật khẩu không khớp." });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const api = createApiClient({ getAccessToken: authStorage.token });
+      await api.auth.changePassword({ currentPassword, newPassword });
+      reset();
+      setOpen(false);
+      setNote({ type: "success", text: "Đã đổi mật khẩu." });
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.code === "CURRENT_PASSWORD_INVALID") {
+        setNote({ type: "error", text: "Mật khẩu hiện tại không đúng." });
+      } else {
+        setNote({ type: "error", text: "Không đổi được mật khẩu. Thử lại sau." });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="cmc-account-actions">
+        {note ? (
+          <p className={`cmc-account-note cmc-account-note--${note.type}`} role="status">
+            {note.text}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          className="cmc-account-trigger"
+          onClick={() => {
+            setNote(null);
+            setOpen(true);
+          }}
+        >
+          Đổi mật khẩu
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="cmc-account-form" onSubmit={submit}>
+      <input
+        type="password"
+        autoComplete="current-password"
+        placeholder="Mật khẩu hiện tại"
+        value={currentPassword}
+        onChange={(event) => setCurrentPassword(event.target.value)}
+      />
+      <input
+        type="password"
+        autoComplete="new-password"
+        placeholder="Mật khẩu mới (≥ 8 ký tự)"
+        value={newPassword}
+        onChange={(event) => setNewPassword(event.target.value)}
+      />
+      <input
+        type="password"
+        autoComplete="new-password"
+        placeholder="Xác nhận mật khẩu mới"
+        value={confirmPassword}
+        onChange={(event) => setConfirmPassword(event.target.value)}
+      />
+      {note ? (
+        <p className={`cmc-account-note cmc-account-note--${note.type}`} role="status">
+          {note.text}
+        </p>
+      ) : null}
+      <div className="cmc-account-form-actions">
+        <button type="submit" className="cmc-account-trigger" disabled={busy}>
+          {busy ? "Đang lưu..." : "Lưu mật khẩu"}
+        </button>
+        <button
+          type="button"
+          className="cmc-account-cancel"
+          onClick={() => {
+            setOpen(false);
+            reset();
+            setNote(null);
+          }}
+        >
+          Huỷ
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export type PortalLink = { to: string; label: string };
 
 export function OperationsLayout({
@@ -107,6 +223,7 @@ export function OperationsLayout({
         <div className="cmc-user">
           <span>{user?.fullName}</span>
           <small>{user?.role}</small>
+          <ChangePasswordControl />
           <button
             onClick={() => {
               logout();
