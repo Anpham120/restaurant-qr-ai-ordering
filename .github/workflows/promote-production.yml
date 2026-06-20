@@ -60,7 +60,18 @@ jobs:
             echo "Auto-merge is already enabled or cannot be enabled automatically."
           fi
 
-          echo "Waiting for required checks on release PR #${existing_pr}..."
+          echo "Waiting for required checks to register on release PR #${existing_pr}..."
+          for attempt in $(seq 1 30); do
+            registered="$(gh pr checks "$existing_pr" --required --json name --jq 'length' 2>/dev/null || echo 0)"
+            if [ "${registered:-0}" -ge "${#required_checks[@]}" ]; then
+              echo "All ${#required_checks[@]} required checks registered."
+              break
+            fi
+            echo "Attempt ${attempt}/30: ${registered:-0}/${#required_checks[@]} required checks registered; waiting 10s..."
+            sleep 10
+          done
+
+          echo "Watching required checks on release PR #${existing_pr}..."
           gh pr checks "$existing_pr" --required --watch --fail-fast --interval 10
 
           for check_name in "${required_checks[@]}"; do
@@ -78,5 +89,4 @@ jobs:
             echo "Release PR #${existing_pr} was already merged by auto-merge."
           fi
 
-          echo "Dispatching production deployment from main..."
-          gh workflow run deploy-production.yml --ref main
+          echo "Merge to main complete; Deploy Production runs from the push to main."
