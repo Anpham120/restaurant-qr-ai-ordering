@@ -112,10 +112,25 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_STATUS_TRANSITION_INVALID");
         }
 
+        // An order can't be marked Completed until its payment is actually settled.
+        if (status == OrderStatus.Completed
+            && order.Payment?.Status is not (PaymentStatus.Confirmed or PaymentStatus.Paid))
+        {
+            return new UpdateOrderStatusResult(true, ToSnapshot(order), "ORDER_COMPLETE_REQUIRES_PAYMENT");
+        }
+
         var now = DateTimeOffset.UtcNow;
         order.Status = status;
         order.UpdatedAt = now;
-        db.SaveChanges();
+
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new UpdateOrderStatusResult(true, ToSnapshot(order), "CONFLICT_STALE");
+        }
 
         return new UpdateOrderStatusResult(
             true,
@@ -191,15 +206,7 @@ public sealed class OrderStore : IOrderStore
 
     private string CreateNextOrderCode()
     {
-        var nextNumber = db.Orders.Count() + 1001;
-        string orderCode;
-        do
-        {
-            orderCode = $"ORD-{nextNumber++}";
-        }
-        while (db.Orders.Any(order => order.OrderCode == orderCode));
-
-        return orderCode;
+        return $"ORD-{db.NextOrderCodeNumber()}";
     }
 
     private static bool CanTransition(OrderStatus current, OrderStatus next)

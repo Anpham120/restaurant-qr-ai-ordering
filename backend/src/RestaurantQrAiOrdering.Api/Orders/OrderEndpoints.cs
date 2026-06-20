@@ -165,6 +165,28 @@ public static partial class OrderEndpoints
                     "Order status transition is not allowed.");
             }
 
+            if (result.ErrorCode == "ORDER_COMPLETE_REQUIRES_PAYMENT")
+            {
+                logger.LogWarning(
+                    "Rejected completion for order {OrderCode} because its payment is not confirmed.",
+                    orderCode);
+
+                return ApiResults.BadRequest(
+                    "ORDER_COMPLETE_REQUIRES_PAYMENT",
+                    "Order cannot be completed until its payment is confirmed.");
+            }
+
+            if (result.ErrorCode == "CONFLICT_STALE")
+            {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because it was modified by another request.",
+                    orderCode);
+
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Order was modified by another request. Reload and try again.");
+            }
+
             await realtime.OrderStatusChangedAsync(ToOrderStatusChangedEvent(result.Order), result.Order.TableCode, cancellationToken);
             logger.LogInformation("Updated order {OrderCode} status to {Status}.", result.Order.OrderCode, result.Order.Status);
 

@@ -53,6 +53,22 @@ public class RestaurantDbContext : DbContext
         ConfigureChatMessage(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
         ConfigureUser(modelBuilder);
+
+        // Postgres sequence backing the human-facing order code (ORD-1001, 1002, ...).
+        // Atomic nextval removes the Count()+1 race that could mint duplicate codes.
+        modelBuilder.HasSequence<long>("orders_order_code_seq")
+            .StartsAt(1001)
+            .IncrementsBy(1);
+    }
+
+    // Atomically reserves the next order-code number from the Postgres sequence.
+    // Overridden by the test context (EF InMemory can't run raw SQL).
+    public virtual long NextOrderCodeNumber()
+    {
+        return Database
+            .SqlQueryRaw<long>("SELECT nextval('orders_order_code_seq') AS \"Value\"")
+            .AsEnumerable()
+            .First();
     }
 
     private static void ConfigureCategory(ModelBuilder modelBuilder)
@@ -347,6 +363,14 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
             entity.HasIndex(e => e.CreatedAt);
+
+            // Optimistic concurrency via the Postgres xmin system column, guarding
+            // against lost updates when two requests mutate the same order at once.
+            // The helper is deprecated but is the only mapping that emits no migration
+            // DDL (a manual xmin property generates an invalid AddColumn).
+#pragma warning disable CS0618
+            entity.UseXminAsConcurrencyToken();
+#pragma warning restore CS0618
         });
     }
 
@@ -456,6 +480,12 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.OrderId).IsUnique();
             entity.HasIndex(e => e.Status);
+
+            // Optimistic concurrency via xmin: guard against two staff confirming or
+            // failing the same payment at once. Deprecated helper, but emits no DDL.
+#pragma warning disable CS0618
+            entity.UseXminAsConcurrencyToken();
+#pragma warning restore CS0618
         });
     }
 
