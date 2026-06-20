@@ -1,22 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@cmc/api-client";
-import type { AuthUser, UserRole } from "@cmc/shared-types";
-import { registerUser } from "../../services/adminUserService";
+import type { UserRole, UserSummary } from "@cmc/shared-types";
+import {
+  createOperationalUser,
+  listUsers,
+  resetUserPassword,
+} from "../../services/adminUserService";
 import { AdminStatePanel } from "./AdminStatePanel";
+
+type AssignableRole = Extract<UserRole, "Staff" | "Kitchen" | "Admin">;
 
 type FormState = {
   fullName: string;
   email: string;
   password: string;
-  role: UserRole;
+  role: AssignableRole;
 };
 
-const roles: Array<{ value: UserRole; label: string; description: string }> = [
-  { value: "Admin", label: "Quản trị viên", description: "Toàn quyền quản lý hệ thống" },
+const roles: Array<{ value: AssignableRole; label: string; description: string }> = [
   { value: "Staff", label: "Nhân viên phục vụ", description: "Phục vụ, thu ngân, xác nhận đơn" },
   { value: "Kitchen", label: "Đầu bếp", description: "Nhận và chế biến món từ bảng bếp" },
-  { value: "Customer", label: "Khách hàng", description: "Đặt món, theo dõi đơn" },
+  { value: "Admin", label: "Quản trị viên", description: "Toàn quyền quản lý hệ thống" },
 ];
+
+function roleIcon(role: UserRole) {
+  if (role === "Admin") return "👑";
+  if (role === "Staff") return "🧑‍💼";
+  if (role === "Kitchen") return "👨‍🍳";
+  return "👤";
+}
 
 function createEmptyForm(): FormState {
   return { fullName: "", email: "", password: "", role: "Staff" };
@@ -26,7 +38,24 @@ export function AdminUserManager() {
   const [form, setForm] = useState<FormState>(createEmptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [createdUsers, setCreatedUsers] = useState<AuthUser[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [usersError, setUsersError] = useState("");
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetMessage, setResetMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  async function refreshUsers() {
+    try {
+      setUsers(await listUsers());
+      setUsersError("");
+    } catch {
+      setUsersError("Không tải được danh sách người dùng.");
+    }
+  }
+
+  useEffect(() => {
+    void refreshUsers();
+  }, []);
 
   function updateForm(patch: Partial<FormState>) {
     setForm((current) => ({ ...current, ...patch }));
@@ -52,17 +81,15 @@ export function AdminUserManager() {
     setMessage(null);
 
     try {
-      const user = await registerUser({
+      const user = await createOperationalUser({
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         password: form.password,
+        role: form.role,
       });
-      setCreatedUsers((prev) => [user, ...prev]);
       setForm(createEmptyForm());
-      setMessage({
-        type: "success",
-        text: `Đã tạo tài khoản ${user.fullName} (${user.role}).`,
-      });
+      setMessage({ type: "success", text: `Đã tạo tài khoản ${user.fullName} (${user.role}).` });
+      await refreshUsers();
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_ALREADY_REGISTERED") {
         setMessage({ type: "error", text: "Email này đã được đăng ký." });
@@ -74,6 +101,29 @@ export function AdminUserManager() {
     }
   }
 
+  function startReset(userId: string) {
+    setResettingUserId(userId);
+    setResetPassword("");
+    setResetMessage(null);
+  }
+
+  async function handleReset(event: React.FormEvent, user: UserSummary) {
+    event.preventDefault();
+    if (resetPassword.length < 8) {
+      setResetMessage({ type: "error", text: "Mật khẩu tối thiểu 8 ký tự." });
+      return;
+    }
+
+    try {
+      await resetUserPassword(user.userId, resetPassword);
+      setResettingUserId(null);
+      setResetPassword("");
+      setResetMessage({ type: "success", text: `Đã đặt lại mật khẩu cho ${user.fullName}.` });
+    } catch {
+      setResetMessage({ type: "error", text: "Không đặt lại được mật khẩu. Kiểm tra backend." });
+    }
+  }
+
   return (
     <div className="admin-workspace">
       <section className="admin-toolbar">
@@ -81,12 +131,12 @@ export function AdminUserManager() {
           <span className="panel-kicker">User management</span>
           <h3>Quản lý tài khoản</h3>
           <p>
-            Tạo tài khoản vận hành cho admin, nhân viên và đầu bếp. Mỗi tài khoản có vai trò
-            xác định quyền truy cập trong hệ thống.
+            Tạo tài khoản vận hành cho nhân viên, đầu bếp và quản trị viên. Khách hàng đặt món qua
+            mã QR tại bàn nên không cần tài khoản.
           </p>
         </div>
         <div className="admin-toolbar-metrics">
-          <span>{createdUsers.length} tài khoản mới trong phiên</span>
+          <span>{users.length} tài khoản vận hành</span>
         </div>
       </section>
 
@@ -136,7 +186,7 @@ export function AdminUserManager() {
                     onClick={() => updateForm({ role: role.value })}
                   >
                     <span className={`admin-role-icon role-${role.value.toLowerCase()}`}>
-                      {role.value === "Admin" ? "👑" : role.value === "Staff" ? "🧑‍💼" : role.value === "Kitchen" ? "👨‍🍳" : "👤"}
+                      {roleIcon(role.value)}
                     </span>
                     <div>
                       <strong>{role.label}</strong>
@@ -162,66 +212,70 @@ export function AdminUserManager() {
         <aside className="admin-panel">
           <div className="admin-panel-heading">
             <div>
-              <span className="panel-kicker">Tài khoản mặc định</span>
-              <h3>Seed accounts</h3>
+              <span className="panel-kicker">Tài khoản vận hành</span>
+              <h3>Danh sách người dùng</h3>
             </div>
           </div>
 
-          <div className="admin-seed-accounts">
-            <article className="admin-seed-card">
-              <span className="admin-role-icon role-admin">👑</span>
-              <div>
-                <strong>Quản trị viên</strong>
-                <code>admin@restaurant.local</code>
-                <small>Role: Admin</small>
-              </div>
-            </article>
-            <article className="admin-seed-card">
-              <span className="admin-role-icon role-staff">🧑‍💼</span>
-              <div>
-                <strong>Nhân viên thu ngân</strong>
-                <code>staff@restaurant.local</code>
-                <small>Role: Staff</small>
-              </div>
-            </article>
-            <article className="admin-seed-card">
-              <span className="admin-role-icon role-kitchen">👨‍🍳</span>
-              <div>
-                <strong>Đầu bếp</strong>
-                <code>kitchen@restaurant.local</code>
-                <small>Role: Kitchen</small>
-              </div>
-            </article>
-          </div>
+          {resetMessage ? (
+            <p className={`admin-form-note ${resetMessage.type === "error" ? "is-error" : ""}`} role="status">
+              {resetMessage.text}
+            </p>
+          ) : null}
 
-          {createdUsers.length > 0 ? (
-            <>
-              <div className="admin-panel-heading" style={{ marginTop: "1.5rem" }}>
-                <div>
-                  <span className="panel-kicker">Mới tạo</span>
-                  <h3>Trong phiên này</h3>
-                </div>
-              </div>
-              <div className="admin-seed-accounts">
-                {createdUsers.map((user) => (
-                  <article className="admin-seed-card" key={user.userId}>
-                    <span className={`admin-role-icon role-${user.role.toLowerCase()}`}>
-                      {user.role === "Admin" ? "👑" : user.role === "Staff" ? "🧑‍💼" : user.role === "Kitchen" ? "👨‍🍳" : "👤"}
-                    </span>
-                    <div>
-                      <strong>{user.fullName}</strong>
-                      <code>{user.email}</code>
-                      <small>Role: {user.role}</small>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
-          ) : (
+          {usersError ? (
+            <AdminStatePanel title="Lỗi tải dữ liệu" description={usersError} />
+          ) : users.length === 0 ? (
             <AdminStatePanel
-              title="Chưa tạo tài khoản mới"
+              title="Chưa có tài khoản vận hành"
               description="Tài khoản vừa tạo sẽ hiện ở đây."
             />
+          ) : (
+            <div className="admin-seed-accounts">
+              {users.map((user) => (
+                <article className="admin-seed-card" key={user.userId}>
+                  <span className={`admin-role-icon role-${user.role.toLowerCase()}`}>
+                    {roleIcon(user.role)}
+                  </span>
+                  <div className="admin-seed-card-body">
+                    <strong>{user.fullName}</strong>
+                    <code>{user.email}</code>
+                    <small>Role: {user.role}</small>
+                    {resettingUserId === user.userId ? (
+                      <form className="admin-reset-form" onSubmit={(event) => handleReset(event, user)}>
+                        <input
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          placeholder="Mật khẩu mới (≥ 8 ký tự)"
+                          type="password"
+                          autoComplete="new-password"
+                        />
+                        <div className="admin-reset-actions">
+                          <button className="button primary" type="submit">
+                            Lưu
+                          </button>
+                          <button
+                            className="button"
+                            type="button"
+                            onClick={() => setResettingUserId(null)}
+                          >
+                            Huỷ
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        className="button admin-reset-trigger"
+                        type="button"
+                        onClick={() => startReset(user.userId)}
+                      >
+                        Đặt lại mật khẩu
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </aside>
       </div>

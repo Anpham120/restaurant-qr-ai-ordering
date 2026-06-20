@@ -19,6 +19,11 @@ public static class AuthApiResults
         return ApiErrorFactory.Result(StatusCodes.Status403Forbidden, code, message, details);
     }
 
+    public static IResult NotFound(string code, string message, object? details = null)
+    {
+        return ApiErrorFactory.Result(StatusCodes.Status404NotFound, code, message, details);
+    }
+
     public static IResult Conflict(string code, string message, object? details = null)
     {
         return ApiErrorFactory.Result(StatusCodes.Status409Conflict, code, message, details);

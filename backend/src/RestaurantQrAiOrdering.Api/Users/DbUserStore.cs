@@ -60,6 +60,81 @@ public sealed class DbUserStore : IUserStore
         return ToUserAccount(user);
     }
 
+    public IReadOnlyList<UserAccount> ListUsers()
+    {
+        return dbContext.Users
+            .OrderBy(u => u.CreatedAt)
+            .ThenBy(u => u.FullName)
+            .AsEnumerable()
+            .Select(ToUserAccount)
+            .ToList();
+    }
+
+    public CreateUserResult CreateUser(string fullName, string email, string password, string role)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+
+        var existingUser = dbContext.Users
+            .FirstOrDefault(u => u.Email.ToLower() == normalizedEmail.ToLower());
+
+        if (existingUser is not null)
+        {
+            return CreateUserResult.DuplicateEmail();
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var user = new User
+        {
+            Id = $"usr_{Guid.NewGuid():N}",
+            FullName = fullName.Trim(),
+            Email = normalizedEmail,
+            PasswordHash = passwordHasher.HashPassword(password),
+            Role = role,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.Users.Add(user);
+        dbContext.SaveChanges();
+
+        return CreateUserResult.Success(ToUserAccount(user));
+    }
+
+    public ChangePasswordResult ChangePassword(string userId, string currentPassword, string newPassword)
+    {
+        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
+        if (user is null)
+        {
+            return ChangePasswordResult.UserNotFound();
+        }
+
+        if (!passwordHasher.VerifyPassword(currentPassword, user.PasswordHash))
+        {
+            return ChangePasswordResult.InvalidCurrentPassword();
+        }
+
+        user.PasswordHash = passwordHasher.HashPassword(newPassword);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        dbContext.SaveChanges();
+
+        return ChangePasswordResult.Success();
+    }
+
+    public ResetPasswordResult ResetPassword(string userId, string newPassword)
+    {
+        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
+        if (user is null)
+        {
+            return ResetPasswordResult.UserNotFound();
+        }
+
+        user.PasswordHash = passwordHasher.HashPassword(newPassword);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        dbContext.SaveChanges();
+
+        return ResetPasswordResult.Success();
+    }
+
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();

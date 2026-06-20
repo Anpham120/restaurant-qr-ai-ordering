@@ -5,3 +5,17 @@
 .cmc-form-section{display:flex;flex-direction:column;gap:.75rem}
 .cmc-form-section h2{margin:0 0 .25rem;font-size:1.35rem;color:var(--cmc-text)}
 .cmc-login-hint{color:var(--cmc-muted);font-size:.875rem;margin:0 0 .5rem}
+
+/* Self-service change password (operations sidebar) */
+.cmc-user .cmc-account-actions{display:grid;gap:.4rem}
+.cmc-user .cmc-account-trigger{margin-top:.5rem;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:.55rem;cursor:pointer;font:inherit}
+.cmc-user .cmc-account-trigger:disabled{opacity:.6;cursor:not-allowed}
+.cmc-user .cmc-account-cancel{margin-top:0;color:#a9c9dd;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:.55rem;cursor:pointer;font:inherit}
+.cmc-user .cmc-account-form{display:grid;gap:.45rem;margin-top:.5rem}
+.cmc-user .cmc-account-form input{width:100%;border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:.5rem;background:rgba(255,255,255,.08);color:#fff;font:inherit}
+.cmc-user .cmc-account-form input::placeholder{color:rgba(255,255,255,.55)}
+.cmc-user .cmc-account-form-actions{display:flex;gap:.4rem}
+.cmc-user .cmc-account-form-actions .cmc-account-trigger{margin-top:0;flex:1}
+.cmc-user .cmc-account-note{margin:.25rem 0 0;font-size:.8rem}
+.cmc-user .cmc-account-note--success{color:#7ee0c8}
+.cmc-user .cmc-account-note--error{color:#ff9b9b}

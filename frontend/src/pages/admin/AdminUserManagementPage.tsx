@@ -9,8 +9,8 @@ export function AdminUserManagementPage() {
       description="Tạo tài khoản vận hành cho nhân viên, đầu bếp và quản trị viên."
       variant="admin"
       stats={[
-        { label: "Chức năng", value: "Register", detail: "Tạo tài khoản qua API" },
-        { label: "Phân quyền", value: "4 roles", detail: "Admin, Staff, Kitchen, Customer" },
+        { label: "Chức năng", value: "Tạo & reset", detail: "Admin tạo tài khoản và đặt lại mật khẩu" },
+        { label: "Phân quyền", value: "3 roles", detail: "Staff, Kitchen, Admin" },
       ]}
     >
       <AdminUserManager />
