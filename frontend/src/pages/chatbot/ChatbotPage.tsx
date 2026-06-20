@@ -214,6 +214,22 @@ export function ChatbotPage() {
             {messages.map((message) => (
               <ChatMessageBubble key={message.id} message={message} />
             ))}
+            {suggestedActions.length > 0 ? (
+              <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món cần xác nhận">
+                {suggestedActions.map((action) => (
+                  <SuggestedCartActionCard
+                    action={action}
+                    key={getActionKey(action)}
+                    status={actionStatuses[getActionKey(action)] ?? "pending"}
+                    imageUrl={
+                      menuData.items.find((item) => item.id === action.menuItemId)?.imageUrl ?? null
+                    }
+                    onConfirm={confirmSuggestedAction}
+                    onDismiss={dismissSuggestedAction}
+                  />
+                ))}
+              </div>
+            ) : null}
             {isAssistantThinking ? (
               <div className="cmc-chat-typing" aria-label="Assistant đang phản hồi">
                 <span />
@@ -259,23 +275,10 @@ export function ChatbotPage() {
 
           {errorMessage ? <p className="cmc-chat-error">{errorMessage}</p> : null}
 
-          <div className="cmc-suggestion-list">
-            {suggestedActions.length > 0 ? (
-              suggestedActions.map((action) => (
-                <SuggestedCartActionCard
-                  action={action}
-                  key={getActionKey(action)}
-                  status={actionStatuses[getActionKey(action)] ?? "pending"}
-                  onConfirm={confirmSuggestedAction}
-                  onDismiss={dismissSuggestedAction}
-                />
-              ))
-            ) : (
-              <p className="cmc-chat-muted">
-                Chưa có gợi ý nào. Hãy gửi câu hỏi để nhận đề xuất món phù hợp.
-              </p>
-            )}
-          </div>
+          <p className="cmc-chat-muted">
+            Gợi ý món kèm hình ảnh hiện ngay trong khung chat. Giỏ hàng chỉ thay đổi sau khi bạn bấm
+            xác nhận.
+          </p>
         </aside>
       </div>
     </PageShell>
