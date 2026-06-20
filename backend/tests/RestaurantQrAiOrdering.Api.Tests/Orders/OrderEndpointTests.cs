@@ -415,6 +415,65 @@ public sealed class OrderEndpointTests
         Assert.Equal(orderCode, body.RootElement.GetProperty("orderCode").GetString());
     }
 
+    [Fact]
+    public async Task CompleteOrder_WithoutConfirmedPayment_Returns400()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var preparingResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Preparing" });
+        Assert.Equal(HttpStatusCode.OK, preparingResponse.StatusCode);
+        using var readyResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Ready" });
+        Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+
+        using var completeResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Completed" });
+        using var body = await JsonDocument.ParseAsync(await completeResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, completeResponse.StatusCode);
+        Assert.Equal("ORDER_COMPLETE_REQUIRES_PAYMENT", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CompleteOrder_WithConfirmedPayment_Returns200()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var confirmResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/confirm",
+            new { providerTransactionId = "cash-001", note = "Thu tien mat tai quay" });
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        using var preparingResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Preparing" });
+        Assert.Equal(HttpStatusCode.OK, preparingResponse.StatusCode);
+        using var readyResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Ready" });
+        Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+
+        using var completeResponse = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Completed" });
+        using var body = await JsonDocument.ParseAsync(await completeResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+        Assert.Equal("Completed", body.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_AssignsDistinctSequentialOrderCodes()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var firstCode = await CreateOrderCodeAsync(client, factory);
+        var secondCode = await CreateOrderCodeAsync(client, factory);
+
+        Assert.StartsWith("ORD-", firstCode);
+        Assert.StartsWith("ORD-", secondCode);
+        Assert.NotEqual(firstCode, secondCode);
+    }
+
     private static async Task<(string OrderCode, string AccessToken)> CreateOrderWithTokenAsync(
         HttpClient client,
         TestWebApplicationFactory factory)
