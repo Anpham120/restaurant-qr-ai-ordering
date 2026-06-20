@@ -72,6 +72,32 @@ public sealed class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task ConfirmPayment_AppendsPaymentEventToOrderStatusHistory()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var (orderCode, accessToken) = await CreateOrderAsync(client, factory, "COD");
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var confirmResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/confirm",
+            new { providerTransactionId = "cash-001", note = "Thu tien mat tai quay" });
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        client.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, accessToken);
+        using var orderResponse = await client.GetAsync($"/api/orders/{orderCode}");
+        using var body = await JsonDocument.ParseAsync(await orderResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, orderResponse.StatusCode);
+        var paymentEvent = Assert.Single(
+            body.RootElement.GetProperty("events").EnumerateArray(),
+            element => element.GetProperty("source").GetString() == "Payment");
+        Assert.Equal("Staff", paymentEvent.GetProperty("changedByRole").GetString());
+        Assert.Equal("Thu tien mat tai quay", paymentEvent.GetProperty("note").GetString());
+    }
+
+    [Fact]
     public async Task ConfirmPayment_RejectsFailedPayment()
     {
         await using var factory = new TestWebApplicationFactory();

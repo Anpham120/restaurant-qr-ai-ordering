@@ -4,14 +4,12 @@ public sealed record CreateOrderRequest(
     string? OrderType,
     string? TableCode,
     string? PaymentMethod,
-    DeliveryInfoRequest? DeliveryInfo,
+    PickupInfoRequest? PickupInfo,
     IReadOnlyList<CreateOrderItemRequest>? Items);
 
-public sealed record DeliveryInfoRequest(
-    string? RecipientName,
-    string? PhoneNumber,
-    string? Address,
-    string? Note);
+public sealed record PickupInfoRequest(
+    string? CustomerName,
+    string? PhoneNumber);
 
 public sealed record CreateOrderItemRequest(
     string? MenuItemId,
@@ -30,10 +28,11 @@ public sealed record OrderResponse(
     string OrderCode,
     string OrderType,
     string? TableCode,
+    string? TableSessionId,
     string Status,
     string PaymentStatus,
     string PaymentMethod,
-    DeliveryInfoResponse? DeliveryInfo,
+    PickupInfoResponse? PickupInfo,
     decimal SubtotalAmount,
     decimal TotalAmount,
     DateTimeOffset CreatedAt,
@@ -42,11 +41,10 @@ public sealed record OrderResponse(
     IReadOnlyList<OrderStatusEventResponse> Events,
     string? CustomerAccessToken);
 
-public sealed record DeliveryInfoResponse(
-    string RecipientName,
+public sealed record PickupInfoResponse(
+    string CustomerName,
     string PhoneNumber,
-    string Address,
-    string? Note);
+    DateTimeOffset? RequestedAt);
 
 public sealed record OrderItemResponse(
     string OrderItemId,
@@ -60,4 +58,7 @@ public sealed record OrderItemResponse(
 
 public sealed record OrderStatusEventResponse(
     string Status,
+    string Source,
+    string? ChangedByRole,
+    string? Note,
     DateTimeOffset CreatedAt);

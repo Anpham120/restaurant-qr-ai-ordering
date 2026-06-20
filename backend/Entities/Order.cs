@@ -26,19 +26,17 @@ public class Order
 
     public string? TableCode { get; set; }
 
+    // Open dine-in session this order belongs to; closed once the table's last
+    // active order completes. Null for pickup.
+    public string? TableSessionId { get; set; }
+
+    public TableSession? TableSession { get; set; }
+
     public string? PickupCustomerName { get; set; }
 
     public string? PickupCustomerPhoneNumber { get; set; }
 
     public DateTimeOffset? PickupRequestedAt { get; set; }
-
-    public string? DeliveryRecipientName { get; set; }
-
-    public string? DeliveryPhoneNumber { get; set; }
-
-    public string? DeliveryAddress { get; set; }
-
-    public string? DeliveryNote { get; set; }
 
     public decimal SubtotalAmount { get; set; }
 
@@ -51,4 +49,6 @@ public class Order
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
     public Payment? Payment { get; set; }
+
+    public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
 }

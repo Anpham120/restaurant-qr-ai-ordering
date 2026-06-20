@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
@@ -104,6 +105,8 @@ public static class PaymentEndpoints
             string orderCode,
             ConfirmPaymentRequest? request,
             RestaurantDbContext db,
+            IOrderStore orders,
+            ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
@@ -123,6 +126,7 @@ public static class PaymentEndpoints
             }
 
             var now = DateTimeOffset.UtcNow;
+            var note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual staff confirmation." : request.Note.Trim();
             payment.Status = PaymentStatus.Confirmed;
             payment.ProviderTransactionId = string.IsNullOrWhiteSpace(request?.ProviderTransactionId)
                 ? payment.ProviderTransactionId
@@ -138,9 +142,10 @@ public static class PaymentEndpoints
                 Amount = payment.Amount,
                 Provider = payment.Method.ToString(),
                 ProviderTransactionId = payment.ProviderTransactionId,
-                Note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual staff confirmation." : request.Note.Trim(),
+                Note = note,
                 CreatedAt = now
             });
+            orders.RecordPaymentStatusEvent(payment.Order!, ActorContext.FromPrincipal(user), note);
             try
             {
                 await db.SaveChangesAsync(cancellationToken);
@@ -162,6 +167,8 @@ public static class PaymentEndpoints
             string orderCode,
             FailPaymentRequest? request,
             RestaurantDbContext db,
+            IOrderStore orders,
+            ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
@@ -176,6 +183,7 @@ public static class PaymentEndpoints
             }
 
             var now = DateTimeOffset.UtcNow;
+            var note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual payment failure." : request.Note.Trim();
             payment.Status = PaymentStatus.Failed;
             payment.UpdatedAt = now;
             payment.Transactions.Add(new PaymentTransaction
@@ -186,9 +194,10 @@ public static class PaymentEndpoints
                 Status = PaymentStatus.Failed,
                 Amount = payment.Amount,
                 Provider = payment.Method.ToString(),
-                Note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual payment failure." : request.Note.Trim(),
+                Note = note,
                 CreatedAt = now
             });
+            orders.RecordPaymentStatusEvent(payment.Order!, ActorContext.FromPrincipal(user), note);
             try
             {
                 await db.SaveChangesAsync(cancellationToken);

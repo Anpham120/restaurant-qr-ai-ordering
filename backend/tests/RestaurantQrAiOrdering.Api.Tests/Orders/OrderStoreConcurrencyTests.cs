@@ -45,7 +45,7 @@ public sealed class OrderStoreConcurrencyTests
         db.ThrowConcurrencyOnSave = true;
         var store = new OrderStore(db);
 
-        var result = store.UpdateOrderStatus("ORD-9001", OrderStatus.Confirmed);
+        var result = store.UpdateOrderStatus("ORD-9001", OrderStatus.Confirmed, ActorContext.Customer);
 
         Assert.True(result.IsFound);
         Assert.Equal("CONFLICT_STALE", result.ErrorCode);

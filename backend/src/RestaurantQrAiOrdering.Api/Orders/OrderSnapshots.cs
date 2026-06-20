@@ -5,10 +5,11 @@ public sealed record OrderSnapshot(
     string OrderCode,
     string OrderType,
     string? TableCode,
+    string? TableSessionId,
     string Status,
     string PaymentStatus,
     string PaymentMethod,
-    DeliveryInfoSnapshot? DeliveryInfo,
+    PickupInfoSnapshot? PickupInfo,
     decimal SubtotalAmount,
     decimal TotalAmount,
     DateTimeOffset CreatedAt,
@@ -17,11 +18,10 @@ public sealed record OrderSnapshot(
     IReadOnlyList<OrderStatusEventSnapshot> Events,
     string? CustomerAccessToken);
 
-public sealed record DeliveryInfoSnapshot(
-    string RecipientName,
+public sealed record PickupInfoSnapshot(
+    string CustomerName,
     string PhoneNumber,
-    string Address,
-    string? Note);
+    DateTimeOffset? RequestedAt);
 
 public sealed record OrderItemSnapshot(
     string OrderItemId,
@@ -35,13 +35,16 @@ public sealed record OrderItemSnapshot(
 
 public sealed record OrderStatusEventSnapshot(
     string Status,
+    string Source,
+    string? ChangedByRole,
+    string? Note,
     DateTimeOffset CreatedAt);
 
 public sealed record CreateOrderCommand(
     string OrderType,
     string? TableCode,
     string PaymentMethod,
-    DeliveryInfoRequest? DeliveryInfo,
+    PickupInfoRequest? PickupInfo,
     IReadOnlyList<CreateOrderItemRequest> Items);
 
 public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order, string? ErrorCode = null);

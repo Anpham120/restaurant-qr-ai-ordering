@@ -10,8 +10,6 @@ public enum OrderStatus
     Preparing,
     Ready,
     Served,
-    Delivering,
-    Delivered,
     Completed,
     Cancelled
 }
