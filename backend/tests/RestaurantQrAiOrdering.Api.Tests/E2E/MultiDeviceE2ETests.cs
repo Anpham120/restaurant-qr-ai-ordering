@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Chat;
+using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 
 namespace RestaurantQrAiOrdering.Api.Tests.E2E;
@@ -28,6 +29,10 @@ public sealed class MultiDeviceE2ETests
         var order = await CreateDineInOrderAsync(customerDevice, paymentMethod: "VietQR");
         var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
         var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
+        var customerAccessToken = order.RootElement.GetProperty("customerAccessToken").GetString()!;
+        // Customer devices replay the per-order token the backend issued at creation.
+        customerDevice.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, customerAccessToken);
+        trackingDevice.DefaultRequestHeaders.Add(OrderAccessGuard.TokenHeaderName, customerAccessToken);
 
         using var kitchenListResponse = await kitchenDevice.GetAsync("/api/orders?tableCode=T05");
         using var kitchenListBody = await JsonDocument.ParseAsync(await kitchenListResponse.Content.ReadAsStreamAsync());

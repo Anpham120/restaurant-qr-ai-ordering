@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -14,10 +15,11 @@ public static class PaymentEndpoints
         app.MapGet("/api/orders/{orderCode}/payment", async (
             string orderCode,
             RestaurantDbContext db,
+            HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var payment = await LoadPaymentAsync(db, orderCode, tracking: false, cancellationToken);
-            return payment is null
+            return payment is null || !OrderAccessGuard.CanRead(http, payment.Order?.CustomerAccessToken)
                 ? ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.")
                 : Results.Ok(ToResponse(payment));
         })
@@ -28,10 +30,11 @@ public static class PaymentEndpoints
             string orderCode,
             RestaurantDbContext db,
             IVietQrProvider vietQrProvider,
+            HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
-            if (payment?.Order is null)
+            if (payment?.Order is null || !OrderAccessGuard.CanRead(http, payment.Order.CustomerAccessToken))
             {
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }

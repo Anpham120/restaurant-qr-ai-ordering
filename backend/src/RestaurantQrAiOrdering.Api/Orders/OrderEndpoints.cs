@@ -49,10 +49,10 @@ public static partial class OrderEndpoints
         .WithName("CreateOrder")
         .WithTags("Orders");
 
-        app.MapGet("/api/orders/{orderCode}", (string orderCode, IOrderStore orders) =>
+        app.MapGet("/api/orders/{orderCode}", (string orderCode, IOrderStore orders, HttpContext http) =>
         {
             var order = orders.GetOrder(orderCode);
-            return order is null
+            return order is null || !OrderAccessGuard.CanRead(http, order.CustomerAccessToken)
                 ? ApiResults.NotFound("ORDER_NOT_FOUND", "Order was not found.")
                 : Results.Ok(ToResponse(order));
         })
@@ -366,7 +366,8 @@ public static partial class OrderEndpoints
                 .ToList(),
             order.Events
                 .Select(item => new OrderStatusEventResponse(item.Status, item.CreatedAt))
-                .ToList());
+                .ToList(),
+            order.CustomerAccessToken);
     }
 
     private static OrderResponse ToResponse(Order order)
@@ -408,7 +409,9 @@ public static partial class OrderEndpoints
             new[]
             {
                 new OrderStatusEventResponse(order.Status.ToString(), order.UpdatedAt)
-            });
+            },
+            // Listing is operators-only; don't bulk-expose per-order customer tokens.
+            null);
     }
 
     private static bool HasPersistedDeliveryInfo(Order order)

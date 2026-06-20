@@ -68,7 +68,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
     orders: {
       create: (payload: CreateOrderRequest) => request<Order>("/orders", { method: "POST", body: JSON.stringify(payload) }),
-      get: (code: string) => request<Order>(`/orders/${encodeURIComponent(code)}`),
+      get: (code: string, accessToken?: string | null) =>
+        request<Order>(`/orders/${encodeURIComponent(code)}`, accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
       list: (filters: { status?: string; tableCode?: string; updatedSince?: string } = {}) => {
         const params = new URLSearchParams();
         if (filters.status) params.set("status", filters.status);
@@ -81,9 +82,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
       updateItemStatus: (code: string, itemId: string, status: OrderItemStatus) => request<Order>(`/orders/${encodeURIComponent(code)}/items/${encodeURIComponent(itemId)}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
     },
     payments: {
-      get: (orderCode: string) => request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment`),
-      generateVietQr: (orderCode: string) =>
-        request<VietQrPayment>(`/orders/${encodeURIComponent(orderCode)}/payment/vietqr`, { method: "POST" }),
+      get: (orderCode: string, accessToken?: string | null) =>
+        request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment`, accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
+      generateVietQr: (orderCode: string, accessToken?: string | null) =>
+        request<VietQrPayment>(`/orders/${encodeURIComponent(orderCode)}/payment/vietqr`, {
+          method: "POST",
+          ...(accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
+        }),
       confirm: (orderCode: string, payload: { providerTransactionId?: string | null; note?: string | null } = {}) =>
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`, { method: "POST", body: JSON.stringify(payload) }),
       fail: (orderCode: string, payload: { note?: string | null } = {}) =>
