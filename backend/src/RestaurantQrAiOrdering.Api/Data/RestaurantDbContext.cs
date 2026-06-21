@@ -30,6 +30,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<TableSession> TableSessions => Set<TableSession>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
@@ -47,6 +48,7 @@ public class RestaurantDbContext : DbContext
         ConfigureTableSession(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
+        ConfigureOrderStatusHistory(modelBuilder);
         ConfigurePayment(modelBuilder);
         ConfigurePaymentTransaction(modelBuilder);
         ConfigureChatSession(modelBuilder);
@@ -327,18 +329,9 @@ public class RestaurantDbContext : DbContext
                 .HasMaxLength(20);
             entity.Property(e => e.PickupRequestedAt)
                 .HasColumnName("pickup_requested_at");
-            entity.Property(e => e.DeliveryRecipientName)
-                .HasColumnName("delivery_recipient_name")
-                .HasMaxLength(200);
-            entity.Property(e => e.DeliveryPhoneNumber)
-                .HasColumnName("delivery_phone_number")
-                .HasMaxLength(20);
-            entity.Property(e => e.DeliveryAddress)
-                .HasColumnName("delivery_address")
-                .HasMaxLength(500);
-            entity.Property(e => e.DeliveryNote)
-                .HasColumnName("delivery_note")
-                .HasMaxLength(500);
+            entity.Property(e => e.TableSessionId)
+                .HasColumnName("table_session_id")
+                .HasMaxLength(50);
             entity.Property(e => e.SubtotalAmount)
                 .HasColumnName("subtotal_amount")
                 .HasPrecision(18, 2)
@@ -359,9 +352,15 @@ public class RestaurantDbContext : DbContext
                 .HasForeignKey(e => e.RestaurantTableId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasOne(e => e.TableSession)
+                .WithMany()
+                .HasForeignKey(e => e.TableSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasIndex(e => e.OrderCode).IsUnique();
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.TableSessionId);
             entity.HasIndex(e => e.CreatedAt);
 
             // Optimistic concurrency via the Postgres xmin system column, guarding
@@ -430,6 +429,57 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.OrderId);
             entity.HasIndex(e => e.MenuItemId);
+        });
+    }
+
+    private static void ConfigureOrderStatusHistory(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OrderStatusHistory>(entity =>
+        {
+            entity.ToTable("order_status_history");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.OrderId)
+                .HasColumnName("order_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.FromStatus)
+                .HasColumnName("from_status")
+                .HasConversion<string>()
+                .HasMaxLength(20);
+            entity.Property(e => e.ToStatus)
+                .HasColumnName("to_status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.Source)
+                .HasColumnName("source")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.ChangedByUserId)
+                .HasColumnName("changed_by_user_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChangedByRole)
+                .HasColumnName("changed_by_role")
+                .HasMaxLength(20);
+            entity.Property(e => e.Note)
+                .HasColumnName("note")
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.Order)
+                .WithMany(o => o.StatusHistory)
+                .HasForeignKey(e => e.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
 

@@ -8,13 +8,15 @@ namespace RestaurantQrAiOrdering.Api.Orders;
 
 public interface IOrderStore
 {
-    OrderSnapshot CreateOrder(CreateOrderCommand command);
+    OrderSnapshot CreateOrder(CreateOrderCommand command, ActorContext actor);
 
     OrderSnapshot? GetOrder(string orderCode);
 
-    UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status);
+    UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor);
 
     UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status);
+
+    void RecordPaymentStatusEvent(Order order, ActorContext actor, string note);
 }
 
 public sealed class OrderStore : IOrderStore
@@ -26,7 +28,7 @@ public sealed class OrderStore : IOrderStore
         this.db = db;
     }
 
-    public OrderSnapshot CreateOrder(CreateOrderCommand command)
+    public OrderSnapshot CreateOrder(CreateOrderCommand command, ActorContext actor)
     {
         var now = DateTimeOffset.UtcNow;
         var orderType = Enum.Parse<OrderType>(command.OrderType);
@@ -36,6 +38,7 @@ public sealed class OrderStore : IOrderStore
             ? db.RestaurantTables.FirstOrDefault(t => t.TableCode == tableCode && t.IsActive)
             : null;
         var menuItems = LoadMenuItems(command);
+        var tableSession = ResolveTableSession(orderType, table, now);
 
         var order = new Order
         {
@@ -47,6 +50,7 @@ public sealed class OrderStore : IOrderStore
             RestaurantTableId = table?.Id,
             RestaurantTable = table,
             TableCode = table?.TableCode ?? tableCode,
+            TableSessionId = tableSession?.Id,
             CreatedAt = now,
             UpdatedAt = now,
             Payment = new Payment
@@ -59,11 +63,23 @@ public sealed class OrderStore : IOrderStore
             }
         };
 
-        ApplyDeliveryInfo(order, command.DeliveryInfo);
+        if (orderType == OrderType.Pickup && command.PickupInfo is not null)
+        {
+            order.PickupCustomerName = NormalizeOptional(command.PickupInfo.CustomerName);
+            order.PickupCustomerPhoneNumber = NormalizeOptional(command.PickupInfo.PhoneNumber);
+            order.PickupRequestedAt = now;
+        }
 
         foreach (var requestItem in command.Items)
         {
-            var menuItem = menuItems[requestItem.MenuItemId!.Trim()];
+            // Endpoint validation already checked availability, but a menu item can be
+            // deactivated or deleted in the gap before we load it here. Fail with a typed
+            // domain error instead of a raw KeyNotFoundException (HTTP 500).
+            if (!menuItems.TryGetValue(requestItem.MenuItemId!.Trim(), out var menuItem))
+            {
+                throw new MenuItemUnavailableException(requestItem.MenuItemId!.Trim());
+            }
+
             order.OrderItems.Add(new OrderItem
             {
                 Id = $"oi_{Guid.NewGuid():N}",
@@ -82,10 +98,12 @@ public sealed class OrderStore : IOrderStore
         order.TotalAmount = order.SubtotalAmount;
         order.Payment.Amount = order.TotalAmount;
 
+        AppendStatusHistory(order, fromStatus: null, order.Status, OrderStatusChangeSource.Status, actor, note: null, now);
+
         db.Orders.Add(order);
         db.SaveChanges();
 
-        return ToSnapshot(order, [new OrderStatusEventSnapshot(order.Status.ToString(), now)]);
+        return ToSnapshot(order);
     }
 
     public OrderSnapshot? GetOrder(string orderCode)
@@ -94,7 +112,7 @@ public sealed class OrderStore : IOrderStore
         return order is null ? null : ToSnapshot(order);
     }
 
-    public UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status)
+    public UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor)
     {
         var order = LoadOrder(orderCode, tracking: true);
         if (order is null)
@@ -120,8 +138,25 @@ public sealed class OrderStore : IOrderStore
         }
 
         var now = DateTimeOffset.UtcNow;
+        var fromStatus = order.Status;
         order.Status = status;
         order.UpdatedAt = now;
+        AppendStatusHistory(order, fromStatus, status, OrderStatusChangeSource.Status, actor, note: null, now);
+
+        // Cancelling an order cancels its still-pending items so item state never
+        // contradicts the order state. (Cancellation is blocked once any item has
+        // progressed past Pending, so only Pending items remain to cascade.)
+        if (status == OrderStatus.Cancelled)
+        {
+            CancelPendingItems(order, now);
+        }
+
+        // Stage the table-session close in the same unit of work as the status change so
+        // a completed order and its closed session commit (or roll back) atomically.
+        if (status == OrderStatus.Completed && order.TableSessionId is not null)
+        {
+            CloseTableSessionIfLastActiveOrder(order, now);
+        }
 
         try
         {
@@ -132,9 +167,7 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderStatusResult(true, ToSnapshot(order), "CONFLICT_STALE");
         }
 
-        return new UpdateOrderStatusResult(
-            true,
-            ToSnapshot(order, [new OrderStatusEventSnapshot(order.Status.ToString(), now)]));
+        return new UpdateOrderStatusResult(true, ToSnapshot(order));
     }
 
     public UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status)
@@ -153,17 +186,46 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
         }
 
+        if (!CanTransitionItem(item.Status, status))
+        {
+            return new UpdateOrderItemStatusResult(
+                true, true, ToSnapshot(order), null, "ORDER_ITEM_STATUS_TRANSITION_INVALID");
+        }
+
         var now = DateTimeOffset.UtcNow;
         item.Status = status;
         item.UpdatedAt = now;
         order.UpdatedAt = now;
-        db.SaveChanges();
+
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new UpdateOrderItemStatusResult(true, true, ToSnapshot(order), null, "CONFLICT_STALE");
+        }
 
         var orderSnapshot = ToSnapshot(order);
         var itemSnapshot = orderSnapshot.Items.First(snapshot =>
             snapshot.OrderItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
 
         return new UpdateOrderItemStatusResult(true, true, orderSnapshot, itemSnapshot);
+    }
+
+    // Records a payment confirm/fail as a timeline marker on the order's status history.
+    // The order status itself is unchanged; payment_transactions stays the source of truth
+    // for money. Appends to the tracked order; the caller's SaveChanges persists it.
+    public void RecordPaymentStatusEvent(Order order, ActorContext actor, string note)
+    {
+        AppendStatusHistory(
+            order,
+            order.Status,
+            order.Status,
+            OrderStatusChangeSource.Payment,
+            actor,
+            note,
+            DateTimeOffset.UtcNow);
     }
 
     private Dictionary<string, MenuItem> LoadMenuItems(CreateOrderCommand command)
@@ -186,6 +248,7 @@ public sealed class OrderStore : IOrderStore
             .Include(order => order.Payment)
             .Include(order => order.OrderItems)
             .Include(order => order.RestaurantTable)
+            .Include(order => order.StatusHistory)
             .Where(order => order.OrderCode == normalizedOrderCode);
 
         if (!tracking)
@@ -209,13 +272,74 @@ public sealed class OrderStore : IOrderStore
         return $"ORD-{db.NextOrderCodeNumber()}";
     }
 
-    private static bool CanTransition(OrderStatus current, OrderStatus next)
+    // Dine-in orders attach to the table's open, non-expired session (opening one if
+    // none exists) so all orders for a seating share a session. Pickup gets no session.
+    private TableSession? ResolveTableSession(OrderType orderType, RestaurantTable? table, DateTimeOffset now)
     {
-        if (current == next)
+        if (orderType != OrderType.DineIn || table is null)
         {
-            return true;
+            return null;
         }
 
+        var session = db.TableSessions.FirstOrDefault(session =>
+            session.RestaurantTableId == table.Id
+            && session.Status == TableSessionStatus.Open
+            && session.ExpiresAt > now);
+
+        if (session is not null)
+        {
+            return session;
+        }
+
+        session = new TableSession
+        {
+            Id = $"tsx_{Guid.NewGuid():N}",
+            RestaurantTableId = table.Id,
+            TableCode = table.TableCode,
+            QrToken = table.QrToken,
+            OrderType = OrderType.DineIn,
+            Status = TableSessionStatus.Open,
+            OpenedAt = now,
+            ExpiresAt = now.AddHours(4),
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        db.TableSessions.Add(session);
+        return session;
+    }
+
+    // Once an order completes, close its table session unless another order on the same
+    // session is still active (so a shared seating stays open until everyone is done).
+    // Mutations are staged on tracked entities; the caller's SaveChanges commits them
+    // together with the order status change.
+    private void CloseTableSessionIfLastActiveOrder(Order order, DateTimeOffset now)
+    {
+        var hasOtherActiveOrder = db.Orders.Any(other =>
+            other.TableSessionId == order.TableSessionId
+            && other.Id != order.Id
+            && other.Status != OrderStatus.Completed
+            && other.Status != OrderStatus.Cancelled);
+
+        if (hasOtherActiveOrder)
+        {
+            return;
+        }
+
+        var session = db.TableSessions.FirstOrDefault(session => session.Id == order.TableSessionId);
+        if (session is null || session.Status != TableSessionStatus.Open)
+        {
+            return;
+        }
+
+        session.Status = TableSessionStatus.Closed;
+        session.ClosedAt = now;
+        session.UpdatedAt = now;
+    }
+
+    // No-op transitions (current == next) return false: re-sending the same status is
+    // rejected so we don't append duplicate history rows or emit spurious events.
+    private static bool CanTransition(OrderStatus current, OrderStatus next)
+    {
         if (next == OrderStatus.Cancelled)
         {
             return current is OrderStatus.Draft or OrderStatus.Placed or OrderStatus.Confirmed;
@@ -229,10 +353,41 @@ public sealed class OrderStore : IOrderStore
             OrderStatus.Preparing => next is OrderStatus.Ready,
             OrderStatus.Ready => next is OrderStatus.Served or OrderStatus.Completed,
             OrderStatus.Served => next is OrderStatus.Completed,
-            OrderStatus.Delivering => next is OrderStatus.Delivered,
-            OrderStatus.Delivered => next is OrderStatus.Completed,
             _ => false
         };
+    }
+
+    // Items move forward only (skips like Pending -> Ready are allowed for fast kitchens).
+    // Backward moves, no-ops, and changes out of a terminal state (Served/Cancelled) are
+    // rejected. An item can be cancelled while still Pending or Preparing.
+    private static bool CanTransitionItem(OrderItemStatus current, OrderItemStatus next)
+    {
+        if (next == OrderItemStatus.Cancelled)
+        {
+            return current is OrderItemStatus.Pending or OrderItemStatus.Preparing;
+        }
+
+        return current switch
+        {
+            OrderItemStatus.Pending => next is OrderItemStatus.Preparing
+                or OrderItemStatus.Ready
+                or OrderItemStatus.Served,
+            OrderItemStatus.Preparing => next is OrderItemStatus.Ready or OrderItemStatus.Served,
+            OrderItemStatus.Ready => next is OrderItemStatus.Served,
+            _ => false
+        };
+    }
+
+    private static void CancelPendingItems(Order order, DateTimeOffset now)
+    {
+        foreach (var item in order.OrderItems)
+        {
+            if (item.Status == OrderItemStatus.Pending)
+            {
+                item.Status = OrderItemStatus.Cancelled;
+                item.UpdatedAt = now;
+            }
+        }
     }
 
     private static bool IsCancellationLocked(Order order)
@@ -240,17 +395,13 @@ public sealed class OrderStore : IOrderStore
         return order.Status is OrderStatus.Preparing
                 or OrderStatus.Ready
                 or OrderStatus.Served
-                or OrderStatus.Delivering
-                or OrderStatus.Delivered
                 or OrderStatus.Completed
             || order.OrderItems.Any(item => item.Status is OrderItemStatus.Preparing
                 or OrderItemStatus.Ready
                 or OrderItemStatus.Served);
     }
 
-    private static OrderSnapshot ToSnapshot(
-        Order order,
-        IReadOnlyList<OrderStatusEventSnapshot>? events = null)
+    private static OrderSnapshot ToSnapshot(Order order)
     {
         var payment = order.Payment ?? new Payment();
         return new OrderSnapshot(
@@ -258,10 +409,11 @@ public sealed class OrderStore : IOrderStore
             order.OrderCode,
             order.OrderType.ToString(),
             order.TableCode,
+            order.TableSessionId,
             order.Status.ToString(),
             payment.Status.ToString(),
             payment.Method.ToString(),
-            ToDeliveryInfoSnapshot(order),
+            ToPickupInfoSnapshot(order),
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -270,8 +422,45 @@ public sealed class OrderStore : IOrderStore
                 .OrderBy(item => item.CreatedAt)
                 .Select(ToItemSnapshot)
                 .ToList(),
-            events ?? [new OrderStatusEventSnapshot(order.Status.ToString(), order.UpdatedAt)],
+            ToStatusEvents(order),
             order.CustomerAccessToken);
+    }
+
+    private static IReadOnlyList<OrderStatusEventSnapshot> ToStatusEvents(Order order)
+    {
+        return order.StatusHistory
+            .OrderBy(history => history.CreatedAt)
+            .ThenBy(history => history.Id)
+            .Select(history => new OrderStatusEventSnapshot(
+                history.ToStatus.ToString(),
+                history.Source.ToString(),
+                history.ChangedByRole,
+                history.Note,
+                history.CreatedAt))
+            .ToList();
+    }
+
+    private static void AppendStatusHistory(
+        Order order,
+        OrderStatus? fromStatus,
+        OrderStatus toStatus,
+        OrderStatusChangeSource source,
+        ActorContext actor,
+        string? note,
+        DateTimeOffset now)
+    {
+        order.StatusHistory.Add(new OrderStatusHistory
+        {
+            Id = $"osh_{Guid.NewGuid():N}",
+            OrderId = order.Id,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            Source = source,
+            ChangedByUserId = actor.UserId,
+            ChangedByRole = actor.Role,
+            Note = note,
+            CreatedAt = now
+        });
     }
 
     private static OrderItemSnapshot ToItemSnapshot(OrderItem item)
@@ -287,37 +476,35 @@ public sealed class OrderStore : IOrderStore
             item.UpdatedAt);
     }
 
-    private static DeliveryInfoSnapshot? ToDeliveryInfoSnapshot(Order order)
+    private static PickupInfoSnapshot? ToPickupInfoSnapshot(Order order)
     {
-        if (string.IsNullOrWhiteSpace(order.DeliveryRecipientName)
-            || string.IsNullOrWhiteSpace(order.DeliveryPhoneNumber)
-            || string.IsNullOrWhiteSpace(order.DeliveryAddress))
+        if (string.IsNullOrWhiteSpace(order.PickupCustomerName)
+            || string.IsNullOrWhiteSpace(order.PickupCustomerPhoneNumber))
         {
             return null;
         }
 
-        return new DeliveryInfoSnapshot(
-            order.DeliveryRecipientName,
-            order.DeliveryPhoneNumber,
-            order.DeliveryAddress,
-            order.DeliveryNote);
-    }
-
-    private static void ApplyDeliveryInfo(Order order, DeliveryInfoRequest? deliveryInfo)
-    {
-        if (deliveryInfo is null)
-        {
-            return;
-        }
-
-        order.DeliveryRecipientName = deliveryInfo.RecipientName?.Trim();
-        order.DeliveryPhoneNumber = deliveryInfo.PhoneNumber?.Trim();
-        order.DeliveryAddress = deliveryInfo.Address?.Trim();
-        order.DeliveryNote = NormalizeOptional(deliveryInfo.Note);
+        return new PickupInfoSnapshot(
+            order.PickupCustomerName,
+            order.PickupCustomerPhoneNumber,
+            order.PickupRequestedAt);
     }
 
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
+}
+
+// Raised when a menu item passes endpoint validation but is gone by the time the order is
+// built (deactivated/deleted in the gap). Mapped to MENU_ITEM_UNAVAILABLE by the endpoint.
+public sealed class MenuItemUnavailableException : Exception
+{
+    public MenuItemUnavailableException(string menuItemId)
+        : base($"Menu item '{menuItemId}' is no longer available.")
+    {
+        MenuItemId = menuItemId;
+    }
+
+    public string MenuItemId { get; }
 }

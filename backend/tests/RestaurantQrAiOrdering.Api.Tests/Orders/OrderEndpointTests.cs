@@ -474,6 +474,249 @@ public sealed class OrderEndpointTests
         Assert.NotEqual(firstCode, secondCode);
     }
 
+    [Fact]
+    public async Task UpdateOrderStatus_RejectsNoOpTransition()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Placed" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "ORDER_STATUS_TRANSITION_INVALID",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateOrderItemStatus_RejectsBackwardTransition()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var order = await CreateOrderAsync(client, factory);
+        var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
+        var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Kitchen);
+
+        using var forwardResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{orderCode}/items/{orderItemId}/status", new { status = "Ready" });
+        Assert.Equal(HttpStatusCode.OK, forwardResponse.StatusCode);
+
+        using var backwardResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{orderCode}/items/{orderItemId}/status", new { status = "Preparing" });
+        using var body = await JsonDocument.ParseAsync(await backwardResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, backwardResponse.StatusCode);
+        Assert.Equal(
+            "ORDER_ITEM_STATUS_TRANSITION_INVALID",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CancelOrder_CascadesItemCancellation()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Cancelled" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Cancelled", body.RootElement.GetProperty("status").GetString());
+        var item = Assert.Single(body.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal("Cancelled", item.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_RejectsQuantityAboveCap()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "DineIn",
+            tableCode = "T05",
+            paymentMethod = "COD",
+            items = new[] { new { menuItemId = "m_001", quantity = 100 } }
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "ORDER_ITEM_QUANTITY_INVALID",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_RejectsTooManyItemLines()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+
+        var items = Enumerable.Range(0, 51)
+            .Select(index => new { menuItemId = $"m_{index:000}", quantity = 1 })
+            .ToArray();
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "DineIn",
+            tableCode = "T05",
+            paymentMethod = "COD",
+            items
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "ORDER_ITEMS_TOO_MANY",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_RejectsDuplicateMenuItem()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "DineIn",
+            tableCode = "T05",
+            paymentMethod = "COD",
+            items = new[]
+            {
+                new { menuItemId = "m_001", quantity = 1 },
+                new { menuItemId = "m_001", quantity = 2 }
+            }
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "ORDER_ITEM_DUPLICATE",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_Pickup_RequiresCustomerContact()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "Pickup",
+            paymentMethod = "COD",
+            items = new[] { new { menuItemId = "m_001", quantity = 1 } }
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "PICKUP_CONTACT_REQUIRED",
+            body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_Pickup_PersistsAndReturnsContact()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "Pickup",
+            paymentMethod = "COD",
+            pickupInfo = new { customerName = "Nguyen Van A", phoneNumber = "0901234567" },
+            items = new[] { new { menuItemId = "m_001", quantity = 1 } }
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("Pickup", body.RootElement.GetProperty("orderType").GetString());
+        var pickup = body.RootElement.GetProperty("pickupInfo");
+        Assert.Equal("Nguyen Van A", pickup.GetProperty("customerName").GetString());
+        Assert.Equal("0901234567", pickup.GetProperty("phoneNumber").GetString());
+    }
+
+    [Fact]
+    public async Task CreateOrder_DineIn_BindsToTableSession()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await CreateDineInOrderAsync(client, factory);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("tableSessionId").GetString()));
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_AppendsHistoryWithActorRole()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var orderCode = await CreateOrderCodeAsync(client, factory);
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await client.PatchAsJsonAsync($"/api/orders/{orderCode}/status", new { status = "Preparing" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = body.RootElement.GetProperty("events").EnumerateArray().ToList();
+        // The anonymous create logs Placed as the Customer; the Staff status change adds Preparing.
+        Assert.Contains(events, element =>
+            element.GetProperty("status").GetString() == "Placed"
+            && element.GetProperty("source").GetString() == "Status"
+            && element.GetProperty("changedByRole").GetString() == "Customer");
+        var preparing = events.First(element => element.GetProperty("status").GetString() == "Preparing");
+        Assert.Equal("Status", preparing.GetProperty("source").GetString());
+        Assert.Equal("Staff", preparing.GetProperty("changedByRole").GetString());
+    }
+
+    [Fact]
+    public async Task CompleteOrder_ClosesTableSessionSoNextOrderOpensFresh()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        using var firstCreate = await CreateDineInOrderAsync(client, factory);
+        using var firstBody = await JsonDocument.ParseAsync(await firstCreate.Content.ReadAsStreamAsync());
+        var firstCode = firstBody.RootElement.GetProperty("orderCode").GetString()!;
+        var firstSession = firstBody.RootElement.GetProperty("tableSessionId").GetString();
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var confirm = await client.PostAsJsonAsync(
+            $"/api/orders/{firstCode}/payment/confirm",
+            new { note = "Thu tien mat tai quay" });
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        foreach (var status in new[] { "Preparing", "Ready", "Completed" })
+        {
+            using var step = await client.PatchAsJsonAsync($"/api/orders/{firstCode}/status", new { status });
+            Assert.Equal(HttpStatusCode.OK, step.StatusCode);
+        }
+
+        // The completed order closed its session, so a new order on the same table opens a fresh one.
+        using var secondCreate = await CreateDineInOrderAsync(client, factory);
+        using var secondBody = await JsonDocument.ParseAsync(await secondCreate.Content.ReadAsStreamAsync());
+        var secondSession = secondBody.RootElement.GetProperty("tableSessionId").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(firstSession));
+        Assert.False(string.IsNullOrWhiteSpace(secondSession));
+        Assert.NotEqual(firstSession, secondSession);
+    }
+
     private static async Task<(string OrderCode, string AccessToken)> CreateOrderWithTokenAsync(
         HttpClient client,
         TestWebApplicationFactory factory)

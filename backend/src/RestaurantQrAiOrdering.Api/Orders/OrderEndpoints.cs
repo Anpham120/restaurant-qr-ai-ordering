@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
@@ -11,12 +12,16 @@ namespace RestaurantQrAiOrdering.Api.Orders;
 
 public static partial class OrderEndpoints
 {
+    private const int MaxItemLinesPerOrder = 50;
+    private const int MaxQuantityPerItem = 99;
+
     public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/orders", async (
             CreateOrderRequest? request,
             RestaurantDbContext db,
             IOrderStore orders,
+            ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -30,12 +35,23 @@ public static partial class OrderEndpoints
             }
 
             var validatedRequest = request!;
-            var order = orders.CreateOrder(new CreateOrderCommand(
-                validatedRequest.OrderType!.Trim(),
-                validatedRequest.TableCode?.Trim().ToUpperInvariant(),
-                validatedRequest.PaymentMethod!.Trim(),
-                validatedRequest.DeliveryInfo,
-                validatedRequest.Items!));
+            OrderSnapshot order;
+            try
+            {
+                order = orders.CreateOrder(
+                    new CreateOrderCommand(
+                        validatedRequest.OrderType!.Trim(),
+                        validatedRequest.TableCode?.Trim().ToUpperInvariant(),
+                        validatedRequest.PaymentMethod!.Trim(),
+                        validatedRequest.PickupInfo,
+                        validatedRequest.Items!),
+                    ActorContext.FromPrincipal(user));
+            }
+            catch (MenuItemUnavailableException ex)
+            {
+                logger.LogWarning("Rejected order creation because menu item {MenuItemId} became unavailable.", ex.MenuItemId);
+                return ApiResults.BadRequest("MENU_ITEM_UNAVAILABLE", "Menu item is unavailable.");
+            }
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
             logger.LogInformation(
@@ -71,6 +87,7 @@ public static partial class OrderEndpoints
                 .Include(order => order.Payment)
                 .Include(order => order.OrderItems)
                 .Include(order => order.RestaurantTable)
+                .Include(order => order.StatusHistory)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(status))
@@ -114,6 +131,7 @@ public static partial class OrderEndpoints
             string orderCode,
             UpdateOrderStatusRequest? request,
             IOrderStore orders,
+            ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -135,7 +153,7 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
             }
 
-            var result = orders.UpdateOrderStatus(orderCode, status);
+            var result = orders.UpdateOrderStatus(orderCode, status, ActorContext.FromPrincipal(user));
             if (!result.IsFound || result.Order is null)
             {
                 logger.LogWarning("Rejected status update because order {OrderCode} was not found.", orderCode);
@@ -234,13 +252,42 @@ public static partial class OrderEndpoints
                 return ApiResults.NotFound("ORDER_NOT_FOUND", "Order was not found.");
             }
 
-            if (!result.IsItemFound || result.Item is null)
+            if (!result.IsItemFound)
             {
                 logger.LogWarning(
                     "Rejected item status update because item {OrderItemId} was not found in order {OrderCode}.",
                     orderItemId,
                     orderCode);
 
+                return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
+            }
+
+            if (result.ErrorCode == "ORDER_ITEM_STATUS_TRANSITION_INVALID")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode}, item {OrderItemId} because transition to {Status} is invalid.",
+                    orderCode,
+                    orderItemId,
+                    status);
+
+                return ApiResults.BadRequest(
+                    "ORDER_ITEM_STATUS_TRANSITION_INVALID",
+                    "Order item status transition is not allowed.");
+            }
+
+            if (result.ErrorCode == "CONFLICT_STALE")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode} because it was modified by another request.",
+                    orderCode);
+
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Order was modified by another request. Reload and try again.");
+            }
+
+            if (result.Item is null)
+            {
                 return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
             }
 
@@ -288,9 +335,29 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("ORDER_ITEMS_REQUIRED", "Order must contain at least one item.");
         }
 
-        if (request.Items.Any(item => item.Quantity < 1))
+        if (request.Items.Count > MaxItemLinesPerOrder)
         {
-            return ApiResults.BadRequest("ORDER_ITEM_QUANTITY_INVALID", "Order item quantity must be at least one.");
+            return ApiResults.BadRequest(
+                "ORDER_ITEMS_TOO_MANY",
+                $"Order cannot contain more than {MaxItemLinesPerOrder} item lines.");
+        }
+
+        if (request.Items.Any(item => item.Quantity < 1 || item.Quantity > MaxQuantityPerItem))
+        {
+            return ApiResults.BadRequest(
+                "ORDER_ITEM_QUANTITY_INVALID",
+                $"Order item quantity must be between 1 and {MaxQuantityPerItem}.");
+        }
+
+        var requestedMenuItemIds = request.Items
+            .Where(item => !string.IsNullOrWhiteSpace(item.MenuItemId))
+            .Select(item => item.MenuItemId!.Trim())
+            .ToList();
+        if (requestedMenuItemIds.Count != requestedMenuItemIds.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+        {
+            return ApiResults.BadRequest(
+                "ORDER_ITEM_DUPLICATE",
+                "Each menu item can appear only once per order; combine quantities instead.");
         }
 
         if (orderType == OrderType.DineIn)
@@ -312,6 +379,33 @@ public static partial class OrderEndpoints
             if (!tableExists)
             {
                 return ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.");
+            }
+        }
+
+        if (orderType == OrderType.Pickup)
+        {
+            var pickup = request.PickupInfo;
+            if (pickup is null
+                || string.IsNullOrWhiteSpace(pickup.CustomerName)
+                || string.IsNullOrWhiteSpace(pickup.PhoneNumber))
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_CONTACT_REQUIRED",
+                    "Pickup orders require a customer name and phone number.");
+            }
+
+            if (pickup.CustomerName.Trim().Length > 200)
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_NAME_TOO_LONG",
+                    "Pickup customer name must be at most 200 characters.");
+            }
+
+            if (pickup.PhoneNumber.Trim().Length > 20)
+            {
+                return ApiResults.BadRequest(
+                    "PICKUP_PHONE_TOO_LONG",
+                    "Pickup phone number must be at most 20 characters.");
             }
         }
 
@@ -340,14 +434,6 @@ public static partial class OrderEndpoints
         return null;
     }
 
-    private static bool HasDeliveryInfo(DeliveryInfoRequest? deliveryInfo)
-    {
-        return deliveryInfo is not null
-            && !string.IsNullOrWhiteSpace(deliveryInfo.RecipientName)
-            && !string.IsNullOrWhiteSpace(deliveryInfo.PhoneNumber)
-            && !string.IsNullOrWhiteSpace(deliveryInfo.Address);
-    }
-
     private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed)
         where TEnum : struct
     {
@@ -361,16 +447,16 @@ public static partial class OrderEndpoints
             order.OrderCode,
             order.OrderType,
             order.TableCode,
+            order.TableSessionId,
             order.Status,
             order.PaymentStatus,
             order.PaymentMethod,
-            order.DeliveryInfo is null
+            order.PickupInfo is null
                 ? null
-                : new DeliveryInfoResponse(
-                    order.DeliveryInfo.RecipientName,
-                    order.DeliveryInfo.PhoneNumber,
-                    order.DeliveryInfo.Address,
-                    order.DeliveryInfo.Note),
+                : new PickupInfoResponse(
+                    order.PickupInfo.CustomerName,
+                    order.PickupInfo.PhoneNumber,
+                    order.PickupInfo.RequestedAt),
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -387,7 +473,12 @@ public static partial class OrderEndpoints
                     item.UpdatedAt))
                 .ToList(),
             order.Events
-                .Select(item => new OrderStatusEventResponse(item.Status, item.CreatedAt))
+                .Select(item => new OrderStatusEventResponse(
+                    item.Status,
+                    item.Source,
+                    item.ChangedByRole,
+                    item.Note,
+                    item.CreatedAt))
                 .ToList(),
             order.CustomerAccessToken);
     }
@@ -395,12 +486,11 @@ public static partial class OrderEndpoints
     private static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
-        var deliveryInfo = HasPersistedDeliveryInfo(order)
-            ? new DeliveryInfoResponse(
-                order.DeliveryRecipientName!,
-                order.DeliveryPhoneNumber!,
-                order.DeliveryAddress!,
-                order.DeliveryNote)
+        var pickupInfo = HasPickupContact(order)
+            ? new PickupInfoResponse(
+                order.PickupCustomerName!,
+                order.PickupCustomerPhoneNumber!,
+                order.PickupRequestedAt)
             : null;
 
         return new OrderResponse(
@@ -408,10 +498,11 @@ public static partial class OrderEndpoints
             order.OrderCode,
             order.OrderType.ToString(),
             order.TableCode,
+            order.TableSessionId,
             order.Status.ToString(),
             (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
             (payment?.Method ?? PaymentMethod.COD).ToString(),
-            deliveryInfo,
+            pickupInfo,
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -428,19 +519,24 @@ public static partial class OrderEndpoints
                     item.UnitPrice * item.Quantity,
                     item.UpdatedAt))
                 .ToList(),
-            new[]
-            {
-                new OrderStatusEventResponse(order.Status.ToString(), order.UpdatedAt)
-            },
+            order.StatusHistory
+                .OrderBy(history => history.CreatedAt)
+                .ThenBy(history => history.Id)
+                .Select(history => new OrderStatusEventResponse(
+                    history.ToStatus.ToString(),
+                    history.Source.ToString(),
+                    history.ChangedByRole,
+                    history.Note,
+                    history.CreatedAt))
+                .ToList(),
             // Listing is operators-only; don't bulk-expose per-order customer tokens.
             null);
     }
 
-    private static bool HasPersistedDeliveryInfo(Order order)
+    private static bool HasPickupContact(Order order)
     {
-        return !string.IsNullOrWhiteSpace(order.DeliveryRecipientName)
-            && !string.IsNullOrWhiteSpace(order.DeliveryPhoneNumber)
-            && !string.IsNullOrWhiteSpace(order.DeliveryAddress);
+        return !string.IsNullOrWhiteSpace(order.PickupCustomerName)
+            && !string.IsNullOrWhiteSpace(order.PickupCustomerPhoneNumber);
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)
