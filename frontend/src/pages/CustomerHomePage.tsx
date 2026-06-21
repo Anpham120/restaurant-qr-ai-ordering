@@ -1,8 +1,13 @@
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import heroImage from "../../apps/customer-web/src/assets/landing-hero.webp";
 import qrDiningImage from "../../apps/customer-web/src/assets/qr-dining.webp";
 import { menuItems } from "../mocks/menuItems";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 import "../components/landing/customer-landing.css";
+
+const revealAt = (index: number): CSSProperties =>
+  ({ "--reveal-index": index } as CSSProperties);
 
 const signatureItems = [menuItems[0], menuItems[4], menuItems[6]];
 const currencyFormatter = new Intl.NumberFormat("vi-VN");
@@ -33,8 +38,10 @@ const orderSteps = [
 ];
 
 export function CustomerHomePage() {
+  const pageRef = useScrollReveal<HTMLDivElement>();
+
   return (
-    <div className="landing-page">
+    <div className="landing-page" ref={pageRef}>
       <section className="landing-hero" aria-labelledby="landing-title">
         <img
           className="landing-hero-image"
@@ -46,12 +53,14 @@ export function CustomerHomePage() {
         />
         <div className="landing-hero-shade" aria-hidden="true" />
         <div className="landing-hero-copy">
-          <h1 id="landing-title">Ẩm thực Việt, gọi món theo cách thông minh hơn</h1>
-          <p>
+          <h1 id="landing-title" data-reveal style={revealAt(0)}>
+            Ẩm thực Việt, gọi món theo cách thông minh hơn
+          </h1>
+          <p data-reveal style={revealAt(1)}>
             Khám phá hương vị Việt được chuẩn bị chỉn chu, gọi món bằng QR và
             theo dõi hành trình từ bếp tới bàn ngay trên điện thoại.
           </p>
-          <div className="landing-actions">
+          <div className="landing-actions" data-reveal style={revealAt(2)}>
             <Link className="landing-button primary" to="/menu">
               Xem thực đơn <ArrowIcon />
             </Link>
@@ -73,8 +82,8 @@ export function CustomerHomePage() {
           </Link>
         </div>
         <div className="signature-list">
-          {signatureItems.map((item) => (
-            <article className="signature-dish" key={item.id}>
+          {signatureItems.map((item, index) => (
+            <article className="signature-dish" key={item.id} data-reveal style={revealAt(index)}>
               <img src={item.imageUrl} alt={item.name} width="640" height="480" loading="lazy" />
               <div>
                 <p>{item.categoryName}</p>
@@ -88,7 +97,7 @@ export function CustomerHomePage() {
       </section>
 
       <section className="landing-experience" id="trai-nghiem" aria-labelledby="experience-title">
-        <div className="experience-image-wrap">
+        <div className="experience-image-wrap" data-reveal style={revealAt(0)}>
           <img
             src={qrDiningImage}
             alt="Khách dùng điện thoại quét mã QR cạnh món ăn tại nhà hàng"
@@ -97,7 +106,7 @@ export function CustomerHomePage() {
             loading="lazy"
           />
         </div>
-        <div className="experience-copy">
+        <div className="experience-copy" data-reveal style={revealAt(1)}>
           <div className="landing-section-heading compact">
             <div>
               <h2 id="experience-title">Trải nghiệm liền mạch tại bàn</h2>
@@ -127,7 +136,7 @@ export function CustomerHomePage() {
         </div>
         <ol className="journey-list">
           {orderSteps.map(([title, text], index) => (
-            <li key={title}>
+            <li key={title} data-reveal style={revealAt(index)}>
               <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
               <div>
                 <h3>{title}</h3>
@@ -139,7 +148,7 @@ export function CustomerHomePage() {
       </section>
 
       <section className="landing-ai" aria-labelledby="ai-title">
-        <div className="ai-copy">
+        <div className="ai-copy" data-reveal style={revealAt(0)}>
           <h2 id="ai-title">Chưa biết chọn món gì?</h2>
           <p>
             Hãy nói về khẩu vị, số người hoặc món bạn đang muốn ăn. Trợ lý AI
@@ -149,7 +158,7 @@ export function CustomerHomePage() {
             Hỏi AI chọn món <ArrowIcon />
           </Link>
         </div>
-        <div className="ai-preview" aria-label="Ví dụ hội thoại với trợ lý chọn món">
+        <div className="ai-preview" aria-label="Ví dụ hội thoại với trợ lý chọn món" data-reveal style={revealAt(1)}>
           <div className="ai-preview-head">
             <LandingIcon name="spark" />
             <div><strong>Trợ lý chọn món</strong><span>Gợi ý từ thực đơn CMC</span></div>
@@ -165,11 +174,11 @@ export function CustomerHomePage() {
       </section>
 
       <section className="landing-final-cta" aria-labelledby="final-cta-title">
-        <div>
+        <div data-reveal style={revealAt(0)}>
           <h2 id="final-cta-title">Sẵn sàng khám phá thực đơn?</h2>
           <p>Xem món đang phục vụ hoặc quét QR tại bàn để bắt đầu gọi món.</p>
         </div>
-        <Link className="landing-button light" to="/menu">
+        <Link className="landing-button light" to="/menu" data-reveal style={revealAt(1)}>
           Xem thực đơn <ArrowIcon />
         </Link>
       </section>

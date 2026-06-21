@@ -41,7 +41,7 @@ export function MenuItemCard({
         <div className="cmc-card-footer">
           <strong>{formatVnd(item.price)}</strong>
           {quantity > 0 ? (
-            <div className="cmc-stepper" aria-label={`${item.name} quantity`}>
+            <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>
               <button onClick={() => onRemove(item.id)} type="button">
                 -
               </button>

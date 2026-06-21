@@ -1649,6 +1649,64 @@
   font-weight: 900;
 }
 
+.cmc-add-button,
+.cmc-stepper button {
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.cmc-add-button:active,
+.cmc-stepper button:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+/* Skeleton placeholders shown while the menu list loads */
+.cmc-menu-card-skeleton {
+  pointer-events: none;
+}
+
+.cmc-menu-card-skeleton:hover {
+  transform: none;
+  border-color: var(--cmc-line);
+  box-shadow: 0 18px 44px rgba(0, 91, 172, 0.08);
+}
+
+.cmc-skel {
+  border-radius: 8px;
+  background-color: var(--cmc-soft);
+}
+
+.cmc-skel-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.cmc-skel-line {
+  height: 13px;
+}
+
+.cmc-skel-line.short {
+  width: 42%;
+}
+
+.cmc-skel-line.title {
+  width: 72%;
+  height: 20px;
+}
+
+.cmc-skel-price {
+  width: 74px;
+  height: 22px;
+}
+
+.cmc-skel-button {
+  width: 84px;
+  height: 38px;
+  border-radius: 999px;
+}
+
 .cmc-cart-panel {
   position: sticky;
   top: 22px;
@@ -1847,6 +1905,7 @@
   gap: 6px;
   background: #F2FAFD;
   color: #00A99D;
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
 }
 
 .cmc-success-state a {
@@ -1863,6 +1922,16 @@
   cursor: pointer;
   font-weight: 900;
   box-shadow: 0 14px 28px rgba(0, 91, 172, 0.18);
+  transition: transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.cmc-submit-order:not(:disabled):hover {
+  box-shadow: 0 18px 34px rgba(0, 91, 172, 0.24);
+}
+
+.cmc-submit-order:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 .cmc-submit-order:disabled {
