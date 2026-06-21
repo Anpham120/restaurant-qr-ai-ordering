@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Timeline, type TimelineItem } from "@cmc/shared-ui";
 import { VietQrPaymentModal } from "../../../components/customer/VietQrPaymentModal";
 import "../../../components/order-tracking/realtime-order.css";
 import {
@@ -14,6 +15,7 @@ import { getOrderTracking } from "../../../services/orderService";
 import type {
   OrderItemStatus,
   OrderRealtimeEvent,
+  OrderStatusEvent,
   OrderTrackingItem,
   OrderTrackingOrder,
 } from "../../../types";
@@ -129,6 +131,64 @@ const timelineLabels: Record<string, string> = {
   Served: "Đã phục vụ",
 };
 
+// Vietnamese labels for the real status-history events (covers both order
+// statuses and payment statuses, distinguished by event.source).
+const eventStatusLabels: Record<string, string> = {
+  Draft: "Nháp",
+  Placed: "Đã đặt",
+  Confirmed: "Đã xác nhận",
+  Preparing: "Đang chế biến",
+  Ready: "Sẵn sàng",
+  Served: "Đã phục vụ",
+  Completed: "Hoàn tất",
+  Cancelled: "Đã hủy",
+  Unpaid: "Chưa thanh toán",
+  Pending: "Chờ thanh toán",
+  Paid: "Đã thanh toán",
+  Failed: "Thanh toán lỗi",
+  Refunded: "Đã hoàn tiền",
+};
+
+const eventTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatEventTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : eventTimeFormatter.format(date);
+}
+
+function eventTone(event: OrderStatusEvent): TimelineItem["tone"] {
+  switch (event.status) {
+    case "Cancelled":
+    case "Failed":
+      return "danger";
+    case "Refunded":
+      return "warning";
+    case "Completed":
+    case "Served":
+    case "Ready":
+    case "Paid":
+    case "Confirmed":
+      return "success";
+    default:
+      return event.source === "Payment" ? "info" : "neutral";
+  }
+}
+
+function toTimelineItems(events: OrderStatusEvent[]): TimelineItem[] {
+  return events.map((event) => ({
+    label: eventStatusLabels[event.status] ?? event.status,
+    sublabel: event.source === "Payment" ? "Thanh toán" : "Trạng thái đơn",
+    timestamp: formatEventTime(event.createdAt),
+    tone: eventTone(event),
+    note: event.note ?? undefined,
+  }));
+}
+
 function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrackingOrder; onShowVietQr: () => void }) {
   const readyCount = order.items.filter((item) => item.status === "Ready").length;
   const canPayVietQr =
@@ -151,6 +211,20 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
         </strong>
       </div>
 
+      {order.paymentStatus === "Refunded" ? (
+        <p className="tracking-refunded" role="status">
+          Đơn này đã được hoàn tiền. Vui lòng liên hệ nhân viên nếu cần hỗ trợ thêm.
+        </p>
+      ) : null}
+
+      {order.pickupInfo ? (
+        <div className="tracking-pickup">
+          <p className="tracking-kicker">Thông tin nhận món</p>
+          <strong>{order.pickupInfo.customerName}</strong>
+          <span>{order.pickupInfo.phoneNumber}</span>
+        </div>
+      ) : null}
+
       <div className="tracking-timeline">
         {["Placed", "Preparing", "Ready", "Served"].map((status, index) => (
           <div className={getTimelineClass(order.status, status)} key={status}>
@@ -162,6 +236,13 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
           </div>
         ))}
       </div>
+
+      {order.events && order.events.length > 0 ? (
+        <div className="tracking-history">
+          <p className="tracking-kicker">Lịch sử xử lý</p>
+          <Timeline items={toTimelineItems(order.events)} />
+        </div>
+      ) : null}
 
       <div className="tracking-item-list">
         {order.items.map((item) => (
