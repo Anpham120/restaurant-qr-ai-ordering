@@ -1,0 +1,212 @@
+/* ==========================================================================
+   CMC Restaurant — design tokens (single source of truth)
+   Brand preserved exactly. Semantic scales + motion library + back-compat
+   aliases for every legacy custom property still referenced by the apps and
+   the root monolith stylesheet. Imported first by both styles.css bundles.
+   ========================================================================== */
+:root {
+  /* ---- Color · brand ---- */
+  --color-primary: #005bac;
+  --color-primary-hover: #0067c7;
+  --color-cyan: #08bcef;
+  --color-teal: #00a99d;
+  --color-ink: #08233e;
+  --color-bg: #f2fafd;
+  --color-soft: #eaf7fc;
+  --color-card: #ffffff;
+  --color-border: #cfeaf5;
+  --color-muted: #667a91;
+  --color-danger: #b42318;
+
+  /* ---- Color · state tints (lifted from the existing badge palette) ---- */
+  --color-info: #00517a;
+  --color-info-bg: #dff6fd;
+  --color-success: #166534;
+  --color-success-bg: #dcfce7;
+  --color-warning: #92400e;
+  --color-warning-bg: #fef3c7;
+  --color-danger-bg: #fee2e2;
+
+  /* ---- Color · role accents ---- */
+  --color-role-admin: #7c3aed;
+  --color-role-staff: #0284c7;
+  --color-role-kitchen: #ea580c;
+  --color-role-customer: #059669;
+
+  /* ---- Space scale ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Radius ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation ---- */
+  --elevation-1: 0 6px 18px rgba(8, 35, 62, 0.06);
+  --elevation-2: 0 18px 44px rgba(0, 91, 172, 0.08);
+  --elevation-3: 0 28px 64px rgba(0, 91, 172, 0.14);
+
+  /* ---- Typography ---- */
+  --font-ui: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* ---- Motion ---- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ======================================================================
+     Back-compat aliases — legacy names mapped onto the semantic tokens so
+     existing component CSS keeps resolving. New code should use the
+     --color-/--space-/--radius-/--elevation- scales above.
+     ====================================================================== */
+  /* shared-ui (operator shells) */
+  --cmc-primary: var(--color-primary);
+  --cmc-primary-hover: var(--color-primary-hover);
+  --cmc-cyan: var(--color-cyan);
+  --cmc-teal: var(--color-teal);
+  --cmc-bg: var(--color-bg);
+  --cmc-card: var(--color-card);
+  --cmc-border: var(--color-border);
+  --cmc-text: var(--color-ink);
+  --cmc-muted: var(--color-muted);
+  --cmc-danger: var(--color-danger);
+  --cmc-shadow: var(--elevation-2);
+  /* root monolith */
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --line: var(--color-border);
+  --panel: var(--color-card);
+  --blue: var(--color-primary);
+  --blue-soft: var(--color-soft);
+  --teal: var(--color-primary-hover); /* legacy misnomer: this value is the hover blue */
+  --teal-dark: var(--color-primary-hover);
+  --ready: var(--color-teal);
+  --warn: var(--color-cyan);
+  --shadow: var(--elevation-2);
+  --cmc-page-bg: var(--color-bg);
+  --cmc-heading: var(--color-ink);
+  --cmc-text-muted: var(--color-muted);
+  --cmc-accent-cyan: var(--color-cyan);
+  --cmc-ai-teal: var(--color-teal);
+  --cmc-card-shadow: var(--elevation-2);
+  --cmc-cream: var(--color-bg);
+  --cmc-soft: var(--color-soft);
+  --cmc-brown: var(--color-ink);
+  --cmc-line: var(--color-border);
+  --cmc-ink: var(--color-ink);
+  /* role accents */
+  --role-admin: var(--color-role-admin);
+  --role-staff: var(--color-role-staff);
+  --role-kitchen: var(--color-role-kitchen);
+  --role-customer: var(--color-role-customer);
+}
+
+/* ==========================================================================
+   Motion library — keyframes + utility classes. Every utility is disabled
+   under prefers-reduced-motion (see guard at the bottom).
+   ========================================================================== */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.anim-fade-in-up {
+  animation: fade-in-up var(--duration-slow) var(--ease-decelerate) both;
+}
+.anim-scale-in {
+  animation: scale-in var(--duration-base) var(--ease-decelerate) both;
+}
+.anim-slide-in {
+  animation: slide-in-right var(--duration-base) var(--ease-decelerate) both;
+}
+.anim-shimmer {
+  background-image: linear-gradient(90deg, var(--color-soft) 25%, #ffffff 37%, var(--color-soft) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.anim-pulse {
+  animation: pulse-soft 1.6s var(--ease-standard) infinite;
+}
+.anim-toast-in {
+  animation: toast-in var(--duration-slow) var(--ease-emphasized) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-in-up,
+  .anim-scale-in,
+  .anim-slide-in,
+  .anim-shimmer,
+  .anim-pulse,
+  .anim-toast-in {
+    animation: none !important;
+  }
+}
