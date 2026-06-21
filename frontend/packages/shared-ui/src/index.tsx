@@ -208,10 +208,64 @@ export function OperationsLayout({
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The sidebar is a fixed off-canvas drawer on small screens; close it whenever
+  // the route changes so navigating from inside the drawer dismisses it.
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  // While the mobile drawer is open, let Escape close it and lock body scroll
+  // behind the overlay. Desktop never opens the drawer, so this stays inert there.
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setDrawerOpen(false);
+    }
+
+    document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [drawerOpen]);
 
   return (
     <div className="cmc-operations-shell">
-      <aside className="cmc-sidebar">
+      <header className="cmc-mobile-topbar">
+        <div className="cmc-brand cmc-brand--compact">
+          <span className="cmc-brand-mark">CMC</span>
+          <strong>{title}</strong>
+        </div>
+        <button
+          type="button"
+          className="cmc-nav-toggle"
+          aria-label={drawerOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
+          aria-expanded={drawerOpen}
+          aria-controls="cmc-ops-sidebar"
+          onClick={() => setDrawerOpen((open) => !open)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </header>
+
+      <button
+        type="button"
+        className={`cmc-drawer-overlay${drawerOpen ? " is-open" : ""}`}
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => setDrawerOpen(false)}
+      />
+
+      <aside id="cmc-ops-sidebar" className={`cmc-sidebar${drawerOpen ? " is-open" : ""}`}>
         <div className="cmc-brand">
           <span className="cmc-brand-mark">CMC</span>
           <div>
@@ -226,6 +280,7 @@ export function OperationsLayout({
               to={link.to}
               end={link.to === "/" || link.to.split("/").length === 2}
               className={({ isActive }) => (isActive ? "cmc-nav-link is-active" : "cmc-nav-link")}
+              onClick={() => setDrawerOpen(false)}
             >
               {link.label}
             </NavLink>
