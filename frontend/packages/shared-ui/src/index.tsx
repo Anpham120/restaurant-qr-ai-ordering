@@ -344,7 +344,17 @@ export function LoginPage({
       }
       navigate(resolveTarget(user.role), { replace: true });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Đăng nhập thất bại.");
+      // The backend returns a single generic INVALID_CREDENTIALS for bad
+      // password AND lockout (no account-existence/lockout oracle). Mirror that:
+      // one friendly message for every auth failure, with a heads-up that
+      // repeated attempts temporarily lock the account.
+      if (reason instanceof ApiError && reason.code === "INVALID_CREDENTIALS") {
+        setError(
+          "Email hoặc mật khẩu không đúng. Sau nhiều lần thử sai, tài khoản sẽ tạm khoá 15 phút — vui lòng thử lại sau.",
+        );
+      } else {
+        setError(reason instanceof Error ? reason.message : "Đăng nhập thất bại.");
+      }
     } finally {
       setBusy(false);
     }
