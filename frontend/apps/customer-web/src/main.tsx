@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, NavLink, Outlet, RouterProvider, createBrowserRouter, useLocation } from "react-router-dom";
-import { NotFoundPage } from "@cmc/shared-ui";
+import { NotFoundPage, PageTransition } from "@cmc/shared-ui";
 import "@cmc/shared-ui/styles.css";
 import "../../../src/styles.css";
 import logoUrl from "../../../src/mocks/images/logo.png";
@@ -31,7 +31,7 @@ function CustomerLayout(){
         {!isLanding?<NavLink to="/cart">Giỏ hàng</NavLink>:null}
       </nav>
     </header>
-    <main className="customer-content" id="main-content"><Outlet/></main>
+    <main className="customer-content" id="main-content"><PageTransition transitionKey={location.pathname}><Outlet/></PageTransition></main>
     <CustomerAiLauncher hidden={menuOpen}/>
   </div>
 }
