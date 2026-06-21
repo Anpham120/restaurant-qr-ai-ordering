@@ -30,6 +30,10 @@ type CheckoutForm = {
 
 type ActiveOrderType = Extract<CustomerOrderType, "DineIn" | "Pickup">;
 
+// Mirror the backend pickup-contact length guards (P3) so we fail fast client-side.
+const PICKUP_NAME_MAX = 200;
+const PICKUP_PHONE_MAX = 20;
+
 const orderTypeCopy: Record<
   ActiveOrderType,
   { label: string; shortLabel: string; description: string }
@@ -80,12 +84,20 @@ function buildOrderPayload(
   cart: MenuCart,
   selectedItems: MenuItem[],
   paymentMethod: PaymentMethod,
+  contact: CheckoutForm,
 ): CreateOrderRequest {
   return {
     orderType,
     tableCode: orderType === "DineIn" ? tableCode ?? null : null,
     paymentMethod,
     deliveryInfo: null,
+    pickupInfo:
+      orderType === "Pickup"
+        ? {
+            customerName: contact.contactName.trim(),
+            phoneNumber: contact.phoneNumber.trim(),
+          }
+        : null,
     items: selectedItems.map((item) => ({
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
@@ -104,6 +116,7 @@ export function CustomerCartPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
   const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
@@ -138,13 +151,28 @@ export function CustomerCartPage() {
   );
   const requiresContact = orderType === "Pickup";
   const orderTypeDetails = orderTypeCopy[orderType];
-  const isContactMissing =
-    requiresContact && (form.contactName.trim().length === 0 || form.phoneNumber.trim().length === 0);
+  const trimmedName = form.contactName.trim();
+  const trimmedPhone = form.phoneNumber.trim();
+  const nameError = !requiresContact
+    ? ""
+    : trimmedName.length === 0
+      ? "Vui lòng nhập tên người nhận."
+      : trimmedName.length > PICKUP_NAME_MAX
+        ? `Tên tối đa ${PICKUP_NAME_MAX} ký tự.`
+        : "";
+  const phoneError = !requiresContact
+    ? ""
+    : trimmedPhone.length === 0
+      ? "Vui lòng nhập số điện thoại."
+      : trimmedPhone.length > PICKUP_PHONE_MAX
+        ? `Số điện thoại tối đa ${PICKUP_PHONE_MAX} ký tự.`
+        : "";
+  const isContactInvalid = requiresContact && (nameError !== "" || phoneError !== "");
   const isDineInMissingTable = orderType === "DineIn" && !tableCode;
   const canSubmit =
     selectedItems.length > 0 &&
     unavailableItems.length === 0 &&
-    !isContactMissing &&
+    !isContactInvalid &&
     !isDineInMissingTable &&
     !isSubmitting;
 
@@ -169,6 +197,7 @@ export function CustomerCartPage() {
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSubmitAttempted(true);
     setErrorMessage("");
     setSuccessOrder(null);
     setVietQrPayment(null);
@@ -178,7 +207,7 @@ export function CustomerCartPage() {
       return;
     }
 
-    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems, paymentMethod);
+    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems, paymentMethod, form);
     setIsSubmitting(true);
     setSubmittedPayload(payload);
 
@@ -318,20 +347,30 @@ export function CustomerCartPage() {
               <label>
                 Tên người nhận
                 <input
+                  aria-invalid={submitAttempted && nameError ? true : undefined}
+                  maxLength={PICKUP_NAME_MAX}
                   onChange={(event) => updateForm("contactName", event.target.value)}
                   placeholder="Ví dụ: Anh Minh"
                   type="text"
                   value={form.contactName}
                 />
+                {submitAttempted && nameError ? (
+                  <span className="cmc-inline-error">{nameError}</span>
+                ) : null}
               </label>
               <label>
                 Số điện thoại
                 <input
+                  aria-invalid={submitAttempted && phoneError ? true : undefined}
+                  maxLength={PICKUP_PHONE_MAX}
                   onChange={(event) => updateForm("phoneNumber", event.target.value)}
                   placeholder="0901234567"
                   type="tel"
                   value={form.phoneNumber}
                 />
+                {submitAttempted && phoneError ? (
+                  <span className="cmc-inline-error">{phoneError}</span>
+                ) : null}
               </label>
             </div>
           ) : null}

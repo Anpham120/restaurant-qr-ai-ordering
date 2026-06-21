@@ -19,6 +19,12 @@ export type DeliveryInfo = {
   note?: string;
 };
 
+export type PickupInfo = {
+  customerName: string;
+  phoneNumber: string;
+  requestedAt?: string | null;
+};
+
 export type CreateOrderItem = {
   menuItemId: string;
   quantity: number;
@@ -29,6 +35,7 @@ export type CreateOrderRequest = {
   tableCode: TableCode | null;
   paymentMethod: PaymentMethod;
   deliveryInfo: DeliveryInfo | null;
+  pickupInfo?: PickupInfo | null;
   items: CreateOrderItem[];
 };
 
@@ -42,6 +49,7 @@ export type CreateOrderResponse = {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   deliveryInfo: DeliveryInfo | null;
+  pickupInfo?: PickupInfo | null;
   subtotalAmount: number;
   totalAmount: number;
   createdAt: string;
@@ -56,6 +64,16 @@ export type CreateOrderResponse = {
     lineTotal: number;
     updatedAt: string;
   }>;
+};
+
+export type OrderEventSource = "Status" | "Payment";
+
+export type OrderStatusEvent = {
+  status: OrderStatus | PaymentStatus;
+  source?: OrderEventSource;
+  changedByRole?: string | null;
+  note?: string | null;
+  createdAt: string;
 };
 
 export type OrderTrackingItem = {
@@ -74,15 +92,18 @@ export type OrderTrackingOrder = {
   orderCode: string;
   orderType: CustomerOrderType;
   tableCode: TableCode | null;
+  tableSessionId?: string | null;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   deliveryInfo: DeliveryInfo | null;
+  pickupInfo?: PickupInfo | null;
   subtotalAmount: number;
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
   items: OrderTrackingItem[];
+  events?: OrderStatusEvent[];
 };
 
 export type PaymentTransaction = {

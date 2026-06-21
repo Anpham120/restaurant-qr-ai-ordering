@@ -55,6 +55,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
   const [menuError, setMenuError] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,6 +69,11 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
       .catch(() => {
         if (isMounted) {
           setMenuError("Không tải được thực đơn từ hệ thống.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
         }
       });
 
@@ -288,21 +294,42 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
       ) : null}
 
       <div className="cmc-menu-layout">
-        <section className="cmc-menu-grid" id="cmc-menu-list">
-          {filteredItems.map((item) => (
-            <MenuItemCard
-              item={item}
-              key={item.id}
-              onAdd={addItem}
-              onRemove={removeItem}
-              quantity={cart[item.id] ?? 0}
-            />
-          ))}
-          {filteredItems.length === 0 ? (
-            <div className="cmc-empty-state">
-              Không tìm thấy món phù hợp. Hãy thử danh mục hoặc từ khóa khác.
-            </div>
-          ) : null}
+        <section className="cmc-menu-grid" id="cmc-menu-list" aria-busy={isLoading}>
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <article className="cmc-menu-card cmc-menu-card-skeleton" key={index} aria-hidden="true">
+                <div className="cmc-card-image-wrap">
+                  <div className="cmc-skel cmc-skel-image anim-shimmer" />
+                </div>
+                <div className="cmc-card-content">
+                  <div className="cmc-skel cmc-skel-line short anim-shimmer" />
+                  <div className="cmc-skel cmc-skel-line title anim-shimmer" />
+                  <div className="cmc-skel cmc-skel-line anim-shimmer" />
+                  <div className="cmc-card-footer">
+                    <div className="cmc-skel cmc-skel-price anim-shimmer" />
+                    <div className="cmc-skel cmc-skel-button anim-shimmer" />
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <>
+              {filteredItems.map((item) => (
+                <MenuItemCard
+                  item={item}
+                  key={item.id}
+                  onAdd={addItem}
+                  onRemove={removeItem}
+                  quantity={cart[item.id] ?? 0}
+                />
+              ))}
+              {filteredItems.length === 0 ? (
+                <div className="cmc-empty-state">
+                  Không tìm thấy món phù hợp. Hãy thử danh mục hoặc từ khóa khác.
+                </div>
+              ) : null}
+            </>
+          )}
         </section>
 
         <aside className="cmc-cart-panel side" aria-label="Cart summary">
