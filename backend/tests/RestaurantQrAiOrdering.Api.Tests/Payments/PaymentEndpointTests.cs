@@ -179,6 +179,77 @@ public sealed class PaymentEndpointTests
         Assert.Equal("PAYMENT_NOT_FOUND", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task RefundConfirmedPayment_RequiresStaffAndMarksRefunded()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(client, factory, "COD");
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var confirmResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/confirm",
+            new { providerTransactionId = "cash-001", note = "Thu tien mat tai quay" });
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        using var unauthorizedResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/refund",
+            new { note = "Hoan tien cho khach" });
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorizedResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var response = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/refund",
+            new { note = "Hoan tien cho khach" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Refunded", body.RootElement.GetProperty("status").GetString());
+        Assert.Contains(
+            body.RootElement.GetProperty("transactions").EnumerateArray(),
+            transaction => transaction.GetProperty("status").GetString() == "Refunded");
+    }
+
+    [Fact]
+    public async Task RefundPayment_RejectsUnconfirmedPayment()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(client, factory, "COD");
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/refund",
+            new { note = "Hoan tien khi chua thu" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("PAYMENT_NOT_REFUNDABLE", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task RefundPayment_RejectsNoteLongerThanLimit()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var (orderCode, _) = await CreateOrderAsync(client, factory, "COD");
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+
+        using var confirmResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/confirm",
+            new { providerTransactionId = "cash-001", note = "Thu tien mat tai quay" });
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/refund",
+            new { note = new string('x', 501) });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("PAYMENT_NOTE_TOO_LONG", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
     private static async Task<(string OrderCode, string AccessToken)> CreateOrderAsync(
         HttpClient client,
         TestWebApplicationFactory factory,

@@ -759,6 +759,11 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasColumnName("updated_at")
                 .IsRequired();
+            entity.Property(e => e.FailedLoginCount)
+                .HasColumnName("failed_login_count")
+                .HasDefaultValue(0);
+            entity.Property(e => e.LockoutEndAt)
+                .HasColumnName("lockout_end_at");
 
             entity.HasIndex(e => e.Email).IsUnique();
         });
