@@ -2826,6 +2826,7 @@ input {
 .vietqr-success {
   text-align: center;
   padding: 16px 0;
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
 }
 
 .vietqr-success-icon {
@@ -2839,6 +2840,13 @@ input {
   font-size: 32px;
   font-weight: 900;
   margin-bottom: 12px;
+  animation: vqr-success-pop 460ms var(--ease-emphasized) both;
+}
+
+@keyframes vqr-success-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .vietqr-success h4 { margin: 0 0 6px; font-size: 20px; color: #059669; }
