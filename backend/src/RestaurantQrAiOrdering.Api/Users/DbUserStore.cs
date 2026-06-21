@@ -6,6 +6,12 @@ namespace RestaurantQrAiOrdering.Api.Users;
 
 public sealed class DbUserStore : IUserStore
 {
+    // After this many consecutive failed logins the account is locked.
+    private const int MaxFailedLoginAttempts = 5;
+
+    // How long the account stays locked once the threshold is reached.
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
     private readonly RestaurantDbContext dbContext;
     private readonly IPasswordHasher passwordHasher;
 
@@ -52,12 +58,51 @@ public sealed class DbUserStore : IUserStore
         var user = dbContext.Users
             .FirstOrDefault(u => u.Email.ToLower() == normalizedEmail.ToLower());
 
-        if (user is null || !passwordHasher.VerifyPassword(password, user.PasswordHash))
+        if (user is null)
         {
             return null;
         }
 
-        return ToUserAccount(user);
+        var now = DateTimeOffset.UtcNow;
+
+        // Locked and still within the lockout window: reject without checking the
+        // password so the caller cannot probe credentials while locked.
+        if (user.LockoutEndAt is not null && user.LockoutEndAt > now)
+        {
+            return null;
+        }
+
+        if (passwordHasher.VerifyPassword(password, user.PasswordHash))
+        {
+            // Successful login clears any accumulated failure state.
+            if (user.FailedLoginCount != 0 || user.LockoutEndAt is not null)
+            {
+                user.FailedLoginCount = 0;
+                user.LockoutEndAt = null;
+                user.UpdatedAt = now;
+                dbContext.SaveChanges();
+            }
+
+            return ToUserAccount(user);
+        }
+
+        // Failed attempt. If a previous lockout has expired, start a fresh window.
+        if (user.LockoutEndAt is not null)
+        {
+            user.FailedLoginCount = 0;
+            user.LockoutEndAt = null;
+        }
+
+        user.FailedLoginCount++;
+        if (user.FailedLoginCount >= MaxFailedLoginAttempts)
+        {
+            user.LockoutEndAt = now.Add(LockoutDuration);
+        }
+
+        user.UpdatedAt = now;
+        dbContext.SaveChanges();
+
+        return null;
     }
 
     public IReadOnlyList<UserAccount> ListUsers()
