@@ -1,4 +1,5 @@
-:root{font-family:Inter,"Segoe UI",sans-serif;color:#08233e;background:#f2fafd;font-synthesis:none;--cmc-primary:#005bac;--cmc-primary-hover:#0067c7;--cmc-cyan:#08bcef;--cmc-teal:#00a99d;--cmc-bg:#f2fafd;--cmc-card:#fff;--cmc-border:#cfeaf5;--cmc-text:#08233e;--cmc-muted:#667a91;--cmc-danger:#b42318;--cmc-shadow:0 18px 48px rgba(0,91,172,.08);color-scheme:light}*{box-sizing:border-box}body{margin:0;min-width:320px;background:var(--cmc-bg)}button,input,select,textarea{font:inherit}:focus-visible{outline:3px solid rgba(8,188,239,.45);outline-offset:2px}.cmc-button{border:0;border-radius:12px;padding:.75rem 1rem;font-weight:700;cursor:pointer}.cmc-button:disabled{opacity:.6;cursor:not-allowed}.cmc-button--primary{color:#fff;background:var(--cmc-primary)}.cmc-button--primary:hover{background:var(--cmc-primary-hover)}.cmc-button--secondary{color:var(--cmc-primary);background:#e9f7fc}.cmc-button--danger{color:#fff;background:var(--cmc-danger)}.cmc-card{background:var(--cmc-card);border:1px solid var(--cmc-border);border-radius:24px;box-shadow:var(--cmc-shadow);padding:1.5rem}.cmc-state{margin:2rem auto;max-width:720px;padding:1.5rem;border:1px solid var(--cmc-border);border-radius:20px;background:#fff}.cmc-state p{color:var(--cmc-muted)}.cmc-state--error{border-color:#f2b8b5}.cmc-badge{display:inline-flex;border-radius:999px;padding:.3rem .65rem;font-size:.8rem;font-weight:800}.cmc-badge--neutral{background:#edf2f7}.cmc-badge--info{background:#dff6fd;color:#00517a}.cmc-badge--success{background:#dcfce7;color:#166534}.cmc-badge--warning{background:#fef3c7;color:#92400e}.cmc-badge--danger{background:#fee2e2;color:#991b1b}.cmc-operations-shell{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100vh}.cmc-sidebar{position:sticky;top:0;height:100vh;padding:1.25rem;background:#08233e;color:#fff;display:flex;flex-direction:column;gap:1.5rem}.cmc-brand{display:flex;align-items:center;gap:.8rem}.cmc-brand-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--cmc-primary),var(--cmc-cyan));font-weight:900}.cmc-brand strong,.cmc-brand small{display:block}.cmc-brand small,.cmc-user small{color:#a9c9dd}.cmc-sidebar nav{display:grid;gap:.4rem}.cmc-nav-link{color:#d5e9f5;text-decoration:none;padding:.8rem 1rem;border-radius:12px}.cmc-nav-link:hover,.cmc-nav-link.is-active{color:#fff;background:rgba(8,188,239,.18)}.cmc-user{margin-top:auto;display:grid;gap:.2rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.14)}.cmc-user button{margin-top:.5rem;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:.55rem;cursor:pointer}.cmc-portal-content{min-width:0;padding:1.5rem}.cmc-login-shell{min-height:100vh;display:grid;place-items:center;padding:1.5rem;background:radial-gradient(circle at top right,rgba(8,188,239,.2),transparent 35%),var(--cmc-bg)}.cmc-login-card{width:min(440px,100%)}.cmc-eyebrow{text-transform:uppercase;letter-spacing:.14em;color:var(--cmc-primary);font-weight:800;font-size:.75rem}.cmc-login-card form{display:grid;gap:1rem;margin-top:1.5rem}.cmc-login-card label{display:grid;gap:.4rem;font-weight:700}.cmc-login-card input{width:100%;border:1px solid #b8dbe9;border-radius:12px;padding:.8rem}.cmc-form-error{color:var(--cmc-danger);margin:0}@media(max-width:800px){.cmc-operations-shell{grid-template-columns:1fr}.cmc-sidebar{position:static;height:auto}.cmc-sidebar nav{grid-template-columns:repeat(2,minmax(0,1fr))}.cmc-user{margin-top:0}.cmc-portal-content{padding:1rem}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+@import "./tokens.css";
+:root{font-family:var(--font-ui);color:var(--color-ink);background:var(--color-bg);font-synthesis:none;color-scheme:light}*{box-sizing:border-box}body{margin:0;min-width:320px;background:var(--cmc-bg)}button,input,select,textarea{font:inherit}:focus-visible{outline:3px solid rgba(8,188,239,.45);outline-offset:2px}.cmc-button{border:0;border-radius:12px;padding:.75rem 1rem;font-weight:700;cursor:pointer}.cmc-button:disabled{opacity:.6;cursor:not-allowed}.cmc-button--primary{color:#fff;background:var(--cmc-primary)}.cmc-button--primary:hover{background:var(--cmc-primary-hover)}.cmc-button--secondary{color:var(--cmc-primary);background:#e9f7fc}.cmc-button--danger{color:#fff;background:var(--cmc-danger)}.cmc-card{background:var(--cmc-card);border:1px solid var(--cmc-border);border-radius:24px;box-shadow:var(--cmc-shadow);padding:1.5rem}.cmc-state{margin:2rem auto;max-width:720px;padding:1.5rem;border:1px solid var(--cmc-border);border-radius:20px;background:#fff}.cmc-state p{color:var(--cmc-muted)}.cmc-state--error{border-color:#f2b8b5}.cmc-badge{display:inline-flex;border-radius:999px;padding:.3rem .65rem;font-size:.8rem;font-weight:800}.cmc-badge--neutral{background:#edf2f7}.cmc-badge--info{background:#dff6fd;color:#00517a}.cmc-badge--success{background:#dcfce7;color:#166534}.cmc-badge--warning{background:#fef3c7;color:#92400e}.cmc-badge--danger{background:#fee2e2;color:#991b1b}.cmc-operations-shell{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100vh}.cmc-sidebar{position:sticky;top:0;height:100vh;padding:1.25rem;background:#08233e;color:#fff;display:flex;flex-direction:column;gap:1.5rem}.cmc-brand{display:flex;align-items:center;gap:.8rem}.cmc-brand-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--cmc-primary),var(--cmc-cyan));font-weight:900}.cmc-brand strong,.cmc-brand small{display:block}.cmc-brand small,.cmc-user small{color:#a9c9dd}.cmc-sidebar nav{display:grid;gap:.4rem}.cmc-nav-link{color:#d5e9f5;text-decoration:none;padding:.8rem 1rem;border-radius:12px}.cmc-nav-link:hover,.cmc-nav-link.is-active{color:#fff;background:rgba(8,188,239,.18)}.cmc-user{margin-top:auto;display:grid;gap:.2rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.14)}.cmc-user button{margin-top:.5rem;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:.55rem;cursor:pointer}.cmc-portal-content{min-width:0;padding:1.5rem}.cmc-login-shell{min-height:100vh;display:grid;place-items:center;padding:1.5rem;background:radial-gradient(circle at top right,rgba(8,188,239,.2),transparent 35%),var(--cmc-bg)}.cmc-login-card{width:min(440px,100%)}.cmc-eyebrow{text-transform:uppercase;letter-spacing:.14em;color:var(--cmc-primary);font-weight:800;font-size:.75rem}.cmc-login-card form{display:grid;gap:1rem;margin-top:1.5rem}.cmc-login-card label{display:grid;gap:.4rem;font-weight:700}.cmc-login-card input{width:100%;border:1px solid #b8dbe9;border-radius:12px;padding:.8rem}.cmc-form-error{color:var(--cmc-danger);margin:0}@media(max-width:800px){.cmc-operations-shell{grid-template-columns:1fr}.cmc-sidebar{position:static;height:auto}.cmc-sidebar nav{grid-template-columns:repeat(2,minmax(0,1fr))}.cmc-user{margin-top:0}.cmc-portal-content{padding:1rem}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
 /* Manual operations login */
 .cmc-login-premium{display:grid;width:min(460px,100%);align-items:center}
@@ -19,3 +20,352 @@
 .cmc-user .cmc-account-note{margin:.25rem 0 0;font-size:.8rem}
 .cmc-user .cmc-account-note--success{color:#7ee0c8}
 .cmc-user .cmc-account-note--error{color:#ff9b9b}
+
+/* ==========================================================================
+   U0c — shared component library. All built on tokens.css scales
+   (--color-/--space-/--radius-/--elevation-/motion). Reduced-motion is
+   already handled globally at the end of the :root bundle above
+   (* { transition:none; animation:none }), so no per-component guard.
+   ========================================================================== */
+
+/* Screen-reader-only utility */
+.cmc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Field / Input / Textarea ---- */
+.cmc-field {
+  display: grid;
+  gap: var(--space-2);
+}
+.cmc-field-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+.cmc-field-req {
+  color: var(--color-danger);
+}
+.cmc-field-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+.cmc-field-error {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+.cmc-input,
+.cmc-textarea {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-card);
+  color: var(--color-ink);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.cmc-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.cmc-input::placeholder,
+.cmc-textarea::placeholder {
+  color: var(--color-muted);
+}
+.cmc-input:focus-visible,
+.cmc-textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(8, 188, 239, 0.28);
+}
+.cmc-field--invalid .cmc-input,
+.cmc-field--invalid .cmc-textarea {
+  border-color: var(--color-danger);
+}
+.cmc-field--invalid .cmc-input:focus-visible,
+.cmc-field--invalid .cmc-textarea:focus-visible {
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.22);
+}
+
+/* ---- Icon button ---- */
+.cmc-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+.cmc-icon-button:active {
+  transform: scale(0.94);
+}
+.cmc-icon-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cmc-icon-button--ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-border);
+}
+.cmc-icon-button--ghost:hover {
+  background: var(--color-soft);
+}
+.cmc-icon-button--solid {
+  background: var(--color-primary);
+  color: #fff;
+}
+.cmc-icon-button--solid:hover {
+  background: var(--color-primary-hover);
+}
+.cmc-icon-button--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.cmc-icon-button--danger:hover {
+  background: #fad9d6;
+}
+
+/* ---- Spinner ---- */
+.cmc-spinner {
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+}
+.cmc-spinner-track {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2.5px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: var(--radius-pill);
+  animation: cmc-spin 0.7s linear infinite;
+}
+@keyframes cmc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Skeleton (shimmer comes from .anim-shimmer) ---- */
+.cmc-skeleton {
+  display: block;
+  background: var(--color-soft);
+}
+
+/* ---- Empty state ---- */
+.cmc-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--color-muted);
+}
+.cmc-empty-state strong {
+  font-size: 1.05rem;
+  color: var(--color-ink);
+}
+.cmc-empty-state p {
+  margin: 0;
+  max-width: 42ch;
+}
+.cmc-empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-pill);
+  background: var(--color-soft);
+  color: var(--color-primary);
+  font-size: 1.7rem;
+}
+.cmc-empty-state-action {
+  margin-top: var(--space-2);
+}
+
+/* ---- Timeline (order status history) ---- */
+.cmc-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.cmc-timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.cmc-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: calc(-1 * var(--space-4));
+  width: 2px;
+  background: var(--color-border);
+}
+.cmc-timeline-item:last-child::before {
+  display: none;
+}
+.cmc-timeline-dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-muted);
+  box-shadow: 0 0 0 4px var(--color-card);
+}
+.cmc-timeline-item--info .cmc-timeline-dot {
+  background: var(--color-cyan);
+}
+.cmc-timeline-item--success .cmc-timeline-dot {
+  background: var(--color-success);
+}
+.cmc-timeline-item--warning .cmc-timeline-dot {
+  background: var(--color-warning);
+}
+.cmc-timeline-item--danger .cmc-timeline-dot {
+  background: var(--color-danger);
+}
+.cmc-timeline-content {
+  display: grid;
+  gap: var(--space-1);
+}
+.cmc-timeline-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cmc-timeline-row strong {
+  color: var(--color-ink);
+}
+.cmc-timeline-time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.cmc-timeline-sub {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+.cmc-timeline-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-ink);
+}
+
+/* ---- Modal ---- */
+.cmc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(8, 35, 62, 0.46);
+  backdrop-filter: blur(2px);
+}
+.cmc-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 2 * var(--space-5));
+  overflow: auto;
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+}
+.cmc-modal:focus-visible {
+  outline: none;
+}
+.cmc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+}
+.cmc-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color-ink);
+}
+.cmc-modal-body {
+  padding: 0 var(--space-5) var(--space-5);
+}
+.cmc-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+/* ---- Toasts ---- */
+.cmc-toaster {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 1100;
+  display: grid;
+  gap: var(--space-3);
+  width: min(360px, calc(100vw - 2 * var(--space-5)));
+}
+.cmc-toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--color-primary);
+  background: var(--color-card);
+  box-shadow: var(--elevation-2);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.cmc-toast--info {
+  border-left-color: var(--color-cyan);
+}
+.cmc-toast--success {
+  border-left-color: var(--color-success);
+}
+.cmc-toast--warning {
+  border-left-color: var(--color-warning);
+}
+.cmc-toast--danger {
+  border-left-color: var(--color-danger);
+}
+.cmc-toast-close {
+  padding: 0 0 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.cmc-toast-close:hover {
+  color: var(--color-ink);
+}

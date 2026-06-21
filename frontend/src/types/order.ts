@@ -3,7 +3,7 @@ import type { OrderStatus, TableCode } from "./api";
 export type CustomerOrderType = "DineIn" | "Pickup";
 
 export type PaymentMethod = "COD" | "VietQR";
-export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled";
+export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
 
 export type OrderItemStatus =
   | "Pending"

@@ -1,42 +1,13 @@
+@import "../packages/shared-ui/src/tokens.css";
+
 :root {
-  color: #08233E;
-  background: #F2FAFD;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  color: var(--color-ink);
+  background: var(--color-bg);
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --ink: #08233E;
-  --muted: #667A91;
-  --line: #CFEAF5;
-  --panel: #ffffff;
-  --blue: #005BAC;
-  --blue-soft: #EAF7FC;
-  --teal: #0067C7;
-  --teal-dark: #0067C7;
-  --ready: #00A99D;
-  --warn: #08BCEF;
-  --shadow: 0 18px 44px rgba(0, 91, 172, 0.08);
-  --cmc-page-bg: #F2FAFD;
-  --cmc-card: #ffffff;
-  --cmc-border: #CFEAF5;
-  --cmc-heading: #08233E;
-  --cmc-text-muted: #667A91;
-  --cmc-primary: #005BAC;
-  --cmc-primary-hover: #0067C7;
-  --cmc-accent-cyan: #08BCEF;
-  --cmc-ai-teal: #00A99D;
-  --cmc-card-shadow: 0 18px 44px rgba(0, 91, 172, 0.08);
-  --cmc-orange: #005BAC;
-  --cmc-orange-dark: #0067C7;
-  --cmc-cream: #F2FAFD;
-  --cmc-soft: #EAF7FC;
-  --cmc-brown: #08233E;
-  --cmc-muted: #667A91;
-  --cmc-line: #CFEAF5;
-  --cmc-ink: #08233E;
 }
 
 * {
@@ -176,7 +147,7 @@ input {
   bottom: 2px;
   left: 0;
   height: 2px;
-  background: var(--cmc-orange-dark);
+  background: var(--color-primary-hover);
   content: "";
   transform: scaleX(0);
   transition: transform 180ms ease;
@@ -184,7 +155,7 @@ input {
 
 .customer-nav a:hover,
 .customer-nav a.active {
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
 }
 
 .customer-nav a:hover::after,
@@ -215,7 +186,7 @@ input {
   align-items: center;
   justify-content: center;
   min-width: max-content;
-  border: 1px solid var(--cmc-orange);
+  border: 1px solid var(--color-primary);
   border-radius: 16px;
   padding: 14px 24px;
   background: #005BAC;
@@ -885,7 +856,7 @@ input {
 
 .operations-shell .stat-card p,
 .operations-shell .panel-kicker {
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
 }
 
 .operations-shell .stat-card strong,
@@ -899,12 +870,12 @@ input {
 .operations-shell .table-head,
 .operations-shell .order-total {
   background: #EAF7FC;
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
 }
 
 .operations-shell .button.primary {
-  border-color: var(--cmc-orange);
-  background: var(--cmc-orange);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #ffffff;
   box-shadow: 0 14px 30px rgba(0, 91, 172, 0.18);
 }
@@ -946,7 +917,7 @@ input {
 
 .operations-shell .mini-badge.placed,
 .operations-shell .chip.active {
-  background: var(--cmc-orange);
+  background: var(--color-primary);
 }
 
 .operations-shell .kitchen-lane {
@@ -966,7 +937,7 @@ input {
 }
 
 .operations-shell .message.customer {
-  background: var(--cmc-orange);
+  background: var(--color-primary);
 }
 
 .operations-shell .message.assistant {
@@ -1037,8 +1008,8 @@ input {
 }
 
 .admin-chip.active {
-  border-color: var(--cmc-orange);
-  background: var(--cmc-orange);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
@@ -1163,7 +1134,7 @@ input {
 
 .admin-status-placed {
   background: #EAF7FC;
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
 }
 
 .admin-status-preparing {
@@ -1199,7 +1170,7 @@ input {
   border-radius: 999px;
   padding: 8px 11px;
   background: #F2FAFD;
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -1290,7 +1261,7 @@ input {
 
 .ops-feature-card span,
 .staff-ticket-meta span {
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
@@ -1349,7 +1320,7 @@ input {
 .qr-preview-block span {
   border-radius: 999px;
   padding: 7px 10px;
-  background: var(--cmc-orange);
+  background: var(--color-primary);
   color: #ffffff;
   font-weight: 900;
 }
@@ -1475,7 +1446,7 @@ input {
   padding: 11px 12px;
   background: #F2FAFD;
   color: var(--cmc-brown);
-  outline-color: var(--cmc-orange);
+  outline-color: var(--color-primary);
 }
 
 .admin-form textarea {
@@ -1503,7 +1474,7 @@ input {
 
 .admin-category-summary span,
 .admin-detail-grid dd {
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
   font-weight: 900;
 }
 
@@ -1518,13 +1489,13 @@ input {
 }
 
 .admin-order-card.active {
-  border-color: var(--cmc-orange);
+  border-color: var(--color-primary);
   background: #EAF7FC;
 }
 
 .admin-order-card span,
 .admin-order-card b {
-  color: var(--cmc-orange-dark);
+  color: var(--color-primary-hover);
 }
 
 .admin-order-card small {
@@ -2485,12 +2456,7 @@ input {
    NEW COMPONENTS - PREMIUM STYLES
    ============================== */
 
-:root {
-  --role-admin: #7c3aed;
-  --role-staff: #0284c7;
-  --role-kitchen: #ea580c;
-  --role-customer: #059669;
-}
+/* role accents now live in packages/shared-ui/src/tokens.css */
 
 .button.danger {
   border-color: #fca5a5;
