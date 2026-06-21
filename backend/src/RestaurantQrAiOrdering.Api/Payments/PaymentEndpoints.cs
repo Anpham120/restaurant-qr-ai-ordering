@@ -109,6 +109,12 @@ public static class PaymentEndpoints
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
+            var noteError = ValidatePaymentNote(request?.Note);
+            if (noteError is not null)
+            {
+                return noteError;
+            }
+
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
             if (payment is null)
             {
@@ -171,6 +177,12 @@ public static class PaymentEndpoints
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
+            var noteError = ValidatePaymentNote(request?.Note);
+            if (noteError is not null)
+            {
+                return noteError;
+            }
+
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
             if (payment is null)
             {
@@ -215,7 +227,81 @@ public static class PaymentEndpoints
         .WithName("FailOrderPayment")
         .WithTags("Payments");
 
+        app.MapPost("/api/orders/{orderCode}/payment/refund", async (
+            string orderCode,
+            RefundPaymentRequest? request,
+            RestaurantDbContext db,
+            IOrderStore orders,
+            ClaimsPrincipal user,
+            CancellationToken cancellationToken) =>
+        {
+            var noteError = ValidatePaymentNote(request?.Note);
+            if (noteError is not null)
+            {
+                return noteError;
+            }
+
+            var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
+            if (payment is null)
+            {
+                return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
+            }
+
+            if (payment.Status is not (PaymentStatus.Confirmed or PaymentStatus.Paid))
+            {
+                return ApiResults.BadRequest("PAYMENT_NOT_REFUNDABLE", "Only a confirmed or paid payment can be refunded.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var note = string.IsNullOrWhiteSpace(request?.Note) ? "Manual payment refund." : request.Note.Trim();
+            payment.Status = PaymentStatus.Refunded;
+            payment.UpdatedAt = now;
+            payment.Transactions.Add(new PaymentTransaction
+            {
+                Id = $"ptx_{Guid.NewGuid():N}",
+                PaymentId = payment.Id,
+                Method = payment.Method,
+                Status = PaymentStatus.Refunded,
+                Amount = payment.Amount,
+                Provider = payment.Method.ToString(),
+                Note = note,
+                CreatedAt = now
+            });
+            orders.RecordPaymentStatusEvent(payment.Order!, ActorContext.FromPrincipal(user), note);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Payment was modified by another request. Reload and try again.");
+            }
+
+            return Results.Ok(ToResponse(payment));
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .WithName("RefundOrderPayment")
+        .WithTags("Payments");
+
         return app;
+    }
+
+    // Maximum length accepted for an operator-supplied payment note.
+    private const int MaxPaymentNoteLength = 500;
+
+    // Returns null when the note is acceptable, or a 400 result when it exceeds the limit.
+    private static IResult? ValidatePaymentNote(string? note)
+    {
+        if (note is not null && note.Trim().Length > MaxPaymentNoteLength)
+        {
+            return ApiResults.BadRequest(
+                "PAYMENT_NOTE_TOO_LONG",
+                $"Payment note must be {MaxPaymentNoteLength} characters or fewer.");
+        }
+
+        return null;
     }
 
     private static Task<Payment?> LoadPaymentAsync(

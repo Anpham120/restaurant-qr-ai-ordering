@@ -63,6 +63,69 @@ public sealed class AuthEndpointTests
     }
 
     [Fact]
+    public async Task Login_LocksAccountAfterFiveFailedAttempts()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var email = CreateUniqueEmail();
+
+        using var registerResponse = await RegisterCustomerAsync(client, email);
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var failed = await client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password = "WrongPassword123!"
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, failed.StatusCode);
+        }
+
+        // Once locked, even the correct password is rejected with the same generic
+        // code so a caller cannot tell the account exists or is locked.
+        using var lockedResponse = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "Password123!"
+        });
+        using var lockedBody = await JsonDocument.ParseAsync(await lockedResponse.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, lockedResponse.StatusCode);
+        Assert.Equal("INVALID_CREDENTIALS", lockedBody.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Login_AllowsCorrectPasswordBeforeLockoutThreshold()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var email = CreateUniqueEmail();
+
+        using var registerResponse = await RegisterCustomerAsync(client, email);
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var failed = await client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password = "WrongPassword123!"
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, failed.StatusCode);
+        }
+
+        // Below the threshold the correct password still authenticates.
+        using var response = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "Password123!"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_RejectsNullBody()
     {
         await using var factory = new TestWebApplicationFactory();

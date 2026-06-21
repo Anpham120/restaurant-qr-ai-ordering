@@ -9,5 +9,6 @@ public enum PaymentStatus
     Paid,
     Confirmed,
     Failed,
-    Cancelled
+    Cancelled,
+    Refunded
 }
