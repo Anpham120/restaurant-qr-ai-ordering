@@ -1,4 +1,15 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, createApiClient } from "@cmc/api-client";
 import { authStorage, useAuth } from "@cmc/auth";
@@ -328,5 +339,426 @@ export function LoginPage({
         </section>
       </div>
     </main>
+  );
+}
+
+// ===========================================================================
+// Form controls
+// ===========================================================================
+export function Field({
+  label,
+  htmlFor,
+  hint,
+  error,
+  required,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  error?: string | null;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`cmc-field${error ? " cmc-field--invalid" : ""}`}>
+      <label className="cmc-field-label" htmlFor={htmlFor}>
+        {label}
+        {required ? (
+          <span className="cmc-field-req" aria-hidden="true">
+            {" *"}
+          </span>
+        ) : null}
+      </label>
+      {children}
+      {hint && !error ? <p className="cmc-field-hint">{hint}</p> : null}
+      {error ? (
+        <p className="cmc-field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function Input({
+  label,
+  hint,
+  error,
+  id,
+  required,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  label?: string;
+  hint?: string;
+  error?: string | null;
+}) {
+  const reactId = useId();
+  const inputId = id ?? reactId;
+  const hintId = `${inputId}-hint`;
+  const errorId = `${inputId}-error`;
+  const describedBy =
+    [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className={`cmc-field${error ? " cmc-field--invalid" : ""}`}>
+      {label ? (
+        <label className="cmc-field-label" htmlFor={inputId}>
+          {label}
+          {required ? (
+            <span className="cmc-field-req" aria-hidden="true">
+              {" *"}
+            </span>
+          ) : null}
+        </label>
+      ) : null}
+      <input
+        id={inputId}
+        className="cmc-input"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        required={required}
+        {...props}
+      />
+      {hint && !error ? (
+        <p className="cmc-field-hint" id={hintId}>
+          {hint}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="cmc-field-error" id={errorId} role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function Textarea({
+  label,
+  hint,
+  error,
+  id,
+  required,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label?: string;
+  hint?: string;
+  error?: string | null;
+}) {
+  const reactId = useId();
+  const fieldId = id ?? reactId;
+  const hintId = `${fieldId}-hint`;
+  const errorId = `${fieldId}-error`;
+  const describedBy =
+    [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className={`cmc-field${error ? " cmc-field--invalid" : ""}`}>
+      {label ? (
+        <label className="cmc-field-label" htmlFor={fieldId}>
+          {label}
+          {required ? (
+            <span className="cmc-field-req" aria-hidden="true">
+              {" *"}
+            </span>
+          ) : null}
+        </label>
+      ) : null}
+      <textarea
+        id={fieldId}
+        className="cmc-textarea"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        required={required}
+        {...props}
+      />
+      {hint && !error ? (
+        <p className="cmc-field-hint" id={hintId}>
+          {hint}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="cmc-field-error" id={errorId} role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function IconButton({
+  label,
+  children,
+  variant = "ghost",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  variant?: "ghost" | "solid" | "danger";
+}) {
+  return (
+    <button
+      type="button"
+      className={`cmc-icon-button cmc-icon-button--${variant}`}
+      aria-label={label}
+      title={label}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ===========================================================================
+// Feedback / status
+// ===========================================================================
+export function Spinner({ size = 24, label = "Đang tải" }: { size?: number; label?: string }) {
+  return (
+    <span
+      className="cmc-spinner"
+      role="status"
+      aria-live="polite"
+      style={{ width: size, height: size }}
+    >
+      <span className="cmc-spinner-track" />
+      <span className="cmc-visually-hidden">{label}</span>
+    </span>
+  );
+}
+
+export function Skeleton({
+  width,
+  height = 16,
+  radius = "var(--radius-sm)",
+  className = "",
+}: {
+  width?: number | string;
+  height?: number | string;
+  radius?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`cmc-skeleton anim-shimmer ${className}`.trim()}
+      style={{ width: width ?? "100%", height, borderRadius: radius }}
+      aria-hidden="true"
+    />
+  );
+}
+
+export function EmptyState({
+  icon,
+  title,
+  message,
+  action,
+}: {
+  icon?: ReactNode;
+  title: string;
+  message?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="cmc-empty-state">
+      {icon ? (
+        <div className="cmc-empty-state-icon" aria-hidden="true">
+          {icon}
+        </div>
+      ) : null}
+      <strong>{title}</strong>
+      {message ? <p>{message}</p> : null}
+      {action ? <div className="cmc-empty-state-action">{action}</div> : null}
+    </div>
+  );
+}
+
+export type TimelineItem = {
+  label: string;
+  sublabel?: string;
+  timestamp?: string;
+  tone?: "neutral" | "info" | "success" | "warning" | "danger";
+  note?: string;
+};
+
+export function Timeline({ items }: { items: TimelineItem[] }) {
+  return (
+    <ol className="cmc-timeline">
+      {items.map((item, index) => (
+        <li
+          key={index}
+          className={`cmc-timeline-item cmc-timeline-item--${item.tone ?? "neutral"}`}
+        >
+          <span className="cmc-timeline-dot" aria-hidden="true" />
+          <div className="cmc-timeline-content">
+            <div className="cmc-timeline-row">
+              <strong>{item.label}</strong>
+              {item.timestamp ? <time className="cmc-timeline-time">{item.timestamp}</time> : null}
+            </div>
+            {item.sublabel ? <span className="cmc-timeline-sub">{item.sublabel}</span> : null}
+            {item.note ? <p className="cmc-timeline-note">{item.note}</p> : null}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// ===========================================================================
+// Overlays
+// ===========================================================================
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  labelledBy,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  labelledBy?: string;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  const headingId = labelledBy ?? "cmc-modal-title";
+
+  return createPortal(
+    <div
+      className="cmc-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="cmc-modal anim-scale-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? headingId : undefined}
+        tabIndex={-1}
+        ref={dialogRef}
+      >
+        {title ? (
+          <header className="cmc-modal-header">
+            <h2 id={headingId}>{title}</h2>
+            <IconButton label="Đóng" onClick={onClose}>
+              ×
+            </IconButton>
+          </header>
+        ) : null}
+        <div className="cmc-modal-body">{children}</div>
+        {footer ? <footer className="cmc-modal-footer">{footer}</footer> : null}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ===========================================================================
+// Toasts
+// ===========================================================================
+type ToastTone = "info" | "success" | "warning" | "danger";
+type ToastItem = { id: number; tone: ToastTone; message: string };
+type ToastContextValue = { toast: (message: string, tone?: ToastTone) => void };
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  const idRef = useRef(0);
+
+  const dismiss = useCallback((id: number) => {
+    setItems((current) => current.filter((item) => item.id !== id));
+  }, []);
+
+  const toast = useCallback(
+    (message: string, tone: ToastTone = "info") => {
+      const id = (idRef.current += 1);
+      setItems((current) => [...current, { id, tone, message }]);
+      window.setTimeout(() => dismiss(id), 4000);
+    },
+    [dismiss],
+  );
+
+  return (
+    <ToastContext.Provider value={{ toast }}>
+      {children}
+      <Toaster items={items} onDismiss={dismiss} />
+    </ToastContext.Provider>
+  );
+}
+
+export function useToast(): ToastContextValue {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error("useToast must be used within a <ToastProvider>");
+  }
+  return context;
+}
+
+export function Toaster({
+  items,
+  onDismiss,
+}: {
+  items: ToastItem[];
+  onDismiss: (id: number) => void;
+}) {
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="cmc-toaster" role="region" aria-label="Thông báo" aria-live="polite">
+      {items.map((item) => (
+        <div key={item.id} className={`cmc-toast cmc-toast--${item.tone} anim-toast-in`} role="status">
+          <span>{item.message}</span>
+          <button
+            type="button"
+            className="cmc-toast-close"
+            aria-label="Đóng thông báo"
+            onClick={() => onDismiss(item.id)}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
+// ===========================================================================
+// Routing
+// ===========================================================================
+export function PageTransition({
+  children,
+  transitionKey,
+}: {
+  children: ReactNode;
+  transitionKey?: string;
+}) {
+  return (
+    <div key={transitionKey} className="cmc-page-transition anim-fade-in-up">
+      {children}
+    </div>
   );
 }
