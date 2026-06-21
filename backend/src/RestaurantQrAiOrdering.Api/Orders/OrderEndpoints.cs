@@ -12,6 +12,9 @@ namespace RestaurantQrAiOrdering.Api.Orders;
 
 public static partial class OrderEndpoints
 {
+    private const int MaxItemLinesPerOrder = 50;
+    private const int MaxQuantityPerItem = 99;
+
     public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/orders", async (
@@ -32,14 +35,23 @@ public static partial class OrderEndpoints
             }
 
             var validatedRequest = request!;
-            var order = orders.CreateOrder(
-                new CreateOrderCommand(
-                    validatedRequest.OrderType!.Trim(),
-                    validatedRequest.TableCode?.Trim().ToUpperInvariant(),
-                    validatedRequest.PaymentMethod!.Trim(),
-                    validatedRequest.PickupInfo,
-                    validatedRequest.Items!),
-                ActorContext.FromPrincipal(user));
+            OrderSnapshot order;
+            try
+            {
+                order = orders.CreateOrder(
+                    new CreateOrderCommand(
+                        validatedRequest.OrderType!.Trim(),
+                        validatedRequest.TableCode?.Trim().ToUpperInvariant(),
+                        validatedRequest.PaymentMethod!.Trim(),
+                        validatedRequest.PickupInfo,
+                        validatedRequest.Items!),
+                    ActorContext.FromPrincipal(user));
+            }
+            catch (MenuItemUnavailableException ex)
+            {
+                logger.LogWarning("Rejected order creation because menu item {MenuItemId} became unavailable.", ex.MenuItemId);
+                return ApiResults.BadRequest("MENU_ITEM_UNAVAILABLE", "Menu item is unavailable.");
+            }
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
             logger.LogInformation(
@@ -240,13 +252,42 @@ public static partial class OrderEndpoints
                 return ApiResults.NotFound("ORDER_NOT_FOUND", "Order was not found.");
             }
 
-            if (!result.IsItemFound || result.Item is null)
+            if (!result.IsItemFound)
             {
                 logger.LogWarning(
                     "Rejected item status update because item {OrderItemId} was not found in order {OrderCode}.",
                     orderItemId,
                     orderCode);
 
+                return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
+            }
+
+            if (result.ErrorCode == "ORDER_ITEM_STATUS_TRANSITION_INVALID")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode}, item {OrderItemId} because transition to {Status} is invalid.",
+                    orderCode,
+                    orderItemId,
+                    status);
+
+                return ApiResults.BadRequest(
+                    "ORDER_ITEM_STATUS_TRANSITION_INVALID",
+                    "Order item status transition is not allowed.");
+            }
+
+            if (result.ErrorCode == "CONFLICT_STALE")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for order {OrderCode} because it was modified by another request.",
+                    orderCode);
+
+                return ApiResults.Conflict(
+                    "CONFLICT_STALE",
+                    "Order was modified by another request. Reload and try again.");
+            }
+
+            if (result.Item is null)
+            {
                 return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
             }
 
@@ -294,9 +335,29 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("ORDER_ITEMS_REQUIRED", "Order must contain at least one item.");
         }
 
-        if (request.Items.Any(item => item.Quantity < 1))
+        if (request.Items.Count > MaxItemLinesPerOrder)
         {
-            return ApiResults.BadRequest("ORDER_ITEM_QUANTITY_INVALID", "Order item quantity must be at least one.");
+            return ApiResults.BadRequest(
+                "ORDER_ITEMS_TOO_MANY",
+                $"Order cannot contain more than {MaxItemLinesPerOrder} item lines.");
+        }
+
+        if (request.Items.Any(item => item.Quantity < 1 || item.Quantity > MaxQuantityPerItem))
+        {
+            return ApiResults.BadRequest(
+                "ORDER_ITEM_QUANTITY_INVALID",
+                $"Order item quantity must be between 1 and {MaxQuantityPerItem}.");
+        }
+
+        var requestedMenuItemIds = request.Items
+            .Where(item => !string.IsNullOrWhiteSpace(item.MenuItemId))
+            .Select(item => item.MenuItemId!.Trim())
+            .ToList();
+        if (requestedMenuItemIds.Count != requestedMenuItemIds.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+        {
+            return ApiResults.BadRequest(
+                "ORDER_ITEM_DUPLICATE",
+                "Each menu item can appear only once per order; combine quantities instead.");
         }
 
         if (orderType == OrderType.DineIn)
