@@ -49,4 +49,4 @@ public sealed record CreateOrderCommand(
 
 public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order, string? ErrorCode = null);
 
-public sealed record UpdateOrderItemStatusResult(bool IsOrderFound, bool IsItemFound, OrderSnapshot? Order, OrderItemSnapshot? Item);
+public sealed record UpdateOrderItemStatusResult(bool IsOrderFound, bool IsItemFound, OrderSnapshot? Order, OrderItemSnapshot? Item, string? ErrorCode = null);
