@@ -82,6 +82,15 @@ export async function confirmOrderPayment(orderCode: string, note?: string): Pro
   return api.payments.confirm(orderCode, { note }) as Promise<PaymentResponse>;
 }
 
+export async function refundOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {
+  return api.payments.refund(orderCode, { note }) as Promise<PaymentResponse>;
+}
+
+// A collected payment (Confirmed/Paid) can be reversed by staff/admin; once Refunded it is terminal.
+export function isRefundable(order: OrderTrackingOrder): boolean {
+  return order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid";
+}
+
 // An order needs staff to collect/resolve payment when it is not already paid and
 // either a payment attempt is open (Pending/Failed) or the order has reached the
 // customer (Served/Delivering/Delivered/Completed) still unpaid.
