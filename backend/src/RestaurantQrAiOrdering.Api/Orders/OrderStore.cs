@@ -72,7 +72,14 @@ public sealed class OrderStore : IOrderStore
 
         foreach (var requestItem in command.Items)
         {
-            var menuItem = menuItems[requestItem.MenuItemId!.Trim()];
+            // Endpoint validation already checked availability, but a menu item can be
+            // deactivated or deleted in the gap before we load it here. Fail with a typed
+            // domain error instead of a raw KeyNotFoundException (HTTP 500).
+            if (!menuItems.TryGetValue(requestItem.MenuItemId!.Trim(), out var menuItem))
+            {
+                throw new MenuItemUnavailableException(requestItem.MenuItemId!.Trim());
+            }
+
             order.OrderItems.Add(new OrderItem
             {
                 Id = $"oi_{Guid.NewGuid():N}",
@@ -136,6 +143,21 @@ public sealed class OrderStore : IOrderStore
         order.UpdatedAt = now;
         AppendStatusHistory(order, fromStatus, status, OrderStatusChangeSource.Status, actor, note: null, now);
 
+        // Cancelling an order cancels its still-pending items so item state never
+        // contradicts the order state. (Cancellation is blocked once any item has
+        // progressed past Pending, so only Pending items remain to cascade.)
+        if (status == OrderStatus.Cancelled)
+        {
+            CancelPendingItems(order, now);
+        }
+
+        // Stage the table-session close in the same unit of work as the status change so
+        // a completed order and its closed session commit (or roll back) atomically.
+        if (status == OrderStatus.Completed && order.TableSessionId is not null)
+        {
+            CloseTableSessionIfLastActiveOrder(order, now);
+        }
+
         try
         {
             db.SaveChanges();
@@ -143,11 +165,6 @@ public sealed class OrderStore : IOrderStore
         catch (DbUpdateConcurrencyException)
         {
             return new UpdateOrderStatusResult(true, ToSnapshot(order), "CONFLICT_STALE");
-        }
-
-        if (status == OrderStatus.Completed && order.TableSessionId is not null)
-        {
-            CloseTableSessionIfLastActiveOrder(order, now);
         }
 
         return new UpdateOrderStatusResult(true, ToSnapshot(order));
@@ -169,11 +186,25 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
         }
 
+        if (!CanTransitionItem(item.Status, status))
+        {
+            return new UpdateOrderItemStatusResult(
+                true, true, ToSnapshot(order), null, "ORDER_ITEM_STATUS_TRANSITION_INVALID");
+        }
+
         var now = DateTimeOffset.UtcNow;
         item.Status = status;
         item.UpdatedAt = now;
         order.UpdatedAt = now;
-        db.SaveChanges();
+
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new UpdateOrderItemStatusResult(true, true, ToSnapshot(order), null, "CONFLICT_STALE");
+        }
 
         var orderSnapshot = ToSnapshot(order);
         var itemSnapshot = orderSnapshot.Items.First(snapshot =>
@@ -279,6 +310,8 @@ public sealed class OrderStore : IOrderStore
 
     // Once an order completes, close its table session unless another order on the same
     // session is still active (so a shared seating stays open until everyone is done).
+    // Mutations are staged on tracked entities; the caller's SaveChanges commits them
+    // together with the order status change.
     private void CloseTableSessionIfLastActiveOrder(Order order, DateTimeOffset now)
     {
         var hasOtherActiveOrder = db.Orders.Any(other =>
@@ -301,16 +334,12 @@ public sealed class OrderStore : IOrderStore
         session.Status = TableSessionStatus.Closed;
         session.ClosedAt = now;
         session.UpdatedAt = now;
-        db.SaveChanges();
     }
 
+    // No-op transitions (current == next) return false: re-sending the same status is
+    // rejected so we don't append duplicate history rows or emit spurious events.
     private static bool CanTransition(OrderStatus current, OrderStatus next)
     {
-        if (current == next)
-        {
-            return true;
-        }
-
         if (next == OrderStatus.Cancelled)
         {
             return current is OrderStatus.Draft or OrderStatus.Placed or OrderStatus.Confirmed;
@@ -326,6 +355,39 @@ public sealed class OrderStore : IOrderStore
             OrderStatus.Served => next is OrderStatus.Completed,
             _ => false
         };
+    }
+
+    // Items move forward only (skips like Pending -> Ready are allowed for fast kitchens).
+    // Backward moves, no-ops, and changes out of a terminal state (Served/Cancelled) are
+    // rejected. An item can be cancelled while still Pending or Preparing.
+    private static bool CanTransitionItem(OrderItemStatus current, OrderItemStatus next)
+    {
+        if (next == OrderItemStatus.Cancelled)
+        {
+            return current is OrderItemStatus.Pending or OrderItemStatus.Preparing;
+        }
+
+        return current switch
+        {
+            OrderItemStatus.Pending => next is OrderItemStatus.Preparing
+                or OrderItemStatus.Ready
+                or OrderItemStatus.Served,
+            OrderItemStatus.Preparing => next is OrderItemStatus.Ready or OrderItemStatus.Served,
+            OrderItemStatus.Ready => next is OrderItemStatus.Served,
+            _ => false
+        };
+    }
+
+    private static void CancelPendingItems(Order order, DateTimeOffset now)
+    {
+        foreach (var item in order.OrderItems)
+        {
+            if (item.Status == OrderItemStatus.Pending)
+            {
+                item.Status = OrderItemStatus.Cancelled;
+                item.UpdatedAt = now;
+            }
+        }
     }
 
     private static bool IsCancellationLocked(Order order)
@@ -432,4 +494,17 @@ public sealed class OrderStore : IOrderStore
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
+}
+
+// Raised when a menu item passes endpoint validation but is gone by the time the order is
+// built (deactivated/deleted in the gap). Mapped to MENU_ITEM_UNAVAILABLE by the endpoint.
+public sealed class MenuItemUnavailableException : Exception
+{
+    public MenuItemUnavailableException(string menuItemId)
+        : base($"Menu item '{menuItemId}' is no longer available.")
+    {
+        MenuItemId = menuItemId;
+    }
+
+    public string MenuItemId { get; }
 }
