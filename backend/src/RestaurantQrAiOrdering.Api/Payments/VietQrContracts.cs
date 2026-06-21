@@ -37,3 +37,5 @@ public sealed record VietQrResponse(
 public sealed record ConfirmPaymentRequest(string? ProviderTransactionId, string? Note);
 
 public sealed record FailPaymentRequest(string? Note);
+
+public sealed record RefundPaymentRequest(string? Note);
