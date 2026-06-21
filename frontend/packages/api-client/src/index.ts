@@ -14,6 +14,7 @@ import type {
   OrderListResponse,
   OrderStatus,
   Payment,
+  RefundPaymentRequest,
   RegisterRequest,
   ResetPasswordRequest,
   Table,
@@ -93,6 +94,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`, { method: "POST", body: JSON.stringify(payload) }),
       fail: (orderCode: string, payload: { note?: string | null } = {}) =>
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/fail`, { method: "POST", body: JSON.stringify(payload) }),
+      refund: (orderCode: string, payload: RefundPaymentRequest = {}) =>
+        request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/refund`, { method: "POST", body: JSON.stringify(payload) }),
     },
     categories: {
       list: () => request<AdminCategory[]>("/admin/categories"),

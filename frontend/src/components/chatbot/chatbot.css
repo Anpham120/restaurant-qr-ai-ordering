@@ -89,7 +89,7 @@
 
 .cmc-chat-message.customer {
   align-self: flex-end;
-  background: var(--cmc-orange);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
@@ -124,7 +124,7 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--cmc-orange);
+  background: var(--color-primary);
   animation: cmc-chat-pulse 1s infinite ease-in-out;
 }
 
@@ -155,7 +155,7 @@
 }
 
 .cmc-chat-composer textarea:focus {
-  border-color: var(--cmc-orange);
+  border-color: var(--color-primary);
   outline: 3px solid rgba(0, 91, 172, 0.14);
 }
 
@@ -176,7 +176,7 @@
 }
 
 .cmc-chat-button.primary {
-  background: var(--cmc-orange);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
@@ -232,7 +232,7 @@
 }
 
 .cmc-suggestion-eyebrow {
-  color: var(--cmc-orange);
+  color: var(--color-primary);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.08em;
