@@ -142,6 +142,19 @@
 .landing-page :is(a, button):focus-visible { outline: 3px solid var(--landing-cyan); outline-offset: 4px; }
 .landing-page :is(a, button) { touch-action: manipulation; -webkit-tap-highlight-color: rgba(8, 188, 239, .18); }
 
+/* Reveal-on-scroll (driven by useScrollReveal): hidden until the observer
+   adds .is-visible, then each element fades + rises into place with an
+   optional per-element stagger via --reveal-index. */
+.landing-page [data-reveal] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity .6s var(--ease-decelerate, ease),
+    transform .6s var(--ease-decelerate, ease);
+  transition-delay: calc(var(--reveal-index, 0) * 90ms);
+}
+.landing-page [data-reveal].is-visible { opacity: 1; transform: none; }
+
 @media (max-width: 900px) {
   .landing-hero-copy { width: min(680px, 72%); }
   .signature-list { grid-template-columns: 1fr; gap: 42px; }
@@ -181,4 +194,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .landing-page *, .landing-page *::before, .landing-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+  .landing-page [data-reveal] { opacity: 1; transform: none; }
 }
