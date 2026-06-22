@@ -66,18 +66,18 @@ export function OrderTrackingPage() {
     return [
       {
         label: "Trạng thái đơn",
-        value: order?.status ?? "Loading",
+        value: eventStatusLabels[order?.status ?? ""] ?? "Đang tải",
         detail: "Cập nhật theo trạng thái hiện tại",
       },
       {
-        label: "Món đang bếp",
+        label: "Món đang chế biến",
         value: String(items.filter((item) => item.status === "Preparing").length),
         detail: "Theo dõi trạng thái chế biến",
       },
       {
-        label: "Món Ready",
+        label: "Món sẵn sàng",
         value: String(items.filter((item) => item.status === "Ready").length),
-        detail: "Không cần reload trang",
+        detail: "Cập nhật thời gian thực",
       },
     ];
   }, [order]);
@@ -95,7 +95,7 @@ export function OrderTrackingPage() {
           <p>Đang cập nhật trạng thái cho {orderCode}.</p>
         </div>
         <span className={`connection-pill connection-${connectionStatus}`}>
-          {connectionStatus}
+          {connectionStatus === "connected" ? "Đã kết nối" : connectionStatus === "reconnecting" ? "Đang kết nối lại" : "Lỗi kết nối"}
         </span>
       </section>
 
@@ -115,6 +115,14 @@ export function OrderTrackingPage() {
     </PageShell>
   );
 }
+
+const itemStatusLabels: Record<OrderItemStatus, string> = {
+  Pending: "Chờ xử lý",
+  Preparing: "Đang chế biến",
+  Ready: "Sẵn sàng",
+  Served: "Đã phục vụ",
+  Cancelled: "Đã hủy",
+};
 
 const itemStatusDescriptions: Record<OrderItemStatus, string> = {
   Pending: "Bếp đã nhận món và đang xếp hàng xử lý.",
@@ -196,13 +204,13 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
     (order.paymentStatus === "Unpaid" || order.paymentStatus === "Pending");
 
   return (
-    <section className="order-tracking-panel" aria-label="Customer order tracking">
+    <section className="order-tracking-panel" aria-label="Theo dõi đơn hàng">
       <div className="tracking-summary-card">
         <div>
-          <p className="tracking-kicker">Order tracking</p>
+          <p className="tracking-kicker">Theo dõi đơn</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} - {order.status}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} – {eventStatusLabels[order.status] ?? order.status}
           </span>
         </div>
         <strong>
@@ -254,7 +262,7 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
               </p>
             </div>
             <span className={`status-pill status-${item.status.toLowerCase()}`}>
-              {item.status}
+              {itemStatusLabels[item.status] ?? item.status}
             </span>
           </article>
         ))}

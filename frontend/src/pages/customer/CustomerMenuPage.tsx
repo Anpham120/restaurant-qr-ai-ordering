@@ -196,7 +196,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
           </div>
         </div>
         {heroItems.length > 0 ? (
-          <div className="cmc-hero-collage" aria-label="Featured dishes">
+          <div className="cmc-hero-collage" aria-label="Món nổi bật">
             {heroItems.slice(0, 3).map((item) => (
               <img alt={item.name} key={item.id} src={item.imageUrl} />
             ))}
@@ -218,10 +218,10 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         </Link>
       </section>
 
-      <section className="cmc-home-flow" aria-label="Customer order journey">
+      <section className="cmc-home-flow" aria-label="Hành trình gọi món">
         <div className="cmc-section-title">
           <h3>Luồng gọi món dành cho khách</h3>
-          <span>{tableCode ? `Bàn ${tableCode}` : "QR / Pickup"}</span>
+          <span>{tableCode ? `Bàn ${tableCode}` : "QR / Mang về"}</span>
         </div>
         <div className="cmc-home-steps">
           <article className="cmc-step-card">
@@ -242,13 +242,13 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
             <span>Bước 3</span>
             <h3>Theo dõi trạng thái món</h3>
             <p>
-              Sau khi gửi đơn, khách có thể mở trang tracking và xem cập nhật realtime.
+              Sau khi gửi đơn, khách theo dõi trạng thái món và xem cập nhật thời gian thực.
             </p>
           </article>
         </div>
       </section>
 
-      <section className="cmc-menu-toolbar" aria-label="Menu filters">
+      <section className="cmc-menu-toolbar" aria-label="Bộ lọc thực đơn">
         {menuError ? <p className="cmc-inline-error">{menuError}</p> : null}
         {sessionNotice ? (
           <p className="cmc-inline-error" role="alert">
@@ -274,7 +274,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
       </section>
 
       {search.trim().length === 0 && selectedCategory === ALL_CATEGORY ? (
-        <section className="cmc-featured-strip" aria-label="Featured menu items">
+        <section className="cmc-featured-strip" aria-label="Món gợi ý hôm nay">
           <div className="cmc-section-title">
             <h3>Gợi ý hôm nay</h3>
             <span>{featuredItems.length} món nổi bật</span>
@@ -332,7 +332,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
           )}
         </section>
 
-        <aside className="cmc-cart-panel side" aria-label="Cart summary">
+        <aside className="cmc-cart-panel side" aria-label="Tóm tắt giỏ hàng">
           <h3>Giỏ hàng</h3>
           <p>Kiểm tra nhanh số lượng và tổng tiền trước khi sang bước xác nhận.</p>
           <div className="cmc-cart-list">
