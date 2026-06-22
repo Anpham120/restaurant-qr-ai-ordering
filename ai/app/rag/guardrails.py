@@ -11,18 +11,61 @@ ORDER_CREATION_PATTERNS = [
     r"\bthem\s+vao\s+gio\b",
     r"\bthanh\s+toan\b",
     r"\bchot\s+don\b",
+    r"\bgui\s+don\b",
+    r"\bmua\s+luon\b",
+]
+
+OFF_TOPIC_PATTERNS = [
+    r"\bthoi\s+tiet\b",
+    r"\bbong\s+da\b",
+    r"\bchinh\s+tri\b",
+    r"\btin\s+tuc\b",
+    r"\bchung\s+khoan\b",
+    r"\bcrypto\b",
+    r"\bbitcoin\b",
+    r"\blam\s+bai\b",
+    r"\bgiai\s+toan\b",
+    r"\bviet\s+code\b",
+    r"\blap\s+trinh\b",
+]
+
+PROFANITY_PATTERNS = [
+    r"\bdm\b",
+    r"\bvcl\b",
+    r"\bngu\b",
+    r"\bdien\b.*\bchung\b",
+    r"\bmat\s+day\b",
 ]
 
 
 def detect_guardrail_flags(message: str) -> list[str]:
+    """Scan *message* for guardrail-triggering patterns and return flag names.
+
+    Flags:
+    - CUSTOMER_CONFIRMATION_REQUIRED: user intends to place an order via chat.
+    - PRICE_FABRICATION_BLOCKED: user asks AI to fabricate prices.
+    - MENU_FABRICATION_BLOCKED: user asks for items outside the menu.
+    - OUT_OF_SCOPE: message is unrelated to restaurant/food.
+    - PROFANITY_DETECTED: message contains offensive language.
+    """
     normalized = _normalize(message)
     flags: list[str] = []
+
     if any(re.search(pattern, normalized) for pattern in ORDER_CREATION_PATTERNS):
         flags.append("CUSTOMER_CONFIRMATION_REQUIRED")
-    if "gia" in normalized and ("tu tao" in normalized or "bia" in normalized):
+
+    if "gia" in normalized and ("tu tao" in normalized or "bia" in normalized or "re hon" in normalized):
         flags.append("PRICE_FABRICATION_BLOCKED")
-    if "mon moi" in normalized or "ngoai thuc don" in normalized:
+
+    if "mon moi" in normalized or "ngoai thuc don" in normalized or "tu nghi" in normalized:
         flags.append("MENU_FABRICATION_BLOCKED")
+
+    if any(re.search(pattern, normalized) for pattern in OFF_TOPIC_PATTERNS):
+        flags.append("OUT_OF_SCOPE")
+
+    if any(re.search(pattern, normalized) for pattern in PROFANITY_PATTERNS):
+        flags.append("PROFANITY_DETECTED")
+
     return flags
 
 
