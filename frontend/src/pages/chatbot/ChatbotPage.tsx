@@ -224,6 +224,9 @@ export function ChatbotPage() {
                     imageUrl={
                       menuData.items.find((item) => item.id === action.menuItemId)?.imageUrl ?? null
                     }
+                    isAvailable={
+                      menuData.items.find((item) => item.id === action.menuItemId)?.isAvailable ?? true
+                    }
                     onConfirm={confirmSuggestedAction}
                     onDismiss={dismissSuggestedAction}
                   />
