@@ -13,7 +13,9 @@ public sealed record ChatAiRequest(
 
 public sealed record ChatAiResult(
     string Content,
-    bool ProviderAvailable);
+    bool ProviderAvailable,
+    IReadOnlyList<SuggestedCartActionResponse>? SuggestedCartActions = null,
+    IReadOnlyList<string>? GuardrailFlags = null);
 
 public interface IChatAiProvider
 {
@@ -107,7 +109,9 @@ public sealed class NineRouterChatProvider : IChatAiProvider
                 var content = ExtractAssistantContent(payload.RootElement);
                 if (!string.IsNullOrWhiteSpace(content))
                 {
-                    return new ChatAiResult(content.Trim(), ProviderAvailable: true);
+                    // Try to parse structured JSON from LLM (content may be JSON)
+                    var (parsedContent, actions, flags) = TryParseStructuredContent(content.Trim(), request.AvailableMenuItems);
+                    return new ChatAiResult(parsedContent, ProviderAvailable: true, actions, flags);
                 }
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
@@ -174,7 +178,9 @@ public sealed class NineRouterChatProvider : IChatAiProvider
                 var content = ExtractPythonRagContent(json.RootElement);
                 if (!string.IsNullOrWhiteSpace(content))
                 {
-                    return new ChatAiResult(content.Trim(), ProviderAvailable: ExtractProviderAvailable(json.RootElement));
+                    var actions = ExtractPythonSuggestedActions(json.RootElement, request.AvailableMenuItems);
+                    var flags = ExtractPythonGuardrailFlags(json.RootElement);
+                    return new ChatAiResult(content.Trim(), ProviderAvailable: ExtractProviderAvailable(json.RootElement), actions, flags);
                 }
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
@@ -271,6 +277,78 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             && providerAvailable.ValueKind == JsonValueKind.True;
     }
 
+    private static List<SuggestedCartActionResponse> ExtractPythonSuggestedActions(
+        JsonElement root, IReadOnlyList<MenuItem> availableMenuItems)
+    {
+        var results = new List<SuggestedCartActionResponse>();
+        if (!root.TryGetProperty("suggested_cart_actions", out var actionsElement)
+            || actionsElement.ValueKind != JsonValueKind.Array)
+        {
+            return results;
+        }
+
+        var availableIds = new HashSet<string>(availableMenuItems.Select(m => m.Id));
+        var menuLookup = availableMenuItems.ToDictionary(m => m.Id);
+
+        foreach (var action in actionsElement.EnumerateArray())
+        {
+            var menuItemId = action.TryGetProperty("menu_item_id", out var mid) ? mid.GetString() ?? "" : "";
+            if (!availableIds.Contains(menuItemId)) continue;
+
+            var menuItem = menuLookup[menuItemId];
+            var name = action.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
+                ? n.GetString() ?? menuItem.Name : menuItem.Name;
+            var quantity = action.TryGetProperty("quantity", out var q) && q.TryGetInt32(out var qv)
+                ? Math.Clamp(qv, 1, 20) : 1;
+            var reason = action.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String
+                ? r.GetString() ?? "" : "";
+
+            results.Add(new SuggestedCartActionResponse(
+                menuItemId, name, menuItem.Price, quantity, reason,
+                RequiresCustomerConfirmation: true));
+        }
+        return results;
+    }
+
+    private static List<string> ExtractPythonGuardrailFlags(JsonElement root)
+    {
+        var results = new List<string>();
+        if (!root.TryGetProperty("guardrail_flags", out var flagsElement)
+            || flagsElement.ValueKind != JsonValueKind.Array)
+        {
+            return results;
+        }
+        foreach (var flag in flagsElement.EnumerateArray())
+        {
+            if (flag.ValueKind == JsonValueKind.String)
+            {
+                var value = flag.GetString()?.Trim();
+                if (!string.IsNullOrEmpty(value)) results.Add(value);
+            }
+        }
+        return results;
+    }
+
+    private static (string Content, List<SuggestedCartActionResponse> Actions, List<string> Flags)
+        TryParseStructuredContent(string rawContent, IReadOnlyList<MenuItem> availableMenuItems)
+    {
+        // LLM may return JSON with content + suggested_cart_actions
+        try
+        {
+            using var doc = JsonDocument.Parse(rawContent);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("content", out var contentEl) && contentEl.ValueKind == JsonValueKind.String)
+            {
+                var content = contentEl.GetString()?.Trim() ?? rawContent;
+                var actions = ExtractPythonSuggestedActions(root, availableMenuItems);
+                var flags = ExtractPythonGuardrailFlags(root);
+                return (content, actions, flags);
+            }
+        }
+        catch (JsonException) { /* not JSON, use raw content */ }
+        return (rawContent, [], []);
+    }
+
     private static ChatAiResult Unavailable()
     {
         return new ChatAiResult(
@@ -329,12 +407,27 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["AI_PROVIDER_UNAVAILABLE"]);
         }
 
-        var suggestedAction = BuildSuggestedAction(normalizedMessage, availableMenuItems);
-        var guardrailFlags = suggestedAction is null ? [] : new[] { "CUSTOMER_CONFIRMATION_REQUIRED" };
+        // Use AI-provided suggestions if available, fallback to string-matching
+        IReadOnlyList<SuggestedCartActionResponse> suggestedActions;
+        if (providerResult.SuggestedCartActions is { Count: > 0 } aiActions)
+        {
+            suggestedActions = aiActions;
+        }
+        else
+        {
+            var fallbackAction = BuildSuggestedAction(normalizedMessage, availableMenuItems);
+            suggestedActions = fallbackAction is null ? [] : [fallbackAction];
+        }
+
+        var guardrailFlags = new List<string>(providerResult.GuardrailFlags ?? []);
+        if (suggestedActions.Count > 0 && !guardrailFlags.Contains("CUSTOMER_CONFIRMATION_REQUIRED"))
+        {
+            guardrailFlags.Add("CUSTOMER_CONFIRMATION_REQUIRED");
+        }
 
         return new ChatAssistantReply(
             providerResult.Content,
-            suggestedAction is null ? [] : [suggestedAction],
+            suggestedActions,
             guardrailFlags);
     }
 
