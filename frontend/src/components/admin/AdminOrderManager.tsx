@@ -105,7 +105,7 @@ export function AdminOrderManager() {
     }
 
     try {
-      await confirmOrderPayment(selectedOrder.code, "Confirmed from admin order manager");
+      await confirmOrderPayment(selectedOrder.code, "Xác nhận từ quản trị viên");
       await reloadOrders(selectedOrder.code);
     } catch {
       setError("Không thể xác nhận thanh toán.");
@@ -118,7 +118,7 @@ export function AdminOrderManager() {
     }
 
     try {
-      await failOrderPayment(selectedOrder.code, "Rejected from admin order manager");
+      await failOrderPayment(selectedOrder.code, "Từ chối từ quản trị viên");
       await reloadOrders(selectedOrder.code);
     } catch {
       setError("Không thể từ chối thanh toán.");

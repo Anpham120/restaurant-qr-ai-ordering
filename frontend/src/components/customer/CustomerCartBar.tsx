@@ -11,7 +11,7 @@ export function CustomerCartBar({ itemCount, totalPrice }: CustomerCartBarProps)
   }
 
   return (
-    <aside className="cmc-cart-bar" aria-label="Cart summary">
+    <aside className="cmc-cart-bar" aria-label="Tóm tắt giỏ hàng">
       <div>
         <span>{itemCount} món trong giỏ</span>
         <strong>{formatVnd(totalPrice)}</strong>

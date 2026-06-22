@@ -94,9 +94,9 @@ export function KitchenRealtimePage() {
 
   return (
     <PageShell
-      eyebrow="Kitchen realtime"
+      eyebrow="Theo dõi bếp"
       title="Bảng bếp CMC"
-      description="Bếp nhận món theo cột Pending, Preparing, Ready và cập nhật trạng thái để khách cùng nhân viên theo dõi."
+      description="Bếp nhận món theo cột Chờ, Đang chế biến, Sẵn sàng và cập nhật trạng thái để khách cùng nhân viên theo dõi."
       variant="kitchen"
       stats={stats}
     >

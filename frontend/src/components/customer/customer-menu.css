@@ -2470,3 +2470,173 @@
     transform: none;
   }
 }
+
+/* ================================================================
+   CUSTOMER ANIMATION LAYER
+   Smooth transitions + entrance animations for customer surfaces.
+   All gated by prefers-reduced-motion at the bottom of this block.
+   ================================================================ */
+
+/* --- Chip / category tab smooth transition --- */
+.cmc-chip {
+  transition:
+    background-color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    border-color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 160ms) var(--ease-standard, ease);
+}
+
+.cmc-chip:hover:not(.active) {
+  background-color: var(--color-soft, #eaf7fc);
+}
+
+/* --- Category tabs smooth horizontal scroll --- */
+.cmc-category-tabs {
+  scroll-behavior: smooth;
+}
+
+/* --- Order-type tab smooth transition --- */
+.cmc-order-type-tabs button {
+  transition:
+    background-color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    border-color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 160ms) var(--ease-standard, ease);
+}
+
+/* --- Menu card staggered entrance --- */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cmc-menu-grid .cmc-menu-card {
+  animation: card-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+.cmc-menu-grid .cmc-menu-card:nth-child(1) { animation-delay: 0ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(2) { animation-delay: 40ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(3) { animation-delay: 80ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(4) { animation-delay: 120ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(5) { animation-delay: 160ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(6) { animation-delay: 200ms; }
+.cmc-menu-grid .cmc-menu-card:nth-child(n+7) { animation-delay: 240ms; }
+
+/* --- Featured card staggered entrance --- */
+.cmc-featured-list .cmc-featured-card {
+  animation: card-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+.cmc-featured-list .cmc-featured-card:nth-child(1) { animation-delay: 0ms; }
+.cmc-featured-list .cmc-featured-card:nth-child(2) { animation-delay: 60ms; }
+.cmc-featured-list .cmc-featured-card:nth-child(3) { animation-delay: 120ms; }
+.cmc-featured-list .cmc-featured-card:nth-child(4) { animation-delay: 180ms; }
+.cmc-featured-list .cmc-featured-card:nth-child(5) { animation-delay: 240ms; }
+.cmc-featured-list .cmc-featured-card:nth-child(6) { animation-delay: 300ms; }
+
+/* --- Cart bar slide-up entrance (mobile) --- */
+@keyframes cart-bar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cmc-cart-bar {
+  animation: cart-bar-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+/* --- Step card staggered entrance --- */
+.cmc-home-steps .cmc-step-card {
+  animation: card-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+.cmc-home-steps .cmc-step-card:nth-child(1) { animation-delay: 0ms; }
+.cmc-home-steps .cmc-step-card:nth-child(2) { animation-delay: 80ms; }
+.cmc-home-steps .cmc-step-card:nth-child(3) { animation-delay: 160ms; }
+
+/* --- AI CTA banner entrance --- */
+.cmc-ai-cta-banner {
+  animation: card-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+  animation-delay: 100ms;
+}
+
+/* --- Hero collage subtle entrance --- */
+@keyframes hero-collage-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cmc-menu-hero .cmc-hero-collage {
+  animation: hero-collage-enter 500ms var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+  animation-delay: 150ms;
+}
+
+/* --- Cart row enter animation --- */
+.cmc-cart-list .cmc-cart-row {
+  animation: card-enter 240ms var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+/* --- Submit button pulse on enable --- */
+@keyframes submit-ready {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.cmc-submit-order:not(:disabled) {
+  animation: submit-ready 400ms var(--ease-standard, ease) both;
+}
+
+/* --- Success state entrance --- */
+.cmc-success-state {
+  animation: card-enter var(--duration-slow, 320ms) var(--ease-decelerate, cubic-bezier(0, 0, 0.2, 1)) both;
+}
+
+/* --- Search input focus glow --- */
+.cmc-search-input {
+  transition:
+    border-color var(--duration-fast, 160ms) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 160ms) var(--ease-standard, ease);
+}
+
+.cmc-search-input:focus {
+  box-shadow: 0 0 0 3px rgba(0, 91, 172, 0.12);
+}
+
+/* --- Reduced motion: disable ALL customer animations --- */
+@media (prefers-reduced-motion: reduce) {
+  .cmc-chip,
+  .cmc-order-type-tabs button,
+  .cmc-search-input {
+    transition: none;
+  }
+
+  .cmc-menu-grid .cmc-menu-card,
+  .cmc-featured-list .cmc-featured-card,
+  .cmc-cart-bar,
+  .cmc-home-steps .cmc-step-card,
+  .cmc-ai-cta-banner,
+  .cmc-menu-hero .cmc-hero-collage,
+  .cmc-cart-list .cmc-cart-row,
+  .cmc-submit-order:not(:disabled),
+  .cmc-success-state {
+    animation: none;
+  }
+}

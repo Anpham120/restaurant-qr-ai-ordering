@@ -248,7 +248,7 @@ export function CustomerCartPage() {
       </header>
 
       <div className="cmc-checkout-layout">
-        <div className="cmc-cart-panel" aria-label="Cart details">
+        <div className="cmc-cart-panel" aria-label="Chi tiết giỏ hàng">
           <div className="cmc-section-title">
             <h3>Món đã chọn</h3>
             <span>{selectedItems.length} món</span>
@@ -309,7 +309,7 @@ export function CustomerCartPage() {
             <span>{orderTypeDetails.shortLabel}</span>
           </div>
 
-          <div className="cmc-order-type-tabs" role="tablist" aria-label="Order type">
+          <div className="cmc-order-type-tabs" role="tablist" aria-label="Hình thức đặt món">
             {(["DineIn", "Pickup"] as ActiveOrderType[]).map((type) => (
               <button
                 aria-selected={orderType === type}
@@ -378,7 +378,7 @@ export function CustomerCartPage() {
 
           <div className="cmc-checkout-note">
             <strong>Phương thức thanh toán</strong>
-            <div className="cmc-order-type-tabs" role="tablist" aria-label="Payment method">
+            <div className="cmc-order-type-tabs" role="tablist" aria-label="Phương thức thanh toán">
               {(["COD", "VietQR"] as PaymentMethod[]).map((method) => (
                 <button
                   aria-selected={paymentMethod === method}
