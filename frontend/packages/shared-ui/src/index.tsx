@@ -365,7 +365,7 @@ export function LoginPage({
       <div className="cmc-login-premium">
         <section className="cmc-form-section">
           <Card className="cmc-login-card">
-            <p className="cmc-eyebrow">{portalName}</p>
+            <h1 className="cmc-eyebrow">{portalName}</h1>
             <h2>Đăng nhập hệ thống</h2>
             <p>Nhập email và mật khẩu tài khoản vận hành.</p>
             <form onSubmit={submit}>
