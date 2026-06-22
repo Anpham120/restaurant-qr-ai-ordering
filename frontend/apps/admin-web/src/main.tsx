@@ -47,7 +47,7 @@ const router = createBrowserRouter([
     path: "/login",
     element: (
       <LoginPage
-        portalName="CMC Operations"
+        portalName="Admin Portal"
         allowedRoles={["Admin", "Staff", "Kitchen"]}
         roleRedirects={roleRedirects}
       />
