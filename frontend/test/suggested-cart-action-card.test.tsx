@@ -32,7 +32,7 @@ describe("SuggestedCartActionCard", () => {
       "https://cdn.example/pho.jpg",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận thêm vào giỏ" }));
+    fireEvent.click(screen.getByRole("button", { name: "Thêm vào giỏ" }));
     expect(onConfirm).toHaveBeenCalledWith(action);
   });
 
@@ -48,5 +48,40 @@ describe("SuggestedCartActionCard", () => {
     );
 
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("increments quantity and sends the updated amount on confirm", () => {
+    const onConfirm = vi.fn();
+    render(
+      <SuggestedCartActionCard
+        action={action}
+        status="pending"
+        imageUrl={null}
+        onConfirm={onConfirm}
+        onDismiss={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+    fireEvent.click(screen.getByRole("button", { name: "Thêm vào giỏ" }));
+
+    expect(onConfirm).toHaveBeenCalledWith({ ...action, quantity: 3 });
+  });
+
+  it("disables ordering when the dish is unavailable", () => {
+    render(
+      <SuggestedCartActionCard
+        action={action}
+        status="pending"
+        imageUrl={null}
+        isAvailable={false}
+        onConfirm={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Tạm hết hàng")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thêm vào giỏ" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Bỏ qua" })).toBeInTheDocument();
   });
 });

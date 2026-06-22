@@ -1761,7 +1761,7 @@
 }
 
 .cmc-cart-page {
-  max-width: 1100px;
+  /* width controlled by parent .customer-content (same as .customer-topbar) */
 }
 
 .cmc-cart-page .cmc-cart-panel {
@@ -1819,8 +1819,8 @@
 
 .cmc-checkout-layout {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 28px;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
   align-items: start;
 }
 
