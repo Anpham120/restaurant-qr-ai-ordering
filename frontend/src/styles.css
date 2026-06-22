@@ -2943,3 +2943,55 @@ input {
 .ops-order-table .table-row {
   grid-template-columns: 1fr 0.7fr 0.7fr 0.7fr 0.6fr;
 }
+
+/* U3 admin motion — entrance choreography for the dashboard + manager surfaces.
+   Stat cards and dashboard panels fade up on mount with a brief staggered
+   cascade; manager rows/cards fade up as they render. Scoped to operator/admin
+   (.operations-shell + .ops-/.admin- classes) so the customer surface is left
+   as-is. The global prefers-reduced-motion reset in @cmc/shared-ui neutralises
+   all of it. */
+.cmc-portal-content .stat-card {
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
+}
+
+.cmc-portal-content .stat-card:nth-child(2) { animation-delay: 60ms; }
+.cmc-portal-content .stat-card:nth-child(3) { animation-delay: 120ms; }
+.cmc-portal-content .stat-card:nth-child(4) { animation-delay: 180ms; }
+
+.ops-dashboard-grid > * {
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
+}
+
+.ops-dashboard-grid > *:nth-child(2) { animation-delay: 70ms; }
+.ops-dashboard-grid > *:nth-child(3) { animation-delay: 140ms; }
+.ops-dashboard-grid > *:nth-child(4) { animation-delay: 210ms; }
+
+.ops-feature-card {
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
+}
+
+.ops-feature-card:nth-child(2) { animation-delay: 60ms; }
+.ops-feature-card:nth-child(3) { animation-delay: 120ms; }
+
+.admin-panel,
+.admin-menu-row,
+.admin-order-card,
+.qr-table-card {
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
+}
+
+/* U3 admin polish — hover feedback on the flat interactive controls (filter
+   chips, row-action buttons, order-list cards), matching the existing
+   .admin-category-card / .admin-role-option pattern. Border/colour only, no
+   transform; the global prefers-reduced-motion reset drops the transition. */
+.admin-chip,
+.admin-row-actions button,
+.admin-order-card {
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.admin-chip:not(.active):hover,
+.admin-row-actions button:hover,
+.admin-order-card:not(.active):hover {
+  border-color: var(--color-primary);
+}
