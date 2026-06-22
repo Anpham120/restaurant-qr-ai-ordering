@@ -2995,3 +2995,96 @@ input {
 .admin-order-card:not(.active):hover {
   border-color: var(--color-primary);
 }
+
+/* ============================================================
+   Operator/Admin visual modernization — scoped to the real shell
+   wrapper .cmc-portal-content (the legacy .operations-shell rules
+   higher up never matched the @cmc/shared-ui layout, so the intended
+   header/stat treatment never rendered). Palette unchanged; richer
+   spacing, hierarchy and elevation so the surfaces read as modernized,
+   not only animated. Hover uses shadow/border only (no transform) so
+   the global prefers-reduced-motion reset is sufficient.
+   ============================================================ */
+.cmc-portal-content .page-shell {
+  gap: var(--space-5);
+}
+
+.cmc-portal-content .page-heading {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  background:
+    radial-gradient(120% 150% at 100% 0%, rgba(8, 188, 239, 0.12), transparent 48%),
+    linear-gradient(135deg, #ffffff 0%, var(--color-bg) 100%);
+  box-shadow: var(--elevation-1);
+}
+
+.cmc-portal-content .page-heading::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-cyan));
+}
+
+.cmc-portal-content .page-heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  background: #ffffff;
+  color: var(--color-primary);
+}
+
+.cmc-portal-content .page-heading h2 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cmc-portal-content .stat-grid {
+  gap: var(--space-4);
+}
+
+.cmc-portal-content .stat-card {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.cmc-portal-content .stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-cyan));
+}
+
+.cmc-portal-content .stat-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--elevation-3);
+}
+
+.cmc-portal-content .stat-card strong {
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+
+.cmc-portal-content .ops-dashboard-grid,
+.cmc-portal-content .admin-workspace {
+  gap: var(--space-5);
+}
+
+.cmc-portal-content .ops-hero-panel,
+.cmc-portal-content .ops-panel,
+.cmc-portal-content .admin-panel,
+.cmc-portal-content .admin-toolbar {
+  padding: var(--space-5);
+}

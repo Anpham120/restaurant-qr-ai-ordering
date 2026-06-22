@@ -58,7 +58,7 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute allowedRoles={["Admin"]}>
-        <OperationsLayout title="CMC Admin" subtitle="Restaurant Control" links={adminLinks} />
+        <OperationsLayout title="Quản trị CMC" subtitle="Bảng điều khiển nhà hàng" links={adminLinks} />
       </ProtectedRoute>
     ),
     children: [
@@ -74,7 +74,7 @@ const router = createBrowserRouter([
     path: "/staff",
     element: (
       <ProtectedRoute allowedRoles={["Staff", "Admin"]}>
-        <OperationsLayout title="Staff Portal" subtitle="Service Operations" links={staffLinks} />
+        <OperationsLayout title="Nhân viên" subtitle="Quản lý phục vụ" links={staffLinks} />
       </ProtectedRoute>
     ),
     children: [
@@ -86,7 +86,7 @@ const router = createBrowserRouter([
     path: "/kitchen",
     element: (
       <ProtectedRoute allowedRoles={["Kitchen", "Admin"]}>
-        <OperationsLayout title="Bảng bếp" subtitle="Kitchen Realtime" links={kitchenLinks} />
+        <OperationsLayout title="Bảng bếp" subtitle="Theo dõi thời gian thực" links={kitchenLinks} />
       </ProtectedRoute>
     ),
     children: [{ index: true, element: <KitchenPage /> }],

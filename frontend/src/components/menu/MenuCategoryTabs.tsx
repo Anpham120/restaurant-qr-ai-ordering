@@ -10,7 +10,7 @@ export function MenuCategoryTabs({
   onSelectCategory,
 }: MenuCategoryTabsProps) {
   return (
-    <div className="cmc-category-tabs" aria-label="Menu categories">
+    <div className="cmc-category-tabs" aria-label="Danh mục thực đơn">
       {categories.map((category) => (
         <button
           className={category === selectedCategory ? "cmc-chip active" : "cmc-chip"}

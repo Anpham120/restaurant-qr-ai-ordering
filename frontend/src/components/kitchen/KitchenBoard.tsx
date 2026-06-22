@@ -32,7 +32,7 @@ export function KitchenBoard({ orders, onUpdateItemStatus }: KitchenBoardProps) 
   }
 
   return (
-    <div className="realtime-kitchen-board" aria-label="Kitchen realtime board">
+    <div className="realtime-kitchen-board" aria-label="Bảng bếp thời gian thực">
       {kitchenColumns.map((status) => {
         const tickets = orders.flatMap((order) =>
           order.items
@@ -45,7 +45,6 @@ export function KitchenBoard({ orders, onUpdateItemStatus }: KitchenBoardProps) 
             <div className="realtime-lane-heading">
               <div>
                 <h3>{columnLabels[status]}</h3>
-                <p>{status}</p>
               </div>
               <span>{tickets.length} món</span>
             </div>
@@ -61,7 +60,7 @@ export function KitchenBoard({ orders, onUpdateItemStatus }: KitchenBoardProps) 
                   </div>
                   <p>
                     {order.orderCode}
-                    {order.tableCode ? ` - Bàn ${order.tableCode}` : " - Pickup"}
+                    {order.tableCode ? ` - Bàn ${order.tableCode}` : " - Mang về"}
                   </p>
                   <small>Cập nhật: {formatTime(item.updatedAt)}</small>
 

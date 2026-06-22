@@ -29,7 +29,7 @@ export function PageShell({
         <p className="description">{description}</p>
       </div>
       {stats.length > 0 ? (
-        <div className="stat-grid" aria-label={`${title} summary`}>
+        <div className="stat-grid" aria-label={`Tóm tắt ${title}`}>
           {stats.map((stat) => (
             <article className="stat-card" key={stat.label}>
               <p>{stat.label}</p>
