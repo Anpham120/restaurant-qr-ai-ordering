@@ -1,6 +1,6 @@
 # Insight Từ Học Máy Và Khai Phá Dữ Liệu
 
-Knowledge base này liên kết với notebook trong `coursework/ai-ml-data-mining/`.
+Knowledge base này liên kết với notebook trình bày trong `ai/notebooks/ai_rag_presentation.ipynb`.
 
 ## Association Rules
 
