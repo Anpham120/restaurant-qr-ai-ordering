@@ -1761,9 +1761,7 @@
 }
 
 .cmc-cart-page {
-  max-width: 1520px;
-  margin-left: auto;
-  margin-right: auto;
+  /* width controlled by parent .customer-content (same as .customer-topbar) */
 }
 
 .cmc-cart-page .cmc-cart-panel {
