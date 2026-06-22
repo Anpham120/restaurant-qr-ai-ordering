@@ -2979,3 +2979,19 @@ input {
 .qr-table-card {
   animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
 }
+
+/* U3 admin polish — hover feedback on the flat interactive controls (filter
+   chips, row-action buttons, order-list cards), matching the existing
+   .admin-category-card / .admin-role-option pattern. Border/colour only, no
+   transform; the global prefers-reduced-motion reset drops the transition. */
+.admin-chip,
+.admin-row-actions button,
+.admin-order-card {
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.admin-chip:not(.active):hover,
+.admin-row-actions button:hover,
+.admin-order-card:not(.active):hover {
+  border-color: var(--color-primary);
+}
