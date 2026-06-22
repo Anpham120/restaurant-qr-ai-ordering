@@ -82,6 +82,27 @@
   overflow-wrap: anywhere;
 }
 
+.cmc-chat-message-body {
+  display: grid;
+  gap: 8px;
+}
+
+.cmc-chat-message-body ul,
+.cmc-chat-message-body ol {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 4px;
+}
+
+.cmc-chat-message-body li {
+  overflow-wrap: anywhere;
+}
+
+.cmc-chat-message-body strong {
+  font-weight: 800;
+}
+
 .cmc-chat-message.assistant {
   align-self: flex-start;
   border: 1px solid var(--cmc-line);
@@ -233,6 +254,11 @@
   opacity: 0.72;
 }
 
+.cmc-suggestion-card.unavailable {
+  border-color: rgba(180, 35, 24, 0.3);
+  background: #FDF3F1;
+}
+
 .cmc-suggestion-eyebrow {
   color: var(--color-primary);
   font-size: 12px;
@@ -248,6 +274,50 @@
   color: #005BAC;
   font-size: 13px;
   font-weight: 800;
+}
+
+.cmc-suggestion-unavailable {
+  border-radius: 20px;
+  padding: 10px 12px;
+  background: #FDEDEA;
+  color: var(--cmc-danger, #B42318);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cmc-suggestion-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--cmc-line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #ffffff;
+}
+
+.cmc-suggestion-stepper button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: #F2FAFD;
+  color: var(--color-primary);
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cmc-suggestion-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cmc-suggestion-stepper span {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 900;
+  color: var(--cmc-ink);
 }
 
 .cmc-suggestion-card dl {
