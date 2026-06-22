@@ -1761,11 +1761,11 @@
 }
 
 .cmc-cart-page {
-  max-width: 1280px;
+  max-width: 1520px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: clamp(16px, 3vw, 40px);
-  padding-right: clamp(16px, 3vw, 40px);
+  padding-left: clamp(16px, 3vw, 48px);
+  padding-right: clamp(16px, 3vw, 48px);
 }
 
 .cmc-cart-page .cmc-cart-panel {
