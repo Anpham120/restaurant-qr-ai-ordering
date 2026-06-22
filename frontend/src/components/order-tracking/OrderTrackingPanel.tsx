@@ -1,12 +1,27 @@
 import type { OrderItemStatus, OrderTrackingOrder } from "../../types";
 
 const statusDescriptions: Record<OrderItemStatus, string> = {
-  Pending: "Bep da nhan mon va dang xep hang xu ly.",
-  Preparing: "Dau bep dang che bien mon nay.",
-  Ready: "Mon da san sang de phuc vu.",
-  Served: "Mon da duoc phuc vu.",
-  Cancelled: "Mon da huy.",
+  Pending: "Bếp đã nhận món và đang xếp hàng xử lý.",
+  Preparing: "Đầu bếp đang chế biến món này.",
+  Ready: "Món đã sẵn sàng để phục vụ.",
+  Served: "Món đã được phục vụ.",
+  Cancelled: "Món đã hủy.",
 };
+
+const itemStatusLabels: Record<OrderItemStatus, string> = {
+  Pending: "Chờ xử lý",
+  Preparing: "Đang chế biến",
+  Ready: "Sẵn sàng",
+  Served: "Đã phục vụ",
+  Cancelled: "Đã hủy",
+};
+
+const timelineSteps: Array<{ key: string; label: string }> = [
+  { key: "Placed", label: "Đã đặt" },
+  { key: "Preparing", label: "Đang chế biến" },
+  { key: "Ready", label: "Sẵn sàng" },
+  { key: "Served", label: "Đã phục vụ" },
+];
 
 type OrderTrackingPanelProps = {
   order: OrderTrackingOrder;
@@ -16,28 +31,29 @@ export function OrderTrackingPanel({ order }: OrderTrackingPanelProps) {
   const readyCount = order.items.filter((item) => item.status === "Ready").length;
 
   return (
-    <section className="order-tracking-panel" aria-label="Customer order tracking">
+    <section className="order-tracking-panel" aria-label="Theo dõi đơn hàng">
       <div className="tracking-summary-card">
         <div>
-          <p className="tracking-kicker">Order tracking</p>
+          <p className="tracking-kicker">Theo dõi đơn</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? `Ban ${order.tableCode}` : "Pickup"} - {order.status}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} –{" "}
+            {orderStatusLabel(order.status)}
           </span>
         </div>
         <strong>
           {readyCount}/{order.items.length}
-          <small> mon Ready</small>
+          <small> món sẵn sàng</small>
         </strong>
       </div>
 
       <div className="tracking-timeline">
-        {["Placed", "Preparing", "Ready", "Served"].map((status, index) => (
-          <div className={getTimelineClass(order.status, status)} key={status}>
+        {timelineSteps.map((step, index) => (
+          <div className={getTimelineClass(order.status, step.key)} key={step.key}>
             <span>{index + 1}</span>
             <div>
-              <h3>{status}</h3>
-              <p>{getTimelineCopy(status)}</p>
+              <h3>{step.label}</h3>
+              <p>{getTimelineCopy(step.key)}</p>
             </div>
           </div>
         ))}
@@ -49,11 +65,11 @@ export function OrderTrackingPanel({ order }: OrderTrackingPanelProps) {
             <div>
               <strong>{item.name}</strong>
               <p>
-                x{item.quantity} - {statusDescriptions[item.status]}
+                x{item.quantity} – {statusDescriptions[item.status]}
               </p>
             </div>
             <span className={`status-pill status-${item.status.toLowerCase()}`}>
-              {item.status}
+              {itemStatusLabels[item.status]}
             </span>
           </article>
         ))}
@@ -62,16 +78,29 @@ export function OrderTrackingPanel({ order }: OrderTrackingPanelProps) {
   );
 }
 
+function orderStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    Placed: "Đã đặt",
+    Confirmed: "Đã xác nhận",
+    Preparing: "Đang chế biến",
+    Ready: "Sẵn sàng",
+    Served: "Đã phục vụ",
+    Completed: "Hoàn tất",
+    Cancelled: "Đã hủy",
+  };
+  return labels[status] ?? status;
+}
+
 function getTimelineCopy(status: string) {
   switch (status) {
     case "Placed":
-      return "Don da duoc ghi nhan.";
+      return "Đơn đã được ghi nhận.";
     case "Preparing":
-      return "Bep dang xu ly cac mon.";
+      return "Bếp đang xử lý các món.";
     case "Ready":
-      return "Mon san sang de mang ra.";
+      return "Món sẵn sàng để mang ra.";
     default:
-      return "Nhan vien xac nhan phuc vu.";
+      return "Nhân viên xác nhận phục vụ.";
   }
 }
 

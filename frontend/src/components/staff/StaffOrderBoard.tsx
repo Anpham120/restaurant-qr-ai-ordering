@@ -93,14 +93,14 @@ export function StaffOrderBoard() {
 
   async function completeTicket(ticket: StaffTicket) {
     if (ticket.payment !== "Paid") {
-      await confirmOrderPayment(ticket.orderCode, "Confirmed from staff board");
+      await confirmOrderPayment(ticket.orderCode, "Xác nhận từ nhân viên phục vụ");
     }
     await updateOrderStatus(ticket.orderCode, "Completed");
     await reloadTickets();
   }
 
   if (isLoading) {
-    return <div className="staff-workspace"><p>Đang tải đơn cho staff...</p></div>;
+    return <div className="staff-workspace"><p>Đang tải đơn phục vụ...</p></div>;
   }
 
   if (error) {
@@ -111,7 +111,7 @@ export function StaffOrderBoard() {
     <div className="staff-workspace">
       <section className="admin-toolbar">
         <div>
-          <span className="panel-kicker">Staff station</span>
+          <span className="panel-kicker">Trạm phục vụ</span>
           <h3>Luồng phục vụ theo dữ liệu backend</h3>
           <p>
             Nhận món Ready từ bếp, đánh dấu đã phục vụ, xác nhận thanh toán và hoàn tất đơn.
@@ -124,7 +124,7 @@ export function StaffOrderBoard() {
         </div>
       </section>
 
-      <section className="staff-board" aria-label="Staff order board">
+      <section className="staff-board" aria-label="Bảng đơn phục vụ">
         {lanes.map((lane) => {
           const laneTickets = tickets.filter((ticket) => ticket.status === lane.status);
 
