@@ -1172,6 +1172,11 @@ input {
   color: #005BAC;
 }
 
+.admin-status-refunded {
+  background: #FBEAE8;
+  color: #B42318;
+}
+
 .admin-toolbar-metrics {
   display: flex;
   flex-wrap: wrap;
@@ -1392,6 +1397,19 @@ input {
   flex-direction: column;
   gap: 12px;
   padding: 14px;
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
+}
+
+.staff-lane:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.staff-lane:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.staff-lane:nth-child(4) {
+  animation-delay: 150ms;
 }
 
 .staff-lane .realtime-lane-heading {
@@ -1406,6 +1424,7 @@ input {
   border-radius: 20px;
   padding: 13px;
   background: #F2FAFD;
+  animation: fade-in-up var(--duration-base) var(--ease-decelerate) both;
 }
 
 .staff-ticket-meta {
@@ -1442,6 +1461,60 @@ input {
   flex: 1 1 auto;
   min-height: 40px;
   padding: 9px 11px;
+}
+
+.staff-payment-group {
+  display: grid;
+  gap: 12px;
+}
+
+.staff-payment-group + .staff-payment-group {
+  margin-top: 22px;
+}
+
+.staff-section-title {
+  margin: 0;
+  font-size: 15px;
+  color: #08233E;
+}
+
+.staff-refund-confirm {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #F2C5BF;
+  border-radius: 16px;
+  background: #FDF3F2;
+}
+
+.staff-refund-confirm label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cmc-brown);
+}
+
+.staff-refund-confirm input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--cmc-line);
+  border-radius: 12px;
+  padding: 8px 11px;
+  background: #ffffff;
+  color: var(--cmc-ink);
+}
+
+.staff-refund-confirm input:focus {
+  border-color: #B42318;
+  outline: 3px solid rgba(180, 35, 24, 0.16);
+}
+
+.staff-refund-warning {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #B42318;
 }
 
 .admin-form label,
