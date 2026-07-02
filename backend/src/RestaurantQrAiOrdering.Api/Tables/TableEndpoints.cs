@@ -72,14 +72,7 @@ public static partial class TableEndpoints
                 return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
             }
 
-            if (!TryParseOrderType(request.OrderType, out var orderType))
-            {
-                return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type must be DineIn or Pickup.");
-            }
-
-            return orderType == OrderType.Pickup
-                ? await OpenPickupSessionAsync(db, cancellationToken)
-                : await OpenDineInSessionAsync(request, db, cancellationToken);
+            return await OpenDineInSessionAsync(request, db, cancellationToken);
         })
         .WithName("OpenTableSession")
         .WithTags("Tables");
@@ -209,28 +202,6 @@ public static partial class TableEndpoints
         return Results.Ok(ToSessionResponse(session, now));
     }
 
-    private static async Task<IResult> OpenPickupSessionAsync(
-        RestaurantDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var session = new TableSession
-        {
-            Id = $"ts_{Guid.NewGuid():N}",
-            OrderType = OrderType.Pickup,
-            Status = TableSessionStatus.Open,
-            OpenedAt = now,
-            ExpiresAt = now.Add(DefaultSessionLifetime),
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-
-        db.TableSessions.Add(session);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(ToSessionResponse(session, now));
-    }
-
     private static async Task MarkExpiredAsync(
         TableSession session,
         RestaurantDbContext db,
@@ -280,18 +251,6 @@ public static partial class TableEndpoints
                (session.Status == TableSessionStatus.Open && session.ExpiresAt <= now);
     }
 
-    private static bool TryParseOrderType(string? value, out OrderType orderType)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            orderType = OrderType.DineIn;
-            return true;
-        }
-
-        return Enum.TryParse(value.Trim(), ignoreCase: true, out orderType) &&
-               orderType is OrderType.DineIn or OrderType.Pickup;
-    }
-
     private static string? NormalizeTableCode(string? tableCode)
     {
         if (string.IsNullOrWhiteSpace(tableCode))
@@ -312,7 +271,7 @@ public static partial class TableEndpoints
     {
         if (string.IsNullOrWhiteSpace(tableCode) || string.IsNullOrWhiteSpace(qrToken))
         {
-            return "/?orderType=pickup";
+            return "/";
         }
 
         return $"/table/{Uri.EscapeDataString(tableCode)}?qr={Uri.EscapeDataString(qrToken)}";

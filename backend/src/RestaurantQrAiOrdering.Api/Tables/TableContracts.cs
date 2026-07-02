@@ -15,8 +15,7 @@ public sealed record TableQrResponse(
 
 public sealed record OpenTableSessionRequest(
     string? QrToken,
-    string? TableCode,
-    string? OrderType);
+    string? TableCode);
 
 public sealed record TableSessionResponse(
     string SessionId,

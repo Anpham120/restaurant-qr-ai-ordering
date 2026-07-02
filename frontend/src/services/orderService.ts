@@ -93,7 +93,7 @@ export function isRefundable(order: OrderTrackingOrder): boolean {
 
 // An order needs staff to collect/resolve payment when it is not already paid and
 // either a payment attempt is open (Pending/Failed) or the order has reached the
-// customer (Served/Delivering/Delivered/Completed) still unpaid.
+// table (Served/Completed) still unpaid.
 export function isAwaitingPayment(order: OrderTrackingOrder): boolean {
   if (order.status === "Cancelled") return false;
   if (
@@ -106,8 +106,6 @@ export function isAwaitingPayment(order: OrderTrackingOrder): boolean {
   if (order.paymentStatus === "Pending" || order.paymentStatus === "Failed") return true;
   return (
     order.status === "Served" ||
-    order.status === "Delivering" ||
-    order.status === "Delivered" ||
     order.status === "Completed"
   );
 }

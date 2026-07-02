@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
@@ -42,8 +43,9 @@ public static partial class OrderEndpoints
                     new CreateOrderCommand(
                         validatedRequest.OrderType!.Trim(),
                         validatedRequest.TableCode?.Trim().ToUpperInvariant(),
+                        validatedRequest.QrToken?.Trim(),
+                        validatedRequest.TableSessionId?.Trim(),
                         validatedRequest.PaymentMethod!.Trim(),
-                        validatedRequest.PickupInfo,
                         validatedRequest.Items!),
                     ActorContext.FromPrincipal(user));
             }
@@ -325,6 +327,11 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type is invalid.");
         }
 
+        if (orderType != OrderType.DineIn)
+        {
+            return ApiResults.BadRequest("ORDER_TYPE_UNSUPPORTED", "Only dine-in QR table orders are supported.");
+        }
+
         if (!TryParseEnum<PaymentMethod>(request.PaymentMethod, out _))
         {
             return ApiResults.BadRequest("PAYMENT_METHOD_INVALID", "Payment method is invalid.");
@@ -360,53 +367,64 @@ public static partial class OrderEndpoints
                 "Each menu item can appear only once per order; combine quantities instead.");
         }
 
-        if (orderType == OrderType.DineIn)
+        if (string.IsNullOrWhiteSpace(request.TableCode))
         {
-            if (string.IsNullOrWhiteSpace(request.TableCode))
-            {
-                return ApiResults.BadRequest("DINE_IN_TABLE_REQUIRED", "Dine-in orders require a table code.");
-            }
-
-            if (!TableCodeRegex().IsMatch(request.TableCode))
-            {
-                return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
-            }
-
-            var normalizedTableCode = request.TableCode.Trim().ToUpperInvariant();
-            var tableExists = await db.RestaurantTables
-                .AsNoTracking()
-                .AnyAsync(table => table.TableCode == normalizedTableCode && table.IsActive, cancellationToken);
-            if (!tableExists)
-            {
-                return ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.");
-            }
+            return ApiResults.BadRequest("DINE_IN_TABLE_REQUIRED", "Dine-in orders require a table code.");
         }
 
-        if (orderType == OrderType.Pickup)
+        if (!TableCodeRegex().IsMatch(request.TableCode))
         {
-            var pickup = request.PickupInfo;
-            if (pickup is null
-                || string.IsNullOrWhiteSpace(pickup.CustomerName)
-                || string.IsNullOrWhiteSpace(pickup.PhoneNumber))
-            {
-                return ApiResults.BadRequest(
-                    "PICKUP_CONTACT_REQUIRED",
-                    "Pickup orders require a customer name and phone number.");
-            }
+            return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
+        }
 
-            if (pickup.CustomerName.Trim().Length > 200)
-            {
-                return ApiResults.BadRequest(
-                    "PICKUP_NAME_TOO_LONG",
-                    "Pickup customer name must be at most 200 characters.");
-            }
+        if (string.IsNullOrWhiteSpace(request.QrToken))
+        {
+            return ApiResults.BadRequest(
+                "QR_TOKEN_INVALID",
+                "Dine-in orders require the table QR token. Please scan the table QR to order.");
+        }
 
-            if (pickup.PhoneNumber.Trim().Length > 20)
-            {
-                return ApiResults.BadRequest(
-                    "PICKUP_PHONE_TOO_LONG",
-                    "Pickup phone number must be at most 20 characters.");
-            }
+        if (string.IsNullOrWhiteSpace(request.TableSessionId))
+        {
+            return ApiResults.BadRequest(
+                "TABLE_SESSION_REQUIRED",
+                "Dine-in orders require an active table session. Please scan the table QR to start ordering.");
+        }
+
+        var normalizedTableCode = request.TableCode.Trim().ToUpperInvariant();
+        var qrToken = request.QrToken.Trim();
+        var tableSessionId = request.TableSessionId.Trim();
+        var session = await db.TableSessions
+            .Include(tableSession => tableSession.RestaurantTable)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(tableSession => tableSession.Id == tableSessionId, cancellationToken);
+
+        if (session is null)
+        {
+            return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found. Please scan QR again.");
+        }
+
+        if (session.Status != TableSessionStatus.Open || session.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            return ApiErrorFactory.Result(
+                StatusCodes.Status410Gone,
+                "TABLE_SESSION_EXPIRED",
+                "Table session has expired. Please scan QR again.");
+        }
+
+        if (session.OrderType != OrderType.DineIn || session.RestaurantTable is null)
+        {
+            return ApiResults.BadRequest("TABLE_SESSION_INVALID", "Table session is not valid for dine-in ordering.");
+        }
+
+        if (session.TableCode != normalizedTableCode)
+        {
+            return ApiResults.BadRequest("TABLE_SESSION_TABLE_MISMATCH", "Table session does not match the requested table.");
+        }
+
+        if (!string.Equals(session.QrToken, qrToken, StringComparison.Ordinal))
+        {
+            return ApiResults.BadRequest("QR_TABLE_MISMATCH", "QR token does not match the active table session.");
         }
 
         foreach (var item in request.Items)
@@ -451,12 +469,6 @@ public static partial class OrderEndpoints
             order.Status,
             order.PaymentStatus,
             order.PaymentMethod,
-            order.PickupInfo is null
-                ? null
-                : new PickupInfoResponse(
-                    order.PickupInfo.CustomerName,
-                    order.PickupInfo.PhoneNumber,
-                    order.PickupInfo.RequestedAt),
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -486,13 +498,6 @@ public static partial class OrderEndpoints
     private static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
-        var pickupInfo = HasPickupContact(order)
-            ? new PickupInfoResponse(
-                order.PickupCustomerName!,
-                order.PickupCustomerPhoneNumber!,
-                order.PickupRequestedAt)
-            : null;
-
         return new OrderResponse(
             order.Id,
             order.OrderCode,
@@ -502,7 +507,6 @@ public static partial class OrderEndpoints
             order.Status.ToString(),
             (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
             (payment?.Method ?? PaymentMethod.COD).ToString(),
-            pickupInfo,
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -531,12 +535,6 @@ public static partial class OrderEndpoints
                 .ToList(),
             // Listing is operators-only; don't bulk-expose per-order customer tokens.
             null);
-    }
-
-    private static bool HasPickupContact(Order order)
-    {
-        return !string.IsNullOrWhiteSpace(order.PickupCustomerName)
-            && !string.IsNullOrWhiteSpace(order.PickupCustomerPhoneNumber);
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)

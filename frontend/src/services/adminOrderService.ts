@@ -25,9 +25,7 @@ function toAdminOrder(order: OrderTrackingOrder): AdminOrder {
     code: order.orderCode,
     type: order.orderType,
     tableCode: order.tableCode ?? undefined,
-    customerName:
-      order.deliveryInfo?.recipientName ??
-      (order.tableCode ? `Bàn ${order.tableCode}` : "Khách mang về"),
+    customerName: order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn",
     status: order.status,
     total: order.totalAmount,
     placedAt: new Intl.DateTimeFormat("vi-VN", {

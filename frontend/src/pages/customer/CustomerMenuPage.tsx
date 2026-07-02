@@ -10,15 +10,15 @@ import { CustomerCartBar } from "../../components/customer/CustomerCartBar";
 import { TableContextBadge } from "../../components/customer/TableContextBadge";
 import {
   loadMenuCart,
-  saveOrderContext,
+  loadOrderContext,
   saveMenuCart,
+  saveOrderContext,
 } from "../../components/customer/customerMenuStorage";
-import { openDineInSession } from "../../services/tableSessionService";
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
-import { fetchCustomerMenu } from "../../services/menuService";
-import type { CustomerMenuResponse } from "../../services/menuService";
+import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
+import { openDineInSession } from "../../services/tableSessionService";
 import type { MenuCart, MenuItem } from "../../types";
 
 type CustomerMenuPageProps = {
@@ -26,7 +26,7 @@ type CustomerMenuPageProps = {
   qrToken?: string;
 };
 
-const ALL_CATEGORY = "\u0054\u1ea5\u0074 \u0063\u1ea3";
+const ALL_CATEGORY = "Tất cả";
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
 function getInitialCart() {
@@ -36,6 +36,18 @@ function getInitialCart() {
 
   return loadMenuCart();
 }
+
+function hasStoredSession(tableCode?: string, qrToken?: string) {
+  if (typeof window === "undefined" || !tableCode || !qrToken) {
+    return false;
+  }
+
+  const context = loadOrderContext();
+  return Boolean(
+    context.tableCode === tableCode && context.qrToken === qrToken && context.sessionId,
+  );
+}
+
 function getCartSummary(cart: MenuCart, items: MenuItem[]) {
   return items.reduce(
     (summary, item) => {
@@ -48,6 +60,7 @@ function getCartSummary(cart: MenuCart, items: MenuItem[]) {
     { itemCount: 0, totalPrice: 0 },
   );
 }
+
 export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) {
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
@@ -55,6 +68,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
   const [menuError, setMenuError] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
+  const [isSessionOpen, setIsSessionOpen] = useState(() => hasStoredSession(tableCode, qrToken));
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -83,13 +97,9 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }, []);
 
   useEffect(() => {
-    if (!tableCode) {
-      return;
-    }
-
-    if (!qrToken) {
-      saveOrderContext({ tableCode });
-      setSessionNotice("");
+    if (!tableCode || !qrToken) {
+      setIsSessionOpen(false);
+      setSessionNotice("Vui lòng quét QR tại bàn để mở thực đơn.");
       return;
     }
 
@@ -102,16 +112,17 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
 
       if (result.status === "open") {
         saveOrderContext({ tableCode, qrToken, sessionId: result.session.sessionId });
+        setIsSessionOpen(true);
         setSessionNotice("");
       } else if (result.status === "expired") {
-        saveOrderContext({ tableCode });
-        setSessionNotice("Phiên bàn đã hết hạn. Vui lòng quét lại mã QR tại bàn.");
+        setIsSessionOpen(false);
+        setSessionNotice("Phiên bàn đã hết hạn. Vui lòng quét lại QR tại bàn.");
       } else if (result.status === "invalid") {
-        saveOrderContext({ tableCode });
-        setSessionNotice("Mã QR không hợp lệ cho bàn này. Vui lòng quét lại mã QR tại bàn.");
+        setIsSessionOpen(false);
+        setSessionNotice("Mã QR không hợp lệ cho bàn này. Vui lòng quét lại QR tại bàn.");
       } else {
-        saveOrderContext({ tableCode });
-        setSessionNotice("");
+        setIsSessionOpen(false);
+        setSessionNotice("Chưa thể mở phiên bàn. Vui lòng gọi nhân viên hỗ trợ.");
       }
     });
 
@@ -143,7 +154,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
     });
   }, [menuItems, search, selectedCategory]);
 
-  const featuredItems = menuItems.filter((item) => item.isAvailable).slice(0, 6);
+  const featuredItems = menuItems.filter((item) => item.isAvailable).slice(0, 4);
   const summary = getCartSummary(cart, menuItems);
   const heroItems = featuredItems.length >= 3 ? featuredItems : menuItems.slice(0, 3);
 
@@ -153,6 +164,11 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }
 
   function addItem(itemId: string) {
+    if (!isSessionOpen) {
+      setSessionNotice("Bạn cần quét QR tại bàn để thêm món.");
+      return;
+    }
+
     const item = menuItems.find((menuItem) => menuItem.id === itemId);
     if (!item?.isAvailable) {
       return;
@@ -180,19 +196,16 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         <div className="cmc-menu-hero-copy">
           <p className="cmc-kicker">CMC Restaurant</p>
           <h2>
-            Ẩm thực Việt Nam <span>tinh tế & đậm đà</span>
+            Thực đơn tại bàn <span>{tableCode ? `Bàn ${tableCode}` : "QR"}</span>
           </h2>
           <p>
-            Quét mã QR tại bàn để xem thực đơn, chọn món, xác nhận giỏ hàng và
-            theo dõi trạng thái phục vụ ngay trên điện thoại.
+            Khách chọn món từ phiên QR đang mở tại bàn. Đơn gửi đi sẽ gắn đúng bàn để bếp và nhân viên phục vụ xử lý.
           </p>
           <div className="cmc-hero-actions">
             <a className="cmc-primary-link" href="#cmc-menu-list">
               Xem thực đơn
             </a>
-            <Link className="cmc-secondary-link" to="/chat">
-              Hỏi AI gợi ý món
-            </Link>
+            {tableCode ? <span className="cmc-table-badge">Bàn {tableCode}</span> : null}
           </div>
         </div>
         {heroItems.length > 0 ? (
@@ -203,50 +216,6 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
           </div>
         ) : null}
       </header>
-
-      <section className="cmc-ai-cta-banner" aria-label="Gọi AI đặt món">
-        <div className="cmc-ai-cta-copy">
-          <p className="cmc-ai-cta-eyebrow">Trợ lý gọi món AI</p>
-          <h3>Gọi AI đặt món nhanh tại bàn</h3>
-          <p>
-            Mô tả khẩu vị hoặc số người ăn, AI gợi ý món kèm hình ảnh và thêm vào
-            giỏ ngay khi bạn xác nhận.
-          </p>
-        </div>
-        <Link className="cmc-ai-cta-button" to="/chat">
-          Gọi AI đặt món
-        </Link>
-      </section>
-
-      <section className="cmc-home-flow" aria-label="Hành trình gọi món">
-        <div className="cmc-section-title">
-          <h3>Luồng gọi món dành cho khách</h3>
-          <span>{tableCode ? `Bàn ${tableCode}` : "QR / Mang về"}</span>
-        </div>
-        <div className="cmc-home-steps">
-          <article className="cmc-step-card">
-            <span>Bước 1</span>
-            <h3>Quét QR hoặc chọn mang về</h3>
-            <p>
-              Mã bàn được giữ xuyên suốt giỏ hàng để bếp biết đúng vị trí phục vụ.
-            </p>
-          </article>
-          <article className="cmc-step-card">
-            <span>Bước 2</span>
-            <h3>Chọn món và xác nhận giỏ</h3>
-            <p>
-              Món hết hàng được khóa trước khi đặt, tránh gửi đơn sai cho bếp.
-            </p>
-          </article>
-          <article className="cmc-step-card">
-            <span>Bước 3</span>
-            <h3>Theo dõi trạng thái món</h3>
-            <p>
-              Sau khi gửi đơn, khách theo dõi trạng thái món và xem cập nhật thời gian thực.
-            </p>
-          </article>
-        </div>
-      </section>
 
       <section className="cmc-menu-toolbar" aria-label="Bộ lọc thực đơn">
         {menuError ? <p className="cmc-inline-error">{menuError}</p> : null}
@@ -260,7 +229,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
           <input
             className="cmc-search-input"
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm món ăn, đồ uống, hải sản..."
+            placeholder="Tìm món ăn, đồ uống..."
             type="search"
             value={search}
           />
@@ -274,10 +243,10 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
       </section>
 
       {search.trim().length === 0 && selectedCategory === ALL_CATEGORY ? (
-        <section className="cmc-featured-strip" aria-label="Món gợi ý hôm nay">
+        <section className="cmc-featured-strip" aria-label="Món nổi bật hôm nay">
           <div className="cmc-section-title">
-            <h3>Gợi ý hôm nay</h3>
-            <span>{featuredItems.length} món nổi bật</span>
+            <h3>Món nổi bật</h3>
+            <span>{featuredItems.length} món đang bán</span>
           </div>
           <div className="cmc-featured-list">
             {featuredItems.map((item) => (
@@ -334,7 +303,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
 
         <aside className="cmc-cart-panel side" aria-label="Tóm tắt giỏ hàng">
           <h3>Giỏ hàng</h3>
-          <p>Kiểm tra nhanh số lượng và tổng tiền trước khi sang bước xác nhận.</p>
+          <p>Kiểm tra món đã chọn trước khi gửi đơn cho bếp.</p>
           <div className="cmc-cart-list">
             {menuItems
               .filter((item) => (cart[item.id] ?? 0) > 0)
@@ -354,8 +323,8 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
             <strong>{formatVnd(summary.totalPrice)}</strong>
           </div>
           {tableCode ? <TableContextBadge tableCode={tableCode} /> : null}
-          <Link className="cmc-secondary-link" to="/cart">
-            Xem giỏ & đặt món
+          <Link className="cmc-secondary-link" to="/cart" aria-disabled={!isSessionOpen}>
+            Xem giỏ & gửi đơn
           </Link>
         </aside>
       </div>
