@@ -7,13 +7,6 @@ import { AdminStatusBadge } from "./AdminStatusBadge";
 
 const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
-const shiftChecklist = [
-  "Kiểm tra QR của từng bàn trước giờ mở ca.",
-  "Xác nhận đơn mới trong 2 phút đầu.",
-  "Đẩy món Ready sang staff để tránh nguội món.",
-  "Đối soát COD/Paid cuối ca trước khi xuất báo cáo.",
-];
-
 export function AdminDashboardOverview() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [menuStats, setMenuStats] = useState({ total: 0, available: 0, categories: 0 });
@@ -66,16 +59,16 @@ export function AdminDashboardOverview() {
   return (
     <div className="ops-dashboard-grid">
       <section className="ops-hero-panel">
-        <span className="panel-kicker">Ca vận hành hôm nay</span>
-        <h3>Nhà hàng đang hoạt động ổn định</h3>
+        <span className="panel-kicker">Dữ liệu vận hành</span>
+        <h3>Theo dõi đơn, bàn và thực đơn từ API</h3>
         <p>
-          Dữ liệu thực từ API — {orders.length} đơn tổng cộng,{" "}
-          {summary.activeOrders.length} đơn đang xử lý.
+          Hiện có {orders.length} đơn trong hệ thống, {summary.activeOrders.length} đơn
+          đang xử lý và {menuStats.available}/{menuStats.total} món đang bán.
         </p>
         <div className="ops-health-row">
-          <span>🟢 Menu: {menuStats.available}/{menuStats.total} món</span>
-          <span>🟢 {menuStats.categories} danh mục</span>
-          <span>🟢 {summary.readyCount} đơn Ready</span>
+          <span>Menu: {menuStats.available}/{menuStats.total} món</span>
+          <span>{menuStats.categories} danh mục</span>
+          <span>{summary.readyCount} đơn sẵn sàng phục vụ</span>
         </div>
       </section>
 
@@ -83,7 +76,7 @@ export function AdminDashboardOverview() {
         <div className="admin-panel-heading">
           <div>
             <span className="panel-kicker">Đơn đang xử lý</span>
-            <h3>Ưu tiên trong ca</h3>
+            <h3>Hàng chờ phục vụ</h3>
           </div>
           <span className="admin-status admin-status-ready">
             {formatCurrency(summary.revenue)} doanh thu
@@ -98,7 +91,7 @@ export function AdminDashboardOverview() {
           <div className="table-shell ops-order-table">
             <div className="table-row table-head">
               <span>Đơn</span>
-              <span>Bàn/Kênh</span>
+              <span>Bàn</span>
               <span>Trạng thái</span>
               <span>Thanh toán</span>
               <span>Tổng</span>
@@ -106,7 +99,7 @@ export function AdminDashboardOverview() {
             {summary.activeOrders.slice(0, 8).map((order) => (
               <div className="table-row" key={order.id}>
                 <strong>{order.code}</strong>
-                <span>{order.tableCode ?? order.customerName}</span>
+                <span>{order.tableCode ?? "Chưa gắn bàn"}</span>
                 <AdminStatusBadge status={order.status} />
                 <AdminStatusBadge status={order.paymentStatus} />
                 <strong>{formatCurrency(order.total)}</strong>
@@ -119,13 +112,13 @@ export function AdminDashboardOverview() {
       <section className="ops-panel">
         <div className="admin-panel-heading">
           <div>
-            <span className="panel-kicker">Thống kê nhanh</span>
-            <h3>Chỉ số quan trọng</h3>
+            <span className="panel-kicker">Chỉ số từ backend</span>
+            <h3>Tóm tắt hiện tại</h3>
           </div>
         </div>
         <div className="ops-feature-list">
           <article className="ops-feature-card">
-            <span>Đơn chờ xử lý</span>
+            <span>Đơn đang xử lý</span>
             <strong>{summary.activeOrders.length}</strong>
             <p>Chưa hoàn tất hoặc hủy</p>
           </article>
@@ -140,20 +133,6 @@ export function AdminDashboardOverview() {
             <p>Tổng giá trị các đơn</p>
           </article>
         </div>
-      </section>
-
-      <section className="ops-panel">
-        <div className="admin-panel-heading">
-          <div>
-            <span className="panel-kicker">Checklist</span>
-            <h3>Trước ca phục vụ</h3>
-          </div>
-        </div>
-        <ol className="ops-checklist">
-          {shiftChecklist.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
       </section>
     </div>
   );

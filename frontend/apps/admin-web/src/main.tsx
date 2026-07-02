@@ -1,6 +1,11 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import {
+  RouterProvider,
+  createBrowserRouter,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { AuthProvider, ProtectedRoute } from "@cmc/auth";
 import {
   LoginPage,
@@ -42,7 +47,47 @@ const staffLinks = [
 
 const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp" }];
 
+function getCustomerBaseUrl() {
+  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  if (typeof window === "undefined") {
+    return "https://customer.cmcrestaurant.app";
+  }
+
+  const { origin, hostname, protocol, port } = window.location;
+  if (hostname.startsWith("admin.")) {
+    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
+  }
+
+  return origin;
+}
+
+function CustomerTableRedirect() {
+  const { tableCode } = useParams();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const target = new URL(`/table/${encodeURIComponent(tableCode ?? "")}`, getCustomerBaseUrl());
+    const qrToken = searchParams.get("qr");
+    if (qrToken) {
+      target.searchParams.set("qr", qrToken);
+    }
+    window.location.replace(target.toString());
+  }, [searchParams, tableCode]);
+
+  return (
+    <main className="cmc-redirect-page">
+      <h1>Đang chuyển sang trang khách hàng</h1>
+      <p>Link bàn thuộc customer portal. Hệ thống đang mở đúng domain cho khách.</p>
+    </main>
+  );
+}
+
 const router = createBrowserRouter([
+  { path: "/table/:tableCode", element: <CustomerTableRedirect /> },
   {
     path: "/login",
     element: (
@@ -58,7 +103,11 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute allowedRoles={["Admin"]}>
-        <OperationsLayout title="Quản trị CMC" subtitle="Bảng điều khiển nhà hàng" links={adminLinks} />
+        <OperationsLayout
+          title="Quản trị CMC"
+          subtitle="Bảng điều khiển nhà hàng"
+          links={adminLinks}
+        />
       </ProtectedRoute>
     ),
     children: [
