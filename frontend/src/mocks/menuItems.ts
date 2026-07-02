@@ -139,4 +139,3 @@ export const menuCategories = [
   "Tất cả",
   ...Array.from(new Set(menuItems.map((item) => item.categoryName))),
 ];
-

@@ -55,6 +55,7 @@ function CustomerLayout() {
           aria-label="Điều hướng khách hàng"
         >
           <NavLink to="/">Trang chủ</NavLink>
+          {isLanding ? <a href="#mon-noi-bat">Món nổi bật</a> : null}
           {!isLanding ? <NavLink to="/cart">Giỏ hàng</NavLink> : null}
         </nav>
       </header>

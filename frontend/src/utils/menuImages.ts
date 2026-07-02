@@ -4,7 +4,7 @@ function normalizeVN(text: string) {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/Ä‘/gi, "d")
+    .replace(/đ/gi, "d")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();

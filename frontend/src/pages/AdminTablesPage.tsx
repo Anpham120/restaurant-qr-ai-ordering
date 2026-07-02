@@ -6,7 +6,7 @@ export function AdminTablesPage() {
     <PageShell
       eyebrow="Admin"
       title="Bàn và mã QR"
-      description="Quản lý bàn CMC, liên kết QR theo mã bàn và trạng thái phục vụ trong khu vực nhà hàng."
+      description="Quản lý link QR theo bàn. Link được tạo cho customer portal để khách mở đúng phiên bàn trước khi đặt món."
       variant="admin"
     >
       <AdminQrTableManager />

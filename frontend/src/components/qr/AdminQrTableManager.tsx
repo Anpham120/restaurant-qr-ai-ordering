@@ -4,7 +4,7 @@ import "@fontsource/manrope/latin-600.css";
 import "@fontsource/manrope/vietnamese-600.css";
 import "@fontsource/manrope/latin-700.css";
 import "@fontsource/manrope/vietnamese-700.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createApiClient } from "@cmc/api-client";
 import { TableQrCode } from "./TableQrCode";
 
@@ -16,12 +16,6 @@ type BackendTable = {
   customerPath: string;
 };
 
-type QrTable = BackendTable & {
-  zone: string;
-  seats: number;
-  status: "Available" | "Cleaning";
-};
-
 type CopyState = {
   tableCode: string;
   status: "success" | "error";
@@ -31,19 +25,36 @@ const api = createApiClient({
   getAccessToken: () =>
     typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
 });
+
+// Backend currently exposes table lookup by code. Keep this list aligned with seeded tables.
 const tableCodes = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"];
 
-function decorateTable(table: BackendTable, index: number): QrTable {
-  return {
-    ...table,
-    zone: index < 4 ? "Sảnh chính" : index < 6 ? "Cửa sổ" : "Phòng riêng",
-    seats: index < 2 ? 2 : index < 6 ? 4 : 8,
-    status: table.isActive ? "Available" : "Cleaning",
-  };
+function getCustomerBaseUrl() {
+  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  if (typeof window === "undefined") {
+    return "https://customer.cmcrestaurant.app";
+  }
+
+  const { origin, hostname, protocol, port } = window.location;
+  if (hostname.startsWith("admin.")) {
+    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
+  }
+
+  return origin;
+}
+
+function buildCustomerLink(table: BackendTable) {
+  const baseUrl = getCustomerBaseUrl();
+  const customerPath = table.customerPath || `/table/${encodeURIComponent(table.tableCode)}`;
+  return new URL(customerPath, baseUrl).toString();
 }
 
 export function AdminQrTableManager() {
-  const [tables, setTables] = useState<QrTable[]>([]);
+  const [tables, setTables] = useState<BackendTable[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>(null);
@@ -54,7 +65,7 @@ export function AdminQrTableManager() {
     Promise.all(tableCodes.map((tableCode) => api.tables.get(tableCode)))
       .then((backendTables) => {
         if (isMounted) {
-          setTables(backendTables.map(decorateTable));
+          setTables(backendTables);
           setError(null);
         }
       })
@@ -74,43 +85,28 @@ export function AdminQrTableManager() {
     };
   }, []);
 
-  const baseUrl = typeof window === "undefined" ? "" : window.location.origin;
-  const tablesByZone = useMemo(
-    () =>
-      tables.reduce<Array<{ zone: string; tables: QrTable[] }>>((zones, table) => {
-        const existing = zones.find((zone) => zone.zone === table.zone);
-        if (existing) {
-          existing.tables.push(table);
-        } else {
-          zones.push({ zone: table.zone, tables: [table] });
-        }
-        return zones;
-      }, []),
-    [tables],
-  );
-
-  function getTableLink(table: QrTable) {
-    return table.customerPath.startsWith("http")
-      ? table.customerPath
-      : `${baseUrl}${table.customerPath}`;
-  }
-
-  async function copyTableLink(table: QrTable) {
+  async function copyTableLink(table: BackendTable) {
     try {
-      await navigator.clipboard.writeText(getTableLink(table));
+      await navigator.clipboard.writeText(buildCustomerLink(table));
       setCopyState({ tableCode: table.tableCode, status: "success" });
     } catch {
       setCopyState({ tableCode: table.tableCode, status: "error" });
     }
   }
 
+  const activeCount = tables.filter((table) => table.isActive).length;
+  const qrCount = tables.filter((table) => table.qrToken).length;
+
   return (
     <div className="admin-table-qr-workspace">
       <section className="table-qr-command">
         <div className="table-qr-command-copy">
-          <span className="table-qr-kicker">Floor & QR control</span>
-          <h3>Sơ đồ bàn đồng bộ với backend</h3>
-          <p>Mã bàn, QR token và đường dẫn khách hàng được lấy từ API thay vì dữ liệu giả.</p>
+          <span className="table-qr-kicker">QR table control</span>
+          <h3>Bàn và mã QR từ backend</h3>
+          <p>
+            Mỗi link bàn luôn trỏ về customer portal. Admin chỉ quản lý và sao chép
+            link, khách phải mở phiên bàn bằng QR trước khi đặt món.
+          </p>
           {error ? (
             <p className="table-copy-feedback is-error" role="alert">
               {error}
@@ -120,17 +116,17 @@ export function AdminQrTableManager() {
         <dl className="table-qr-command-stats">
           <div>
             <dt>Bàn hoạt động</dt>
-            <dd>{tables.filter((table) => table.isActive).length}</dd>
+            <dd>{activeCount}</dd>
           </div>
           <div>
             <dt>QR hợp lệ</dt>
             <dd>
-              {tables.filter((table) => table.qrToken).length}/{tables.length}
+              {qrCount}/{tables.length}
             </dd>
           </div>
           <div>
-            <dt>Khu vực</dt>
-            <dd>{tablesByZone.length}</dd>
+            <dt>Nguồn dữ liệu</dt>
+            <dd>API</dd>
           </div>
         </dl>
       </section>
@@ -141,86 +137,77 @@ export function AdminQrTableManager() {
         </p>
       ) : null}
 
-      <div className="table-zone-list">
-        {tablesByZone.map((zone) => (
-          <section className="table-zone" key={zone.zone} aria-label={`Khu vực ${zone.zone}`}>
-            <header className="table-zone-heading">
-              <div>
-                <span className="table-qr-kicker">Khu vực</span>
-                <h3>{zone.zone}</h3>
+      <div className="table-zone-grid table-zone-grid-flat">
+        {tables.map((table) => {
+          const copied = copyState?.tableCode === table.tableCode;
+          const customerLink = buildCustomerLink(table);
+
+          return (
+            <article
+              className={`table-qr-card is-${table.isActive ? "available" : "cleaning"}`}
+              key={table.tableCode}
+            >
+              <header className="table-qr-card-heading">
+                <div className="table-number-plate">
+                  <span>Bàn</span>
+                  <strong>{table.tableCode}</strong>
+                </div>
+                <span className={`table-status-label is-${table.isActive ? "available" : "cleaning"}`}>
+                  <i aria-hidden="true" />
+                  {table.isActive ? "Sẵn sàng" : "Tạm ngưng"}
+                </span>
+              </header>
+
+              <div className="table-qr-card-body">
+                <dl className="table-qr-meta">
+                  <div>
+                    <dt>Tên hiển thị</dt>
+                    <dd>{table.displayName}</dd>
+                  </div>
+                  <div>
+                    <dt>QR token</dt>
+                    <dd>{table.qrToken ? "Đã cấu hình" : "Chưa có"}</dd>
+                  </div>
+                </dl>
+                <div className="table-qr-asset">
+                  <TableQrCode
+                    downloadName={`qr-ban-${table.tableCode}.png`}
+                    label={`QR bàn ${table.tableCode}`}
+                    value={customerLink}
+                  />
+                  <div className="table-qr-link-copy">
+                    <span>Link customer portal</span>
+                    <code title={customerLink}>{customerLink}</code>
+                  </div>
+                </div>
               </div>
-              <span>{zone.tables.length} bàn</span>
-            </header>
 
-            <div className="table-zone-grid">
-              {zone.tables.map((table) => {
-                const copied = copyState?.tableCode === table.tableCode;
-                return (
-                  <article className={`table-qr-card is-${table.status.toLowerCase()}`} key={table.tableCode}>
-                    <header className="table-qr-card-heading">
-                      <div className="table-number-plate">
-                        <span>Bàn</span>
-                        <strong>{table.tableCode}</strong>
-                      </div>
-                      <span className={`table-status-label is-${table.status.toLowerCase()}`}>
-                        <i aria-hidden="true" />
-                        {table.isActive ? "Sẵn sàng" : "Tạm ngưng"}
-                      </span>
-                    </header>
-
-                    <div className="table-qr-card-body">
-                      <dl className="table-qr-meta">
-                        <div>
-                          <dt>Tên hiển thị</dt>
-                          <dd>{table.displayName}</dd>
-                        </div>
-                        <div>
-                          <dt>Sức chứa</dt>
-                          <dd>{table.seats} ghế</dd>
-                        </div>
-                      </dl>
-                      <div className="table-qr-asset">
-                        <TableQrCode
-                          downloadName={`qr-ban-${table.tableCode}.png`}
-                          label={`QR bàn ${table.tableCode}`}
-                          value={getTableLink(table)}
-                        />
-                        <div className="table-qr-link-copy">
-                          <span>Đường dẫn bàn</span>
-                          <code title={getTableLink(table)}>{getTableLink(table)}</code>
-                        </div>
-                      </div>
-                    </div>
-
-                    <footer className="table-qr-actions">
-                      <a href={table.customerPath} target="_blank" rel="noreferrer">
-                        Mở bàn
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => copyTableLink(table)}
-                        aria-label={`Sao chép link bàn ${table.tableCode}`}
-                      >
-                        {copied && copyState.status === "success"
-                          ? "Đã sao chép"
-                          : copied
-                            ? "Thử lại"
-                            : "Sao chép link"}
-                      </button>
-                    </footer>
-                    {copied ? (
-                      <p className={`table-copy-feedback is-${copyState.status}`} role="status">
-                        {copyState.status === "success"
-                          ? `Đã sao chép link bàn ${table.tableCode}.`
-                          : "Không thể sao chép đường dẫn bàn."}
-                      </p>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+              <footer className="table-qr-actions">
+                <a href={customerLink} target="_blank" rel="noreferrer">
+                  Mở trang khách
+                </a>
+                <button
+                  type="button"
+                  onClick={() => copyTableLink(table)}
+                  aria-label={`Sao chép link bàn ${table.tableCode}`}
+                >
+                  {copied && copyState.status === "success"
+                    ? "Đã sao chép"
+                    : copied
+                      ? "Thử lại"
+                      : "Sao chép link"}
+                </button>
+              </footer>
+              {copied ? (
+                <p className={`table-copy-feedback is-${copyState.status}`} role="status">
+                  {copyState.status === "success"
+                    ? `Đã sao chép link bàn ${table.tableCode}.`
+                    : "Không thể sao chép đường dẫn bàn."}
+                </p>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
     </div>
   );

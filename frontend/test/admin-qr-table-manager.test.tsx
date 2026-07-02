@@ -26,7 +26,7 @@ beforeEach(() => {
           displayName: `Bàn ${tableCode}`,
           isActive: true,
           qrToken: `cmc-table-${tableCode.toLowerCase()}-qr`,
-          customerPath: `/table/${tableCode}`,
+          customerPath: `/table/${tableCode}?qr=cmc-table-${tableCode.toLowerCase()}-qr`,
         }),
       } as Response;
     }),
@@ -34,20 +34,19 @@ beforeEach(() => {
 });
 
 describe("AdminQrTableManager", () => {
-  it("renders backend tables grouped by zone", async () => {
+  it("renders backend tables without fake zone or seat metadata", async () => {
     render(<AdminQrTableManager />);
 
-    expect(
-      await screen.findByRole("heading", { name: "Sơ đồ bàn đồng bộ với backend" }),
-    ).toBeInTheDocument();
-    expect(await screen.findByRole("region", { name: "Khu vực Sảnh chính" })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Mở bàn" })).toHaveLength(8);
+    expect(await screen.findByRole("heading", { name: "Bàn và mã QR từ backend" })).toBeInTheDocument();
+    expect(screen.queryByText("Sức chứa")).not.toBeInTheDocument();
+    expect(screen.queryByText("Khu vực")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Mở trang khách" })).toHaveLength(8);
     expect(screen.getAllByText("Sẵn sàng")).toHaveLength(8);
     expect(await screen.findAllByRole("img", { name: /QR bàn/ })).toHaveLength(8);
-    expect(screen.getAllByRole("link", { name: "Tải QR" })).toHaveLength(8);
+    expect(await screen.findAllByRole("link", { name: "Tải QR" })).toHaveLength(8);
   });
 
-  it("copies the selected table link and announces success", async () => {
+  it("copies the selected customer portal link and announces success", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -58,7 +57,7 @@ describe("AdminQrTableManager", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Sao chép link bàn T01" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/table/T01`);
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/table/T01?qr=cmc-table-t01-qr`);
     });
     expect(screen.getByRole("status")).toHaveTextContent("Đã sao chép link bàn T01.");
   });
