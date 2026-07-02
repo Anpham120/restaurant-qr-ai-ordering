@@ -34,11 +34,15 @@ public sealed class OrderStore : IOrderStore
         var orderType = Enum.Parse<OrderType>(command.OrderType);
         var paymentMethod = Enum.Parse<PaymentMethod>(command.PaymentMethod);
         var tableCode = NormalizeOptional(command.TableCode)?.ToUpperInvariant();
-        var table = orderType == OrderType.DineIn && tableCode is not null
-            ? db.RestaurantTables.FirstOrDefault(t => t.TableCode == tableCode && t.IsActive)
+        var qrToken = NormalizeOptional(command.QrToken);
+        var tableSessionId = NormalizeOptional(command.TableSessionId);
+        // Resolve the table from the scanned QR token, not the client-supplied table code:
+        // endpoint validation already proved this token maps to this active table.
+        var table = orderType == OrderType.DineIn && qrToken is not null
+            ? db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive)
             : null;
         var menuItems = LoadMenuItems(command);
-        var tableSession = ResolveTableSession(orderType, table, now);
+        var tableSession = ResolveTableSession(tableSessionId, table, now);
 
         var order = new Order
         {
@@ -62,13 +66,6 @@ public sealed class OrderStore : IOrderStore
                 UpdatedAt = now
             }
         };
-
-        if (orderType == OrderType.Pickup && command.PickupInfo is not null)
-        {
-            order.PickupCustomerName = NormalizeOptional(command.PickupInfo.CustomerName);
-            order.PickupCustomerPhoneNumber = NormalizeOptional(command.PickupInfo.PhoneNumber);
-            order.PickupRequestedAt = now;
-        }
 
         foreach (var requestItem in command.Items)
         {
@@ -272,40 +269,21 @@ public sealed class OrderStore : IOrderStore
         return $"ORD-{db.NextOrderCodeNumber()}";
     }
 
-    // Dine-in orders attach to the table's open, non-expired session (opening one if
-    // none exists) so all orders for a seating share a session. Pickup gets no session.
-    private TableSession? ResolveTableSession(OrderType orderType, RestaurantTable? table, DateTimeOffset now)
+    // Dine-in orders attach only to the open session created by scanning the table QR.
+    // Do not create a session here; order creation must not bypass the physical QR step.
+    private TableSession? ResolveTableSession(string? tableSessionId, RestaurantTable? table, DateTimeOffset now)
     {
-        if (orderType != OrderType.DineIn || table is null)
+        if (table is null || string.IsNullOrWhiteSpace(tableSessionId))
         {
             return null;
         }
 
-        var session = db.TableSessions.FirstOrDefault(session =>
+        return db.TableSessions.FirstOrDefault(session =>
+            session.Id == tableSessionId
+            &&
             session.RestaurantTableId == table.Id
             && session.Status == TableSessionStatus.Open
             && session.ExpiresAt > now);
-
-        if (session is not null)
-        {
-            return session;
-        }
-
-        session = new TableSession
-        {
-            Id = $"tsx_{Guid.NewGuid():N}",
-            RestaurantTableId = table.Id,
-            TableCode = table.TableCode,
-            QrToken = table.QrToken,
-            OrderType = OrderType.DineIn,
-            Status = TableSessionStatus.Open,
-            OpenedAt = now,
-            ExpiresAt = now.AddHours(4),
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-        db.TableSessions.Add(session);
-        return session;
     }
 
     // Once an order completes, close its table session unless another order on the same
@@ -413,7 +391,6 @@ public sealed class OrderStore : IOrderStore
             order.Status.ToString(),
             payment.Status.ToString(),
             payment.Method.ToString(),
-            ToPickupInfoSnapshot(order),
             order.SubtotalAmount,
             order.TotalAmount,
             order.CreatedAt,
@@ -474,20 +451,6 @@ public sealed class OrderStore : IOrderStore
             item.Status.ToString(),
             item.UnitPrice * item.Quantity,
             item.UpdatedAt);
-    }
-
-    private static PickupInfoSnapshot? ToPickupInfoSnapshot(Order order)
-    {
-        if (string.IsNullOrWhiteSpace(order.PickupCustomerName)
-            || string.IsNullOrWhiteSpace(order.PickupCustomerPhoneNumber))
-        {
-            return null;
-        }
-
-        return new PickupInfoSnapshot(
-            order.PickupCustomerName,
-            order.PickupCustomerPhoneNumber,
-            order.PickupRequestedAt);
     }
 
     private static string? NormalizeOptional(string? value)

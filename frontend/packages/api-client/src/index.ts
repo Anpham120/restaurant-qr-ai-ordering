@@ -61,7 +61,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     menu: { get: () => request<MenuResponse>("/menu") },
     tables: {
       get: (code: string) => request<Table>(`/tables/${encodeURIComponent(code)}`),
-      openSession: (payload: { qrToken?: string | null; tableCode?: string | null; orderType?: "DineIn" | "Pickup" }) =>
+      openSession: (payload: { qrToken: string; tableCode?: string | null }) =>
         request<TableSession>("/table-sessions", { method: "POST", body: JSON.stringify(payload) }),
       getSession: (sessionId: string) => request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}`),
       closeSession: (sessionId: string) =>

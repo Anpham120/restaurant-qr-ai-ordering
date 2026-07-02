@@ -53,8 +53,8 @@ function toTicket(order: OrderTrackingOrder): StaffTicket | null {
   return {
     id: order.orderId,
     orderCode: order.orderCode,
-    tableLabel: order.tableCode ? "Bàn " + order.tableCode : order.deliveryInfo?.recipientName ?? "Pickup",
-    customerNote: order.deliveryInfo?.note ?? order.deliveryInfo?.phoneNumber ?? "Không có ghi chú.",
+    tableLabel: order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn",
+    customerNote: "Không có ghi chú.",
     status,
     payment: paid ? "Paid" : order.paymentMethod,
     items: order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
@@ -73,7 +73,7 @@ export function StaffOrderBoard() {
 
   useEffect(() => {
     reloadTickets()
-      .catch(() => setError("Không tải được danh sách đơn cho staff."))
+      .catch(() => setError("Không tải được danh sách đơn cho nhân viên phục vụ."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -112,10 +112,8 @@ export function StaffOrderBoard() {
       <section className="admin-toolbar">
         <div>
           <span className="panel-kicker">Trạm phục vụ</span>
-          <h3>Luồng phục vụ theo dữ liệu backend</h3>
-          <p>
-            Nhận món Ready từ bếp, đánh dấu đã phục vụ, xác nhận thanh toán và hoàn tất đơn.
-          </p>
+          <h3>Luồng phục vụ theo bàn</h3>
+          <p>Nhận món từ bếp, đánh dấu đã phục vụ, xác nhận thanh toán và hoàn tất đơn.</p>
         </div>
         <div className="admin-toolbar-metrics">
           <span>{summary.ready} món cần mang ra</span>

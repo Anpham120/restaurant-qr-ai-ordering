@@ -20,8 +20,6 @@ const statusLabels: Partial<Record<AdminBadgeStatus, string>> = {
   Preparing: "Đang chế biến",
   Ready: "Sẵn sàng",
   Served: "Đã phục vụ",
-  Delivering: "Đang giao",
-  Delivered: "Đã giao",
   Completed: "Hoàn tất",
   Cancelled: "Đã hủy",
   Available: "Đang bán",

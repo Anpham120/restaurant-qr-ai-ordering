@@ -15,7 +15,7 @@ export async function openDineInSession(
   tableCode: string,
 ): Promise<OpenDineInSessionResult> {
   try {
-    const session = await api.tables.openSession({ qrToken, tableCode, orderType: "DineIn" });
+    const session = await api.tables.openSession({ qrToken, tableCode });
     return { status: "open", session };
   } catch (error) {
     if (error instanceof ApiError) {
