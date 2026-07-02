@@ -8,13 +8,11 @@ import {
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
-import { fetchCustomerMenu } from "../../services/menuService";
-import type { CustomerMenuResponse } from "../../services/menuService";
+import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
 import { createOrder, generateVietQrPayment } from "../../services/orderService";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
-  CustomerOrderType,
   MenuCart,
   MenuItem,
   PaymentMethod,
@@ -22,33 +20,6 @@ import type {
 } from "../../types";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
-
-type CheckoutForm = {
-  contactName: string;
-  phoneNumber: string;
-};
-
-type ActiveOrderType = Extract<CustomerOrderType, "DineIn" | "Pickup">;
-
-// Mirror the backend pickup-contact length guards (P3) so we fail fast client-side.
-const PICKUP_NAME_MAX = 200;
-const PICKUP_PHONE_MAX = 20;
-
-const orderTypeCopy: Record<
-  ActiveOrderType,
-  { label: string; shortLabel: string; description: string }
-> = {
-  DineIn: {
-    label: "Ăn tại bàn",
-    shortLabel: "Tại bàn",
-    description: "Gửi đơn kèm mã bàn QR để nhân viên và bếp nhận đúng vị trí phục vụ.",
-  },
-  Pickup: {
-    label: "Mang về",
-    shortLabel: "Mang về",
-    description: "Khách để lại tên và số điện thoại để nhà hàng xác nhận khi món sẵn sàng.",
-  },
-};
 
 function getInitialCart() {
   if (typeof window === "undefined") {
@@ -58,20 +29,12 @@ function getInitialCart() {
   return loadMenuCart();
 }
 
-function getInitialOrderType(): ActiveOrderType {
+function getInitialOrderContext() {
   if (typeof window === "undefined") {
-    return "Pickup";
+    return {};
   }
 
-  return loadOrderContext().tableCode ? "DineIn" : "Pickup";
-}
-
-function getStoredTableCode() {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  return loadOrderContext().tableCode;
+  return loadOrderContext();
 }
 
 function getCartItems(cart: MenuCart, items: MenuItem[]) {
@@ -79,25 +42,17 @@ function getCartItems(cart: MenuCart, items: MenuItem[]) {
 }
 
 function buildOrderPayload(
-  orderType: ActiveOrderType,
-  tableCode: string | undefined,
   cart: MenuCart,
   selectedItems: MenuItem[],
   paymentMethod: PaymentMethod,
-  contact: CheckoutForm,
+  context: ReturnType<typeof getInitialOrderContext>,
 ): CreateOrderRequest {
   return {
-    orderType,
-    tableCode: orderType === "DineIn" ? tableCode ?? null : null,
+    orderType: "DineIn",
+    tableCode: context.tableCode!,
+    qrToken: context.qrToken!,
+    tableSessionId: context.sessionId!,
     paymentMethod,
-    deliveryInfo: null,
-    pickupInfo:
-      orderType === "Pickup"
-        ? {
-            customerName: contact.contactName.trim(),
-            phoneNumber: contact.phoneNumber.trim(),
-          }
-        : null,
     items: selectedItems.map((item) => ({
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
@@ -108,19 +63,12 @@ function buildOrderPayload(
 export function CustomerCartPage() {
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
-  const [orderType, setOrderType] = useState<ActiveOrderType>(getInitialOrderType);
-  const [tableCode] = useState(getStoredTableCode);
-  const [form, setForm] = useState<CheckoutForm>({
-    contactName: "",
-    phoneNumber: "",
-  });
+  const [orderContext] = useState(getInitialOrderContext);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
   const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
-  const [submittedPayload, setSubmittedPayload] = useState<CreateOrderRequest | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -142,38 +90,26 @@ export function CustomerCartPage() {
     };
   }, []);
 
-  const menuItems = customerMenu.items;
-  const selectedItems = useMemo(() => getCartItems(cart, menuItems), [cart, menuItems]);
+  const selectedItems = useMemo(
+    () => getCartItems(cart, customerMenu.items),
+    [cart, customerMenu.items],
+  );
   const unavailableItems = selectedItems.filter((item) => !item.isAvailable);
   const totalPrice = selectedItems.reduce(
     (total, item) => total + (cart[item.id] ?? 0) * item.price,
     0,
   );
-  const requiresContact = orderType === "Pickup";
-  const orderTypeDetails = orderTypeCopy[orderType];
-  const trimmedName = form.contactName.trim();
-  const trimmedPhone = form.phoneNumber.trim();
-  const nameError = !requiresContact
-    ? ""
-    : trimmedName.length === 0
-      ? "Vui lòng nhập tên người nhận."
-      : trimmedName.length > PICKUP_NAME_MAX
-        ? `Tên tối đa ${PICKUP_NAME_MAX} ký tự.`
-        : "";
-  const phoneError = !requiresContact
-    ? ""
-    : trimmedPhone.length === 0
-      ? "Vui lòng nhập số điện thoại."
-      : trimmedPhone.length > PICKUP_PHONE_MAX
-        ? `Số điện thoại tối đa ${PICKUP_PHONE_MAX} ký tự.`
-        : "";
-  const isContactInvalid = requiresContact && (nameError !== "" || phoneError !== "");
-  const isDineInMissingTable = orderType === "DineIn" && !tableCode;
+  const hasActiveSession = Boolean(
+    orderContext.tableCode && orderContext.qrToken && orderContext.sessionId,
+  );
+  const tableMenuPath =
+    orderContext.tableCode && orderContext.qrToken
+      ? `/table/${orderContext.tableCode}?qr=${encodeURIComponent(orderContext.qrToken)}`
+      : "/";
   const canSubmit =
+    hasActiveSession &&
     selectedItems.length > 0 &&
     unavailableItems.length === 0 &&
-    !isContactInvalid &&
-    !isDineInMissingTable &&
     !isSubmitting;
 
   function updateQuantity(itemId: string, nextQuantity: number) {
@@ -188,28 +124,26 @@ export function CustomerCartPage() {
     saveMenuCart(nextCart);
     setSuccessOrder(null);
     setVietQrPayment(null);
-    setSubmittedPayload(null);
-  }
-
-  function updateForm(field: keyof CheckoutForm, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitAttempted(true);
     setErrorMessage("");
     setSuccessOrder(null);
     setVietQrPayment(null);
 
-    if (!canSubmit) {
-      setErrorMessage("Vui lòng kiểm tra giỏ hàng và thông tin nhận đơn trước khi gửi.");
+    if (!hasActiveSession) {
+      setErrorMessage("Phiên bàn không hợp lệ. Vui lòng quét lại QR tại bàn để gọi món.");
       return;
     }
 
-    const payload = buildOrderPayload(orderType, tableCode, cart, selectedItems, paymentMethod, form);
+    if (!canSubmit) {
+      setErrorMessage("Vui lòng kiểm tra giỏ hàng trước khi gửi đơn.");
+      return;
+    }
+
+    const payload = buildOrderPayload(cart, selectedItems, paymentMethod, orderContext);
     setIsSubmitting(true);
-    setSubmittedPayload(payload);
 
     try {
       const response = await createOrder(payload);
@@ -230,22 +164,29 @@ export function CustomerCartPage() {
     <section className="cmc-customer-page cmc-cart-page">
       <header className="cmc-hero cmc-checkout-hero">
         <div>
-          <p className="cmc-kicker">Giỏ hàng & thanh toán</p>
+          <p className="cmc-kicker">Giỏ hàng tại bàn</p>
           <h2>
-            Kiểm tra món và <span>gửi đơn cho CMC</span>
+            Kiểm tra món và <span>gửi đơn cho bếp</span>
           </h2>
           <p>
-            Kiểm tra giỏ, chọn hình thức nhận món và gửi đơn cho nhà hàng.
-            Sau khi đặt, khách có thể theo dõi trạng thái món theo thời gian thực.
+            Đơn chỉ được tạo từ phiên QR đang mở tại bàn. Bếp và nhân viên sẽ nhận đúng mã bàn sau khi khách xác nhận.
           </p>
           <div className="cmc-hero-actions">
-            <Link className="cmc-secondary-link" to={tableCode ? `/table/${tableCode}` : "/menu"}>
+            <Link className="cmc-secondary-link" to={tableMenuPath}>
               Thêm món khác
             </Link>
-            {tableCode ? <span className="cmc-table-badge">Bàn {tableCode}</span> : null}
+            {orderContext.tableCode ? (
+              <span className="cmc-table-badge">Bàn {orderContext.tableCode}</span>
+            ) : null}
           </div>
         </div>
       </header>
+
+      {!hasActiveSession ? (
+        <div className="cmc-empty-state" role="alert">
+          Vui lòng quét QR tại bàn để mở phiên gọi món trước khi thanh toán.
+        </div>
+      ) : null}
 
       <div className="cmc-checkout-layout">
         <div className="cmc-cart-panel" aria-label="Chi tiết giỏ hàng">
@@ -255,9 +196,7 @@ export function CustomerCartPage() {
           </div>
 
           {selectedItems.length === 0 ? (
-            <div className="cmc-empty-state">
-              Giỏ hàng đang trống. Quay lại thực đơn để chọn món.
-            </div>
+            <div className="cmc-empty-state">Giỏ hàng đang trống.</div>
           ) : (
             <div className="cmc-cart-list">
               {selectedItems.map((item) => (
@@ -305,76 +244,14 @@ export function CustomerCartPage() {
 
         <form className="cmc-checkout-panel" onSubmit={submitOrder}>
           <div className="cmc-section-title">
-            <h3>Thông tin đặt món</h3>
-            <span>{orderTypeDetails.shortLabel}</span>
-          </div>
-
-          <div className="cmc-order-type-tabs" role="tablist" aria-label="Hình thức đặt món">
-            {(["DineIn", "Pickup"] as ActiveOrderType[]).map((type) => (
-              <button
-                aria-selected={orderType === type}
-                className={orderType === type ? "active" : ""}
-                key={type}
-                onClick={() => setOrderType(type)}
-                type="button"
-              >
-                {orderTypeCopy[type].label}
-              </button>
-            ))}
+            <h3>Xác nhận gọi món</h3>
+            <span>Ăn tại bàn</span>
           </div>
 
           <div className="cmc-checkout-note">
-            <strong>{orderTypeDetails.label}</strong>
-            <span>{orderTypeDetails.description}</span>
+            <strong>Bàn {orderContext.tableCode ?? "--"}</strong>
+            <span>Phiên QR: {orderContext.sessionId ? "đang hoạt động" : "chưa có"}</span>
           </div>
-
-          {isDineInMissingTable ? (
-            <p className="cmc-inline-error">
-              Đơn tại bàn cần mã bàn từ QR. Hãy vào lại đường dẫn `/table/:tableCode` hoặc chọn
-              mang về.
-            </p>
-          ) : null}
-
-          {orderType === "DineIn" ? (
-            <div className="cmc-checkout-note">
-              <strong>Đơn tại bàn</strong>
-              <span>Mã bàn gửi kèm đơn: {tableCode ?? "chưa có"}</span>
-            </div>
-          ) : null}
-
-          {requiresContact ? (
-            <div className="cmc-form-grid">
-              <label>
-                Tên người nhận
-                <input
-                  aria-invalid={submitAttempted && nameError ? true : undefined}
-                  maxLength={PICKUP_NAME_MAX}
-                  onChange={(event) => updateForm("contactName", event.target.value)}
-                  placeholder="Ví dụ: Anh Minh"
-                  type="text"
-                  value={form.contactName}
-                />
-                {submitAttempted && nameError ? (
-                  <span className="cmc-inline-error">{nameError}</span>
-                ) : null}
-              </label>
-              <label>
-                Số điện thoại
-                <input
-                  aria-invalid={submitAttempted && phoneError ? true : undefined}
-                  maxLength={PICKUP_PHONE_MAX}
-                  onChange={(event) => updateForm("phoneNumber", event.target.value)}
-                  placeholder="0901234567"
-                  type="tel"
-                  value={form.phoneNumber}
-                />
-                {submitAttempted && phoneError ? (
-                  <span className="cmc-inline-error">{phoneError}</span>
-                ) : null}
-              </label>
-            </div>
-          ) : null}
-
 
           <div className="cmc-checkout-note">
             <strong>Phương thức thanh toán</strong>
@@ -387,7 +264,7 @@ export function CustomerCartPage() {
                   onClick={() => setPaymentMethod(method)}
                   type="button"
                 >
-                  {method === "COD" ? "Thanh toán tại quầy" : "VietQR"}
+                  {method === "COD" ? "Thanh toán tại bàn" : "VietQR"}
                 </button>
               ))}
             </div>
@@ -405,27 +282,22 @@ export function CustomerCartPage() {
             </div>
           ) : null}
 
-
-
           {vietQrPayment ? (
             <div className="cmc-success-state" role="status">
               <strong>VietQR đã sẵn sàng</strong>
-              <span>{formatVnd(vietQrPayment.amount)} - Nội dung: {vietQrPayment.transferContent}</span>
+              <span>
+                {formatVnd(vietQrPayment.amount)} - Nội dung: {vietQrPayment.transferContent}
+              </span>
               <img alt={`VietQR ${vietQrPayment.orderCode}`} src={vietQrPayment.qrImageDataUri} />
-              <a href={vietQrPayment.quickLink} target="_blank" rel="noreferrer">Mở link thanh toán</a>
+              <a href={vietQrPayment.quickLink} target="_blank" rel="noreferrer">
+                Mở link thanh toán
+              </a>
             </div>
           ) : null}
 
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
-            {isSubmitting ? "Đang gửi đơn..." : "Gửi đơn đặt món"}
+            {isSubmitting ? "Đang gửi đơn..." : "Gửi đơn cho bếp"}
           </button>
-
-          {submittedPayload ? (
-            <p className="cmc-checkout-note small">
-              Đã gửi {orderTypeCopy[submittedPayload.orderType as ActiveOrderType].label.toLowerCase()} với{" "}
-              {submittedPayload.items.length} dòng món.
-            </p>
-          ) : null}
         </form>
       </div>
     </section>

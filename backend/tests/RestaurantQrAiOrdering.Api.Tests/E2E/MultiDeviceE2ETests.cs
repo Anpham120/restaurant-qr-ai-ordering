@@ -13,6 +13,9 @@ namespace RestaurantQrAiOrdering.Api.Tests.E2E;
 
 public sealed class MultiDeviceE2ETests
 {
+    private const string TestTableCode = "T05";
+    private const string TestQrToken = "cmc-table-t05-qr";
+
     [Fact]
     public async Task CustomerKitchenStaffAndChatFlow_UsesBackendStateAcrossSeparateClients()
     {
@@ -90,12 +93,15 @@ public sealed class MultiDeviceE2ETests
 
     private static async Task<JsonDocument> CreateDineInOrderAsync(HttpClient client, string paymentMethod)
     {
+        var tableSessionId = await OpenTableSessionAsync(client);
+
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
-            tableCode = "T05",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
+            tableSessionId,
             paymentMethod,
-            deliveryInfo = (object?)null,
             items = new[]
             {
                 new { menuItemId = "m_001", quantity = 2 }
@@ -105,6 +111,19 @@ public sealed class MultiDeviceE2ETests
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return body;
+    }
+
+    private static async Task<string> OpenTableSessionAsync(HttpClient client)
+    {
+        using var response = await client.PostAsJsonAsync("/api/table-sessions", new
+        {
+            qrToken = TestQrToken,
+            tableCode = TestTableCode
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return body.RootElement.GetProperty("sessionId").GetString()!;
     }
 
     private static async Task<string> CreateChatSessionAsync(HttpClient client)

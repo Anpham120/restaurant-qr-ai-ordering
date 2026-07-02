@@ -18,7 +18,7 @@ export type AdminMenuOverview = {
   items: AdminMenuItem[];
 };
 
-export type AdminOrderType = "DineIn" | "Pickup";
+export type AdminOrderType = "DineIn";
 
 export type AdminOrderItem = {
   id: string;

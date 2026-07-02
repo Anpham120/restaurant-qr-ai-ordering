@@ -106,23 +106,17 @@ public sealed class TableEndpointTests
     }
 
     [Fact]
-    public async Task OpenTableSession_AllowsPickupWithoutQr()
+    public async Task OpenTableSession_RejectsRequestWithoutQr()
     {
         await using var factory = new TestWebApplicationFactory();
         await factory.SeedDatabaseAsync();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/table-sessions", new
-        {
-            orderType = "Pickup"
-        });
+        using var response = await client.PostAsJsonAsync("/api/table-sessions", new { });
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Pickup", body.RootElement.GetProperty("orderType").GetString());
-        Assert.Equal("Open", body.RootElement.GetProperty("status").GetString());
-        Assert.Equal("/?orderType=pickup", body.RootElement.GetProperty("customerPath").GetString());
-        Assert.True(body.RootElement.GetProperty("tableCode").ValueKind is JsonValueKind.Null);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("QR_TOKEN_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]

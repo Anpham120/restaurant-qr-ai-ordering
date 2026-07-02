@@ -13,7 +13,6 @@ export type {
   CreateOrderRequest,
   CreateOrderResponse,
   CustomerOrderType,
-  DeliveryInfo,
   OrderCreatedRealtimeEvent,
   OrderEventSource,
   OrderItemStatus,
@@ -27,7 +26,6 @@ export type {
   PaymentMethod,
   PaymentStatus,
   PaymentTransaction,
-  PickupInfo,
   VietQrPaymentResponse,
 } from "./order";
 export type {

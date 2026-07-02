@@ -210,7 +210,7 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
           <p className="tracking-kicker">Theo dõi đơn</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} – {eventStatusLabels[order.status] ?? order.status}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn"} - {eventStatusLabels[order.status] ?? order.status}
           </span>
         </div>
         <strong>
@@ -223,14 +223,6 @@ function CustomerOrderTrackingPanel({ order, onShowVietQr }: { order: OrderTrack
         <p className="tracking-refunded" role="status">
           Đơn này đã được hoàn tiền. Vui lòng liên hệ nhân viên nếu cần hỗ trợ thêm.
         </p>
-      ) : null}
-
-      {order.pickupInfo ? (
-        <div className="tracking-pickup">
-          <p className="tracking-kicker">Thông tin nhận món</p>
-          <strong>{order.pickupInfo.customerName}</strong>
-          <span>{order.pickupInfo.phoneNumber}</span>
-        </div>
       ) : null}
 
       <div className="tracking-timeline">
