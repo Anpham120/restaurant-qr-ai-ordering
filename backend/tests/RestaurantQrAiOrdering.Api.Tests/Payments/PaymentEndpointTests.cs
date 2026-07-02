@@ -11,6 +11,9 @@ namespace RestaurantQrAiOrdering.Api.Tests.Payments;
 
 public sealed class PaymentEndpointTests
 {
+    private const string TestTableCode = "T05";
+    private const string TestQrToken = "cmc-table-t05-qr";
+
     [Fact]
     public async Task GenerateVietQr_ReturnsConfiguredPayloadAndMarksPaymentPending()
     {
@@ -255,14 +258,15 @@ public sealed class PaymentEndpointTests
         TestWebApplicationFactory factory,
         string paymentMethod)
     {
-        await factory.SeedDatabaseAsync();
+        var tableSessionId = await OpenTableSessionAsync(client, factory);
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
-            tableCode = "T05",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
+            tableSessionId,
             paymentMethod,
-            deliveryInfo = (object?)null,
             items = new[]
             {
                 new { menuItemId = "m_001", quantity = 2 }
@@ -274,6 +278,23 @@ public sealed class PaymentEndpointTests
         return (
             body.RootElement.GetProperty("orderCode").GetString()!,
             body.RootElement.GetProperty("customerAccessToken").GetString()!);
+    }
+
+    private static async Task<string> OpenTableSessionAsync(
+        HttpClient client,
+        TestWebApplicationFactory factory)
+    {
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/table-sessions", new
+        {
+            qrToken = TestQrToken,
+            tableCode = TestTableCode
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return body.RootElement.GetProperty("sessionId").GetString()!;
     }
 
     private static AuthenticationHeaderValue CreateAuthorization(TestWebApplicationFactory factory, string role)

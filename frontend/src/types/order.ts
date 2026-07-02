@@ -1,6 +1,6 @@
 import type { OrderStatus, TableCode } from "./api";
 
-export type CustomerOrderType = "DineIn" | "Pickup";
+export type CustomerOrderType = "DineIn";
 
 export type PaymentMethod = "COD" | "VietQR";
 export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
@@ -12,19 +12,6 @@ export type OrderItemStatus =
   | "Served"
   | "Cancelled";
 
-export type DeliveryInfo = {
-  recipientName: string;
-  phoneNumber: string;
-  address: string;
-  note?: string;
-};
-
-export type PickupInfo = {
-  customerName: string;
-  phoneNumber: string;
-  requestedAt?: string | null;
-};
-
 export type CreateOrderItem = {
   menuItemId: string;
   quantity: number;
@@ -32,10 +19,10 @@ export type CreateOrderItem = {
 
 export type CreateOrderRequest = {
   orderType: CustomerOrderType;
-  tableCode: TableCode | null;
+  tableCode: TableCode;
+  qrToken: string;
+  tableSessionId: string;
   paymentMethod: PaymentMethod;
-  deliveryInfo: DeliveryInfo | null;
-  pickupInfo?: PickupInfo | null;
   items: CreateOrderItem[];
 };
 
@@ -45,11 +32,10 @@ export type CreateOrderResponse = {
   customerAccessToken?: string | null;
   orderType: CustomerOrderType;
   tableCode: TableCode | null;
+  tableSessionId?: string | null;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
-  deliveryInfo: DeliveryInfo | null;
-  pickupInfo?: PickupInfo | null;
   subtotalAmount: number;
   totalAmount: number;
   createdAt: string;
@@ -96,8 +82,6 @@ export type OrderTrackingOrder = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
-  deliveryInfo: DeliveryInfo | null;
-  pickupInfo?: PickupInfo | null;
   subtotalAmount: number;
   totalAmount: number;
   createdAt: string;

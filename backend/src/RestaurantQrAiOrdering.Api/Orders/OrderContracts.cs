@@ -3,13 +3,10 @@ namespace RestaurantQrAiOrdering.Api.Orders;
 public sealed record CreateOrderRequest(
     string? OrderType,
     string? TableCode,
+    string? QrToken,
+    string? TableSessionId,
     string? PaymentMethod,
-    PickupInfoRequest? PickupInfo,
     IReadOnlyList<CreateOrderItemRequest>? Items);
-
-public sealed record PickupInfoRequest(
-    string? CustomerName,
-    string? PhoneNumber);
 
 public sealed record CreateOrderItemRequest(
     string? MenuItemId,
@@ -32,7 +29,6 @@ public sealed record OrderResponse(
     string Status,
     string PaymentStatus,
     string PaymentMethod,
-    PickupInfoResponse? PickupInfo,
     decimal SubtotalAmount,
     decimal TotalAmount,
     DateTimeOffset CreatedAt,
@@ -40,11 +36,6 @@ public sealed record OrderResponse(
     IReadOnlyList<OrderItemResponse> Items,
     IReadOnlyList<OrderStatusEventResponse> Events,
     string? CustomerAccessToken);
-
-public sealed record PickupInfoResponse(
-    string CustomerName,
-    string PhoneNumber,
-    DateTimeOffset? RequestedAt);
 
 public sealed record OrderItemResponse(
     string OrderItemId,

@@ -13,7 +13,7 @@ const roleHome: Record<UserRole, string> = {
   Admin: "/admin",
   Staff: "/staff/orders",
   Kitchen: "/kitchen",
-  Customer: "/menu",
+  Customer: "/",
 };
 
 function canOpenPath(role: UserRole, path: string) {
@@ -135,8 +135,8 @@ export function LoginPage() {
             <button className="button primary" disabled={isSubmitting || loading} type="submit">
               {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
-            <Link to="/menu" className="login-back-link">
-              Quay lại thực đơn khách hàng
+            <Link to="/" className="login-back-link">
+              Quay lại trang quét QR
             </Link>
           </form>
         </section>

@@ -13,6 +13,9 @@ namespace RestaurantQrAiOrdering.Api.Tests.Orders;
 
 public sealed class OrderEndpointTests
 {
+    private const string TestTableCode = "T05";
+    private const string TestQrToken = "cmc-table-t05-qr";
+
     [Fact]
     public async Task CreateOrder_EmitsOrderCreatedEvent()
     {
@@ -195,14 +198,15 @@ public sealed class OrderEndpointTests
         var realtime = factory.GetRealtimeNotifier();
         realtime.Clear();
         using var client = factory.CreateClient();
-        await factory.SeedDatabaseAsync();
+        var tableSessionId = await OpenTableSessionAsync(client, factory);
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
-            tableCode = "T05",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
+            tableSessionId,
             paymentMethod = "COD",
-            deliveryInfo = (object?)null,
             items = new[]
             {
                 new { menuItemId = "m_004", quantity = 1 }
@@ -247,9 +251,8 @@ public sealed class OrderEndpointTests
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
-            tableCode = "T05",
+            tableCode = TestTableCode,
             paymentMethod = "COD",
-            deliveryInfo = (object?)null,
             items = Array.Empty<object>()
         });
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
@@ -622,12 +625,12 @@ public sealed class OrderEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
-            "PICKUP_CONTACT_REQUIRED",
+            "ORDER_TYPE_UNSUPPORTED",
             body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
-    public async Task CreateOrder_Pickup_PersistsAndReturnsContact()
+    public async Task CreateOrder_RequiresActiveTableSession()
     {
         await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -635,18 +638,16 @@ public sealed class OrderEndpointTests
 
         using var response = await client.PostAsJsonAsync("/api/orders", new
         {
-            orderType = "Pickup",
+            orderType = "DineIn",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
             paymentMethod = "COD",
-            pickupInfo = new { customerName = "Nguyen Van A", phoneNumber = "0901234567" },
             items = new[] { new { menuItemId = "m_001", quantity = 1 } }
         });
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Equal("Pickup", body.RootElement.GetProperty("orderType").GetString());
-        var pickup = body.RootElement.GetProperty("pickupInfo");
-        Assert.Equal("Nguyen Van A", pickup.GetProperty("customerName").GetString());
-        Assert.Equal("0901234567", pickup.GetProperty("phoneNumber").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("TABLE_SESSION_REQUIRED", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -736,14 +737,32 @@ public sealed class OrderEndpointTests
         return await client.PostAsJsonAsync("/api/orders", new
         {
             orderType = "DineIn",
-            tableCode = "T05",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
+            tableSessionId = await OpenTableSessionAsync(client, factory),
             paymentMethod = "COD",
-            deliveryInfo = (object?)null,
             items = new[]
             {
                 new { menuItemId = "m_001", quantity = 2 }
             }
         });
+    }
+
+    private static async Task<string> OpenTableSessionAsync(
+        HttpClient client,
+        TestWebApplicationFactory factory)
+    {
+        await factory.SeedDatabaseAsync();
+
+        using var response = await client.PostAsJsonAsync("/api/table-sessions", new
+        {
+            qrToken = TestQrToken,
+            tableCode = TestTableCode
+        });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return body.RootElement.GetProperty("sessionId").GetString()!;
     }
 
     private static async Task<string> CreateOrderCodeAsync(HttpClient client, TestWebApplicationFactory factory)

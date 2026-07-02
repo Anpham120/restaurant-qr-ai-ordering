@@ -16,8 +16,7 @@ const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 const REFUND_NOTE_MAX = 500;
 
 function tableLabel(order: OrderTrackingOrder): string {
-  if (order.tableCode) return `Bàn ${order.tableCode}`;
-  return order.deliveryInfo?.recipientName ?? "Khách mang về";
+  return order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn";
 }
 
 function isCollected(order: OrderTrackingOrder): boolean {
@@ -55,11 +54,12 @@ export function StaffPaymentsPage() {
   const stats = useMemo(() => {
     if (isLoading) {
       return [
-        { label: "Đơn chờ thu", value: "…", detail: "Đang tải" },
-        { label: "Tổng cần thu", value: "…", detail: "Đang tải" },
-        { label: "Đã thu / hoàn", value: "…", detail: "Đang tải" },
+        { label: "Đơn chờ thu", value: "...", detail: "Đang tải" },
+        { label: "Tổng cần thu", value: "...", detail: "Đang tải" },
+        { label: "Đã thu / hoàn", value: "...", detail: "Đang tải" },
       ];
     }
+
     const total = awaiting.reduce((sum, order) => sum + order.totalAmount, 0);
     const refunded = collected.filter((order) => order.paymentStatus === "Refunded").length;
     const paid = collected.length - refunded;
@@ -104,7 +104,7 @@ export function StaffPaymentsPage() {
     <PageShell
       eyebrow="Staff"
       title="Thu ngân"
-      description="Xác nhận, từ chối hoặc hoàn tiền cho các đơn đã phục vụ. Dữ liệu lấy trực tiếp từ backend."
+      description="Xác nhận, từ chối hoặc hoàn tiền cho các đơn tại bàn. Dữ liệu lấy trực tiếp từ backend."
       variant="staff"
       stats={stats}
     >
@@ -142,7 +142,7 @@ export function StaffPaymentsPage() {
                           onClick={() =>
                             runAction(
                               order.orderCode,
-                              () => confirmOrderPayment(order.orderCode, "Thu tại quầy"),
+                              () => confirmOrderPayment(order.orderCode, "Thu tại bàn"),
                               `Đã xác nhận thu đơn ${order.orderCode}.`,
                             )
                           }
@@ -156,7 +156,7 @@ export function StaffPaymentsPage() {
                           onClick={() =>
                             runAction(
                               order.orderCode,
-                              () => failOrderPayment(order.orderCode, "Từ chối tại quầy"),
+                              () => failOrderPayment(order.orderCode, "Từ chối tại bàn"),
                               `Đã từ chối thanh toán đơn ${order.orderCode}.`,
                             )
                           }
@@ -194,7 +194,7 @@ export function StaffPaymentsPage() {
                         refundCode === order.orderCode ? (
                           <div className="staff-refund-confirm">
                             <label>
-                              Lý do hoàn tiền (tuỳ chọn)
+                              Lý do hoàn tiền (tùy chọn)
                               <input
                                 maxLength={REFUND_NOTE_MAX}
                                 onChange={(event) => setRefundNote(event.target.value)}
@@ -228,17 +228,13 @@ export function StaffPaymentsPage() {
                                 disabled={pendingCode === order.orderCode}
                                 onClick={closeRefund}
                               >
-                                Huỷ
+                                Hủy
                               </button>
                             </div>
                           </div>
                         ) : (
                           <div className="staff-action-row">
-                            <button
-                              className="button"
-                              type="button"
-                              onClick={() => openRefund(order.orderCode)}
-                            >
+                            <button className="button" type="button" onClick={() => openRefund(order.orderCode)}>
                               Hoàn tiền
                             </button>
                           </div>

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminOrders, failOrderPayment } from "../../services/adminOrderService";
+import { failOrderPayment, getAdminOrders } from "../../services/adminOrderService";
 import { confirmOrderPayment, updateOrderStatus } from "../../services/orderService";
 import type { AdminOrder, OrderStatus } from "../../types";
 import { AdminStatePanel } from "./AdminStatePanel";
 import { AdminStatusBadge } from "./AdminStatusBadge";
 
-type OrderFilterStatus = "All" | "Placed" | "Preparing" | "Ready" | "Served" | "Delivered";
+type OrderFilterStatus = "All" | "Placed" | "Preparing" | "Ready" | "Served" | "Completed";
 
 const statuses: OrderFilterStatus[] = [
   "All",
@@ -13,7 +13,7 @@ const statuses: OrderFilterStatus[] = [
   "Preparing",
   "Ready",
   "Served",
-  "Delivered",
+  "Completed",
 ];
 
 const statusLabels: Record<OrderFilterStatus, string> = {
@@ -22,7 +22,7 @@ const statusLabels: Record<OrderFilterStatus, string> = {
   Preparing: "Đang chế biến",
   Ready: "Sẵn sàng",
   Served: "Đã phục vụ",
-  Delivered: "Đã giao",
+  Completed: "Hoàn tất",
 };
 
 const formatCurrency = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
@@ -33,7 +33,6 @@ const nextStatuses: Partial<Record<OrderStatus, OrderStatus>> = {
   Preparing: "Ready",
   Ready: "Served",
   Served: "Completed",
-  Delivered: "Completed",
 };
 
 export function AdminOrderManager() {
@@ -157,14 +156,11 @@ export function AdminOrderManager() {
         <div>
           <span className="panel-kicker">Order control</span>
           <h3>{orders.length} đơn đang theo dõi</h3>
-          <p>
-            Theo dõi danh sách đơn, chi tiết món, trạng thái xử lý và thanh toán
-            trong ca vận hành.
-          </p>
+          <p>Theo dõi đơn theo bàn, trạng thái xử lý và thanh toán trong ca vận hành.</p>
         </div>
         <div className="admin-toolbar-metrics">
           <span>{orderSummary.ready} đơn Ready</span>
-          <span>{orderSummary.unpaid} chờ COD</span>
+          <span>{orderSummary.unpaid} chờ thanh toán</span>
           <span>{formatCurrency(orderSummary.revenue)}</span>
         </div>
       </section>
@@ -196,7 +192,7 @@ export function AdminOrderManager() {
               <span className="panel-kicker">Danh sách đơn</span>
               <h3>Ưu tiên xử lý</h3>
             </div>
-            <span className="admin-status admin-status-placed">Theo ca sáng</span>
+            <span className="admin-status admin-status-placed">Theo ca</span>
           </div>
 
           {visibleOrders.length === 0 ? (
@@ -218,7 +214,7 @@ export function AdminOrderManager() {
                   <span>{order.code}</span>
                   <strong>{order.tableCode ?? order.customerName}</strong>
                   <small>
-                    {order.placedAt} · {formatOrderType(order.type)}
+                    {order.placedAt} - Tại bàn
                   </small>
                   <AdminStatusBadge status={order.status} />
                   <b>{formatCurrency(order.total)}</b>
@@ -240,12 +236,12 @@ export function AdminOrderManager() {
               </div>
               <dl className="admin-detail-grid">
                 <div>
-                  <dt>Khách/Bàn</dt>
+                  <dt>Bàn</dt>
                   <dd>{selectedOrder.tableCode ?? selectedOrder.customerName}</dd>
                 </div>
                 <div>
                   <dt>Loại đơn</dt>
-                  <dd>{formatOrderType(selectedOrder.type)}</dd>
+                  <dd>Tại bàn</dd>
                 </div>
                 <div>
                   <dt>Thanh toán</dt>
@@ -327,16 +323,4 @@ export function AdminOrderManager() {
       </div>
     </div>
   );
-}
-
-function formatOrderType(type: AdminOrder["type"]) {
-  if (type === "DineIn") {
-    return "Tại bàn";
-  }
-
-  if (type === "Pickup") {
-    return "Mang về";
-  }
-
-  return "Giao hàng";
 }
