@@ -1,45 +1,39 @@
-## Tóm Tắt
+<!-- Điền ngắn gọn để reviewer và CI/CD hiểu thay đổi. -->
 
--
+## Mục tiêu
 
-## Issue Liên Quan
+<!-- Thay đổi này làm gì và vì sao? Link issue nếu có. -->
 
-Closes #
+## Loại thay đổi
 
-## Kiểm Tra Phạm Vi
+- [ ] feat (tính năng mới)
+- [ ] fix (sửa lỗi)
+- [ ] refactor / chore
+- [ ] docs
+- [ ] ci/devops
 
-- [ ] Branch được tạo từ `develop`.
-- [ ] Branch đúng format `issue-<number>/<github-username>-<short-task>`.
-- [ ] PR merge vào `develop`, không merge vào `main`.
-- [ ] PR link issue bằng `Closes #<issue_number>`.
-- [ ] Chỉ sửa file/vùng được phép trong issue.
-- [ ] Không sửa file/vùng nằm trong `Do not touch`.
-- [ ] Nếu có thay đổi API/route/status/shared type, đã cập nhật `docs/API_CONTRACT.md` và được Lead đồng ý.
+## Phạm vi ảnh hưởng
 
-## Kiểm Thử / Xác Minh
+- [ ] Backend (.NET API)
+- [ ] Frontend (React apps)
+- [ ] AI service (Python RAG)
+- [ ] Hạ tầng / CI-CD
+- [ ] Database (có migration?)
 
-- [ ] Đã chạy test/build phù hợp.
-- [ ] Đã ghi rõ lệnh test/build đã chạy bên dưới.
-- [ ] Nếu có UI, đã đính kèm ảnh/video demo hoặc mô tả màn hình.
+## Kiểm thử
 
-Lệnh đã chạy:
+<!-- Đã chạy gì để chứng minh thay đổi hoạt động? -->
 
-```text
+- [ ] `dotnet test` (backend)
+- [ ] `npm run typecheck && npm test` (frontend)
+- [ ] Kiểm thử thủ công luồng liên quan
 
-```
+## Ghi chú triển khai
 
-## Báo Cáo Kết Quả
+<!-- Có breaking change / cần biến môi trường mới / cần migration DB / ảnh hưởng deploy không? -->
 
-- [ ] Đã comment báo cáo kết quả trong issue.
-- [ ] Đã ghi rõ vấn đề còn tồn tại nếu có.
+## Checklist
 
-## Checklist Cho AI Reviewer
-
-- [ ] PR không sửa ngoài `Allowed files / areas`.
-- [ ] PR không dùng field/status/route khác `docs/API_CONTRACT.md`.
-- [ ] Commit message rõ nghĩa, không phải `update/fix/done`.
-- [ ] Bằng chứng trong PR và issue đủ để đánh giá đóng góp.
-
-## Ghi Chú Cho Người Review
-
--
+- [ ] CI xanh (build + test + security)
+- [ ] Đã cập nhật tài liệu nếu đổi API/hợp đồng
+- [ ] Không commit secret hay file cục bộ
