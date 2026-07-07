@@ -388,12 +388,13 @@ export function LoginPage({
 
             <form onSubmit={submit}>
               <div className="cmc-login-input-group">
-                <label>TÊN ĐĂNG NHẬP</label>
+                <label htmlFor="cmc-login-email">TÊN ĐĂNG NHẬP</label>
                 <div className="cmc-login-input-wrapper">
                   <span className="cmc-login-input-icon">
                     <Mail size={16} />
                   </span>
                   <input
+                    id="cmc-login-email"
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
@@ -405,12 +406,13 @@ export function LoginPage({
               </div>
 
               <div className="cmc-login-input-group">
-                <label>MẬT KHẨU</label>
+                <label htmlFor="cmc-login-password">MẬT KHẨU</label>
                 <div className="cmc-login-input-wrapper">
                   <span className="cmc-login-input-icon">
                     <Lock size={16} />
                   </span>
                   <input
+                    id="cmc-login-password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
