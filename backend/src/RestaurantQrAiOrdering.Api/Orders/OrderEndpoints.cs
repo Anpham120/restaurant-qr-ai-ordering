@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Api.Promotions;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
@@ -36,6 +37,38 @@ public static partial class OrderEndpoints
             }
 
             var validatedRequest = request!;
+
+            // Apply the promotion before creating the order so an invalid code fails the
+            // whole request (HTTP 400) instead of silently creating an undiscounted order.
+            decimal discountAmount = 0m;
+            string? promotionId = null;
+            string? promotionCode = null;
+            if (!string.IsNullOrWhiteSpace(validatedRequest.PromotionCode))
+            {
+                var subtotalPreview = await ComputeSubtotalPreviewAsync(validatedRequest, db, cancellationToken);
+                try
+                {
+                    var promoResult = await PromotionCalculator.TryApplyAsync(
+                        db,
+                        validatedRequest.PromotionCode,
+                        subtotalPreview,
+                        DateTimeOffset.UtcNow,
+                        cancellationToken);
+
+                    if (promoResult is not null)
+                    {
+                        discountAmount = promoResult.DiscountAmount;
+                        promotionId = promoResult.Promotion.Id;
+                        promotionCode = promoResult.Promotion.Code;
+                    }
+                }
+                catch (PromotionInvalidException ex)
+                {
+                    logger.LogWarning("Rejected order creation due to invalid promotion code.");
+                    return ApiResults.BadRequest(ex.ErrorCode, ex.Message);
+                }
+            }
+
             OrderSnapshot order;
             try
             {
@@ -46,7 +79,11 @@ public static partial class OrderEndpoints
                         validatedRequest.QrToken?.Trim(),
                         validatedRequest.TableSessionId?.Trim(),
                         validatedRequest.PaymentMethod!.Trim(),
-                        validatedRequest.Items!),
+                        validatedRequest.Items!,
+                        discountAmount,
+                        promotionId,
+                        promotionCode,
+                        validatedRequest.CustomerPhoneNumber?.Trim()),
                     ActorContext.FromPrincipal(user));
             }
             catch (MenuItemUnavailableException ex)
@@ -312,6 +349,34 @@ public static partial class OrderEndpoints
         return app;
     }
 
+    private static async Task<decimal> ComputeSubtotalPreviewAsync(
+        CreateOrderRequest request,
+        RestaurantDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var itemIds = request.Items!
+            .Where(item => !string.IsNullOrWhiteSpace(item.MenuItemId))
+            .Select(item => item.MenuItemId!.Trim())
+            .Distinct()
+            .ToList();
+
+        var prices = await db.MenuItems
+            .AsNoTracking()
+            .Where(menuItem => itemIds.Contains(menuItem.Id))
+            .ToDictionaryAsync(menuItem => menuItem.Id, menuItem => menuItem.Price, cancellationToken);
+
+        decimal subtotal = 0m;
+        foreach (var item in request.Items!)
+        {
+            if (item.MenuItemId is not null && prices.TryGetValue(item.MenuItemId.Trim(), out var price))
+            {
+                subtotal += price * item.Quantity;
+            }
+        }
+
+        return subtotal;
+    }
+
     private static async Task<IResult?> ValidateCreateOrderRequestAsync(
         CreateOrderRequest? request,
         RestaurantDbContext db,
@@ -327,16 +392,55 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type is invalid.");
         }
 
-        if (orderType != OrderType.DineIn)
-        {
-            return ApiResults.BadRequest("ORDER_TYPE_UNSUPPORTED", "Only dine-in QR table orders are supported.");
-        }
-
         if (!TryParseEnum<PaymentMethod>(request.PaymentMethod, out _))
         {
             return ApiResults.BadRequest("PAYMENT_METHOD_INVALID", "Payment method is invalid.");
         }
 
+        var sharedValidationError = ValidateSharedOrderItems(request);
+        if (sharedValidationError is not null)
+        {
+            return sharedValidationError;
+        }
+
+        if (orderType != OrderType.DineIn)
+        {
+            return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type is invalid.");
+        }
+
+        var dineInValidationError = await ValidateDineInOrderRequestAsync(request, db, cancellationToken);
+        if (dineInValidationError is not null)
+        {
+            return dineInValidationError;
+        }
+
+        foreach (var item in request.Items!)
+        {
+            if (string.IsNullOrWhiteSpace(item.MenuItemId))
+            {
+                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
+            }
+
+            var menuItemId = item.MenuItemId.Trim();
+            var menuItem = await db.MenuItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(menuItem => menuItem.Id == menuItemId, cancellationToken);
+            if (menuItem is null)
+            {
+                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
+            }
+
+            if (!menuItem.IsAvailable)
+            {
+                return ApiResults.BadRequest("MENU_ITEM_UNAVAILABLE", "Menu item is unavailable.");
+            }
+        }
+
+        return null;
+    }
+
+    private static IResult? ValidateSharedOrderItems(CreateOrderRequest request)
+    {
         if (request.Items is null || request.Items.Count == 0)
         {
             return ApiResults.BadRequest("ORDER_ITEMS_REQUIRED", "Order must contain at least one item.");
@@ -367,6 +471,14 @@ public static partial class OrderEndpoints
                 "Each menu item can appear only once per order; combine quantities instead.");
         }
 
+        return null;
+    }
+
+    private static async Task<IResult?> ValidateDineInOrderRequestAsync(
+        CreateOrderRequest request,
+        RestaurantDbContext db,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(request.TableCode))
         {
             return ApiResults.BadRequest("DINE_IN_TABLE_REQUIRED", "Dine-in orders require a table code.");
@@ -427,28 +539,6 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("QR_TABLE_MISMATCH", "QR token does not match the active table session.");
         }
 
-        foreach (var item in request.Items)
-        {
-            if (string.IsNullOrWhiteSpace(item.MenuItemId))
-            {
-                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
-            }
-
-            var menuItemId = item.MenuItemId.Trim();
-            var menuItem = await db.MenuItems
-                .AsNoTracking()
-                .FirstOrDefaultAsync(menuItem => menuItem.Id == menuItemId, cancellationToken);
-            if (menuItem is null)
-            {
-                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
-            }
-
-            if (!menuItem.IsAvailable)
-            {
-                return ApiResults.BadRequest("MENU_ITEM_UNAVAILABLE", "Menu item is unavailable.");
-            }
-        }
-
         return null;
     }
 
@@ -470,7 +560,9 @@ public static partial class OrderEndpoints
             order.PaymentStatus,
             order.PaymentMethod,
             order.SubtotalAmount,
+            order.DiscountAmount,
             order.TotalAmount,
+            order.PromotionCode,
             order.CreatedAt,
             order.UpdatedAt,
             order.Items
@@ -508,7 +600,9 @@ public static partial class OrderEndpoints
             (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
             (payment?.Method ?? PaymentMethod.COD).ToString(),
             order.SubtotalAmount,
+            order.DiscountAmount,
             order.TotalAmount,
+            order.PromotionCode,
             order.CreatedAt,
             order.UpdatedAt,
             order.OrderItems

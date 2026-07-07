@@ -37,7 +37,7 @@ export function OrderTrackingPanel({ order }: OrderTrackingPanelProps) {
           <p className="tracking-kicker">Theo dõi đơn</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? `Bàn ${order.tableCode}` : "Mang về"} –{" "}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn"} –{" "}
             {orderStatusLabel(order.status)}
           </span>
         </div>

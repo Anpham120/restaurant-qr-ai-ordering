@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 
 namespace RestaurantQrAiOrdering.Api.Menu;
@@ -50,6 +51,38 @@ public static class MenuEndpoints
         })
         .WithName("GetMenu")
         .WithTags("Menu");
+
+        // Kitchen-accessible endpoint: toggle menu item availability only.
+        // Kitchen staff can mark dishes as unavailable when ingredients run out,
+        // without requiring full admin menu CRUD access.
+        app.MapPatch("/api/kitchen/menu-items/{menuItemId}/availability", async (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDbContext db) =>
+        {
+            if (request is null)
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
+            var item = await db.MenuItems
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
+
+            if (item is null)
+            {
+                return ApiResults.NotFound("MENU_ITEM_NOT_FOUND", "Menu item was not found.");
+            }
+
+            item.IsAvailable = request.IsAvailable;
+            item.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync();
+
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+
+            return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
+        .WithName("KitchenToggleMenuItemAvailability")
+        .WithTags("Kitchen");
 
         var adminMenu = app.MapGroup("/api/admin/menu-items")
             .WithTags("Admin Menu")

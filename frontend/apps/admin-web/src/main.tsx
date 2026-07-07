@@ -21,9 +21,18 @@ import { AdminOrdersPage } from "../../../src/pages/AdminOrdersPage";
 import { AdminTablesPage } from "../../../src/pages/AdminTablesPage";
 import { AdminCategoriesPage } from "../../../src/pages/admin/AdminCategoriesPage";
 import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManagementPage";
+import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
+import { AdminLoyaltyPage } from "../../../src/pages/admin/AdminLoyaltyPage";
+import { AdminReportsPage } from "../../../src/pages/admin/AdminReportsPage";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
 import { StaffOrdersPage } from "../../../src/pages/StaffOrdersPage";
 import { StaffPaymentsPage } from "../../../src/pages/StaffPaymentsPage";
+import { AdminInvoicesPage } from "../../../src/pages/AdminInvoicesPage";
+import {
+  LayoutDashboard, BookOpen, Tag, ShoppingBag, Receipt,
+  QrCode, Users, ClipboardList, CreditCard, ChefHat,
+  BadgePercent, Star, BarChart3,
+} from "lucide-react";
 
 const roleRedirects = {
   Admin: "/",
@@ -32,20 +41,24 @@ const roleRedirects = {
 } as const;
 
 const adminLinks = [
-  { to: "/", label: "Tổng quan" },
-  { to: "/menu", label: "Thực đơn" },
-  { to: "/categories", label: "Danh mục" },
-  { to: "/orders", label: "Đơn hàng" },
-  { to: "/tables", label: "Bàn & QR" },
-  { to: "/users", label: "Người dùng" },
+  { to: "/", label: "Tổng quan", icon: <LayoutDashboard size={18} /> },
+  { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} /> },
+  { to: "/categories", label: "Danh mục", icon: <Tag size={18} /> },
+  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} /> },
+  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} /> },
+  { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} /> },
+  { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} /> },
+  { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} /> },
+  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} /> },
+  { to: "/users", label: "Người dùng", icon: <Users size={18} /> },
 ];
 
 const staffLinks = [
-  { to: "/staff", label: "Đơn hàng" },
-  { to: "/staff/payments", label: "Thu ngân" },
+  { to: "/staff", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
+  { to: "/staff/payments", label: "Thu ngân", icon: <CreditCard size={18} /> },
 ];
 
-const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp" }];
+const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp", icon: <ChefHat size={18} /> }];
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
@@ -115,6 +128,10 @@ const router = createBrowserRouter([
       { path: "menu", element: <AdminMenuPage /> },
       { path: "categories", element: <AdminCategoriesPage /> },
       { path: "orders", element: <AdminOrdersPage /> },
+      { path: "invoices", element: <AdminInvoicesPage /> },
+      { path: "promotions", element: <AdminPromotionsPage /> },
+      { path: "loyalty", element: <AdminLoyaltyPage /> },
+      { path: "reports", element: <AdminReportsPage /> },
       { path: "tables", element: <AdminTablesPage /> },
       { path: "users", element: <AdminUserManagementPage /> },
     ],

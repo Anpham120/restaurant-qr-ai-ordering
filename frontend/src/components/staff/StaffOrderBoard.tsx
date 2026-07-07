@@ -1,182 +1,250 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
+import { getKitchenOrders, updateOrderStatus } from "../../services/orderService";
 import {
-  confirmOrderPayment,
-  getKitchenOrders,
-  updateOrderStatus,
-} from "../../services/orderService";
-import type { OrderTrackingOrder } from "../../types";
+  connectOrderRealtime,
+  disconnectOrderRealtime,
+  subscribeOrderRealtime,
+  subscribeRealtimeConnection,
+} from "../../services/realtimeOrderService";
+import "../operations/operations.css";
 
-type StaffTicketStatus = "Ready" | "Served" | "PaymentPending" | "Completed";
-
-type StaffTicket = {
-  id: string;
-  orderCode: string;
-  tableLabel: string;
-  customerNote: string;
-  status: StaffTicketStatus;
-  payment: "COD" | "Paid" | "VietQR";
-  items: Array<{
-    name: string;
-    quantity: number;
-  }>;
-};
-
-const lanes: Array<{
-  status: StaffTicketStatus;
-  title: string;
-  hint: string;
-}> = [
-  { status: "Ready", title: "Sẵn sàng phục vụ", hint: "Nhận món Ready từ bếp và mang ra bàn." },
-  { status: "Served", title: "Đã phục vụ", hint: "Theo dõi phản hồi và chuẩn bị thanh toán." },
-  { status: "PaymentPending", title: "Chờ thu tiền", hint: "COD/VietQR cần xác nhận thu ngân." },
-  { status: "Completed", title: "Hoàn tất", hint: "Đơn đã kết thúc trong ca." },
-];
-
-function toTicket(order: OrderTrackingOrder): StaffTicket | null {
-  const paid = order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed";
-  let status: StaffTicketStatus | null = null;
-
-  if (order.status === "Ready") {
-    status = "Ready";
-  } else if (order.status === "Served" && !paid) {
-    status = "PaymentPending";
-  } else if (order.status === "Served") {
-    status = "Served";
-  } else if (order.status === "Completed" || paid) {
-    status = "Completed";
-  }
-
-  if (!status) {
-    return null;
-  }
-
-  return {
-    id: order.orderId,
-    orderCode: order.orderCode,
-    tableLabel: order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn",
-    customerNote: "Không có ghi chú.",
-    status,
-    payment: paid ? "Paid" : order.paymentMethod,
-    items: order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
-  };
+/* ---------- helpers ---------- */
+function timeAgo(iso: string): string {
+  const diff = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  return `${Math.floor(diff / 3600)}h${Math.floor((diff % 3600) / 60)}m`;
 }
 
-export function StaffOrderBoard() {
-  const [tickets, setTickets] = useState<StaffTicket[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function formatVnd(v: number) {
+  return v.toLocaleString("vi-VN") + "đ";
+}
 
-  async function reloadTickets() {
-    const orders = await getKitchenOrders();
-    setTickets(orders.map(toTicket).filter((ticket): ticket is StaffTicket => Boolean(ticket)));
-  }
+/* ---------- Order Card ---------- */
+function StaffCard({
+  order,
+  onAction,
+  isPending,
+}: {
+  order: Order;
+  onAction: (code: string, status: OrderStatus) => void;
+  isPending: boolean;
+}) {
+  const [elapsed, setElapsed] = useState(timeAgo(order.createdAt));
 
   useEffect(() => {
-    reloadTickets()
-      .catch(() => setError("Không tải được danh sách đơn cho nhân viên phục vụ."))
-      .finally(() => setIsLoading(false));
+    const t = setInterval(() => setElapsed(timeAgo(order.createdAt)), 10_000);
+    return () => clearInterval(t);
+  }, [order.createdAt]);
+
+  const payBadge =
+    order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid"
+      ? "ops-badge ops-badge--paid"
+      : order.paymentStatus === "Failed"
+        ? "ops-badge ops-badge--failed"
+        : "ops-badge ops-badge--unpaid";
+
+  return (
+    <article className={`ops-card ops-card--${order.status.toLowerCase()}`}>
+      <div className="ops-card-header">
+        <span className="ops-card-code">{order.orderCode}</span>
+        {order.tableCode ? <span className="ops-card-table">Bàn {order.tableCode}</span> : null}
+      </div>
+      <div className="ops-card-meta">
+        <span className="ops-timer ops-timer--normal">⏱ {elapsed}</span>
+        <span>{order.items.length} món</span>
+        <span>{formatVnd(order.totalAmount)}</span>
+      </div>
+      <div className="ops-card-meta" style={{ marginTop: 6 }}>
+        <span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span>
+        <span className={payBadge}>{order.paymentMethod} · {order.paymentStatus}</span>
+      </div>
+
+      <div className="ops-card-items">
+        {order.items.map((item) => (
+          <span
+            key={item.orderItemId}
+            className={
+              item.status === "Ready" || item.status === "Served"
+                ? "ops-card-item-chip ops-card-item-chip--done"
+                : item.status === "Preparing"
+                  ? "ops-card-item-chip ops-card-item-chip--active"
+                  : "ops-card-item-chip"
+            }
+          >
+            {item.quantity}× {item.name}
+          </span>
+        ))}
+      </div>
+
+      <div className="ops-card-actions">
+        {order.status === "Placed" ? (
+          <button className="ops-btn ops-btn--primary ops-btn--sm" disabled={isPending} onClick={() => onAction(order.orderCode, "Confirmed")} type="button">
+            ✓ Xác nhận đơn
+          </button>
+        ) : null}
+        {order.status === "Ready" ? (
+          <button className="ops-btn ops-btn--success ops-btn--sm" disabled={isPending} onClick={() => onAction(order.orderCode, "Served")} type="button">
+            🍽 Đã phục vụ
+          </button>
+        ) : null}
+        {order.status === "Served" ? (
+          <button
+            className="ops-btn ops-btn--success ops-btn--sm"
+            disabled={isPending || !(order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid")}
+            onClick={() => onAction(order.orderCode, "Completed")}
+            type="button"
+            title={order.paymentStatus !== "Confirmed" && order.paymentStatus !== "Paid" ? "Cần thu tiền trước" : ""}
+          >
+            ✅ Hoàn tất
+          </button>
+        ) : null}
+        {(order.status === "Placed" || order.status === "Confirmed") ? (
+          <button className="ops-btn ops-btn--ghost ops-btn--sm" disabled={isPending} onClick={() => onAction(order.orderCode, "Cancelled")} type="button">
+            Hủy
+          </button>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/* ---------- Column ---------- */
+function StaffColumn({
+  title,
+  icon,
+  variant,
+  orders,
+  onAction,
+  pendingCode,
+}: {
+  title: string;
+  icon: string;
+  variant: string;
+  orders: Order[];
+  onAction: (code: string, status: OrderStatus) => void;
+  pendingCode: string | null;
+}) {
+  return (
+    <div className={`ops-column ops-column--${variant}`}>
+      <div className="ops-column-header">
+        <h3>{icon} {title}</h3>
+        <span className="ops-count">{orders.length}</span>
+      </div>
+      <div className="ops-column-body">
+        {orders.length === 0 ? (
+          <div className="ops-column-empty">Không có đơn</div>
+        ) : (
+          orders.map((o) => (
+            <StaffCard key={o.orderId} order={o} onAction={onAction} isPending={pendingCode === o.orderCode} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Main Board ---------- */
+export function StaffOrderBoard() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
+
+  const loadOrders = useCallback(async () => {
+    try {
+      const data = await getKitchenOrders();
+      const list = (data as { orders?: Order[] }).orders ?? (data as unknown as Order[]);
+      setOrders(Array.isArray(list) ? list : []);
+    } catch {
+      setError("Không tải được đơn hàng.");
+    }
   }, []);
 
-  const summary = useMemo(
-    () => ({
-      ready: tickets.filter((ticket) => ticket.status === "Ready").length,
-      payment: tickets.filter((ticket) => ticket.status === "PaymentPending").length,
-      completed: tickets.filter((ticket) => ticket.status === "Completed").length,
-    }),
-    [tickets],
+  useEffect(() => {
+    loadOrders().finally(() => setIsLoading(false));
+  }, [loadOrders]);
+
+  // Realtime
+  useEffect(() => {
+    const unC = subscribeRealtimeConnection(setConnectionStatus);
+    const unR = subscribeOrderRealtime(() => loadOrders());
+    void connectOrderRealtime().catch(() => setConnectionStatus("error"));
+    return () => { unC(); unR(); void disconnectOrderRealtime(); };
+  }, [loadOrders]);
+
+  const placed = useMemo(() => orders.filter((o) => o.status === "Placed"), [orders]);
+  const ready = useMemo(() => orders.filter((o) => o.status === "Ready"), [orders]);
+  const served = useMemo(() => orders.filter((o) => o.status === "Served"), [orders]);
+  const active = useMemo(
+    () => orders.filter((o) => ["Confirmed", "Preparing"].includes(o.status)),
+    [orders],
   );
 
-  async function serveTicket(ticket: StaffTicket) {
-    await updateOrderStatus(ticket.orderCode, "Served");
-    await reloadTickets();
-  }
+  const stats = useMemo(() => [
+    { label: "Đơn mới", value: String(placed.length), detail: "Chờ xác nhận" },
+    { label: "Đang bếp", value: String(active.length), detail: "Confirmed + Preparing" },
+    { label: "Sẵn sàng", value: String(ready.length), detail: "Chờ mang ra bàn" },
+    { label: "Đã phục vụ", value: String(served.length), detail: "Chờ thu tiền / hoàn tất" },
+  ], [placed, active, ready, served]);
 
-  async function completeTicket(ticket: StaffTicket) {
-    if (ticket.payment !== "Paid") {
-      await confirmOrderPayment(ticket.orderCode, "Xác nhận từ nhân viên phục vụ");
+  const handleAction = useCallback(async (orderCode: string, status: OrderStatus) => {
+    setPendingCode(orderCode);
+    setNotice("");
+    try {
+      await updateOrderStatus(orderCode, status);
+      setNotice(`${orderCode} → ${status}`);
+      await loadOrders();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Thao tác thất bại.");
+    } finally {
+      setPendingCode(null);
     }
-    await updateOrderStatus(ticket.orderCode, "Completed");
-    await reloadTickets();
-  }
+  }, [loadOrders]);
 
   if (isLoading) {
-    return <div className="staff-workspace"><p>Đang tải đơn phục vụ...</p></div>;
-  }
-
-  if (error) {
-    return <div className="staff-workspace"><p>{error}</p></div>;
+    return <div className="ops-empty"><div className="ops-empty-icon">📋</div>Đang tải...</div>;
   }
 
   return (
-    <div className="staff-workspace">
-      <section className="admin-toolbar">
-        <div>
-          <span className="panel-kicker">Trạm phục vụ</span>
-          <h3>Luồng phục vụ theo bàn</h3>
-          <p>Nhận món từ bếp, đánh dấu đã phục vụ, xác nhận thanh toán và hoàn tất đơn.</p>
+    <div>
+      <div className="ops-page-header">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1>Đơn cần phục vụ</h1>
+            <p>Xác nhận, mang món, hoàn tất đơn tại bàn</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className={`ops-connection ops-connection--${connectionStatus}`}>
+              <span className="ops-connection-dot" />
+              {connectionStatus === "connected" ? "Đã kết nối" : connectionStatus === "connecting" ? "Đang kết nối..." : "Mất kết nối"}
+            </span>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">🔄 Làm mới</button>
+          </div>
         </div>
-        <div className="admin-toolbar-metrics">
-          <span>{summary.ready} món cần mang ra</span>
-          <span>{summary.payment} đơn chờ thu tiền</span>
-          <span>{summary.completed} hoàn tất</span>
-        </div>
-      </section>
+      </div>
 
-      <section className="staff-board" aria-label="Bảng đơn phục vụ">
-        {lanes.map((lane) => {
-          const laneTickets = tickets.filter((ticket) => ticket.status === lane.status);
+      {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
+      {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
 
-          return (
-            <article className="staff-lane" key={lane.status}>
-              <div className="realtime-lane-heading">
-                <div>
-                  <h3>{lane.title}</h3>
-                  <p>{lane.hint}</p>
-                </div>
-                <span>{laneTickets.length}</span>
-              </div>
+      <div className="ops-stats">
+        {stats.map((s) => (
+          <div className="ops-stat-card" key={s.label}>
+            <div className="ops-stat-label">{s.label}</div>
+            <div className="ops-stat-value">{s.value}</div>
+            <div className="ops-stat-detail">{s.detail}</div>
+          </div>
+        ))}
+      </div>
 
-              {laneTickets.length === 0 ? (
-                <p className="realtime-empty">Chưa có đơn trong cột này.</p>
-              ) : (
-                laneTickets.map((ticket) => (
-                  <div className="staff-ticket" key={ticket.id}>
-                    <div className="staff-ticket-meta">
-                      <span>{ticket.orderCode}</span>
-                      <strong>{ticket.tableLabel}</strong>
-                      <small>{ticket.payment === "Paid" ? "Đã thanh toán" : ticket.payment}</small>
-                    </div>
-                    <ul>
-                      {ticket.items.map((item) => (
-                        <li key={ticket.id + item.name}>
-                          <span>{item.name}</span>
-                          <b>x{item.quantity}</b>
-                        </li>
-                      ))}
-                    </ul>
-                    <p>{ticket.customerNote}</p>
-                    <div className="staff-action-row">
-                      {ticket.status === "Ready" ? (
-                        <button className="button primary" type="button" onClick={() => serveTicket(ticket)}>
-                          Đã phục vụ
-                        </button>
-                      ) : null}
-                      {ticket.status === "Served" || ticket.status === "PaymentPending" ? (
-                        <button className="button primary" type="button" onClick={() => completeTicket(ticket)}>
-                          Hoàn tất đơn
-                        </button>
-                      ) : null}
-                      <button className="button" type="button" onClick={reloadTickets}>
-                        Tải lại
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </article>
-          );
-        })}
-      </section>
+      <div className="ops-board">
+        <StaffColumn title="Đơn mới" icon="📩" variant="placed" orders={placed} onAction={handleAction} pendingCode={pendingCode} />
+        <StaffColumn title="Sẵn sàng" icon="🍽" variant="ready" orders={ready} onAction={handleAction} pendingCode={pendingCode} />
+        <StaffColumn title="Đã phục vụ" icon="✅" variant="served" orders={served} onAction={handleAction} pendingCode={pendingCode} />
+      </div>
     </div>
   );
 }

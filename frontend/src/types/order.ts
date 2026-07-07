@@ -19,11 +19,25 @@ export type CreateOrderItem = {
 
 export type CreateOrderRequest = {
   orderType: CustomerOrderType;
-  tableCode: TableCode;
-  qrToken: string;
-  tableSessionId: string;
+  tableCode?: TableCode | null;
+  qrToken?: string | null;
+  tableSessionId?: string | null;
   paymentMethod: PaymentMethod;
   items: CreateOrderItem[];
+  promotionCode?: string | null;
+  customerPhoneNumber?: string | null;
+};
+
+export type PromotionType = "Percentage" | "FixedAmount";
+
+export type ValidatePromotionResponse = {
+  code: string;
+  name: string;
+  type: PromotionType;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  isFlashSale: boolean;
 };
 
 export type CreateOrderResponse = {
@@ -37,7 +51,9 @@ export type CreateOrderResponse = {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   subtotalAmount: number;
+  discountAmount: number;
   totalAmount: number;
+  promotionCode?: string | null;
   createdAt: string;
   updatedAt: string;
   items: Array<{

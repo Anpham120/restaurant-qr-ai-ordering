@@ -1,266 +1,165 @@
-import { useEffect, useState } from "react";
-import type { AdminCategory } from "@cmc/shared-types";
-import {
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "../../services/adminCategoryService";
-import { AdminStatePanel } from "./AdminStatePanel";
+import { useCallback, useEffect, useState } from "react";
+import type { AdminCategory, AdminCategoryRequest } from "@cmc/shared-types";
+import { createApiClient } from "@cmc/api-client";
+import "../operations/operations.css";
 
-type FormState = {
-  name: string;
-  displayOrder: string;
-  isActive: boolean;
-};
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
-function createEmptyForm(): FormState {
-  return { name: "", displayOrder: "0", isActive: true };
-}
-
-function formFromCategory(cat: AdminCategory): FormState {
-  return {
-    name: cat.name,
-    displayOrder: String(cat.displayOrder),
-    isActive: cat.isActive,
-  };
-}
+const EMPTY: AdminCategoryRequest = { name: "", displayOrder: 0, isActive: true };
 
 export function AdminCategoryManager() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<FormState>(createEmptyForm);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<AdminCategoryRequest>(EMPTY);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  async function loadCategories(preferredId?: string | null) {
-    const result = await getCategories();
-    setCategories(result);
-    const nextId = preferredId ?? result[0]?.categoryId ?? null;
-    setSelectedId(nextId);
-    setIsCreating(false);
-    const selected = result.find((c) => c.categoryId === nextId);
-    setForm(selected ? formFromCategory(selected) : createEmptyForm());
-  }
-
-  useEffect(() => {
-    loadCategories()
-      .catch(() => setError("Không tải được danh sách danh mục."))
-      .finally(() => setIsLoading(false));
+  const load = useCallback(async () => {
+    try {
+      const data = await api.categories.list();
+      setCategories(data);
+    } catch {
+      setError("Không tải được danh mục.");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const selectedCategory = categories.find((c) => c.categoryId === selectedId);
+  useEffect(() => { load(); }, [load]);
 
-  function startCreate() {
-    setIsCreating(true);
-    setSelectedId(null);
-    setForm(createEmptyForm());
-    setActionMessage(null);
+  function openCreate() {
+    setEditingId(null);
+    setForm(EMPTY);
+    setShowForm(true);
   }
 
-  function startEdit(cat: AdminCategory) {
-    setIsCreating(false);
-    setSelectedId(cat.categoryId);
-    setForm(formFromCategory(cat));
-    setActionMessage(null);
+  function openEdit(cat: AdminCategory) {
+    setEditingId(cat.categoryId);
+    setForm({ name: cat.name, displayOrder: cat.displayOrder, isActive: cat.isActive });
+    setShowForm(true);
   }
 
-  function updateForm(patch: Partial<FormState>) {
-    setForm((current) => ({ ...current, ...patch }));
-  }
-
-  function validateForm(): string | null {
-    if (!form.name.trim()) return "Tên danh mục là bắt buộc.";
-    return null;
-  }
-
-  async function saveCategory() {
-    const validationError = validateForm();
-    if (validationError) {
-      setActionMessage(validationError);
-      return;
-    }
-
+  async function handleSave() {
+    if (!form.name.trim()) { setNotice("Tên danh mục không được trống."); return; }
     setIsSaving(true);
-    setActionMessage(null);
-
+    setNotice("");
     try {
-      const payload = {
-        name: form.name.trim(),
-        displayOrder: Number(form.displayOrder) || 0,
-        isActive: form.isActive,
-      };
-
-      const saved = isCreating
-        ? await createCategory(payload)
-        : selectedId
-          ? await updateCategory(selectedId, payload)
-          : null;
-
-      await loadCategories(saved?.categoryId ?? selectedId);
-      setActionMessage(isCreating ? "Đã tạo danh mục mới." : "Đã lưu thay đổi.");
+      if (editingId) {
+        await api.categories.update(editingId, form);
+        setNotice("Đã cập nhật.");
+      } else {
+        await api.categories.create(form);
+        setNotice("Đã tạo danh mục.");
+      }
+      setShowForm(false);
+      await load();
     } catch {
-      setActionMessage("Không lưu được danh mục. Kiểm tra quyền hoặc dữ liệu nhập.");
+      setNotice("Lưu thất bại.");
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function removeCategory() {
-    if (!selectedId || isCreating) return;
-
-    setIsSaving(true);
-    setActionMessage(null);
-
+  async function handleDelete(id: string) {
+    if (!confirm("Xóa danh mục này?")) return;
     try {
-      await deleteCategory(selectedId);
-      await loadCategories(null);
-      setActionMessage("Đã xóa danh mục.");
+      await api.categories.delete(id);
+      setNotice("Đã xóa.");
+      await load();
     } catch {
-      setActionMessage("Không xóa được. Danh mục có thể đang chứa món ăn.");
-    } finally {
-      setIsSaving(false);
+      setNotice("Xóa thất bại (có thể còn món trong danh mục).");
     }
   }
 
-  if (isLoading) {
-    return (
-      <AdminStatePanel
-        title="Đang tải danh mục"
-        description="Đang tải danh sách danh mục từ backend."
-      />
-    );
-  }
-
-  if (error) {
-    return <AdminStatePanel title="Có lỗi dữ liệu" description={error} />;
-  }
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">📂</div>Đang tải...</div>;
 
   return (
-    <div className="admin-workspace">
-      <section className="admin-toolbar">
-        <div>
-          <span className="panel-kicker">Category control</span>
-          <h3>{categories.length} danh mục</h3>
-          <p>
-            Quản lý tên, thứ tự hiển thị và trạng thái active/inactive cho từng danh mục.
-          </p>
-        </div>
-        <button className="button primary" type="button" onClick={startCreate}>
-          + Tạo danh mục
-        </button>
-      </section>
-
-      <div className="admin-split-layout">
-        <section className="admin-panel">
-          <div className="admin-panel-heading">
-            <div>
-              <span className="panel-kicker">Danh sách danh mục</span>
-              <h3>Theo thứ tự hiển thị</h3>
-            </div>
-            <span className="admin-status admin-status-ready">Đang hoạt động</span>
-          </div>
-
-          {categories.length === 0 ? (
-            <AdminStatePanel
-              title="Chưa có danh mục"
-              description="Tạo danh mục đầu tiên để bắt đầu."
-            />
-          ) : (
-            <div className="admin-category-list">
-              {categories.map((cat) => (
-                <button
-                  className={
-                    selectedId === cat.categoryId
-                      ? "admin-category-card active"
-                      : "admin-category-card"
-                  }
-                  key={cat.categoryId}
-                  type="button"
-                  onClick={() => startEdit(cat)}
-                >
-                  <div className="admin-category-card-info">
-                    <strong>{cat.name}</strong>
-                    <small>ID: {cat.categoryId}</small>
-                  </div>
-                  <div className="admin-category-card-meta">
-                    <span className="admin-category-order">#{cat.displayOrder}</span>
-                    <span
-                      className={`admin-status ${cat.isActive ? "admin-status-ready" : "admin-status-unavailable"}`}
-                    >
-                      {cat.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="admin-panel admin-form-panel">
-          <span className="panel-kicker">{isCreating ? "Create" : "Edit"}</span>
-          <h3>{isCreating ? "Tạo danh mục mới" : selectedCategory?.name ?? "Chọn danh mục"}</h3>
-          <p>Danh mục giúp phân nhóm thực đơn để khách dễ tìm và admin quản lý.</p>
-
-          <form
-            className="admin-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveCategory();
-            }}
-          >
-            <label>
-              Tên danh mục
-              <input
-                value={form.name}
-                onChange={(e) => updateForm({ name: e.target.value })}
-                placeholder="Ví dụ: Khai vị, Món chính"
-              />
-            </label>
-            <label>
-              Thứ tự hiển thị
-              <input
-                value={form.displayOrder}
-                onChange={(e) => updateForm({ displayOrder: e.target.value })}
-                inputMode="numeric"
-                placeholder="0"
-              />
-            </label>
-            <label className="admin-check-row">
-              <input
-                checked={form.isActive}
-                onChange={(e) => updateForm({ isActive: e.target.checked })}
-                type="checkbox"
-              />
-              Hiển thị danh mục cho khách hàng
-            </label>
-
-            {actionMessage ? (
-              <p className="admin-form-note" role="status">
-                {actionMessage}
-              </p>
-            ) : null}
-
-            <button className="button primary" type="submit" disabled={isSaving}>
-              {isSaving ? "Đang lưu..." : isCreating ? "Lưu danh mục mới" : "Lưu thay đổi"}
-            </button>
-
-            {!isCreating && selectedId ? (
-              <button
-                className="button danger"
-                type="button"
-                onClick={removeCategory}
-                disabled={isSaving}
-              >
-                Xóa danh mục
-              </button>
-            ) : null}
-          </form>
-        </aside>
+    <div>
+      <div className="ops-page-header">
+        <h1>Danh mục</h1>
+        <p>Quản lý danh mục thực đơn</p>
       </div>
+
+      {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
+      {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
+
+      <div className="ops-toolbar">
+        <button className="ops-btn ops-btn--primary" onClick={openCreate} type="button">+ Thêm danh mục</button>
+      </div>
+
+      {showForm ? (
+        <div className="ops-modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ops-modal-header">
+              <h2>{editingId ? "Sửa danh mục" : "Thêm danh mục"}</h2>
+              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
+            </div>
+            <div className="ops-modal-body">
+              <div className="ops-form-group">
+                <label className="ops-form-label">Tên *</label>
+                <input className="ops-form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="ops-form-group">
+                <label className="ops-form-label">Thứ tự hiển thị</label>
+                <input className="ops-form-input" type="number" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })} />
+              </div>
+              <div className="ops-form-group">
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+                  <span className="ops-form-label" style={{ margin: 0 }}>Đang hoạt động</span>
+                </label>
+              </div>
+            </div>
+            <div className="ops-modal-footer">
+              <button className="ops-btn ops-btn--ghost" onClick={() => setShowForm(false)} type="button">Hủy</button>
+              <button className="ops-btn ops-btn--primary" disabled={isSaving} onClick={handleSave} type="button">
+                {isSaving ? "Đang lưu..." : editingId ? "Cập nhật" : "Tạo mới"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <table className="ops-table">
+        <thead>
+          <tr>
+            <th>Tên</th>
+            <th>Thứ tự</th>
+            <th>Trạng thái</th>
+            <th>Ngày tạo</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {categories.map((cat) => (
+            <tr key={cat.categoryId}>
+              <td><strong>{cat.name}</strong></td>
+              <td>{cat.displayOrder}</td>
+              <td>
+                <span className={`ops-badge ${cat.isActive ? "ops-badge--ready" : "ops-badge--cancelled"}`}>
+                  {cat.isActive ? "Hoạt động" : "Tắt"}
+                </span>
+              </td>
+              <td style={{ fontSize: 12, color: "var(--color-muted)" }}>{new Date(cat.createdAt).toLocaleDateString("vi-VN")}</td>
+              <td>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => openEdit(cat)} type="button">Sửa</button>
+                  <button className="ops-btn ops-btn--danger ops-btn--sm" onClick={() => handleDelete(cat.categoryId)} type="button">Xóa</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+          {categories.length === 0 ? (
+            <tr><td colSpan={5}><div className="ops-empty">Chưa có danh mục</div></td></tr>
+          ) : null}
+        </tbody>
+      </table>
     </div>
   );
 }

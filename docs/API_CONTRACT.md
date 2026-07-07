@@ -2,6 +2,8 @@
 
 Tai lieu nay la contract chinh thuc giua Backend, Frontend, AI service va DevOps cho giai doan Week 5. Neu thay doi endpoint, field, enum, error code hoac event payload sau tai lieu nay, nguoi thuc hien phai tao breaking-change note trong issue/PR lien quan.
 
+> **Nguon chuan (single source of truth): [`docs/SYSTEM_ANALYSIS_DESIGN.md`](SYSTEM_ANALYSIS_DESIGN.md).** Tai lieu nay giu chi tiet request/response va da duoc dong bo voi code branch `develop`: chi `OrderType = DineIn` (QR tai ban), bo domain Delivery va Pickup, per-order access token (`X-Order-Token`), refund payment, optimistic concurrency (`CONFLICT_STALE`), login lockout.
+
 ## 1. Nguyen Tac Chung
 
 - Base API path: `/api`.
@@ -38,10 +40,10 @@ Quy tac:
 | Nhom | Gia tri hop le | Ghi chu |
 | --- | --- | --- |
 | `UserRole` | `Customer`, `Staff`, `Kitchen`, `Admin` | `Customer` cho khach; cac role van hanh dung auth seed/admin. |
-| `OrderType` | `DineIn`, `Pickup`, `DeliveryMock` | `DineIn` can `tableCode`; `DeliveryMock` can `deliveryInfo`. UI co the hien la "Giao tan noi". |
+| `OrderType` | `DineIn` | Bat buoc `tableCode` hop le; chi dat mon tai ban qua QR/session. `Pickup` va Delivery da bo khoi backend. |
 | `PaymentMethod` | `COD`, `VietQR` | VietQR tao payload/QR de doi soat thu cong. |
-| `PaymentStatus` | `Unpaid`, `Pending`, `Paid`, `Confirmed`, `Failed`, `Cancelled` | Staff/Admin xac nhan hoac fail payment. |
-| `OrderStatus` | `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`, `Cancelled` | Tracking UI phai xu ly du cac status nay. |
+| `PaymentStatus` | `Unpaid`, `Pending`, `Paid`, `Confirmed`, `Failed`, `Cancelled`, `Refunded` | Staff/Admin xac nhan, fail hoac refund payment. |
+| `OrderStatus` | `Draft`, `Placed`, `Confirmed`, `Preparing`, `Ready`, `Served`, `Completed`, `Cancelled` | Order tao o `Placed`. `Completed` yeu cau payment `Confirmed/Paid`. |
 | `OrderItemStatus` | `Pending`, `Preparing`, `Ready`, `Served`, `Cancelled` | Kitchen/Staff cap nhat tung mon. |
 | `ChatRole` | `user`, `assistant` | Theo chuan message role cua chat. |
 | `TableCode` | `T01` den `T99` hoac seed hien hanh cua DB | QR/token phai map ve table active. |
@@ -104,6 +106,8 @@ Response `200 OK`:
 ```
 
 Loi chinh: `EMAIL_REQUIRED`, `PASSWORD_REQUIRED`, `INVALID_CREDENTIALS`.
+
+Lockout: sai mat khau 5 lan lien tiep → khoa tai khoan 15 phut. Khi bi khoa van tra `INVALID_CREDENTIALS` (khong lo tai khoan ton tai hoac dang bi khoa).
 
 ### GET `/api/auth/me`
 
@@ -264,11 +268,7 @@ Request:
 }
 ```
 
-Pickup session co the gui:
-
-```json
-{ "orderType": "Pickup" }
-```
+`orderType` khac `DineIn` tra `400 ORDER_TYPE_INVALID`.
 
 Response:
 
@@ -306,28 +306,8 @@ Request:
   "orderType": "DineIn",
   "tableCode": "T05",
   "paymentMethod": "COD",
-  "deliveryInfo": null,
   "items": [
     { "menuItemId": "m_001", "quantity": 2 }
-  ]
-}
-```
-
-Delivery request:
-
-```json
-{
-  "orderType": "DeliveryMock",
-  "tableCode": null,
-  "paymentMethod": "VietQR",
-  "deliveryInfo": {
-    "recipientName": "Nguyen Van A",
-    "phoneNumber": "0901234567",
-    "address": "1 Nguyen Trai, Ha Noi",
-    "note": "It cay"
-  },
-  "items": [
-    { "menuItemId": "m_002", "quantity": 1 }
   ]
 }
 ```
@@ -340,6 +320,7 @@ Response `201 Created`:
   "orderCode": "ORD-1001",
   "orderType": "DineIn",
   "tableCode": "T05",
+  "tableSessionId": "ts_abc123",
   "status": "Placed",
   "paymentStatus": "Unpaid",
   "items": [
@@ -350,15 +331,18 @@ Response `201 Created`:
       "quantity": 2,
       "status": "Pending"
     }
-  ]
+  ],
+  "customerAccessToken": "opaque-32-byte-base64url"
 }
 ```
 
-Loi chinh: `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `ORDER_TYPE_INVALID`, `PAYMENT_METHOD_INVALID`, `DINE_IN_TABLE_REQUIRED`, `DELIVERY_INFO_REQUIRED`, `MENU_ITEM_NOT_FOUND`, `MENU_ITEM_UNAVAILABLE`.
+`customerAccessToken` chi tra ve tren response tao don. Client phai luu token va gui lai qua header `X-Order-Token` khi doc order/payment cua khach (xem muc 7-8). Mat token = khong con doc lai duoc don do.
+
+Loi chinh: `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `ORDER_TYPE_INVALID`, `PAYMENT_METHOD_INVALID`, `DINE_IN_TABLE_REQUIRED`, `MENU_ITEM_NOT_FOUND`, `MENU_ITEM_UNAVAILABLE`.
 
 ### GET `/api/orders/{orderCode}`
 
-Auth: public. Dung cho customer tracking.
+Auth: public co dieu kien. Customer phai gui header `X-Order-Token: <customerAccessToken>` (token nhan khi tao don); role `Staff/Kitchen/Admin` (Bearer JWT) doc khong can token. Thieu/sai token va khong co role → `404 ORDER_NOT_FOUND` (khong xac nhan don co ton tai).
 
 Response:
 
@@ -368,10 +352,10 @@ Response:
   "orderCode": "ORD-1001",
   "orderType": "DineIn",
   "tableCode": "T05",
+  "tableSessionId": "ts_abc123",
   "status": "Preparing",
   "paymentStatus": "Unpaid",
   "paymentMethod": "COD",
-  "deliveryInfo": null,
   "subtotalAmount": 130000,
   "totalAmount": 130000,
   "createdAt": "2026-06-14T04:00:00Z",
@@ -389,10 +373,12 @@ Response:
     }
   ],
   "events": [
-    { "status": "Placed", "createdAt": "2026-06-14T04:00:00Z" }
+    { "status": "Placed", "source": "Status", "changedByRole": "Customer", "note": null, "createdAt": "2026-06-14T04:00:00Z" }
   ]
 }
 ```
+
+`events` la audit trail tu bang `order_status_history` (ghi moi lan doi order status hoac payment).
 
 ### GET `/api/orders`
 
@@ -419,6 +405,8 @@ Request:
 { "status": "Confirmed" }
 ```
 
+Chuyen sang `Completed` yeu cau payment `Confirmed/Paid`, nguoc lai `400 ORDER_COMPLETE_REQUIRES_PAYMENT`. Hai nguoi sua cung don dong thoi → `409 CONFLICT_STALE` (optimistic concurrency `xmin`); client reload roi thu lai.
+
 ### PATCH `/api/orders/{orderCode}/items/{orderItemId}/status`
 
 Auth: role `Kitchen`, `Staff` hoac `Admin`.
@@ -429,13 +417,13 @@ Request:
 { "status": "Ready" }
 ```
 
-Loi chinh: `ORDER_NOT_FOUND`, `ORDER_STATUS_INVALID`, `ORDER_ITEM_NOT_FOUND`, `ORDER_ITEM_STATUS_INVALID`, `ORDER_CANCEL_NOT_ALLOWED`.
+Loi chinh: `ORDER_NOT_FOUND`, `ORDER_STATUS_INVALID`, `ORDER_ITEM_NOT_FOUND`, `ORDER_ITEM_STATUS_INVALID`, `ORDER_CANCEL_NOT_ALLOWED`, `ORDER_COMPLETE_REQUIRES_PAYMENT`, `CONFLICT_STALE`.
 
 ## 8. Payment Contract
 
 ### GET `/api/orders/{orderCode}/payment`
 
-Auth: public.
+Auth: public co dieu kien, giong GET order — header `X-Order-Token` hoac role `Staff/Kitchen/Admin`. Thieu/sai → `404 ORDER_NOT_FOUND`.
 
 Response:
 
@@ -456,7 +444,7 @@ Response:
 
 ### POST `/api/orders/{orderCode}/payment/vietqr`
 
-Auth: public. Chi dung khi order payment method la `VietQR`.
+Auth: public co dieu kien (header `X-Order-Token` hoac role van hanh). Chi dung khi order payment method la `VietQR`.
 
 Response:
 
@@ -498,7 +486,17 @@ Request:
 { "note": "Khach huy thanh toan" }
 ```
 
-Loi chinh: `PAYMENT_NOT_FOUND`, `PAYMENT_METHOD_INVALID`, `PAYMENT_ALREADY_CONFIRMED`, `PAYMENT_ALREADY_FAILED`, `VIETQR_CONFIG_MISSING`.
+### POST `/api/orders/{orderCode}/payment/refund`
+
+Auth: role `Staff` hoac `Admin`. Chi refund duoc khi payment dang `Confirmed` hoac `Paid`; nguoc lai `400 PAYMENT_NOT_REFUNDABLE`. Set payment sang `Refunded`, ghi ledger + status history. Khong tu dong huy order.
+
+Request:
+
+```json
+{ "note": "Hoan tien cho khach" }
+```
+
+Loi chinh: `PAYMENT_NOT_FOUND`, `PAYMENT_METHOD_INVALID`, `PAYMENT_ALREADY_CONFIRMED`, `PAYMENT_ALREADY_FAILED`, `PAYMENT_NOT_REFUNDABLE`, `PAYMENT_NOTE_TOO_LONG`, `VIETQR_CONFIG_MISSING`, `CONFLICT_STALE`.
 
 ## 9. Kitchen, Staff Va Realtime Contract
 
@@ -618,6 +616,24 @@ CORS origins mac dinh:
 
 Production co the override bang `CORS_ALLOWED_ORIGINS`, ngan cach bang dau `;`.
 
+## 11b. Promotions, Loyalty & Reports
+
+### Khuyen mai (Promotions)
+
+- `POST /api/promotions/validate` — cong khai. Body `{ code, subtotalAmount }`. Tra `{ code, name, type, subtotalAmount, discountAmount, totalAmount, isFlashSale }`. Ma khong hop le tra 400 (`PROMOTION_NOT_FOUND`, `PROMOTION_INACTIVE`, `PROMOTION_NOT_STARTED`, `PROMOTION_EXPIRED`, `PROMOTION_MIN_ORDER_NOT_MET`).
+- `GET/POST/PUT/DELETE /api/admin/promotions[/{id}]` — `StaffOrAdmin`. `type` = `Percentage` | `FixedAmount`. Percentage lam tron va gioi han boi `maxDiscountAmount`; discount luon <= subtotal.
+- `POST /api/orders` da nhan them `promotionCode?` va `customerPhoneNumber?`. Backend ap dung khuyen mai truoc khi tao don; ma sai lam ca request that bai (400). `OrderResponse` bo sung `discountAmount`, `promotionCode`; `totalAmount = subtotalAmount - discountAmount`.
+
+### Tich diem (Loyalty)
+
+- `GET /api/loyalty/lookup?phone=` — cong khai. Tra `{ phoneNumber, points, lifetimeSpend, availableRewards[] }` (rewards dang active va du diem). SDT chuan hoa ve chi so.
+- `GET/POST/PUT/DELETE /api/admin/loyalty/members[/{id}]` va `.../rewards[/{id}]` — `StaffOrAdmin`.
+- Khi xac nhan thanh toan (`payment/confirm`), he thong cong diem theo `1 diem / 10.000d` cho SDT cua don (`customerPhoneNumber` uu tien, sau do `pickupCustomerPhoneNumber`).
+
+### Bao cao (Reports)
+
+- `GET /api/admin/reports/summary?from=&to=` — `StaffOrAdmin`. Mac dinh 30 ngay gan nhat. Tra `{ from, to, totalOrders, paidOrders, grossRevenue, totalDiscount, netRevenue, topItems[], dailyRevenue[] }` tren cac don da `Paid`/`Confirmed`.
+
 ## 12. Ma Loi Chinh
 
 | HTTP | Code | Module |
@@ -632,13 +648,20 @@ Production co the override bang `CORS_ALLOWED_ORIGINS`, ngan cach bang dau `;`.
 | 404 | `CATEGORY_NOT_FOUND`, `MENU_ITEM_NOT_FOUND` | Menu |
 | 409 | `CATEGORY_HAS_MENU_ITEMS` | Menu |
 | 400 | `MENU_ITEM_NAME_REQUIRED`, `MENU_ITEM_PRICE_INVALID`, `MENU_ITEM_UNAVAILABLE` | Menu/Order |
-| 400 | `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `DINE_IN_TABLE_REQUIRED`, `DELIVERY_INFO_REQUIRED` | Order |
+| 400 | `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `DINE_IN_TABLE_REQUIRED` | Order |
 | 404 | `ORDER_NOT_FOUND`, `ORDER_ITEM_NOT_FOUND` | Order |
-| 400 | `ORDER_STATUS_INVALID`, `ORDER_ITEM_STATUS_INVALID`, `ORDER_CANCEL_NOT_ALLOWED` | Order |
+| 400 | `ORDER_STATUS_INVALID`, `ORDER_ITEM_STATUS_INVALID`, `ORDER_CANCEL_NOT_ALLOWED`, `ORDER_COMPLETE_REQUIRES_PAYMENT` | Order |
+| 409 | `CONFLICT_STALE` | Order/Payment (optimistic concurrency) |
 | 404 | `PAYMENT_NOT_FOUND` | Payment |
-| 400 | `PAYMENT_METHOD_INVALID`, `PAYMENT_ALREADY_CONFIRMED`, `PAYMENT_ALREADY_FAILED`, `VIETQR_CONFIG_MISSING` | Payment |
+| 400 | `PAYMENT_METHOD_INVALID`, `PAYMENT_ALREADY_CONFIRMED`, `PAYMENT_ALREADY_FAILED`, `PAYMENT_NOT_REFUNDABLE`, `PAYMENT_NOTE_TOO_LONG`, `VIETQR_CONFIG_MISSING` | Payment |
 | 400 | `CHAT_MESSAGE_EMPTY` | Chat |
 | 404 | `CHAT_SESSION_NOT_FOUND` | Chat |
+| 400 | `PROMOTION_CODE_REQUIRED`, `PROMOTION_NAME_REQUIRED`, `PROMOTION_TYPE_INVALID`, `PROMOTION_DISCOUNT_INVALID`, `PROMOTION_DATE_RANGE_INVALID`, `PROMOTION_INACTIVE`, `PROMOTION_NOT_STARTED`, `PROMOTION_EXPIRED`, `PROMOTION_MIN_ORDER_NOT_MET` | Promotions |
+| 404 | `PROMOTION_NOT_FOUND` | Promotions |
+| 409 | `PROMOTION_CODE_EXISTS` | Promotions |
+| 400 | `LOYALTY_PHONE_REQUIRED`, `LOYALTY_POINTS_INVALID`, `LOYALTY_REWARD_NAME_REQUIRED`, `LOYALTY_REWARD_POINTS_INVALID` | Loyalty |
+| 404 | `LOYALTY_MEMBER_NOT_FOUND`, `LOYALTY_REWARD_NOT_FOUND` | Loyalty |
+| 409 | `LOYALTY_PHONE_EXISTS` | Loyalty |
 
 ## 13. Checklist Cho Frontend
 

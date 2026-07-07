@@ -1,284 +1,181 @@
-import { useEffect, useState } from "react";
-import { ApiError } from "@cmc/api-client";
-import type { UserRole, UserSummary } from "@cmc/shared-types";
-import {
-  createOperationalUser,
-  listUsers,
-  resetUserPassword,
-} from "../../services/adminUserService";
-import { AdminStatePanel } from "./AdminStatePanel";
+import { useCallback, useEffect, useState } from "react";
+import type { UserSummary, UserRole, CreateUserRequest } from "@cmc/shared-types";
+import { createApiClient } from "@cmc/api-client";
+import "../operations/operations.css";
 
-type AssignableRole = Extract<UserRole, "Staff" | "Kitchen" | "Admin">;
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
-type FormState = {
-  fullName: string;
-  email: string;
-  password: string;
-  role: AssignableRole;
-};
+const ROLES: UserRole[] = ["Admin", "Staff", "Kitchen", "Customer"];
 
-const roles: Array<{ value: AssignableRole; label: string; description: string }> = [
-  { value: "Staff", label: "Nhân viên phục vụ", description: "Phục vụ, thu ngân, xác nhận đơn" },
-  { value: "Kitchen", label: "Đầu bếp", description: "Nhận và chế biến món từ bảng bếp" },
-  { value: "Admin", label: "Quản trị viên", description: "Toàn quyền quản lý hệ thống" },
-];
-
-function roleIcon(role: UserRole) {
-  if (role === "Admin") return "👑";
-  if (role === "Staff") return "🧑‍💼";
-  if (role === "Kitchen") return "👨‍🍳";
-  return "👤";
-}
-
-function createEmptyForm(): FormState {
-  return { fullName: "", email: "", password: "", role: "Staff" };
-}
+const EMPTY: CreateUserRequest = { fullName: "", email: "", password: "", role: "Staff" };
 
 export function AdminUserManager() {
-  const [form, setForm] = useState<FormState>(createEmptyForm);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [users, setUsers] = useState<UserSummary[]>([]);
-  const [usersError, setUsersError] = useState("");
-  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
-  const [resetPassword, setResetPassword] = useState("");
-  const [resetMessage, setResetMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<CreateUserRequest>(EMPTY);
+  const [isSaving, setIsSaving] = useState(false);
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [search, setSearch] = useState("");
 
-  async function refreshUsers() {
+  const load = useCallback(async () => {
     try {
-      setUsers(await listUsers());
-      setUsersError("");
+      const data = await api.users.list();
+      setUsers(data.users);
     } catch {
-      setUsersError("Không tải được danh sách người dùng.");
+      setError("Không tải được danh sách người dùng.");
+    } finally {
+      setIsLoading(false);
     }
-  }
-
-  useEffect(() => {
-    void refreshUsers();
   }, []);
 
-  function updateForm(patch: Partial<FormState>) {
-    setForm((current) => ({ ...current, ...patch }));
-  }
+  useEffect(() => { load(); }, [load]);
 
-  function validateForm(): string | null {
-    if (!form.fullName.trim()) return "Họ tên là bắt buộc.";
-    if (!form.email.trim()) return "Email là bắt buộc.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Email không hợp lệ.";
-    if (form.password.length < 8) return "Mật khẩu tối thiểu 8 ký tự.";
-    return null;
-  }
+  const filtered = users.filter((u) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+  });
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setMessage({ type: "error", text: validationError });
+  async function handleCreate() {
+    if (!form.fullName.trim() || !form.email.trim() || form.password.length < 8) {
+      setNotice("Họ tên, email và mật khẩu (≥ 8 ký tự) bắt buộc.");
       return;
     }
-
     setIsSaving(true);
-    setMessage(null);
-
+    setNotice("");
     try {
-      const user = await createOperationalUser({
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        role: form.role,
-      });
-      setForm(createEmptyForm());
-      setMessage({ type: "success", text: `Đã tạo tài khoản ${user.fullName} (${user.role}).` });
-      await refreshUsers();
+      await api.users.create(form);
+      setNotice("Đã tạo tài khoản.");
+      setShowForm(false);
+      await load();
     } catch (err) {
-      if (err instanceof ApiError && err.code === "EMAIL_ALREADY_REGISTERED") {
-        setMessage({ type: "error", text: "Email này đã được đăng ký." });
-      } else {
-        setMessage({ type: "error", text: "Không tạo được tài khoản. Kiểm tra backend." });
-      }
+      setNotice(err instanceof Error ? err.message : "Tạo thất bại.");
     } finally {
       setIsSaving(false);
     }
   }
 
-  function startReset(userId: string) {
-    setResettingUserId(userId);
-    setResetPassword("");
-    setResetMessage(null);
-  }
-
-  async function handleReset(event: React.FormEvent, user: UserSummary) {
-    event.preventDefault();
-    if (resetPassword.length < 8) {
-      setResetMessage({ type: "error", text: "Mật khẩu tối thiểu 8 ký tự." });
-      return;
-    }
-
+  async function handleResetPassword(userId: string) {
+    if (newPassword.length < 8) { setNotice("Mật khẩu mới ≥ 8 ký tự."); return; }
     try {
-      await resetUserPassword(user.userId, resetPassword);
-      setResettingUserId(null);
-      setResetPassword("");
-      setResetMessage({ type: "success", text: `Đã đặt lại mật khẩu cho ${user.fullName}.` });
+      await api.users.resetPassword(userId, { newPassword });
+      setNotice("Đã reset mật khẩu.");
+      setResetId(null);
+      setNewPassword("");
     } catch {
-      setResetMessage({ type: "error", text: "Không đặt lại được mật khẩu. Kiểm tra backend." });
+      setNotice("Reset thất bại.");
     }
   }
+
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">👥</div>Đang tải...</div>;
 
   return (
-    <div className="admin-workspace">
-      <section className="admin-toolbar">
-        <div>
-          <span className="panel-kicker">User management</span>
-          <h3>Quản lý tài khoản</h3>
-          <p>
-            Tạo tài khoản vận hành cho nhân viên, đầu bếp và quản trị viên. Khách hàng đặt món qua
-            mã QR tại bàn nên không cần tài khoản.
-          </p>
-        </div>
-        <div className="admin-toolbar-metrics">
-          <span>{users.length} tài khoản vận hành</span>
-        </div>
-      </section>
+    <div>
+      <div className="ops-page-header">
+        <h1>Người dùng</h1>
+        <p>Tạo tài khoản Staff, Kitchen, Admin và reset mật khẩu</p>
+      </div>
 
-      <div className="admin-split-layout">
-        <section className="admin-panel admin-form-panel">
-          <span className="panel-kicker">Tạo tài khoản</span>
-          <h3>Thêm người dùng mới</h3>
-          <p>Điền thông tin bên dưới để cấp tài khoản vận hành.</p>
+      {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
+      {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
 
-          <form className="admin-form" onSubmit={handleSubmit}>
-            <label>
-              Họ và tên
-              <input
-                value={form.fullName}
-                onChange={(e) => updateForm({ fullName: e.target.value })}
-                placeholder="Nguyễn Văn A"
-              />
-            </label>
-            <label>
-              Email
-              <input
-                value={form.email}
-                onChange={(e) => updateForm({ email: e.target.value })}
-                placeholder="user@restaurant.local"
-                type="email"
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              Mật khẩu
-              <input
-                value={form.password}
-                onChange={(e) => updateForm({ password: e.target.value })}
-                placeholder="Tối thiểu 8 ký tự"
-                type="password"
-                autoComplete="new-password"
-              />
-            </label>
-            <label>
-              Vai trò
-              <div className="admin-role-selector">
-                {roles.map((role) => (
-                  <button
-                    className={`admin-role-option ${form.role === role.value ? "active" : ""}`}
-                    key={role.value}
-                    type="button"
-                    onClick={() => updateForm({ role: role.value })}
-                  >
-                    <span className={`admin-role-icon role-${role.value.toLowerCase()}`}>
-                      {roleIcon(role.value)}
-                    </span>
-                    <div>
-                      <strong>{role.label}</strong>
-                      <small>{role.description}</small>
-                    </div>
-                  </button>
-                ))}
+      <div className="ops-toolbar">
+        <div className="ops-toolbar-search">
+          <input className="ops-form-input" placeholder="Tìm theo tên, email, vai trò..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <button className="ops-btn ops-btn--primary" onClick={() => { setForm(EMPTY); setShowForm(true); }} type="button">+ Tạo tài khoản</button>
+      </div>
+
+      {showForm ? (
+        <div className="ops-modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ops-modal-header">
+              <h2>Tạo tài khoản</h2>
+              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
+            </div>
+            <div className="ops-modal-body">
+              <div className="ops-form-group">
+                <label className="ops-form-label">Họ tên *</label>
+                <input className="ops-form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
-            </label>
-
-            {message ? (
-              <p className={`admin-form-note ${message.type === "error" ? "is-error" : ""}`} role="status">
-                {message.text}
-              </p>
-            ) : null}
-
-            <button className="button primary" type="submit" disabled={isSaving}>
-              {isSaving ? "Đang tạo..." : "Tạo tài khoản"}
-            </button>
-          </form>
-        </section>
-
-        <aside className="admin-panel">
-          <div className="admin-panel-heading">
-            <div>
-              <span className="panel-kicker">Tài khoản vận hành</span>
-              <h3>Danh sách người dùng</h3>
+              <div className="ops-form-group">
+                <label className="ops-form-label">Email *</label>
+                <input className="ops-form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div className="ops-form-group">
+                <label className="ops-form-label">Mật khẩu * (≥ 8 ký tự)</label>
+                <input className="ops-form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </div>
+              <div className="ops-form-group">
+                <label className="ops-form-label">Vai trò</label>
+                <select className="ops-form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
+                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="ops-modal-footer">
+              <button className="ops-btn ops-btn--ghost" onClick={() => setShowForm(false)} type="button">Hủy</button>
+              <button className="ops-btn ops-btn--primary" disabled={isSaving} onClick={handleCreate} type="button">
+                {isSaving ? "Đang tạo..." : "Tạo"}
+              </button>
             </div>
           </div>
+        </div>
+      ) : null}
 
-          {resetMessage ? (
-            <p className={`admin-form-note ${resetMessage.type === "error" ? "is-error" : ""}`} role="status">
-              {resetMessage.text}
-            </p>
-          ) : null}
-
-          {usersError ? (
-            <AdminStatePanel title="Lỗi tải dữ liệu" description={usersError} />
-          ) : users.length === 0 ? (
-            <AdminStatePanel
-              title="Chưa có tài khoản vận hành"
-              description="Tài khoản vừa tạo sẽ hiện ở đây."
-            />
-          ) : (
-            <div className="admin-seed-accounts">
-              {users.map((user) => (
-                <article className="admin-seed-card" key={user.userId}>
-                  <span className={`admin-role-icon role-${user.role.toLowerCase()}`}>
-                    {roleIcon(user.role)}
-                  </span>
-                  <div className="admin-seed-card-body">
-                    <strong>{user.fullName}</strong>
-                    <code>{user.email}</code>
-                    <small>Role: {user.role}</small>
-                    {resettingUserId === user.userId ? (
-                      <form className="admin-reset-form" onSubmit={(event) => handleReset(event, user)}>
-                        <input
-                          value={resetPassword}
-                          onChange={(e) => setResetPassword(e.target.value)}
-                          placeholder="Mật khẩu mới (≥ 8 ký tự)"
-                          type="password"
-                          autoComplete="new-password"
-                        />
-                        <div className="admin-reset-actions">
-                          <button className="button primary" type="submit">
-                            Lưu
-                          </button>
-                          <button
-                            className="button"
-                            type="button"
-                            onClick={() => setResettingUserId(null)}
-                          >
-                            Huỷ
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <button
-                        className="button admin-reset-trigger"
-                        type="button"
-                        onClick={() => startReset(user.userId)}
-                      >
-                        Đặt lại mật khẩu
-                      </button>
-                    )}
+      <table className="ops-table">
+        <thead>
+          <tr>
+            <th>Họ tên</th>
+            <th>Email</th>
+            <th>Vai trò</th>
+            <th>Ngày tạo</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((user) => (
+            <tr key={user.userId}>
+              <td><strong>{user.fullName}</strong></td>
+              <td>{user.email}</td>
+              <td>
+                <span className={`ops-badge ops-badge--${user.role === "Admin" ? "placed" : user.role === "Staff" ? "served" : user.role === "Kitchen" ? "preparing" : "ready"}`}>
+                  {user.role}
+                </span>
+              </td>
+              <td style={{ fontSize: 12, color: "var(--color-muted)" }}>{new Date(user.createdAt).toLocaleDateString("vi-VN")}</td>
+              <td>
+                {resetId === user.userId ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      className="ops-form-input"
+                      type="password"
+                      placeholder="Mật khẩu mới"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      style={{ width: 140, padding: "4px 8px", fontSize: 12 }}
+                    />
+                    <button className="ops-btn ops-btn--primary ops-btn--sm" onClick={() => handleResetPassword(user.userId)} type="button">Lưu</button>
+                    <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setResetId(null); setNewPassword(""); }} type="button">Hủy</button>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </aside>
-      </div>
+                ) : (
+                  <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setResetId(user.userId); setNewPassword(""); }} type="button">
+                    Reset mật khẩu
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {filtered.length === 0 ? <tr><td colSpan={5}><div className="ops-empty">Không tìm thấy</div></td></tr> : null}
+        </tbody>
+      </table>
     </div>
   );
 }
