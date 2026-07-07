@@ -19,6 +19,7 @@ import { AdminDashboardPage } from "../../../src/pages/AdminDashboardPage";
 import { AdminMenuPage } from "../../../src/pages/AdminMenuPage";
 import { AdminOrdersPage } from "../../../src/pages/AdminOrdersPage";
 import { AdminTablesPage } from "../../../src/pages/AdminTablesPage";
+import { AdminTableSessionsPage } from "../../../src/pages/admin/AdminTableSessionsPage";
 import { AdminCategoriesPage } from "../../../src/pages/admin/AdminCategoriesPage";
 import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManagementPage";
 import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
@@ -31,7 +32,7 @@ import { AdminInvoicesPage } from "../../../src/pages/AdminInvoicesPage";
 import {
   LayoutDashboard, BookOpen, Tag, ShoppingBag, Receipt,
   QrCode, Users, ClipboardList, CreditCard, ChefHat,
-  BadgePercent, Star, BarChart3,
+  BadgePercent, Star, BarChart3, Armchair,
 } from "lucide-react";
 
 const roleRedirects = {
@@ -49,6 +50,7 @@ const adminLinks = [
   { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} /> },
   { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} /> },
   { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} /> },
+  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} /> },
   { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} /> },
   { to: "/users", label: "Người dùng", icon: <Users size={18} /> },
 ];
@@ -132,6 +134,7 @@ const router = createBrowserRouter([
       { path: "promotions", element: <AdminPromotionsPage /> },
       { path: "loyalty", element: <AdminLoyaltyPage /> },
       { path: "reports", element: <AdminReportsPage /> },
+      { path: "sessions", element: <AdminTableSessionsPage /> },
       { path: "tables", element: <AdminTablesPage /> },
       { path: "users", element: <AdminUserManagementPage /> },
     ],
