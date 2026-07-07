@@ -14,8 +14,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  promote:
-    name: promote-develop-to-main
+  open-release-pr:
+    name: open-release-pr
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'develop') }}
     steps:
@@ -25,22 +25,32 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Create, verify, and merge release PR
+      - name: Open or refresh the develop -> main release PR
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           RELEASE_BRANCH: release/promote-develop-to-main
         run: |
           set -euo pipefail
-          required_checks=("frontend-build" "backend-test" "docker-compose-config")
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           git fetch origin main develop
+
+          if git diff --quiet origin/main..origin/develop; then
+            echo "No changes between develop and main; nothing to promote."
+            exit 0
+          fi
+
           git checkout -B "$RELEASE_BRANCH" origin/main
           git merge --no-ff --no-edit origin/develop
           git push --force-with-lease origin "$RELEASE_BRANCH"
+
+          body=$'Automated release PR: staging deployment from `develop` passed.\n\n'
+          body+=$'**Production is gated — this PR does NOT auto-merge.**\n'
+          body+=$'A maintainer must review CI + staging, then merge manually.\n'
+          body+=$'Merging to `main` triggers Deploy Production (with post-deploy health check and auto-rollback).'
 
           existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing_pr" ]; then
@@ -48,45 +58,11 @@ jobs:
               --base main \
               --head "$RELEASE_BRANCH" \
               --title "chore: promote develop to production" \
-              --body "Automated release PR created after staging deployment passed."
-            existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json number --jq '.[0].number')"
+              --body "$body"
+            echo "Release PR opened for manual review."
           else
-            gh pr comment "$existing_pr" --body "Staging deployment passed again; release PR remains ready for auto-merge."
+            gh pr comment "$existing_pr" --body "Staging passed again; release PR refreshed and awaiting manual approval."
+            echo "Release PR #${existing_pr} refreshed; awaiting manual approval."
           fi
 
-          if gh pr merge "$existing_pr" --auto --merge >/dev/null 2>&1; then
-            echo "Auto-merge enabled for release PR #${existing_pr}."
-          else
-            echo "Auto-merge is already enabled or cannot be enabled automatically."
-          fi
-
-          echo "Waiting for required checks to register on release PR #${existing_pr}..."
-          for attempt in $(seq 1 30); do
-            registered="$(gh pr checks "$existing_pr" --required --json name --jq 'length' 2>/dev/null || echo 0)"
-            if [ "${registered:-0}" -ge "${#required_checks[@]}" ]; then
-              echo "All ${#required_checks[@]} required checks registered."
-              break
-            fi
-            echo "Attempt ${attempt}/30: ${registered:-0}/${#required_checks[@]} required checks registered; waiting 10s..."
-            sleep 10
-          done
-
-          echo "Watching required checks on release PR #${existing_pr}..."
-          gh pr checks "$existing_pr" --required --watch --fail-fast --interval 10
-
-          for check_name in "${required_checks[@]}"; do
-            state="$(gh pr checks "$existing_pr" --required --json name,bucket --jq ".[] | select(.name == \"${check_name}\") | .bucket" | head -n 1)"
-            if [ "$state" != "pass" ]; then
-              echo "Required check ${check_name} did not pass; got '${state:-missing}'."
-              exit 1
-            fi
-          done
-
-          pr_state="$(gh pr view "$existing_pr" --json state --jq .state)"
-          if [ "$pr_state" != "MERGED" ]; then
-            gh pr merge "$existing_pr" --merge --delete-branch
-          else
-            echo "Release PR #${existing_pr} was already merged by auto-merge."
-          fi
-
-          echo "Merge to main complete; Deploy Production runs from the push to main."
+          echo "::notice::Release PR is ready. Production deploys only after a human merges it to main."

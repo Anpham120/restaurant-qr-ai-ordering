@@ -2,18 +2,23 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - develop
-      - main
   push:
     branches:
       - develop
       - main
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
   workflow_dispatch:
   workflow_call:
 
 permissions:
   contents: read
+
+# Cancel superseded runs on the same ref so pushes don't pile up runners.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend-build:
@@ -40,7 +45,16 @@ jobs:
         run: npm run build
 
       - name: Test frontend
-        run: npm test
+        run: npx vitest run --reporter=default --reporter=junit --outputFile=test-results/frontend-junit.xml
+
+      - name: Upload frontend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
   backend-test:
     name: backend-test
@@ -61,7 +75,20 @@ jobs:
         run: dotnet build backend/RestaurantQrAiOrdering.sln --configuration Release --no-restore
 
       - name: Test backend
-        run: dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-build --verbosity normal
+        run: >-
+          dotnet test backend/RestaurantQrAiOrdering.sln
+          --configuration Release --no-build --verbosity normal
+          --logger "trx;LogFileName=backend-tests.trx"
+          --results-directory TestResults
+
+      - name: Upload backend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: TestResults/
+          if-no-files-found: ignore
+          retention-days: 14
 
   ai-service-test:
     name: ai-service-test
