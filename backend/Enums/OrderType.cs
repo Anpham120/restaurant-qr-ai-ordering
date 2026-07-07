@@ -4,6 +4,5 @@ namespace RestaurantQrAiOrdering.Enums;
 
 public enum OrderType
 {
-    DineIn,
-    Pickup
+    DineIn
 }

@@ -1,4 +1,5 @@
 @import "../packages/shared-ui/src/tokens.css";
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css");
 
 :root {
   color: var(--color-ink);
@@ -41,8 +42,40 @@ input {
   background:
     radial-gradient(circle at 18% 0%, rgba(8, 188, 239, 0.12), transparent 28%),
     linear-gradient(180deg, #F4F8FB 0%, #EEF6FB 100%);
-  color: var(--cmc-brown);
-  padding: 18px clamp(16px, 4vw, 72px) 28px;
+  color: var(--color-ink);
+  padding: 100px clamp(16px, 4vw, 72px) 28px;
+}
+/* Vian theme for chat page */
+.customer-app-shell:has(.page-shell-chat) {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(110, 69, 59, 0.06), transparent 28%),
+    linear-gradient(180deg, #fdf8f4 0%, #f8f0e8 100%);
+}
+/* Vian theme for menu & cart pages */
+.customer-app-shell:has(.cmc-customer-page) {
+  background: linear-gradient(180deg, #FDF8F0 0%, #FFFBF5 50%, #FFF9F0 100%);
+  padding-top: 70px;
+}
+
+.landing-shell {
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+/* Sidebar nav icon alignment */
+.cmc-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cmc-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.cmc-nav-link.is-active .cmc-nav-icon {
+  opacity: 1;
 }
 
 .skip-link {
@@ -3088,3 +3121,541 @@ input {
 .cmc-portal-content .admin-toolbar {
   padding: var(--space-5);
 }
+
+/* ==========================================================================
+   Admin Invoices
+   ========================================================================== */
+.admin-invoice-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.admin-invoice-search {
+  min-width: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.admin-invoice-search:focus {
+  border-color: var(--color-primary);
+}
+
+.admin-invoice-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-invoice-table th,
+.admin-invoice-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-invoice-table thead th {
+  background: var(--color-bg-subtle);
+  color: var(--color-muted);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.admin-invoice-table tbody tr {
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.admin-invoice-table tbody tr:hover {
+  background: var(--color-primary-50);
+}
+
+/* Invoice Detail Modal */
+.admin-invoice-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop);
+  display: grid;
+  place-items: center;
+  background: rgba(8, 35, 62, 0.5);
+  backdrop-filter: blur(4px);
+  animation: fade-in var(--duration-base) var(--ease-decelerate) both;
+}
+
+.admin-invoice-modal {
+  width: min(640px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--color-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-4);
+  animation: scale-in var(--duration-slow) var(--ease-emphasized) both;
+}
+
+.admin-invoice-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.admin-invoice-modal-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--color-primary-dark);
+}
+
+.admin-invoice-modal-head button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-bg-subtle);
+  color: var(--color-muted);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.admin-invoice-modal-head button:hover {
+  background: var(--color-border);
+}
+
+.admin-invoice-modal-body {
+  padding: var(--space-5);
+}
+
+.admin-invoice-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-md);
+}
+
+.admin-invoice-meta p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.admin-invoice-meta p strong {
+  color: var(--color-ink);
+}
+
+.admin-invoice-modal-body h4 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.admin-invoice-items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-5);
+}
+
+.admin-invoice-items th,
+.admin-invoice-items td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+}
+
+.admin-invoice-items thead th {
+  background: var(--color-bg-subtle);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-invoice-items tbody tr {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.admin-invoice-items tfoot td {
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--color-border);
+  font-size: var(--text-base);
+}
+
+.admin-invoice-refund {
+  padding: var(--space-4);
+  background: var(--color-danger-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+.admin-invoice-refund h4 {
+  color: var(--color-danger);
+}
+.admin-invoice-refund input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
+@media print {
+  .admin-invoice-backdrop {
+    position: static;
+    background: none;
+    backdrop-filter: none;
+  }
+  .admin-invoice-modal {
+    width: 100%;
+    max-height: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .admin-invoice-modal-head button,
+  .admin-invoice-refund,
+  .staff-workspace,
+  .cmc-sidebar,
+  .cmc-mobile-topbar {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   CMC Login Page Redesign (Modern Split Layout)
+   ========================================================================== */
+.cmc-login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, #f5fafe 0%, #e2f1f9 100%);
+  font-family: var(--font-ui);
+}
+
+.cmc-login-split-card {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  width: min(1000px, 95vw);
+  min-height: 600px;
+  background: var(--color-card);
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(8, 35, 62, 0.08);
+  overflow: hidden;
+  border: 1px solid var(--color-border-light);
+}
+
+/* Cột Trái: Hero Image & Text */
+.cmc-login-hero-side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-8);
+  color: #fff;
+  overflow: hidden;
+}
+
+.cmc-login-hero-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 35, 62, 0.1) 0%, rgba(8, 35, 62, 0.75) 100%);
+  z-index: 1;
+}
+
+.cmc-login-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  transition: transform 10s ease;
+}
+.cmc-login-split-card:hover .cmc-login-hero-img {
+  transform: scale(1.05);
+}
+
+.cmc-login-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.cmc-login-hero-badge {
+  display: inline-block;
+  padding: 4px var(--space-3);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-3);
+}
+
+.cmc-login-hero-side h2 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.5vw, 44px);
+  margin: 0 0 var(--space-2);
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.cmc-login-hero-side p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--leading-relaxed);
+  max-width: 380px;
+}
+
+/* Cột Phải: Form Đăng Nhập */
+.cmc-login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  background: #ffffff;
+}
+
+.cmc-login-form-container {
+  width: 100%;
+  max-width: 380px;
+}
+
+.cmc-login-form-header {
+  margin-bottom: var(--space-6);
+}
+
+.cmc-login-form-header h1 {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  margin: 0 0 var(--space-1);
+}
+
+.cmc-login-form-header p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.cmc-login-input-group {
+  margin-bottom: var(--space-4);
+}
+
+.cmc-login-input-group label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--space-2);
+  letter-spacing: 0.05em;
+}
+
+.cmc-login-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cmc-login-input-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cmc-login-input-wrapper input {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-4) 0 42px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  outline: none;
+  background: #fafcff;
+  transition: all var(--duration-fast) var(--ease-standard);
+  color: var(--color-ink) !important;
+}
+.cmc-login-input-wrapper input:focus {
+  border-color: var(--color-primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(0, 91, 172, 0.08);
+}
+
+.cmc-login-password-toggle {
+  position: absolute;
+  right: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: var(--space-1);
+}
+.cmc-login-password-toggle:hover {
+  color: var(--color-primary);
+}
+
+.cmc-login-extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+  font-size: var(--text-xs);
+}
+
+.cmc-login-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.cmc-login-remember input {
+  cursor: pointer;
+}
+
+.cmc-login-submit-btn {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--gradient-cta);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 91, 172, 0.15);
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.cmc-login-submit-btn:hover {
+  box-shadow: 0 6px 20px rgba(0, 91, 172, 0.25);
+  transform: translateY(-1px);
+}
+.cmc-login-submit-btn:active {
+  transform: translateY(0);
+}
+
+.cmc-login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: var(--space-5) 0;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+.cmc-login-divider::before,
+.cmc-login-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.cmc-login-divider:not(:empty)::before {
+  margin-right: var(--space-3);
+}
+.cmc-login-divider:not(:empty)::after {
+  margin-left: var(--space-3);
+}
+
+.cmc-login-social-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.cmc-social-btn {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-ink);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.cmc-social-btn:hover {
+  background: #fafcff;
+  border-color: #cbd5e1;
+}
+
+.cmc-facebook-btn {
+  color: #1877f2;
+}
+.cmc-google-btn {
+  color: #ea4335;
+}
+
+.cmc-login-footer {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  line-height: var(--leading-relaxed);
+}
+.cmc-login-footer a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+.cmc-login-footer a:hover {
+  text-decoration: underline;
+}
+
+.cmc-login-back-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  color: var(--color-muted) !important;
+  font-weight: 600 !important;
+}
+.cmc-login-back-link:hover {
+  color: var(--color-primary) !important;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+  .cmc-login-split-card {
+    grid-template-columns: 1fr;
+  }
+  .cmc-login-hero-side {
+    display: none;
+  }
+  .cmc-login-form-side {
+    padding: var(--space-6);
+  }
+}
+
+

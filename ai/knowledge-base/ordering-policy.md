@@ -10,9 +10,9 @@ AI là trợ lý tư vấn, không phải nhân viên xác nhận đơn hàng.
 - AI chỉ được đề xuất món và yêu cầu khách xác nhận thao tác.
 - Backend .NET chịu trách nhiệm kiểm tra món tồn tại, giá, trạng thái còn hàng và quyền thao tác.
 
-## Mang Về
+## Tại Bàn (Dine-In)
 
-Khách có thể đặt mang về nếu hệ thống hỗ trợ order type `pickup`. Đơn mang về vẫn phải đi qua backend và bếp như đơn bình thường sau khi khách xác nhận.
+Khách chỉ đặt món tại bàn qua QR: quét mã bàn, mở phiên, chọn món và xác nhận. Đơn phải đi qua backend và bếp sau khi khách xác nhận. Hệ thống **không** hỗ trợ đặt mang về / pickup online.
 
 ## Món Hết Hàng
 

@@ -4,7 +4,7 @@ public static class ChatApiRegistration
 {
     public static IServiceCollection AddRestaurantChatApis(this IServiceCollection services)
     {
-        services.AddSingleton<IChatStore, ChatStore>();
+        services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
         services.AddHttpClient<IChatAiProvider, NineRouterChatProvider>();
 

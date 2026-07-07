@@ -1,197 +1,193 @@
-import { useEffect, useMemo, useState } from "react";
-import { AdminStatePanel } from "../../components/admin/AdminStatePanel";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
-import "../../components/order-tracking/realtime-order.css";
 import {
   connectOrderRealtime,
   disconnectOrderRealtime,
-  createItemStatusChangedEvent,
-  publishOrderRealtimeEvent,
   subscribeOrderRealtime,
   subscribeRealtimeConnection,
-  type RealtimeConnectionStatus,
 } from "../../services/realtimeOrderService";
-import { getKitchenOrders, updateOrderItemStatus } from "../../services/orderService";
-import type {
-  OrderItemStatus,
-  OrderRealtimeEvent,
-  OrderTrackingItem,
-  OrderTrackingOrder,
-} from "../../types";
-import { PageShell } from "../PageShell";
+import { getKitchenOrders } from "../../services/orderService";
+import { fetchAdminMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
+import "../../components/operations/operations.css";
+
+type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
+
+const KITCHEN_STATUSES: OrderStatus[] = ["Confirmed", "Preparing", "Ready"];
 
 export function KitchenRealtimePage() {
-  const [orders, setOrders] = useState<OrderTrackingOrder[]>([]);
-  const [connectionStatus, setConnectionStatus] =
-    useState<RealtimeConnectionStatus>("connected");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItemSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
+  const [showMenuPanel, setShowMenuPanel] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    getKitchenOrders()
-      .then(setOrders)
-      .catch(() => setErrorMessage("Không tải được danh sách đơn bếp."))
-      .finally(() => setIsLoading(false));
+  // Filter orders relevant to kitchen
+  const kitchenOrders = useMemo(
+    () => orders.filter((o) => KITCHEN_STATUSES.includes(o.status)),
+    [orders],
+  );
+
+  const stats = useMemo(() => {
+    const confirmed = kitchenOrders.filter((o) => o.status === "Confirmed").length;
+    const preparing = kitchenOrders.filter((o) => o.status === "Preparing").length;
+    const ready = kitchenOrders.filter((o) => o.status === "Ready").length;
+    const totalItems = kitchenOrders.reduce(
+      (sum, o) => sum + o.items.filter((i) => i.status !== "Cancelled").length,
+      0,
+    );
+    return [
+      { label: "Đơn chờ nấu", value: String(confirmed), detail: "Confirmed" },
+      { label: "Đang nấu", value: String(preparing), detail: "Preparing" },
+      { label: "Sẵn sàng", value: String(ready), detail: "Chờ Staff mang ra" },
+      { label: "Tổng món", value: String(totalItems), detail: "Trong pipeline" },
+    ];
+  }, [kitchenOrders]);
+
+  const unavailableCount = useMemo(
+    () => menuItems.filter((m) => !m.isAvailable).length,
+    [menuItems],
+  );
+
+  // Load data
+  const loadOrders = useCallback(async () => {
+    try {
+      const data = await getKitchenOrders();
+      setOrders(data as unknown as Order[]);
+    } catch {
+      setError("Không tải được đơn hàng.");
+    }
+  }, []);
+
+  const loadMenu = useCallback(async () => {
+    try {
+      const items = await fetchAdminMenuItems();
+      setMenuItems(
+        items.map((i: { id: string; name: string; isAvailable: boolean }) => ({
+          id: i.id,
+          name: i.name,
+          isAvailable: i.isAvailable,
+        })),
+      );
+    } catch {
+      /* non-critical */
+    }
   }, []);
 
   useEffect(() => {
-    const unsubscribeConnection = subscribeRealtimeConnection(setConnectionStatus);
-    const unsubscribeRealtime = subscribeOrderRealtime((event) => {
-      setOrders((current) => applyRealtimeEvent(current, event));
+    Promise.all([loadOrders(), loadMenu()]).finally(() => setIsLoading(false));
+  }, [loadOrders, loadMenu]);
+
+  // Realtime
+  useEffect(() => {
+    const unsubConnection = subscribeRealtimeConnection(setConnectionStatus);
+    const unsubRealtime = subscribeOrderRealtime(() => {
+      // Any order event → refresh entire list
+      loadOrders();
     });
+
     void connectOrderRealtime().catch(() => setConnectionStatus("error"));
 
     return () => {
-      unsubscribeConnection();
-      unsubscribeRealtime();
+      unsubConnection();
+      unsubRealtime();
       void disconnectOrderRealtime();
     };
-  }, []);
+  }, [loadOrders]);
 
-  const stats = useMemo(() => {
-    const items = orders.flatMap((order) => order.items);
-
-    return [
-      {
-        label: "Pending",
-        value: String(items.filter((item) => item.status === "Pending").length),
-        detail: "Món mới vào hàng đợi",
-      },
-      {
-        label: "Preparing",
-        value: String(items.filter((item) => item.status === "Preparing").length),
-        detail: "Bếp đang chế biến",
-      },
-      {
-        label: "Ready",
-        value: String(items.filter((item) => item.status === "Ready").length),
-        detail: "Chờ staff mang ra",
-      },
-    ];
-  }, [orders]);
-
-  async function handleUpdateItemStatus(
-    order: OrderTrackingOrder,
-    item: OrderTrackingItem,
-    status: OrderItemStatus,
-  ) {
-    setErrorMessage("");
-
+  // Toggle dish availability
+  async function handleToggleAvailability(itemId: string, currentlyAvailable: boolean) {
+    setTogglingId(itemId);
     try {
-      const updatedOrder = await updateOrderItemStatus(
-        order.orderCode,
-        item.orderItemId,
-        status,
-      );
-
-      publishOrderRealtimeEvent(
-        createItemStatusChangedEvent(updatedOrder, item.orderItemId, status),
+      await toggleMenuItemAvailability(itemId, !currentlyAvailable);
+      setMenuItems((prev) =>
+        prev.map((m) => (m.id === itemId ? { ...m, isAvailable: !currentlyAvailable } : m)),
       );
     } catch {
-      setErrorMessage("Không cập nhật được trạng thái món.");
+      setError("Không thể cập nhật trạng thái món.");
+    } finally {
+      setTogglingId(null);
     }
   }
 
-  return (
-    <PageShell
-      eyebrow="Theo dõi bếp"
-      title="Bảng bếp CMC"
-      description="Bếp nhận món theo cột Chờ, Đang chế biến, Sẵn sàng và cập nhật trạng thái để khách cùng nhân viên theo dõi."
-      variant="kitchen"
-      stats={stats}
-    >
-      <RealtimeStatusBar
-        connectionStatus={connectionStatus}
-      />
-
-      {errorMessage ? <p className="realtime-error">{errorMessage}</p> : null}
-
-      {isLoading ? (
-        <AdminStatePanel
-          title="Đang tải bảng bếp"
-          description="Đang lấy danh sách đơn hiện có cho bếp."
-        />
-      ) : (
-        <KitchenBoard orders={orders} onUpdateItemStatus={handleUpdateItemStatus} />
-      )}
-
-    </PageShell>
-  );
-}
-
-function RealtimeStatusBar({
-  connectionStatus,
-}: {
-  connectionStatus: RealtimeConnectionStatus;
-}) {
-  const statusLabel =
-    connectionStatus === "connected"
-      ? "Đã kết nối"
-      : connectionStatus === "reconnecting"
-        ? "Đang kết nối lại"
-        : "Mất kết nối";
-
-  return (
-    <section className="realtime-status-bar">
-      <div>
-        <strong>Kết nối cập nhật trạng thái</strong>
-        <p>Bếp cập nhật món để khách và nhân viên theo dõi cùng một luồng.</p>
+  if (isLoading) {
+    return (
+      <div className="ops-empty">
+        <div className="ops-empty-icon">🍳</div>
+        Đang tải bảng bếp...
       </div>
-      <span className={`connection-pill connection-${connectionStatus}`}>
-        {statusLabel}
-      </span>
-    </section>
-  );
-}
-
-function applyRealtimeEvent(
-  orders: OrderTrackingOrder[],
-  event: OrderRealtimeEvent,
-): OrderTrackingOrder[] {
-  if (event.event === "order.itemStatusChanged") {
-    return orders.map((order) => {
-      if (order.orderCode !== event.payload.orderCode) {
-        return order;
-      }
-
-      const items = order.items.map((item) =>
-        item.orderItemId === event.payload.orderItemId
-          ? {
-              ...item,
-              status: event.payload.status,
-              updatedAt: event.payload.updatedAt,
-            }
-          : item,
-      );
-
-      return {
-        ...order,
-        status: calculateOrderStatus(items),
-        updatedAt: event.payload.updatedAt,
-        items,
-      };
-    });
-  }
-
-  if (event.event === "order.statusChanged") {
-    return orders.map((order) =>
-      order.orderCode === event.payload.orderCode
-        ? { ...order, status: event.payload.status, updatedAt: event.payload.updatedAt }
-        : order,
     );
   }
 
-  return orders;
-}
+  return (
+    <div>
+      {/* Header */}
+      <div className="ops-page-header">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1>Bảng Bếp</h1>
+            <p>Theo dõi và cập nhật trạng thái đơn hàng realtime</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className={`ops-connection ops-connection--${connectionStatus}`}>
+              <span className="ops-connection-dot" />
+              {connectionStatus === "connected" ? "Đã kết nối" :
+                connectionStatus === "connecting" ? "Đang kết nối..." :
+                  connectionStatus === "reconnecting" ? "Đang kết nối lại..." : "Mất kết nối"}
+            </span>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">
+              🔄 Làm mới
+            </button>
+            <button
+              className="ops-btn ops-btn--ghost ops-btn--sm"
+              onClick={() => { setShowMenuPanel(!showMenuPanel); if (!showMenuPanel) loadMenu(); }}
+              type="button"
+            >
+              🍽 Tắt/Mở món {unavailableCount > 0 ? `(${unavailableCount} hết)` : ""}
+            </button>
+          </div>
+        </div>
+      </div>
 
-function calculateOrderStatus(items: OrderTrackingItem[]) {
-  if (items.every((item) => item.status === "Ready" || item.status === "Served")) {
-    return "Ready" as const;
-  }
+      {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
 
-  if (items.some((item) => item.status === "Preparing" || item.status === "Ready")) {
-    return "Preparing" as const;
-  }
+      {/* Stats */}
+      <div className="ops-stats">
+        {stats.map((s) => (
+          <div className="ops-stat-card" key={s.label}>
+            <div className="ops-stat-label">{s.label}</div>
+            <div className="ops-stat-value">{s.value}</div>
+            <div className="ops-stat-detail">{s.detail}</div>
+          </div>
+        ))}
+      </div>
 
-  return "Placed" as const;
+      {/* Toggle menu panel */}
+      {showMenuPanel ? (
+        <div style={{ marginBottom: 20, padding: 16, background: "var(--color-bg-subtle)", borderRadius: 12, maxHeight: 300, overflowY: "auto" }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Quản lý tình trạng món</h3>
+          {menuItems.map((item) => (
+            <div className="ops-toggle-row" key={item.id}>
+              <span className="ops-toggle-label">
+                {item.name}
+                {!item.isAvailable ? <span className="ops-badge ops-badge--cancelled" style={{ marginLeft: 8 }}>Hết</span> : null}
+              </span>
+              <button
+                className={`ops-toggle-switch ${item.isAvailable ? "ops-toggle-switch--on" : ""}`}
+                disabled={togglingId === item.id}
+                onClick={() => handleToggleAvailability(item.id, item.isAvailable)}
+                type="button"
+                aria-label={`${item.isAvailable ? "Tắt" : "Mở"} ${item.name}`}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Board */}
+      <KitchenBoard orders={kitchenOrders} onRefresh={loadOrders} />
+    </div>
+  );
 }

@@ -609,7 +609,7 @@ public sealed class OrderEndpointTests
     }
 
     [Fact]
-    public async Task CreateOrder_Pickup_RequiresCustomerContact()
+    public async Task CreateOrder_RejectsPickupOrderType()
     {
         await using var factory = new TestWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -619,13 +619,14 @@ public sealed class OrderEndpointTests
         {
             orderType = "Pickup",
             paymentMethod = "COD",
+            pickupInfo = new { customerName = "Nguyen Van A", phoneNumber = "0901234567" },
             items = new[] { new { menuItemId = "m_001", quantity = 1 } }
         });
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
-            "ORDER_TYPE_UNSUPPORTED",
+            "ORDER_TYPE_INVALID",
             body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 

@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import "@fontsource/newsreader/latin-500.css";
-import "@fontsource/newsreader/vietnamese-500.css";
-import "@fontsource/manrope/latin-400.css";
-import "@fontsource/manrope/vietnamese-400.css";
-import "@fontsource/manrope/latin-700.css";
-import "@fontsource/manrope/vietnamese-700.css";
-import { Link } from "react-router-dom";
 import { CustomerCartBar } from "../../components/customer/CustomerCartBar";
-import { TableContextBadge } from "../../components/customer/TableContextBadge";
+import { CustomerTestimonials } from "../../components/customer/CustomerTestimonials";
+import { CustomerWhyChooseUs } from "../../components/customer/CustomerWhyChooseUs";
 import {
   loadMenuCart,
   loadOrderContext,
@@ -218,7 +212,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
     updateCart(nextCart);
   }
 
-  function guardCartNavigation(event: MouseEvent<HTMLAnchorElement>) {
+  function guardCartNavigation(event: React.MouseEvent<Element>) {
     if (!isSessionOpen) {
       event.preventDefault();
       setSessionNotice("Bạn cần quét QR tại bàn để gửi đơn cho bếp.");
@@ -231,11 +225,11 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         <div className="cmc-menu-hero-copy">
           <p className="cmc-kicker">CMC Restaurant</p>
           <h2>
-            Thực đơn tại bàn <span>{tableCode ? `Bàn ${tableCode}` : "QR"}</span>
+            Thực đơn <span>{tableCode ? `Bàn ${tableCode}` : "nhà hàng"}</span>
           </h2>
           <p>
-            Thực đơn được hiển thị theo từng danh mục để khách xem món dễ hơn.
-            Khi đặt món, hệ thống sẽ gắn đơn với đúng phiên QR của bàn.
+            Khám phá hương vị đặc biệt từ những món ăn được chế biến tươi ngon mỗi ngày.
+            Chọn món yêu thích và gửi đơn trực tiếp từ điện thoại.
           </p>
           <div className="cmc-hero-actions">
             <a className="cmc-primary-link" href="#cmc-menu-sections">
@@ -260,7 +254,11 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
             {sessionNotice}
           </p>
         ) : null}
-        <TableContextBadge tableCode={tableCode} />
+        {tableCode ? (
+          <span className="cmc-table-badge">Bàn {tableCode} · QR dine-in</span>
+        ) : (
+          <span className="cmc-table-badge muted">Khách chọn món tại nhà hàng hoặc đặt online</span>
+        )}
         <div className="cmc-search-row">
           <input
             className="cmc-search-input"
@@ -278,25 +276,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         />
       </section>
 
-      {!isFilteredView && featuredItems.length > 0 ? (
-        <section className="cmc-featured-strip" aria-label="Món nổi bật hôm nay">
-          <div className="cmc-section-title">
-            <h3>Món nổi bật</h3>
-            <span>{featuredItems.length} món đang bán</span>
-          </div>
-          <div className="cmc-featured-list">
-            {featuredItems.map((item) => (
-              <article className="cmc-featured-card" key={item.id}>
-                <img alt={item.name} src={item.imageUrl} />
-                <div>
-                  <h4>{item.name}</h4>
-                  <p>{formatVnd(item.price)}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {/* WhyChooseUs, Testimonials, and CTA sections are shown when not filtered */}
 
       <div className="cmc-menu-layout">
         <section
@@ -366,41 +346,37 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
             </>
           )}
         </section>
-
-        <aside className="cmc-cart-panel side" aria-label="Tóm tắt giỏ hàng">
-          <h3>Giỏ hàng</h3>
-          <p>Kiểm tra món đã chọn trước khi gửi đơn cho bếp.</p>
-          <div className="cmc-cart-list">
-            {menuItems
-              .filter((item) => (cart[item.id] ?? 0) > 0)
-              .map((item) => (
-                <div className="cmc-cart-row" key={item.id}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>x{cart[item.id]}</span>
-                  </div>
-                  <strong>{formatVnd((cart[item.id] ?? 0) * item.price)}</strong>
-                </div>
-              ))}
-            {summary.itemCount === 0 ? <p>Chưa có món nào trong giỏ.</p> : null}
-          </div>
-          <div className="cmc-cart-total">
-            <span>Tổng cộng</span>
-            <strong>{formatVnd(summary.totalPrice)}</strong>
-          </div>
-          {tableCode ? <TableContextBadge tableCode={tableCode} /> : null}
-          <Link
-            aria-disabled={!isSessionOpen}
-            className="cmc-secondary-link"
-            onClick={guardCartNavigation}
-            to="/cart"
-          >
-            Xem giỏ & gửi đơn
-          </Link>
-        </aside>
       </div>
 
-      <CustomerCartBar itemCount={summary.itemCount} totalPrice={summary.totalPrice} />
+      <CustomerCartBar
+        itemCount={summary.itemCount}
+        totalPrice={summary.totalPrice}
+        onViewCart={guardCartNavigation}
+        disabled={!isSessionOpen}
+      />
+
+      {!isFilteredView && (
+        <>
+          <CustomerWhyChooseUs />
+          <CustomerTestimonials menuItems={menuItems} />
+          <section className="vian-cta-section">
+            <div className="vian-cta-content">
+              <h2>Bạn đã sẵn sàng đặt món?</h2>
+              <p>
+                Khám phá thực đơn đa dạng của chúng tôi và đặt món ngay hôm nay.
+                Đội ngũ đầu bếp luôn sẵn sàng chế biến những món ăn ngon nhất cho bạn.
+              </p>
+              <a className="vian-cta-button" href="#cmc-menu-sections">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <path d="M3 3h18v18H3V3z" />
+                  <path d="M3 9h18M9 21V9" />
+                </svg>
+                Xem thực đơn
+              </a>
+            </div>
+          </section>
+        </>
+      )}
     </section>
   );
 }

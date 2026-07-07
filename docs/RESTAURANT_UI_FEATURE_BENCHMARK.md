@@ -26,7 +26,7 @@ AI chat, bep, nhan vien va admin hien tai.
 | NUE Vietnamese | Tap trung mon an chia se, family style set, order online, pickup, delivery, reservation. | Them combo theo so nguoi va luong khach: an trua 2 nguoi, gia dinh 4 nguoi, do uong mat. |
 | Dishoom | Brand voice co ca tinh, menu/reservation lap lai dung cho nguoi dung, nhieu menu theo ngu canh. | Chatbot va menu nen co goi y theo ngu canh: breakfast/lunch/dinner/drinks/group. |
 | noma | Minimal, editorial, tin tuc/season, reservation updates, gio mo cua va lien he ro. | Dung layout thoang, anh lon, section mon theo mua va newsletter/booking update neu can. |
-| Eleven Madison Park | Gallery anh day cam xuc, navigation gon, booking/resy, gift card, FAQ. | Them thu vien anh mon an/khong gian, FAQ ngan cho dat ban/dat mang ve/QR order. |
+| Eleven Madison Park | Gallery anh day cam xuc, navigation gon, booking/resy, gift card, FAQ. | Them thu vien anh mon an/khong gian, FAQ ngan cho dat ban/QR order tai ban. |
 | Septime | Cuc ky toi gian: menu, reservation, hours, price, address. | Cac man hinh van hanh/admin nen toi gian va uu tien thong tin can hanh dong. |
 
 ## Pattern Nen Mang Ve
@@ -54,11 +54,9 @@ Menu nen la thanh phan tuong tac:
 
 ### 3. Dat mon theo ngu canh
 
-CMC co QR ordering nen nen them cac luong ro:
+CMC chi ho tro QR ordering tai ban nen nen tap trung luong:
 
 - Khach tai ban: quet QR -> chon ban -> goi mon -> bep nhan real-time.
-- Khach mang ve: chon pickup -> gio nhan -> thanh toan/xac nhan -> bep nhan.
-- Khach online: xem menu -> dat mon -> theo doi trang thai.
 - Nhan vien: xem don moi, xac nhan, cap nhat trang thai.
 - Bep: board theo trang thai mon, uu tien theo thoi gian.
 
@@ -96,7 +94,7 @@ Mobile la man hinh quan trong nhat:
 Customer can dep va cam xuc; admin/staff/kitchen can nhanh va ro:
 
 - Admin: dashboard doanh thu, don moi, mon ban chay, trang thai ban, quan ly menu.
-- Staff: danh sach don theo thoi gian, loc pickup/dine-in, nut cap nhat nhanh.
+- Staff: danh sach don theo thoi gian, loc theo ban/trang thai, nut cap nhat nhanh.
 - Kitchen: board cot `Moi`, `Dang lam`, `San sang`, `Da phuc vu`.
 - Mau van hanh nen cung tone cam dat nhung it trang tri, nhieu contrast hon.
 
@@ -110,10 +108,10 @@ Customer can dep va cam xuc; admin/staff/kitchen can nhanh va ro:
 - Dong bo UI customer/admin/staff/kitchen theo cam dat.
 - Them empty/loading/error states dep hon.
 
-### Phase 2 - Nang cap luong dat mon
+### Phase 2 - Nang cap luong dat mon tai ban
 
-- Tach ro `Dine-in`, `Pickup`, `Online`.
-- Bep nhan ca don pickup va dine-in.
+- Chi `Dine-in` qua QR/phiên bàn (khong pickup/online order).
+- Bep nhan don dine-in tu moi ban.
 - Theo doi don hang bang timeline real-time.
 - Them trang chi tiet mon voi option/ghi chu.
 - Them combo/set menu theo so nguoi.
@@ -130,7 +128,7 @@ Customer can dep va cam xuc; admin/staff/kitchen can nhanh va ro:
 - Dat ban co ngay/gio/so khach/ghi chu.
 - Voucher/gift card/membership neu can demo nang cao.
 - Review/testimonial va thu vien anh.
-- Bao cao admin: mon ban chay, gio cao diem, ty le don pickup/dine-in.
+- Bao cao admin: mon ban chay, gio cao diem, don theo ban.
 - Monitoring UI cho health, deploy version, AI provider status.
 
 ## De Xuat Issue Moi
@@ -152,14 +150,14 @@ Evidence khi dong issue:
 - Build frontend pass.
 - Khong lam thay doi logic order ngoai scope.
 
-### Issue B - Hoan thien luong pickup/dine-in den bep
+### Issue B - Hoan thien luong dine-in (QR tai ban) den bep
 
 Pham vi:
 
-- Checkout chon dine-in/pickup ro rang.
-- Don pickup van hien tren staff/kitchen board.
+- Checkout gan voi `tableCode`/phiên bàn ro rang.
+- Don dine-in hien tren staff/kitchen board.
 - Trang thai don real-time.
-- Smoke test: tao don pickup -> bep nhan -> cap nhat san sang.
+- Smoke test: quet QR -> tao don -> bep nhan -> cap nhat san sang.
 
 Evidence khi dong issue:
 

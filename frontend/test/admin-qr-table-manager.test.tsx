@@ -14,20 +14,25 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  const items = Array.from({ length: 8 }, (_, index) => {
+    const tableCode = `T0${index + 1}`;
+    const lower = tableCode.toLowerCase();
+    return {
+      tableCode,
+      displayName: `Bàn ${tableCode}`,
+      isActive: true,
+      qrToken: `cmc-table-${lower}-qr`,
+      customerPath: `/table/${tableCode}?qr=cmc-table-${lower}-qr`,
+    };
+  });
+
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
-      const tableCode = String(input).split("/").pop() ?? "T01";
+    vi.fn(async () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({
-          tableCode,
-          displayName: `Bàn ${tableCode}`,
-          isActive: true,
-          qrToken: `cmc-table-${tableCode.toLowerCase()}-qr`,
-          customerPath: `/table/${tableCode}?qr=cmc-table-${tableCode.toLowerCase()}-qr`,
-        }),
+        json: async () => ({ items, total: items.length }),
       } as Response;
     }),
   );

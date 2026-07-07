@@ -25,9 +25,13 @@
     "preview": "npm run preview -w @cmc/customer-web"
   },
   "dependencies": {
+    "@fontsource/dancing-script": "^5.2.8",
+    "@fontsource/karla": "^5.2.8",
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
+    "@fontsource/playfair-display": "^5.2.8",
     "@microsoft/signalr": "^9.0.6",
+    "lucide-react": "^1.23.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -127,7 +127,7 @@ backend/
 - `OrderSnapshots.cs` - read models
 
 **Domain Rules**:
-- Order không được cancel khi đã ở trạng thái `Preparing`, `Ready`, `Served`, `Delivering`, `Delivered`, `Completed`
+- Order không được cancel khi đã ở trạng thái `Preparing`, `Ready`, `Served`, `Completed`
 - Order items không được cancel riêng lẻ khi đã `Preparing`, `Ready`, `Served`
 
 ### 2.6 Chat Module (`Chat/`)

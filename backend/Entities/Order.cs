@@ -26,8 +26,8 @@ public class Order
 
     public string? TableCode { get; set; }
 
-    // Open dine-in session this order belongs to; closed once the table's last
-    // active order completes. Null for pickup.
+    // Open dine-in session this order belongs to; closed when the table's last active order completes.
+    // Dine-in orders always have a session; legacy rows may have null.
     public string? TableSessionId { get; set; }
 
     public TableSession? TableSession { get; set; }
@@ -40,7 +40,17 @@ public class Order
 
     public decimal SubtotalAmount { get; set; }
 
+    public decimal DiscountAmount { get; set; }
+
     public decimal TotalAmount { get; set; }
+
+    public string? PromotionId { get; set; }
+
+    public Promotion? Promotion { get; set; }
+
+    public string? PromotionCode { get; set; }
+
+    public string? CustomerPhoneNumber { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

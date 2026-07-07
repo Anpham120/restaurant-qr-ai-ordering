@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
 
@@ -14,6 +15,78 @@ public static partial class TableEndpoints
 
     public static IEndpointRouteBuilder MapTableEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/tables", async (
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var tables = await db.RestaurantTables
+                .AsNoTracking()
+                .OrderBy(t => t.TableCode)
+                .ToListAsync(cancellationToken);
+
+            var items = tables
+                .Select(ToTableResponse)
+                .ToList();
+
+            return Results.Ok(new TableListResponse(items, items.Count));
+        })
+        .WithName("ListTables")
+        .WithTags("Tables");
+
+        app.MapGet("/api/admin/table-sessions", async (
+            string? status,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var query = db.TableSessions
+                .AsNoTracking()
+                .Include(s => s.RestaurantTable)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!Enum.TryParse<TableSessionStatus>(status.Trim(), ignoreCase: true, out var parsedStatus))
+                {
+                    return ApiResults.BadRequest("TABLE_SESSION_STATUS_INVALID", "Table session status is invalid.");
+                }
+
+                query = query.Where(s => s.Status == parsedStatus);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var sessions = await query
+                .OrderByDescending(s => s.OpenedAt)
+                .ToListAsync(cancellationToken);
+
+            var activeOrderCounts = await db.Orders
+                .AsNoTracking()
+                .Where(o =>
+                    o.TableSessionId != null &&
+                    o.Status != OrderStatus.Completed &&
+                    o.Status != OrderStatus.Cancelled)
+                .GroupBy(o => o.TableSessionId!)
+                .Select(g => new { SessionId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SessionId, x => x.Count, cancellationToken);
+
+            var items = sessions
+                .Select(session => new AdminTableSessionSummaryResponse(
+                    session.Id,
+                    session.TableCode ?? session.RestaurantTable?.TableCode ?? string.Empty,
+                    session.RestaurantTable?.DisplayName,
+                    session.Status.ToString(),
+                    session.OpenedAt,
+                    session.ExpiresAt,
+                    session.ClosedAt,
+                    IsExpired(session, now),
+                    activeOrderCounts.GetValueOrDefault(session.Id)))
+                .ToList();
+
+            return Results.Ok(new AdminTableSessionListResponse(items, items.Count));
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .WithName("AdminListTableSessions")
+        .WithTags("Tables");
+
         app.MapGet("/api/tables/{tableCode}", async (
             string tableCode,
             RestaurantDbContext db,
