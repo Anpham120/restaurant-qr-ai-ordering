@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: deploy-production
@@ -60,6 +61,15 @@ jobs:
 
       - name: Deploy to production VPS
         run: bash deploy/scripts/deploy-vps.sh
+
+      - name: Auto-rollback on failed deploy
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "::warning::Production deploy failed (build/migration/health-check). Dispatching rollback."
+          gh workflow run rollback.yml -f environment=production
+          echo "Rollback workflow dispatched for production. Investigate the failed run before re-deploying."
 
       - name: Deployment summary
         run: |

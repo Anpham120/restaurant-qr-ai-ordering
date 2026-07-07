@@ -6,6 +6,7 @@ using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
+using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Api.Tests;
 
@@ -116,6 +117,9 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
         ConfigureChatMessageForTest(modelBuilder);
         ConfigureKnowledgeEntryForTest(modelBuilder);
         ConfigureUserForTest(modelBuilder);
+        ConfigurePromotionForTest(modelBuilder);
+        ConfigureLoyaltyMemberForTest(modelBuilder);
+        ConfigureLoyaltyRewardForTest(modelBuilder);
     }
 
     private static void ConfigureCategoryForTest(ModelBuilder modelBuilder)
@@ -221,10 +225,15 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             entity.Property(e => e.PickupRequestedAt).HasColumnName("pickup_requested_at");
             entity.Property(e => e.TableSessionId).HasColumnName("table_session_id").HasMaxLength(50);
             entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.PromotionId).HasColumnName("promotion_id").HasMaxLength(50);
+            entity.Property(e => e.PromotionCode).HasColumnName("promotion_code").HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneNumber).HasColumnName("customer_phone_number").HasMaxLength(20);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
             entity.HasOne(e => e.RestaurantTable).WithMany(t => t.Orders).HasForeignKey(e => e.RestaurantTableId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Promotion).WithMany().HasForeignKey(e => e.PromotionId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.OrderCode).IsUnique();
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
@@ -377,6 +386,66 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
         });
     }
 
+    private static void ConfigurePromotionForTest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Promotion>(entity =>
+        {
+            entity.ToTable("promotions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(e => e.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DiscountValue).HasColumnName("discount_value").HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.MinOrderAmount).HasColumnName("min_order_amount").HasPrecision(18, 2);
+            entity.Property(e => e.MaxDiscountAmount).HasColumnName("max_discount_amount").HasPrecision(18, 2);
+            entity.Property(e => e.IsFlashSale).HasColumnName("is_flash_sale").IsRequired();
+            entity.Property(e => e.StartsAt).HasColumnName("starts_at");
+            entity.Property(e => e.EndsAt).HasColumnName("ends_at");
+            entity.Property(e => e.IsActive).HasColumnName("is_active").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => e.IsActive);
+        });
+    }
+
+    private static void ConfigureLoyaltyMemberForTest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<LoyaltyMember>(entity =>
+        {
+            entity.ToTable("loyalty_members");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.PhoneNumber).HasColumnName("phone_number").HasMaxLength(20).IsRequired();
+            entity.Property(e => e.FullName).HasColumnName("full_name").HasMaxLength(200);
+            entity.Property(e => e.Points).HasColumnName("points").IsRequired();
+            entity.Property(e => e.LifetimeSpend).HasColumnName("lifetime_spend").HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasIndex(e => e.PhoneNumber).IsUnique();
+        });
+    }
+
+    private static void ConfigureLoyaltyRewardForTest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<LoyaltyReward>(entity =>
+        {
+            entity.ToTable("loyalty_rewards");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(e => e.PointsRequired).HasColumnName("points_required").IsRequired();
+            entity.Property(e => e.IsActive).HasColumnName("is_active").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.PointsRequired);
+        });
+    }
+
     public async Task SeedDataAsync()
     {
         await Database.EnsureDeletedAsync();
@@ -425,16 +494,57 @@ internal sealed class TestRestaurantDbContext : RestaurantDbContext
             new MenuItem { Id = "m_012", CategoryId = "cat_dessert", Name = "Banh flan caramel", Description = "Banh flan min, caramel thom, dung lanh.", Price = 35000, ImageUrl = "https://example.com/images/banh-flan.jpg", IsAvailable = true, Tags = new List<string> { "sweet", "classic" }, CreatedAt = now, UpdatedAt = now }
         );
 
-        RestaurantTables.AddRange(Enumerable.Range(1, 8).Select(number => new RestaurantTable
-        {
-            Id = $"tbl_{number:00}",
-            TableCode = $"T{number:00}",
-            DisplayName = $"Ban {number:00}",
-            IsActive = true,
-            QrToken = $"cmc-table-t{number:00}-qr",
-            CreatedAt = now,
-            UpdatedAt = now
-        }));
+        RestaurantTables.AddRange(RestaurantTableSeed.CreateTables(now));
+
+        Promotions.AddRange(
+            new Promotion
+            {
+                Id = "promo_test_percent",
+                Code = "GIAM10",
+                Name = "Giam 10%",
+                Description = "Giam 10% cho don tu 50.000d.",
+                Type = PromotionType.Percentage,
+                DiscountValue = 10m,
+                MinOrderAmount = 50000m,
+                MaxDiscountAmount = 20000m,
+                IsFlashSale = false,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new Promotion
+            {
+                Id = "promo_test_fixed",
+                Code = "BOT20K",
+                Name = "Bot 20.000d",
+                Description = "Giam 20.000d cho don tu 100.000d.",
+                Type = PromotionType.FixedAmount,
+                DiscountValue = 20000m,
+                MinOrderAmount = 100000m,
+                IsFlashSale = true,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new Promotion
+            {
+                Id = "promo_test_inactive",
+                Code = "HETHAN",
+                Name = "Da tat",
+                Type = PromotionType.Percentage,
+                DiscountValue = 50m,
+                IsFlashSale = false,
+                IsActive = false,
+                CreatedAt = now,
+                UpdatedAt = now
+            }
+        );
+
+        LoyaltyRewards.AddRange(
+            new LoyaltyReward { Id = "rwd_test_drink", Name = "Nuoc mien phi", Description = "Doi 1 do uong.", PointsRequired = 10, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new LoyaltyReward { Id = "rwd_test_meal", Name = "Giam 50k", Description = "Voucher giam 50.000d.", PointsRequired = 50, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new LoyaltyReward { Id = "rwd_test_off", Name = "Phan thuong tat", PointsRequired = 100, IsActive = false, CreatedAt = now, UpdatedAt = now }
+        );
 
         await SaveChangesAsync();
     }

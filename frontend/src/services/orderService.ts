@@ -5,6 +5,7 @@ import type {
   OrderItemStatus,
   PaymentResponse,
   OrderTrackingOrder,
+  ValidatePromotionResponse,
   VietQrPaymentResponse,
 } from "../types";
 
@@ -44,6 +45,13 @@ export async function createOrder(
   const response = (await api.orders.create(payload)) as CreateOrderResponse;
   rememberOrderToken(response.orderCode, response.customerAccessToken);
   return response;
+}
+
+export async function validatePromotion(
+  code: string,
+  subtotalAmount: number,
+): Promise<ValidatePromotionResponse> {
+  return api.promotions.validate({ code, subtotalAmount }) as Promise<ValidatePromotionResponse>;
 }
 
 export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {

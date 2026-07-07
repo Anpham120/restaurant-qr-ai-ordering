@@ -26,6 +26,8 @@ export type {
   PaymentMethod,
   PaymentStatus,
   PaymentTransaction,
+  PromotionType,
+  ValidatePromotionResponse,
   VietQrPaymentResponse,
 } from "./order";
 export type {

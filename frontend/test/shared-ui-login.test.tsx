@@ -21,9 +21,9 @@ describe("shared operations LoginPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Đăng nhập hệ thống" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mật khẩu")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Đăng Nhập" })).toBeInTheDocument();
+    expect(screen.getByLabelText("TÊN ĐĂNG NHẬP")).toBeInTheDocument();
+    expect(screen.getByLabelText("MẬT KHẨU")).toBeInTheDocument();
     expect(screen.queryByText("Đăng nhập nhanh")).not.toBeInTheDocument();
     expect(screen.queryByText("Chọn vai trò")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Quản trị viên|Nhân viên|Đầu bếp/i })).not.toBeInTheDocument();
@@ -69,13 +69,13 @@ describe("shared operations LoginPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText("TÊN ĐĂNG NHẬP"), {
       target: { value: "staff@restaurant.local" },
     });
-    fireEvent.change(screen.getByLabelText("Mật khẩu"), {
+    fireEvent.change(screen.getByLabelText("MẬT KHẨU"), {
       target: { value: "Staff@123" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Đăng nhập" }));
+    fireEvent.click(screen.getByRole("button", { name: "Đăng Nhập" }));
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Staff portal" })).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChatMessageBubble } from "../../components/chatbot/ChatMessageBubble";
 import { SuggestedCartActionCard } from "../../components/chatbot/SuggestedCartActionCard";
 import "../../components/chatbot/chatbot.css";
+import "../../components/chatbot/chatbot-vian-theme.css";
 import {
   loadMenuCart,
   loadOrderContext,
@@ -12,7 +13,7 @@ import { chatApi } from "../../services/chatService";
 import { fetchCustomerMenu } from "../../services/menuService";
 import type { CustomerMenuResponse } from "../../services/menuService";
 import type { ChatMessage, SuggestedCartAction } from "../../types";
-import { PageShell } from "../PageShell";
+
 
 type ActionStatus = "pending" | "confirmed" | "dismissed";
 
@@ -33,13 +34,7 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
-function getCartTotal() {
-  if (typeof window === "undefined") {
-    return 0;
-  }
 
-  return Object.values(loadMenuCart()).reduce((total, quantity) => total + quantity, 0);
-}
 
 function getActionKey(action: SuggestedCartAction) {
   return `${action.menuItemId}:${action.quantity}`;
@@ -62,7 +57,7 @@ export function ChatbotPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestedActions, setSuggestedActions] = useState<SuggestedCartAction[]>([]);
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
-  const [cartTotal, setCartTotal] = useState(getCartTotal);
+
   const [cartNotice, setCartNotice] = useState("");
   const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
@@ -159,7 +154,6 @@ export function ChatbotPage() {
     };
 
     saveMenuCart(nextCart);
-    setCartTotal(Object.values(nextCart).reduce((total, quantity) => total + quantity, 0));
     setCartNotice(`${action.name} đã được thêm vào giỏ sau khi bạn xác nhận.`);
     setActionStatuses((current) => ({
       ...current,
@@ -175,39 +169,17 @@ export function ChatbotPage() {
   }
 
   return (
-    <PageShell
-      eyebrow="AI Chat"
-      title="Trợ lý gợi ý món CMC"
-      description="Chatbot hỗ trợ hỏi đáp menu, tạo gợi ý giỏ hàng và luôn yêu cầu khách xác nhận trước khi thêm món."
-      variant="chat"
-      stats={[
-        {
-          label: "Phiên chat",
-          value: chatSessionId ? "Sẵn sàng" : "Đang tạo",
-          detail: "Frontend chỉ gọi lớp chat API an toàn qua backend",
-        },
-        {
-          label: "Giỏ hiện tại",
-          value: `${cartTotal} món`,
-          detail: "Chỉ thay đổi sau khi khách bấm xác nhận",
-        },
-        {
-          label: "Guardrail",
-          value: "Bật",
-          detail: "Không tự đặt đơn, không tự thanh toán",
-        },
-      ]}
-    >
+    <div className="page-shell page-shell-chat">
       <div className="cmc-chat-layout">
-        <section className="cmc-chat-panel" aria-label="Chatbot CMC Restaurant">
+        <section className="cmc-chat-panel" aria-label="AI Tư vấn CMC Restaurant">
           <div className="cmc-chat-session-bar">
             <div>
-              <p className="cmc-chat-muted">Luồng an toàn</p>
-              <h3>Hỏi món, nhận gợi ý, xác nhận thủ công</h3>
+              <h3>AI Tư vấn thực đơn</h3>
+              <p className="cmc-chat-muted">Hỏi bất cứ điều gì về thực đơn, AI sẽ gợi ý cho bạn</p>
             </div>
-            <span className="cmc-chat-muted">
-              {tableCode ? `Bàn ${tableCode}` : "Khách online / pickup"}
-            </span>
+            {tableCode ? (
+              <span className="cmc-chat-muted">Bàn {tableCode}</span>
+            ) : null}
           </div>
 
           <div className="cmc-chat-transcript" aria-live="polite">
@@ -215,7 +187,7 @@ export function ChatbotPage() {
               <ChatMessageBubble key={message.id} message={message} />
             ))}
             {suggestedActions.length > 0 ? (
-              <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món cần xác nhận">
+              <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món">
                 {suggestedActions.map((action) => (
                   <SuggestedCartActionCard
                     action={action}
@@ -234,7 +206,7 @@ export function ChatbotPage() {
               </div>
             ) : null}
             {isAssistantThinking ? (
-              <div className="cmc-chat-typing" aria-label="Assistant đang phản hồi">
+              <div className="cmc-chat-typing" aria-label="Đang phản hồi">
                 <span />
                 <span />
                 <span />
@@ -244,21 +216,20 @@ export function ChatbotPage() {
 
           <form className="cmc-chat-composer" onSubmit={(event) => sendMessage(event)}>
             <textarea
-              aria-label="Nội dung chat"
-              placeholder="Ví dụ: Gợi ý món cho 2 người ăn trưa"
+              aria-label="Nhập tin nhắn"
+              placeholder="Hỏi về thực đơn, gợi ý món..."
               value={composerValue}
               onChange={(event) => setComposerValue(event.target.value)}
             />
             <div className="cmc-chat-composer-actions">
               <button className="cmc-chat-button primary" disabled={isAssistantThinking} type="submit">
-                Gửi tin nhắn
+                Gửi
               </button>
-              <span className="cmc-chat-muted">AI chỉ đề xuất, không tự sửa giỏ hàng.</span>
             </div>
           </form>
         </section>
 
-        <aside className="cmc-chat-side-panel" aria-label="Gợi ý và xác nhận giỏ hàng">
+        <aside className="cmc-chat-side-panel" aria-label="Gợi ý nhanh">
           <div>
             <p className="cmc-chat-muted">Gợi ý nhanh</p>
             <div className="cmc-chat-quick-prompts">
@@ -277,13 +248,8 @@ export function ChatbotPage() {
           ) : null}
 
           {errorMessage ? <p className="cmc-chat-error">{errorMessage}</p> : null}
-
-          <p className="cmc-chat-muted">
-            Gợi ý món kèm hình ảnh hiện ngay trong khung chat. Giỏ hàng chỉ thay đổi sau khi bạn bấm
-            xác nhận.
-          </p>
         </aside>
       </div>
-    </PageShell>
+    </div>
   );
 }

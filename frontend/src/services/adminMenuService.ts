@@ -77,3 +77,19 @@ export async function deleteAdminMenuItem(itemId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+// Simple list without overview enrichment
+export async function fetchAdminMenuItems(): Promise<AdminMenuItem[]> {
+  return api.request<AdminMenuItem[]>("/admin/menu-items?includeInactiveCategories=true");
+}
+
+// Kitchen-level toggle (also usable by Staff/Admin)
+export async function toggleMenuItemAvailability(
+  itemId: string,
+  isAvailable: boolean,
+): Promise<AdminMenuItem> {
+  return api.request<AdminMenuItem>(
+    `/kitchen/menu-items/${encodeURIComponent(itemId)}/availability`,
+    { method: "PATCH", body: JSON.stringify({ isAvailable }) },
+  );
+}

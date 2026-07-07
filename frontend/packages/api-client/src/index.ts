@@ -8,19 +8,31 @@ import type {
   CreateUserRequest,
   LoginRequest,
   LoginResponse,
+  LoyaltyLookupResponse,
+  LoyaltyMember,
+  LoyaltyMemberRequest,
+  LoyaltyReward,
+  LoyaltyRewardRequest,
   MenuResponse,
   Order,
   OrderItemStatus,
   OrderListResponse,
   OrderStatus,
   Payment,
+  Promotion,
+  PromotionRequest,
   RefundPaymentRequest,
   RegisterRequest,
+  ReportSummaryResponse,
   ResetPasswordRequest,
   Table,
+  TableListResponse,
+  AdminTableSessionListResponse,
   TableSession,
   UserListResponse,
   UserSummary,
+  ValidatePromotionRequest,
+  ValidatePromotionResponse,
   VietQrPayment,
 } from "@cmc/shared-types";
 
@@ -60,7 +72,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
     menu: { get: () => request<MenuResponse>("/menu") },
     tables: {
+      list: () => request<TableListResponse>("/tables"),
       get: (code: string) => request<Table>(`/tables/${encodeURIComponent(code)}`),
+      listAdminSessions: (status?: string) => {
+        const query = status ? `?status=${encodeURIComponent(status)}` : "";
+        return request<AdminTableSessionListResponse>(`/admin/table-sessions${query}`);
+      },
       openSession: (payload: { qrToken: string; tableCode?: string | null }) =>
         request<TableSession>("/table-sessions", { method: "POST", body: JSON.stringify(payload) }),
       getSession: (sessionId: string) => request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}`),
@@ -103,6 +120,34 @@ export function createApiClient(options: ApiClientOptions = {}) {
       create: (payload: AdminCategoryRequest) => request<AdminCategory>("/admin/categories", { method: "POST", body: JSON.stringify(payload) }),
       update: (id: string, payload: AdminCategoryRequest) => request<AdminCategory>(`/admin/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
       delete: (id: string) => request<void>(`/admin/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    },
+    promotions: {
+      validate: (payload: ValidatePromotionRequest) => request<ValidatePromotionResponse>("/promotions/validate", { method: "POST", body: JSON.stringify(payload) }),
+      list: () => request<Promotion[]>("/admin/promotions"),
+      get: (id: string) => request<Promotion>(`/admin/promotions/${encodeURIComponent(id)}`),
+      create: (payload: PromotionRequest) => request<Promotion>("/admin/promotions", { method: "POST", body: JSON.stringify(payload) }),
+      update: (id: string, payload: PromotionRequest) => request<Promotion>(`/admin/promotions/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      delete: (id: string) => request<void>(`/admin/promotions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    },
+    loyalty: {
+      lookup: (phone: string) => request<LoyaltyLookupResponse>(`/loyalty/lookup?phone=${encodeURIComponent(phone)}`),
+      listMembers: () => request<LoyaltyMember[]>("/admin/loyalty/members"),
+      createMember: (payload: LoyaltyMemberRequest) => request<LoyaltyMember>("/admin/loyalty/members", { method: "POST", body: JSON.stringify(payload) }),
+      updateMember: (id: string, payload: LoyaltyMemberRequest) => request<LoyaltyMember>(`/admin/loyalty/members/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      deleteMember: (id: string) => request<void>(`/admin/loyalty/members/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      listRewards: () => request<LoyaltyReward[]>("/admin/loyalty/rewards"),
+      createReward: (payload: LoyaltyRewardRequest) => request<LoyaltyReward>("/admin/loyalty/rewards", { method: "POST", body: JSON.stringify(payload) }),
+      updateReward: (id: string, payload: LoyaltyRewardRequest) => request<LoyaltyReward>(`/admin/loyalty/rewards/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      deleteReward: (id: string) => request<void>(`/admin/loyalty/rewards/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    },
+    reports: {
+      summary: (range: { from?: string; to?: string } = {}) => {
+        const params = new URLSearchParams();
+        if (range.from) params.set("from", range.from);
+        if (range.to) params.set("to", range.to);
+        const query = params.toString();
+        return request<ReportSummaryResponse>(`/admin/reports/summary${query ? `?${query}` : ""}`);
+      },
     },
   };
 }

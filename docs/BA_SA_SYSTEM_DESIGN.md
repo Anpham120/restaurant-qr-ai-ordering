@@ -2,13 +2,15 @@
 
 Tài liệu này chuẩn hóa phân tích nghiệp vụ và kiến trúc giải pháp cho giai đoạn backend-first. Mục tiêu là để thành viên mới đọc xong có thể hiểu đúng actor, luồng nghiệp vụ, ranh giới module, dữ liệu lõi và hợp đồng API trước khi thiết kế UI hoặc viết code.
 
+> **Nguồn chuẩn hợp nhất: [`docs/SYSTEM_ANALYSIS_DESIGN.md`](SYSTEM_ANALYSIS_DESIGN.md).** Tài liệu BA/SA này giữ các sơ đồ phân tích; đã đồng bộ state machine + ERD với branch `develop` (bỏ Delivery, order tạo ở `Placed`, thêm `Refunded`, per-order access token, `order_status_history`, ràng buộc order ↔ table session).
+
 ## 1. Bối Cảnh Và Phạm Vi
 
 CMC Restaurant là hệ thống gọi món bằng QR có hỗ trợ AI gợi ý món. Hệ thống ưu tiên backend thật trước, sau đó UI bám theo API thật. Các logic mock/localStorage chỉ được dùng cho demo cũ, không được dùng làm nguồn sự thật nghiệp vụ.
 
 Phạm vi hiện tại:
 
-- Khách quét QR, xem menu, tạo đơn dine-in hoặc pickup.
+- Khách quét QR tại bàn, xem menu, tạo đơn dine-in (gọi món tại bàn).
 - Nhân viên quầy theo dõi đơn, xác nhận thanh toán, hỗ trợ khách.
 - Bếp nhận đơn, cập nhật trạng thái từng món theo thời gian thực.
 - Quản lý/Admin quản lý menu, danh mục, bàn/QR và theo dõi vận hành.
@@ -26,7 +28,7 @@ Ngoài phạm vi hiện tại:
 
 | Actor | Vai trò | Quyền chính |
 | --- | --- | --- |
-| Customer | Khách dùng web qua QR hoặc pickup | Xem menu, tạo đơn, theo dõi đơn, tạo VietQR, chat gợi ý món |
+| Customer | Khách dùng web qua QR tại bàn | Xem menu, tạo đơn, theo dõi đơn, tạo VietQR, chat gợi ý món |
 | Staff/Counter | Nhân viên quầy | Xem đơn, xác nhận thanh toán, hỗ trợ trạng thái đơn |
 | Kitchen | Bếp | Nhận đơn mới, cập nhật trạng thái từng món |
 | Admin/Manager | Quản lý | Quản lý menu, danh mục, bàn/QR, xem trạng thái vận hành |
@@ -88,7 +90,7 @@ flowchart LR
 1. Customer quét QR hoặc mở link có `tableCode`.
 2. Frontend gọi `GET /api/tables/{tableCode}` để lấy thông tin bàn và session.
 3. Nếu bàn hợp lệ, customer xem menu theo ngữ cảnh bàn.
-4. Khi tạo đơn, backend gắn đơn với `tableCode` hoặc pickup context.
+4. Khi tạo đơn, backend gắn đơn với `tableCode` và phiên bàn (`tableSessionId`).
 
 ### 4.2 Menu
 
@@ -207,36 +209,45 @@ sequenceDiagram
 
 ## 8. State Diagram
 
+> Các sơ đồ dưới đã đồng bộ với state machine thực trong `OrderStore.cs` / `PaymentEndpoints.cs` (branch `develop`). Order được tạo ở `Placed`; mọi lần đổi trạng thái order hoặc payment được ghi vào bảng `order_status_history` (kèm actor + note). Chuyển sang `Completed` yêu cầu payment `Confirmed/Paid`; ghi đồng thời (2 người sửa cùng đơn) trả `409 CONFLICT_STALE` (optimistic concurrency `xmin`).
+
 ### 8.1 Order State
+
+`Draft` là giá trị enum mặc định nhưng đơn thực tế được tạo ở `Placed`. Hủy chỉ cho phép từ `Draft`/`Placed`/`Confirmed`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending
-    Pending --> Confirmed: Staff confirms
-    Pending --> Cancelled: Customer/Staff cancels
-    Confirmed --> Preparing: Kitchen starts
-    Preparing --> Ready: All items ready
-    Ready --> Completed: Served/Picked up
-    Confirmed --> Cancelled
-    Preparing --> Cancelled
+    [*] --> Placed: Khách tạo đơn
+    Placed --> Confirmed: Staff xác nhận
+    Placed --> Preparing: Bếp bắt đầu
+    Confirmed --> Preparing: Bếp bắt đầu
+    Preparing --> Ready: Tất cả món sẵn sàng
+    Ready --> Served: Phục vụ / khách nhận
+    Ready --> Completed: Hoàn tất (payment Confirmed/Paid)
+    Served --> Completed: Hoàn tất (payment Confirmed/Paid)
+    Placed --> Cancelled: Hủy
+    Confirmed --> Cancelled: Hủy
     Completed --> [*]
     Cancelled --> [*]
 ```
 
 ### 8.2 Payment State
 
+Trạng thái theo đúng enum `PaymentStatus`. `Confirmed` và `Paid` đều thỏa điều kiện hoàn tất đơn; `Refunded` chỉ đạt được từ `Confirmed`/`Paid`.
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending
-    Pending --> AwaitingTransfer: VietQR generated
-    Pending --> CashToCollect: COD selected
-    AwaitingTransfer --> Paid: Staff confirms transfer
-    CashToCollect --> Paid: Staff receives cash
-    Pending --> Cancelled
-    AwaitingTransfer --> Expired
-    Expired --> AwaitingTransfer: Regenerate QR
-    Paid --> [*]
-    Cancelled --> [*]
+    [*] --> Unpaid: Tạo đơn
+    Unpaid --> Pending: Sinh VietQR
+    Unpaid --> Confirmed: Staff xác nhận (COD)
+    Pending --> Confirmed: Staff xác nhận chuyển khoản
+    Unpaid --> Failed: Đánh dấu thất bại
+    Pending --> Failed: Đánh dấu thất bại
+    Confirmed --> Refunded: Staff/Admin hoàn tiền
+    Paid --> Refunded: Staff/Admin hoàn tiền
+    Confirmed --> [*]
+    Refunded --> [*]
+    Failed --> [*]
 ```
 
 ### 8.3 Order Item State
@@ -245,7 +256,10 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> Pending
     Pending --> Preparing
+    Pending --> Ready
+    Pending --> Served
     Preparing --> Ready
+    Preparing --> Served
     Ready --> Served
     Pending --> Cancelled
     Preparing --> Cancelled
@@ -371,9 +385,14 @@ erDiagram
       uuid id PK
       uuid table_session_id FK
       string order_code
+      string order_type
       string status
       string payment_status
       decimal total_amount
+      string customer_access_token
+      string pickup_customer_name "dead column (Pickup đã gỡ)"
+      string pickup_customer_phone_number "dead column"
+      datetime pickup_requested_at "dead column"
     }
     ORDER_ITEMS {
       uuid id PK
@@ -397,6 +416,16 @@ erDiagram
       string reference
       string status
     }
+    ORDER_STATUS_HISTORY {
+      uuid id PK
+      uuid order_id FK
+      string from_status
+      string to_status
+      string source
+      string changed_by_role
+      string note
+      datetime created_at
+    }
 
     RESTAURANT_TABLES ||--o{ TABLE_SESSIONS : opens
     TABLE_SESSIONS ||--o{ ORDERS : contains
@@ -405,6 +434,7 @@ erDiagram
     MENU_ITEMS ||--o{ ORDER_ITEMS : ordered_as
     ORDERS ||--o| PAYMENTS : paid_by
     PAYMENTS ||--o{ PAYMENT_TRANSACTIONS : records
+    ORDERS ||--o{ ORDER_STATUS_HISTORY : audits
 ```
 
 ## 11. Component Diagram

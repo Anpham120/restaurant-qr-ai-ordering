@@ -26,8 +26,7 @@ const api = createApiClient({
     typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
 });
 
-// Backend currently exposes table lookup by code. Keep this list aligned with seeded tables.
-const tableCodes = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"];
+// Table list is loaded from GET /api/tables (40 seeded tables T01–T40).
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
@@ -62,10 +61,10 @@ export function AdminQrTableManager() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all(tableCodes.map((tableCode) => api.tables.get(tableCode)))
-      .then((backendTables) => {
+    api.tables.list()
+      .then((response) => {
         if (isMounted) {
-          setTables(backendTables);
+          setTables(response.items);
           setError(null);
         }
       })
