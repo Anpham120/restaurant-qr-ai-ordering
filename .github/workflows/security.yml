@@ -94,13 +94,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Scan filesystem for vulnerabilities & misconfigurations
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          scan-type: fs
-          scanners: vuln,secret,misconfig
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: table
-          # Report only; do not fail the pipeline on pre-existing findings.
-          exit-code: "0"
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan filesystem for vulnerabilities, secrets & misconfigurations
+        # Report only (exit-code 0): surface findings without failing the pipeline
+        # on pre-existing issues.
+        run: >-
+          trivy fs
+          --scanners vuln,secret,misconfig
+          --severity HIGH,CRITICAL
+          --ignore-unfixed
+          --no-progress
+          --exit-code 0
+          .
