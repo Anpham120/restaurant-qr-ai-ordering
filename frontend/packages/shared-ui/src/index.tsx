@@ -10,10 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { ApiError, createApiClient } from "@cmc/api-client";
 import { authStorage, useAuth } from "@cmc/auth";
 import type { UserRole } from "@cmc/shared-types";
+import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft } from "lucide-react";
 
 export function Button({
   children,
@@ -195,7 +196,7 @@ function ChangePasswordControl() {
   );
 }
 
-export type PortalLink = { to: string; label: string };
+export type PortalLink = { to: string; label: string; icon?: React.ReactNode };
 
 export function OperationsLayout({
   title,
@@ -282,6 +283,7 @@ export function OperationsLayout({
               className={({ isActive }) => (isActive ? "cmc-nav-link is-active" : "cmc-nav-link")}
               onClick={() => setDrawerOpen(false)}
             >
+              {link.icon ? <span className="cmc-nav-icon">{link.icon}</span> : null}
               {link.label}
             </NavLink>
           ))}
@@ -323,6 +325,8 @@ export function LoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const target = (location.state as { from?: string } | null)?.from ?? "/";
 
   function resolveTarget(role: UserRole) {
@@ -344,10 +348,6 @@ export function LoginPage({
       }
       navigate(resolveTarget(user.role), { replace: true });
     } catch (reason) {
-      // The backend returns a single generic INVALID_CREDENTIALS for bad
-      // password AND lockout (no account-existence/lockout oracle). Mirror that:
-      // one friendly message for every auth failure, with a heads-up that
-      // repeated attempts temporarily lock the account.
       if (reason instanceof ApiError && reason.code === "INVALID_CREDENTIALS") {
         setError(
           "Email hoặc mật khẩu không đúng. Sau nhiều lần thử sai, tài khoản sẽ tạm khoá 15 phút — vui lòng thử lại sau.",
@@ -362,45 +362,132 @@ export function LoginPage({
 
   return (
     <main className="cmc-login-shell">
-      <div className="cmc-login-premium">
-        <section className="cmc-form-section">
-          <Card className="cmc-login-card">
-            <h1 className="cmc-eyebrow">{portalName}</h1>
-            <h2>Đăng nhập hệ thống</h2>
-            <p>Nhập email và mật khẩu tài khoản vận hành.</p>
+      <div className="cmc-login-split-card">
+        {/* Left Side: Image & Welcome Text */}
+        <div className="cmc-login-hero-side">
+          <div className="cmc-login-hero-img-overlay" />
+          <img
+            className="cmc-login-hero-img"
+            src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80"
+            alt="CMC Restaurant Operations"
+          />
+          <div className="cmc-login-hero-content">
+            <span className="cmc-login-hero-badge">CMC Operations</span>
+            <h2>Xin Chào!</h2>
+            <p>Đăng nhập để tiếp tục trải nghiệm quản lý và vận hành hệ thống CMC Restaurant.</p>
+          </div>
+        </div>
+
+        {/* Right Side: Form */}
+        <section className="cmc-login-form-side">
+          <div className="cmc-login-form-container">
+            <div className="cmc-login-form-header">
+              <h1>Đăng Nhập</h1>
+              <p>Nhập thông tin để truy cập hệ thống</p>
+            </div>
+
             <form onSubmit={submit}>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  autoComplete="username"
-                  placeholder="email@restaurant.local"
-                />
-              </label>
-              <label>
-                Mật khẩu
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="Nhập mật khẩu"
-                />
-              </label>
+              <div className="cmc-login-input-group">
+                <label>TÊN ĐĂNG NHẬP</label>
+                <div className="cmc-login-input-wrapper">
+                  <span className="cmc-login-input-icon">
+                    <Mail size={16} />
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                    autoComplete="username"
+                    placeholder="Nhập tên đăng nhập (email)"
+                  />
+                </div>
+              </div>
+
+              <div className="cmc-login-input-group">
+                <label>MẬT KHẨU</label>
+                <div className="cmc-login-input-wrapper">
+                  <span className="cmc-login-input-icon">
+                    <Lock size={16} />
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Nhập mật khẩu"
+                  />
+                  <button
+                    type="button"
+                    className="cmc-login-password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="cmc-login-extra">
+                <label className="cmc-login-remember">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span>Ghi nhớ tôi</span>
+                </label>
+              </div>
+
               {error ? (
                 <p className="cmc-form-error" role="alert">
                   {error}
                 </p>
               ) : null}
-              <Button disabled={busy} type="submit">
-                {busy ? "Đang đăng nhập..." : "Đăng nhập"}
-              </Button>
+
+              <button className="cmc-login-submit-btn" disabled={busy} type="submit">
+                <LogIn size={16} />
+                <span>{busy ? "Đang đăng nhập..." : "Đăng Nhập"}</span>
+              </button>
             </form>
-          </Card>
+
+            <div className="cmc-login-divider">
+              <span>hoặc</span>
+            </div>
+
+            <div className="cmc-login-social-btns">
+              <button
+                type="button"
+                className="cmc-social-btn cmc-facebook-btn"
+                onClick={() => alert("Đang chuyển hướng kết nối Facebook...")}
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style={{ marginRight: 6 }}>
+                  <path d="M9 8H7v3h2v9h4v-9h3.6l.4-3H13V6c0-.5.5-1 1-1h2V1h-3a5 5 0 00-5 5v2z" />
+                </svg>
+                Facebook
+              </button>
+              <button
+                type="button"
+                className="cmc-social-btn cmc-google-btn"
+                onClick={() => alert("Đang chuyển hướng kết nối Google...")}
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style={{ marginRight: 6 }}>
+                  <path d="M12.24 10.285V13.4h6.887c-.648 2.41-2.519 4.13-5.136 4.13a5.55 5.55 0 01-5.55-5.55 5.55 5.55 0 015.55-5.55c2.25 0 4.01.9 4.96 2.04l2.64-2.64C19.78 4.005 16.32 2.3 12.24 2.3 6.64 2.3 2.3 6.64 2.3 12.24s4.34 9.94 9.94 9.94c5.7 0 10.28-4.58 10.28-10.28 0-.6-.05-1.2-.17-1.78l-9.87.165z" />
+                </svg>
+                Google
+              </button>
+            </div>
+
+            <div className="cmc-login-footer">
+              <span>Chưa có tài khoản? <a href="#" onClick={(e) => { e.preventDefault(); alert("Liên hệ quản trị viên để được tạo tài khoản vận hành."); }}>Đăng ký</a></span>
+              <br />
+              <Link to="/" className="cmc-login-back-link">
+                <ArrowLeft size={14} style={{ marginRight: 4, verticalAlign: "-2px" }} />
+                Quay lại trang chủ
+              </Link>
+            </div>
+          </div>
         </section>
       </div>
     </main>

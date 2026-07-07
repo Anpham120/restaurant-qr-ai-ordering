@@ -1,5 +1,7 @@
 # Ngữ Cảnh Dự Án
 
+> **Nguồn chuẩn hiện tại: [`docs/SYSTEM_ANALYSIS_DESIGN.md`](SYSTEM_ANALYSIS_DESIGN.md).** Tài liệu này giữ ngữ cảnh đề tài ban đầu; một số chi tiết đã đổi trên branch `develop`: chỉ còn `OrderType = DineIn` (QR tại bàn), đã bỏ Delivery và Pickup, thêm `PaymentStatus.Refunded`, order tạo ở trạng thái `Placed`. Khi có mâu thuẫn, lấy theo tài liệu chuẩn.
+
 ## 1. Đề Tài
 
 Tên dự án: **Restaurant QR AI Ordering**.
@@ -11,8 +13,7 @@ Mục tiêu là xây dựng hệ thống đặt đồ ăn và quản lý nhà h�
 ### Customer / Guest
 
 - Xem menu.
-- Quét QR tại bàn để đặt món dine-in.
-- Đặt món online theo hình thức pickup hoặc delivery mock.
+- Quét QR tại bàn để đặt món dine-in (bắt buộc có context bàn / table session).
 - Hỏi chatbot AI để được tư vấn món.
 - Theo dõi trạng thái đơn và từng món theo thời gian thực.
 - Hủy đơn khi đơn chưa chuyển sang trạng thái `Preparing`.
@@ -21,7 +22,6 @@ Mục tiêu là xây dựng hệ thống đặt đồ ăn và quản lý nhà h�
 
 - Xác nhận đơn mới.
 - Phục vụ món tại bàn.
-- Xử lý pickup hoặc delivery mock.
 - Xác nhận thanh toán COD/mock online.
 - Hoàn tất đơn.
 
@@ -64,18 +64,6 @@ Mục tiêu là xây dựng hệ thống đặt đồ ăn và quản lý nhà h�
 11. Customer tracking screen nhận realtime event và cập nhật trạng thái.
 12. Staff phục vụ, thu tiền và hoàn tất đơn.
 
-### Online Pickup / Delivery Mock Flow
-
-1. Khách vào `/menu`.
-2. Khách chọn món và vào checkout.
-3. Khách chọn `Pickup` hoặc `DeliveryMock`.
-4. Nếu delivery mock, khách nhập tên, số điện thoại và địa chỉ.
-5. Staff xác nhận đơn.
-6. Kitchen chuẩn bị món.
-7. Pickup: khách nhận tại quán.
-8. DeliveryMock: Staff đánh dấu `Delivering`, sau đó `Delivered`.
-9. Staff/Admin xác nhận thanh toán và hoàn tất đơn.
-
 ### Restaurant Management Flow
 
 1. Admin đăng nhập.
@@ -107,8 +95,6 @@ Order status:
 - `Preparing`
 - `Ready`
 - `Served`
-- `Delivering`
-- `Delivered`
 - `Completed`
 - `Cancelled`
 
@@ -122,9 +108,7 @@ Order item status:
 
 Order type:
 
-- `DineIn`
-- `Pickup`
-- `DeliveryMock`
+- `DineIn` (duy nhất)
 
 Payment method:
 
@@ -139,6 +123,7 @@ Payment status:
 - `Confirmed`
 - `Failed`
 - `Cancelled`
+- `Refunded`
 
 ## 5. Phạm Vi Phiên Bản 1
 

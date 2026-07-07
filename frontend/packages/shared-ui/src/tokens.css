@@ -1,31 +1,42 @@
 /* ==========================================================================
-   CMC Restaurant — design tokens (single source of truth)
-   Brand preserved exactly. Semantic scales + motion library + back-compat
-   aliases for every legacy custom property still referenced by the apps and
-   the root monolith stylesheet. Imported first by both styles.css bundles.
+   CMC Restaurant — Design Tokens (UI/UX Pro Max)
+   Brand: Warm Vietnamese Premium | Font: Be Vietnam Pro (unified)
    ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400;1,500;1,600;1,700&family=Dancing+Script:wght@400;500;600;700&display=swap');
+
 :root {
   /* ---- Color · brand ---- */
   --color-primary: #005bac;
   --color-primary-hover: #0067c7;
+  --color-primary-light: #E8F4FD;
+  --color-primary-dark: #003D73;
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #dbeefe;
+  --color-primary-200: #bfddfe;
+  --color-primary-600: #005bac;
+  --color-primary-700: #003d73;
   --color-cyan: #08bcef;
   --color-teal: #00a99d;
-  --color-ink: #08233e;
-  --color-bg: #f2fafd;
-  --color-soft: #eaf7fc;
-  --color-card: #ffffff;
-  --color-border: #cfeaf5;
-  --color-muted: #667a91;
-  --color-danger: #b42318;
 
-  /* ---- Color · state tints (lifted from the existing badge palette) ---- */
-  --color-info: #00517a;
-  --color-info-bg: #dff6fd;
-  --color-success: #166534;
+  /* ---- Color · neutrals ---- */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #F0F7FF;
+  --color-bg-section: #F8FBFF;
+  --color-card: #ffffff;
+  --color-ink: #08233e;
+  --color-muted: #5a7a96;
+  --color-border: #d4e8f5;
+  --color-border-light: #e8f1f8;
+
+  /* ---- Color · semantic ---- */
+  --color-success: #16a34a;
   --color-success-bg: #dcfce7;
-  --color-warning: #92400e;
+  --color-warning: #f59e0b;
   --color-warning-bg: #fef3c7;
+  --color-danger: #dc2626;
   --color-danger-bg: #fee2e2;
+  --color-info: #005bac;
+  --color-info-bg: #dbeefe;
 
   /* ---- Color · role accents ---- */
   --color-role-admin: #7c3aed;
@@ -33,7 +44,19 @@
   --color-role-kitchen: #ea580c;
   --color-role-customer: #059669;
 
-  /* ---- Space scale ---- */
+  /* ---- Gradients ---- */
+  --gradient-hero: linear-gradient(135deg, rgba(0,61,115,0.85) 0%, rgba(0,91,172,0.75) 50%, rgba(8,188,239,0.6) 100%);
+  --gradient-hero-soft: linear-gradient(135deg, #003D73 0%, #005bac 60%, #08bcef 100%);
+  --gradient-cta: linear-gradient(135deg, #005bac 0%, #0067c7 100%);
+  --gradient-card: linear-gradient(180deg, rgba(0,91,172,0.03) 0%, rgba(0,91,172,0) 100%);
+  --gradient-section: linear-gradient(180deg, #ffffff 0%, #F0F7FF 100%);
+
+  /* ---- Glass ---- */
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(212, 232, 245, 0.6);
+  --glass-blur: blur(12px);
+
+  /* ---- Space scale (8px grid) ---- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -42,40 +65,66 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+  --space-9: 80px;
+  --space-10: 96px;
 
   /* ---- Radius ---- */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 24px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-pill: 999px;
 
   /* ---- Elevation ---- */
-  --elevation-1: 0 6px 18px rgba(8, 35, 62, 0.06);
-  --elevation-2: 0 18px 44px rgba(0, 91, 172, 0.08);
-  --elevation-3: 0 28px 64px rgba(0, 91, 172, 0.14);
+  --elevation-1: 0 1px 3px rgba(0,91,172,0.06), 0 1px 2px rgba(0,91,172,0.04);
+  --elevation-2: 0 4px 24px rgba(0,91,172,0.08);
+  --elevation-3: 0 12px 40px rgba(0,91,172,0.12);
+  --elevation-4: 0 20px 60px rgba(0,91,172,0.16);
+  --elevation-hover: 0 12px 40px rgba(0,91,172,0.14);
+  --elevation-nav: 0 4px 20px rgba(0,91,172,0.06);
 
   /* ---- Typography ---- */
-  --font-ui: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
-  --font-mono: "Cascadia Code", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
+  --font-display: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-ui: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
 
   /* ---- Motion ---- */
-  --duration-fast: 120ms;
+  --duration-fast: 150ms;
   --duration-base: 200ms;
-  --duration-slow: 320ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
   --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ======================================================================
-     Back-compat aliases — legacy names mapped onto the semantic tokens so
-     existing component CSS keeps resolving. New code should use the
-     --color-/--space-/--radius-/--elevation- scales above.
-     ====================================================================== */
-  /* shared-ui (operator shells) */
+  /* ---- Z-index scale ---- */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-chat: 70;
+
+  /* ---- Back-compat aliases ---- */
   --cmc-primary: var(--color-primary);
   --cmc-primary-hover: var(--color-primary-hover);
   --cmc-cyan: var(--color-cyan);
@@ -87,14 +136,13 @@
   --cmc-muted: var(--color-muted);
   --cmc-danger: var(--color-danger);
   --cmc-shadow: var(--elevation-2);
-  /* root monolith */
   --ink: var(--color-ink);
   --muted: var(--color-muted);
   --line: var(--color-border);
   --panel: var(--color-card);
   --blue: var(--color-primary);
-  --blue-soft: var(--color-soft);
-  --teal: var(--color-primary-hover); /* legacy misnomer: this value is the hover blue */
+  --blue-soft: var(--color-primary-light);
+  --teal: var(--color-primary-hover);
   --teal-dark: var(--color-primary-hover);
   --ready: var(--color-teal);
   --warn: var(--color-cyan);
@@ -106,11 +154,10 @@
   --cmc-ai-teal: var(--color-teal);
   --cmc-card-shadow: var(--elevation-2);
   --cmc-cream: var(--color-bg);
-  --cmc-soft: var(--color-soft);
+  --cmc-soft: var(--color-primary-light);
   --cmc-brown: var(--color-ink);
   --cmc-line: var(--color-border);
   --cmc-ink: var(--color-ink);
-  /* role accents */
   --role-admin: var(--color-role-admin);
   --role-staff: var(--color-role-staff);
   --role-kitchen: var(--color-role-kitchen);
@@ -118,69 +165,80 @@
 }
 
 /* ==========================================================================
-   Motion library — keyframes + utility classes. Every utility is disabled
-   under prefers-reduced-motion (see guard at the bottom).
+   Keyframes
    ========================================================================== */
 @keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes shimmer {
-  from {
-    background-position: -200% 0;
-  }
-  to {
-    background-position: 200% 0;
-  }
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
 }
 @keyframes pulse-soft {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 @keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 91, 172, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(0, 91, 172, 0.15); }
+}
+@keyframes hero-slide {
+  0% { opacity: 0; transform: scale(1.05); }
+  8% { opacity: 1; transform: scale(1); }
+  25% { opacity: 1; transform: scale(1); }
+  33% { opacity: 0; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dot-typing {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   Animation utility classes
+   ========================================================================== */
 .anim-fade-in-up {
   animation: fade-in-up var(--duration-slow) var(--ease-decelerate) both;
+}
+.anim-fade-in {
+  animation: fade-in var(--duration-base) var(--ease-decelerate) both;
 }
 .anim-scale-in {
   animation: scale-in var(--duration-base) var(--ease-decelerate) both;
@@ -188,8 +246,11 @@
 .anim-slide-in {
   animation: slide-in-right var(--duration-base) var(--ease-decelerate) both;
 }
+.anim-slide-up {
+  animation: slide-up var(--duration-slow) var(--ease-decelerate) both;
+}
 .anim-shimmer {
-  background-image: linear-gradient(90deg, var(--color-soft) 25%, #ffffff 37%, var(--color-soft) 63%);
+  background-image: linear-gradient(90deg, var(--color-primary-light) 25%, #ffffff 37%, var(--color-primary-light) 63%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
@@ -199,14 +260,71 @@
 .anim-toast-in {
   animation: toast-in var(--duration-slow) var(--ease-emphasized) both;
 }
+.anim-float {
+  animation: float 3s var(--ease-standard) infinite;
+}
+.anim-glow {
+  animation: glow-pulse 2s var(--ease-standard) infinite;
+}
+.anim-spin {
+  animation: spin 1s linear infinite;
+}
 
+/* Staggered delay helpers */
+.anim-delay-1 { animation-delay: 100ms; }
+.anim-delay-2 { animation-delay: 200ms; }
+.anim-delay-3 { animation-delay: 300ms; }
+.anim-delay-4 { animation-delay: 400ms; }
+.anim-delay-5 { animation-delay: 500ms; }
+
+/* Scroll-triggered: elements start hidden, .visible triggers animation */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity var(--duration-slower) var(--ease-decelerate),
+              transform var(--duration-slower) var(--ease-decelerate);
+}
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+.scroll-reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition: opacity var(--duration-slower) var(--ease-decelerate),
+              transform var(--duration-slower) var(--ease-decelerate);
+}
+.scroll-reveal-left.visible {
+  opacity: 1;
+  transform: none;
+}
+.scroll-reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity var(--duration-slower) var(--ease-decelerate),
+              transform var(--duration-slower) var(--ease-decelerate);
+}
+.scroll-reveal-right.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ==========================================================================
+   Reduced motion: disable all animations
+   ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .anim-fade-in-up,
-  .anim-scale-in,
-  .anim-slide-in,
-  .anim-shimmer,
-  .anim-pulse,
-  .anim-toast-in {
-    animation: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scroll-reveal,
+  .scroll-reveal-left,
+  .scroll-reveal-right {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

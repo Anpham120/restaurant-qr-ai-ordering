@@ -39,7 +39,7 @@ Các bước:
 3. Backend trả `tableCode: "T05"`, `displayName: "Bàn 05"`, `isActive: true`.
 4. Frontend gọi `GET /api/menu`.
 5. Khách thêm `m_001` số lượng `2` và `m_009` số lượng `1`.
-6. Frontend gửi `POST /api/orders` với `orderType: "DineIn"`, `tableCode: "T05"`, `paymentMethod: "COD"`, `deliveryInfo: null`.
+6. Frontend gửi `POST /api/orders` với `orderType: "DineIn"`, `tableCode: "T05"`, `paymentMethod: "COD"`.
 7. Backend trả `201 Created`, `status: "Placed"`, `paymentStatus: "Unpaid"`, item status `Pending`.
 8. Frontend mở `/orders/{orderCode}` và gọi `GET /api/orders/{orderCode}`.
 
@@ -50,55 +50,25 @@ Kỳ vọng:
 - UI tracking hiển thị order status và item status theo enum trong contract.
 - Nếu thử `tableCode = ABC`, backend trả `400 TABLE_CODE_INVALID`.
 
-## 4. Scenario Online Pickup
+## 4. Scenario Từ Chối OrderType Không Hợp Lệ (Pickup)
 
-Mục tiêu: khách đặt món mang đi không cần QR.
-
-Tiền điều kiện:
-
-- Menu public có item available.
-- Frontend route `/menu` không có table context.
-
-Các bước:
-
-1. Mở `/menu`.
-2. Frontend gọi `GET /api/menu`.
-3. Khách chọn `Pickup`.
-4. Frontend gửi `POST /api/orders` với `orderType: "Pickup"`, `tableCode: null`, `paymentMethod: "COD"`, `deliveryInfo: null`.
-5. Backend trả order `Placed`.
-6. Staff/admin kiểm tra đơn trong màn vận hành khi endpoint tương ứng được triển khai.
-
-Kỳ vọng:
-
-- Backend không yêu cầu `tableCode` cho `Pickup`.
-- Response không dùng `paymentStatus: "Pending"`.
-- `orderCode` dùng dạng `ORD-####`.
-
-## 5. Scenario Delivery Mock
-
-Mục tiêu: mô phỏng giao hàng nội bộ, không tích hợp shipper thật.
+Mục tiêu: đảm bảo backend chỉ chấp nhận `DineIn` (đã bỏ Pickup mang về).
 
 Tiền điều kiện:
 
 - Menu public có item available.
-- Customer nhập đủ tên, số điện thoại và địa chỉ.
+- Có `tableSessionId` hợp lệ (hoặc context bàn từ QR).
 
 Các bước:
 
-1. Mở `/menu`.
-2. Khách chọn `DeliveryMock`.
-3. Frontend nhập `recipientName`, `phoneNumber`, `address`, optional `note`.
-4. Frontend gửi `POST /api/orders` với `orderType: "DeliveryMock"` và `deliveryInfo` đầy đủ.
-5. Backend trả order `Placed`.
-6. Staff cập nhật trạng thái vận hành theo luồng `Confirmed` -> `Preparing` -> `Ready` -> `Delivering` -> `Delivered` -> `Completed` khi feature code có endpoint.
+1. Gửi `POST /api/orders` với `orderType: "Pickup"`, `tableCode: "T05"`, `paymentMethod: "COD"`, `items` hợp lệ.
 
 Kỳ vọng:
 
-- Thiếu `deliveryInfo.address` trả `400 DELIVERY_INFO_REQUIRED`.
-- Không gọi cổng giao hàng/thanh toán thật.
-- Customer tracking không hiển thị bàn cho order delivery.
+- Backend trả `400 ORDER_TYPE_INVALID`.
+- Không tạo đơn mới.
 
-## 6. Scenario Admin Availability Change
+## 5. Scenario Admin Availability Change
 
 Mục tiêu: admin đổi trạng thái còn món và customer/chatbot tôn trọng trạng thái đó.
 

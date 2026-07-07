@@ -4,9 +4,12 @@ using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Api.Loyalty;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Payments;
+using RestaurantQrAiOrdering.Api.Promotions;
 using RestaurantQrAiOrdering.Api.Realtime;
+using RestaurantQrAiOrdering.Api.Reports;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 
@@ -16,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 var defaultCorsOrigins = new[]
 {
     "https://cmcrestaurant.app",
+    "https://customer.cmcrestaurant.app",
     "https://admin.cmcrestaurant.app",
     "https://staging.cmcrestaurant.app",
     "http://localhost:5173",
@@ -48,7 +52,9 @@ builder.Services.AddCors(options =>
 });
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrEmpty(connectionString))
+var useInMemory = string.IsNullOrEmpty(connectionString);
+
+if (!useInMemory)
 {
     builder.Services.AddDbContext<RestaurantDbContext>(options =>
     {
@@ -61,11 +67,19 @@ if (!string.IsNullOrEmpty(connectionString))
         });
     });
 }
+else
+{
+    // Fallback: InMemory database for development without PostgreSQL
+    builder.Services.AddDbContext<RestaurantDbContext>(options =>
+    {
+        options.UseInMemoryDatabase("RestaurantDev");
+    });
+}
 
-if (!string.IsNullOrEmpty(connectionString))
+if (!useInMemory)
 {
     builder.Services.AddHealthChecks()
-        .AddNpgSql(connectionString, name: "postgresql", tags: ["db", "ready"]);
+        .AddNpgSql(connectionString!, name: "postgresql", tags: ["db", "ready"]);
 }
 else
 {
@@ -80,22 +94,24 @@ builder.Services.AddRestaurantChatApis();
 
 var app = builder.Build();
 
-if (!string.IsNullOrEmpty(connectionString))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
 
-    if (builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
+    if (!useInMemory && builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
     {
         await dbContext.Database.MigrateAsync();
+    }
+
+    if (useInMemory)
+    {
+        await dbContext.Database.EnsureCreatedAsync();
     }
 
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     var nowUtc = DateTimeOffset.UtcNow;
 
     // Bootstrap a single real administrator from environment configuration only.
-    // The account is created once when missing and is never reset on later boots,
-    // so a rotated password stays rotated.
     var bootstrapEmail = builder.Configuration["BOOTSTRAP_ADMIN_EMAIL"];
     var bootstrapPassword = builder.Configuration["BOOTSTRAP_ADMIN_PASSWORD"];
     if (!string.IsNullOrWhiteSpace(bootstrapEmail) && !string.IsNullOrWhiteSpace(bootstrapPassword))
@@ -117,10 +133,8 @@ if (!string.IsNullOrEmpty(connectionString))
         }
     }
 
-    // Demo operational accounts are opt-in via SEED_DEMO_USERS and must stay disabled
-    // in production. Each account is created only when missing; existing passwords are
-    // never overwritten, so these are not a permanent reset-on-boot backdoor.
-    if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
+    // Demo operational accounts are opt-in via SEED_DEMO_USERS
+    if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS") || useInMemory)
     {
         var demoUsers = new[]
         {
@@ -197,6 +211,9 @@ app.MapUserEndpoints();
 app.MapRestaurantMenuTableApis();
 app.MapOrderEndpoints();
 app.MapPaymentEndpoints();
+app.MapPromotionEndpoints();
+app.MapReportEndpoints();
+app.MapLoyaltyEndpoints();
 app.MapRestaurantRealtimeApis();
 app.MapRestaurantChatApis();
 

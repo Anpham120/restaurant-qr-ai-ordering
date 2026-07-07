@@ -10,7 +10,9 @@ public sealed record OrderSnapshot(
     string PaymentStatus,
     string PaymentMethod,
     decimal SubtotalAmount,
+    decimal DiscountAmount,
     decimal TotalAmount,
+    string? PromotionCode,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<OrderItemSnapshot> Items,
@@ -40,7 +42,11 @@ public sealed record CreateOrderCommand(
     string? QrToken,
     string? TableSessionId,
     string PaymentMethod,
-    IReadOnlyList<CreateOrderItemRequest> Items);
+    IReadOnlyList<CreateOrderItemRequest> Items,
+    decimal DiscountAmount = 0m,
+    string? PromotionId = null,
+    string? PromotionCode = null,
+    string? CustomerPhoneNumber = null);
 
 public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order, string? ErrorCode = null);
 

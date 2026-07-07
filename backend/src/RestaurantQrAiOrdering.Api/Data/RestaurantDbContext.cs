@@ -37,6 +37,9 @@ public class RestaurantDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<LoyaltyMember> LoyaltyMembers => Set<LoyaltyMember>();
+    public DbSet<LoyaltyReward> LoyaltyRewards => Set<LoyaltyReward>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +58,9 @@ public class RestaurantDbContext : DbContext
         ConfigureChatMessage(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
         ConfigureUser(modelBuilder);
+        ConfigurePromotion(modelBuilder);
+        ConfigureLoyaltyMember(modelBuilder);
+        ConfigureLoyaltyReward(modelBuilder);
 
         // Postgres sequence backing the human-facing order code (ORD-1001, 1002, ...).
         // Atomic nextval removes the Count()+1 race that could mint duplicate codes.
@@ -64,9 +70,15 @@ public class RestaurantDbContext : DbContext
     }
 
     // Atomically reserves the next order-code number from the Postgres sequence.
-    // Overridden by the test context (EF InMemory can't run raw SQL).
+    // Falls back to a simple counter for InMemory provider.
+    private long _inMemoryOrderCodeCounter = 1000;
     public virtual long NextOrderCodeNumber()
     {
+        if (Database.IsInMemory())
+        {
+            return Interlocked.Increment(ref _inMemoryOrderCodeCounter);
+        }
+
         return Database
             .SqlQueryRaw<long>("SELECT nextval('orders_order_code_seq') AS \"Value\"")
             .AsEnumerable()
@@ -103,15 +115,6 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.DisplayOrder);
-
-            entity.HasData(
-                new Category { Id = "cat_appetizer", Name = "Khai vi", DisplayOrder = 10, IsActive = true, CreatedAt = now, UpdatedAt = now },
-                new Category { Id = "cat_main", Name = "Mon chinh", DisplayOrder = 20, IsActive = true, CreatedAt = now, UpdatedAt = now },
-                new Category { Id = "cat_noodle", Name = "Pho va bun", DisplayOrder = 30, IsActive = true, CreatedAt = now, UpdatedAt = now },
-                new Category { Id = "cat_seafood", Name = "Hai san", DisplayOrder = 40, IsActive = true, CreatedAt = now, UpdatedAt = now },
-                new Category { Id = "cat_drink", Name = "Do uong", DisplayOrder = 50, IsActive = true, CreatedAt = now, UpdatedAt = now },
-                new Category { Id = "cat_dessert", Name = "Trang mieng", DisplayOrder = 60, IsActive = true, CreatedAt = now, UpdatedAt = now }
-            );
         });
     }
 
@@ -164,21 +167,6 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.CategoryId);
             entity.HasIndex(e => e.IsAvailable);
-
-            entity.HasData(
-                new MenuItem { Id = "m_001", CategoryId = "cat_main", Name = "Com ga xoi mo", Description = "Ga chien gion, com thom, dua chua.", Price = 45000, ImageUrl = "https://example.com/images/com-ga-xoi-mo.jpg", IsAvailable = true, Tags = new List<string> { "pho bien", "mon chinh", "signature" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_002", CategoryId = "cat_main", Name = "Com suon nuong", Description = "Suon uop mat ong nuong than, an kem rau chua.", Price = 52000, ImageUrl = "https://example.com/images/com-suon-nuong.jpg", IsAvailable = true, Tags = new List<string> { "pho bien", "nuong" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_003", CategoryId = "cat_noodle", Name = "Pho bo tai", Description = "Pho bo nuoc dung trong, bo tai mem, rau thom.", Price = 55000, ImageUrl = "https://example.com/images/pho-bo-tai.jpg", IsAvailable = true, Tags = new List<string> { "nong", "pho", "bo" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_004", CategoryId = "cat_noodle", Name = "Bun bo Hue", Description = "Nuoc dung dam vi sa te, bo, cha cua va rau song.", Price = 60000, ImageUrl = "https://example.com/images/bun-bo-hue.jpg", IsAvailable = false, Tags = new List<string> { "cay", "het hang", "unavailable-demo" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_005", CategoryId = "cat_appetizer", Name = "Goi cuon tom thit", Description = "Goi cuon tuoi kem nuoc cham dau phong.", Price = 39000, ImageUrl = "https://example.com/images/goi-cuon.jpg", IsAvailable = true, Tags = new List<string> { "fresh", "light" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_006", CategoryId = "cat_appetizer", Name = "Cha gio hai san", Description = "Cha gio gion nhan hai san, sot mayo cay.", Price = 42000, ImageUrl = "https://example.com/images/cha-gio-hai-san.jpg", IsAvailable = true, Tags = new List<string> { "chien gion", "seafood" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_007", CategoryId = "cat_seafood", Name = "Tom rang muoi", Description = "Tom tuoi rang muoi ot, an kem rau thom.", Price = 185000, ImageUrl = "https://example.com/images/tom-rang-muoi.jpg", IsAvailable = true, Tags = new List<string> { "seafood", "share" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_008", CategoryId = "cat_seafood", Name = "Lau Thai hai san", Description = "Lau Thai chua cay voi tom, muc, ca va rau tuoi.", Price = 345000, ImageUrl = "https://example.com/images/lau-thai-hai-san.jpg", IsAvailable = true, Tags = new List<string> { "spicy", "seafood", "share" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_009", CategoryId = "cat_drink", Name = "Tra dao cam sa", Description = "Tra dao mat lanh voi cam vang va sa tuoi.", Price = 55000, ImageUrl = "https://example.com/images/tra-dao-cam-sa.jpg", IsAvailable = true, Tags = new List<string> { "drink", "fresh" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_010", CategoryId = "cat_drink", Name = "Ca phe sua da", Description = "Ca phe rang xay pha phin, sua dac va da vien.", Price = 45000, ImageUrl = "https://example.com/images/ca-phe-sua-da.jpg", IsAvailable = false, Tags = new List<string> { "drink", "coffee", "unavailable-demo" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_011", CategoryId = "cat_dessert", Name = "Che khuc bach", Description = "Khuc bach beo nhe, vai, hanh nhan va siro duong phen.", Price = 55000, ImageUrl = "https://example.com/images/che-khuc-bach.jpg", IsAvailable = true, Tags = new List<string> { "sweet", "cool" }, CreatedAt = now, UpdatedAt = now },
-                new MenuItem { Id = "m_012", CategoryId = "cat_dessert", Name = "Banh flan caramel", Description = "Banh flan min, caramel thom, dung lanh.", Price = 35000, ImageUrl = "https://example.com/images/banh-flan.jpg", IsAvailable = true, Tags = new List<string> { "sweet", "classic" }, CreatedAt = now, UpdatedAt = now }
-            );
         });
     }
 
@@ -218,16 +206,7 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.QrToken).IsUnique();
             entity.HasIndex(e => e.IsActive);
 
-            entity.HasData(
-                new RestaurantTable { Id = "tbl_01", TableCode = "T01", DisplayName = "Ban 01", IsActive = true, QrToken = "cmc-table-t01-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_02", TableCode = "T02", DisplayName = "Ban 02", IsActive = true, QrToken = "cmc-table-t02-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_03", TableCode = "T03", DisplayName = "Ban 03", IsActive = true, QrToken = "cmc-table-t03-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_04", TableCode = "T04", DisplayName = "Ban 04", IsActive = true, QrToken = "cmc-table-t04-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_05", TableCode = "T05", DisplayName = "Ban 05", IsActive = true, QrToken = "cmc-table-t05-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_06", TableCode = "T06", DisplayName = "Ban 06", IsActive = true, QrToken = "cmc-table-t06-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_07", TableCode = "T07", DisplayName = "Ban 07", IsActive = true, QrToken = "cmc-table-t07-qr", CreatedAt = now, UpdatedAt = now },
-                new RestaurantTable { Id = "tbl_08", TableCode = "T08", DisplayName = "Ban 08", IsActive = true, QrToken = "cmc-table-t08-qr", CreatedAt = now, UpdatedAt = now }
-            );
+            entity.HasData(RestaurantTableSeed.CreateTables(now).ToArray());
         });
     }
 
@@ -336,10 +315,23 @@ public class RestaurantDbContext : DbContext
                 .HasColumnName("subtotal_amount")
                 .HasPrecision(18, 2)
                 .IsRequired();
+            entity.Property(e => e.DiscountAmount)
+                .HasColumnName("discount_amount")
+                .HasPrecision(18, 2)
+                .IsRequired();
             entity.Property(e => e.TotalAmount)
                 .HasColumnName("total_amount")
                 .HasPrecision(18, 2)
                 .IsRequired();
+            entity.Property(e => e.PromotionId)
+                .HasColumnName("promotion_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.PromotionCode)
+                .HasColumnName("promotion_code")
+                .HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneNumber)
+                .HasColumnName("customer_phone_number")
+                .HasMaxLength(20);
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -357,7 +349,13 @@ public class RestaurantDbContext : DbContext
                 .HasForeignKey(e => e.TableSessionId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasOne(e => e.Promotion)
+                .WithMany()
+                .HasForeignKey(e => e.PromotionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasIndex(e => e.OrderCode).IsUnique();
+            entity.HasIndex(e => e.PromotionId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
             entity.HasIndex(e => e.TableSessionId);
@@ -766,6 +764,134 @@ public class RestaurantDbContext : DbContext
                 .HasColumnName("lockout_end_at");
 
             entity.HasIndex(e => e.Email).IsUnique();
+        });
+    }
+
+    private static void ConfigurePromotion(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Promotion>(entity =>
+        {
+            entity.ToTable("promotions");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.Code)
+                .HasColumnName("code")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Name)
+                .HasColumnName("name")
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Description)
+                .HasColumnName("description")
+                .HasMaxLength(1000);
+            entity.Property(e => e.Type)
+                .HasColumnName("type")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.DiscountValue)
+                .HasColumnName("discount_value")
+                .HasPrecision(18, 2)
+                .IsRequired();
+            entity.Property(e => e.MinOrderAmount)
+                .HasColumnName("min_order_amount")
+                .HasPrecision(18, 2);
+            entity.Property(e => e.MaxDiscountAmount)
+                .HasColumnName("max_discount_amount")
+                .HasPrecision(18, 2);
+            entity.Property(e => e.IsFlashSale)
+                .HasColumnName("is_flash_sale")
+                .IsRequired();
+            entity.Property(e => e.StartsAt)
+                .HasColumnName("starts_at");
+            entity.Property(e => e.EndsAt)
+                .HasColumnName("ends_at");
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active")
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => e.IsActive);
+        });
+    }
+
+    private static void ConfigureLoyaltyMember(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<LoyaltyMember>(entity =>
+        {
+            entity.ToTable("loyalty_members");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.PhoneNumber)
+                .HasColumnName("phone_number")
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.FullName)
+                .HasColumnName("full_name")
+                .HasMaxLength(200);
+            entity.Property(e => e.Points)
+                .HasColumnName("points")
+                .IsRequired();
+            entity.Property(e => e.LifetimeSpend)
+                .HasColumnName("lifetime_spend")
+                .HasPrecision(18, 2)
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasIndex(e => e.PhoneNumber).IsUnique();
+        });
+    }
+
+    private static void ConfigureLoyaltyReward(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<LoyaltyReward>(entity =>
+        {
+            entity.ToTable("loyalty_rewards");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.Name)
+                .HasColumnName("name")
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Description)
+                .HasColumnName("description")
+                .HasMaxLength(1000);
+            entity.Property(e => e.PointsRequired)
+                .HasColumnName("points_required")
+                .IsRequired();
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active")
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.PointsRequired);
         });
     }
 }

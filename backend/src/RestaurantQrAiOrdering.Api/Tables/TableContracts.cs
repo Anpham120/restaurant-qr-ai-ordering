@@ -29,3 +29,22 @@ public sealed record TableSessionResponse(
     DateTimeOffset ExpiresAt,
     DateTimeOffset? ClosedAt,
     bool IsExpired);
+
+public sealed record TableListResponse(
+    IReadOnlyList<TableResponse> Items,
+    int Total);
+
+public sealed record AdminTableSessionSummaryResponse(
+    string SessionId,
+    string TableCode,
+    string? TableDisplayName,
+    string Status,
+    DateTimeOffset OpenedAt,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset? ClosedAt,
+    bool IsExpired,
+    int ActiveOrderCount);
+
+public sealed record AdminTableSessionListResponse(
+    IReadOnlyList<AdminTableSessionSummaryResponse> Items,
+    int Total);

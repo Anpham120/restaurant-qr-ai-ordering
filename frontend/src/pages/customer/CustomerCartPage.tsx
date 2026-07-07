@@ -9,13 +9,14 @@ import {
 import "../../components/customer/customer-menu.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { createOrder, generateVietQrPayment } from "../../services/orderService";
+import { createOrder, generateVietQrPayment, validatePromotion } from "../../services/orderService";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
   MenuCart,
   MenuItem,
   PaymentMethod,
+  ValidatePromotionResponse,
   VietQrPaymentResponse,
 } from "../../types";
 
@@ -46,6 +47,8 @@ function buildOrderPayload(
   selectedItems: MenuItem[],
   paymentMethod: PaymentMethod,
   context: ReturnType<typeof getInitialOrderContext>,
+  promotionCode: string | null,
+  customerPhoneNumber: string | null,
 ): CreateOrderRequest {
   return {
     orderType: "DineIn",
@@ -57,6 +60,8 @@ function buildOrderPayload(
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
     })),
+    promotionCode,
+    customerPhoneNumber,
   };
 }
 
@@ -69,6 +74,11 @@ export function CustomerCartPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
   const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<ValidatePromotionResponse | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,6 +109,8 @@ export function CustomerCartPage() {
     (total, item) => total + (cart[item.id] ?? 0) * item.price,
     0,
   );
+  const discountAmount = appliedPromo?.discountAmount ?? 0;
+  const finalTotal = Math.max(0, totalPrice - discountAmount);
   const hasActiveSession = Boolean(
     orderContext.tableCode && orderContext.qrToken && orderContext.sessionId,
   );
@@ -124,6 +136,38 @@ export function CustomerCartPage() {
     saveMenuCart(nextCart);
     setSuccessOrder(null);
     setVietQrPayment(null);
+    // Cart total changed, so any applied promotion must be re-validated.
+    setAppliedPromo(null);
+    setPromoError("");
+  }
+
+  async function applyPromo() {
+    const code = promoInput.trim();
+    if (!code) {
+      setPromoError("Vui lòng nhập mã khuyến mãi.");
+      return;
+    }
+    if (totalPrice <= 0) {
+      setPromoError("Giỏ hàng trống, không thể áp dụng mã.");
+      return;
+    }
+    setIsApplyingPromo(true);
+    setPromoError("");
+    try {
+      const result = await validatePromotion(code, totalPrice);
+      setAppliedPromo(result);
+    } catch (error) {
+      setAppliedPromo(null);
+      setPromoError(error instanceof Error ? error.message : "Mã khuyến mãi không hợp lệ.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }
+
+  function removePromo() {
+    setAppliedPromo(null);
+    setPromoInput("");
+    setPromoError("");
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
@@ -142,7 +186,14 @@ export function CustomerCartPage() {
       return;
     }
 
-    const payload = buildOrderPayload(cart, selectedItems, paymentMethod, orderContext);
+    const payload = buildOrderPayload(
+      cart,
+      selectedItems,
+      paymentMethod,
+      orderContext,
+      appliedPromo?.code ?? null,
+      phoneInput.trim() || null,
+    );
     setIsSubmitting(true);
 
     try {
@@ -153,6 +204,9 @@ export function CustomerCartPage() {
       }
       setCart({});
       clearMenuCart();
+      setAppliedPromo(null);
+      setPromoInput("");
+      setPhoneInput("");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Không thể gửi đơn lúc này.");
     } finally {
@@ -231,9 +285,22 @@ export function CustomerCartPage() {
           )}
 
           <div className="cmc-cart-total">
-            <span>Tổng cộng</span>
+            <span>Tạm tính</span>
             <strong>{formatVnd(totalPrice)}</strong>
           </div>
+
+          {appliedPromo ? (
+            <>
+              <div className="cmc-cart-total" style={{ color: "var(--color-success, #16a34a)" }}>
+                <span>Giảm giá ({appliedPromo.code})</span>
+                <strong>-{formatVnd(discountAmount)}</strong>
+              </div>
+              <div className="cmc-cart-total">
+                <span>Thành tiền</span>
+                <strong>{formatVnd(finalTotal)}</strong>
+              </div>
+            </>
+          ) : null}
 
           {unavailableItems.length > 0 ? (
             <p className="cmc-inline-error">
@@ -264,10 +331,57 @@ export function CustomerCartPage() {
                   onClick={() => setPaymentMethod(method)}
                   type="button"
                 >
-                  {method === "COD" ? "Thanh toán tại bàn" : "VietQR"}
+                  {method === "COD" ? "💵 Tiền mặt" : "📱 Chuyển khoản QR"}
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="cmc-checkout-note">
+            <strong>Mã khuyến mãi</strong>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                aria-label="Mã khuyến mãi"
+                className="cmc-text-input"
+                disabled={Boolean(appliedPromo)}
+                onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
+                placeholder="VD: GIAM10"
+                style={{ flex: 1 }}
+                value={promoInput}
+              />
+              {appliedPromo ? (
+                <button className="cmc-secondary-link" onClick={removePromo} type="button">
+                  Bỏ mã
+                </button>
+              ) : (
+                <button
+                  className="cmc-secondary-link"
+                  disabled={isApplyingPromo}
+                  onClick={applyPromo}
+                  type="button"
+                >
+                  {isApplyingPromo ? "Đang kiểm tra..." : "Áp dụng"}
+                </button>
+              )}
+            </div>
+            {promoError ? <span className="cmc-inline-error">{promoError}</span> : null}
+            {appliedPromo ? (
+              <span style={{ color: "var(--color-success, #16a34a)" }}>
+                Đã áp dụng {appliedPromo.name}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="cmc-checkout-note">
+            <strong>Số điện thoại tích điểm (tùy chọn)</strong>
+            <input
+              aria-label="Số điện thoại tích điểm"
+              className="cmc-text-input"
+              inputMode="tel"
+              onChange={(event) => setPhoneInput(event.target.value)}
+              placeholder="VD: 0909xxxxxx"
+              value={phoneInput}
+            />
           </div>
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}

@@ -38,7 +38,7 @@ public sealed class OrderStore : IOrderStore
         var tableSessionId = NormalizeOptional(command.TableSessionId);
         // Resolve the table from the scanned QR token, not the client-supplied table code:
         // endpoint validation already proved this token maps to this active table.
-        var table = orderType == OrderType.DineIn && qrToken is not null
+        var table = qrToken is not null
             ? db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive)
             : null;
         var menuItems = LoadMenuItems(command);
@@ -92,7 +92,12 @@ public sealed class OrderStore : IOrderStore
         }
 
         order.SubtotalAmount = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
-        order.TotalAmount = order.SubtotalAmount;
+        var discount = Math.Clamp(command.DiscountAmount, 0m, order.SubtotalAmount);
+        order.DiscountAmount = discount;
+        order.TotalAmount = order.SubtotalAmount - discount;
+        order.PromotionId = discount > 0 ? command.PromotionId : null;
+        order.PromotionCode = discount > 0 ? command.PromotionCode : null;
+        order.CustomerPhoneNumber = NormalizeOptional(command.CustomerPhoneNumber);
         order.Payment.Amount = order.TotalAmount;
 
         AppendStatusHistory(order, fromStatus: null, order.Status, OrderStatusChangeSource.Status, actor, note: null, now);
@@ -392,7 +397,9 @@ public sealed class OrderStore : IOrderStore
             payment.Status.ToString(),
             payment.Method.ToString(),
             order.SubtotalAmount,
+            order.DiscountAmount,
             order.TotalAmount,
+            order.PromotionCode,
             order.CreatedAt,
             order.UpdatedAt,
             order.OrderItems

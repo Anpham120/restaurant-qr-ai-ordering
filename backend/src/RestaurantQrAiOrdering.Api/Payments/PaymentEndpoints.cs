@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Loyalty;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
@@ -152,6 +153,12 @@ public static class PaymentEndpoints
                 CreatedAt = now
             });
             orders.RecordPaymentStatusEvent(payment.Order!, ActorContext.FromPrincipal(user), note);
+
+            // Accrue loyalty points on confirmed payment. The order's checkout phone takes
+            // priority, falling back to the pickup phone when present.
+            var loyaltyPhone = payment.Order!.CustomerPhoneNumber ?? payment.Order!.PickupCustomerPhoneNumber;
+            await LoyaltyService.AccruePointsAsync(db, loyaltyPhone, payment.Amount, now, cancellationToken);
+
             try
             {
                 await db.SaveChangesAsync(cancellationToken);
