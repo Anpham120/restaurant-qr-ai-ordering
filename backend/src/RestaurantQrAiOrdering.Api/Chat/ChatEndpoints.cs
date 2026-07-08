@@ -13,10 +13,7 @@ public static class ChatEndpoints
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
             var session = chatStore.CreateSession(request?.TableCode, request?.TableSessionId);
-            logger.LogInformation(
-                "Created chat session {ChatSessionId} (table session {TableSessionId}).",
-                session.Id,
-                session.TableSessionId ?? "none");
+            logger.LogInformation("Created chat session {ChatSessionId}.", session.Id);
 
             return Results.Created(
                 $"/api/chat/sessions/{session.Id}",
