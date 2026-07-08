@@ -75,7 +75,6 @@ export function AdminMenuManager() {
   const [form, setForm] = useState<AdminMenuItemPayload>(EMPTY_FORM);
   const [tagsInput, setTagsInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const previewImageUrl = toDisplayImageUrl(form.imageUrl);
 
   const load = useCallback(async () => {
     try {
@@ -261,15 +260,8 @@ export function AdminMenuManager() {
                   placeholder="/menu-images/01-goi-cuon-tom-thit.png"
                 />
                 <div className="ops-form-hint" style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
-                  Ảnh bộ menu chuẩn nằm trong /menu-images/ (91 ảnh theo tên món).
+                  Ảnh bộ menu chuẩn nằm trong /menu-images/ (91 ảnh theo tên món). Xem trước sau khi lưu trong lưới thẻ bên dưới.
                 </div>
-                {previewImageUrl ? (
-                  <img
-                    src={previewImageUrl}
-                    alt="Xem trước ảnh món"
-                    style={{ marginTop: 8, width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }}
-                  />
-                ) : null}
               </div>
               <div className="ops-form-group">
                 <label className="ops-form-label">Tags (cách nhau dấu phẩy)</label>
