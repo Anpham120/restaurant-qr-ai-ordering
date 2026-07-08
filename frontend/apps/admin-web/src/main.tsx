@@ -1,12 +1,13 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  Navigate,
   RouterProvider,
   createBrowserRouter,
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { AuthProvider, ProtectedRoute } from "@cmc/auth";
+import { AuthProvider, ProtectedRoute, useAuth } from "@cmc/auth";
 import {
   LoginPage,
   NotFoundPage,
@@ -109,6 +110,72 @@ function CustomerTableRedirect() {
   );
 }
 
+function RoleAwareAdminLayout() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="cmc-state" role="status">
+        Đang xác minh phiên đăng nhập...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: "/" }} />;
+  }
+
+  if (user.role === "Staff") {
+    return <Navigate to="/staff" replace />;
+  }
+
+  if (user.role === "Kitchen") {
+    return <Navigate to="/kitchen" replace />;
+  }
+
+  if (user.role !== "Admin") {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <OperationsLayout
+      title="Quản trị CMC"
+      subtitle="Bảng điều khiển nhà hàng"
+      links={adminLinks}
+    />
+  );
+}
+
+function RoleAwareUnauthorizedPage() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="cmc-state" role="status">
+        Đang xác minh phiên đăng nhập...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === "Admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  if (user.role === "Staff") {
+    return <Navigate to="/staff" replace />;
+  }
+
+  if (user.role === "Kitchen") {
+    return <Navigate to="/kitchen" replace />;
+  }
+
+  return <UnauthorizedPage />;
+}
+
 const router = createBrowserRouter([
   { path: "/table/:tableCode", element: <CustomerTableRedirect /> },
   {
@@ -121,18 +188,10 @@ const router = createBrowserRouter([
       />
     ),
   },
-  { path: "/unauthorized", element: <UnauthorizedPage /> },
+  { path: "/unauthorized", element: <RoleAwareUnauthorizedPage /> },
   {
     path: "/",
-    element: (
-      <ProtectedRoute allowedRoles={["Admin"]}>
-        <OperationsLayout
-          title="Quản trị CMC"
-          subtitle="Bảng điều khiển nhà hàng"
-          links={adminLinks}
-        />
-      </ProtectedRoute>
-    ),
+    element: <RoleAwareAdminLayout />,
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: "menu", element: <AdminMenuPage /> },
