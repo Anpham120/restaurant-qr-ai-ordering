@@ -25,14 +25,17 @@ import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManag
 import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
 import { AdminLoyaltyPage } from "../../../src/pages/admin/AdminLoyaltyPage";
 import { AdminReportsPage } from "../../../src/pages/admin/AdminReportsPage";
+import { RoleAccessPage } from "../../../src/pages/admin/RoleAccessPage";
+import { KitchenHomePage } from "../../../src/pages/KitchenHomePage";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
+import { StaffHomePage } from "../../../src/pages/StaffHomePage";
 import { StaffOrdersPage } from "../../../src/pages/StaffOrdersPage";
 import { StaffPaymentsPage } from "../../../src/pages/StaffPaymentsPage";
 import { AdminInvoicesPage } from "../../../src/pages/AdminInvoicesPage";
 import {
   LayoutDashboard, BookOpen, Tag, ShoppingBag, Receipt,
   QrCode, Users, ClipboardList, CreditCard, ChefHat,
-  BadgePercent, Star, BarChart3, Armchair,
+  BadgePercent, Star, BarChart3, Armchair, ShieldCheck,
 } from "lucide-react";
 
 const roleRedirects = {
@@ -51,16 +54,21 @@ const adminLinks = [
   { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} />, section: "Khách hàng" },
   { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} />, section: "Khách hàng" },
   { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} />, section: "Hệ thống" },
+  { to: "/access", label: "Phân quyền", icon: <ShieldCheck size={18} />, section: "Hệ thống" },
   { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} />, section: "Hệ thống" },
   { to: "/users", label: "Người dùng", icon: <Users size={18} />, section: "Hệ thống" },
 ];
 
 const staffLinks = [
-  { to: "/staff", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
+  { to: "/staff", label: "Tổng quan", icon: <Users size={18} /> },
+  { to: "/staff/orders", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
   { to: "/staff/payments", label: "Thu ngân", icon: <CreditCard size={18} /> },
 ];
 
-const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp", icon: <ChefHat size={18} /> }];
+const kitchenLinks = [
+  { to: "/kitchen", label: "Tổng quan", icon: <ChefHat size={18} /> },
+  { to: "/kitchen/board", label: "Bảng bếp", icon: <ClipboardList size={18} /> },
+];
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
@@ -134,6 +142,7 @@ const router = createBrowserRouter([
       { path: "promotions", element: <AdminPromotionsPage /> },
       { path: "loyalty", element: <AdminLoyaltyPage /> },
       { path: "reports", element: <AdminReportsPage /> },
+      { path: "access", element: <RoleAccessPage /> },
       { path: "sessions", element: <AdminTableSessionsPage /> },
       { path: "tables", element: <AdminTablesPage /> },
       { path: "users", element: <AdminUserManagementPage /> },
@@ -147,7 +156,8 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <StaffOrdersPage /> },
+      { index: true, element: <StaffHomePage /> },
+      { path: "orders", element: <StaffOrdersPage /> },
       { path: "payments", element: <StaffPaymentsPage /> },
     ],
   },
@@ -158,7 +168,10 @@ const router = createBrowserRouter([
         <OperationsLayout title="Bảng bếp" subtitle="Theo dõi thời gian thực" links={kitchenLinks} />
       </ProtectedRoute>
     ),
-    children: [{ index: true, element: <KitchenPage /> }],
+    children: [
+      { index: true, element: <KitchenHomePage /> },
+      { path: "board", element: <KitchenPage /> },
+    ],
   },
   { path: "*", element: <NotFoundPage /> },
 ]);
