@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
 import {
@@ -16,12 +17,13 @@ type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
 const KITCHEN_STATUSES: OrderStatus[] = ["Confirmed", "Preparing", "Ready"];
 
 export function KitchenRealtimePage() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
-  const [showMenuPanel, setShowMenuPanel] = useState(false);
+  const [showMenuPanel, setShowMenuPanel] = useState(searchParams.get("menu") === "1");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Filter orders relevant to kitchen
