@@ -115,6 +115,8 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.DisplayOrder);
+
+            entity.HasData(RestaurantMenuSeed.CreateCategories(now).ToArray());
         });
     }
 
@@ -167,6 +169,8 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.CategoryId);
             entity.HasIndex(e => e.IsAvailable);
+
+            entity.HasData(RestaurantMenuSeed.CreateMenuItems(now).ToArray());
         });
     }
 
