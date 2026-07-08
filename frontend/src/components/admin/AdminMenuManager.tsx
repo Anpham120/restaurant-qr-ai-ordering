@@ -10,7 +10,9 @@ import {
 } from "../../services/adminMenuService";
 import { createApiClient } from "@cmc/api-client";
 import type { AdminCategory } from "@cmc/shared-types";
+import { resolveMenuImage } from "../../utils/menuImages";
 import "../operations/operations.css";
+import "./admin-menu-cards.css";
 
 const api = createApiClient({
   getAccessToken: () =>
@@ -18,6 +20,40 @@ const api = createApiClient({
 });
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
+
+// Ảnh bộ menu (/menu-images/*.png) được host trên customer portal,
+// nên khi hiển thị trong admin phải đổi sang URL tuyệt đối của customer.
+function getCustomerBaseUrl() {
+  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
+  if (configured) return configured.replace(/\/$/, "");
+  if (typeof window === "undefined") return "https://customer.cmcrestaurant.app";
+  const { origin, hostname, protocol, port } = window.location;
+  if (hostname.startsWith("admin.")) {
+    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
+  }
+  return origin;
+}
+
+function isSafeImageUrl(imageUrl: string): boolean {
+  const trimmed = imageUrl.trim();
+  if (/^\/menu-images\/[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/i.test(trimmed)) {
+    return true;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function toDisplayImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  const trimmed = imageUrl.trim();
+  if (!isSafeImageUrl(trimmed)) return null;
+  if (trimmed.startsWith("/")) return `${getCustomerBaseUrl()}${trimmed}`;
+  return trimmed;
+}
 
 const EMPTY_FORM: AdminMenuItemPayload = {
   categoryId: "",
@@ -65,6 +101,11 @@ export function AdminMenuManager() {
     if (filterCat && item.categoryId !== filterCat) return false;
     return true;
   });
+
+  const countByCategory = items.reduce<Record<string, number>>((acc, item) => {
+    acc[item.categoryId] = (acc[item.categoryId] ?? 0) + 1;
+    return acc;
+  }, {});
 
   function openCreate() {
     setEditingId(null);
@@ -147,7 +188,7 @@ export function AdminMenuManager() {
     <div>
       <div className="ops-page-header">
         <h1>Quản lý thực đơn</h1>
-        <p>Thêm, sửa, xóa món ăn và toggle tình trạng bán</p>
+        <p>{items.length} món · {categories.length} danh mục — hiển thị đúng như khách hàng nhìn thấy</p>
       </div>
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
@@ -162,11 +203,27 @@ export function AdminMenuManager() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select className="ops-form-select" style={{ width: 180 }} value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-          <option value="">Tất cả danh mục</option>
-          {categories.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
-        </select>
         <button className="ops-btn ops-btn--primary" onClick={openCreate} type="button">+ Thêm món</button>
+      </div>
+
+      <div className="amm-category-tabs" role="tablist" aria-label="Danh mục thực đơn">
+        <button
+          type="button"
+          className={`amm-chip${filterCat === "" ? " active" : ""}`}
+          onClick={() => setFilterCat("")}
+        >
+          Tất cả ({items.length})
+        </button>
+        {categories.map((c) => (
+          <button
+            key={c.categoryId}
+            type="button"
+            className={`amm-chip${filterCat === c.categoryId ? " active" : ""}`}
+            onClick={() => setFilterCat(c.categoryId)}
+          >
+            {c.name} ({countByCategory[c.categoryId] ?? 0})
+          </button>
+        ))}
       </div>
 
       {/* Form modal */}
@@ -199,7 +256,22 @@ export function AdminMenuManager() {
               </div>
               <div className="ops-form-group">
                 <label className="ops-form-label">URL Ảnh</label>
-                <input className="ops-form-input" value={form.imageUrl ?? ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+                <input
+                  className="ops-form-input"
+                  value={form.imageUrl ?? ""}
+                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                  placeholder="/menu-images/01-goi-cuon-tom-thit.png"
+                />
+                <div className="ops-form-hint" style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+                  Ảnh bộ menu chuẩn nằm trong /menu-images/ (91 ảnh theo tên món).
+                </div>
+                {form.imageUrl?.trim() ? (
+                  <img
+                    src={toDisplayImageUrl(form.imageUrl.trim()) ?? undefined}
+                    alt="Xem trước ảnh món"
+                    style={{ marginTop: 8, width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }}
+                  />
+                ) : null}
               </div>
               <div className="ops-form-group">
                 <label className="ops-form-label">Tags (cách nhau dấu phẩy)</label>
@@ -222,60 +294,53 @@ export function AdminMenuManager() {
         </div>
       ) : null}
 
-      {/* Table */}
-      <table className="ops-table">
-        <thead>
-          <tr>
-            <th>Tên món</th>
-            <th>Danh mục</th>
-            <th>Giá</th>
-            <th>Tình trạng</th>
-            <th>Tags</th>
-            <th>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((item) => (
-            <tr key={item.id}>
-              <td>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }} />
-                  ) : null}
-                  <div>
-                    <strong>{item.name}</strong>
-                    {item.description ? <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{item.description.slice(0, 60)}</div> : null}
+      {/* Lưới thẻ món — cùng bố cục với trang thực đơn khách hàng */}
+      <div className="amm-grid">
+        {filtered.map((item, index) => {
+          const imageUrl = toDisplayImageUrl(resolveMenuImage(item.name, item.imageUrl, index));
+          return (
+            <article key={item.id} className={`amm-card${item.isAvailable ? "" : " is-off"}`}>
+              <div className="amm-image-wrap">
+                {imageUrl ? (
+                  <img className="amm-image" src={imageUrl} alt={item.name} loading="lazy" />
+                ) : (
+                  <div className="amm-image-empty" aria-hidden="true">🍽️</div>
+                )}
+                <span className={`amm-availability ${item.isAvailable ? "on" : "off"}`}>
+                  {item.isAvailable ? "Còn món" : "Tạm hết"}
+                </span>
+              </div>
+              <div className="amm-content">
+                <p className="amm-category">{item.categoryName}</p>
+                <h3>{item.name}</h3>
+                {item.description ? <p className="amm-desc">{item.description}</p> : null}
+                {(item.tags ?? []).length > 0 ? (
+                  <div className="amm-tags">
+                    {(item.tags ?? []).slice(0, 3).map((t) => <span key={t}>{t}</span>)}
                   </div>
-                </div>
-              </td>
-              <td>{item.categoryName}</td>
-              <td>{formatVnd(item.price)}</td>
-              <td>
-                <button
-                  className={`ops-toggle-switch ${item.isAvailable ? "ops-toggle-switch--on" : ""}`}
-                  onClick={() => handleToggle(item.id, item.isAvailable)}
-                  type="button"
-                  aria-label={item.isAvailable ? "Tắt bán" : "Mở bán"}
-                />
-              </td>
-              <td>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {(item.tags ?? []).map((t) => <span key={t} className="ops-card-item-chip">{t}</span>)}
-                </div>
-              </td>
-              <td>
-                <div style={{ display: "flex", gap: 4 }}>
+                ) : null}
+              </div>
+              <footer className="amm-footer">
+                <span className="amm-price">{formatVnd(item.price)}</span>
+                <div className="amm-actions">
+                  <button
+                    className={`ops-toggle-switch ${item.isAvailable ? "ops-toggle-switch--on" : ""}`}
+                    onClick={() => handleToggle(item.id, item.isAvailable)}
+                    type="button"
+                    title={item.isAvailable ? "Tắt bán" : "Mở bán"}
+                    aria-label={item.isAvailable ? "Tắt bán" : "Mở bán"}
+                  />
                   <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => openEdit(item)} type="button">Sửa</button>
                   <button className="ops-btn ops-btn--danger ops-btn--sm" onClick={() => handleDelete(item.id)} type="button">Xóa</button>
                 </div>
-              </td>
-            </tr>
-          ))}
-          {filtered.length === 0 ? (
-            <tr><td colSpan={6}><div className="ops-empty">Không tìm thấy món nào</div></td></tr>
-          ) : null}
-        </tbody>
-      </table>
+              </footer>
+            </article>
+          );
+        })}
+        {filtered.length === 0 ? (
+          <div className="ops-empty" style={{ gridColumn: "1 / -1" }}>Không tìm thấy món nào</div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ namespace RestaurantQrAiOrdering.Api.Data;
 
 public static class RestaurantTableSeed
 {
-    public const int TableCount = 40;
+    public const int TableCount = 30;
 
     public static IReadOnlyList<RestaurantTable> CreateTables(DateTimeOffset seededAt)
     {

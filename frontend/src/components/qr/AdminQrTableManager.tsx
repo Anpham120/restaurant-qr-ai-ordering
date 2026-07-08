@@ -26,7 +26,7 @@ const api = createApiClient({
     typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
 });
 
-// Table list is loaded from GET /api/tables (40 seeded tables T01–T40).
+// Table list is loaded from GET /api/tables (30 seeded tables T01–T30).
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;

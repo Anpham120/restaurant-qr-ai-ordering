@@ -362,90 +362,19 @@ public sealed class RestaurantDataStore
 
     private static List<Category> SeedCategories()
     {
-        // Seed data for development/demo only.
-        // In production, categories will be managed via admin API or database migration.
-        var now = DateTimeOffset.UtcNow;
-
-        return
-        [
-            new Category { Id = "cat_appetizer", Name = "Khai vi", DisplayOrder = 10, IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new Category { Id = "cat_main", Name = "Mon chinh", DisplayOrder = 20, IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new Category { Id = "cat_noodle", Name = "Pho va bun", DisplayOrder = 30, IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new Category { Id = "cat_seafood", Name = "Hai san", DisplayOrder = 40, IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new Category { Id = "cat_drink", Name = "Do uong", DisplayOrder = 50, IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new Category { Id = "cat_dessert", Name = "Trang mieng", DisplayOrder = 60, IsActive = true, CreatedAt = now, UpdatedAt = now }
-        ];
+        // Mirrors the official 91-dish menu so the AI chat assistant sees
+        // the same catalogue as the customer-facing API.
+        return RestaurantMenuSeed.CreateCategories(DateTimeOffset.UtcNow).ToList();
     }
 
     private static List<MenuItem> SeedMenuItems()
     {
-        // Seed data for development/demo only.
-        // In production, menu items will be managed via admin API or database migration.
-        // Note: Some items have isAvailable=false to test out-of-stock scenarios.
-        var now = DateTimeOffset.UtcNow;
-
-        return
-        [
-            CreateSeedMenuItem("m_001", "cat_main", "Com ga xoi mo", "Ga chien gion, com thom, dua chua.", 45000, "https://example.com/images/com-ga-xoi-mo.jpg", true, ["pho bien", "mon chinh", "signature"], now),
-            CreateSeedMenuItem("m_002", "cat_main", "Com suon nuong", "Suon uop mat ong nuong than, an kem rau chua.", 52000, "https://example.com/images/com-suon-nuong.jpg", true, ["pho bien", "nuong"], now),
-            CreateSeedMenuItem("m_003", "cat_noodle", "Pho bo tai", "Pho bo nuoc dung trong, bo tai mem, rau thom.", 55000, "https://example.com/images/pho-bo-tai.jpg", true, ["nong", "pho", "bo"], now),
-            CreateSeedMenuItem("m_004", "cat_noodle", "Bun bo Hue", "Nuoc dung dam vi sa te, bo, cha cua va rau song.", 60000, "https://example.com/images/bun-bo-hue.jpg", false, ["cay", "het hang", "unavailable-demo"], now),
-            CreateSeedMenuItem("m_005", "cat_appetizer", "Goi cuon tom thit", "Goi cuon tuoi kem nuoc cham dau phong.", 39000, "https://example.com/images/goi-cuon.jpg", true, ["fresh", "light"], now),
-            CreateSeedMenuItem("m_006", "cat_appetizer", "Cha gio hai san", "Cha gio gion nhan hai san, sot mayo cay.", 42000, "https://example.com/images/cha-gio-hai-san.jpg", true, ["chien gion", "seafood"], now),
-            CreateSeedMenuItem("m_007", "cat_seafood", "Tom rang muoi", "Tom tuoi rang muoi ot, an kem rau thom.", 185000, "https://example.com/images/tom-rang-muoi.jpg", true, ["seafood", "share"], now),
-            CreateSeedMenuItem("m_008", "cat_seafood", "Lau Thai hai san", "Lau Thai chua cay voi tom, muc, ca va rau tuoi.", 345000, "https://example.com/images/lau-thai-hai-san.jpg", true, ["spicy", "seafood", "share"], now),
-            CreateSeedMenuItem("m_009", "cat_drink", "Tra dao cam sa", "Tra dao mat lanh voi cam vang va sa tuoi.", 55000, "https://example.com/images/tra-dao-cam-sa.jpg", true, ["drink", "fresh"], now),
-            CreateSeedMenuItem("m_010", "cat_drink", "Ca phe sua da", "Ca phe rang xay pha phin, sua dac va da vien.", 45000, "https://example.com/images/ca-phe-sua-da.jpg", false, ["drink", "coffee", "unavailable-demo"], now),
-            CreateSeedMenuItem("m_011", "cat_dessert", "Che khuc bach", "Khuc bach beo nhe, vai, hanh nhan va siro duong phen.", 55000, "https://example.com/images/che-khuc-bach.jpg", true, ["sweet", "cool"], now),
-            CreateSeedMenuItem("m_012", "cat_dessert", "Banh flan caramel", "Banh flan min, caramel thom, dung lanh.", 35000, "https://example.com/images/banh-flan.jpg", true, ["sweet", "classic"], now)
-        ];
-    }
-
-    private static MenuItem CreateSeedMenuItem(
-        string id,
-        string categoryId,
-        string name,
-        string description,
-        decimal price,
-        string imageUrl,
-        bool isAvailable,
-        IList<string> tags,
-        DateTimeOffset now)
-    {
-        return new MenuItem
-        {
-            Id = id,
-            CategoryId = categoryId,
-            Name = name,
-            Description = description,
-            Price = price,
-            ImageUrl = imageUrl,
-            IsAvailable = isAvailable,
-            Tags = tags,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
+        return RestaurantMenuSeed.CreateMenuItems(DateTimeOffset.UtcNow).ToList();
     }
 
     private static List<RestaurantTable> SeedTables()
     {
-        // Seed data for development/demo only.
-        // In production, tables will be created via admin API or database migration.
-        var now = DateTimeOffset.UtcNow;
-
-        return Enumerable
-            .Range(1, 8)
-            .Select(number => new RestaurantTable
-            {
-                Id = $"tbl_{number:00}",
-                TableCode = $"T{number:00}",
-                DisplayName = $"Ban {number:00}",
-                IsActive = true,
-                QrToken = $"cmc-table-t{number:00}-qr",
-                CreatedAt = now,
-                UpdatedAt = now
-            })
-            .ToList();
+        return RestaurantTableSeed.CreateTables(DateTimeOffset.UtcNow).ToList();
     }
 }
 
