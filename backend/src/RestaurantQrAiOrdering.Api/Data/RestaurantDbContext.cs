@@ -610,6 +610,9 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.TableCode)
                 .HasColumnName("table_code")
                 .HasMaxLength(20);
+            entity.Property(e => e.TableSessionId)
+                .HasColumnName("table_session_id")
+                .HasMaxLength(50);
             entity.Property(e => e.OrderId)
                 .HasColumnName("order_id")
                 .HasMaxLength(50);
@@ -636,6 +639,7 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.RestaurantTableId);
             entity.HasIndex(e => e.OrderId);
             entity.HasIndex(e => e.IsClosed);
+            entity.HasIndex(e => e.TableSessionId);
         });
     }
 

@@ -8,7 +8,7 @@ import {
   subscribeRealtimeConnection,
 } from "../../services/realtimeOrderService";
 import { getKitchenOrders } from "../../services/orderService";
-import { fetchAdminMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
+import { fetchKitchenMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
 import "../../components/operations/operations.css";
 
 type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
@@ -63,9 +63,11 @@ export function KitchenRealtimePage() {
 
   const loadMenu = useCallback(async () => {
     try {
-      const items = await fetchAdminMenuItems();
+      // Role Kitchen không có quyền /admin/menu-items (403) nên dùng endpoint
+      // /kitchen/menu-items riêng (bao gồm cả món đang tắt để mở lại được).
+      const items = await fetchKitchenMenuItems();
       setMenuItems(
-        items.map((i: { id: string; name: string; isAvailable: boolean }) => ({
+        items.map((i) => ({
           id: i.id,
           name: i.name,
           isAvailable: i.isAvailable,

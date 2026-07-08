@@ -369,3 +369,141 @@
 .cmc-toast-close:hover {
   color: var(--color-ink);
 }
+
+/* ==========================================================================
+   Operations shell redesign — tối giản, điều hướng nhóm rõ ràng,
+   footer tài khoản + đăng xuất luôn hiển thị.
+   Ghi đè các rule minified phía trên.
+   ========================================================================== */
+.cmc-sidebar {
+  gap: 1.1rem;
+  padding: 1.1rem 0.9rem;
+  background: #14212e;
+}
+
+/* Nav cuộn riêng để footer tài khoản (đăng xuất) không bao giờ bị đẩy khuất */
+.cmc-sidebar-nav {
+  display: grid;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.cmc-nav-item {
+  display: grid;
+  gap: 2px;
+}
+
+.cmc-nav-section {
+  margin: 14px 0 4px;
+  padding: 0 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.cmc-nav-item:first-child .cmc-nav-section {
+  margin-top: 2px;
+}
+
+.cmc-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cmc-nav-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.cmc-nav-link.is-active {
+  color: #ffffff;
+  background: var(--color-primary, #005bac);
+  font-weight: 600;
+}
+
+.cmc-nav-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+
+.cmc-user {
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  padding-top: 0.9rem;
+}
+
+.cmc-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cmc-user-identity > div {
+  display: grid;
+  min-width: 0;
+}
+
+.cmc-user-identity span:not(.cmc-user-avatar) {
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmc-user-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--cmc-primary, #005bac), var(--cmc-cyan, #08bcef));
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.cmc-user .cmc-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 0.35rem;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 10px;
+  background: rgba(220, 76, 60, 0.16);
+  color: #ff9b8d;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cmc-user .cmc-logout-btn:hover {
+  background: rgba(220, 76, 60, 0.32);
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .cmc-sidebar.is-open {
+    display: flex;
+  }
+}

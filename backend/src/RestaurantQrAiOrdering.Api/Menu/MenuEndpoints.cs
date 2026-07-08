@@ -52,6 +52,35 @@ public static class MenuEndpoints
         .WithName("GetMenu")
         .WithTags("Menu");
 
+        // Kitchen-accessible list: includes unavailable items so kitchen staff can
+        // re-enable dishes. /api/menu hides unavailable items and /api/admin/menu-items
+        // is StaffOrAdmin-only, so Kitchen needs its own read endpoint.
+        app.MapGet("/api/kitchen/menu-items", async (RestaurantDbContext db) =>
+        {
+            var categories = await db.Categories
+                .Where(c => c.IsActive)
+                .ToListAsync();
+
+            var categoryNames = categories.ToDictionary(
+                c => c.Id,
+                c => c.Name,
+                StringComparer.OrdinalIgnoreCase);
+
+            var activeCategoryIds = categories.Select(c => c.Id).ToList();
+
+            var items = await db.MenuItems
+                .Where(i => activeCategoryIds.Contains(i.CategoryId))
+                .OrderBy(i => i.Name)
+                .ToListAsync();
+
+            return Results.Ok(items
+                .Select(i => ToMenuItemResponse(i, categoryNames.GetValueOrDefault(i.CategoryId, string.Empty)))
+                .ToList());
+        })
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
+        .WithName("KitchenListMenuItems")
+        .WithTags("Kitchen");
+
         // Kitchen-accessible endpoint: toggle menu item availability only.
         // Kitchen staff can mark dishes as unavailable when ingredients run out,
         // without requiring full admin menu CRUD access.

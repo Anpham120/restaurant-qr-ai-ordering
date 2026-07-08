@@ -183,6 +183,59 @@ public sealed class PromotionLoyaltyReportTests
     }
 
     [Fact]
+    public async Task CompletingLastTableOrder_DeletesChatMemoryForTableSession()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        await factory.SeedDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var sessionId = await OpenTableSessionAsync(client, factory);
+        using var chatResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
+        {
+            tableCode = TestTableCode,
+            tableSessionId = sessionId
+        });
+        using var chatBody = await JsonDocument.ParseAsync(await chatResponse.Content.ReadAsStreamAsync());
+        var chatSessionId = chatBody.RootElement.GetProperty("chatSessionId").GetString()!;
+
+        Assert.Equal(HttpStatusCode.Created, chatResponse.StatusCode);
+
+        using var createResponse = await client.PostAsJsonAsync("/api/orders", new
+        {
+            orderType = "DineIn",
+            tableCode = TestTableCode,
+            qrToken = TestQrToken,
+            tableSessionId = sessionId,
+            paymentMethod = "COD",
+            items = new[]
+            {
+                new { menuItemId = "m_001", quantity = 1 }
+            }
+        });
+        using var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var orderCode = created.RootElement.GetProperty("orderCode").GetString()!;
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Staff);
+        using var confirmResponse = await client.PostAsJsonAsync(
+            $"/api/orders/{orderCode}/payment/confirm",
+            new { note = "Thu tien tai ban" });
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        foreach (var status in new[] { "Preparing", "Ready", "Completed" })
+        {
+            using var statusResponse = await client.PatchAsJsonAsync(
+                $"/api/orders/{orderCode}/status",
+                new { status });
+            Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+        }
+
+        using var historyResponse = await client.GetAsync($"/api/chat/sessions/{chatSessionId}/messages");
+        Assert.Equal(HttpStatusCode.NotFound, historyResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task ReportSummary_RequiresStaffOrAdmin()
     {
         await using var factory = new TestWebApplicationFactory();

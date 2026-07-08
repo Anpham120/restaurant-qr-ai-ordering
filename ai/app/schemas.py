@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryItem] = Field(default_factory=list)
     menu_items: list[MenuItemContext] = Field(default_factory=list)
+    table_code: str | None = None
 
 
 class RagSearchRequest(BaseModel):

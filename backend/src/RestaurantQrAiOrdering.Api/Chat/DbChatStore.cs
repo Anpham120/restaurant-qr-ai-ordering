@@ -16,13 +16,14 @@ public sealed class DbChatStore : IChatStore
         this.dbContext = dbContext;
     }
 
-    public ChatSessionSnapshot CreateSession(string? tableCode = null)
+    public ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null)
     {
         var now = DateTimeOffset.UtcNow;
         var session = new ChatSession
         {
             Id = $"chat_{Guid.NewGuid():N}",
             TableCode = NormalizeOptional(tableCode),
+            TableSessionId = NormalizeOptional(tableSessionId),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -31,6 +32,30 @@ public sealed class DbChatStore : IChatStore
         dbContext.SaveChanges();
 
         return ToSnapshot(session);
+    }
+
+    public int DeleteSessionsByTableSession(string tableSessionId)
+    {
+        var normalized = NormalizeOptional(tableSessionId);
+        if (normalized is null)
+        {
+            return 0;
+        }
+
+        // Messages xóa theo cascade (FK ChatMessage -> ChatSession).
+        var sessions = dbContext.ChatSessions
+            .Include(session => session.Messages)
+            .Where(session => session.TableSessionId == normalized)
+            .ToList();
+
+        if (sessions.Count == 0)
+        {
+            return 0;
+        }
+
+        dbContext.ChatSessions.RemoveRange(sessions);
+        dbContext.SaveChanges();
+        return sessions.Count;
     }
 
     public ChatSessionSnapshot? GetSession(string chatSessionId)
@@ -100,7 +125,8 @@ public sealed class DbChatStore : IChatStore
             session.Messages
                 .OrderBy(message => message.CreatedAt)
                 .Select(ToMessageSnapshot)
-                .ToList());
+                .ToList(),
+            session.TableSessionId);
     }
 
     private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message)

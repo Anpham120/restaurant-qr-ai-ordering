@@ -317,6 +317,15 @@ public sealed class OrderStore : IOrderStore
         session.Status = TableSessionStatus.Closed;
         session.ClosedAt = now;
         session.UpdatedAt = now;
+
+        var chatSessions = db.ChatSessions
+            .Where(chatSession => chatSession.TableSessionId == session.Id)
+            .ToList();
+
+        if (chatSessions.Count > 0)
+        {
+            db.ChatSessions.RemoveRange(chatSessions);
+        }
     }
 
     // No-op transitions (current == next) return false: re-sending the same status is

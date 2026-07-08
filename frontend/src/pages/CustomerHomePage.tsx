@@ -677,7 +677,11 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
   async function ensureSession(): Promise<string | null> {
     if (sessionId) return sessionId;
     try {
-      const s = await chatApi.createSession();
+      const orderContext = loadOrderContext();
+      const s = await chatApi.createSession({
+        tableCode: orderContext.tableCode,
+        tableSessionId: orderContext.sessionId,
+      });
       setSessionId(s.chatSessionId);
       return s.chatSessionId;
     } catch {

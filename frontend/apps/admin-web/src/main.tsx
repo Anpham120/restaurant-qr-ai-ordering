@@ -43,16 +43,16 @@ const roleRedirects = {
 
 const adminLinks = [
   { to: "/", label: "Tổng quan", icon: <LayoutDashboard size={18} /> },
-  { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} /> },
-  { to: "/categories", label: "Danh mục", icon: <Tag size={18} /> },
-  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} /> },
-  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} /> },
-  { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} /> },
-  { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} /> },
-  { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} /> },
-  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} /> },
-  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} /> },
-  { to: "/users", label: "Người dùng", icon: <Users size={18} /> },
+  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} />, section: "Vận hành" },
+  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} />, section: "Vận hành" },
+  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} />, section: "Vận hành" },
+  { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} />, section: "Thực đơn" },
+  { to: "/categories", label: "Danh mục", icon: <Tag size={18} />, section: "Thực đơn" },
+  { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} />, section: "Khách hàng" },
+  { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} />, section: "Khách hàng" },
+  { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} />, section: "Hệ thống" },
+  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} />, section: "Hệ thống" },
+  { to: "/users", label: "Người dùng", icon: <Users size={18} />, section: "Hệ thống" },
 ];
 
 const staffLinks = [

@@ -1,5 +1,9 @@
 namespace RestaurantQrAiOrdering.Api.Chat;
 
+public sealed record CreateChatSessionRequest(
+    string? TableSessionId = null,
+    string? TableCode = null);
+
 public sealed record CreateChatSessionResponse(
     string ChatSessionId,
     DateTimeOffset CreatedAt);
