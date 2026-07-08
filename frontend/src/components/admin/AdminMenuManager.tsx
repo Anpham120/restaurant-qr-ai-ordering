@@ -34,10 +34,25 @@ function getCustomerBaseUrl() {
   return origin;
 }
 
+function isSafeImageUrl(imageUrl: string): boolean {
+  const trimmed = imageUrl.trim();
+  if (/^\/menu-images\/[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/i.test(trimmed)) {
+    return true;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function toDisplayImageUrl(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) return null;
-  if (imageUrl.startsWith("/")) return `${getCustomerBaseUrl()}${imageUrl}`;
-  return imageUrl;
+  const trimmed = imageUrl.trim();
+  if (!isSafeImageUrl(trimmed)) return null;
+  if (trimmed.startsWith("/")) return `${getCustomerBaseUrl()}${trimmed}`;
+  return trimmed;
 }
 
 const EMPTY_FORM: AdminMenuItemPayload = {
