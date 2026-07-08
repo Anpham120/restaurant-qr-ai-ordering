@@ -220,7 +220,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }
 
   return (
-    <section className="cmc-customer-page">
+    <section className={`cmc-customer-page${summary.itemCount > 0 ? " has-cart-bar" : ""}`}>
       <header className="cmc-hero cmc-menu-hero">
         <div className="cmc-menu-hero-copy">
           <p className="cmc-kicker">CMC Restaurant</p>
