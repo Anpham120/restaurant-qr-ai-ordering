@@ -17,7 +17,7 @@ public static class CategoryEndpoints
         {
             var categories = await db.Categories
                 .OrderBy(c => c.DisplayOrder)
-                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.Name)
                 .ToListAsync();
 
             return Results.Ok(categories
