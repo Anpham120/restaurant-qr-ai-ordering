@@ -34,25 +34,22 @@ function getCustomerBaseUrl() {
   return origin;
 }
 
-function isSafeImageUrl(imageUrl: string): boolean {
-  const trimmed = imageUrl.trim();
-  if (/^\/menu-images\/[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/i.test(trimmed)) {
-    return true;
-  }
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function toDisplayImageUrl(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) return null;
   const trimmed = imageUrl.trim();
-  if (!isSafeImageUrl(trimmed)) return null;
-  if (trimmed.startsWith("/")) return `${getCustomerBaseUrl()}${trimmed}`;
-  return trimmed;
+  const relativeMatch = trimmed.match(/^\/menu-images\/([a-zA-Z0-9._-]+\.(?:png|jpe?g|webp))$/i);
+  if (relativeMatch) {
+    return `${getCustomerBaseUrl()}/menu-images/${relativeMatch[1]}`;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 const EMPTY_FORM: AdminMenuItemPayload = {
@@ -78,6 +75,7 @@ export function AdminMenuManager() {
   const [form, setForm] = useState<AdminMenuItemPayload>(EMPTY_FORM);
   const [tagsInput, setTagsInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const previewImageUrl = toDisplayImageUrl(form.imageUrl);
 
   const load = useCallback(async () => {
     try {
@@ -265,9 +263,9 @@ export function AdminMenuManager() {
                 <div className="ops-form-hint" style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
                   Ảnh bộ menu chuẩn nằm trong /menu-images/ (91 ảnh theo tên món).
                 </div>
-                {form.imageUrl?.trim() ? (
+                {previewImageUrl ? (
                   <img
-                    src={toDisplayImageUrl(form.imageUrl.trim()) ?? undefined}
+                    src={previewImageUrl}
                     alt="Xem trước ảnh món"
                     style={{ marginTop: 8, width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }}
                   />
