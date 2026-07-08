@@ -15,6 +15,12 @@ public class ChatSession
 
     public string? TableCode { get; set; }
 
+    /// <summary>
+    /// Phiên bàn (table session) mà hội thoại này thuộc về. Khi phiên bàn
+    /// đóng/hết hạn, mọi chat session gắn với nó sẽ bị xóa để phục vụ khách mới.
+    /// </summary>
+    public string? TableSessionId { get; set; }
+
     public string? OrderId { get; set; }
 
     public Order? Order { get; set; }

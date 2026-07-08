@@ -9,7 +9,8 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
-    IReadOnlyList<MenuItem> AvailableMenuItems);
+    IReadOnlyList<MenuItem> AvailableMenuItems,
+    string? TableCode = null);
 
 public sealed record ChatAiResult(
     string Content,
@@ -27,6 +28,7 @@ public interface IChatAssistantService
     Task<ChatAssistantReply> GenerateReplyAsync(
         string userMessage,
         IReadOnlyList<ChatMessageSnapshot> history,
+        string? tableCode,
         CancellationToken cancellationToken);
 }
 
@@ -71,8 +73,8 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             return Unavailable();
         }
 
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 60);
-        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 1);
+        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
+        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
         var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -131,8 +133,8 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             return Unavailable();
         }
 
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 30);
-        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 1);
+        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
+        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
         var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat";
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -141,6 +143,7 @@ public sealed class NineRouterChatProvider : IChatAiProvider
         var payload = new
         {
             message = request.UserMessage,
+            table_code = request.TableCode,
             history = request.History
                 .TakeLast(8)
                 .Select(message => new
@@ -371,6 +374,7 @@ public sealed class ChatAssistantService : IChatAssistantService
     public async Task<ChatAssistantReply> GenerateReplyAsync(
         string userMessage,
         IReadOnlyList<ChatMessageSnapshot> history,
+        string? tableCode,
         CancellationToken cancellationToken)
     {
         var normalizedMessage = Normalize(userMessage);
@@ -396,7 +400,7 @@ public sealed class ChatAssistantService : IChatAssistantService
 
         var availableMenuItems = menuItems.Where(item => item.IsAvailable).ToList();
         var providerResult = await aiProvider.GenerateAsync(
-            new ChatAiRequest(userMessage, history, availableMenuItems),
+            new ChatAiRequest(userMessage, history, availableMenuItems, tableCode),
             cancellationToken);
 
         if (!providerResult.ProviderAvailable)

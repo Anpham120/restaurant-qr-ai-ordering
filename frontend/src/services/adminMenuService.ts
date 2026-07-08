@@ -1,4 +1,3 @@
-import { menuItems } from "../mocks/menuItems";
 import { createApiClient } from "@cmc/api-client";
 import type { AdminMenuCategory, AdminMenuItem, AdminMenuOverview } from "../types";
 
@@ -17,10 +16,10 @@ export type AdminMenuItemPayload = {
   tags: string[];
 };
 
-function enrichMenuItem(item: AdminMenuItem, index: number): AdminMenuItem {
+function enrichMenuItem(item: AdminMenuItem): AdminMenuItem {
   return {
     ...item,
-    imageUrl: item.imageUrl || menuItems[index % menuItems.length]?.imageUrl || "",
+    imageUrl: item.imageUrl ?? "",
     tags: item.tags ?? [],
   };
 }
@@ -56,7 +55,7 @@ export async function setAdminMenuItemAvailability(
 }
 
 export async function createAdminMenuItem(payload: AdminMenuItemPayload): Promise<AdminMenuItem> {
-  return api.request<AdminMenuItem>("/admin/menu-items/", {
+  return api.request<AdminMenuItem>("/admin/menu-items", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -81,6 +80,11 @@ export async function deleteAdminMenuItem(itemId: string): Promise<void> {
 // Simple list without overview enrichment
 export async function fetchAdminMenuItems(): Promise<AdminMenuItem[]> {
   return api.request<AdminMenuItem[]>("/admin/menu-items?includeInactiveCategories=true");
+}
+
+// Kitchen-level list (includes unavailable items; usable by Kitchen/Staff/Admin)
+export async function fetchKitchenMenuItems(): Promise<AdminMenuItem[]> {
+  return api.request<AdminMenuItem[]>("/kitchen/menu-items");
 }
 
 // Kitchen-level toggle (also usable by Staff/Admin)

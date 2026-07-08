@@ -1,0 +1,451 @@
+/* ==========================================================================
+   CMC Restaurant - Giỏ hàng & Thanh toán phiên bàn (Vị An Style)
+   Dùng chung token màu từ .cmc-customer-page (customer-menu.css)
+   ========================================================================== */
+
+.cmc-cart-page {
+  gap: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Hero rút gọn cho trang thanh toán
+   -------------------------------------------------------------------------- */
+.cmc-checkout-hero {
+  display: block;
+  min-height: unset;
+  padding: clamp(28px, 5vw, 56px) clamp(20px, 5vw, 64px);
+}
+
+.cmc-checkout-hero .cmc-kicker {
+  font-family: var(--font-script);
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 600;
+  color: var(--vian-gold-light);
+  margin: 0 0 8px;
+}
+
+.cmc-checkout-hero h2 {
+  margin: 0;
+  font-family: var(--font-display-vian);
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.cmc-checkout-hero h2 span {
+  color: var(--vian-gold-light);
+  font-style: italic;
+}
+
+.cmc-checkout-hero > div > p {
+  max-width: 560px;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cmc-checkout-hero .cmc-hero-actions {
+  margin-top: 20px;
+}
+
+.cmc-checkout-hero .cmc-secondary-link {
+  width: auto;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   Bố cục 2 cột: giỏ hàng (trái) + xác nhận (phải, sticky)
+   -------------------------------------------------------------------------- */
+.cmc-checkout-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: 24px;
+  align-items: start;
+  padding: clamp(20px, 4vw, 40px);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.cmc-cart-page > .cmc-empty-state {
+  margin: clamp(20px, 4vw, 40px) clamp(20px, 4vw, 40px) 0;
+}
+
+/* --------------------------------------------------------------------------
+   Panel chung
+   -------------------------------------------------------------------------- */
+.cmc-cart-panel,
+.cmc-checkout-panel {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 28px);
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid var(--vian-border);
+  box-shadow: 0 12px 40px rgba(90, 58, 48, 0.06);
+  align-content: start;
+}
+
+.cmc-checkout-panel {
+  position: sticky;
+  top: 84px;
+}
+
+.cmc-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--vian-border);
+}
+
+.cmc-section-title h3 {
+  margin: 0;
+  font-family: var(--font-display-vian);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--vian-brown);
+}
+
+.cmc-section-title span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vian-muted);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--vian-cream);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Dòng món trong giỏ (ảnh + tên + stepper)
+   -------------------------------------------------------------------------- */
+.cmc-cart-page .cmc-cart-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--vian-border);
+}
+
+.cmc-cart-page .cmc-cart-row:last-child {
+  border-bottom: none;
+}
+
+.cmc-cart-page .cmc-cart-row.muted {
+  opacity: 0.55;
+}
+
+.cmc-cart-page .cmc-cart-row > img {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid var(--vian-border);
+  background: var(--vian-cream);
+}
+
+.cmc-cart-item-copy {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cmc-cart-item-copy strong {
+  font-family: var(--font-body-vian);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vian-brown);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmc-cart-item-copy span {
+  font-size: 13px;
+  color: var(--vian-muted);
+}
+
+.cmc-cart-item-copy em {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--vian-red);
+}
+
+.cmc-cart-page .cmc-stepper {
+  flex: 0 0 auto;
+}
+
+.cmc-cart-page .cmc-stepper button {
+  width: 38px;
+  height: 38px;
+}
+
+.cmc-cart-page .cmc-stepper span {
+  min-width: 40px;
+}
+
+.cmc-cart-total--discount {
+  background: rgba(47, 125, 79, 0.9);
+}
+
+/* --------------------------------------------------------------------------
+   Ghi chú xác nhận + phương thức thanh toán
+   -------------------------------------------------------------------------- */
+.cmc-checkout-note {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--vian-cream);
+  border: 1px solid var(--vian-border);
+}
+
+.cmc-checkout-note > strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--vian-brown);
+}
+
+.cmc-checkout-note > span {
+  font-size: 13px;
+  color: var(--vian-muted);
+}
+
+.cmc-order-type-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cmc-order-type-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 2px solid var(--vian-border);
+  background: #ffffff;
+  color: var(--vian-brown);
+  font-family: var(--font-body-vian);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cmc-order-type-tabs button:hover {
+  border-color: var(--vian-gold);
+}
+
+.cmc-order-type-tabs button.active {
+  border-color: var(--vian-gold);
+  background: rgba(196, 163, 90, 0.12);
+  color: var(--vian-brown);
+  box-shadow: 0 4px 14px rgba(196, 163, 90, 0.25);
+}
+
+.cmc-order-type-tabs button svg {
+  flex: 0 0 auto;
+  color: var(--vian-green);
+}
+
+/* --------------------------------------------------------------------------
+   Ô nhập liệu + nút áp mã
+   -------------------------------------------------------------------------- */
+.cmc-text-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 2px solid var(--vian-border);
+  background: #ffffff;
+  color: var(--vian-brown);
+  font-family: var(--font-body-vian);
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cmc-text-input::placeholder {
+  color: var(--vian-muted);
+  opacity: 0.7;
+}
+
+.cmc-text-input:focus {
+  outline: none;
+  border-color: var(--vian-gold);
+  box-shadow: 0 0 0 3px rgba(196, 163, 90, 0.2);
+}
+
+.cmc-text-input:disabled {
+  background: var(--vian-cream);
+  opacity: 0.7;
+}
+
+.cmc-promo-row {
+  display: flex;
+  gap: 8px;
+}
+
+.cmc-promo-row .cmc-text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cmc-promo-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 12px;
+  background: var(--vian-gold);
+  color: var(--vian-brown);
+  font-family: var(--font-body-vian);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cmc-promo-btn:hover {
+  background: var(--vian-gold-light);
+}
+
+.cmc-promo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cmc-promo-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f7d4f;
+}
+
+/* --------------------------------------------------------------------------
+   Trạng thái thành công + nút gửi đơn
+   -------------------------------------------------------------------------- */
+.cmc-success-state {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(47, 125, 79, 0.08);
+  border: 1px solid rgba(47, 125, 79, 0.3);
+  color: var(--vian-brown);
+}
+
+.cmc-success-state strong {
+  font-family: var(--font-display-vian);
+  font-size: 17px;
+  color: #2f7d4f;
+}
+
+.cmc-success-state span {
+  font-size: 13px;
+  color: var(--vian-muted);
+}
+
+.cmc-success-state img {
+  width: min(240px, 100%);
+  border-radius: 12px;
+  border: 1px solid var(--vian-border);
+  justify-self: center;
+}
+
+.cmc-success-state a {
+  justify-self: start;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--vian-green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cmc-submit-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  border: none;
+  border-radius: 16px;
+  background: var(--vian-green);
+  color: #ffffff;
+  font-family: var(--font-body-vian);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 24px rgba(90, 58, 48, 0.3);
+}
+
+.cmc-submit-order:hover:not(:disabled) {
+  background: var(--vian-green-light);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(90, 58, 48, 0.4);
+}
+
+.cmc-submit-order:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .cmc-checkout-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cmc-checkout-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .cmc-checkout-hero {
+    padding: 24px 20px 28px;
+  }
+
+  .cmc-order-type-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .cmc-cart-page .cmc-cart-row > img {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmc-submit-order,
+  .cmc-promo-btn,
+  .cmc-order-type-tabs button,
+  .cmc-text-input {
+    transition: none;
+  }
+}

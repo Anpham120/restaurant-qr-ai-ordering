@@ -33,6 +33,7 @@ def build_messages(
     context_chunks: list[KnowledgeChunk],
     menu_items: list[dict],
     history: list[dict],
+    table_code: str | None = None,
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
@@ -45,8 +46,21 @@ def build_messages(
         if item.get("content")
     ]
 
+    if table_code:
+        session_context = (
+            f"Khách đang ngồi tại bàn {table_code} với phiên QR đang mở. "
+            "Khách có thể xác nhận gợi ý để thêm món vào giỏ và gửi đơn cho bếp ngay trong phiên này. "
+            "Hãy chủ động gợi ý món phù hợp kèm lý do ngắn gọn."
+        )
+    else:
+        session_context = (
+            "Khách chưa mở phiên bàn (chưa quét QR tại bàn). "
+            "Bạn chỉ tư vấn tham khảo; nhắc khách quét QR tại bàn nếu khách muốn đặt món."
+        )
+
     return [
         {"role": "system", "content": SYSTEM_POLICY},
+        {"role": "system", "content": f"Bối cảnh phiên: {session_context}"},
         {"role": "system", "content": f"RAG context:\n{context_text or 'Không có context phù hợp.'}"},
         {"role": "system", "content": f"Menu hiện có:\n{menu_text or 'Menu chưa được cung cấp.'}"},
         *recent_history,

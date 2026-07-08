@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { CustomerCartBar } from "../../components/customer/CustomerCartBar";
 import { CustomerTestimonials } from "../../components/customer/CustomerTestimonials";
 import { CustomerWhyChooseUs } from "../../components/customer/CustomerWhyChooseUs";
 import {
@@ -212,13 +211,6 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
     updateCart(nextCart);
   }
 
-  function guardCartNavigation(event: React.MouseEvent<Element>) {
-    if (!isSessionOpen) {
-      event.preventDefault();
-      setSessionNotice("Bạn cần quét QR tại bàn để gửi đơn cho bếp.");
-    }
-  }
-
   return (
     <section className={`cmc-customer-page${summary.itemCount > 0 ? " has-cart-bar" : ""}`}>
       <header className="cmc-hero cmc-menu-hero">
@@ -348,12 +340,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
         </section>
       </div>
 
-      <CustomerCartBar
-        itemCount={summary.itemCount}
-        totalPrice={summary.totalPrice}
-        onViewCart={guardCartNavigation}
-        disabled={!isSessionOpen}
-      />
+      {/* Giỏ hàng nổi toàn cục được mount ở CustomerLayout (main.tsx) */}
 
       {!isFilteredView && (
         <>

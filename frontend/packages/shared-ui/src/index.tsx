@@ -196,7 +196,7 @@ function ChangePasswordControl() {
   );
 }
 
-export type PortalLink = { to: string; label: string; icon?: React.ReactNode };
+export type PortalLink = { to: string; label: string; icon?: React.ReactNode; section?: string };
 
 export function OperationsLayout({
   title,
@@ -274,30 +274,47 @@ export function OperationsLayout({
             <small>{subtitle}</small>
           </div>
         </div>
-        <nav aria-label={`${title} navigation`}>
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.to === "/" || link.to.split("/").length === 2}
-              className={({ isActive }) => (isActive ? "cmc-nav-link is-active" : "cmc-nav-link")}
-              onClick={() => setDrawerOpen(false)}
-            >
-              {link.icon ? <span className="cmc-nav-icon">{link.icon}</span> : null}
-              {link.label}
-            </NavLink>
-          ))}
+        <nav aria-label={`${title} navigation`} className="cmc-sidebar-nav">
+          {links.map((link, index) => {
+            const showSection = link.section && link.section !== links[index - 1]?.section;
+            return (
+              <div key={link.to} className="cmc-nav-item">
+                {showSection ? <p className="cmc-nav-section">{link.section}</p> : null}
+                <NavLink
+                  to={link.to}
+                  end={link.to === "/" || link.to.split("/").length === 2}
+                  className={({ isActive }) => (isActive ? "cmc-nav-link is-active" : "cmc-nav-link")}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  {link.icon ? <span className="cmc-nav-icon">{link.icon}</span> : null}
+                  {link.label}
+                </NavLink>
+              </div>
+            );
+          })}
         </nav>
         <div className="cmc-user">
-          <span>{user?.fullName}</span>
-          <small>{user?.role}</small>
+          <div className="cmc-user-identity">
+            <span className="cmc-user-avatar" aria-hidden="true">
+              {(user?.fullName ?? "?").trim().charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <span>{user?.fullName}</span>
+              <small>{user?.role}</small>
+            </div>
+          </div>
           <ChangePasswordControl />
           <button
+            className="cmc-logout-btn"
             onClick={() => {
               logout();
               navigate("/login");
             }}
           >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5M21 12H9" />
+            </svg>
             Đăng xuất
           </button>
         </div>

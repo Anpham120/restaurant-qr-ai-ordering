@@ -28,6 +28,11 @@ export type CreateChatSessionResponse = {
   createdAt: string;
 };
 
+export type CreateChatSessionRequest = {
+  tableSessionId?: string;
+  tableCode?: string;
+};
+
 export type SendChatMessageRequest = {
   content: string;
   tableCode?: string;
