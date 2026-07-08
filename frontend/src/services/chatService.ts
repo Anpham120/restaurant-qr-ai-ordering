@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "./apiClient";
 import type {
+  CreateChatSessionRequest,
   CreateChatSessionResponse,
   SendChatMessageRequest,
   SendChatMessageResponse,
@@ -22,8 +23,8 @@ async function postJson<TResponse>(path: string, body?: unknown): Promise<TRespo
 }
 
 export const chatApi = {
-  async createSession(): Promise<CreateChatSessionResponse> {
-    return postJson<CreateChatSessionResponse>("/chat/sessions");
+  async createSession(request?: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
+    return postJson<CreateChatSessionResponse>("/chat/sessions", request);
   },
 
   async sendMessage(

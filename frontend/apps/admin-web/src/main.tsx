@@ -1,12 +1,13 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  Navigate,
   RouterProvider,
   createBrowserRouter,
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { AuthProvider, ProtectedRoute } from "@cmc/auth";
+import { AuthProvider, ProtectedRoute, useAuth } from "@cmc/auth";
 import {
   LoginPage,
   NotFoundPage,
@@ -25,14 +26,17 @@ import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManag
 import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
 import { AdminLoyaltyPage } from "../../../src/pages/admin/AdminLoyaltyPage";
 import { AdminReportsPage } from "../../../src/pages/admin/AdminReportsPage";
+import { RoleAccessPage } from "../../../src/pages/admin/RoleAccessPage";
+import { KitchenHomePage } from "../../../src/pages/KitchenHomePage";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
+import { StaffHomePage } from "../../../src/pages/StaffHomePage";
 import { StaffOrdersPage } from "../../../src/pages/StaffOrdersPage";
 import { StaffPaymentsPage } from "../../../src/pages/StaffPaymentsPage";
 import { AdminInvoicesPage } from "../../../src/pages/AdminInvoicesPage";
 import {
   LayoutDashboard, BookOpen, Tag, ShoppingBag, Receipt,
   QrCode, Users, ClipboardList, CreditCard, ChefHat,
-  BadgePercent, Star, BarChart3, Armchair,
+  BadgePercent, Star, BarChart3, Armchair, ShieldCheck,
 } from "lucide-react";
 
 const roleRedirects = {
@@ -43,24 +47,29 @@ const roleRedirects = {
 
 const adminLinks = [
   { to: "/", label: "Tổng quan", icon: <LayoutDashboard size={18} /> },
-  { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} /> },
-  { to: "/categories", label: "Danh mục", icon: <Tag size={18} /> },
-  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} /> },
-  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} /> },
-  { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} /> },
-  { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} /> },
-  { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} /> },
-  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} /> },
-  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} /> },
-  { to: "/users", label: "Người dùng", icon: <Users size={18} /> },
+  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} />, section: "Vận hành" },
+  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} />, section: "Vận hành" },
+  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} />, section: "Vận hành" },
+  { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} />, section: "Thực đơn" },
+  { to: "/categories", label: "Danh mục", icon: <Tag size={18} />, section: "Thực đơn" },
+  { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} />, section: "Khách hàng" },
+  { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} />, section: "Khách hàng" },
+  { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} />, section: "Hệ thống" },
+  { to: "/access", label: "Phân quyền", icon: <ShieldCheck size={18} />, section: "Hệ thống" },
+  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} />, section: "Hệ thống" },
+  { to: "/users", label: "Người dùng", icon: <Users size={18} />, section: "Hệ thống" },
 ];
 
 const staffLinks = [
-  { to: "/staff", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
+  { to: "/staff", label: "Tổng quan", icon: <Users size={18} /> },
+  { to: "/staff/orders", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
   { to: "/staff/payments", label: "Thu ngân", icon: <CreditCard size={18} /> },
 ];
 
-const kitchenLinks = [{ to: "/kitchen", label: "Bảng bếp", icon: <ChefHat size={18} /> }];
+const kitchenLinks = [
+  { to: "/kitchen", label: "Tổng quan", icon: <ChefHat size={18} /> },
+  { to: "/kitchen/board", label: "Bảng bếp", icon: <ClipboardList size={18} /> },
+];
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
@@ -101,6 +110,72 @@ function CustomerTableRedirect() {
   );
 }
 
+function RoleAwareAdminLayout() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="cmc-state" role="status">
+        Đang xác minh phiên đăng nhập...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: "/" }} />;
+  }
+
+  if (user.role === "Staff") {
+    return <Navigate to="/staff" replace />;
+  }
+
+  if (user.role === "Kitchen") {
+    return <Navigate to="/kitchen" replace />;
+  }
+
+  if (user.role !== "Admin") {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <OperationsLayout
+      title="Quản trị CMC"
+      subtitle="Bảng điều khiển nhà hàng"
+      links={adminLinks}
+    />
+  );
+}
+
+function RoleAwareUnauthorizedPage() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="cmc-state" role="status">
+        Đang xác minh phiên đăng nhập...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === "Admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  if (user.role === "Staff") {
+    return <Navigate to="/staff" replace />;
+  }
+
+  if (user.role === "Kitchen") {
+    return <Navigate to="/kitchen" replace />;
+  }
+
+  return <UnauthorizedPage />;
+}
+
 const router = createBrowserRouter([
   { path: "/table/:tableCode", element: <CustomerTableRedirect /> },
   {
@@ -113,18 +188,10 @@ const router = createBrowserRouter([
       />
     ),
   },
-  { path: "/unauthorized", element: <UnauthorizedPage /> },
+  { path: "/unauthorized", element: <RoleAwareUnauthorizedPage /> },
   {
     path: "/",
-    element: (
-      <ProtectedRoute allowedRoles={["Admin"]}>
-        <OperationsLayout
-          title="Quản trị CMC"
-          subtitle="Bảng điều khiển nhà hàng"
-          links={adminLinks}
-        />
-      </ProtectedRoute>
-    ),
+    element: <RoleAwareAdminLayout />,
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: "menu", element: <AdminMenuPage /> },
@@ -134,6 +201,7 @@ const router = createBrowserRouter([
       { path: "promotions", element: <AdminPromotionsPage /> },
       { path: "loyalty", element: <AdminLoyaltyPage /> },
       { path: "reports", element: <AdminReportsPage /> },
+      { path: "access", element: <RoleAccessPage /> },
       { path: "sessions", element: <AdminTableSessionsPage /> },
       { path: "tables", element: <AdminTablesPage /> },
       { path: "users", element: <AdminUserManagementPage /> },
@@ -147,7 +215,8 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <StaffOrdersPage /> },
+      { index: true, element: <StaffHomePage /> },
+      { path: "orders", element: <StaffOrdersPage /> },
       { path: "payments", element: <StaffPaymentsPage /> },
     ],
   },
@@ -158,7 +227,10 @@ const router = createBrowserRouter([
         <OperationsLayout title="Bảng bếp" subtitle="Theo dõi thời gian thực" links={kitchenLinks} />
       </ProtectedRoute>
     ),
-    children: [{ index: true, element: <KitchenPage /> }],
+    children: [
+      { index: true, element: <KitchenHomePage /> },
+      { path: "board", element: <KitchenPage /> },
+    ],
   },
   { path: "*", element: <NotFoundPage /> },
 ]);

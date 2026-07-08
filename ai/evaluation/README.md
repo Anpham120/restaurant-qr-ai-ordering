@@ -2,6 +2,9 @@
 
 Thư mục này chứa bộ câu hỏi vàng để kiểm tra Python AI service.
 
+Quy trình nghiên cứu đầy đủ nằm ở `../../docs/AI_RAG_RESEARCH_DESIGN.md`.
+Notebook protocol để chạy/ghi kết quả thí nghiệm nằm ở `../notebooks/rag_research_protocol.py`.
+
 ## Mục Tiêu Đánh Giá
 
 - Retrieval accuracy: câu hỏi có lấy đúng tài liệu liên quan không.

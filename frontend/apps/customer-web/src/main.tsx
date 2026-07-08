@@ -18,6 +18,7 @@ import { OrderStatusPage } from "../../../src/pages/OrderStatusPage";
 import { ChatPage } from "../../../src/pages/ChatPage";
 import { CustomerMenuPage } from "../../../src/pages/customer/CustomerMenuPage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
+import { CustomerFloatingCart } from "../../../src/components/customer/CustomerFloatingCart";
 
 function CustomerLayout() {
   const location = useLocation();
@@ -97,6 +98,9 @@ function CustomerLayout() {
           <Outlet />
         </PageTransition>
       </main>
+
+      {/* Giỏ hàng nổi toàn cục — luôn hiển thị trên mọi trang khi có món */}
+      <CustomerFloatingCart />
     </div>
   );
 }

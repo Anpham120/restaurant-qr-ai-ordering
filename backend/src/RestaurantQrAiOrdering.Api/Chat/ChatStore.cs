@@ -8,7 +8,8 @@ public sealed record ChatSessionSnapshot(
     string? TableCode,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<ChatMessageSnapshot> Messages);
+    IReadOnlyList<ChatMessageSnapshot> Messages,
+    string? TableSessionId = null);
 
 public sealed record ChatMessageSnapshot(
     string Id,
@@ -20,7 +21,7 @@ public sealed record ChatMessageSnapshot(
 
 public interface IChatStore
 {
-    ChatSessionSnapshot CreateSession(string? tableCode = null);
+    ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null);
 
     ChatSessionSnapshot? GetSession(string chatSessionId);
 
@@ -31,6 +32,13 @@ public interface IChatStore
         string role,
         string content,
         IReadOnlyList<SuggestedCartActionResponse>? suggestedCartActions = null);
+
+    /// <summary>
+    /// Xóa toàn bộ chat sessions + messages gắn với một phiên bàn.
+    /// Gọi khi phiên bàn đóng/hết hạn để dọn dữ liệu cho khách mới.
+    /// Trả về số chat session đã xóa.
+    /// </summary>
+    int DeleteSessionsByTableSession(string tableSessionId);
 }
 
 public sealed class ChatStore : IChatStore
@@ -42,7 +50,7 @@ public sealed class ChatStore : IChatStore
     private int nextSessionNumber = 1;
     private int nextMessageNumber = 1;
 
-    public ChatSessionSnapshot CreateSession(string? tableCode = null)
+    public ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null)
     {
         lock (syncRoot)
         {
@@ -51,12 +59,23 @@ public sealed class ChatStore : IChatStore
             {
                 Id = $"chat_{nextSessionNumber++:000}",
                 TableCode = NormalizeOptional(tableCode),
+                TableSessionId = NormalizeOptional(tableSessionId),
                 CreatedAt = now,
                 UpdatedAt = now
             };
 
             sessions.Add(session);
             return ToSnapshot(session);
+        }
+    }
+
+    public int DeleteSessionsByTableSession(string tableSessionId)
+    {
+        lock (syncRoot)
+        {
+            return sessions.RemoveAll(session =>
+                session.TableSessionId is not null &&
+                session.TableSessionId.Equals(tableSessionId, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -133,7 +152,8 @@ public sealed class ChatStore : IChatStore
             session.Messages
                 .OrderBy(message => message.CreatedAt)
                 .Select(ToMessageSnapshot)
-                .ToList());
+                .ToList(),
+            session.TableSessionId);
     }
 
     private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message)

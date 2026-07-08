@@ -6,10 +6,13 @@ public static class ChatEndpoints
 {
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/chat/sessions", (IChatStore chatStore, ILoggerFactory loggerFactory) =>
+        app.MapPost("/api/chat/sessions", (
+            CreateChatSessionRequest? request,
+            IChatStore chatStore,
+            ILoggerFactory loggerFactory) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
-            var session = chatStore.CreateSession();
+            var session = chatStore.CreateSession(request?.TableCode, request?.TableSessionId);
             logger.LogInformation("Created chat session {ChatSessionId}.", session.Id);
 
             return Results.Created(
@@ -40,7 +43,8 @@ public static class ChatEndpoints
                 return ApiResults.BadRequest("CHAT_MESSAGE_EMPTY", "Chat message content is required.");
             }
 
-            if (chatStore.GetSession(chatSessionId) is null)
+            var chatSession = chatStore.GetSession(chatSessionId);
+            if (chatSession is null)
             {
                 logger.LogWarning("Rejected chat message because session {ChatSessionId} was not found.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
@@ -54,7 +58,10 @@ public static class ChatEndpoints
             }
 
             var history = chatStore.GetMessages(chatSessionId) ?? [];
-            var assistantReply = await assistant.GenerateReplyAsync(userMessage.Content, history, cancellationToken);
+            var tableCode = string.IsNullOrWhiteSpace(request.TableCode)
+                ? chatSession.TableCode
+                : request.TableCode.Trim();
+            var assistantReply = await assistant.GenerateReplyAsync(userMessage.Content, history, tableCode, cancellationToken);
             var assistantMessage = chatStore.AddMessage(
                 chatSessionId,
                 "assistant",

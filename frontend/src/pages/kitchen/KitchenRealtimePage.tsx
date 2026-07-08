@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
 import {
@@ -8,7 +9,7 @@ import {
   subscribeRealtimeConnection,
 } from "../../services/realtimeOrderService";
 import { getKitchenOrders } from "../../services/orderService";
-import { fetchAdminMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
+import { fetchKitchenMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
 import "../../components/operations/operations.css";
 
 type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
@@ -16,12 +17,13 @@ type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
 const KITCHEN_STATUSES: OrderStatus[] = ["Confirmed", "Preparing", "Ready"];
 
 export function KitchenRealtimePage() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
-  const [showMenuPanel, setShowMenuPanel] = useState(false);
+  const [showMenuPanel, setShowMenuPanel] = useState(searchParams.get("menu") === "1");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Filter orders relevant to kitchen
@@ -63,9 +65,11 @@ export function KitchenRealtimePage() {
 
   const loadMenu = useCallback(async () => {
     try {
-      const items = await fetchAdminMenuItems();
+      // Role Kitchen không có quyền /admin/menu-items (403) nên dùng endpoint
+      // /kitchen/menu-items riêng (bao gồm cả món đang tắt để mở lại được).
+      const items = await fetchKitchenMenuItems();
       setMenuItems(
-        items.map((i: { id: string; name: string; isAvailable: boolean }) => ({
+        items.map((i) => ({
           id: i.id,
           name: i.name,
           isAvailable: i.isAvailable,

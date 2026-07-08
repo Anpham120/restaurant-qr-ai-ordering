@@ -8,7 +8,7 @@ import {
   setAdminMenuItemAvailability,
   type AdminMenuItemPayload,
 } from "../../services/adminMenuService";
-import { createApiClient } from "@cmc/api-client";
+import { ApiError, createApiClient } from "@cmc/api-client";
 import type { AdminCategory } from "@cmc/shared-types";
 import { resolveMenuImage } from "../../utils/menuImages";
 import "../operations/operations.css";
@@ -50,6 +50,22 @@ function toDisplayImageUrl(imageUrl: string | null | undefined): string | null {
     return null;
   }
   return null;
+}
+
+const SAVE_ERROR_MESSAGES: Record<string, string> = {
+  CATEGORY_INVALID: "Danh mục không hợp lệ hoặc đã ngừng hoạt động. Vui lòng chọn danh mục khác.",
+  MENU_ITEM_PRICE_INVALID: "Giá món phải lớn hơn 0.",
+  MENU_ITEM_NAME_REQUIRED: "Tên món không được để trống.",
+  MENU_ITEM_NOT_FOUND: "Không tìm thấy món này. Có thể món đã bị xóa.",
+  HTTP_401: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+  HTTP_403: "Tài khoản của bạn không có quyền thực hiện thao tác này.",
+};
+
+function describeSaveError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    return SAVE_ERROR_MESSAGES[error.code] ?? `${fallback} (${error.code})`;
+  }
+  return `${fallback} Vui lòng kiểm tra kết nối mạng.`;
 }
 
 const EMPTY_FORM: AdminMenuItemPayload = {
@@ -104,9 +120,18 @@ export function AdminMenuManager() {
     return acc;
   }, {});
 
+  // Backend từ chối lưu món vào danh mục ngừng hoạt động (CATEGORY_INVALID),
+  // nên dropdown chỉ hiển thị danh mục đang hoạt động.
+  const activeCategories = categories.filter((c) => c.isActive !== false);
+  const canCreateMenuItem = activeCategories.length > 0;
+
   function openCreate() {
+    if (!canCreateMenuItem) {
+      setNotice("Cần tạo hoặc kích hoạt ít nhất một danh mục trước khi thêm món.");
+      return;
+    }
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, categoryId: categories[0]?.categoryId ?? "" });
+    setForm({ ...EMPTY_FORM, categoryId: activeCategories[0]?.categoryId ?? "" });
     setTagsInput("");
     setShowForm(true);
   }
@@ -131,6 +156,10 @@ export function AdminMenuManager() {
       setNotice("Tên, danh mục và giá không được để trống.");
       return;
     }
+    if (!activeCategories.some((category) => category.categoryId === form.categoryId)) {
+      setNotice("Danh mục đã ngừng hoạt động. Hãy chọn danh mục đang hoạt động.");
+      return;
+    }
     setIsSaving(true);
     setNotice("");
     const payload: AdminMenuItemPayload = {
@@ -150,8 +179,8 @@ export function AdminMenuManager() {
       }
       setShowForm(false);
       await load();
-    } catch {
-      setNotice("Lưu thất bại.");
+    } catch (err) {
+      setNotice(describeSaveError(err, "Lưu thất bại."));
     } finally {
       setIsSaving(false);
     }
@@ -163,8 +192,8 @@ export function AdminMenuManager() {
       await deleteAdminMenuItem(id);
       setNotice("Đã xóa.");
       await load();
-    } catch {
-      setNotice("Xóa thất bại.");
+    } catch (err) {
+      setNotice(describeSaveError(err, "Xóa thất bại."));
     }
   }
 
@@ -172,8 +201,8 @@ export function AdminMenuManager() {
     try {
       await setAdminMenuItemAvailability(id, !available);
       setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isAvailable: !available } : i)));
-    } catch {
-      setNotice("Cập nhật tình trạng thất bại.");
+    } catch (err) {
+      setNotice(describeSaveError(err, "Cập nhật tình trạng thất bại."));
     }
   }
 
@@ -200,8 +229,18 @@ export function AdminMenuManager() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button className="ops-btn ops-btn--primary" onClick={openCreate} type="button">+ Thêm món</button>
+        <button
+          className="ops-btn ops-btn--primary"
+          disabled={!canCreateMenuItem}
+          onClick={openCreate}
+          type="button"
+        >
+          + Thêm món
+        </button>
       </div>
+      {!canCreateMenuItem ? (
+        <p className="ops-empty">Chưa có danh mục đang hoạt động. Hãy tạo hoặc kích hoạt danh mục trước khi thêm món.</p>
+      ) : null}
 
       <div className="amm-category-tabs" role="tablist" aria-label="Danh mục thực đơn">
         <button
@@ -240,7 +279,7 @@ export function AdminMenuManager() {
                 <label className="ops-form-label">Danh mục *</label>
                 <select className="ops-form-select" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
                   <option value="">Chọn danh mục</option>
-                  {categories.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
+                  {activeCategories.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
                 </select>
               </div>
               <div className="ops-form-group">

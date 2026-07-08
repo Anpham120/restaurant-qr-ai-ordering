@@ -61,19 +61,24 @@ export function ChatbotPage() {
   const [cartNotice, setCartNotice] = useState("");
   const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
-  const tableCode = useMemo(() => {
+  const orderContext = useMemo<ReturnType<typeof loadOrderContext>>(() => {
     if (typeof window === "undefined") {
-      return undefined;
+      return {};
     }
 
-    return loadOrderContext().tableCode;
+    return loadOrderContext();
   }, []);
+  const tableCode = orderContext.tableCode;
+  const hasTableSession = Boolean(orderContext.tableCode && orderContext.sessionId);
 
   useEffect(() => {
     let isMounted = true;
 
     chatApi
-      .createSession()
+      .createSession({
+        tableCode: orderContext.tableCode,
+        tableSessionId: orderContext.sessionId,
+      })
       .then((session) => {
         if (isMounted) {
           setChatSessionId(session.chatSessionId);
@@ -88,7 +93,7 @@ export function ChatbotPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [orderContext.sessionId, orderContext.tableCode]);
 
   useEffect(() => {
     fetchCustomerMenu().then(setMenuData).catch(() => {});
@@ -139,6 +144,12 @@ export function ChatbotPage() {
   }
 
   function confirmSuggestedAction(action: SuggestedCartAction) {
+    if (!hasTableSession) {
+      setCartNotice("");
+      setErrorMessage("Bạn cần quét QR tại bàn để mở phiên bàn trước khi thêm gợi ý AI vào giỏ.");
+      return;
+    }
+
     const menuItem = menuData.items.find((item) => item.id === action.menuItemId);
 
     if (!menuItem || !menuItem.isAvailable) {

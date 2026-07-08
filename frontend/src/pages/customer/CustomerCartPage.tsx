@@ -7,6 +7,7 @@ import {
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
+import "../../components/customer/customer-cart.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
 import { createOrder, generateVietQrPayment, validatePromotion } from "../../services/orderService";
@@ -291,7 +292,7 @@ export function CustomerCartPage() {
 
           {appliedPromo ? (
             <>
-              <div className="cmc-cart-total" style={{ color: "var(--color-success, #16a34a)" }}>
+              <div className="cmc-cart-total cmc-cart-total--discount">
                 <span>Giảm giá ({appliedPromo.code})</span>
                 <strong>-{formatVnd(discountAmount)}</strong>
               </div>
@@ -331,7 +332,21 @@ export function CustomerCartPage() {
                   onClick={() => setPaymentMethod(method)}
                   type="button"
                 >
-                  {method === "COD" ? "💵 Tiền mặt" : "📱 Chuyển khoản QR"}
+                  {method === "COD" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <rect x="2" y="6" width="20" height="12" rx="2" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M6 12h.01M18 12h.01" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM18 18h3v3h-3z" />
+                    </svg>
+                  )}
+                  {method === "COD" ? "Tiền mặt" : "Chuyển khoản QR"}
                 </button>
               ))}
             </div>
@@ -339,23 +354,22 @@ export function CustomerCartPage() {
 
           <div className="cmc-checkout-note">
             <strong>Mã khuyến mãi</strong>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="cmc-promo-row">
               <input
                 aria-label="Mã khuyến mãi"
                 className="cmc-text-input"
                 disabled={Boolean(appliedPromo)}
                 onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
                 placeholder="VD: GIAM10"
-                style={{ flex: 1 }}
                 value={promoInput}
               />
               {appliedPromo ? (
-                <button className="cmc-secondary-link" onClick={removePromo} type="button">
+                <button className="cmc-promo-btn" onClick={removePromo} type="button">
                   Bỏ mã
                 </button>
               ) : (
                 <button
-                  className="cmc-secondary-link"
+                  className="cmc-promo-btn"
                   disabled={isApplyingPromo}
                   onClick={applyPromo}
                   type="button"
@@ -366,7 +380,10 @@ export function CustomerCartPage() {
             </div>
             {promoError ? <span className="cmc-inline-error">{promoError}</span> : null}
             {appliedPromo ? (
-              <span style={{ color: "var(--color-success, #16a34a)" }}>
+              <span className="cmc-promo-success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
                 Đã áp dụng {appliedPromo.name}
               </span>
             ) : null}
