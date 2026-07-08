@@ -37,7 +37,7 @@ public sealed class ChatEndpointTests
         Assert.Equal("assistant", root.GetProperty("message").GetProperty("role").GetString());
         Assert.Single(actions);
         Assert.Equal("m_001", actions[0].GetProperty("menuItemId").GetString());
-        Assert.Equal(45000, actions[0].GetProperty("price").GetDecimal());
+        Assert.Equal(65000, actions[0].GetProperty("price").GetDecimal());
         Assert.True(actions[0].GetProperty("requiresCustomerConfirmation").GetBoolean());
         Assert.Contains("CUSTOMER_CONFIRMATION_REQUIRED", flags);
 
@@ -146,7 +146,7 @@ public sealed class ChatEndpointTests
         public Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new ChatAiResult(
-                "Ban co the chon Com ga xoi mo. Minh chi de xuat va can ban xac nhan truoc khi them vao gio.",
+                "Ban co the chon Goi cuon tom thit. Minh chi de xuat va can ban xac nhan truoc khi them vao gio.",
                 ProviderAvailable: true));
         }
     }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Order, OrderListResponse } from "@cmc/shared-types";
+import type { AdminTableSessionSummary, Order, OrderListResponse } from "@cmc/shared-types";
 import { createApiClient } from "@cmc/api-client";
 import "../operations/operations.css";
 
@@ -13,18 +13,29 @@ const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 export function AdminDashboardOverview() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuCount, setMenuCount] = useState<number>(0);
+  const [tableCount, setTableCount] = useState<number>(0);
+  const [servingCount, setServingCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
       try {
-        const [orderData, menuData] = await Promise.all([
+        const [orderData, menuData, tableData, sessionData] = await Promise.all([
           api.orders.list(),
           api.request<unknown[]>("/admin/menu-items"),
+          api.tables.list(),
+          api.tables.listAdminSessions("Open"),
         ]);
         setOrders((orderData as OrderListResponse).orders);
         setMenuCount(menuData.length);
+        setTableCount(tableData.total);
+        const servingTables = new Set(
+          sessionData.items
+            .filter((s: AdminTableSessionSummary) => !s.isExpired)
+            .map((s: AdminTableSessionSummary) => s.tableCode),
+        );
+        setServingCount(servingTables.size);
       } catch {
         setError("Không tải được dữ liệu tổng quan.");
       } finally {
@@ -80,9 +91,14 @@ export function AdminDashboardOverview() {
           <div className="ops-stat-detail">Completed</div>
         </div>
         <div className="ops-stat-card">
-          <div className="ops-stat-label">Menu items</div>
+          <div className="ops-stat-label">Món trong thực đơn</div>
           <div className="ops-stat-value">{stats.menuCount}</div>
-          <div className="ops-stat-detail">Tổng món trong thực đơn</div>
+          <div className="ops-stat-detail">Đồng bộ với trang khách hàng</div>
+        </div>
+        <div className="ops-stat-card">
+          <div className="ops-stat-label">Bàn đang phục vụ</div>
+          <div className="ops-stat-value">{servingCount}/{tableCount}</div>
+          <div className="ops-stat-detail">Phiên bàn đang mở</div>
         </div>
       </div>
 
