@@ -85,7 +85,7 @@ CERTBOT_EMAIL
 Variables khuyến nghị:
 
 ```text
-AI_MODEL=gh/gemini-3.1-pro-preview
+AI_MODEL=gc/gemini-3-flash
 ```
 
 ## Docker Compose

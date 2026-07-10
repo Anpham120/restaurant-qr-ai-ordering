@@ -1,0 +1,25 @@
+{
+  "python": "3.12.13 (main, Mar  3 2026, 14:59:34) [Clang 21.1.4 ]",
+  "platform": "Linux-6.12.47-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "random_seed": 20260710,
+  "menu_snapshot_sha256": "e654211fd1008fba4032aaac82b7fbae47532c1c48dca8a337847ea9c8f0e767",
+  "queries_sha256": "5d728d72a4ac4f917644dd0f796cd784b66515069912836a447a6e1a723a9067",
+  "policy_sha256": "8da2c65315e96e6f6db82ba002cbcc1a886b3f5d0b2654002f6b5959232ca51a",
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "embedding_model_sha256": "634d0f66c29dc934c8fa72b8a4fe91dd4d420a22f1d82a241058d4316e659a99",
+  "encoder_load_ms": 940.3722630013363,
+  "case_counts": {
+    "dev": 62,
+    "test": 173
+  },
+  "document_count": 101,
+  "latency_repeats": 3,
+  "packages": {
+    "numpy": "2.5.1",
+    "scikit-learn": "1.8.0",
+    "fastembed": "0.7.3",
+    "onnxruntime": "1.27.0"
+  },
+  "evaluation_script_sha256": "26f7492e6d0e25ef3639c95719cd53022d5d9293df94ab05b748d773dd91e78c"
+}

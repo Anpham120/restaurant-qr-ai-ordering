@@ -1,11 +1,11 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { loadOrderContext, saveMenuCart, loadMenuCart } from "../components/customer/customerMenuStorage";
 import "../components/landing/customer-landing.css";
 import { formatVnd } from "../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../services/menuService";
-import { chatApi } from "../services/chatService";
-import type { ChatMessage, SuggestedCartAction } from "../types";
+import { useRestaurantChat } from "../hooks/useRestaurantChat";
+import type { SuggestedCartAction } from "../types";
 import {
   Smartphone, UtensilsCrossed, Sparkles, MapPin, Phone, Mail, Globe,
   MessageCircle, Bot, Send, Star, CheckCircle, X,
@@ -40,9 +40,9 @@ const TESTIMONIALS = [
 
 const CHAT_QUICK_PROMPTS = [
   "Gợi ý món cho 2 người",
-  "Có món nào đang giảm giá?",
+  "Giá của Phở bò tái nạm bao nhiêu?",
   "Tôi muốn đồ uống thanh mát",
-  "Món nào phổ biến nhất?",
+  "Nhà hàng thanh toán bằng cách nào?",
 ];
 
 /* ========================================================================
@@ -661,72 +661,29 @@ type ChatSectionProps = {
 };
 
 function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", content: "Xin chào! Mình là trợ lý AI của CMC Restaurant. Hỏi mình bất cứ điều gì về thực đơn nhé! 🍽️", createdAt: new Date().toISOString() },
-  ]);
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestedCartAction[]>([]);
+  const chat = useRestaurantChat();
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [messages, suggestions, thinking]);
-
-  async function ensureSession(): Promise<string | null> {
-    if (sessionId) return sessionId;
-    try {
-      const orderContext = loadOrderContext();
-      const s = await chatApi.createSession({
-        tableCode: orderContext.tableCode,
-        tableSessionId: orderContext.sessionId,
-      });
-      setSessionId(s.chatSessionId);
-      return s.chatSessionId;
-    } catch {
-      return null;
-    }
-  }
-
-  async function send(e?: FormEvent, override?: string) {
-    e?.preventDefault();
-    const content = (override ?? input).trim();
-    if (!content || thinking) return;
-
-    const sid = await ensureSession();
-    if (!sid) {
-      setMessages((m) => [...m, { id: `e_${Date.now()}`, role: "assistant", content: "Xin lỗi, không thể kết nối. Bạn thử lại nhé!", createdAt: new Date().toISOString() }]);
-      return;
-    }
-
-    const userMsg: ChatMessage = { id: `u_${Date.now()}`, role: "user", content, createdAt: new Date().toISOString() };
-    setMessages((m) => [...m, userMsg]);
-    setInput("");
-    setThinking(true);
-    setSuggestions([]);
-
-    try {
-      const res = await chatApi.sendMessage(sid, { content });
-      setMessages((m) => [...m, res.message]);
-      setSuggestions(res.suggestedCartActions);
-    } catch {
-      setMessages((m) => [...m, { id: `e_${Date.now()}`, role: "assistant", content: "Xin lỗi, mình chưa phản hồi được. Bạn thử lại nhé!", createdAt: new Date().toISOString() }]);
-    } finally {
-      setThinking(false);
-    }
-  }
+  }, [chat.messages, chat.suggestions, chat.thinking]);
 
   function handleAddToCart(action: SuggestedCartAction) {
     if (!hasActiveSession()) {
       onQrNotice("Vui lòng quét mã QR tại bàn để đặt món vào giỏ hàng.");
       return;
     }
+    const item = menuItems.find((value) => value.id === action.menuItemId && value.isAvailable);
+    if (!item) {
+      onQrNotice("Món này không còn khả dụng trong menu hiện tại.");
+      chat.setSuggestions((current) => current.filter((value) => value.menuItemId !== action.menuItemId));
+      return;
+    }
     const currentCart = loadMenuCart();
-    const next = { ...currentCart, [action.menuItemId]: (currentCart[action.menuItemId] ?? 0) + action.quantity };
+    const next = { ...currentCart, [item.id]: (currentCart[item.id] ?? 0) + action.quantity };
     saveMenuCart(next);
-    setSuggestions((s) => s.filter((a) => a.menuItemId !== action.menuItemId));
-    setMessages((m) => [...m, { id: `cart_${Date.now()}`, role: "assistant", content: `✅ Đã thêm ${action.name} (×${action.quantity}) vào giỏ hàng!`, createdAt: new Date().toISOString() }]);
+    chat.setSuggestions((current) => current.filter((value) => value.menuItemId !== action.menuItemId));
+    onQrNotice(`Đã thêm ${item.name} (×${action.quantity}) vào giỏ sau khi bạn xác nhận.`);
   }
 
   return (
@@ -741,7 +698,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
           <p>Hỏi bất cứ điều gì về thực đơn — gợi ý món, combo, đồ uống hay thông tin dinh dưỡng. AI sẽ tư vấn ngay cho bạn!</p>
           <div className="landing-ai-prompts">
             {CHAT_QUICK_PROMPTS.map((p) => (
-              <button key={p} className="landing-ai-prompt-btn" type="button" onClick={() => send(undefined, p)}>
+              <button key={p} className="landing-ai-prompt-btn" type="button" disabled={!chat.chatSessionId || chat.thinking} onClick={() => chat.send(undefined, p)}>
                 {p}
               </button>
             ))}
@@ -755,7 +712,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
             <span>CMC AI Assistant</span>
           </div>
           <div className="landing-ai-chat-body" ref={bodyRef}>
-            {messages.map((m) => (
+            {chat.messages.map((m) => (
               <div key={m.id} className={`landing-ai-msg ${m.role}`}>
                 {m.role === "assistant" && (
                   <div className="landing-ai-msg-avatar"><Bot size={14} /></div>
@@ -764,19 +721,19 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
               </div>
             ))}
 
-            {suggestions.length > 0 && (
+            {chat.suggestions.length > 0 && (
               <div className="landing-ai-suggestions">
-                {suggestions.map((s) => {
+                {chat.suggestions.map((s) => {
                   const item = menuItems.find((i) => i.id === s.menuItemId);
                   return (
                     <div className="landing-ai-suggestion-card" key={s.menuItemId}>
                       {item?.imageUrl && <img src={item.imageUrl} alt={s.name} />}
                       <div className="landing-ai-suggestion-info">
-                        <strong>{s.name}</strong>
-                        <span>{formatVnd(s.price)} × {s.quantity}</span>
+                        <strong>{item?.name ?? s.name}</strong>
+                        <span>{formatVnd(item?.price ?? s.price)} × {s.quantity}</span>
                       </div>
                       <button className="landing-ai-suggestion-btn" type="button" onClick={() => handleAddToCart(s)}>
-                        Đặt món
+                        Thêm vào giỏ
                       </button>
                     </div>
                   );
@@ -784,22 +741,25 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
               </div>
             )}
 
-            {thinking && (
+            {chat.thinking && (
               <div className="landing-chat-typing">
                 <span /><span /><span />
               </div>
             )}
           </div>
 
-          <form className="landing-ai-composer" onSubmit={(e) => send(e)}>
+          {chat.error && <p role="alert" className="landing-ai-error">{chat.error}</p>}
+
+          <form className="landing-ai-composer" onSubmit={(e) => chat.send(e)}>
             <input
               className="landing-ai-input"
               placeholder="Hỏi về thực đơn..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
+              value={chat.input}
+              maxLength={1000}
+              onChange={(e) => chat.setInput(e.target.value)}
               aria-label="Nhập tin nhắn"
             />
-            <button className="landing-ai-send" type="submit" disabled={thinking || !input.trim()} aria-label="Gửi">
+            <button className="landing-ai-send" type="submit" disabled={!chat.ready || !chat.chatSessionId || chat.thinking || !chat.input.trim()} aria-label="Gửi">
               <Send size={16} />
             </button>
           </form>

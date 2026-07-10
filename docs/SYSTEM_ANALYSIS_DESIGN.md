@@ -396,21 +396,24 @@ sequenceDiagram
     participant AS as ChatAssistantService (.NET)
     participant AI as Python AI Service
     participant R9 as 9router (gemini)
-    C->>API: POST /api/chat/sessions/{id}/messages {content, tableCode}
-    API->>AS: dựng context (menu từ RestaurantDataStore)
+    C->>API: POST /api/chat/sessions/{id}/messages {content}
+    API->>AS: đọc menu live + lịch sử trước lượt hiện tại
     AS->>AI: POST /v1/chat {message, history, menu_items}
-    AI->>AI: BM25 retrieve KB + guardrail flags (input)
-    AI->>R9: chat completion (temp 0.2)
-    R9-->>AI: raw answer
-    AI->>AI: output parser (clamp qty 1..20, ép requiresCustomerConfirmation=true)
-    AI-->>AS: {content, suggestedCartActions, guardrailFlags, providerAvailable}
-    AS->>AS: fallback an toàn nếu provider lỗi / schema sai
+    AI->>AI: TF-IDF retrieve menu/policy + guardrails
+    alt price/policy/action/guardrail fast path
+        AI-->>AS: deterministic grounded response
+    else grounded generation
+        AI->>R9: Gemini Flash completion (temp 0.2, max 220 tokens)
+        R9-->>AI: grounded prose
+    end
+    AI-->>AS: answer + sources + action candidates + latency
+    AS->>AS: canonicalize ID/name/price/availability; reject completion claims
     AS-->>API: câu trả lời an toàn
     API-->>C: message + suggestedCartActions (khách phải bấm Confirm)
 ```
 
-**Guardrail:** 5 cờ input (Python `guardrails.py`) + 2 cờ hệ thống backend thêm
-(`AI_PROVIDER_UNAVAILABLE`, `AI_OUTPUT_SCHEMA_INVALID`). AI **không** tự tạo đơn / sửa giỏ / bịa giá; mọi
+**Guardrail:** intent/availability checks run before the provider, generation is grounded in retrieved context,
+and the backend validates every action against PostgreSQL. AI **không** tự tạo đơn / sửa giỏ / bịa giá; mọi
 `suggestedCartAction` mang `requiresCustomerConfirmation=true`.
 
 ### 8.5 Đăng nhập + khoá tài khoản (P3)
@@ -454,11 +457,12 @@ enumeration.
 
 ## 11. AI / RAG Service
 
-FastAPI `:8001` — `GET /health`, `POST /v1/rag/search`, `POST /v1/chat`. Retrieval **Okapi BM25**
-(K1=1.5, B=0.75, title_boost=1.5, tag_boost=1.0, top_k=5) trên KB Markdown (`ai/knowledge-base/*.md`,
-chunk theo header). LLM `gemini` qua 9router (OpenAI-compat `:20128/v1`, temp 0.2). Pipeline:
-`retriever → prompts → 9router → output_parser`; `guardrails.py` gắn cờ input.
-**RAG là lexical, không phải vector** (dù entity `KnowledgeEntry.embedding` tồn tại — chưa dùng).
+FastAPI `:8001` — `GET /health`, `POST /v1/retrieval/search`, `POST /v1/chat`. Runtime reads the live
+91-item menu from the backend and uses the winner recorded in `production_config.json`. The reproducible
+study compares TF-IDF, BM25, a real multilingual embedding model and two RRF hybrids on identical qrels;
+TF-IDF won the locked-test selection rule and is therefore deployed. Gemini Flash through 9router only writes
+grounded prose when no deterministic fast path applies. Full protocol and limitations are in
+[`ACADEMIC_CHATBOT_V2.md`](ACADEMIC_CHATBOT_V2.md).
 
 ## 12. Triển Khai
 

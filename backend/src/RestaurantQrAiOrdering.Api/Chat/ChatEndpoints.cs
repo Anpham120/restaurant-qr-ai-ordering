@@ -1,25 +1,56 @@
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
+using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
 
 public static class ChatEndpoints
 {
+    private const int MaxMessageLength = 1000;
+
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/chat/sessions", (
+        app.MapPost("/api/chat/sessions", async (
             CreateChatSessionRequest? request,
             IChatStore chatStore,
-            ILoggerFactory loggerFactory) =>
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
         {
-            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
-            var session = chatStore.CreateSession(request?.TableCode, request?.TableSessionId);
-            logger.LogInformation("Created chat session {ChatSessionId}.", session.Id);
+            var tableSessionId = NormalizeOptional(request?.TableSessionId);
+            string? tableCode = null;
+            if (tableSessionId is not null)
+            {
+                var now = DateTimeOffset.UtcNow;
+                var tableSession = await db.TableSessions.AsNoTracking().FirstOrDefaultAsync(
+                    session => session.Id == tableSessionId,
+                    cancellationToken);
+                if (tableSession is null)
+                {
+                    return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
+                }
+                if (tableSession.Status != TableSessionStatus.Open || tableSession.ExpiresAt <= now)
+                {
+                    return ApiErrorFactory.Result(
+                        StatusCodes.Status410Gone,
+                        "TABLE_SESSION_EXPIRED",
+                        "Table session is closed or expired. Please scan the QR code again.");
+                }
+                tableCode = tableSession.TableCode;
+            }
+            else
+            {
+                tableCode = NormalizeOptional(request?.TableCode);
+            }
 
-            return Results.Created(
-                $"/api/chat/sessions/{session.Id}",
-                new CreateChatSessionResponse(session.Id, session.CreatedAt));
+            var (session, reused) = await chatStore.CreateOrGetSessionAsync(
+                tableCode,
+                tableSessionId,
+                cancellationToken);
+            return Results.Ok(new CreateChatSessionResponse(session.Id, session.CreatedAt, reused));
         })
-        .WithName("CreateChatSession")
+        .WithName("CreateOrRestoreChatSession")
         .WithTags("Chat");
 
         app.MapPost("/api/chat/sessions/{chatSessionId}/messages", async (
@@ -27,84 +58,81 @@ public static class ChatEndpoints
             SendChatMessageRequest? request,
             IChatStore chatStore,
             IChatAssistantService assistant,
-            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
-            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
             if (request is null)
             {
-                logger.LogWarning("Rejected chat message for session {ChatSessionId} because request body is missing.", chatSessionId);
                 return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
             }
-
-            if (string.IsNullOrWhiteSpace(request.Content))
+            var content = request.Content?.Trim();
+            if (string.IsNullOrWhiteSpace(content))
             {
-                logger.LogWarning("Rejected empty chat message for session {ChatSessionId}.", chatSessionId);
                 return ApiResults.BadRequest("CHAT_MESSAGE_EMPTY", "Chat message content is required.");
             }
-
-            var chatSession = chatStore.GetSession(chatSessionId);
-            if (chatSession is null)
+            if (content.Length > MaxMessageLength)
             {
-                logger.LogWarning("Rejected chat message because session {ChatSessionId} was not found.", chatSessionId);
+                return ApiResults.BadRequest(
+                    "CHAT_MESSAGE_TOO_LONG",
+                    $"Chat message must not exceed {MaxMessageLength} characters.");
+            }
+
+            var session = await chatStore.GetSessionAsync(chatSessionId, cancellationToken);
+            if (session is null)
+            {
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
-            var userMessage = chatStore.AddMessage(chatSessionId, "user", request.Content.Trim());
+            // Read history before persisting the current turn so the user message is
+            // represented exactly once in the downstream prompt.
+            var history = await chatStore.GetMessagesAsync(chatSessionId, 6, cancellationToken);
+            var userMessage = await chatStore.AddMessageAsync(
+                chatSessionId, "user", content, null, cancellationToken);
             if (userMessage is null)
             {
-                logger.LogWarning("Rejected chat message because session {ChatSessionId} disappeared before storage.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
-            var history = chatStore.GetMessages(chatSessionId) ?? [];
-            var tableCode = string.IsNullOrWhiteSpace(request.TableCode)
-                ? chatSession.TableCode
-                : request.TableCode.Trim();
-            var assistantReply = await assistant.GenerateReplyAsync(userMessage.Content, history, tableCode, cancellationToken);
-            var assistantMessage = chatStore.AddMessage(
+            var reply = await assistant.GenerateReplyAsync(
+                content,
+                history,
+                session.TableCode,
+                cancellationToken);
+            var assistantMessage = await chatStore.AddMessageAsync(
                 chatSessionId,
                 "assistant",
-                assistantReply.Content,
-                assistantReply.SuggestedCartActions);
-
+                reply.Content,
+                reply.SuggestedCartActions,
+                cancellationToken);
             if (assistantMessage is null)
             {
-                logger.LogWarning("Failed to store assistant reply because session {ChatSessionId} was not found.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
-
-            logger.LogInformation(
-                "Stored chat exchange for session {ChatSessionId} with {SuggestedActionCount} suggested actions and {GuardrailCount} guardrail flags.",
-                chatSessionId,
-                assistantReply.SuggestedCartActions.Count,
-                assistantReply.GuardrailFlags.Count);
 
             return Results.Ok(new SendChatMessageResponse(
                 ToResponse(assistantMessage),
-                assistantReply.SuggestedCartActions,
-                assistantReply.GuardrailFlags));
+                reply.SuggestedCartActions,
+                reply.GuardrailFlags,
+                reply.Diagnostics));
         })
         .WithName("SendChatMessage")
         .WithTags("Chat");
 
-        app.MapGet("/api/chat/sessions/{chatSessionId}/messages", (string chatSessionId, IChatStore chatStore, ILoggerFactory loggerFactory) =>
+        app.MapGet("/api/chat/sessions/{chatSessionId}/messages", async (
+            string chatSessionId,
+            IChatStore chatStore,
+            CancellationToken cancellationToken) =>
         {
-            var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
-            var session = chatStore.GetSession(chatSessionId);
+            var session = await chatStore.GetSessionAsync(chatSessionId, cancellationToken);
             if (session is null)
             {
-                logger.LogWarning("Rejected chat history request because session {ChatSessionId} was not found.", chatSessionId);
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
-
-            var response = new ChatHistoryResponse(
+            var messages = await chatStore.GetMessagesAsync(chatSessionId, null, cancellationToken);
+            return Results.Ok(new ChatHistoryResponse(
                 session.Id,
                 session.CreatedAt,
                 session.UpdatedAt,
-                session.Messages.Select(ToResponse).ToList());
-
-            return Results.Ok(response);
+                messages.Select(ToResponse).ToList()));
         })
         .WithName("GetChatHistory")
         .WithTags("Chat");
@@ -112,12 +140,13 @@ public static class ChatEndpoints
         return app;
     }
 
-    private static ChatMessageResponse ToResponse(ChatMessageSnapshot message)
-    {
-        return new ChatMessageResponse(
-            message.Id,
-            message.Role,
-            message.Content,
-            message.CreatedAt);
-    }
+    private static ChatMessageResponse ToResponse(ChatMessageSnapshot message) => new(
+        message.Id,
+        message.Role,
+        message.Content,
+        message.CreatedAt,
+        message.SuggestedCartActions);
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

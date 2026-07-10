@@ -8,80 +8,87 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public sealed class DbChatStore : IChatStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly RestaurantDbContext db;
 
-    private readonly RestaurantDbContext dbContext;
-
-    public DbChatStore(RestaurantDbContext dbContext)
+    public DbChatStore(RestaurantDbContext db)
     {
-        this.dbContext = dbContext;
+        this.db = db;
     }
 
-    public ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null)
+    public async Task<(ChatSessionSnapshot Session, bool Reused)> CreateOrGetSessionAsync(
+        string? tableCode,
+        string? tableSessionId,
+        CancellationToken cancellationToken)
     {
+        var normalizedTableSessionId = NormalizeOptional(tableSessionId);
+        if (normalizedTableSessionId is not null)
+        {
+            var existing = await db.ChatSessions
+                .AsNoTracking()
+                .Where(session => session.TableSessionId == normalizedTableSessionId && !session.IsClosed)
+                .OrderByDescending(session => session.UpdatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existing is not null)
+            {
+                return (ToSnapshot(existing), true);
+            }
+        }
+
         var now = DateTimeOffset.UtcNow;
         var session = new ChatSession
         {
             Id = $"chat_{Guid.NewGuid():N}",
             TableCode = NormalizeOptional(tableCode),
-            TableSessionId = NormalizeOptional(tableSessionId),
+            TableSessionId = normalizedTableSessionId,
             CreatedAt = now,
-            UpdatedAt = now
+            UpdatedAt = now,
+            IsClosed = false
         };
-
-        dbContext.ChatSessions.Add(session);
-        dbContext.SaveChanges();
-
-        return ToSnapshot(session);
+        db.ChatSessions.Add(session);
+        await db.SaveChangesAsync(cancellationToken);
+        return (ToSnapshot(session), false);
     }
 
-    public int DeleteSessionsByTableSession(string tableSessionId)
+    public async Task<ChatSessionSnapshot?> GetSessionAsync(
+        string chatSessionId,
+        CancellationToken cancellationToken)
     {
-        var normalized = NormalizeOptional(tableSessionId);
-        if (normalized is null)
-        {
-            return 0;
-        }
-
-        // Messages xóa theo cascade (FK ChatMessage -> ChatSession).
-        var sessions = dbContext.ChatSessions
-            .Include(session => session.Messages)
-            .Where(session => session.TableSessionId == normalized)
-            .ToList();
-
-        if (sessions.Count == 0)
-        {
-            return 0;
-        }
-
-        dbContext.ChatSessions.RemoveRange(sessions);
-        dbContext.SaveChanges();
-        return sessions.Count;
-    }
-
-    public ChatSessionSnapshot? GetSession(string chatSessionId)
-    {
-        var session = FindSession(chatSessionId);
+        var session = await db.ChatSessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(value => value.Id == chatSessionId && !value.IsClosed, cancellationToken);
         return session is null ? null : ToSnapshot(session);
     }
 
-    public IReadOnlyList<ChatMessageSnapshot>? GetMessages(string chatSessionId)
+    public async Task<IReadOnlyList<ChatMessageSnapshot>> GetMessagesAsync(
+        string chatSessionId,
+        int? limit,
+        CancellationToken cancellationToken)
     {
-        var session = FindSession(chatSessionId);
-        return session is null
-            ? null
-            : session.Messages
-                .OrderBy(message => message.CreatedAt)
-                .Select(ToMessageSnapshot)
-                .ToList();
+        var query = db.ChatMessages
+            .AsNoTracking()
+            .Where(message => message.ChatSessionId == chatSessionId)
+            .OrderByDescending(message => message.CreatedAt)
+            .AsQueryable();
+        if (limit is > 0)
+        {
+            query = query.Take(limit.Value);
+        }
+        var messages = await query.ToListAsync(cancellationToken);
+        return messages
+            .OrderBy(message => message.CreatedAt)
+            .Select(ToMessageSnapshot)
+            .ToList();
     }
 
-    public ChatMessageSnapshot? AddMessage(
+    public async Task<ChatMessageSnapshot?> AddMessageAsync(
         string chatSessionId,
         string role,
         string content,
-        IReadOnlyList<SuggestedCartActionResponse>? suggestedCartActions = null)
+        IReadOnlyList<SuggestedCartActionResponse>? suggestedCartActions,
+        CancellationToken cancellationToken)
     {
-        var session = FindSession(chatSessionId);
+        var session = await db.ChatSessions
+            .FirstOrDefaultAsync(value => value.Id == chatSessionId && !value.IsClosed, cancellationToken);
         if (session is null)
         {
             return null;
@@ -99,46 +106,48 @@ public sealed class DbChatStore : IChatStore
                 : null,
             CreatedAt = now
         };
-
-        session.Messages.Add(message);
+        db.ChatMessages.Add(message);
         session.UpdatedAt = now;
-        dbContext.SaveChanges();
-
+        await db.SaveChangesAsync(cancellationToken);
         return ToMessageSnapshot(message);
     }
 
-    private ChatSession? FindSession(string chatSessionId)
+    public async Task<int> DeleteSessionsByTableSessionAsync(
+        string tableSessionId,
+        CancellationToken cancellationToken)
     {
-        return dbContext.ChatSessions
-            .Include(session => session.Messages)
-            .FirstOrDefault(session =>
-                session.Id.Equals(chatSessionId, StringComparison.OrdinalIgnoreCase));
+        var normalized = NormalizeOptional(tableSessionId);
+        if (normalized is null)
+        {
+            return 0;
+        }
+        var sessions = await db.ChatSessions
+            .Where(session => session.TableSessionId == normalized)
+            .ToListAsync(cancellationToken);
+        if (sessions.Count == 0)
+        {
+            return 0;
+        }
+        db.ChatSessions.RemoveRange(sessions);
+        await db.SaveChangesAsync(cancellationToken);
+        return sessions.Count;
     }
 
-    private static ChatSessionSnapshot ToSnapshot(ChatSession session)
-    {
-        return new ChatSessionSnapshot(
-            session.Id,
-            session.TableCode,
-            session.CreatedAt,
-            session.UpdatedAt,
-            session.Messages
-                .OrderBy(message => message.CreatedAt)
-                .Select(ToMessageSnapshot)
-                .ToList(),
-            session.TableSessionId);
-    }
+    private static ChatSessionSnapshot ToSnapshot(ChatSession session) => new(
+        session.Id,
+        session.TableCode,
+        session.CreatedAt,
+        session.UpdatedAt,
+        session.TableSessionId,
+        session.IsClosed);
 
-    private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message)
-    {
-        return new ChatMessageSnapshot(
-            message.Id,
-            message.ChatSessionId,
-            message.Role,
-            message.Content,
-            message.CreatedAt,
-            DeserializeActions(message.SuggestedCartActionsJson));
-    }
+    private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message) => new(
+        message.Id,
+        message.ChatSessionId,
+        message.Role,
+        message.Content,
+        message.CreatedAt,
+        DeserializeActions(message.SuggestedCartActionsJson));
 
     private static IReadOnlyList<SuggestedCartActionResponse> DeserializeActions(string? json)
     {
@@ -146,7 +155,6 @@ public sealed class DbChatStore : IChatStore
         {
             return [];
         }
-
         try
         {
             return JsonSerializer.Deserialize<IReadOnlyList<SuggestedCartActionResponse>>(json, JsonOptions) ?? [];
@@ -157,8 +165,6 @@ public sealed class DbChatStore : IChatStore
         }
     }
 
-    private static string? NormalizeOptional(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

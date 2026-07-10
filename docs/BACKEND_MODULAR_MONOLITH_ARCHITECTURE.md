@@ -376,4 +376,4 @@ tests/
 
 - [BACKEND_DATABASE_SETUP.md](./BACKEND_DATABASE_SETUP.md) - Hướng dẫn cấu hình PostgreSQL + EF Core migrations
 - [API_CONTRACT.md](./API_CONTRACT.md) - API specification
-- [AI_CHATBOT.md](./AI_CHATBOT.md) - AI integration details
+- [ACADEMIC_CHATBOT_V2.md](./ACADEMIC_CHATBOT_V2.md) - AI integration, experiments and production decision

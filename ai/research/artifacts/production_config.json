@@ -1,0 +1,8 @@
+{
+  "method": "tfidf",
+  "selection_rule": "Highest locked-test macro slice nDCG@10; methods within 0.005 use the lower P95 query latency.",
+  "config": {},
+  "threshold": 0.23012074475944605,
+  "embedding_model": null,
+  "embedding_model_sha256": "634d0f66c29dc934c8fa72b8a4fe91dd4d420a22f1d82a241058d4316e659a99"
+}

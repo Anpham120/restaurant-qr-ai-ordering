@@ -32,6 +32,8 @@ export type {
 } from "./order";
 export type {
   ChatGuardrailFlag,
+  ChatDiagnostics,
+  ChatHistoryResponse,
   ChatMessage,
   ChatRole,
   CreateChatSessionRequest,
@@ -39,6 +41,6 @@ export type {
   SendChatMessageRequest,
   SendChatMessageResponse,
   SuggestedCartAction,
+  RetrievedSource,
 } from "./chat";
-
 

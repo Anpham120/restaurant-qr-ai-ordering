@@ -20,6 +20,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 ai/.venv/
+.venv/
+.cache/
 
 # Local environment and generated artifacts
 .env

@@ -1,22 +1,39 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
-using RestaurantQrAiOrdering.Entities;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
+
+public sealed record ChatMenuItemContext(
+    string Id,
+    string CategoryId,
+    string CategoryName,
+    string Name,
+    string Description,
+    decimal PriceVnd,
+    IReadOnlyList<string> Tags,
+    bool IsAvailable);
 
 public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
-    IReadOnlyList<MenuItem> AvailableMenuItems,
-    string? TableCode = null);
+    IReadOnlyList<ChatMenuItemContext> MenuItems,
+    string? TableCode);
+
+public sealed record AiSuggestedAction(string MenuItemId, int Quantity, string Reason);
 
 public sealed record ChatAiResult(
     string Content,
-    bool ProviderAvailable,
-    IReadOnlyList<SuggestedCartActionResponse>? SuggestedCartActions = null,
-    IReadOnlyList<string>? GuardrailFlags = null);
+    bool ServiceAvailable,
+    bool LlmProviderAvailable,
+    string Model,
+    string RetrievalMethod,
+    string? FastPath,
+    IReadOnlyList<AiSuggestedAction> SuggestedActions,
+    IReadOnlyList<string> GuardrailFlags,
+    IReadOnlyList<RetrievedSourceResponse> RetrievedSources,
+    IReadOnlyDictionary<string, double> LatencyMs);
 
 public interface IChatAiProvider
 {
@@ -35,340 +52,198 @@ public interface IChatAssistantService
 public sealed record ChatAssistantReply(
     string Content,
     IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions,
-    IReadOnlyList<string> GuardrailFlags);
+    IReadOnlyList<string> GuardrailFlags,
+    ChatDiagnosticsResponse Diagnostics);
 
-public sealed class NineRouterChatProvider : IChatAiProvider
+public sealed class PythonAcademicChatProvider : IChatAiProvider
 {
     private readonly HttpClient httpClient;
     private readonly IConfiguration configuration;
-    private readonly ILogger<NineRouterChatProvider> logger;
+    private readonly ILogger<PythonAcademicChatProvider> logger;
 
-    public NineRouterChatProvider(
+    public PythonAcademicChatProvider(
         HttpClient httpClient,
         IConfiguration configuration,
-        ILogger<NineRouterChatProvider> logger)
+        ILogger<PythonAcademicChatProvider> logger)
     {
         this.httpClient = httpClient;
         this.configuration = configuration;
         this.logger = logger;
     }
 
-    public async Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
-    {
-        var provider = configuration["AI_PROVIDER"] ?? configuration["Ai:Provider"];
-        if (string.Equals(provider, "python-rag", StringComparison.OrdinalIgnoreCase))
-        {
-            return await GenerateWithPythonRagAsync(request, cancellationToken);
-        }
-
-        var baseUrl = configuration["AI_BASE_URL"] ?? configuration["Ai:BaseUrl"];
-        var apiKey = configuration["AI_API_KEY"] ?? configuration["Ai:ApiKey"];
-        var model = configuration["AI_MODEL"] ?? configuration["Ai:Model"];
-
-        if (!string.Equals(provider, "9router", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(baseUrl)
-            || string.IsNullOrWhiteSpace(apiKey)
-            || string.IsNullOrWhiteSpace(model))
-        {
-            return Unavailable();
-        }
-
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
-        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
-        var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
-        for (var attempt = 0; attempt <= maxRetry; attempt++)
-        {
-            try
-            {
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = JsonContent.Create(new
-                    {
-                        model,
-                        stream = false,
-                        temperature = 0.2,
-                        messages = BuildMessages(request)
-                    })
-                };
-
-                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-                using var response = await httpClient.SendAsync(httpRequest, timeoutCts.Token);
-                if (!response.IsSuccessStatusCode)
-                {
-                    logger.LogWarning("AI provider returned HTTP {StatusCode}.", (int)response.StatusCode);
-                    continue;
-                }
-
-                using var payload = await JsonDocument.ParseAsync(
-                    await response.Content.ReadAsStreamAsync(timeoutCts.Token),
-                    cancellationToken: timeoutCts.Token);
-
-                var content = ExtractAssistantContent(payload.RootElement);
-                if (!string.IsNullOrWhiteSpace(content))
-                {
-                    // Try to parse structured JSON from LLM (content may be JSON)
-                    var (parsedContent, actions, flags) = TryParseStructuredContent(content.Trim(), request.AvailableMenuItems);
-                    return new ChatAiResult(parsedContent, ProviderAvailable: true, actions, flags);
-                }
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
-            {
-                logger.LogWarning(exception, "AI provider request failed.");
-            }
-        }
-
-        return Unavailable();
-    }
-
-    private async Task<ChatAiResult> GenerateWithPythonRagAsync(ChatAiRequest request, CancellationToken cancellationToken)
+    public async Task<ChatAiResult> GenerateAsync(
+        ChatAiRequest request,
+        CancellationToken cancellationToken)
     {
         var serviceUrl = configuration["AI_SERVICE_URL"] ?? configuration["Ai:ServiceUrl"];
         if (string.IsNullOrWhiteSpace(serviceUrl))
         {
             return Unavailable();
         }
-
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
-        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
-        var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat";
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
+        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", 8);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         var payload = new
         {
             message = request.UserMessage,
             table_code = request.TableCode,
-            history = request.History
-                .TakeLast(8)
-                .Select(message => new
-                {
-                    role = message.Role,
-                    content = message.Content
-                }),
-            menu_items = request.AvailableMenuItems.Select(item => new
+            history = request.History.TakeLast(6).Select(item => new { role = item.Role, content = item.Content }),
+            menu_items = request.MenuItems.Select(item => new
             {
                 id = item.Id,
                 category_id = item.CategoryId,
+                category_name = item.CategoryName,
                 name = item.Name,
                 description = item.Description,
-                price_vnd = item.Price,
+                price_vnd = item.PriceVnd,
                 tags = item.Tags,
                 is_available = item.IsAvailable
             })
         };
 
-        for (var attempt = 0; attempt <= maxRetry; attempt++)
+        try
         {
-            try
-            {
-                using var response = await httpClient.PostAsJsonAsync(endpoint, payload, timeoutCts.Token);
-                if (!response.IsSuccessStatusCode)
-                {
-                    logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
-                    continue;
-                }
-
-                using var json = await JsonDocument.ParseAsync(
-                    await response.Content.ReadAsStreamAsync(timeoutCts.Token),
-                    cancellationToken: timeoutCts.Token);
-
-                var content = ExtractPythonRagContent(json.RootElement);
-                if (!string.IsNullOrWhiteSpace(content))
-                {
-                    var actions = ExtractPythonSuggestedActions(json.RootElement, request.AvailableMenuItems);
-                    var flags = ExtractPythonGuardrailFlags(json.RootElement);
-                    return new ChatAiResult(content.Trim(), ProviderAvailable: ExtractProviderAvailable(json.RootElement), actions, flags);
-                }
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
-            {
-                logger.LogWarning(exception, "Python AI service request failed.");
-            }
+            using var response = await httpClient.PostAsJsonAsync(
+                $"{serviceUrl.TrimEnd('/')}/v1/chat", payload, timeout.Token);
+            response.EnsureSuccessStatusCode();
+            using var json = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(timeout.Token), cancellationToken: timeout.Token);
+            return Parse(json.RootElement);
         }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            logger.LogWarning(exception, "Academic AI service request failed.");
+            return Unavailable();
+        }
+    }
 
-        return Unavailable();
+    private ChatAiResult Parse(JsonElement root)
+    {
+        var content = GetString(root, "content")?.Trim();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return Unavailable();
+        }
+        return new ChatAiResult(
+            content,
+            ServiceAvailable: true,
+            LlmProviderAvailable: root.TryGetProperty("provider_available", out var provider) && provider.ValueKind == JsonValueKind.True,
+            Model: GetString(root, "model") ?? configuration["AI_MODEL"] ?? "unknown",
+            RetrievalMethod: GetString(root, "retrieval_method") ?? "unknown",
+            FastPath: GetString(root, "fast_path"),
+            SuggestedActions: ParseActions(root),
+            GuardrailFlags: ParseStrings(root, "guardrail_flags"),
+            RetrievedSources: ParseSources(root),
+            LatencyMs: ParseLatency(root));
+    }
+
+    private static List<AiSuggestedAction> ParseActions(JsonElement root)
+    {
+        var output = new List<AiSuggestedAction>();
+        if (!root.TryGetProperty("suggested_cart_actions", out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return output;
+        }
+        foreach (var item in array.EnumerateArray())
+        {
+            var id = GetString(item, "menu_item_id")?.Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+            var quantity = item.TryGetProperty("quantity", out var quantityValue) && quantityValue.TryGetInt32(out var parsed)
+                ? Math.Clamp(parsed, 1, 20)
+                : 1;
+            output.Add(new AiSuggestedAction(id, quantity, GetString(item, "reason") ?? "Gợi ý theo menu hiện tại."));
+        }
+        return output;
+    }
+
+    private static List<RetrievedSourceResponse> ParseSources(JsonElement root)
+    {
+        var output = new List<RetrievedSourceResponse>();
+        if (!root.TryGetProperty("retrieved_sources", out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return output;
+        }
+        foreach (var item in array.EnumerateArray())
+        {
+            output.Add(new RetrievedSourceResponse(
+                GetString(item, "source") ?? "unknown",
+                GetString(item, "title") ?? "unknown",
+                item.TryGetProperty("score", out var score) && score.TryGetDouble(out var value) ? value : 0));
+        }
+        return output;
+    }
+
+    private static Dictionary<string, double> ParseLatency(JsonElement root)
+    {
+        var output = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        if (!root.TryGetProperty("latency_ms", out var latency) || latency.ValueKind != JsonValueKind.Object)
+        {
+            return output;
+        }
+        foreach (var property in latency.EnumerateObject())
+        {
+            if (property.Value.TryGetDouble(out var value)) output[property.Name] = value;
+        }
+        return output;
+    }
+
+    private static List<string> ParseStrings(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        return array.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString()?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private int ReadPositiveInt(string key, int defaultValue)
     {
-        var rawValue = configuration[key] ?? configuration[$"Ai:{key[3..]}"];
-        return int.TryParse(rawValue, out var value) && value > 0 ? value : defaultValue;
+        var raw = configuration[key] ?? configuration[$"Ai:{key[3..]}"];
+        return int.TryParse(raw, out var value) && value > 0 ? value : defaultValue;
     }
 
-    private static object[] BuildMessages(ChatAiRequest request)
-    {
-        var menuContext = string.Join(
-            "\n",
-            request.AvailableMenuItems
-                .Take(8)
-                .Select(item => $"- {item.Id}: {item.Name}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
-
-        var recentHistory = request.History
-            .TakeLast(8)
-            .Select(message => new
-            {
-                role = message.Role,
-                content = message.Content
-            });
-
-        return
-        [
-            new
-            {
-                role = "system",
-                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. Do not create orders, do not make payments, do not add items to cart. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese."
-            },
-            new
-            {
-                role = "system",
-                content = $"Available menu context:\n{menuContext}"
-            },
-            .. recentHistory,
-            new
-            {
-                role = "user",
-                content = request.UserMessage
-            }
-        ];
-    }
-
-    private static string? ExtractAssistantContent(JsonElement root)
-    {
-        if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var firstChoice = choices.EnumerateArray().FirstOrDefault();
-        if (firstChoice.ValueKind == JsonValueKind.Undefined)
-        {
-            return null;
-        }
-
-        if (firstChoice.TryGetProperty("message", out var message)
-            && message.TryGetProperty("content", out var content)
-            && content.ValueKind == JsonValueKind.String)
-        {
-            return content.GetString();
-        }
-
-        if (firstChoice.TryGetProperty("text", out var text)
-            && text.ValueKind == JsonValueKind.String)
-        {
-            return text.GetString();
-        }
-
-        return null;
-    }
-
-    private static string? ExtractPythonRagContent(JsonElement root)
-    {
-        return root.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String
-            ? content.GetString()
+    private static string? GetString(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
             : null;
-    }
 
-    private static bool ExtractProviderAvailable(JsonElement root)
-    {
-        return root.TryGetProperty("provider_available", out var providerAvailable)
-            && providerAvailable.ValueKind == JsonValueKind.True;
-    }
-
-    private static List<SuggestedCartActionResponse> ExtractPythonSuggestedActions(
-        JsonElement root, IReadOnlyList<MenuItem> availableMenuItems)
-    {
-        var results = new List<SuggestedCartActionResponse>();
-        if (!root.TryGetProperty("suggested_cart_actions", out var actionsElement)
-            || actionsElement.ValueKind != JsonValueKind.Array)
-        {
-            return results;
-        }
-
-        var availableIds = new HashSet<string>(availableMenuItems.Select(m => m.Id));
-        var menuLookup = availableMenuItems.ToDictionary(m => m.Id);
-
-        foreach (var action in actionsElement.EnumerateArray())
-        {
-            var menuItemId = action.TryGetProperty("menu_item_id", out var mid) ? mid.GetString() ?? "" : "";
-            if (!availableIds.Contains(menuItemId)) continue;
-
-            var menuItem = menuLookup[menuItemId];
-            var name = action.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
-                ? n.GetString() ?? menuItem.Name : menuItem.Name;
-            var quantity = action.TryGetProperty("quantity", out var q) && q.TryGetInt32(out var qv)
-                ? Math.Clamp(qv, 1, 20) : 1;
-            var reason = action.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String
-                ? r.GetString() ?? "" : "";
-
-            results.Add(new SuggestedCartActionResponse(
-                menuItemId, name, menuItem.Price, quantity, reason,
-                RequiresCustomerConfirmation: true));
-        }
-        return results;
-    }
-
-    private static List<string> ExtractPythonGuardrailFlags(JsonElement root)
-    {
-        var results = new List<string>();
-        if (!root.TryGetProperty("guardrail_flags", out var flagsElement)
-            || flagsElement.ValueKind != JsonValueKind.Array)
-        {
-            return results;
-        }
-        foreach (var flag in flagsElement.EnumerateArray())
-        {
-            if (flag.ValueKind == JsonValueKind.String)
-            {
-                var value = flag.GetString()?.Trim();
-                if (!string.IsNullOrEmpty(value)) results.Add(value);
-            }
-        }
-        return results;
-    }
-
-    private static (string Content, List<SuggestedCartActionResponse> Actions, List<string> Flags)
-        TryParseStructuredContent(string rawContent, IReadOnlyList<MenuItem> availableMenuItems)
-    {
-        // LLM may return JSON with content + suggested_cart_actions
-        try
-        {
-            using var doc = JsonDocument.Parse(rawContent);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("content", out var contentEl) && contentEl.ValueKind == JsonValueKind.String)
-            {
-                var content = contentEl.GetString()?.Trim() ?? rawContent;
-                var actions = ExtractPythonSuggestedActions(root, availableMenuItems);
-                var flags = ExtractPythonGuardrailFlags(root);
-                return (content, actions, flags);
-            }
-        }
-        catch (JsonException) { /* not JSON, use raw content */ }
-        return (rawContent, [], []);
-    }
-
-    private static ChatAiResult Unavailable()
-    {
-        return new ChatAiResult(
-            "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
-            ProviderAvailable: false);
-    }
+    private static ChatAiResult Unavailable() => new(
+        "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem menu và gọi món trực tiếp.",
+        ServiceAvailable: false,
+        LlmProviderAvailable: false,
+        Model: "unavailable",
+        RetrievalMethod: "unavailable",
+        FastPath: "service_fallback",
+        SuggestedActions: [],
+        GuardrailFlags: ["AI_SERVICE_UNAVAILABLE"],
+        RetrievedSources: [],
+        LatencyMs: new Dictionary<string, double>());
 }
 
 public sealed class ChatAssistantService : IChatAssistantService
 {
-    private readonly RestaurantDataStore restaurantData;
-    private readonly IChatAiProvider aiProvider;
+    private static readonly string[] ForbiddenCompletionClaims =
+    [
+        "đã đặt món",
+        "đã thêm vào giỏ",
+        "đã gửi đơn",
+        "đã thanh toán",
+        "đơn của bạn đã được tạo"
+    ];
 
-    public ChatAssistantService(RestaurantDataStore restaurantData, IChatAiProvider aiProvider)
+    private readonly RestaurantDbContext db;
+    private readonly IChatAiProvider provider;
+
+    public ChatAssistantService(RestaurantDbContext db, IChatAiProvider provider)
     {
-        this.restaurantData = restaurantData;
-        this.aiProvider = aiProvider;
+        this.db = db;
+        this.provider = provider;
     }
 
     public async Task<ChatAssistantReply> GenerateReplyAsync(
@@ -377,133 +252,72 @@ public sealed class ChatAssistantService : IChatAssistantService
         string? tableCode,
         CancellationToken cancellationToken)
     {
-        var normalizedMessage = Normalize(userMessage);
-        if (IsOutOfScope(normalizedMessage))
-        {
-            return new ChatAssistantReply(
-                "Mình chỉ hỗ trợ chọn món, hỏi đáp thực đơn và gợi ý giỏ hàng an toàn cho CMC Restaurant.",
-                [],
-                ["OUT_OF_SCOPE"]);
-        }
-
-        var menuItems = restaurantData.GetMenuItems();
-        var unavailableMatch = menuItems.FirstOrDefault(item =>
-            !item.IsAvailable && normalizedMessage.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase));
-
-        if (unavailableMatch is not null)
-        {
-            return new ChatAssistantReply(
-                $"{unavailableMatch.Name} hiện đang hết hàng nên mình không thể gợi ý thêm món này vào giỏ.",
-                [],
-                ["MENU_ITEM_UNAVAILABLE"]);
-        }
-
-        var availableMenuItems = menuItems.Where(item => item.IsAvailable).ToList();
-        var providerResult = await aiProvider.GenerateAsync(
-            new ChatAiRequest(userMessage, history, availableMenuItems, tableCode),
+        var categories = await db.Categories.AsNoTracking().ToDictionaryAsync(
+            category => category.Id,
+            category => category.Name,
             cancellationToken);
+        var entities = await db.MenuItems.AsNoTracking().OrderBy(item => item.Id).ToListAsync(cancellationToken);
+        var menu = entities.Select(item => new ChatMenuItemContext(
+            item.Id,
+            item.CategoryId,
+            categories.GetValueOrDefault(item.CategoryId, item.CategoryId),
+            item.Name,
+            item.Description ?? string.Empty,
+            item.Price,
+            item.Tags,
+            item.IsAvailable)).ToList();
 
-        if (!providerResult.ProviderAvailable)
+        var result = await provider.GenerateAsync(
+            new ChatAiRequest(userMessage, history, menu, tableCode),
+            cancellationToken);
+        var flags = result.GuardrailFlags.ToList();
+        if (!result.ServiceAvailable && !flags.Contains("AI_SERVICE_UNAVAILABLE"))
         {
-            return new ChatAssistantReply(
-                providerResult.Content,
-                [],
-                ["AI_PROVIDER_UNAVAILABLE"]);
+            flags.Add("AI_SERVICE_UNAVAILABLE");
         }
 
-        // Use AI-provided suggestions if available, fallback to string-matching
-        IReadOnlyList<SuggestedCartActionResponse> suggestedActions;
-        if (providerResult.SuggestedCartActions is { Count: > 0 } aiActions)
+        var available = entities.Where(item => item.IsAvailable).ToDictionary(item => item.Id);
+        var actions = result.SuggestedActions
+            .Where(action => available.ContainsKey(action.MenuItemId))
+            .GroupBy(action => action.MenuItemId)
+            .Select(group => group.First())
+            .Take(3)
+            .Select(action =>
+            {
+                var item = available[action.MenuItemId];
+                return new SuggestedCartActionResponse(
+                    item.Id,
+                    item.Name,
+                    item.Price,
+                    Math.Clamp(action.Quantity, 1, 20),
+                    action.Reason,
+                    RequiresCustomerConfirmation: true);
+            })
+            .ToList();
+        if (actions.Count > 0 && !flags.Contains("CUSTOMER_CONFIRMATION_REQUIRED"))
         {
-            suggestedActions = aiActions;
-        }
-        else
-        {
-            var fallbackAction = BuildSuggestedAction(normalizedMessage, availableMenuItems);
-            suggestedActions = fallbackAction is null ? [] : [fallbackAction];
+            flags.Add("CUSTOMER_CONFIRMATION_REQUIRED");
         }
 
-        var guardrailFlags = new List<string>(providerResult.GuardrailFlags ?? []);
-        if (suggestedActions.Count > 0 && !guardrailFlags.Contains("CUSTOMER_CONFIRMATION_REQUIRED"))
+        var content = result.Content;
+        if (ForbiddenCompletionClaims.Any(claim => content.Contains(claim, StringComparison.OrdinalIgnoreCase)))
         {
-            guardrailFlags.Add("CUSTOMER_CONFIRMATION_REQUIRED");
+            content = "Mình chỉ có thể tư vấn và tạo gợi ý. Bạn phải tự xác nhận trên giao diện trước khi giỏ hàng hoặc đơn hàng thay đổi.";
+            flags.Add("AI_OUTPUT_POLICY_VIOLATION");
+            actions.Clear();
         }
 
         return new ChatAssistantReply(
-            providerResult.Content,
-            suggestedActions,
-            guardrailFlags);
-    }
-
-    private static SuggestedCartActionResponse? BuildSuggestedAction(
-        string normalizedMessage,
-        IReadOnlyList<MenuItem> availableMenuItems)
-    {
-        if (availableMenuItems.Count == 0)
-        {
-            return null;
-        }
-
-        var item = availableMenuItems.FirstOrDefault(menuItem =>
-            normalizedMessage.Contains(Normalize(menuItem.Name), StringComparison.OrdinalIgnoreCase)
-            || menuItem.Tags.Any(tag => normalizedMessage.Contains(Normalize(tag), StringComparison.OrdinalIgnoreCase)));
-
-        item ??= ShouldSuggestDefaultItem(normalizedMessage)
-            ? availableMenuItems.FirstOrDefault(menuItem =>
-                menuItem.Tags.Any(tag => Normalize(tag).Equals("pho bien", StringComparison.OrdinalIgnoreCase)))
-                ?? availableMenuItems.FirstOrDefault()
-            : null;
-
-        if (item is null)
-        {
-            return null;
-        }
-
-        return new SuggestedCartActionResponse(
-            item.Id,
-            item.Name,
-            item.Price,
-            Quantity: 1,
-            Reason: "Mon con ban trong menu hien tai va can khach xac nhan truoc khi them vao gio.",
-            RequiresCustomerConfirmation: true);
-    }
-
-    private static bool ShouldSuggestDefaultItem(string normalizedMessage)
-    {
-        var suggestionTerms = new[]
-        {
-            "goi y",
-            "tu van",
-            "mon",
-            "an gi",
-            "2 nguoi",
-            "mot nguoi",
-            "khai vi",
-            "mon chinh",
-            "do uong",
-            "trang mieng"
-        };
-
-        return suggestionTerms.Any(term => normalizedMessage.Contains(term, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool IsOutOfScope(string normalizedMessage)
-    {
-        var outOfScopeTerms = new[]
-        {
-            "python",
-            "code",
-            "lap trinh",
-            "javascript",
-            "hack",
-            "sql injection"
-        };
-
-        return outOfScopeTerms.Any(term => normalizedMessage.Contains(term, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string Normalize(string value)
-    {
-        return value.Trim().ToLowerInvariant();
+            content,
+            actions,
+            flags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            new ChatDiagnosticsResponse(
+                result.ServiceAvailable,
+                result.LlmProviderAvailable,
+                result.Model,
+                result.RetrievalMethod,
+                result.FastPath,
+                result.LatencyMs,
+                result.RetrievedSources));
     }
 }

@@ -19,13 +19,12 @@ public sealed class ChatEndpointTests
         using var createBody = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var chatSessionId = createBody.RootElement.GetProperty("chatSessionId").GetString();
 
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(chatSessionId));
 
         using var sendResponse = await client.PostAsJsonAsync($"/api/chat/sessions/{chatSessionId}/messages", new
         {
             content = "Goi y mon cho 2 nguoi",
-            tableCode = "T05"
         });
         using var sendBody = await JsonDocument.ParseAsync(await sendResponse.Content.ReadAsStreamAsync());
 
@@ -40,6 +39,7 @@ public sealed class ChatEndpointTests
         Assert.Equal(65000, actions[0].GetProperty("price").GetDecimal());
         Assert.True(actions[0].GetProperty("requiresCustomerConfirmation").GetBoolean());
         Assert.Contains("CUSTOMER_CONFIRMATION_REQUIRED", flags);
+        Assert.Equal("tfidf", root.GetProperty("diagnostics").GetProperty("retrievalMethod").GetString());
 
         using var historyResponse = await client.GetAsync($"/api/chat/sessions/{chatSessionId}/messages");
         using var historyBody = await JsonDocument.ParseAsync(await historyResponse.Content.ReadAsStreamAsync());
@@ -69,7 +69,7 @@ public sealed class ChatEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Empty(body.RootElement.GetProperty("suggestedCartActions").EnumerateArray());
-        Assert.Contains("AI_PROVIDER_UNAVAILABLE", flags);
+        Assert.Contains("AI_SERVICE_UNAVAILABLE", flags);
 
         using var historyResponse = await client.GetAsync($"/api/chat/sessions/{chatSessionId}/messages");
         using var historyBody = await JsonDocument.ParseAsync(await historyResponse.Content.ReadAsStreamAsync());
@@ -122,6 +122,38 @@ public sealed class ChatEndpointTests
         Assert.Equal("REQUEST_INVALID", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task TableChat_ReusesSessionAndDeletesMemoryWhenTableSessionCloses()
+    {
+        await using var factory = CreateFactoryWithProvider(new AvailableChatAiProvider());
+        using var client = factory.CreateClient();
+        using var tableResponse = await client.PostAsJsonAsync("/api/table-sessions", new
+        {
+            tableCode = "T05",
+            qrToken = "cmc-table-t05-qr"
+        });
+        using var tableBody = await JsonDocument.ParseAsync(await tableResponse.Content.ReadAsStreamAsync());
+        var tableSessionId = tableBody.RootElement.GetProperty("sessionId").GetString()!;
+
+        using var first = await client.PostAsJsonAsync("/api/chat/sessions", new { tableSessionId });
+        using var firstBody = await JsonDocument.ParseAsync(await first.Content.ReadAsStreamAsync());
+        var chatSessionId = firstBody.RootElement.GetProperty("chatSessionId").GetString()!;
+        using var second = await client.PostAsJsonAsync("/api/chat/sessions", new { tableSessionId });
+        using var secondBody = await JsonDocument.ParseAsync(await second.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, tableResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.False(firstBody.RootElement.GetProperty("reused").GetBoolean());
+        Assert.Equal(chatSessionId, secondBody.RootElement.GetProperty("chatSessionId").GetString());
+        Assert.True(secondBody.RootElement.GetProperty("reused").GetBoolean());
+
+        using var close = await client.PostAsync($"/api/table-sessions/{tableSessionId}/close", content: null);
+        using var history = await client.GetAsync($"/api/chat/sessions/{chatSessionId}/messages");
+
+        Assert.Equal(HttpStatusCode.OK, close.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, history.StatusCode);
+    }
+
     private static TestWebApplicationFactory CreateFactoryWithProvider(IChatAiProvider provider)
     {
         return new ChatTestWebApplicationFactory(provider);
@@ -137,7 +169,7 @@ public sealed class ChatEndpointTests
         using var response = await client.PostAsync("/api/chat/sessions", content: null);
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return body.RootElement.GetProperty("chatSessionId").GetString()!;
     }
 
@@ -147,7 +179,15 @@ public sealed class ChatEndpointTests
         {
             return Task.FromResult(new ChatAiResult(
                 "Ban co the chon Goi cuon tom thit. Minh chi de xuat va can ban xac nhan truoc khi them vao gio.",
-                ProviderAvailable: true));
+                ServiceAvailable: true,
+                LlmProviderAvailable: true,
+                Model: "test-model",
+                RetrievalMethod: "tfidf",
+                FastPath: null,
+                SuggestedActions: [new AiSuggestedAction("m_001", 1, "Phù hợp yêu cầu")],
+                GuardrailFlags: ["CUSTOMER_CONFIRMATION_REQUIRED"],
+                RetrievedSources: [new RetrievedSourceResponse("live-menu", "Gỏi cuốn tôm thịt", 1.0)],
+                LatencyMs: new Dictionary<string, double> { ["total"] = 1.0 }));
         }
     }
 
@@ -157,7 +197,15 @@ public sealed class ChatEndpointTests
         {
             return Task.FromResult(new ChatAiResult(
                 "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
-                ProviderAvailable: false));
+                ServiceAvailable: false,
+                LlmProviderAvailable: false,
+                Model: "unavailable",
+                RetrievalMethod: "unavailable",
+                FastPath: "service_fallback",
+                SuggestedActions: [],
+                GuardrailFlags: ["AI_SERVICE_UNAVAILABLE"],
+                RetrievedSources: [],
+                LatencyMs: new Dictionary<string, double>()));
         }
     }
 }
