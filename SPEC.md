@@ -44,6 +44,7 @@ T10|x|remove unregistered in-memory chat adapter; name live contract|I.api
 T11|x|reject item mutation on terminal parent order|V7
 T12|x|add structural EF comparer for knowledge embeddings|V8
 T13|x|run backend regression suite in CI and document it|C
+T14|x|remove unregistered in-memory user adapter; name live contract|I.api
 T6|.|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|.|full repository audit; build/deploy proof|C
@@ -59,3 +60,4 @@ B5|2026-07-11|reopen ignores expired Open session and leaves linked chat|V4,V5
 B6|2026-07-11|order item transition omits terminal parent order guard|V7
 B7|2026-07-11|table open query/insert has no DB uniqueness guard|V4
 B8|2026-07-11|EF embedding converter has reference-only collection comparison|V8
+B9|2026-07-11|retired UserStore co-locates public result contracts|C
