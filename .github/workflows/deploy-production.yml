@@ -40,7 +40,7 @@ jobs:
       FRONTEND_SERVER_NAMES: cmcrestaurant.app customer.cmcrestaurant.app admin.cmcrestaurant.app
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
-      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://admin.cmcrestaurant.app
+      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://customer.cmcrestaurant.app;https://admin.cmcrestaurant.app
       ASPNETCORE_ENVIRONMENT: Production
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
       PAYMENTS__VIETQR__BANKID: ${{ secrets.PAYMENTS__VIETQR__BANKID }}
