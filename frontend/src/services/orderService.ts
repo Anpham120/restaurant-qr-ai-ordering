@@ -60,8 +60,15 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function getOrderIdempotency(payload: CreateOrderRequest): PendingIdempotency {
-  const fingerprint = JSON.stringify(payload);
+function getOrderIdempotency({
+  orderType,
+  tableCode,
+  items,
+  promotionCode,
+}: CreateOrderRequest): PendingIdempotency {
+  // Keep only non-sensitive order details in browser storage. The idempotency
+  // fingerprint must not persist customer contact or table access credentials.
+  const fingerprint = JSON.stringify({ orderType, tableCode, items, promotionCode });
   const pending = readJson<PendingIdempotency | null>(ORDER_IDEMPOTENCY_KEY, null);
   if (pending?.fingerprint === fingerprint) return pending;
   const next = { fingerprint, key: createIdempotencyKey("order") };
