@@ -1,0 +1,602 @@
+{
+  "winner": "tfidf",
+  "selection_split": "dev",
+  "methods": {
+    "tfidf": {
+      "config": {},
+      "threshold": 0.23012074475944605,
+      "index_build_ms": 16.42079999874113,
+      "dev": {
+        "cases": 62,
+        "positive_cases": 60,
+        "hit_at_1": 0.9666666666666667,
+        "hit_at_3": 1.0,
+        "hit_at_5": 1.0,
+        "recall_at_5": 0.9857142857142858,
+        "mrr_at_10": 0.9833333333333333,
+        "ndcg_at_10": 0.987429146574607,
+        "macro_slice_ndcg_at_10": 0.9472561179889046,
+        "answerability_accuracy": 0.967741935483871,
+        "latency_p50_ms": 0.5369999998947605,
+        "latency_p95_ms": 0.6757000010111369,
+        "by_slice": {
+          "category_intent": {
+            "cases": 3,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9946297624445026,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 2,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 2,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8154648767857288,
+            "answerability_accuracy": 0.5
+          },
+          "semantic_paraphrase": {
+            "cases": 5,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9261859507142916,
+            "answerability_accuracy": 0.8
+          }
+        }
+      },
+      "test": {
+        "cases": 173,
+        "positive_cases": 167,
+        "hit_at_1": 0.9760479041916168,
+        "hit_at_3": 0.9820359281437125,
+        "hit_at_5": 0.9940119760479041,
+        "recall_at_5": 0.9610778443113772,
+        "mrr_at_10": 0.9825919589392643,
+        "ndcg_at_10": 0.9826303485137712,
+        "macro_slice_ndcg_at_10": 0.9460974646322097,
+        "answerability_accuracy": 0.9248554913294798,
+        "latency_p50_ms": 0.6009999997331761,
+        "latency_p95_ms": 1.1416000015742611,
+        "by_slice": {
+          "category_intent": {
+            "cases": 10,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8872773927237976,
+            "answerability_accuracy": 0.4
+          },
+          "exact_name": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 6,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "multi_intent": {
+            "cases": 4,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9578886573959056,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 8,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8827007889556063,
+            "answerability_accuracy": 0.5
+          },
+          "semantic_paraphrase": {
+            "cases": 13,
+            "hit_at_5": 0.9230769230769231,
+            "ndcg_at_10": 0.9487179487179487,
+            "answerability_accuracy": 0.7692307692307693
+          }
+        }
+      }
+    },
+    "bm25": {
+      "config": {
+        "k1": 1.5,
+        "b": 0.75,
+        "title_boost": 1.2
+      },
+      "threshold": 9.618426854874333,
+      "index_build_ms": 0.0,
+      "dev": {
+        "cases": 62,
+        "positive_cases": 60,
+        "hit_at_1": 0.9666666666666667,
+        "hit_at_3": 0.9833333333333333,
+        "hit_at_5": 1.0,
+        "recall_at_5": 0.9785714285714285,
+        "mrr_at_10": 0.9783333333333334,
+        "ndcg_at_10": 0.9796797222611082,
+        "macro_slice_ndcg_at_10": 0.9227671393038935,
+        "answerability_accuracy": 1.0,
+        "latency_p50_ms": 0.13730000137002207,
+        "latency_p95_ms": 0.21500000002561137,
+        "by_slice": {
+          "category_intent": {
+            "cases": 3,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9210002582868305,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 2,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 2,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8154648767857288,
+            "answerability_accuracy": 1.0
+          },
+          "semantic_paraphrase": {
+            "cases": 5,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8773705614469083,
+            "answerability_accuracy": 1.0
+          }
+        }
+      },
+      "test": {
+        "cases": 173,
+        "positive_cases": 167,
+        "hit_at_1": 0.9580838323353293,
+        "hit_at_3": 0.9820359281437125,
+        "hit_at_5": 0.9820359281437125,
+        "recall_at_5": 0.9533789563729683,
+        "mrr_at_10": 0.9717707442258341,
+        "ndcg_at_10": 0.9717602763100838,
+        "macro_slice_ndcg_at_10": 0.9125865050418932,
+        "answerability_accuracy": 0.953757225433526,
+        "latency_p50_ms": 0.11520000043674372,
+        "latency_p95_ms": 0.23009999858913943,
+        "by_slice": {
+          "category_intent": {
+            "cases": 10,
+            "hit_at_5": 0.8,
+            "ndcg_at_10": 0.7437497884575935,
+            "answerability_accuracy": 0.4
+          },
+          "exact_name": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 6,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 0.8333333333333334
+          },
+          "multi_intent": {
+            "cases": 4,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9378188546829525,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 8,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8452324383928644,
+            "answerability_accuracy": 0.875
+          },
+          "semantic_paraphrase": {
+            "cases": 13,
+            "hit_at_5": 0.9230769230769231,
+            "ndcg_at_10": 0.9487179487179487,
+            "answerability_accuracy": 1.0
+          }
+        }
+      }
+    },
+    "embedding": {
+      "config": {
+        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+      },
+      "threshold": 0.38455596566200256,
+      "index_build_ms": 1729.758800000127,
+      "dev": {
+        "cases": 62,
+        "positive_cases": 60,
+        "hit_at_1": 0.21666666666666667,
+        "hit_at_3": 0.38333333333333336,
+        "hit_at_5": 0.4666666666666667,
+        "recall_at_5": 0.4452380952380952,
+        "mrr_at_10": 0.3240674603174603,
+        "ndcg_at_10": 0.3711304162027909,
+        "macro_slice_ndcg_at_10": 0.47446109687003674,
+        "answerability_accuracy": 0.9838709677419355,
+        "latency_p50_ms": 4.84120000328403,
+        "latency_p95_ms": 7.5649000027624425,
+        "by_slice": {
+          "category_intent": {
+            "cases": 3,
+            "hit_at_5": 0.6666666666666666,
+            "ndcg_at_10": 0.38708643070541443,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 25,
+            "hit_at_5": 0.64,
+            "ndcg_at_10": 0.5554798434857257,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 2,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 25,
+            "hit_at_5": 0.16,
+            "ndcg_at_10": 0.11084441896114712,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 2,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.7153382790366966,
+            "answerability_accuracy": 0.5
+          },
+          "semantic_paraphrase": {
+            "cases": 5,
+            "hit_at_5": 0.8,
+            "ndcg_at_10": 0.6035565121611999,
+            "answerability_accuracy": 1.0
+          }
+        }
+      },
+      "test": {
+        "cases": 173,
+        "positive_cases": 167,
+        "hit_at_1": 0.2994011976047904,
+        "hit_at_3": 0.41317365269461076,
+        "hit_at_5": 0.46706586826347307,
+        "recall_at_5": 0.4247219846022241,
+        "mrr_at_10": 0.3770055127839559,
+        "ndcg_at_10": 0.4005597132968118,
+        "macro_slice_ndcg_at_10": 0.49518280239778917,
+        "answerability_accuracy": 0.9826589595375722,
+        "latency_p50_ms": 4.783799999131588,
+        "latency_p95_ms": 8.474600002955412,
+        "by_slice": {
+          "category_intent": {
+            "cases": 10,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.621033666665354,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 66,
+            "hit_at_5": 0.7575757575757576,
+            "ndcg_at_10": 0.6883612930593822,
+            "answerability_accuracy": 0.9696969696969697
+          },
+          "hard_negative": {
+            "cases": 6,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "multi_intent": {
+            "cases": 4,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.6532867981913646,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 66,
+            "hit_at_5": 0.06060606060606061,
+            "ndcg_at_10": 0.05007070160586991,
+            "answerability_accuracy": 1.0
+          },
+          "policy_paraphrase": {
+            "cases": 8,
+            "hit_at_5": 0.625,
+            "ndcg_at_10": 0.625,
+            "answerability_accuracy": 0.875
+          },
+          "semantic_paraphrase": {
+            "cases": 13,
+            "hit_at_5": 0.38461538461538464,
+            "ndcg_at_10": 0.33334435486476416,
+            "answerability_accuracy": 1.0
+          }
+        }
+      }
+    },
+    "hybrid_rrf": {
+      "config": {
+        "rrf_k": 20,
+        "lexical_weight": 4.0,
+        "dense_weight": 1.0,
+        "bm25": {
+          "k1": 1.5,
+          "b": 0.75,
+          "title_boost": 1.2
+        },
+        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+      },
+      "threshold": 0.19130566295799467,
+      "index_build_ms": 1729.758800000127,
+      "dev": {
+        "cases": 62,
+        "positive_cases": 60,
+        "hit_at_1": 0.8,
+        "hit_at_3": 1.0,
+        "hit_at_5": 1.0,
+        "recall_at_5": 0.9785714285714285,
+        "mrr_at_10": 0.8944444444444445,
+        "ndcg_at_10": 0.9172760790895411,
+        "macro_slice_ndcg_at_10": 0.9206716984914824,
+        "answerability_accuracy": 0.9032258064516129,
+        "latency_p50_ms": 5.204699999012519,
+        "latency_p95_ms": 6.995100000494858,
+        "by_slice": {
+          "category_intent": {
+            "cases": 3,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9090890698859632,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9652371901428582,
+            "answerability_accuracy": 0.96
+          },
+          "hard_negative": {
+            "cases": 2,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 0.5
+          },
+          "no_diacritic": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8766603310000081,
+            "answerability_accuracy": 0.84
+          },
+          "policy_paraphrase": {
+            "cases": 2,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 1.0
+          },
+          "semantic_paraphrase": {
+            "cases": 5,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.852371901428583,
+            "answerability_accuracy": 1.0
+          }
+        }
+      },
+      "test": {
+        "cases": 173,
+        "positive_cases": 167,
+        "hit_at_1": 0.8203592814371258,
+        "hit_at_3": 0.9700598802395209,
+        "hit_at_5": 0.9940119760479041,
+        "recall_at_5": 0.9610778443113772,
+        "mrr_at_10": 0.8938789088489687,
+        "ndcg_at_10": 0.9167702256418145,
+        "macro_slice_ndcg_at_10": 0.8949274772418336,
+        "answerability_accuracy": 0.8670520231213873,
+        "latency_p50_ms": 5.664400003297487,
+        "latency_p95_ms": 11.836999998195097,
+        "by_slice": {
+          "category_intent": {
+            "cases": 10,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.7792346289995196,
+            "answerability_accuracy": 1.0
+          },
+          "exact_name": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9944080265692645,
+            "answerability_accuracy": 1.0
+          },
+          "hard_negative": {
+            "cases": 6,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 0.16666666666666666
+          },
+          "multi_intent": {
+            "cases": 4,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9378188546829525,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8682057637186791,
+            "answerability_accuracy": 0.7575757575757576
+          },
+          "policy_paraphrase": {
+            "cases": 8,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9288345697591741,
+            "answerability_accuracy": 0.75
+          },
+          "semantic_paraphrase": {
+            "cases": 13,
+            "hit_at_5": 0.9230769230769231,
+            "ndcg_at_10": 0.8610630197214119,
+            "answerability_accuracy": 1.0
+          }
+        }
+      }
+    },
+    "hybrid_tfidf_embedding": {
+      "config": {
+        "rrf_k": 20,
+        "lexical_weight": 4.0,
+        "dense_weight": 1.0,
+        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+      },
+      "threshold": 0.2273929773929774,
+      "index_build_ms": 1746.179599998868,
+      "dev": {
+        "cases": 62,
+        "positive_cases": 60,
+        "hit_at_1": 0.85,
+        "hit_at_3": 1.0,
+        "hit_at_5": 1.0,
+        "recall_at_5": 0.9833333333333333,
+        "mrr_at_10": 0.9166666666666666,
+        "ndcg_at_10": 0.935214915517861,
+        "macro_slice_ndcg_at_10": 0.9427723888142909,
+        "answerability_accuracy": 0.5,
+        "latency_p50_ms": 5.824700001539895,
+        "latency_p95_ms": 7.919499999843538,
+        "by_slice": {
+          "category_intent": {
+            "cases": 3,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.942438803214305,
+            "answerability_accuracy": 0.3333333333333333
+          },
+          "exact_name": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.98,
+            "answerability_accuracy": 0.76
+          },
+          "hard_negative": {
+            "cases": 2,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 25,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8914231408571498,
+            "answerability_accuracy": 0.2
+          },
+          "policy_paraphrase": {
+            "cases": 2,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 1.0,
+            "answerability_accuracy": 0.5
+          },
+          "semantic_paraphrase": {
+            "cases": 5,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9,
+            "answerability_accuracy": 0.6
+          }
+        }
+      },
+      "test": {
+        "cases": 173,
+        "positive_cases": 167,
+        "hit_at_1": 0.8083832335329342,
+        "hit_at_3": 0.9880239520958084,
+        "hit_at_5": 0.9940119760479041,
+        "recall_at_5": 0.9632164242942686,
+        "mrr_at_10": 0.8883898868928809,
+        "ndcg_at_10": 0.9132181780165868,
+        "macro_slice_ndcg_at_10": 0.8950700338822649,
+        "answerability_accuracy": 0.5260115606936416,
+        "latency_p50_ms": 5.841800000780495,
+        "latency_p95_ms": 9.553399999276735,
+        "by_slice": {
+          "category_intent": {
+            "cases": 10,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8769909390808815,
+            "answerability_accuracy": 0.7
+          },
+          "exact_name": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9944080265692645,
+            "answerability_accuracy": 0.803030303030303
+          },
+          "hard_negative": {
+            "cases": 6,
+            "hit_at_5": -1.0,
+            "ndcg_at_10": -1.0,
+            "answerability_accuracy": 0.8333333333333334
+          },
+          "multi_intent": {
+            "cases": 4,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.9122710549843918,
+            "answerability_accuracy": 1.0
+          },
+          "no_diacritic": {
+            "cases": 66,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8544639827522008,
+            "answerability_accuracy": 0.12121212121212122
+          },
+          "policy_paraphrase": {
+            "cases": 8,
+            "hit_at_5": 1.0,
+            "ndcg_at_10": 0.8913662191964322,
+            "answerability_accuracy": 0.625
+          },
+          "semantic_paraphrase": {
+            "cases": 13,
+            "hit_at_5": 0.9230769230769231,
+            "ndcg_at_10": 0.8409199807104184,
+            "answerability_accuracy": 0.6923076923076923
+          }
+        }
+      }
+    }
+  }
+}

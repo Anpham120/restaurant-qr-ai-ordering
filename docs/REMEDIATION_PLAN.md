@@ -123,12 +123,11 @@ if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
 
 ---
 
-## Phase 5 — AI: nói đúng bản chất 🟡
+## Phase 5 — AI: completed by academic chatbot v2 ✅
 
-`ai/app/rag/retriever.py` là **lexical retrieval** (token overlap + idf), không phải vector RAG.
-
-- [ ] **Ngắn hạn:** sửa `README.md` + `docs/AI_RAG_ARCHITECTURE.md` ghi rõ "lexical retrieval", bỏ từ "vector/embeddings" nếu chưa có.
-- [ ] **Dài hạn (tùy chọn):** thêm embeddings thật (API embeddings + cosine) nếu cần chất lượng.
+The legacy retriever and duplicated knowledge base were removed. The replacement compares TF-IDF, BM25,
+a real multilingual embedding model and two hybrids under one locked protocol, then deploys the measured
+winner from `production_config.json`. See `ACADEMIC_CHATBOT_V2.md` and the executed notebook.
 
 ---
 

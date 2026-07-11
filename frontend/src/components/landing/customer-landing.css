@@ -1704,6 +1704,12 @@
   border-color: rgba(255,255,255,0.5);
   transform: translateY(-1px);
 }
+.landing-ai-prompt-btn:disabled,
+.landing-ai-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
 
 /* ── Right: Chat Window ── */
 .landing-ai-chat-window {
@@ -1811,6 +1817,13 @@
 .landing-ai-suggestion-btn:hover { background: #5a3a30; }
 
 /* ── Composer ── */
+.landing-ai-error {
+  margin: 0;
+  padding: 8px 18px;
+  background: #fff1f0;
+  color: #9f2d24;
+  font-size: 13px;
+}
 .landing-ai-composer {
   display: flex;
   align-items: center;

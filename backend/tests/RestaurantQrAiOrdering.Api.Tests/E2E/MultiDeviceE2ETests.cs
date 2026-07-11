@@ -73,8 +73,7 @@ public sealed class MultiDeviceE2ETests
         var chatSessionId = await CreateChatSessionAsync(customerDevice);
         using var chatResponse = await customerDevice.PostAsJsonAsync($"/api/chat/sessions/{chatSessionId}/messages", new
         {
-            content = "Goi y mon cho ban T05 nhung khong tu them vao gio hang",
-            tableCode = "T05"
+            content = "Goi y mon cho ban T05 nhung khong tu them vao gio hang"
         });
         using var chatBody = await JsonDocument.ParseAsync(await chatResponse.Content.ReadAsStreamAsync());
         var suggestedActions = chatBody.RootElement.GetProperty("suggestedCartActions").EnumerateArray().ToList();
@@ -131,7 +130,7 @@ public sealed class MultiDeviceE2ETests
         using var response = await client.PostAsync("/api/chat/sessions", content: null);
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return body.RootElement.GetProperty("chatSessionId").GetString()!;
     }
 
@@ -156,8 +155,16 @@ public sealed class MultiDeviceE2ETests
         public Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new ChatAiResult(
-                "De xuat Com ga xoi mo cho ban T05. He thong chi de xuat, khach can xac nhan truoc khi them vao gio.",
-                ProviderAvailable: true));
+                "Đề xuất Gỏi cuốn tôm thịt. Hệ thống chỉ đề xuất, khách cần xác nhận trước khi thêm vào giỏ.",
+                ServiceAvailable: true,
+                LlmProviderAvailable: true,
+                Model: "test-model",
+                RetrievalMethod: "tfidf",
+                FastPath: null,
+                SuggestedActions: [new AiSuggestedAction("m_001", 1, "Phù hợp yêu cầu")],
+                GuardrailFlags: ["CUSTOMER_CONFIRMATION_REQUIRED"],
+                RetrievedSources: [new RetrievedSourceResponse("live-menu", "Gỏi cuốn tôm thịt", 1.0)],
+                LatencyMs: new Dictionary<string, double>()));
         }
     }
 

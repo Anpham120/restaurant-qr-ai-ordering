@@ -1,58 +1,58 @@
-# CMC Restaurant Python AI Service
+# Academic RAG chatbot v2
 
-Thư mục này chứa lớp AI viết bằng Python cho CMC Restaurant. Service này tách khỏi backend .NET để phần AI/RAG có thể phát triển, kiểm thử và trình bày độc lập cho học phần Học máy và Khai phá dữ liệu.
+This service answers restaurant questions from two controlled sources: the live menu supplied by the .NET API and the versioned policy snapshot in `data/policies.json`. It never mutates a cart or order. Suggested actions contain canonical menu IDs and must be confirmed by the customer; the backend validates ID, price and availability again.
 
-## Vai Trò
+## Runtime flow
 
-- Nhận câu hỏi của khách từ backend.
-- Truy xuất tri thức nhà hàng từ `ai/knowledge-base/`.
-- Dựng prompt an toàn cho Gemini 3.1 thông qua 9router.
-- Trả về câu trả lời, nguồn RAG đã dùng và guardrail flags.
-- Không tự tạo đơn hàng, không tự thêm món vào giỏ và không tự thanh toán.
+1. The backend reads every current menu item from PostgreSQL and sends it with the latest six chat messages.
+2. The service fingerprints the menu and rebuilds its in-memory index only when the menu changes.
+3. The selected retriever in `research/artifacts/production_config.json` ranks menu and policy documents.
+4. Deterministic fast paths answer guardrail, availability, price, policy and explicit-order requests without an LLM call.
+5. Other grounded questions may use Gemini Flash through 9Router to write a short response. If the provider fails or times out, the service returns a retrieval-only answer.
+6. The backend canonicalizes suggested actions from its own database before returning them to the UI.
 
-## Luồng
+The current production retriever is TF-IDF because it won the preregistered development-set selection rule; the frozen test set is reserved for post-selection reporting. RAG here means retrieval-augmented generation; it does not require a vector database. Dense embedding and hybrid alternatives are retained in the reproducible study rather than asserted to be better.
 
-```text
-Customer Web
-  -> .NET Backend API
-    -> Python AI Service
-      -> RAG retriever
-      -> 9router API gateway
-        -> Gemini 3.1
-```
-
-## Chạy Local
+## Run locally
 
 ```bash
 cd ai
 python -m venv .venv
-. .venv/Scripts/activate
-pip install -r requirements.txt
+. .venv/bin/activate
+python -m pip install -r requirements.txt
 uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
-
-Biến môi trường khuyến nghị:
 
 ```env
 AI_PROVIDER=9router
 AI_BASE_URL=http://127.0.0.1:20128/v1
-AI_MODEL=gh/gemini-3.1-pro-preview
+AI_MODEL=gc/gemini-3-flash
 AI_API_KEY=replace-with-9router-key
-RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
+AI_TIMEOUT_SECONDS=7
+AI_MAX_OUTPUT_TOKENS=220
+AI_POLICIES_PATH=data/policies.json
+RAG_PRODUCTION_CONFIG_PATH=research/artifacts/production_config.json
+RAG_TOP_K=5
 ```
 
-Nếu không có `AI_API_KEY`, service vẫn trả về fallback có kiểm soát để demo RAG và guardrails, nhưng sẽ không gọi Gemini 3.1.
+Without `AI_API_KEY`, retrieval and every deterministic fast path continue to work; only generative phrasing is disabled.
 
-## Endpoint
+## API
 
-- `GET /health`: kiểm tra service.
-- `POST /v1/rag/search`: truy xuất context từ knowledge base.
-- `POST /v1/chat`: tạo trả lời AI dựa trên RAG và optional LLM call.
+- `GET /health`
+- `POST /v1/retrieval/search`
+- `POST /v1/chat`
 
-## Kiểm Thử Core RAG
+Both POST endpoints require the current menu in the request. This prevents a stale, duplicated menu knowledge base from becoming production truth.
+
+## Verification
 
 ```bash
-python -m unittest discover -s ai/tests
+PYTHONPATH=ai python -m unittest discover -s ai/tests -v
+python -m pip install -r ai/requirements-research.txt
+PYTHONPATH=ai python ai/research/build_dataset.py
+PYTHONPATH=ai python ai/research/run_experiments.py
+MPLCONFIGDIR=/tmp/matplotlib PYTHONPATH=ai python ai/research/build_notebook.py
 ```
 
-Các test này kiểm tra retriever và guardrails bằng thư viện chuẩn Python, không cần gọi 9router và không cần API key.
+See `research/README.md` and `notebooks/academic_retrieval_study.ipynb` for the protocol, raw artifacts, statistical tests and limitations.

@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
+using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Users;
@@ -153,6 +154,7 @@ public static partial class TableEndpoints
         app.MapGet("/api/table-sessions/{sessionId}", async (
             string sessionId,
             RestaurantDbContext db,
+            IChatStore chatStore,
             CancellationToken cancellationToken) =>
         {
             var session = await db.TableSessions
@@ -167,7 +169,7 @@ public static partial class TableEndpoints
             var now = DateTimeOffset.UtcNow;
             if (IsExpired(session, now))
             {
-                await MarkExpiredAsync(session, db, now, cancellationToken);
+                await MarkExpiredAsync(session, db, chatStore, now, cancellationToken);
                 return ApiErrorFactory.Result(
                     StatusCodes.Status410Gone,
                     "TABLE_SESSION_EXPIRED",
@@ -182,6 +184,7 @@ public static partial class TableEndpoints
         app.MapPost("/api/table-sessions/{sessionId}/close", async (
             string sessionId,
             RestaurantDbContext db,
+            IChatStore chatStore,
             CancellationToken cancellationToken) =>
         {
             var session = await db.TableSessions
@@ -201,6 +204,8 @@ public static partial class TableEndpoints
                 session.UpdatedAt = now;
                 await db.SaveChangesAsync(cancellationToken);
             }
+
+            await chatStore.DeleteSessionsByTableSessionAsync(session.Id, cancellationToken);
 
             return Results.Ok(ToSessionResponse(session, now));
         })
@@ -278,6 +283,7 @@ public static partial class TableEndpoints
     private static async Task MarkExpiredAsync(
         TableSession session,
         RestaurantDbContext db,
+        IChatStore chatStore,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -290,6 +296,7 @@ public static partial class TableEndpoints
         session.ClosedAt ??= now;
         session.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
+        await chatStore.DeleteSessionsByTableSessionAsync(session.Id, cancellationToken);
     }
 
     private static TableResponse ToTableResponse(RestaurantTable table)

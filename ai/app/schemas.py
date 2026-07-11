@@ -12,6 +12,7 @@ class MenuItemContext(BaseModel):
     id: str
     name: str
     category_id: str | None = None
+    category_name: str | None = None
     description: str | None = None
     price_vnd: float | int | None = None
     tags: list[str] = Field(default_factory=list)
@@ -21,6 +22,7 @@ class MenuItemContext(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryItem] = Field(default_factory=list)
+    session_memory: str | None = None
     menu_items: list[MenuItemContext] = Field(default_factory=list)
     table_code: str | None = None
 
@@ -28,6 +30,7 @@ class ChatRequest(BaseModel):
 class RagSearchRequest(BaseModel):
     query: str
     top_k: int = Field(default=5, ge=1, le=10)
+    menu_items: list[MenuItemContext] = Field(default_factory=list)
 
 
 class RetrievedSource(BaseModel):
@@ -52,3 +55,6 @@ class ChatResponse(BaseModel):
     retrieved_sources: list[RetrievedSource] = Field(default_factory=list)
     guardrail_flags: list[str] = Field(default_factory=list)
     suggested_cart_actions: list[SuggestedCartAction] = Field(default_factory=list)
+    retrieval_method: str
+    fast_path: str | None = None
+    latency_ms: dict[str, float] = Field(default_factory=dict)

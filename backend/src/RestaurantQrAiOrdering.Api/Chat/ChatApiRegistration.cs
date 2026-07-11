@@ -4,17 +4,16 @@ public static class ChatApiRegistration
 {
     public static IServiceCollection AddRestaurantChatApis(this IServiceCollection services)
     {
+        services.AddMemoryCache();
         services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
-        services.AddHttpClient<IChatAiProvider, NineRouterChatProvider>();
-
+        services.AddHttpClient<IChatAiProvider, PythonAcademicChatProvider>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapRestaurantChatApis(this IEndpointRouteBuilder app)
     {
         app.MapChatEndpoints();
-
         return app;
     }
 }
