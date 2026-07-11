@@ -224,21 +224,9 @@ public static class PaymentEndpoints
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }
 
-            if (payment.Status == PaymentStatus.NotRequested || payment.Method == PaymentMethod.Unselected)
+            if (ValidateManualPaymentTransition(payment, PaymentStatus.Confirmed) is { } transitionError)
             {
-                return ApiResults.BadRequest(
-                    "PAYMENT_NOT_REQUESTED",
-                    "Customer has not requested payment yet.");
-            }
-
-            if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
-            {
-                return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", "Payment was already confirmed.");
-            }
-
-            if (payment.Status == PaymentStatus.Failed)
-            {
-                return ApiResults.BadRequest("PAYMENT_ALREADY_FAILED", "Failed payment cannot be confirmed.");
+                return transitionError;
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -305,16 +293,9 @@ public static class PaymentEndpoints
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }
 
-            if (payment.Status == PaymentStatus.NotRequested || payment.Method == PaymentMethod.Unselected)
+            if (ValidateManualPaymentTransition(payment, PaymentStatus.Failed) is { } transitionError)
             {
-                return ApiResults.BadRequest(
-                    "PAYMENT_NOT_REQUESTED",
-                    "Customer has not requested payment yet.");
-            }
-
-            if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
-            {
-                return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", "Confirmed payment cannot be failed.");
+                return transitionError;
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -422,6 +403,42 @@ public static class PaymentEndpoints
             return ApiResults.BadRequest(
                 "PAYMENT_NOTE_TOO_LONG",
                 $"Payment note must be {MaxPaymentNoteLength} characters or fewer.");
+        }
+
+        return null;
+    }
+
+    private static IResult? ValidateManualPaymentTransition(Payment payment, PaymentStatus nextStatus)
+    {
+        if (payment.Status == PaymentStatus.NotRequested || payment.Method == PaymentMethod.Unselected)
+        {
+            return ApiResults.BadRequest(
+                "PAYMENT_NOT_REQUESTED",
+                "Customer has not requested payment yet.");
+        }
+
+        if (payment.Status == PaymentStatus.Refunded)
+        {
+            var action = nextStatus == PaymentStatus.Confirmed ? "confirmed" : "failed";
+            return ApiResults.BadRequest(
+                "PAYMENT_ALREADY_REFUNDED",
+                $"Refunded payment cannot be {action}.");
+        }
+
+        if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
+        {
+            var message = nextStatus == PaymentStatus.Confirmed
+                ? "Payment was already confirmed."
+                : "Confirmed payment cannot be failed.";
+            return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", message);
+        }
+
+        if (payment.Status == PaymentStatus.Failed)
+        {
+            var message = nextStatus == PaymentStatus.Confirmed
+                ? "Failed payment cannot be confirmed."
+                : "Payment was already failed.";
+            return ApiResults.BadRequest("PAYMENT_ALREADY_FAILED", message);
         }
 
         return null;
