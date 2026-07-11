@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -724,12 +725,16 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.Tags)
                 .HasColumnName("tags")
                 .HasColumnType("text[]");
-            entity.Property(e => e.Embedding)
+            var embeddingProperty = entity.Property(e => e.Embedding)
                 .HasColumnName("embedding")
                 .HasColumnType("jsonb")
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<float[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<float>());
+            embeddingProperty.Metadata.SetValueComparer(new ValueComparer<float[]>(
+                (left, right) => left.SequenceEqual(right),
+                value => value.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
+                value => value.ToArray()));
             entity.Property(e => e.IsActive)
                 .HasColumnName("is_active")
                 .IsRequired();

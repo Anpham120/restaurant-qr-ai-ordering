@@ -29,6 +29,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V5: ∀ linked chat → parent TableSession active (Open, !closed, !expired); otherwise capability reject.
 - V6: ∀ chat menu lookup → current database availability + price.
 - V7: ∀ terminal order (Completed/Cancelled) → item status immutable.
+- V8: ∀ persisted float[] embedding → structural equality + snapshot comparison.
 
 ## §T
 
@@ -41,6 +42,7 @@ T9|x|manual table close deletes linked chat session|V5,I.api
 T5|x|chat live menu read; delete stale in-memory menu store|V6,I.api
 T10|x|remove unregistered in-memory chat adapter; name live contract|I.api
 T11|x|reject item mutation on terminal parent order|V7
+T12|x|add structural EF comparer for knowledge embeddings|V8
 T6|.|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|.|full repository audit; build/deploy proof|C
@@ -55,3 +57,4 @@ B4|2026-07-11|chat capability checks HMAC but not parent session expiry|V5
 B5|2026-07-11|reopen ignores expired Open session and leaves linked chat|V4,V5
 B6|2026-07-11|order item transition omits terminal parent order guard|V7
 B7|2026-07-11|table open query/insert has no DB uniqueness guard|V4
+B8|2026-07-11|EF embedding converter has reference-only collection comparison|V8
