@@ -1,14 +1,14 @@
 {
   "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
   "platform": "Windows-10-10.0.26200-SP0",
-  "processor": "",
+  "processor": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
   "random_seed": 20260710,
-  "menu_snapshot_sha256": "e474142348814e210472877d40792b6eff4a4c8018fcbd3df2fbf8e172476e58",
-  "queries_sha256": "5d728d72a4ac4f917644dd0f796cd784b66515069912836a447a6e1a723a9067",
-  "policy_sha256": "c5173c4d2ea7cc6d349b55d5d2369050a150eba7e1670679e45e4fac352535d8",
+  "menu_snapshot_sha256": "e654211fd1008fba4032aaac82b7fbae47532c1c48dca8a337847ea9c8f0e767",
+  "queries_sha256": "b2a1c00e2c747175eb97b79596664b954f13392ac9088b967038fae65e1d5316",
+  "policy_sha256": "8da2c65315e96e6f6db82ba002cbcc1a886b3f5d0b2654002f6b5959232ca51a",
   "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "embedding_model_sha256": null,
-  "encoder_load_ms": 11101.912499998434,
+  "encoder_load_ms": 11072.514399998909,
   "case_counts": {
     "dev": 62,
     "test": 173
@@ -21,5 +21,5 @@
     "fastembed": "0.7.3",
     "onnxruntime": "1.27.0"
   },
-  "evaluation_script_sha256": "dce8c37ac3352a47d74455fc35566854d4723a730dd42113bf83f2c36b631b80"
+  "evaluation_script_sha256": "28d785a25145a142a71f492633af27eeb1f2992ed6b1073010bca288d1d7f5b3"
 }

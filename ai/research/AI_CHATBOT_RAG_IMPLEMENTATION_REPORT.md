@@ -85,10 +85,11 @@ Artifact lưu SHA-256 của menu snapshot, queries, policy, model embedding và 
 - số case và split group không leakage;
 - nguồn menu snapshot;
 - hash của queries/menu/policy;
+- hash văn bản chuẩn hóa CRLF/LF về LF để provenance ổn định giữa Windows và Linux;
 - winner có trong summary;
 - production config khớp artifact summary.
 
-Notebook có cổng ARTIFACTS_FRESH: nếu code hoặc dữ liệu không khớp artifact, notebook hiển thị BLOCK và yêu cầu chạy lại pipeline. Vì worktree đang có thay đổi liên quan AI, không được dùng metric đã commit để tuyên bố kết quả “current” cho đến khi cổng này PASS sau một run mới.
+Notebook có cổng ARTIFACTS_FRESH: nếu code hoặc dữ liệu không khớp artifact, notebook hiển thị BLOCK và yêu cầu chạy lại pipeline. Artifact hiện tại đã được tái tạo sau khi sửa selection và chuẩn hóa hash; cổng provenance PASS. Mọi thay đổi tương lai đối với code hoặc dữ liệu vẫn phải chạy lại pipeline trước khi dùng metric làm kết quả hiện hành.
 
 ## 5. Chuẩn hóa, document hóa và chunking
 

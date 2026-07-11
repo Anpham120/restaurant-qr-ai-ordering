@@ -33,6 +33,7 @@ V7: menu context cache TTL ≤ 2s; suggested action still canonicalized from cac
 V8: AI HTTP uses pooled client, response-header streaming, bounded timeout, safe fallback.
 V9: frontend + backend + AI tests cover persistence, restore, memory injection, stale stored id, close cleanup.
 V10: production retriever select only by dev nDCG@10 + latency tiebreak; frozen test ! select.
+V11: provenance hash text canonical LF; same content CRLF/LF → same SHA-256.
 
 §T
 
@@ -42,6 +43,7 @@ T2|x|bounded persistent session memory → AI prompt|V2,V4,V5,I.message,I.ai
 T3|x|safe latency cuts: menu cache + streamed AI response|V7,V8,I.ai
 T4|x|run targeted/full verification + completion audit|V1,V2,V3,V4,V5,V6,V7,V8,V9
 T5|x|select retriever on dev; test frozen|V10
+T6|x|canonical cross-platform provenance hash|V11
 
 §B
 
@@ -52,3 +54,4 @@ B3|2026-07-11|chat integration fixture skipped canonical menu/table seed|SeedDat
 B4|2026-07-11|chat action test expected stale m_001 price 65000|use canonical 45000
 B5|2026-07-11|E2E fixtures expected stale 200/201 API statuses|align current contracts
 B6|2026-07-11|retriever winner selected on frozen test|V10
+B7|2026-07-11|raw-byte provenance hash changed across CRLF/LF|V11
