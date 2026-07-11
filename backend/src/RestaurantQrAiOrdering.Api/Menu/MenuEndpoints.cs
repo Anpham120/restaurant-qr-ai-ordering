@@ -54,7 +54,7 @@ public static class MenuEndpoints
 
         // Kitchen-accessible list: includes unavailable items so kitchen staff can
         // re-enable dishes. /api/menu hides unavailable items and /api/admin/menu-items
-        // is StaffOrAdmin-only, so Kitchen needs its own read endpoint.
+        // is Admin-only, so Kitchen needs its own read endpoint.
         app.MapGet("/api/kitchen/menu-items", async (RestaurantDbContext db) =>
         {
             var categories = await db.Categories
@@ -115,7 +115,7 @@ public static class MenuEndpoints
 
         var adminMenu = app.MapGroup("/api/admin/menu-items")
             .WithTags("Admin Menu")
-            .RequireAuthorization("StaffOrAdmin");
+            .RequireAuthorization("AdminOnly");
 
         adminMenu.MapGet("/", async (bool includeInactiveCategories = false, RestaurantDbContext db = null!) =>
         {

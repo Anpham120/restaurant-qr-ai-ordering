@@ -8,6 +8,7 @@ import {
 } from "./customerMenuStorage";
 import { fetchCustomerMenu } from "../../services/menuService";
 import type { MenuCart, MenuItem } from "../../types";
+import { ChevronDown, ShoppingCart } from "lucide-react";
 import "./customer-floating-cart.css";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
@@ -104,7 +105,10 @@ export function CustomerFloatingCart() {
   }
 
   const hasSession = Boolean(
-    orderContext.tableCode && orderContext.qrToken && orderContext.sessionId,
+    orderContext.tableCode &&
+      orderContext.qrToken &&
+      orderContext.sessionId &&
+      orderContext.sessionToken,
   );
 
   function updateQuantity(itemId: string, nextQuantity: number) {
@@ -183,9 +187,7 @@ export function CustomerFloatingCart() {
               type="button"
               aria-label="Thu gọn giỏ hàng"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
+              <ChevronDown aria-hidden="true" size={18} />
             </button>
           </header>
 
@@ -206,7 +208,7 @@ export function CustomerFloatingCart() {
                       type="button"
                       aria-label={`Giảm ${item.name}`}
                     >
-                      −
+                      -
                     </button>
                     <span>{cart[item.id]}</span>
                     <button
@@ -254,11 +256,7 @@ export function CustomerFloatingCart() {
         aria-label={`Giỏ hàng: ${itemCount} món, ${formatVnd(totalPrice)}`}
       >
         <span className="cfc-fab-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" aria-hidden="true">
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
+          <ShoppingCart aria-hidden="true" size={22} />
           <span className="cfc-badge">{itemCount}</span>
         </span>
         <span className="cfc-fab-total">{formatVnd(totalPrice)}</span>

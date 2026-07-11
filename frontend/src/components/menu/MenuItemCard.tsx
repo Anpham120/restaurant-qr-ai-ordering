@@ -13,7 +13,7 @@ export function formatVnd(price: number) {
   return `${formatter.format(price)}đ`;
 }
 
-/** Map ASCII tag keys → Vietnamese display labels with diacritics */
+/** Map ASCII tag keys to Vietnamese display labels with diacritics. */
 const TAG_LABELS: Record<string, string> = {
   // Mức cay
   "khong cay": "Không cay", "cay nhe": "Cay nhẹ", "cay vua": "Cay vừa", "cay dam": "Cay đậm",

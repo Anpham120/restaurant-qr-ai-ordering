@@ -16,20 +16,48 @@ function notifyCartUpdated() {
 export type CustomerOrderContext = {
   tableCode?: TableCode;
   sessionId?: string;
+  sessionToken?: string;
   qrToken?: string;
+};
+
+type StoredSessionCart = {
+  sessionId: string;
+  items: MenuCart;
 };
 
 export function loadMenuCart(): MenuCart {
   try {
+    const context = loadOrderContext();
+    if (!context.sessionId || !context.sessionToken) {
+      return {};
+    }
+
     const rawCart = window.localStorage.getItem(CART_KEY);
-    return rawCart ? (JSON.parse(rawCart) as MenuCart) : {};
+    if (!rawCart) {
+      return {};
+    }
+
+    const stored = JSON.parse(rawCart) as Partial<StoredSessionCart>;
+    if (stored.sessionId !== context.sessionId || !stored.items) {
+      return {};
+    }
+
+    return stored.items;
   } catch {
     return {};
   }
 }
 
 export function saveMenuCart(cart: MenuCart) {
-  window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  const context = loadOrderContext();
+  if (!context.sessionId || !context.sessionToken) {
+    window.localStorage.removeItem(CART_KEY);
+    notifyCartUpdated();
+    return;
+  }
+
+  const stored: StoredSessionCart = { sessionId: context.sessionId, items: cart };
+  window.localStorage.setItem(CART_KEY, JSON.stringify(stored));
   notifyCartUpdated();
 }
 
@@ -48,7 +76,16 @@ export function loadOrderContext(): CustomerOrderContext {
 }
 
 export function saveOrderContext(context: CustomerOrderContext) {
+  const current = loadOrderContext();
+  if (current.sessionId !== context.sessionId) {
+    window.localStorage.removeItem(CART_KEY);
+  }
   window.localStorage.setItem(ORDER_CONTEXT_KEY, JSON.stringify(context));
   notifyCartUpdated();
 }
 
+export function clearCustomerSession() {
+  window.localStorage.removeItem(CART_KEY);
+  window.localStorage.removeItem(ORDER_CONTEXT_KEY);
+  notifyCartUpdated();
+}

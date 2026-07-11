@@ -11,8 +11,11 @@ public class RestaurantDbContextFactory : IDesignTimeDbContextFactory<Restaurant
     {
         var optionsBuilder = new DbContextOptionsBuilder<RestaurantDbContext>();
 
-        var connectionString = Environment.GetEnvironmentVariable("EF_CONNECTION_STRING")
-            ?? "Host=localhost;Port=5432;Database=restaurant_qr;Username=restaurant_user;Password=ChangeMe123!";
+        var connectionString = Environment.GetEnvironmentVariable("EF_CONNECTION_STRING");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("EF_CONNECTION_STRING is required for design-time database operations.");
+        }
 
         optionsBuilder.UseNpgsql(connectionString);
 

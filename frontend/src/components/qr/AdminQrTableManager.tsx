@@ -5,28 +5,18 @@ import "@fontsource/manrope/vietnamese-600.css";
 import "@fontsource/manrope/latin-700.css";
 import "@fontsource/manrope/vietnamese-700.css";
 import { useEffect, useState } from "react";
-import { createApiClient } from "@cmc/api-client";
 import { TableQrCode } from "./TableQrCode";
+import { api } from "../../services/apiClient";
+import type { AdminTable } from "@cmc/shared-types";
 
-type BackendTable = {
-  tableCode: string;
-  displayName: string;
-  isActive: boolean;
-  qrToken?: string | null;
-  customerPath: string;
-};
+type BackendTable = AdminTable;
 
 type CopyState = {
   tableCode: string;
   status: "success" | "error";
 } | null;
 
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
-
-// Table list is loaded from GET /api/tables (30 seeded tables T01–T30).
+// QR-bearing table data is loaded from the Admin-only GET /api/admin/tables endpoint.
 
 function getCustomerBaseUrl() {
   const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
@@ -61,7 +51,7 @@ export function AdminQrTableManager() {
   useEffect(() => {
     let isMounted = true;
 
-    api.tables.list()
+    api.tables.listAdmin()
       .then((response) => {
         if (isMounted) {
           setTables(response.items);

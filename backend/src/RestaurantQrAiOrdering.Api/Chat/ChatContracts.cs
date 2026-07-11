@@ -6,7 +6,8 @@ public sealed record CreateChatSessionRequest(
 
 public sealed record CreateChatSessionResponse(
     string ChatSessionId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string AccessToken);
 
 public sealed record SendChatMessageRequest(
     string? Content,

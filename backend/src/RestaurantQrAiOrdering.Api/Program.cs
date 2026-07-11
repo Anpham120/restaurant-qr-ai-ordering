@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
@@ -16,6 +17,7 @@ using RestaurantQrAiOrdering.Entities;
 const string CorsPolicyName = "CmcRestaurantCors";
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 var defaultCorsOrigins = new[]
 {
     "https://cmcrestaurant.app",
@@ -39,7 +41,18 @@ var defaultCorsOrigins = new[]
 var configuredCorsOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+if (!builder.Environment.IsDevelopment() && configuredCorsOrigins is not { Length: > 0 })
+{
+    throw new InvalidOperationException("CORS_ALLOWED_ORIGINS is required outside Development.");
+}
+
 builder.Services.AddOpenApi();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Keep ASP.NET Core's loopback-only trusted proxy defaults. Clearing these
+    // lists would let a direct client spoof X-Forwarded-For/X-Forwarded-Proto.
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
@@ -53,6 +66,11 @@ builder.Services.AddCors(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useInMemory = string.IsNullOrEmpty(connectionString);
+
+if (useInMemory && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required outside Development.");
+}
 
 if (!useInMemory)
 {
@@ -108,6 +126,9 @@ var app = builder.Build();
         await dbContext.Database.EnsureCreatedAsync();
     }
 
+    // Predictable historical seed values are never allowed to reach a running API.
+    await TableQrTokenRotator.RotateLegacyTokensAsync(dbContext);
+
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     var nowUtc = DateTimeOffset.UtcNow;
 
@@ -133,19 +154,24 @@ var app = builder.Build();
         }
     }
 
-    // Demo operational accounts are opt-in via SEED_DEMO_USERS
-    if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS") || useInMemory)
+    // Demo accounts are allowed only in Development and all credentials must come
+    // from local environment configuration. Tests seed their own isolated users.
+    if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
     {
         var demoUsers = new[]
         {
-            (Id: "usr_admin", Email: "admin@restaurant.local", Password: "Admin@1234", Role: UserRole.Admin, FullName: "Demo Admin"),
-            (Id: "usr_staff", Email: "staff@restaurant.local", Password: "Staff@1234", Role: UserRole.Staff, FullName: "Demo Staff"),
-            (Id: "usr_kitchen", Email: "kitchen@restaurant.local", Password: "Kitchen@1234", Role: UserRole.Kitchen, FullName: "Demo Kitchen"),
-            (Id: "usr_customer_seed", Email: "customer@restaurant.local", Password: "Customer@1234", Role: UserRole.Customer, FullName: "Demo Customer"),
+            (Id: "usr_admin", Email: builder.Configuration["DEMO_ADMIN_EMAIL"], Password: builder.Configuration["DEMO_ADMIN_PASSWORD"], Role: UserRole.Admin, FullName: "Demo Admin"),
+            (Id: "usr_staff", Email: builder.Configuration["DEMO_STAFF_EMAIL"], Password: builder.Configuration["DEMO_STAFF_PASSWORD"], Role: UserRole.Staff, FullName: "Demo Staff"),
+            (Id: "usr_kitchen", Email: builder.Configuration["DEMO_KITCHEN_EMAIL"], Password: builder.Configuration["DEMO_KITCHEN_PASSWORD"], Role: UserRole.Kitchen, FullName: "Demo Kitchen"),
         };
 
         foreach (var demo in demoUsers)
         {
+            if (string.IsNullOrWhiteSpace(demo.Email) || string.IsNullOrWhiteSpace(demo.Password))
+            {
+                throw new InvalidOperationException($"Development demo credentials are incomplete for role {demo.Role}.");
+            }
+
             var exists = await dbContext.Users.AnyAsync(u => u.Email == demo.Email);
             if (!exists)
             {
@@ -166,12 +192,31 @@ var app = builder.Build();
     }
 }
 
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    if (context.Request.Path.StartsWithSegments("/api/auth"))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+    }
+
+    await next();
+});
 app.Use(async (context, next) =>
 {
     try

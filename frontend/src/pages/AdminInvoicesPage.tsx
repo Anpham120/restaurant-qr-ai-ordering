@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getKitchenOrders, isRefundable, refundOrderPayment } from "../services/orderService";
 import type { OrderTrackingOrder } from "../types";
+import { Printer, ReceiptText, X } from "lucide-react";
 import "../components/operations/operations.css";
 
 type FilterTab = "all" | "pending" | "confirmed" | "refunded";
@@ -12,7 +13,7 @@ const FILTER_LABELS: Record<FilterTab, string> = {
 };
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
-function formatDate(d?: string) { return d ? new Date(d).toLocaleString("vi-VN") : "—"; }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString("vi-VN") : "-"; }
 
 function matchesFilter(o: OrderTrackingOrder, f: FilterTab) {
   if (f === "all") return true;
@@ -76,7 +77,7 @@ export function AdminInvoicesPage() {
     }
   }
 
-  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">🧾</div>Đang tải...</div>;
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon"><ReceiptText aria-hidden="true" /></div>Đang tải...</div>;
 
   return (
     <div>
@@ -128,7 +129,7 @@ export function AdminInvoicesPage() {
           {filtered.map((o) => (
             <tr key={o.orderId}>
               <td><strong>{o.orderCode}</strong></td>
-              <td>{o.tableCode ?? "—"}</td>
+              <td>{o.tableCode ?? "-"}</td>
               <td>{o.paymentMethod}</td>
               <td><span className={`ops-badge ops-badge--${o.paymentStatus.toLowerCase()}`}>{o.paymentStatus}</span></td>
               <td><strong>{formatVnd(o.totalAmount)}</strong></td>
@@ -147,7 +148,7 @@ export function AdminInvoicesPage() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>Hóa đơn {detail.orderCode}</h2>
-              <button className="ops-modal-close" onClick={() => setDetail(null)} type="button">✕</button>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setDetail(null)} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-card-meta" style={{ marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
@@ -182,7 +183,7 @@ export function AdminInvoicesPage() {
               ) : null}
 
               <button className="ops-btn ops-btn--primary" style={{ width: "100%", marginTop: 12 }} onClick={() => window.print()} type="button">
-                🖨 In hóa đơn
+                <Printer aria-hidden="true" size={15} /> In hóa đơn
               </button>
             </div>
           </div>

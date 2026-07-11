@@ -47,6 +47,19 @@ public sealed class SignalROrderRealtimeNotifier : IOrderRealtimeNotifier
             cancellationToken);
     }
 
+    public async Task PaymentRequestedAsync(
+        PaymentRequestedEvent payload,
+        string? tableCode,
+        CancellationToken cancellationToken)
+    {
+        await SendToOrderAndOperationsAsync(
+            OrderRealtimeEvents.PaymentRequested,
+            payload,
+            payload.OrderCode,
+            tableCode,
+            cancellationToken);
+    }
+
     private async Task SendToOrderAndOperationsAsync(
         string eventName,
         object payload,

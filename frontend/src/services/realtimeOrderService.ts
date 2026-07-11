@@ -15,13 +15,14 @@ const client = createOrderHubClient({
     onOrderCreated: payload => notifyRealtimeListeners({ event: "order.created", payload }),
     onOrderStatusChanged: payload => notifyRealtimeListeners({ event: "order.statusChanged", payload }),
     onOrderItemStatusChanged: payload => notifyRealtimeListeners({ event: "order.itemStatusChanged", payload }),
+    onPaymentRequested: payload => notifyRealtimeListeners({ event: "payment.requested", payload }),
     onStatusChanged: setConnectionStatus,
   },
 });
 
 export async function connectOrderRealtime() { await client.connect(); }
 export async function disconnectOrderRealtime() { await client.disconnect(); }
-export async function watchOrderRealtime(orderCode: string, tableCode?: string | null) { await client.watchOrder(orderCode, tableCode); }
+export async function watchOrderRealtime(orderCode: string, orderToken: string) { await client.watchOrder(orderCode, orderToken); }
 export async function watchTableRealtime(tableCode: string) { await client.watchTable(tableCode); }
 export function subscribeOrderRealtime(listener: RealtimeListener) { realtimeListeners.add(listener); return () => realtimeListeners.delete(listener); }
 export function subscribeRealtimeConnection(listener: ConnectionListener) { connectionListeners.add(listener); listener(connectionStatus); return () => connectionListeners.delete(listener); }

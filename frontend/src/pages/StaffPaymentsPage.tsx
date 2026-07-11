@@ -12,7 +12,7 @@ import {
   subscribeOrderRealtime,
   subscribeRealtimeConnection,
 } from "../services/realtimeOrderService";
-import { VietQrPaymentModal } from "../components/customer/VietQrPaymentModal";
+import { Banknote, Check, CreditCard, QrCode, RefreshCw } from "lucide-react";
 import "../components/operations/operations.css";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
@@ -35,7 +35,6 @@ export function StaffPaymentsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pendingCode, setPendingCode] = useState<string | null>(null);
-  const [qrOrderCode, setQrOrderCode] = useState<string | null>(null);
   const [refundCode, setRefundCode] = useState<string | null>(null);
   const [refundNote, setRefundNote] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
@@ -59,6 +58,11 @@ export function StaffPaymentsPage() {
     const unR = subscribeOrderRealtime(() => loadOrders());
     void connectOrderRealtime().catch(() => setConnectionStatus("error"));
     return () => { unC(); unR(); void disconnectOrderRealtime(); };
+  }, [loadOrders]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => void loadOrders(), 5_000);
+    return () => window.clearInterval(interval);
   }, [loadOrders]);
 
   const awaiting = useMemo(() => orders.filter(isAwaitingPayment), [orders]);
@@ -91,7 +95,7 @@ export function StaffPaymentsPage() {
   }
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">💳</div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><CreditCard aria-hidden="true" /></div>Đang tải...</div>;
   }
 
   return (
@@ -107,7 +111,7 @@ export function StaffPaymentsPage() {
               <span className="ops-connection-dot" />
               {connectionStatus === "connected" ? "Đã kết nối" : "Mất kết nối"}
             </span>
-            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">🔄 Làm mới</button>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
           </div>
         </div>
       </div>
@@ -138,7 +142,8 @@ export function StaffPaymentsPage() {
                 </div>
                 <div className="ops-card-meta">
                   <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>
-                    {order.paymentMethod === "COD" ? "💵 Tiền mặt" : "📱 QR"} · {order.paymentStatus}
+                    {order.paymentMethod === "COD" ? <Banknote aria-hidden="true" size={14} /> : <QrCode aria-hidden="true" size={14} />}
+                    {order.paymentMethod === "COD" ? "Tiền mặt" : "QR"} · {order.paymentStatus}
                   </span>
                   <strong>{formatVnd(order.totalAmount)}</strong>
                 </div>
@@ -156,7 +161,7 @@ export function StaffPaymentsPage() {
                     onClick={() => runAction(order.orderCode, () => confirmOrderPayment(order.orderCode, "Thu tại bàn"), `Đã xác nhận thu ${order.orderCode}`)}
                     type="button"
                   >
-                    ✓ Xác nhận thu
+                    <Check aria-hidden="true" size={14} /> Xác nhận thu
                   </button>
                   <button
                     className="ops-btn ops-btn--ghost ops-btn--sm"
@@ -166,11 +171,6 @@ export function StaffPaymentsPage() {
                   >
                     Từ chối
                   </button>
-                  {order.paymentMethod === "VietQR" ? (
-                    <button className="ops-btn ops-btn--primary ops-btn--sm" onClick={() => setQrOrderCode(order.orderCode)} type="button">
-                      📱 Hiện QR
-                    </button>
-                  ) : null}
                 </div>
               </article>
             ))}
@@ -199,7 +199,7 @@ export function StaffPaymentsPage() {
               {collected.map((order) => (
                 <tr key={order.orderId}>
                   <td><strong>{order.orderCode}</strong></td>
-                  <td>{order.tableCode ?? "—"}</td>
+                  <td>{order.tableCode ?? "-"}</td>
                   <td>{order.paymentMethod === "COD" ? "Tiền mặt" : "QR"}</td>
                   <td><span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>{order.paymentStatus}</span></td>
                   <td>{formatVnd(order.totalAmount)}</td>
@@ -231,7 +231,7 @@ export function StaffPaymentsPage() {
                         </button>
                       )
                     ) : (
-                      <span style={{ color: "var(--color-muted)", fontSize: 12 }}>—</span>
+                      <span style={{ color: "var(--color-muted)", fontSize: 12 }}>-</span>
                     )}
                   </td>
                 </tr>
@@ -241,18 +241,6 @@ export function StaffPaymentsPage() {
         </div>
       ) : null}
 
-      {/* VietQR modal */}
-      {qrOrderCode ? (
-        <VietQrPaymentModal
-          orderCode={qrOrderCode}
-          onClose={() => setQrOrderCode(null)}
-          onPaymentConfirmed={() => {
-            setQrOrderCode(null);
-            setNotice("Thanh toán đã xác nhận.");
-            loadOrders();
-          }}
-        />
-      ) : null}
     </div>
   );
 }

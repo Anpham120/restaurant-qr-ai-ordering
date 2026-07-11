@@ -336,15 +336,15 @@ background job** đổi Open→Expired (chỉ tính lúc đọc).
 
 ```mermaid
 flowchart TD
-    A["Khách quét QR /table/{code}"] --> B["GET /api/tables/{code}"]
-    B --> C{Bàn active?}
+    A["Khách quét QR vật lý"] --> B["POST /api/table-sessions bằng QR token"]
+    B --> C{QR + bàn active?}
     C -->|Không| E1["Báo lỗi bàn không hợp lệ"]
-    C -->|Có| D["GET /api/menu"]
+    C -->|Có| D["Nhận sessionId + tableSessionToken; GET /api/menu"]
     D --> F["Chọn món + giỏ hàng"]
-    F --> G["POST /api/orders"]
+    F --> G["POST /api/orders + Idempotency-Key"]
     G --> H{Backend validate}
     H -->|Fail| E2["Lỗi API chuẩn (400/404)"]
-    H -->|OK| I["Tạo order status=Placed, gắn session,\nsinh CustomerAccessToken + Payment=Unpaid"]
+    H -->|OK| I["Tạo order status=Placed, gắn session,\nsinh CustomerAccessToken + Payment=NotRequested"]
     I --> J["Broadcast order.created (SignalR)"]
     J --> K["Trả 201 + orderCode + customerAccessToken"]
     K --> L["Khách theo dõi qua GET /api/orders/{code} + X-Order-Token"]
@@ -359,7 +359,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant RT as SignalR Hub
     participant K as Kitchen web
-    C->>API: POST /api/orders
+    C->>API: POST /api/orders + Idempotency-Key
     API->>DB: validate menu/table + insert (order, items, payment, history)
     DB-->>API: orderCode + token
     API->>RT: order.created
@@ -375,9 +375,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A["Order tạo → Payment=Unpaid"] --> B{PaymentMethod}
-    B -->|COD| C["Khách trả tại quầy/bàn"]
-    B -->|VietQR| D["POST /payment/vietqr → Pending + QR payload"]
+    A["Order tạo → Payment=NotRequested/Unselected"] --> B["Khách bấm Yêu cầu thanh toán"]
+    B --> M{Chọn phương thức}
+    M -->|COD| C["POST /payment/request → Pending; gọi Staff"]
+    M -->|VietQR| D["POST /payment/request → Pending + QR payload"]
     D --> E["Khách chuyển khoản"]
     C --> F["Staff: POST /payment/confirm"]
     E --> F
@@ -431,12 +432,12 @@ enumeration.
 | Nhóm | Endpoint tiêu biểu | Auth |
 | --- | --- | --- |
 | Auth/User | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/change-password`, `/api/users` (Admin) | public / JWT |
-| Menu | `GET /api/menu`; `/api/admin/categories`, `/api/admin/menu-items` | public / Staff+Admin |
-| Tables | `GET /api/tables/{code}`, `/api/tables/qr/{qrToken}`, `POST /api/table-sessions` | public |
+| Menu | `GET /api/menu`; `/api/admin/categories`, `/api/admin/menu-items` | public / AdminOnly |
+| Tables | safe public resolve/session; `/api/admin/tables` co QR | public capability / AdminOnly |
 | Orders | `POST /api/orders`, `GET /api/orders/{code}` (**X-Order-Token**), `GET /api/orders`, `PATCH .../status`, `PATCH .../items/{id}/status` | mixed |
-| Payments | `GET .../payment`, `POST .../payment/vietqr` (token), `.../confirm`, `.../fail`, `.../refund` | mixed / Staff+Admin |
+| Payments | `GET .../payment`, `POST .../payment/request` (token + idempotency), `.../confirm`, `.../fail`, `.../refund` | mixed / Staff+Admin |
 | Chat | `POST /api/chat/sessions`, `POST .../messages`, `GET .../messages` | public |
-| Realtime | SignalR hub `OrderUpdatesHub`; events `order.created`, `order.statusChanged`, `order.itemStatusChanged` | — |
+| Realtime | SignalR hub; order token cho customer, JWT cho operator; them `payment.requested` | mixed |
 | Health | `/api/health`, `/health/live`, `/health/ready` | public |
 
 ## 10. Thiết Kế Bảo Mật
@@ -444,6 +445,9 @@ enumeration.
 - **Per-order access token** (P0): mỗi order sinh token 32-byte base64url; customer đọc order/payment
   riêng qua header **`X-Order-Token`** (`OrderAccessGuard.CanRead`). Role vận hành bỏ qua token. Sai/thiếu
   → **404** (không xác nhận tồn tại) → chống enumerate order code tuần tự `ORD-n`.
+- **Table-session capability**: public session read bat buoc `X-Table-Session-Token`; QR token chi hien trong Admin API.
+- **Idempotency**: create order/payment request luu key + fingerprint; retry khong tao don/giao dich trung.
+- **RBAC**: management API AdminOnly; Staff chi order/payment/session operations; Kitchen chi kitchen operations.
 - **Optimistic concurrency** (P1): `xmin` trên `Order`/`Payment`; ghi đè đồng thời → `409 CONFLICT_STALE`.
 - **Order code**: Postgres sequence (`NextOrderCodeNumber()`), hết race `Count()+1`.
 - **Completion gate** (P1): không `Completed` khi payment chưa settle.

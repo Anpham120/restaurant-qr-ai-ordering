@@ -1,10 +1,5 @@
-import { createApiClient } from "@cmc/api-client";
 import type { AdminCategory, AdminCategoryRequest } from "@cmc/shared-types";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
+import { api } from "./apiClient";
 
 export async function getCategories(): Promise<AdminCategory[]> {
   return api.categories.list();

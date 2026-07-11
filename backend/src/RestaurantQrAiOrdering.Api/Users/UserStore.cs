@@ -13,6 +13,9 @@ public interface IUserStore
     ChangePasswordResult ChangePassword(string userId, string currentPassword, string newPassword);
 
     ResetPasswordResult ResetPassword(string userId, string newPassword);
+
+    long? GetSecurityStampTicks(string userId);
+
 }
 
 public sealed class UserStore : IUserStore
@@ -150,6 +153,15 @@ public sealed class UserStore : IUserStore
         }
     }
 
+    public long? GetSecurityStampTicks(string userId)
+    {
+        lock (syncRoot)
+        {
+            return users.FirstOrDefault(user => user.Id == userId)?.SecurityStampTicks;
+        }
+    }
+
+
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
@@ -164,7 +176,8 @@ public sealed class UserStore : IUserStore
             Email = user.Email,
             PasswordHash = user.PasswordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            SecurityStampTicks = user.SecurityStampTicks
         };
     }
 
@@ -177,7 +190,8 @@ public sealed class UserStore : IUserStore
             Email = user.Email,
             PasswordHash = passwordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            SecurityStampTicks = DateTimeOffset.UtcNow.UtcTicks
         };
     }
 }

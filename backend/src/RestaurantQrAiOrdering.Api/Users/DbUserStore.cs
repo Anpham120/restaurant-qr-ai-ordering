@@ -180,6 +180,16 @@ public sealed class DbUserStore : IUserStore
         return ResetPasswordResult.Success();
     }
 
+    public long? GetSecurityStampTicks(string userId)
+    {
+        var updatedAt = dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => (DateTimeOffset?)user.UpdatedAt)
+            .FirstOrDefault();
+        return updatedAt?.UtcTicks;
+    }
+
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
@@ -194,7 +204,8 @@ public sealed class DbUserStore : IUserStore
             Email = user.Email,
             PasswordHash = user.PasswordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            SecurityStampTicks = user.UpdatedAt.UtcTicks
         };
     }
 
@@ -207,7 +218,8 @@ public sealed class DbUserStore : IUserStore
             Email = user.Email,
             PasswordHash = user.PasswordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            SecurityStampTicks = user.UpdatedAt.UtcTicks
         };
     }
 }

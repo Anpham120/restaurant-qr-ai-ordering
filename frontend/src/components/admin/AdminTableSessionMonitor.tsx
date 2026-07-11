@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdminTableSessionSummary, Table } from "@cmc/shared-types";
-import { ApiError, createApiClient } from "@cmc/api-client";
+import { ApiError } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { Armchair } from "lucide-react";
 import "../operations/operations.css";
 import "./admin-table-sessions.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const REFRESH_INTERVAL_MS = 15000;
 
@@ -43,7 +40,7 @@ export function AdminTableSessionMonitor() {
   const load = useCallback(async () => {
     try {
       const [tableList, sessionList] = await Promise.all([
-        api.tables.list(),
+        api.tables.listAdmin(),
         api.tables.listAdminSessions(),
       ]);
       setTables(tableList.items);
@@ -107,14 +104,14 @@ export function AdminTableSessionMonitor() {
   }
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">🪑</div>Đang tải phiên bàn...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><Armchair aria-hidden="true" /></div>Đang tải phiên bàn...</div>;
   }
 
   return (
     <div>
       <div className="ops-page-header">
         <h1>Phiên bàn</h1>
-        <p>Theo dõi {tables.length} bàn theo thời gian thực — bàn nào đang phục vụ, bàn nào trống</p>
+        <p>Theo dõi {tables.length} bàn theo thời gian thực, gồm bàn đang phục vụ và bàn trống.</p>
       </div>
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}

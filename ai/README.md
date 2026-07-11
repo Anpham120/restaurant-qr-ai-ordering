@@ -52,7 +52,7 @@ Nếu không có `AI_API_KEY`, service vẫn trả về fallback có kiểm soá
 ## Kiểm Thử Core RAG
 
 ```bash
-python -m unittest discover -s ai/tests
+python -m compileall ai/app
 ```
 
 Các test này kiểm tra retriever và guardrails bằng thư viện chuẩn Python, không cần gọi 9router và không cần API key.

@@ -2,8 +2,9 @@ import type { OrderStatus, TableCode } from "./api";
 
 export type CustomerOrderType = "DineIn";
 
-export type PaymentMethod = "COD" | "VietQR";
-export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
+export type PaymentMethod = "Unselected" | "COD" | "VietQR";
+export type RequestedPaymentMethod = Exclude<PaymentMethod, "Unselected">;
+export type PaymentStatus = "NotRequested" | "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
 
 export type OrderItemStatus =
   | "Pending"
@@ -22,7 +23,6 @@ export type CreateOrderRequest = {
   tableCode?: TableCode | null;
   qrToken?: string | null;
   tableSessionId?: string | null;
-  paymentMethod: PaymentMethod;
   items: CreateOrderItem[];
   promotionCode?: string | null;
   customerPhoneNumber?: string | null;
@@ -143,6 +143,11 @@ export type VietQrPaymentResponse = {
   paymentStatus: PaymentStatus;
 };
 
+export type PaymentRequestResponse = {
+  payment: PaymentResponse;
+  vietQr: VietQrPaymentResponse | null;
+};
+
 export type OrderCreatedRealtimeEvent = {
   event: "order.created";
   payload: {
@@ -177,7 +182,19 @@ export type OrderItemStatusChangedRealtimeEvent = {
   };
 };
 
+export type PaymentRequestedRealtimeEvent = {
+  event: "payment.requested";
+  payload: {
+    orderId: string;
+    orderCode: string;
+    method: RequestedPaymentMethod;
+    status: PaymentStatus;
+    updatedAt: string;
+  };
+};
+
 export type OrderRealtimeEvent =
   | OrderCreatedRealtimeEvent
   | OrderStatusChangedRealtimeEvent
-  | OrderItemStatusChangedRealtimeEvent;
+  | OrderItemStatusChangedRealtimeEvent
+  | PaymentRequestedRealtimeEvent;

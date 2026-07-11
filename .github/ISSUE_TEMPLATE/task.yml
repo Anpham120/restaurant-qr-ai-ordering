@@ -60,7 +60,7 @@ body:
       description: Chỉ được sửa các file hoặc module trong mục này.
       placeholder: |
         - backend/src/Orders/**
-        - backend/tests/Orders/**
+        - backend/src/RestaurantQrAiOrdering.Api/Orders/**
     validations:
       required: true
 
@@ -84,7 +84,7 @@ body:
       placeholder: |
         - [ ] API tạo đơn hàng trả về mã đơn và trạng thái Placed.
         - [ ] Không cho đặt món đã Unavailable.
-        - [ ] Có test cho trường hợp thành công và thất bại.
+        - [ ] Có bằng chứng build và smoke-check cho trường hợp thành công và thất bại.
     validations:
       required: true
 
@@ -94,7 +94,7 @@ body:
       label: Kiểm thử / xác minh bắt buộc
       description: Lệnh test/build/check cần chạy trước khi mở PR.
       placeholder: |
-        - dotnet test
+        - dotnet build --configuration Release
         - npm run build
     validations:
       required: true

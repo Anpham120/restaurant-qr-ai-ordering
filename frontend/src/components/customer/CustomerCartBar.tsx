@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { formatVnd } from "../menu/MenuItemCard";
 import type { MouseEvent } from "react";
+import { Eye, ShoppingCart } from "lucide-react";
 
 type CustomerCartBarProps = {
   itemCount: number;
@@ -34,11 +35,7 @@ export function CustomerCartBar({
     <aside className="cmc-cart-bar" aria-label="Tóm tắt giỏ hàng">
       <div className="cmc-cart-bar-info">
         <div className="cmc-cart-bar-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
+          <ShoppingCart aria-hidden="true" size={22} />
           <span className="cmc-cart-bar-badge">{itemCount}</span>
         </div>
         <div className="cmc-cart-bar-text">
@@ -52,10 +49,7 @@ export function CustomerCartBar({
         disabled={disabled}
         type="button"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
+        <Eye aria-hidden="true" size={18} />
         Xem giỏ &amp; gửi đơn
       </button>
     </aside>

@@ -251,6 +251,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("table_code");
 
+                    b.Property<string>("TableSessionId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("table_session_id");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -262,6 +267,8 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.HasIndex("OrderId");
 
                     b.HasIndex("RestaurantTableId");
+
+                    b.HasIndex("TableSessionId");
 
                     b.ToTable("chat_sessions", (string)null);
                 });
@@ -1683,6 +1690,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("OrderCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1718,6 +1730,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("promotion_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
 
                     b.Property<string>("RestaurantTableId")
                         .HasMaxLength(50)
@@ -1763,6 +1780,9 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
 
                     b.HasIndex("OrderCode")
                         .IsUnique();
@@ -1977,6 +1997,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("Method")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2005,6 +2030,11 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("provider_transaction_id");
 
+                    b.Property<string>("RequestFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2012,6 +2042,9 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnName("status");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
 
                     b.HasIndex("PaymentId");
 

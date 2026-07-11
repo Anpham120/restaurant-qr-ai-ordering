@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AdminTableSessionSummary, Order, OrderListResponse } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { BarChart3 } from "lucide-react";
 import "../operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 
@@ -24,7 +20,7 @@ export function AdminDashboardOverview() {
         const [orderData, menuData, tableData, sessionData] = await Promise.all([
           api.orders.list(),
           api.request<unknown[]>("/admin/menu-items"),
-          api.tables.list(),
+          api.tables.listAdmin(),
           api.tables.listAdminSessions("Open"),
         ]);
         setOrders((orderData as OrderListResponse).orders);
@@ -57,7 +53,7 @@ export function AdminDashboardOverview() {
   }, [orders, menuCount]);
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">📊</div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><BarChart3 aria-hidden="true" /></div>Đang tải...</div>;
   }
 
   return (
@@ -83,7 +79,7 @@ export function AdminDashboardOverview() {
         <div className="ops-stat-card">
           <div className="ops-stat-label">Đang xử lý</div>
           <div className="ops-stat-value">{stats.pending}</div>
-          <div className="ops-stat-detail">Placed → Served</div>
+          <div className="ops-stat-detail">{"Placed -> Served"}</div>
         </div>
         <div className="ops-stat-card">
           <div className="ops-stat-label">Hoàn tất hôm nay</div>
@@ -120,7 +116,7 @@ export function AdminDashboardOverview() {
             {orders.slice(0, 20).map((order) => (
               <tr key={order.orderId}>
                 <td><strong>{order.orderCode}</strong></td>
-                <td>{order.tableCode ?? "—"}</td>
+                <td>{order.tableCode ?? "-"}</td>
                 <td><span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span></td>
                 <td>
                   <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>

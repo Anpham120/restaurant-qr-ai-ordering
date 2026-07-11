@@ -5,6 +5,7 @@ public static class OrderRealtimeEvents
     public const string OrderCreated = "order.created";
     public const string OrderStatusChanged = "order.statusChanged";
     public const string OrderItemStatusChanged = "order.itemStatusChanged";
+    public const string PaymentRequested = "payment.requested";
 }
 
 public static class OrderRealtimeGroups
@@ -42,4 +43,12 @@ public sealed record OrderItemStatusChangedEvent(
     string OrderItemId,
     string MenuItemName,
     string Status,
+    DateTimeOffset UpdatedAt);
+
+public sealed record PaymentRequestedEvent(
+    string OrderId,
+    string OrderCode,
+    string Method,
+    string Status,
+    decimal Amount,
     DateTimeOffset UpdatedAt);

@@ -288,6 +288,12 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.CustomerAccessToken)
                 .HasColumnName("customer_access_token")
                 .HasMaxLength(64);
+            entity.Property(e => e.IdempotencyKey)
+                .HasColumnName("idempotency_key")
+                .HasMaxLength(100);
+            entity.Property(e => e.RequestFingerprint)
+                .HasColumnName("request_fingerprint")
+                .HasMaxLength(64);
             entity.Property(e => e.OrderType)
                 .HasColumnName("order_type")
                 .HasConversion<string>()
@@ -359,6 +365,7 @@ public class RestaurantDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => e.OrderCode).IsUnique();
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
             entity.HasIndex(e => e.PromotionId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
@@ -579,6 +586,12 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.Note)
                 .HasColumnName("note")
                 .HasMaxLength(500);
+            entity.Property(e => e.IdempotencyKey)
+                .HasColumnName("idempotency_key")
+                .HasMaxLength(100);
+            entity.Property(e => e.RequestFingerprint)
+                .HasColumnName("request_fingerprint")
+                .HasMaxLength(64);
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -589,6 +602,7 @@ public class RestaurantDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ProviderTransactionId);
         });

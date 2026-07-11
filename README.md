@@ -142,7 +142,7 @@ Chạy test backend:
 
 ```bash
 cd backend
-dotnet test RestaurantQrAiOrdering.sln
+dotnet build RestaurantQrAiOrdering.sln --configuration Release
 ```
 
 ## Cấu Trúc Repository

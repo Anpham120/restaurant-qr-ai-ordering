@@ -1,38 +1,46 @@
 import { useEffect, useRef, useState } from "react";
-import { generateVietQrPayment, getOrderPayment } from "../../services/orderService";
+import { getOrderPayment } from "../../services/orderService";
 import type { VietQrPaymentResponse, PaymentResponse } from "../../types";
+import { CircleCheck, X } from "lucide-react";
 
 type Props = {
   orderCode: string;
+  qrData?: VietQrPaymentResponse;
   onClose: () => void;
   onPaymentConfirmed?: () => void;
 };
 
 const POLL_INTERVAL = 5000;
 
-export function VietQrPaymentModal({ orderCode, onClose, onPaymentConfirmed }: Props) {
-  const [qrData, setQrData] = useState<VietQrPaymentResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<string>("Pending");
+export function VietQrPaymentModal({ orderCode, qrData, onClose, onPaymentConfirmed }: Props) {
+  const [resolvedQrData, setResolvedQrData] = useState<VietQrPaymentResponse | null>(qrData ?? null);
+  const [paymentStatus, setPaymentStatus] = useState<string>(qrData?.paymentStatus ?? "Pending");
+  const [isLoading, setIsLoading] = useState(false);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
-    generateVietQrPayment(orderCode)
-      .then((data) => {
-        setQrData(data);
-        setPaymentStatus(data.paymentStatus);
-      })
-      .catch(() => setError("Không tạo được mã QR thanh toán."))
-      .finally(() => setIsLoading(false));
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
     };
-  }, [orderCode]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
-    if (!qrData || paymentStatus === "Confirmed" || paymentStatus === "Paid") return;
+    if (qrData) {
+      setResolvedQrData(qrData);
+      setPaymentStatus(qrData.paymentStatus);
+      setIsLoading(false);
+      return;
+    }
+
+    setResolvedQrData(null);
+    setPaymentStatus("Pending");
+    setIsLoading(false);
+  }, [orderCode, qrData]);
+
+  useEffect(() => {
+    if (!resolvedQrData || paymentStatus === "Confirmed" || paymentStatus === "Paid") return;
 
     pollRef.current = window.setInterval(async () => {
       try {
@@ -50,39 +58,36 @@ export function VietQrPaymentModal({ orderCode, onClose, onPaymentConfirmed }: P
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [qrData, paymentStatus, orderCode, onPaymentConfirmed]);
+  }, [resolvedQrData, paymentStatus, orderCode, onPaymentConfirmed]);
 
   const isPaid = paymentStatus === "Confirmed" || paymentStatus === "Paid";
 
   return (
     <div className="vietqr-overlay" onClick={onClose}>
-      <div className="vietqr-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        aria-label="Thanh toán VietQR"
+        aria-modal="true"
+        className="vietqr-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
         <header className="vietqr-modal-header">
           <div>
             <span className="panel-kicker">Thanh toán VietQR</span>
             <h3>{orderCode}</h3>
           </div>
           <button className="vietqr-close" type="button" onClick={onClose} aria-label="Đóng">
-            ✕
+            <X aria-hidden="true" size={18} />
           </button>
         </header>
 
         {isLoading ? (
-          <div className="vietqr-loading">
-            <p>Đang tạo mã QR thanh toán...</p>
-          </div>
-        ) : error ? (
-          <div className="vietqr-error">
-            <p>{error}</p>
-            <button className="button" type="button" onClick={onClose}>
-              Đóng
-            </button>
-          </div>
-        ) : qrData ? (
+          <div className="vietqr-loading">Đang tạo mã QR thanh toán...</div>
+        ) : resolvedQrData ? (
           <div className="vietqr-content">
             {isPaid ? (
               <div className="vietqr-success">
-                <span className="vietqr-success-icon">✓</span>
+                <span className="vietqr-success-icon"><CircleCheck aria-hidden="true" /></span>
                 <h4>Thanh toán thành công!</h4>
                 <p>Đơn hàng {orderCode} đã được xác nhận thanh toán.</p>
                 <button className="button primary" type="button" onClick={onClose}>
@@ -94,7 +99,7 @@ export function VietQrPaymentModal({ orderCode, onClose, onPaymentConfirmed }: P
                 <div className="vietqr-qr-section">
                   <img
                     className="vietqr-qr-image"
-                    src={qrData.qrImageDataUri}
+                    src={resolvedQrData.qrImageDataUri}
                     alt={`QR thanh toán đơn ${orderCode}`}
                   />
                   <p className="vietqr-scan-hint">Quét mã QR bằng app ngân hàng</p>
@@ -104,23 +109,23 @@ export function VietQrPaymentModal({ orderCode, onClose, onPaymentConfirmed }: P
                   <dl>
                     <div>
                       <dt>Ngân hàng</dt>
-                      <dd>{qrData.bankId}</dd>
+                      <dd>{resolvedQrData.bankId}</dd>
                     </div>
                     <div>
                       <dt>Số tài khoản</dt>
-                      <dd><code>{qrData.accountNumber}</code></dd>
+                      <dd><code>{resolvedQrData.accountNumber}</code></dd>
                     </div>
                     <div>
                       <dt>Chủ tài khoản</dt>
-                      <dd>{qrData.accountName}</dd>
+                      <dd>{resolvedQrData.accountName}</dd>
                     </div>
                     <div>
                       <dt>Số tiền</dt>
-                      <dd><strong>{qrData.amount.toLocaleString("vi-VN")}đ</strong></dd>
+                      <dd><strong>{resolvedQrData.amount.toLocaleString("vi-VN")}đ</strong></dd>
                     </div>
                     <div>
                       <dt>Nội dung CK</dt>
-                      <dd><code>{qrData.transferContent}</code></dd>
+                      <dd><code>{resolvedQrData.transferContent}</code></dd>
                     </div>
                   </dl>
                 </div>

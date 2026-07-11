@@ -5,7 +5,6 @@ public sealed record CreateOrderRequest(
     string? TableCode,
     string? QrToken,
     string? TableSessionId,
-    string? PaymentMethod,
     IReadOnlyList<CreateOrderItemRequest>? Items,
     string? PromotionCode = null,
     string? CustomerPhoneNumber = null);
@@ -38,8 +37,26 @@ public sealed record OrderResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<OrderItemResponse> Items,
+    IReadOnlyList<OrderStatusEventResponse> Events);
+
+public sealed record CreateOrderResponse(
+    string OrderId,
+    string OrderCode,
+    string OrderType,
+    string? TableCode,
+    string? TableSessionId,
+    string Status,
+    string PaymentStatus,
+    string PaymentMethod,
+    decimal SubtotalAmount,
+    decimal DiscountAmount,
+    decimal TotalAmount,
+    string? PromotionCode,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<OrderItemResponse> Items,
     IReadOnlyList<OrderStatusEventResponse> Events,
-    string? CustomerAccessToken);
+    string CustomerAccessToken);
 
 public sealed record OrderItemResponse(
     string OrderItemId,

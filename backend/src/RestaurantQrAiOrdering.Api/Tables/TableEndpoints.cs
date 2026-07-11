@@ -1,5 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
@@ -15,7 +19,7 @@ public static partial class TableEndpoints
 
     public static IEndpointRouteBuilder MapTableEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/tables", async (
+        app.MapGet("/api/admin/tables", async (
             RestaurantDbContext db,
             CancellationToken cancellationToken) =>
         {
@@ -25,13 +29,14 @@ public static partial class TableEndpoints
                 .ToListAsync(cancellationToken);
 
             var items = tables
-                .Select(ToTableResponse)
+                .Select(ToAdminTableResponse)
                 .ToList();
 
             return Results.Ok(new TableListResponse(items, items.Count));
         })
-        .WithName("ListTables")
-        .WithTags("Tables");
+        .RequireAuthorization("AdminOnly")
+        .WithName("AdminListTables")
+        .WithTags("Admin Tables");
 
         app.MapGet("/api/admin/table-sessions", async (
             string? status,
@@ -104,7 +109,7 @@ public static partial class TableEndpoints
 
             return table is null
                 ? ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.")
-                : Results.Ok(ToTableResponse(table));
+                : Results.Ok(ToPublicTableResponse(table));
         })
         .WithName("GetTable")
         .WithTags("Tables");
@@ -128,9 +133,7 @@ public static partial class TableEndpoints
                 ? ApiResults.NotFound("QR_NOT_FOUND", "QR token does not match an active table.")
                 : Results.Ok(new TableQrResponse(
                     table.TableCode,
-                    table.DisplayName,
-                    normalizedQrToken,
-                    BuildCustomerPath(table.TableCode, normalizedQrToken)));
+                    table.DisplayName));
         })
         .WithName("ResolveTableQr")
         .WithTags("Tables");
@@ -138,6 +141,7 @@ public static partial class TableEndpoints
         app.MapPost("/api/table-sessions", async (
             OpenTableSessionRequest? request,
             RestaurantDbContext db,
+            IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
             if (request is null)
@@ -145,16 +149,27 @@ public static partial class TableEndpoints
                 return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
             }
 
-            return await OpenDineInSessionAsync(request, db, cancellationToken);
+            return await OpenDineInSessionAsync(
+                request,
+                db,
+                jwtOptions.Value.SigningKey,
+                cancellationToken);
         })
         .WithName("OpenTableSession")
         .WithTags("Tables");
 
         app.MapGet("/api/table-sessions/{sessionId}", async (
             string sessionId,
+            HttpRequest request,
             RestaurantDbContext db,
+            IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
+            if (!TryGetTableSessionToken(request, out var suppliedToken))
+            {
+                return UnauthorizedSessionCapability();
+            }
+
             var session = await db.TableSessions
                 .Include(s => s.RestaurantTable)
                 .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
@@ -162,6 +177,11 @@ public static partial class TableEndpoints
             if (session is null)
             {
                 return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
+            }
+
+            if (!IsValidTableSessionToken(session, suppliedToken, jwtOptions.Value.SigningKey))
+            {
+                return UnauthorizedSessionCapability();
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -204,6 +224,7 @@ public static partial class TableEndpoints
 
             return Results.Ok(ToSessionResponse(session, now));
         })
+        .RequireAuthorization("StaffOrAdmin")
         .WithName("CloseTableSession")
         .WithTags("Tables");
 
@@ -213,6 +234,7 @@ public static partial class TableEndpoints
     private static async Task<IResult> OpenDineInSessionAsync(
         OpenTableSessionRequest request,
         RestaurantDbContext db,
+        string signingKey,
         CancellationToken cancellationToken)
     {
         var normalizedQrToken = NormalizeQrToken(request.QrToken);
@@ -272,7 +294,7 @@ public static partial class TableEndpoints
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        return Results.Ok(ToSessionResponse(session, now));
+        return Results.Ok(ToOpenSessionResponse(session, now, signingKey));
     }
 
     private static async Task MarkExpiredAsync(
@@ -292,9 +314,17 @@ public static partial class TableEndpoints
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static TableResponse ToTableResponse(RestaurantTable table)
+    private static TableResponse ToPublicTableResponse(RestaurantTable table)
     {
         return new TableResponse(
+            table.TableCode,
+            table.DisplayName,
+            table.IsActive);
+    }
+
+    private static AdminTableResponse ToAdminTableResponse(RestaurantTable table)
+    {
+        return new AdminTableResponse(
             table.TableCode,
             table.DisplayName,
             table.IsActive,
@@ -310,12 +340,94 @@ public static partial class TableEndpoints
             session.Status.ToString(),
             session.TableCode,
             session.RestaurantTable?.DisplayName,
-            session.QrToken,
-            BuildCustomerPath(session.TableCode, session.QrToken),
             session.OpenedAt,
             session.ExpiresAt,
             session.ClosedAt,
             IsExpired(session, now));
+    }
+
+    private static OpenTableSessionResponse ToOpenSessionResponse(
+        TableSession session,
+        DateTimeOffset now,
+        string signingKey)
+    {
+        return new OpenTableSessionResponse(
+            session.Id,
+            session.OrderType.ToString(),
+            session.Status.ToString(),
+            session.TableCode,
+            session.RestaurantTable?.DisplayName,
+            session.OpenedAt,
+            session.ExpiresAt,
+            session.ClosedAt,
+            IsExpired(session, now),
+            CreateTableSessionToken(session, signingKey));
+    }
+
+    private static bool TryGetTableSessionToken(HttpRequest request, out string token)
+    {
+        token = string.Empty;
+        if (!request.Headers.TryGetValue("X-Table-Session-Token", out var values) || values.Count != 1)
+        {
+            return false;
+        }
+
+        var supplied = values[0];
+        if (string.IsNullOrWhiteSpace(supplied))
+        {
+            return false;
+        }
+
+        token = supplied;
+        return true;
+    }
+
+    private static bool IsValidTableSessionToken(
+        TableSession session,
+        string suppliedToken,
+        string signingKey)
+    {
+        byte[] suppliedSignature;
+        try
+        {
+            suppliedSignature = Base64Url.Decode(suppliedToken);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        var expectedSignature = CreateTableSessionSignature(session, signingKey);
+        return CryptographicOperations.FixedTimeEquals(expectedSignature, suppliedSignature);
+    }
+
+    private static string CreateTableSessionToken(TableSession session, string signingKey)
+    {
+        return Base64Url.Encode(CreateTableSessionSignature(session, signingKey));
+    }
+
+    private static byte[] CreateTableSessionSignature(TableSession session, string signingKey)
+    {
+        if (string.IsNullOrWhiteSpace(signingKey))
+        {
+            throw new InvalidOperationException("JWT signing key is required for table session capabilities.");
+        }
+
+        var signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
+        var purpose = Encoding.UTF8.GetBytes("restaurant-qr-ai-ordering:table-session-capability:v1");
+        var purposeKey = HMACSHA256.HashData(signingKeyBytes, purpose);
+        var payload = Encoding.UTF8.GetBytes(
+            $"{session.Id}\n{session.OpenedAt.UtcDateTime.Ticks}\n{session.ExpiresAt.UtcDateTime.Ticks}");
+
+        return HMACSHA256.HashData(purposeKey, payload);
+    }
+
+    private static IResult UnauthorizedSessionCapability()
+    {
+        return ApiErrorFactory.Result(
+            StatusCodes.Status401Unauthorized,
+            "TABLE_SESSION_TOKEN_INVALID",
+            "A valid table session token is required.");
     }
 
     private static bool IsExpired(TableSession session, DateTimeOffset now)

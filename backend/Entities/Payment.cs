@@ -14,9 +14,9 @@ public class Payment
 
     public Order? Order { get; set; }
 
-    public PaymentMethod Method { get; set; } = PaymentMethod.COD;
+    public PaymentMethod Method { get; set; } = PaymentMethod.Unselected;
 
-    public PaymentStatus Status { get; set; } = PaymentStatus.Unpaid;
+    public PaymentStatus Status { get; set; } = PaymentStatus.NotRequested;
 
     public decimal Amount { get; set; }
 

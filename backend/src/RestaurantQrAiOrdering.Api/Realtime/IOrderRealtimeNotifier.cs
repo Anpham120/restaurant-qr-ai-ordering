@@ -7,4 +7,6 @@ public interface IOrderRealtimeNotifier
     Task OrderStatusChangedAsync(OrderStatusChangedEvent payload, string? tableCode, CancellationToken cancellationToken);
 
     Task OrderItemStatusChangedAsync(OrderItemStatusChangedEvent payload, string? tableCode, CancellationToken cancellationToken);
+
+    Task PaymentRequestedAsync(PaymentRequestedEvent payload, string? tableCode, CancellationToken cancellationToken);
 }

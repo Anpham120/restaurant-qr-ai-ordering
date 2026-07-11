@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { CustomerTestimonials } from "../../components/customer/CustomerTestimonials";
 import { CustomerWhyChooseUs } from "../../components/customer/CustomerWhyChooseUs";
 import {
+  clearCustomerSession,
   loadMenuCart,
   loadOrderContext,
   saveMenuCart,
@@ -13,6 +14,7 @@ import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
 import { openDineInSession } from "../../services/tableSessionService";
 import type { MenuCart, MenuItem } from "../../types";
+import { LayoutGrid } from "lucide-react";
 
 type CustomerMenuPageProps = {
   tableCode?: string;
@@ -42,7 +44,10 @@ function hasStoredSession(tableCode?: string, qrToken?: string) {
 
   const context = loadOrderContext();
   return Boolean(
-    context.tableCode === tableCode && context.qrToken === qrToken && context.sessionId,
+    context.tableCode === tableCode &&
+      context.qrToken === qrToken &&
+      context.sessionId &&
+      context.sessionToken,
   );
 }
 
@@ -120,6 +125,14 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
     }
 
     let isMounted = true;
+    const previousContext = loadOrderContext();
+    if (
+      previousContext.tableCode !== tableCode ||
+      previousContext.qrToken !== qrToken
+    ) {
+      clearCustomerSession();
+      setCart({});
+    }
 
     openDineInSession(qrToken, tableCode).then((result) => {
       if (!isMounted) {
@@ -127,16 +140,30 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
       }
 
       if (result.status === "open") {
-        saveOrderContext({ tableCode, qrToken, sessionId: result.session.sessionId });
+        saveOrderContext({
+          tableCode,
+          qrToken,
+          sessionId: result.session.sessionId,
+          sessionToken: result.session.tableSessionToken,
+        });
+        if (previousContext.sessionId !== result.session.sessionId) {
+          setCart({});
+        }
         setIsSessionOpen(true);
         setSessionNotice("");
       } else if (result.status === "expired") {
+        clearCustomerSession();
+        setCart({});
         setIsSessionOpen(false);
         setSessionNotice("Phiên bàn đã hết hạn. Bạn vẫn có thể xem thực đơn, nhưng cần quét lại QR để đặt món.");
       } else if (result.status === "invalid") {
+        clearCustomerSession();
+        setCart({});
         setIsSessionOpen(false);
         setSessionNotice("Mã QR không hợp lệ cho bàn này. Bạn vẫn có thể xem thực đơn, nhưng cần quét lại QR để đặt món.");
       } else {
+        clearCustomerSession();
+        setCart({});
         setIsSessionOpen(false);
         setSessionNotice("Chưa thể mở phiên bàn. Bạn vẫn có thể xem thực đơn và gọi nhân viên hỗ trợ khi cần đặt món.");
       }
@@ -354,10 +381,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
                 Đội ngũ đầu bếp luôn sẵn sàng chế biến những món ăn ngon nhất cho bạn.
               </p>
               <a className="vian-cta-button" href="#cmc-menu-sections">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                  <path d="M3 3h18v18H3V3z" />
-                  <path d="M3 9h18M9 21V9" />
-                </svg>
+                <LayoutGrid aria-hidden="true" size={20} />
                 Xem thực đơn
               </a>
             </div>

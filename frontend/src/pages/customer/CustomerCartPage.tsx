@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
+  clearCustomerSession,
   clearMenuCart,
   loadMenuCart,
   loadOrderContext,
@@ -10,16 +11,15 @@ import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { createOrder, generateVietQrPayment, validatePromotion } from "../../services/orderService";
+import { createOrder, validatePromotion } from "../../services/orderService";
+import { validateDineInSession } from "../../services/tableSessionService";
 import type {
   CreateOrderRequest,
-  CreateOrderResponse,
   MenuCart,
   MenuItem,
-  PaymentMethod,
   ValidatePromotionResponse,
-  VietQrPaymentResponse,
 } from "../../types";
+import { Check } from "lucide-react";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
@@ -46,7 +46,6 @@ function getCartItems(cart: MenuCart, items: MenuItem[]) {
 function buildOrderPayload(
   cart: MenuCart,
   selectedItems: MenuItem[],
-  paymentMethod: PaymentMethod,
   context: ReturnType<typeof getInitialOrderContext>,
   promotionCode: string | null,
   customerPhoneNumber: string | null,
@@ -56,7 +55,6 @@ function buildOrderPayload(
     tableCode: context.tableCode!,
     qrToken: context.qrToken!,
     tableSessionId: context.sessionId!,
-    paymentMethod,
     items: selectedItems.map((item) => ({
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
@@ -67,14 +65,13 @@ function buildOrderPayload(
 }
 
 export function CustomerCartPage() {
+  const navigate = useNavigate();
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
-  const [orderContext] = useState(getInitialOrderContext);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
+  const [orderContext, setOrderContext] = useState(getInitialOrderContext);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
-  const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<ValidatePromotionResponse | null>(null);
@@ -113,7 +110,10 @@ export function CustomerCartPage() {
   const discountAmount = appliedPromo?.discountAmount ?? 0;
   const finalTotal = Math.max(0, totalPrice - discountAmount);
   const hasActiveSession = Boolean(
-    orderContext.tableCode && orderContext.qrToken && orderContext.sessionId,
+    orderContext.tableCode &&
+      orderContext.qrToken &&
+      orderContext.sessionId &&
+      orderContext.sessionToken,
   );
   const tableMenuPath =
     orderContext.tableCode && orderContext.qrToken
@@ -135,8 +135,6 @@ export function CustomerCartPage() {
 
     setCart(nextCart);
     saveMenuCart(nextCart);
-    setSuccessOrder(null);
-    setVietQrPayment(null);
     // Cart total changed, so any applied promotion must be re-validated.
     setAppliedPromo(null);
     setPromoError("");
@@ -173,9 +171,8 @@ export function CustomerCartPage() {
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmittingRef.current) return;
     setErrorMessage("");
-    setSuccessOrder(null);
-    setVietQrPayment(null);
 
     if (!hasActiveSession) {
       setErrorMessage("Phiên bàn không hợp lệ. Vui lòng quét lại QR tại bàn để gọi món.");
@@ -190,27 +187,47 @@ export function CustomerCartPage() {
     const payload = buildOrderPayload(
       cart,
       selectedItems,
-      paymentMethod,
       orderContext,
       appliedPromo?.code ?? null,
       phoneInput.trim() || null,
     );
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
-      const response = await createOrder(payload);
-      setSuccessOrder(response);
-      if (payload.paymentMethod === "VietQR") {
-        setVietQrPayment(await generateVietQrPayment(response.orderCode));
+      const validation = await validateDineInSession(
+        orderContext.sessionId!,
+        orderContext.sessionToken!,
+        orderContext.tableCode!,
+      );
+      if (validation.status !== "open") {
+        if (validation.status === "error") {
+          setErrorMessage("Chưa kiểm tra được phiên bàn. Vui lòng thử gửi món lại.");
+          return;
+        }
+        clearCustomerSession();
+        setCart({});
+        setOrderContext({});
+        setErrorMessage(
+          validation.status === "expired"
+            ? "Phiên bàn đã hết hạn. Vui lòng quét lại QR tại bàn."
+            : "Phiên bàn không còn hợp lệ. Vui lòng quét lại QR tại bàn.",
+        );
+        return;
       }
+
+      const response = await createOrder(payload);
       setCart({});
       clearMenuCart();
       setAppliedPromo(null);
       setPromoInput("");
       setPhoneInput("");
+
+      navigate(`/orders/${response.orderCode}`, { replace: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Không thể gửi đơn lúc này.");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -239,7 +256,7 @@ export function CustomerCartPage() {
 
       {!hasActiveSession ? (
         <div className="cmc-empty-state" role="alert">
-          Vui lòng quét QR tại bàn để mở phiên gọi món trước khi thanh toán.
+          Vui lòng quét QR tại bàn để mở phiên trước khi gửi món.
         </div>
       ) : null}
 
@@ -322,37 +339,6 @@ export function CustomerCartPage() {
           </div>
 
           <div className="cmc-checkout-note">
-            <strong>Phương thức thanh toán</strong>
-            <div className="cmc-order-type-tabs" role="tablist" aria-label="Phương thức thanh toán">
-              {(["COD", "VietQR"] as PaymentMethod[]).map((method) => (
-                <button
-                  aria-selected={paymentMethod === method}
-                  className={paymentMethod === method ? "active" : ""}
-                  key={method}
-                  onClick={() => setPaymentMethod(method)}
-                  type="button"
-                >
-                  {method === "COD" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                      <rect x="2" y="6" width="20" height="12" rx="2" />
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M6 12h.01M18 12h.01" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM18 18h3v3h-3z" />
-                    </svg>
-                  )}
-                  {method === "COD" ? "Tiền mặt" : "Chuyển khoản QR"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="cmc-checkout-note">
             <strong>Mã khuyến mãi</strong>
             <div className="cmc-promo-row">
               <input
@@ -381,9 +367,7 @@ export function CustomerCartPage() {
             {promoError ? <span className="cmc-inline-error">{promoError}</span> : null}
             {appliedPromo ? (
               <span className="cmc-promo-success">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
+                <Check aria-hidden="true" size={16} strokeWidth={2.5} />
                 Đã áp dụng {appliedPromo.name}
               </span>
             ) : null}
@@ -403,31 +387,8 @@ export function CustomerCartPage() {
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
 
-          {successOrder ? (
-            <div className="cmc-success-state" role="status">
-              <strong>Đã tạo đơn {successOrder.orderCode}</strong>
-              <span>
-                Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}
-              </span>
-              <Link to={`/orders/${successOrder.orderCode}`}>Theo dõi đơn</Link>
-            </div>
-          ) : null}
-
-          {vietQrPayment ? (
-            <div className="cmc-success-state" role="status">
-              <strong>VietQR đã sẵn sàng</strong>
-              <span>
-                {formatVnd(vietQrPayment.amount)} - Nội dung: {vietQrPayment.transferContent}
-              </span>
-              <img alt={`VietQR ${vietQrPayment.orderCode}`} src={vietQrPayment.qrImageDataUri} />
-              <a href={vietQrPayment.quickLink} target="_blank" rel="noreferrer">
-                Mở link thanh toán
-              </a>
-            </div>
-          ) : null}
-
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
-            {isSubmitting ? "Đang gửi đơn..." : "Gửi đơn cho bếp"}
+            {isSubmitting ? "Đang gửi món..." : "Gửi món"}
           </button>
         </form>
       </div>

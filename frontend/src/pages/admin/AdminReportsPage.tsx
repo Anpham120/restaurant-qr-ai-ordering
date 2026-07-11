@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReportSummaryResponse } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { BarChart3 } from "lucide-react";
 import "../../components/operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString("vi-VN")}đ`;
@@ -65,7 +61,7 @@ export function AdminReportsPage() {
       </div>
 
       {isLoading ? (
-        <div className="ops-empty"><div className="ops-empty-icon">📊</div>Đang tải...</div>
+        <div className="ops-empty"><div className="ops-empty-icon"><BarChart3 aria-hidden="true" /></div>Đang tải...</div>
       ) : report ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
