@@ -5,6 +5,8 @@ import unittest
 from collections import defaultdict
 from pathlib import Path
 
+from research.run_experiments import _select_winner
+
 
 AI_ROOT = Path(__file__).resolve().parents[1]
 
@@ -50,19 +52,37 @@ class ResearchArtifactTests(unittest.TestCase):
         self.assertIn(production["method"], summary["methods"])
         self.assertGreater(summary["methods"][production["method"]]["test"]["hit_at_5"], 0.9)
 
+        self.assertEqual("dev", summary["selection_split"])
+        self.assertIn("development", production["selection_rule"].lower())
+        self.assertIn("frozen test", production["selection_rule"].lower())
+
         best_quality = max(
-            payload["test"]["macro_slice_ndcg_at_10"] for payload in summary["methods"].values()
+            payload["dev"]["macro_slice_ndcg_at_10"] for payload in summary["methods"].values()
         )
         finalists = {
             method
             for method, payload in summary["methods"].items()
-            if best_quality - payload["test"]["macro_slice_ndcg_at_10"] <= 0.005
+            if best_quality - payload["dev"]["macro_slice_ndcg_at_10"] <= 0.005
         }
         expected_winner = min(
             finalists,
-            key=lambda method: summary["methods"][method]["test"]["latency_p95_ms"],
+            key=lambda method: summary["methods"][method]["dev"]["latency_p95_ms"],
         )
         self.assertEqual(expected_winner, production["method"])
+
+    def test_production_selection_uses_dev_not_frozen_test(self):
+        summaries = {
+            "dev_winner": {
+                "dev": {"macro_slice_ndcg_at_10": 0.91, "latency_p95_ms": 9.0},
+                "test": {"macro_slice_ndcg_at_10": 0.40, "latency_p95_ms": 9.0},
+            },
+            "test_winner": {
+                "dev": {"macro_slice_ndcg_at_10": 0.70, "latency_p95_ms": 1.0},
+                "test": {"macro_slice_ndcg_at_10": 0.99, "latency_p95_ms": 1.0},
+            },
+        }
+
+        self.assertEqual("dev_winner", _select_winner(summaries))
 
 
 if __name__ == "__main__":

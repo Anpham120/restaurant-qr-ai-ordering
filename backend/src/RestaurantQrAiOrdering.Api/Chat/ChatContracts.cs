@@ -7,7 +7,9 @@ public sealed record CreateChatSessionRequest(
 public sealed record CreateChatSessionResponse(
     string ChatSessionId,
     DateTimeOffset CreatedAt,
-    bool Reused);
+    DateTimeOffset UpdatedAt,
+    bool Reused,
+    IReadOnlyList<ChatMessageResponse> Messages);
 
 public sealed record SendChatMessageRequest(
     string? Content);

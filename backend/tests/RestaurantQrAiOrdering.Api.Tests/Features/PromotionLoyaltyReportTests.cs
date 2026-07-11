@@ -198,7 +198,7 @@ public sealed class PromotionLoyaltyReportTests
         using var chatBody = await JsonDocument.ParseAsync(await chatResponse.Content.ReadAsStreamAsync());
         var chatSessionId = chatBody.RootElement.GetProperty("chatSessionId").GetString()!;
 
-        Assert.Equal(HttpStatusCode.Created, chatResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, chatResponse.StatusCode);
 
         using var createResponse = await client.PostAsJsonAsync("/api/orders", new
         {

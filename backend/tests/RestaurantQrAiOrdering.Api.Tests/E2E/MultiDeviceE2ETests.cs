@@ -108,7 +108,7 @@ public sealed class MultiDeviceE2ETests
         });
         var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return body;
     }
 

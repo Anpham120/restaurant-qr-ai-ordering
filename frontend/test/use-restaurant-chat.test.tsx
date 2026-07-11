@@ -30,11 +30,14 @@ const diagnostics = {
 describe("useRestaurantChat", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     vi.clearAllMocks();
     mocks.createSession.mockResolvedValue({
       chatSessionId: "chat-1",
       createdAt: "2026-07-10T00:00:00Z",
+      updatedAt: "2026-07-10T00:00:00Z",
       reused: false,
+      messages: [],
     });
   });
 
@@ -57,7 +60,8 @@ describe("useRestaurantChat", () => {
       tableCode: "T05",
       tableSessionId: "table-session-1",
     });
-    expect(sessionStorage.getItem("cmc-chat-session:table-session-1")).toBe("chat-1");
+    expect(localStorage.getItem("cmc-chat-session:table-session-1")).toBe("chat-1");
+    expect(sessionStorage.getItem("cmc-chat-session:table-session-1")).toBeNull();
 
     await act(async () => {
       await result.current.send(undefined, "Giá của Phở bò tái nạm bao nhiêu?");
@@ -71,7 +75,7 @@ describe("useRestaurantChat", () => {
   });
 
   it("restores persisted history without creating a duplicate session", async () => {
-    sessionStorage.setItem("cmc-chat-session:table-session-1", "chat-existing");
+    localStorage.setItem("cmc-chat-session:table-session-1", "chat-existing");
     mocks.getHistory.mockResolvedValue({
       chatSessionId: "chat-existing",
       createdAt: "2026-07-10T00:00:00Z",
@@ -92,5 +96,30 @@ describe("useRestaurantChat", () => {
 
     expect(result.current.messages[0].content).toBe("Lịch sử đã lưu.");
     expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
+  it("restores server history in the create response when browser mapping is missing", async () => {
+    mocks.createSession.mockResolvedValue({
+      chatSessionId: "chat-existing",
+      createdAt: "2026-07-10T00:00:00Z",
+      updatedAt: "2026-07-10T00:00:01Z",
+      reused: true,
+      messages: [
+        {
+          id: "assistant-old",
+          role: "assistant",
+          content: "Bộ nhớ phiên bàn đã khôi phục.",
+          createdAt: "2026-07-10T00:00:01Z",
+          suggestedCartActions: [],
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useRestaurantChat());
+    await waitFor(() => expect(result.current.chatSessionId).toBe("chat-existing"));
+
+    expect(result.current.messages[0].content).toBe("Bộ nhớ phiên bàn đã khôi phục.");
+    expect(mocks.getHistory).not.toHaveBeenCalled();
+    expect(localStorage.getItem("cmc-chat-session:table-session-1")).toBe("chat-existing");
   });
 });

@@ -383,7 +383,8 @@ def main() -> None:
     production_config = {
         "method": winner,
         "selection_rule": (
-            "Highest locked-test macro slice nDCG@10; methods within 0.005 use the lower P95 query latency."
+            "Highest development macro slice nDCG@10; methods within 0.005 use the lower P95 query latency. "
+            "The frozen test set is used only for post-selection evaluation."
         ),
         "config": selected_configs[winner],
         "threshold": summaries[winner]["threshold"],
@@ -411,22 +412,31 @@ def main() -> None:
         "evaluation_script_sha256": _sha256(Path(__file__)),
     }
 
-    _write_json(args.artifacts / "summary.json", {"winner": winner, "methods": summaries})
+    _write_json(
+        args.artifacts / "summary.json",
+        {"winner": winner, "selection_split": "dev", "methods": summaries},
+    )
     _write_json(args.artifacts / "production_config.json", production_config)
     _write_json(args.artifacts / "statistical_tests.json", statistics_payload)
     _write_json(args.artifacts / "environment.json", environment)
     _write_rows(args.artifacts / "per_query_results.csv", all_test_rows)
-    print(json.dumps({"winner": winner, "test": summaries[winner]["test"]}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"winner": winner, "selection_split": "dev", "test": summaries[winner]["test"]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 def _select_winner(summaries: dict[str, Any]) -> str:
-    best_quality = max(value["test"]["macro_slice_ndcg_at_10"] for value in summaries.values())
+    best_quality = max(value["dev"]["macro_slice_ndcg_at_10"] for value in summaries.values())
     finalists = [
         method
         for method, value in summaries.items()
-        if best_quality - value["test"]["macro_slice_ndcg_at_10"] <= PRODUCTION_SELECTION_TOLERANCE
+        if best_quality - value["dev"]["macro_slice_ndcg_at_10"] <= PRODUCTION_SELECTION_TOLERANCE
     ]
-    return min(finalists, key=lambda method: summaries[method]["test"]["latency_p95_ms"])
+    return min(finalists, key=lambda method: summaries[method]["dev"]["latency_p95_ms"])
 
 
 def _statistical_comparisons(

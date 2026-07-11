@@ -27,7 +27,12 @@ export function useRestaurantChat() {
   useEffect(() => {
     let active = true;
     async function initialize() {
-      const stored = typeof window === "undefined" ? null : sessionStorage.getItem(storageKey);
+      const storage = typeof window === "undefined"
+        ? null
+        : orderContext.sessionId
+          ? window.localStorage
+          : window.sessionStorage;
+      const stored = storage?.getItem(storageKey) ?? null;
       if (stored) {
         try {
           const history = await chatApi.getHistory(stored);
@@ -39,7 +44,7 @@ export function useRestaurantChat() {
           setReady(true);
           return;
         } catch {
-          sessionStorage.removeItem(storageKey);
+          storage?.removeItem(storageKey);
         }
       }
 
@@ -49,13 +54,11 @@ export function useRestaurantChat() {
           tableSessionId: orderContext.sessionId,
         });
         if (!active) return;
-        sessionStorage.setItem(storageKey, session.chatSessionId);
+        storage?.setItem(storageKey, session.chatSessionId);
         setChatSessionId(session.chatSessionId);
-        if (session.reused) {
-          const history = await chatApi.getHistory(session.chatSessionId);
-          if (!active) return;
-          setMessages(history.messages.length ? history.messages : [welcomeMessage]);
-          const latest = [...history.messages].reverse().find((message) => message.role === "assistant");
+        if (session.messages.length) {
+          setMessages(session.messages);
+          const latest = [...session.messages].reverse().find((message) => message.role === "assistant");
           setSuggestions(latest?.suggestedCartActions ?? []);
         }
       } catch {

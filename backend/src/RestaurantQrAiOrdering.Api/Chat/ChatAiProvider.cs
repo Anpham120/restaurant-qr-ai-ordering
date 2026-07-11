@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RestaurantQrAiOrdering.Api.Data;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
@@ -18,6 +19,7 @@ public sealed record ChatMenuItemContext(
 public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
+    string? SessionMemory,
     IReadOnlyList<ChatMenuItemContext> MenuItems,
     string? TableCode);
 
@@ -45,6 +47,7 @@ public interface IChatAssistantService
     Task<ChatAssistantReply> GenerateReplyAsync(
         string userMessage,
         IReadOnlyList<ChatMessageSnapshot> history,
+        string? sessionMemory,
         string? tableCode,
         CancellationToken cancellationToken);
 }
@@ -87,6 +90,7 @@ public sealed class PythonAcademicChatProvider : IChatAiProvider
         {
             message = request.UserMessage,
             table_code = request.TableCode,
+            session_memory = request.SessionMemory,
             history = request.History.TakeLast(6).Select(item => new { role = item.Role, content = item.Content }),
             menu_items = request.MenuItems.Select(item => new
             {
@@ -103,8 +107,16 @@ public sealed class PythonAcademicChatProvider : IChatAiProvider
 
         try
         {
-            using var response = await httpClient.PostAsJsonAsync(
-                $"{serviceUrl.TrimEnd('/')}/v1/chat", payload, timeout.Token);
+            using var requestMessage = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{serviceUrl.TrimEnd('/')}/v1/chat")
+            {
+                Content = JsonContent.Create(payload)
+            };
+            using var response = await httpClient.SendAsync(
+                requestMessage,
+                HttpCompletionOption.ResponseHeadersRead,
+                timeout.Token);
             response.EnsureSuccessStatusCode();
             using var json = await JsonDocument.ParseAsync(
                 await response.Content.ReadAsStreamAsync(timeout.Token), cancellationToken: timeout.Token);
@@ -228,6 +240,8 @@ public sealed class PythonAcademicChatProvider : IChatAiProvider
 
 public sealed class ChatAssistantService : IChatAssistantService
 {
+    private const string MenuCacheKey = "chat:menu-context:v1";
+    private static readonly TimeSpan MenuCacheDuration = TimeSpan.FromSeconds(2);
     private static readonly string[] ForbiddenCompletionClaims =
     [
         "đã đặt món",
@@ -239,36 +253,51 @@ public sealed class ChatAssistantService : IChatAssistantService
 
     private readonly RestaurantDbContext db;
     private readonly IChatAiProvider provider;
+    private readonly IMemoryCache cache;
 
-    public ChatAssistantService(RestaurantDbContext db, IChatAiProvider provider)
+    public ChatAssistantService(
+        RestaurantDbContext db,
+        IChatAiProvider provider,
+        IMemoryCache cache)
     {
         this.db = db;
         this.provider = provider;
+        this.cache = cache;
     }
 
     public async Task<ChatAssistantReply> GenerateReplyAsync(
         string userMessage,
         IReadOnlyList<ChatMessageSnapshot> history,
+        string? sessionMemory,
         string? tableCode,
         CancellationToken cancellationToken)
     {
-        var categories = await db.Categories.AsNoTracking().ToDictionaryAsync(
-            category => category.Id,
-            category => category.Name,
-            cancellationToken);
-        var entities = await db.MenuItems.AsNoTracking().OrderBy(item => item.Id).ToListAsync(cancellationToken);
-        var menu = entities.Select(item => new ChatMenuItemContext(
-            item.Id,
-            item.CategoryId,
-            categories.GetValueOrDefault(item.CategoryId, item.CategoryId),
-            item.Name,
-            item.Description ?? string.Empty,
-            item.Price,
-            item.Tags,
-            item.IsAvailable)).ToList();
+        var menu = await cache.GetOrCreateAsync<IReadOnlyList<ChatMenuItemContext>>(
+            MenuCacheKey,
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = MenuCacheDuration;
+                var categories = await db.Categories.AsNoTracking().ToDictionaryAsync(
+                    category => category.Id,
+                    category => category.Name,
+                    cancellationToken);
+                var entities = await db.MenuItems
+                    .AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .ToListAsync(cancellationToken);
+                return entities.Select(item => new ChatMenuItemContext(
+                    item.Id,
+                    item.CategoryId,
+                    categories.GetValueOrDefault(item.CategoryId, item.CategoryId),
+                    item.Name,
+                    item.Description ?? string.Empty,
+                    item.Price,
+                    item.Tags.ToList(),
+                    item.IsAvailable)).ToList();
+            }) ?? [];
 
         var result = await provider.GenerateAsync(
-            new ChatAiRequest(userMessage, history, menu, tableCode),
+            new ChatAiRequest(userMessage, history, sessionMemory, menu, tableCode),
             cancellationToken);
         var flags = result.GuardrailFlags.ToList();
         if (!result.ServiceAvailable && !flags.Contains("AI_SERVICE_UNAVAILABLE"))
@@ -276,7 +305,7 @@ public sealed class ChatAssistantService : IChatAssistantService
             flags.Add("AI_SERVICE_UNAVAILABLE");
         }
 
-        var available = entities.Where(item => item.IsAvailable).ToDictionary(item => item.Id);
+        var available = menu.Where(item => item.IsAvailable).ToDictionary(item => item.Id);
         var actions = result.SuggestedActions
             .Where(action => available.ContainsKey(action.MenuItemId))
             .GroupBy(action => action.MenuItemId)
@@ -288,7 +317,7 @@ public sealed class ChatAssistantService : IChatAssistantService
                 return new SuggestedCartActionResponse(
                     item.Id,
                     item.Name,
-                    item.Price,
+                    item.PriceVnd,
                     Math.Clamp(action.Quantity, 1, 20),
                     action.Reason,
                     RequiresCustomerConfirmation: true);

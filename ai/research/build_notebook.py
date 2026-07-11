@@ -1,173 +1,616 @@
 from __future__ import annotations
 
-import base64
-import io
 import json
 from pathlib import Path
-
-import matplotlib.pyplot as plt
-import pandas as pd
+from textwrap import dedent
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACTS = ROOT / "artifacts"
 OUTPUT = ROOT.parent / "notebooks" / "academic_retrieval_study.ipynb"
 
 
 def main() -> None:
-    summary = json.loads((ARTIFACTS / "summary.json").read_text(encoding="utf-8"))
-    production = json.loads((ARTIFACTS / "production_config.json").read_text(encoding="utf-8"))
-    environment = json.loads((ARTIFACTS / "environment.json").read_text(encoding="utf-8"))
-    statistics_payload = json.loads((ARTIFACTS / "statistical_tests.json").read_text(encoding="utf-8"))
-
-    method_rows = []
-    for method, payload in summary["methods"].items():
-        test = payload["test"]
-        method_rows.append(
-            {
-                "method": method,
-                "Hit@1": test["hit_at_1"],
-                "Hit@5": test["hit_at_5"],
-                "MRR@10": test["mrr_at_10"],
-                "nDCG@10": test["ndcg_at_10"],
-                "Macro slice nDCG": test["macro_slice_ndcg_at_10"],
-                "P95 ms": test["latency_p95_ms"],
-            }
-        )
-    method_frame = pd.DataFrame(method_rows).sort_values("Macro slice nDCG", ascending=False)
-
-    slice_rows = []
-    for method, payload in summary["methods"].items():
-        for slice_name, metrics in payload["test"]["by_slice"].items():
-            if metrics["ndcg_at_10"] >= 0:
-                slice_rows.append({"method": method, "slice": slice_name, "nDCG@10": metrics["ndcg_at_10"]})
-    slice_frame = pd.DataFrame(slice_rows)
-
-    method_chart = _method_chart(method_frame)
-    slice_chart = _slice_chart(slice_frame)
-    stats_frame = pd.DataFrame(
-        [
-            {
-                "compared_with_winner": method,
-                "paired_nDCG_delta": value["paired_ndcg_delta_winner_minus_method"],
-                "bootstrap_95_ci": str(value["paired_bootstrap_95_ci"]),
-                "McNemar_p": value["mcnemar"]["exact_two_sided_p"],
-            }
-            for method, value in statistics_payload.items()
-        ]
-    )
-
     cells = [
         _markdown(
-            "# Nghiên cứu truy xuất cho chatbot CMC Restaurant\n\n"
-            f"**Snapshot:** 91 món / 13 danh mục · **Development:** {environment['case_counts']['dev']} truy vấn · "
-            f"**Locked test:** {environment['case_counts']['test']} truy vấn.\n\n"
-            "Notebook này được sinh trực tiếp từ artifact của `run_experiments.py`. "
-            "Không có metric hoặc kết luận nhập tay."
+            """
+            # Nghiên cứu RAG cho chatbot CMC Restaurant
+
+            Notebook này mô tả một quy trình nghiên cứu có thể tái lập theo thứ tự:
+            dữ liệu → document hóa → tiền xử lý → các phương án retrieval → tuning trên
+            development set → frozen test → quyết định production → demo chatbot RAG.
+
+            Đây là notebook thực thi được, không phải báo cáo chèn sẵn kết quả. Mọi metric chỉ
+            được đọc sau khi checksum của artifact khớp code và dữ liệu hiện tại.
+            """
         ),
         _markdown(
-            "## Kịch bản trình bày ý tưởng chatbot (5–7 phút)\n\n"
-            "**1. Vấn đề (40 giây).** Khi khách quét QR, họ cần hỏi nhanh về món, giá, tình trạng còn hàng "
-            "và chính sách. Một chatbot chỉ gọi LLM có thể bịa giá hoặc nói đã đặt món, nên không phù hợp với "
-            "luồng nhà hàng.\n\n"
-            "**2. Ý tưởng (60 giây).** Xây chatbot theo RAG có nguồn kiểm soát: backend gửi menu hiện tại; "
-            "service truy xuất món/chính sách liên quan; Gemini Flash chỉ diễn đạt câu trả lời dựa trên context. "
-            "Mọi thao tác giỏ hàng vẫn do khách bấm xác nhận.\n\n"
-            "**3. Luồng demo (90 giây).** (a) hỏi giá Phở bò tái nạm → fast path lấy giá chuẩn từ menu; "
-            "(b) hỏi gợi ý cho hai người → retriever trả món phù hợp và giao diện hiện nút thêm giỏ; "
-            "(c) yêu cầu đặt món hộ → chatbot từ chối thực thi, chỉ đưa gợi ý; (d) hỏi món đã hết → không đề xuất.\n\n"
-            "**4. Điểm học thuật (90 giây).** Không chọn RAG theo cảm tính: cùng một bộ 91 món, cùng truy vấn, "
-            "so sánh 5 phương pháp, khóa test set và lưu kết quả từng truy vấn.\n\n"
-            "**5. Kết luận (40 giây).** Phương pháp triển khai là phương pháp thắng trên test, nhưng giới hạn được "
-            "nêu rõ; khi có log thật, nghiên cứu sẽ được lặp lại trước khi đổi cấu hình production."
-        ),
-        _markdown(
-            "### Sơ đồ lời nói khi bảo vệ\n\n"
-            "`Menu PostgreSQL hiện tại → Python retrieval → fast path hoặc Gemini Flash có context → backend kiểm chứng → khách xác nhận`\n\n"
-            "Ba nguyên tắc cần nhấn mạnh với thầy:\n\n"
-            "- **Đúng dữ liệu:** menu, giá và còn/hết lấy từ backend; không dùng menu Markdown bị sao chép.\n"
-            "- **Đúng phương pháp:** TF-IDF, BM25, embedding đa ngữ và hybrid cùng được chạy thật trên cùng protocol.\n"
-            "- **Đúng an toàn:** AI không có quyền sửa giỏ, tạo đơn hay thanh toán; backend là lớp quyết định cuối."
-        ),
-        _markdown(
-            "## 1. Câu hỏi nghiên cứu và giả thuyết\n\n"
-            "- RQ1: BM25, TF-IDF, embedding đa ngữ hay Hybrid cho xếp hạng tốt nhất trên menu 91 món?\n"
-            "- RQ2: Dense embedding có cải thiện paraphrase nhưng suy giảm thế nào với tiếng Việt không dấu?\n"
-            "- RQ3: Phương pháp nào nằm trên biên chất lượng–độ trễ phù hợp production?\n\n"
-            "Tham số và ngưỡng được chọn trên development set. Test set chỉ được dùng một lần để báo cáo cuối."
+            """
+            ## 0. Bài toán và câu hỏi nghiên cứu
+
+            Khách quét QR cần hỏi về menu, giá, món còn phục vụ và chính sách. Chatbot chỉ tư
+            vấn dựa trên evidence kiểm soát; không tự tạo đơn, sửa giỏ hoặc thanh toán.
+
+            Không có bước fine-tune trong scope hiện tại. Tương đương với huấn luyện trong
+            ML/DL ở đây là xây index, chọn representation và tune siêu tham số retriever.
+
+            - RQ1: TF-IDF, BM25, dense embedding hay hybrid RRF xếp hạng tốt nhất?
+            - RQ2: Phương án nào bền vững với tiếng Việt không dấu, paraphrase, policy và
+              multi-intent?
+            - RQ3: Phương án nào cân bằng chất lượng, độ trễ và chi phí vận hành?
+            - RQ4: Câu trả lời cuối có grounded, an toàn và truy vết được nguồn không?
+            """
         ),
         _code(
-            "import json, pandas as pd\n"
-            "from pathlib import Path\n"
-            "ARTIFACTS = Path('../research/artifacts')\n"
-            "summary = json.loads((ARTIFACTS / 'summary.json').read_text(encoding='utf-8'))\n"
-            "environment = json.loads((ARTIFACTS / 'environment.json').read_text(encoding='utf-8'))\n"
-            "environment",
-            execution_count=1,
-            output=environment,
+            """
+            from __future__ import annotations
+
+            import hashlib
+            import json
+            import os
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            import matplotlib.pyplot as plt
+            import pandas as pd
+            from IPython.display import Markdown, display
+
+
+            def locate_ai_root() -> Path:
+                cwd = Path.cwd().resolve()
+                candidates = [cwd, *cwd.parents, cwd / "ai"]
+                for candidate in candidates:
+                    if (candidate / "app").is_dir() and (candidate / "research").is_dir():
+                        return candidate
+                raise RuntimeError(
+                    "Không tìm thấy thư mục ai/. Mở notebook từ repository hoặc ai/notebooks."
+                )
+
+
+            AI_ROOT = locate_ai_root()
+            PROJECT_ROOT = AI_ROOT.parent
+            RESEARCH = AI_ROOT / "research"
+            ARTIFACTS = RESEARCH / "artifacts"
+            DATA = AI_ROOT / "data"
+
+            if str(AI_ROOT) not in sys.path:
+                sys.path.insert(0, str(AI_ROOT))
+
+            RUN_PIPELINE = False
+            RUN_LIVE_SERVICE_DEMO = False
+            AI_SERVICE_URL = "http://127.0.0.1:8001"
+
+            print(f"AI root: {AI_ROOT}")
+            print("Chế độ an toàn: không tái tạo artifact và không gọi LLM mặc định.")
+            """,
+            tags=["parameters"],
         ),
         _markdown(
-            "## 2. Thiết kế thực nghiệm\n\n"
-            "Các phương pháp dùng cùng 101 tài liệu (91 món lấy từ `RestaurantMenuSeed.cs` và 10 chính sách). "
-            "Các biến thể của cùng món luôn ở cùng split. Metric chính để chọn production là macro nDCG@10 theo slice; "
-            "nếu hai phương pháp cách nhau không quá 0,005 thì chọn phương pháp có P95 thấp hơn.\n\n"
-            "Các slice gồm: exact name, no-diacritic, semantic paraphrase, category intent, policy paraphrase, "
-            "multi-intent và hard negative."
+            """
+            ## 1. Provenance và cổng tái lập
+
+            Artifact là evidence chỉ khi nó được tạo từ đúng dữ liệu, script và cấu hình hiện
+            tại. Nếu có checksum không khớp, notebook hiển thị BLOCK và không diễn giải metric
+            hay dùng kết quả để chọn production.
+            """
         ),
         _code(
-            "rows = []\n"
-            "for method, payload in summary['methods'].items():\n"
-            "    t = payload['test']\n"
-            "    rows.append({'method': method, 'Hit@1': t['hit_at_1'], 'Hit@5': t['hit_at_5'], "
-            "'MRR@10': t['mrr_at_10'], 'nDCG@10': t['ndcg_at_10'], "
-            "'Macro slice nDCG': t['macro_slice_ndcg_at_10'], 'P95 ms': t['latency_p95_ms']})\n"
-            "pd.DataFrame(rows).sort_values('Macro slice nDCG', ascending=False)",
-            execution_count=2,
-            output=method_frame,
+            """
+            def sha256(path: Path) -> str | None:
+                if not path.exists():
+                    return None
+                return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+            def refresh_provenance():
+                environment_path = ARTIFACTS / "environment.json"
+                environment = (
+                    json.loads(environment_path.read_text(encoding="utf-8"))
+                    if environment_path.exists()
+                    else {}
+                )
+                targets = {
+                    "queries": ("queries_sha256", RESEARCH / "queries.csv"),
+                    "menu_snapshot": ("menu_snapshot_sha256", RESEARCH / "menu_snapshot.json"),
+                    "policies": ("policy_sha256", DATA / "policies.json"),
+                    "evaluation_script": ("evaluation_script_sha256", RESEARCH / "run_experiments.py"),
+                }
+                rows = []
+                for name, (key, path) in targets.items():
+                    recorded = environment.get(key)
+                    actual = sha256(path)
+                    rows.append(
+                        {
+                            "component": name,
+                            "path": str(path.relative_to(PROJECT_ROOT)),
+                            "fresh": bool(recorded and actual and recorded == actual),
+                            "recorded_sha256": recorded,
+                            "current_sha256": actual,
+                        }
+                    )
+                frame = pd.DataFrame(rows)
+                return environment, frame, bool(not frame.empty and frame["fresh"].all())
+
+
+            artifact_environment, provenance_frame, ARTIFACTS_FRESH = refresh_provenance()
+            display(provenance_frame)
+            message = "**PASS:** artifact khớp code và dữ liệu." if ARTIFACTS_FRESH else (
+                "**BLOCK:** artifact chưa khớp code hoặc dữ liệu. Chạy lại pipeline ở mục 6."
+            )
+            display(Markdown(message))
+            """
         ),
-        _image_code("# Biểu đồ được dựng từ summary.json", method_chart, execution_count=3),
         _markdown(
-            "## 3. Phân tích theo nhóm truy vấn\n\n"
-            "Embedding pretrained không tự động thắng trong miền nhỏ. Trên tập này, mô hình đa ngữ giảm mạnh ở "
-            "truy vấn không dấu; lexical normalization lại xử lý nhóm này ổn định. Hybrid RRF giảm tác hại nhưng "
-            "vẫn mang theo nhiễu từ dense ranking."
+            """
+            ## 2. Chuẩn bị dữ liệu và khám phá dữ liệu
+
+            Menu chuẩn được đọc từ seed backend; policy được version trong JSON. Benchmark gồm
+            query template có kiểm soát và ca gán nhãn thủ công: semantic paraphrase, policy,
+            multi-intent và hard-negative. Variants của cùng menu item hoặc policy phải ở cùng
+            một split để tránh leakage.
+            """
         ),
-        _image_code("# nDCG@10 theo từng slice", slice_chart, execution_count=4),
         _code(
-            "statistics = json.loads((ARTIFACTS / 'statistical_tests.json').read_text(encoding='utf-8'))\n"
-            "pd.DataFrame([{'compared_with_winner': k, 'paired_nDCG_delta': v['paired_ndcg_delta_winner_minus_method'], "
-            "'bootstrap_95_ci': str(v['paired_bootstrap_95_ci']), 'McNemar_p': v['mcnemar']['exact_two_sided_p']} "
-            "for k, v in statistics.items()])",
-            execution_count=5,
-            output=stats_frame,
-        ),
-        _markdown(
-            "## 4. Quyết định production\n\n"
-            f"Phương pháp được chọn theo quy tắc định trước là **{production['method']}**. "
-            "Quyết định này dựa trên locked-test macro nDCG@10 và P95, không dựa trên cảm nhận. "
-            "`production_config.json` là nguồn cấu hình runtime."
+            """
+            from research.build_dataset import DEFAULT_SEED, build_cases
+
+            cases, snapshot = build_cases(DEFAULT_SEED, RESEARCH / "manual_cases.json")
+            case_frame = pd.DataFrame(cases)
+            menu_frame = pd.DataFrame(
+                [
+                    {
+                        "id": item.id,
+                        "category": item.category_name,
+                        "name": item.name,
+                        "description_length": len(item.description or ""),
+                    }
+                    for item in snapshot.items
+                ]
+            )
+
+            print(f"Menu: {len(menu_frame)} món | {menu_frame['category'].nunique()} danh mục")
+            print(f"Queries: {len(case_frame)}")
+            display(case_frame.groupby(["split", "slice"]).size().rename("queries").reset_index())
+            display(menu_frame.groupby("category").size().rename("menu_items").sort_values(ascending=False))
+            """
         ),
         _code(
-            "production = json.loads((ARTIFACTS / 'production_config.json').read_text(encoding='utf-8'))\n"
-            "production",
-            execution_count=6,
-            output=production,
+            """
+            generated_slices = {"exact_name", "no_diacritic", "category_intent"}
+            generated_share = case_frame["slice"].isin(generated_slices).mean()
+            print(f"Tỷ lệ query sinh theo menu/template: {generated_share:.1%}")
+
+            query_lengths = case_frame.assign(tokens=case_frame["question"].str.split().str.len())
+            display(query_lengths.groupby("slice")["tokens"].agg(["count", "mean", "min", "max"]).round(2))
+            display(case_frame.sample(min(8, len(case_frame)), random_state=42))
+
+            print(
+                "Báo cáo phải nêu rõ tỷ lệ query template và query giống người dùng để tránh "
+                "đánh giá quá cao lexical retrieval."
+            )
+            """
         ),
         _markdown(
-            "## 5. Giới hạn và hướng nghiên cứu tiếp\n\n"
-            "- Truy vấn hiện gồm dữ liệu tổng hợp có kiểm soát và ca paraphrase gán nhãn thủ công; chưa phải log người dùng thật.\n"
-            "- Nhãn cần được hai người độc lập kiểm tra trước khi dùng trong luận văn chính thức.\n"
-            "- Kết quả embedding phụ thuộc đúng model/checksum ghi trong environment artifact.\n"
-            "- Chất lượng generation, hallucination và guardrail được đánh giá ở test suite riêng vì không nên trộn với retrieval ranking.\n"
-            "- Khi có log ẩn danh, cần xây tập test ngoài phân phối và lặp lại nghiên cứu."
+            """
+            ## 3. Document hóa, tiền xử lý và chunking
+
+            Mỗi món là một document nguyên tử gồm tên, danh mục, mô tả và tags; mỗi policy là
+            một document có answer và aliases. Không chunking menu vì một món ngắn là đơn vị
+            nghiệp vụ nguyên tử: chia nhỏ sẽ làm mất liên kết an toàn giữa menu ID, giá và
+            availability. Đây là quyết định thiết kế được giải thích, không phải bước bị bỏ qua.
+            """
+        ),
+        _code(
+            """
+            from app.data import documents_from_menu, load_policy_documents
+            from app.text import normalize_text
+
+            documents = documents_from_menu(snapshot.items) + load_policy_documents(DATA / "policies.json")
+            document_frame = pd.DataFrame(
+                [
+                    {
+                        "id": document.id,
+                        "kind": document.kind,
+                        "source": document.source,
+                        "title": document.title,
+                        "characters": len(document.text),
+                    }
+                    for document in documents
+                ]
+            )
+            display(
+                document_frame.groupby("kind").agg(
+                    documents=("id", "count"), mean_characters=("characters", "mean")
+                )
+            )
+            display(document_frame.head(8))
+
+            examples = pd.DataFrame({"raw": ["Phở bò tái nạm", "quán có bún bò huế không"]})
+            examples["normalized_for_lexical"] = examples["raw"].map(normalize_text)
+            display(examples)
+            """
+        ),
+        _markdown(
+            """
+            ## 4. Kiến trúc chatbot RAG và các phương án so sánh
+
+                Menu PostgreSQL hiện tại + policy versioned
+                    → document hóa và index in-memory
+                    → retriever top-k
+                    → fast path an toàn hoặc context cho LLM
+                    → response kèm retrieved sources
+                    → backend kiểm tra ID, giá, availability
+                    → khách xác nhận hành động trên giao diện
+
+            LLM chỉ diễn đạt khi có context phù hợp. Giá, policy, món hết và thao tác đặt món
+            đi qua fast path hoặc backend. RAG không bắt buộc phải dùng vector database; corpus
+            nhỏ, động và có kiểm soát vẫn có thể dùng index in-memory.
+            """
+        ),
+        _code(
+            """
+            methods_frame = pd.DataFrame(
+                [
+                    {
+                        "method": "tfidf",
+                        "family": "lexical baseline",
+                        "representation": "unigram + bigram TF-IDF",
+                        "tuned_on_dev": "không có grid riêng",
+                    },
+                    {
+                        "method": "bm25",
+                        "family": "lexical baseline",
+                        "representation": "BM25 + title boost",
+                        "tuned_on_dev": "k1, b, title_boost",
+                    },
+                    {
+                        "method": "embedding",
+                        "family": "dense retrieval",
+                        "representation": "FastEmbed multilingual MiniLM",
+                        "tuned_on_dev": "embedding model",
+                    },
+                    {
+                        "method": "hybrid_rrf",
+                        "family": "hybrid",
+                        "representation": "BM25 + dense, weighted RRF",
+                        "tuned_on_dev": "rrf_k, lexical_weight",
+                    },
+                    {
+                        "method": "hybrid_tfidf_embedding",
+                        "family": "hybrid",
+                        "representation": "TF-IDF + dense, weighted RRF",
+                        "tuned_on_dev": "rrf_k, lexical_weight",
+                    },
+                ]
+            )
+            display(methods_frame)
+            print("Không có reranker/cross-encoder trong scope hiện tại; không được ghi là đã so sánh.")
+            """
+        ),
+        _markdown(
+            """
+            ## 5. Protocol đánh giá
+
+            Development set chỉ dùng để tune threshold, BM25/RRF và chọn phương án. Frozen test
+            chỉ báo cáo kết quả cho cấu hình đã khóa. Không dùng test để đổi winner production.
+
+            Retrieval metrics: Hit@1, Hit@5, Recall@5, MRR@10, nDCG@10. Vận hành: answerability,
+            P50/P95 latency. End-to-end chatbot: groundedness, citation coverage, hallucination,
+            guardrail và task success.
+            """
+        ),
+        _code(
+            """
+            split_count_by_group = case_frame.groupby("group_id")["split"].nunique()
+            assert split_count_by_group.eq(1).all(), "Phát hiện leakage giữa development và test."
+
+            protocol_frame = pd.DataFrame(
+                [
+                    {"phase": "development", "purpose": "tune và chọn phương án", "may_change_config": True},
+                    {"phase": "frozen test", "purpose": "báo cáo cuối", "may_change_config": False},
+                    {"phase": "production", "purpose": "deploy cấu hình phê duyệt", "may_change_config": False},
+                ]
+            )
+            display(protocol_frame)
+            print(f"PASS: kiểm tra {len(split_count_by_group)} group không leakage.")
+            """
+        ),
+        _markdown(
+            """
+            ## 6. Tái chạy pipeline nghiên cứu
+
+            Cell này không chạy mặc định vì nó ghi snapshot và artifact. Chỉ bật RUN_PIPELINE
+            sau khi đã cài requirements-research, khóa source data và muốn tạo evidence bundle
+            mới. Sau đó quay lại mục 1 để xác nhận checksum.
+            """
+        ),
+        _code(
+            """
+            if RUN_PIPELINE:
+                environment = {**os.environ, "PYTHONPATH": str(AI_ROOT)}
+                for script in ("build_dataset.py", "run_experiments.py"):
+                    command = [sys.executable, str(RESEARCH / script)]
+                    print("Running:", " ".join(command))
+                    subprocess.run(command, cwd=PROJECT_ROOT, env=environment, check=True)
+
+                artifact_environment, provenance_frame, ARTIFACTS_FRESH = refresh_provenance()
+                display(provenance_frame)
+            else:
+                print("Không chạy pipeline. Đặt RUN_PIPELINE=True để tạo artifact mới.")
+            """
+        ),
+        _markdown(
+            """
+            ## 7. Tuning trên development set và quyết định trước test
+
+            Quy tắc chọn: macro slice nDCG@10 cao nhất trên development; nếu các phương án cách
+            nhau không quá 0,005 thì chọn P95 thấp hơn. Quyết định này phải được lưu trước khi
+            nhìn frozen test. Nếu runner hiện tại còn ghi winner theo test, coi
+            production_config đó là historical cho đến khi runner được sửa và pipeline được chạy lại.
+            """
+        ),
+        _code(
+            """
+            required_artifacts = {
+                "summary": ARTIFACTS / "summary.json",
+                "statistics": ARTIFACTS / "statistical_tests.json",
+                "per_query": ARTIFACTS / "per_query_results.csv",
+            }
+            missing_artifacts = [name for name, path in required_artifacts.items() if not path.exists()]
+
+            if not ARTIFACTS_FRESH or missing_artifacts:
+                summary = None
+                statistics_payload = None
+                per_query = None
+                print("BLOCK: không đọc kết quả khi artifact chưa fresh.")
+                if missing_artifacts:
+                    print("Thiếu artifact:", ", ".join(missing_artifacts))
+            else:
+                summary = json.loads(required_artifacts["summary"].read_text(encoding="utf-8"))
+                statistics_payload = json.loads(required_artifacts["statistics"].read_text(encoding="utf-8"))
+                per_query = pd.read_csv(required_artifacts["per_query"])
+                print("PASS: có artifact fresh để phân tích.")
+            """
+        ),
+        _code(
+            """
+            SELECTION_TOLERANCE = 0.005
+
+            if summary is not None:
+                rows = []
+                for method, payload in summary["methods"].items():
+                    metrics = payload["dev"]
+                    rows.append(
+                        {
+                            "method": method,
+                            "macro_slice_nDCG@10": metrics["macro_slice_ndcg_at_10"],
+                            "nDCG@10": metrics["ndcg_at_10"],
+                            "P95 ms": metrics["latency_p95_ms"],
+                            "threshold": payload["threshold"],
+                            "config": payload["config"],
+                        }
+                    )
+                development_frame = pd.DataFrame(rows).sort_values(
+                    ["macro_slice_nDCG@10", "P95 ms"], ascending=[False, True]
+                )
+                best_quality = development_frame["macro_slice_nDCG@10"].max()
+                finalists = development_frame[
+                    best_quality - development_frame["macro_slice_nDCG@10"] <= SELECTION_TOLERANCE
+                ]
+                selected_method = finalists.sort_values("P95 ms").iloc[0]["method"]
+                display(development_frame)
+                print(f"Development-selected method: {selected_method}")
+            else:
+                selected_method = None
+            """
+        ),
+        _markdown(
+            """
+            ## 8. Frozen test, kiểm định thống kê và error analysis
+
+            Frozen test xác nhận phương án đã chọn và các baseline đã khai báo trước. Nó không
+            được dùng để thay đổi winner production. Biểu đồ được tạo trực tiếp từ summary fresh,
+            không phải ảnh PNG nhúng sẵn.
+            """
+        ),
+        _code(
+            """
+            if summary is not None:
+                test_rows = []
+                slice_rows = []
+                for method, payload in summary["methods"].items():
+                    metrics = payload["test"]
+                    test_rows.append(
+                        {
+                            "method": method,
+                            "Hit@1": metrics["hit_at_1"],
+                            "Hit@5": metrics["hit_at_5"],
+                            "Recall@5": metrics["recall_at_5"],
+                            "MRR@10": metrics["mrr_at_10"],
+                            "nDCG@10": metrics["ndcg_at_10"],
+                            "Macro slice nDCG@10": metrics["macro_slice_ndcg_at_10"],
+                            "P95 ms": metrics["latency_p95_ms"],
+                        }
+                    )
+                    for slice_name, slice_metrics in metrics["by_slice"].items():
+                        if slice_metrics["ndcg_at_10"] >= 0:
+                            slice_rows.append(
+                                {
+                                    "method": method,
+                                    "slice": slice_name,
+                                    "nDCG@10": slice_metrics["ndcg_at_10"],
+                                }
+                            )
+
+                test_frame = pd.DataFrame(test_rows).sort_values("Macro slice nDCG@10", ascending=False)
+                display(test_frame)
+
+                figure, axes = plt.subplots(1, 2, figsize=(13, 4.5))
+                ordered = test_frame.sort_values("Macro slice nDCG@10")
+                axes[0].barh(ordered["method"], ordered["Macro slice nDCG@10"], color="#1f4e79")
+                axes[0].set(xlim=(0, 1), xlabel="macro slice nDCG@10", title="Frozen-test retrieval quality")
+                axes[1].barh(ordered["method"], ordered["P95 ms"], color="#c55a11")
+                axes[1].set(xlabel="milliseconds", title="Frozen-test P95 latency")
+                figure.tight_layout()
+                plt.show()
+
+                slice_frame = pd.DataFrame(slice_rows)
+                axis = slice_frame.pivot(index="slice", columns="method", values="nDCG@10").plot(
+                    kind="bar", figsize=(13, 5)
+                )
+                axis.set(ylim=(0, 1.05), ylabel="nDCG@10", title="Quality by query slice")
+                plt.tight_layout()
+                plt.show()
+            """
+        ),
+        _code(
+            """
+            if summary is not None:
+                stats_frame = pd.DataFrame(
+                    [
+                        {
+                            "compared_with_selected": method,
+                            "paired_nDCG_delta": value["paired_ndcg_delta_winner_minus_method"],
+                            "bootstrap_95_ci": value["paired_bootstrap_95_ci"],
+                            "McNemar_p": value["mcnemar"]["exact_two_sided_p"],
+                        }
+                        for method, value in statistics_payload.items()
+                    ]
+                )
+                display(stats_frame)
+
+                if selected_method and per_query is not None:
+                    selected_rows = per_query[per_query["method"] == selected_method].copy()
+                    selected_rows["hit_at_5"] = pd.to_numeric(selected_rows["hit_at_5"], errors="coerce")
+                    failures = selected_rows[
+                        selected_rows["expected_ids"].fillna("").ne("")
+                        & (selected_rows["hit_at_5"].fillna(0) < 1)
+                    ].sort_values(["slice", "question"])
+                    display(failures[["slice", "question", "expected_ids", "retrieved_ids", "top_score"]].head(20))
+            """
+        ),
+        _markdown(
+            """
+            ## 9. Demo retrieval → context → chatbot
+
+            Demo mặc định chỉ dựng evidence context, không gửi dữ liệu ra ngoài. Khi AI service
+            cục bộ đã chạy, bật RUN_LIVE_SERVICE_DEMO để gọi API thật và kiểm tra response,
+            retrieved sources, guardrail flags cùng latency.
+            """
+        ),
+        _code(
+            """
+            from app.retrieval import TfidfRetriever
+
+            DEMO_QUERY = "Gợi ý món nước nóng có thịt bò"
+            demo_results = TfidfRetriever(documents).search(DEMO_QUERY, top_k=3)
+            demo_context = pd.DataFrame(
+                [
+                    {
+                        "rank": result.rank,
+                        "document_id": result.document.id,
+                        "title": result.document.title,
+                        "score": result.score,
+                        "context": result.document.answer or result.document.text,
+                    }
+                    for result in demo_results
+                ]
+            )
+            display(demo_context)
+            print("Chỉ evidence trên được phép đi vào prompt; LLM không được tạo menu, giá hoặc policy mới.")
+            """
+        ),
+        _code(
+            """
+            if RUN_LIVE_SERVICE_DEMO:
+                import httpx
+
+                payload = {
+                    "message": DEMO_QUERY,
+                    "history": [],
+                    "table_code": "DEMO",
+                    "menu_items": [item.to_mapping() for item in snapshot.items],
+                }
+                response = httpx.post(f"{AI_SERVICE_URL}/v1/chat", json=payload, timeout=15)
+                response.raise_for_status()
+                live_response = response.json()
+                display(pd.DataFrame(live_response.get("retrieved_sources", [])))
+                display(
+                    pd.DataFrame(
+                        [
+                            {
+                                "content": live_response.get("content"),
+                                "provider_available": live_response.get("provider_available"),
+                                "retrieval_method": live_response.get("retrieval_method"),
+                                "guardrail_flags": live_response.get("guardrail_flags"),
+                                "latency_ms": live_response.get("latency_ms"),
+                            }
+                        ]
+                    )
+                )
+            else:
+                print("Không gọi service. Đặt RUN_LIVE_SERVICE_DEMO=True sau khi service cục bộ sẵn sàng.")
+            """
+        ),
+        _markdown(
+            """
+            ## 10. Đánh giá generation, safety và checklist phát hành
+
+            Retrieval tốt không tự động chứng minh chatbot tốt. Khi có user log ẩn danh hoặc tập
+            đánh giá gán nhãn độc lập, dùng rubric dưới đây cho end-to-end evaluation. Không
+            báo cáo production-ready khi provenance gate còn BLOCK.
+            """
+        ),
+        _code(
+            """
+            generation_rubric = pd.DataFrame(
+                [
+                    {
+                        "dimension": "groundedness",
+                        "metric": "claim-level support rate",
+                        "target": "100% cho giá, availability và policy",
+                    },
+                    {
+                        "dimension": "citation coverage",
+                        "metric": "source coverage",
+                        "target": "100% response có retrieval",
+                    },
+                    {
+                        "dimension": "safety",
+                        "metric": "guardrail violation rate",
+                        "target": "0%",
+                    },
+                    {
+                        "dimension": "task success",
+                        "metric": "human success rate",
+                        "target": "đặt trước trong study protocol",
+                    },
+                ]
+            )
+            release_checklist = pd.DataFrame(
+                [
+                    {"check": "Artifact provenance fresh", "status": "PASS" if ARTIFACTS_FRESH else "BLOCK"},
+                    {"check": "No group leakage", "status": "PASS"},
+                    {"check": "Development-based selection recorded", "status": "TODO"},
+                    {"check": "Frozen test after selection", "status": "TODO"},
+                    {"check": "Groundedness and safety evaluation", "status": "TODO"},
+                    {"check": "UI renders retrieved sources", "status": "TODO"},
+                ]
+            )
+            display(generation_rubric)
+            display(release_checklist)
+            """
         ),
     ]
+
+    for index, cell in enumerate(cells):
+        cell["id"] = f"rag-{index:02d}"
 
     notebook = {
         "cells": cells,
         "metadata": {
             "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-            "language_info": {"name": "python", "version": environment["python"].split()[0]},
+            "language_info": {"name": "python"},
         },
         "nbformat": 4,
         "nbformat_minor": 5,
@@ -177,85 +620,23 @@ def main() -> None:
     print(OUTPUT)
 
 
-def _method_chart(frame: pd.DataFrame) -> str:
-    figure, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-    ordered = frame.sort_values("Macro slice nDCG")
-    axes[0].barh(ordered["method"], ordered["Macro slice nDCG"], color="#355c7d")
-    axes[0].set_xlim(0, 1)
-    axes[0].set_title("Locked-test macro nDCG@10")
-    axes[0].set_xlabel("nDCG@10")
-    axes[1].barh(ordered["method"], ordered["P95 ms"], color="#c06c84")
-    axes[1].set_title("Query latency P95")
-    axes[1].set_xlabel("milliseconds")
-    figure.tight_layout()
-    return _encode_figure(figure)
-
-
-def _slice_chart(frame: pd.DataFrame) -> str:
-    pivot = frame.pivot(index="slice", columns="method", values="nDCG@10")
-    figure, axis = plt.subplots(figsize=(12, 5.5))
-    pivot.plot(kind="bar", ax=axis)
-    axis.set_ylim(0, 1.05)
-    axis.set_ylabel("nDCG@10")
-    axis.set_title("Chất lượng theo nhóm truy vấn")
-    axis.legend(loc="lower left", fontsize=8)
-    figure.tight_layout()
-    return _encode_figure(figure)
-
-
-def _encode_figure(figure) -> str:
-    buffer = io.BytesIO()
-    figure.savefig(buffer, format="png", dpi=140, bbox_inches="tight")
-    plt.close(figure)
-    return base64.b64encode(buffer.getvalue()).decode("ascii")
-
-
 def _markdown(source: str) -> dict:
-    return {"cell_type": "markdown", "metadata": {}, "source": source.splitlines(keepends=True)}
+    return {"cell_type": "markdown", "metadata": {}, "source": _lines(source)}
 
 
-def _code(source: str, execution_count: int, output) -> dict:
-    if isinstance(output, pd.DataFrame):
-        outputs = [
-            {
-                "data": {"text/html": output.to_html(index=False), "text/plain": repr(output)},
-                "execution_count": execution_count,
-                "metadata": {},
-                "output_type": "execute_result",
-            }
-        ]
-    else:
-        outputs = [
-            {
-                "data": {"text/plain": json.dumps(output, ensure_ascii=False, indent=2)},
-                "execution_count": execution_count,
-                "metadata": {},
-                "output_type": "execute_result",
-            }
-        ]
+def _code(source: str, tags: list[str] | None = None) -> dict:
     return {
         "cell_type": "code",
-        "execution_count": execution_count,
-        "metadata": {},
-        "outputs": outputs,
-        "source": source.splitlines(keepends=True),
+        "execution_count": None,
+        "metadata": {"tags": tags or []},
+        "outputs": [],
+        "source": _lines(source),
     }
 
 
-def _image_code(source: str, encoded_png: str, execution_count: int) -> dict:
-    return {
-        "cell_type": "code",
-        "execution_count": execution_count,
-        "metadata": {},
-        "outputs": [
-            {
-                "data": {"image/png": encoded_png, "text/plain": "<Figure>"},
-                "metadata": {},
-                "output_type": "display_data",
-            }
-        ],
-        "source": source.splitlines(keepends=True),
-    }
+def _lines(source: str) -> list[str]:
+    text = dedent(source).strip() + "\n"
+    return text.splitlines(keepends=True)
 
 
 if __name__ == "__main__":

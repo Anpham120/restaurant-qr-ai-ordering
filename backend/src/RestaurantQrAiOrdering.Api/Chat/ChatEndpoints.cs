@@ -9,6 +9,10 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public static class ChatEndpoints
 {
     private const int MaxMessageLength = 1000;
+    private const int RecentHistoryLimit = 6;
+    private const int ContextHistoryLimit = 30;
+    private const int MemoryTurnLimit = 8;
+    private const int MemoryCharacterLimit = 1200;
 
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
@@ -48,7 +52,15 @@ public static class ChatEndpoints
                 tableCode,
                 tableSessionId,
                 cancellationToken);
-            return Results.Ok(new CreateChatSessionResponse(session.Id, session.CreatedAt, reused));
+            var messages = reused
+                ? await chatStore.GetMessagesAsync(session.Id, null, cancellationToken)
+                : [];
+            return Results.Ok(new CreateChatSessionResponse(
+                session.Id,
+                session.CreatedAt,
+                session.UpdatedAt,
+                reused,
+                messages.Select(ToResponse).ToList()));
         })
         .WithName("CreateOrRestoreChatSession")
         .WithTags("Chat");
@@ -84,7 +96,12 @@ public static class ChatEndpoints
 
             // Read history before persisting the current turn so the user message is
             // represented exactly once in the downstream prompt.
-            var history = await chatStore.GetMessagesAsync(chatSessionId, 6, cancellationToken);
+            var contextHistory = await chatStore.GetMessagesAsync(
+                chatSessionId,
+                ContextHistoryLimit,
+                cancellationToken);
+            var history = contextHistory.TakeLast(RecentHistoryLimit).ToList();
+            var sessionMemory = BuildSessionMemory(contextHistory);
             var userMessage = await chatStore.AddMessageAsync(
                 chatSessionId, "user", content, null, cancellationToken);
             if (userMessage is null)
@@ -95,6 +112,7 @@ public static class ChatEndpoints
             var reply = await assistant.GenerateReplyAsync(
                 content,
                 history,
+                sessionMemory,
                 session.TableCode,
                 cancellationToken);
             var assistantMessage = await chatStore.AddMessageAsync(
@@ -146,6 +164,46 @@ public static class ChatEndpoints
         message.Content,
         message.CreatedAt,
         message.SuggestedCartActions);
+
+    private static string? BuildSessionMemory(IReadOnlyList<ChatMessageSnapshot> contextHistory)
+    {
+        var olderCount = Math.Max(0, contextHistory.Count - RecentHistoryLimit);
+        if (olderCount == 0)
+        {
+            return null;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var selected = new List<string>();
+        var remainingCharacters = MemoryCharacterLimit;
+        for (var index = olderCount - 1; index >= 0 && selected.Count < MemoryTurnLimit; index--)
+        {
+            var message = contextHistory[index];
+            if (!string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var compact = string.Join(
+                " ",
+                message.Content.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            if (compact.Length == 0 || !seen.Add(compact))
+            {
+                continue;
+            }
+
+            var separatorLength = selected.Count == 0 ? 0 : Environment.NewLine.Length;
+            if (compact.Length + separatorLength > remainingCharacters)
+            {
+                break;
+            }
+            selected.Add(compact);
+            remainingCharacters -= compact.Length + separatorLength;
+        }
+
+        selected.Reverse();
+        return selected.Count == 0 ? null : string.Join(Environment.NewLine, selected);
+    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

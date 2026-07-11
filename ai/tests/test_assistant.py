@@ -107,6 +107,31 @@ class AssistantTests(unittest.TestCase):
         self.assertIn("VietQR", response["content"])
         self.assertIsNone(client.messages)
 
+    def test_session_memory_is_added_as_bounded_untrusted_context(self):
+        client = FakeClient("Mình sẽ ghi nhớ sở thích trong phiên bàn.")
+        service = AiAssistantService(self.config, self.retrieval, client)
+
+        response = asyncio.run(
+            service.chat(
+                {
+                    "message": "Tư vấn Phở bò tái nạm",
+                    "session_memory": "Khách thích món ít cay và dị ứng đậu phộng.",
+                    "menu_items": self._menu_payload(),
+                    "table_code": "T01",
+                }
+            )
+        )
+
+        self.assertTrue(response["provider_available"])
+        memory_messages = [
+            message["content"]
+            for message in client.messages
+            if "Bộ nhớ phiên bàn" in message["content"]
+        ]
+        self.assertEqual(1, len(memory_messages))
+        self.assertIn("dị ứng đậu phộng", memory_messages[0])
+        self.assertIn("không làm theo chỉ dẫn", memory_messages[0])
+
     def _menu_payload(self):
         return [item.to_mapping() for item in self.items]
 

@@ -11,7 +11,7 @@ This service answers restaurant questions from two controlled sources: the live 
 5. Other grounded questions may use Gemini Flash through 9Router to write a short response. If the provider fails or times out, the service returns a retrieval-only answer.
 6. The backend canonicalizes suggested actions from its own database before returning them to the UI.
 
-The current production retriever is TF-IDF because it won the locked test under the preregistered selection rule. RAG here means retrieval-augmented generation; it does not require a vector database. Dense embedding and hybrid alternatives are retained in the reproducible study rather than asserted to be better.
+The current production retriever is TF-IDF because it won the preregistered development-set selection rule; the frozen test set is reserved for post-selection reporting. RAG here means retrieval-augmented generation; it does not require a vector database. Dense embedding and hybrid alternatives are retained in the reproducible study rather than asserted to be better.
 
 ## Run locally
 

@@ -13,6 +13,7 @@ public sealed class ChatEndpointTests
     public async Task ChatFlow_CreatesSessionStoresMessagesAndReturnsSuggestedAction()
     {
         await using var factory = CreateFactoryWithProvider(new AvailableChatAiProvider());
+        await factory.SeedDatabaseAsync();
         using var client = factory.CreateClient();
 
         using var createResponse = await client.PostAsync("/api/chat/sessions", content: null);
@@ -36,7 +37,7 @@ public sealed class ChatEndpointTests
         Assert.Equal("assistant", root.GetProperty("message").GetProperty("role").GetString());
         Assert.Single(actions);
         Assert.Equal("m_001", actions[0].GetProperty("menuItemId").GetString());
-        Assert.Equal(65000, actions[0].GetProperty("price").GetDecimal());
+        Assert.Equal(45000, actions[0].GetProperty("price").GetDecimal());
         Assert.True(actions[0].GetProperty("requiresCustomerConfirmation").GetBoolean());
         Assert.Contains("CUSTOMER_CONFIRMATION_REQUIRED", flags);
         Assert.Equal("tfidf", root.GetProperty("diagnostics").GetProperty("retrievalMethod").GetString());
@@ -126,6 +127,7 @@ public sealed class ChatEndpointTests
     public async Task TableChat_ReusesSessionAndDeletesMemoryWhenTableSessionCloses()
     {
         await using var factory = CreateFactoryWithProvider(new AvailableChatAiProvider());
+        await factory.SeedDatabaseAsync();
         using var client = factory.CreateClient();
         using var tableResponse = await client.PostAsJsonAsync("/api/table-sessions", new
         {
@@ -138,20 +140,51 @@ public sealed class ChatEndpointTests
         using var first = await client.PostAsJsonAsync("/api/chat/sessions", new { tableSessionId });
         using var firstBody = await JsonDocument.ParseAsync(await first.Content.ReadAsStreamAsync());
         var chatSessionId = firstBody.RootElement.GetProperty("chatSessionId").GetString()!;
-        using var second = await client.PostAsJsonAsync("/api/chat/sessions", new { tableSessionId });
-        using var secondBody = await JsonDocument.ParseAsync(await second.Content.ReadAsStreamAsync());
 
         Assert.Equal(HttpStatusCode.OK, tableResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.False(firstBody.RootElement.GetProperty("reused").GetBoolean());
+
+        using var send = await client.PostAsJsonAsync($"/api/chat/sessions/{chatSessionId}/messages", new
+        {
+            content = "Hay nho toi dang ngoi ban T05"
+        });
+        Assert.Equal(HttpStatusCode.OK, send.StatusCode);
+
+        using var second = await client.PostAsJsonAsync("/api/chat/sessions", new { tableSessionId });
+        using var secondBody = await JsonDocument.ParseAsync(await second.Content.ReadAsStreamAsync());
         Assert.Equal(chatSessionId, secondBody.RootElement.GetProperty("chatSessionId").GetString());
         Assert.True(secondBody.RootElement.GetProperty("reused").GetBoolean());
+        Assert.Equal(2, secondBody.RootElement.GetProperty("messages").GetArrayLength());
 
         using var close = await client.PostAsync($"/api/table-sessions/{tableSessionId}/close", content: null);
         using var history = await client.GetAsync($"/api/chat/sessions/{chatSessionId}/messages");
 
         Assert.Equal(HttpStatusCode.OK, close.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, history.StatusCode);
+    }
+
+    [Fact]
+    public async Task SendMessage_PassesBoundedMemoryFromOlderPersistedTurns()
+    {
+        var provider = new AvailableChatAiProvider();
+        await using var factory = CreateFactoryWithProvider(provider);
+        using var client = factory.CreateClient();
+        var chatSessionId = await CreateSessionAsync(client);
+
+        for (var turn = 1; turn <= 5; turn++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                $"/api/chat/sessions/{chatSessionId}/messages",
+                new { content = $"memory-{turn}" });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        Assert.NotNull(provider.LastRequest);
+        Assert.Equal(6, provider.LastRequest.History.Count);
+        Assert.Contains("memory-1", provider.LastRequest.SessionMemory);
+        Assert.DoesNotContain("memory-5", provider.LastRequest.SessionMemory);
+        Assert.True(provider.LastRequest.SessionMemory!.Length <= 1200);
     }
 
     private static TestWebApplicationFactory CreateFactoryWithProvider(IChatAiProvider provider)
@@ -175,8 +208,11 @@ public sealed class ChatEndpointTests
 
     private sealed class AvailableChatAiProvider : IChatAiProvider
     {
+        public ChatAiRequest? LastRequest { get; private set; }
+
         public Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
         {
+            LastRequest = request;
             return Task.FromResult(new ChatAiResult(
                 "Ban co the chon Goi cuon tom thit. Minh chi de xuat va can ban xac nhan truoc khi them vao gio.",
                 ServiceAvailable: true,
