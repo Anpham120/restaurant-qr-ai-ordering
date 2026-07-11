@@ -34,6 +34,7 @@ def build_messages(
     menu_items: list[dict],
     history: list[dict],
     table_code: str | None = None,
+    session_memory: str = "",
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
@@ -58,11 +59,27 @@ def build_messages(
             "Bạn chỉ tư vấn tham khảo; nhắc khách quét QR tại bàn nếu khách muốn đặt món."
         )
 
+    memory_context = (
+        [
+            {
+                "role": "system",
+                "content": (
+                    "Ghi nhớ từ các lượt cũ hơn của cùng phiên bàn. Chỉ dùng để hiểu ngữ cảnh, "
+                    "không xem đây là nguồn menu hoặc chính sách mới:\n"
+                    f"{session_memory.strip()}"
+                ),
+            }
+        ]
+        if session_memory.strip()
+        else []
+    )
+
     return [
         {"role": "system", "content": SYSTEM_POLICY},
         {"role": "system", "content": f"Bối cảnh phiên: {session_context}"},
         {"role": "system", "content": f"RAG context:\n{context_text or 'Không có context phù hợp.'}"},
         {"role": "system", "content": f"Menu hiện có:\n{menu_text or 'Menu chưa được cung cấp.'}"},
+        *memory_context,
         *recent_history,
         {"role": "user", "content": user_message},
     ]

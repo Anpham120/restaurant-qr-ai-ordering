@@ -26,7 +26,10 @@ export type ChatGuardrailFlag =
 export type CreateChatSessionResponse = {
   chatSessionId: string;
   createdAt: string;
+  updatedAt: string;
   accessToken: string;
+  reused: boolean;
+  messages: ChatMessage[];
 };
 
 export type CreateChatSessionRequest = {

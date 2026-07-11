@@ -19,9 +19,13 @@ public sealed record ChatMessageSnapshot(
     DateTimeOffset CreatedAt,
     IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions);
 
+public sealed record ChatSessionCreateResult(
+    ChatSessionSnapshot Session,
+    bool Reused);
+
 public interface IChatStore
 {
-    ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null);
+    ChatSessionCreateResult CreateOrGetSession(string? tableCode = null, string? tableSessionId = null);
 
     ChatSessionSnapshot? GetSession(string chatSessionId);
 
@@ -50,22 +54,39 @@ public sealed class ChatStore : IChatStore
     private int nextSessionNumber = 1;
     private int nextMessageNumber = 1;
 
-    public ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null)
+    public ChatSessionCreateResult CreateOrGetSession(string? tableCode = null, string? tableSessionId = null)
     {
         lock (syncRoot)
         {
+            var normalizedTableSessionId = NormalizeOptional(tableSessionId);
+            if (normalizedTableSessionId is not null)
+            {
+                var existing = sessions
+                    .Where(session => string.Equals(
+                        session.TableSessionId,
+                        normalizedTableSessionId,
+                        StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(session => session.UpdatedAt)
+                    .FirstOrDefault();
+
+                if (existing is not null)
+                {
+                    return new ChatSessionCreateResult(ToSnapshot(existing), Reused: true);
+                }
+            }
+
             var now = DateTimeOffset.UtcNow;
             var session = new ChatSession
             {
                 Id = $"chat_{nextSessionNumber++:000}",
                 TableCode = NormalizeOptional(tableCode),
-                TableSessionId = NormalizeOptional(tableSessionId),
+                TableSessionId = normalizedTableSessionId,
                 CreatedAt = now,
                 UpdatedAt = now
             };
 
             sessions.Add(session);
-            return ToSnapshot(session);
+            return new ChatSessionCreateResult(ToSnapshot(session), Reused: false);
         }
     }
 

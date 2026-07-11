@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Categories;
+using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Users;
@@ -141,6 +142,7 @@ public static partial class TableEndpoints
         app.MapPost("/api/table-sessions", async (
             OpenTableSessionRequest? request,
             RestaurantDbContext db,
+            IChatStore chatStore,
             IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
@@ -152,6 +154,7 @@ public static partial class TableEndpoints
             return await OpenDineInSessionAsync(
                 request,
                 db,
+                chatStore,
                 jwtOptions.Value.SigningKey,
                 cancellationToken);
         })
@@ -162,6 +165,7 @@ public static partial class TableEndpoints
             string sessionId,
             HttpRequest request,
             RestaurantDbContext db,
+            IChatStore chatStore,
             IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
@@ -187,7 +191,7 @@ public static partial class TableEndpoints
             var now = DateTimeOffset.UtcNow;
             if (IsExpired(session, now))
             {
-                await MarkExpiredAsync(session, db, now, cancellationToken);
+                await MarkExpiredAsync(session, db, chatStore, now, cancellationToken);
                 return ApiErrorFactory.Result(
                     StatusCodes.Status410Gone,
                     "TABLE_SESSION_EXPIRED",
@@ -202,6 +206,7 @@ public static partial class TableEndpoints
         app.MapPost("/api/table-sessions/{sessionId}/close", async (
             string sessionId,
             RestaurantDbContext db,
+            IChatStore chatStore,
             CancellationToken cancellationToken) =>
         {
             var session = await db.TableSessions
@@ -222,6 +227,8 @@ public static partial class TableEndpoints
                 await db.SaveChangesAsync(cancellationToken);
             }
 
+            chatStore.DeleteSessionsByTableSession(session.Id);
+
             return Results.Ok(ToSessionResponse(session, now));
         })
         .RequireAuthorization("StaffOrAdmin")
@@ -234,6 +241,7 @@ public static partial class TableEndpoints
     private static async Task<IResult> OpenDineInSessionAsync(
         OpenTableSessionRequest request,
         RestaurantDbContext db,
+        IChatStore chatStore,
         string signingKey,
         CancellationToken cancellationToken)
     {
@@ -264,6 +272,18 @@ public static partial class TableEndpoints
         }
 
         var now = DateTimeOffset.UtcNow;
+        var expiredSessions = await db.TableSessions
+            .Where(s =>
+                s.RestaurantTableId == table.Id &&
+                s.Status == TableSessionStatus.Open &&
+                s.ExpiresAt <= now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var expiredSession in expiredSessions)
+        {
+            await MarkExpiredAsync(expiredSession, db, chatStore, now, cancellationToken);
+        }
+
         var session = await db.TableSessions
             .Include(s => s.RestaurantTable)
             .Where(s =>
@@ -300,11 +320,13 @@ public static partial class TableEndpoints
     private static async Task MarkExpiredAsync(
         TableSession session,
         RestaurantDbContext db,
+        IChatStore chatStore,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         if (session.Status == TableSessionStatus.Expired)
         {
+            chatStore.DeleteSessionsByTableSession(session.Id);
             return;
         }
 
@@ -312,6 +334,7 @@ public static partial class TableEndpoints
         session.ClosedAt ??= now;
         session.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
+        chatStore.DeleteSessionsByTableSession(session.Id);
     }
 
     private static TableResponse ToPublicTableResponse(RestaurantTable table)

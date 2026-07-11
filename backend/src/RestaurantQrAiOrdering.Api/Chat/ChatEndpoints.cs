@@ -20,7 +20,8 @@ public static class ChatEndpoints
             ILoggerFactory loggerFactory) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
-            var session = chatStore.CreateSession(request?.TableCode, request?.TableSessionId);
+            var sessionResult = chatStore.CreateOrGetSession(request?.TableCode, request?.TableSessionId);
+            var session = sessionResult.Session;
             var accessToken = CreateAccessToken(session, jwtOptions.Value.SigningKey);
             httpResponse.Cookies.Append("cmc_chat_session", accessToken, new CookieOptions
             {
@@ -30,11 +31,22 @@ public static class ChatEndpoints
                 Secure = !environment.IsDevelopment(),
                 MaxAge = TimeSpan.FromHours(4)
             });
-            logger.LogInformation("Created chat session {ChatSessionId}.", session.Id);
+            logger.LogInformation(
+                "{ChatSessionAction} chat session {ChatSessionId}.",
+                sessionResult.Reused ? "Restored" : "Created",
+                session.Id);
 
-            return Results.Created(
-                $"/api/chat/sessions/{session.Id}",
-                new CreateChatSessionResponse(session.Id, session.CreatedAt, accessToken));
+            var response = new CreateChatSessionResponse(
+                session.Id,
+                session.CreatedAt,
+                session.UpdatedAt,
+                accessToken,
+                sessionResult.Reused,
+                session.Messages.Select(ToResponse).ToList());
+
+            return sessionResult.Reused
+                ? Results.Ok(response)
+                : Results.Created($"/api/chat/sessions/{session.Id}", response);
         })
         .WithName("CreateChatSession")
         .WithTags("Chat");
