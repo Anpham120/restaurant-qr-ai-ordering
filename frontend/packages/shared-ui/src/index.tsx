@@ -347,10 +347,18 @@ export function LoginPage({
   const target = (location.state as { from?: string } | null)?.from ?? "/";
 
   function resolveTarget(role: UserRole) {
-    if (target !== "/") {
+    const roleTarget = roleRedirects[role];
+    if (!roleTarget) {
       return target;
     }
-    return roleRedirects[role] ?? target;
+
+    const targetIsAnotherPortal = Object.values(roleRedirects).some((redirect) =>
+      typeof redirect === "string"
+      && redirect !== "/"
+      && (target === redirect || target.startsWith(`${redirect}/`)),
+    );
+
+    return target === "/" || targetIsAnotherPortal ? roleTarget : target;
   }
 
   async function submit(event: FormEvent) {

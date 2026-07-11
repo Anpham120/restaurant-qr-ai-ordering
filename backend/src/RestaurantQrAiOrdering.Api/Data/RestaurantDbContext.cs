@@ -71,7 +71,7 @@ public class RestaurantDbContext : DbContext
 
     // Atomically reserves the next order-code number from the Postgres sequence.
     // Falls back to a simple counter for InMemory provider.
-    private long _inMemoryOrderCodeCounter = 1000;
+    private static long _inMemoryOrderCodeCounter = 1000;
     public virtual long NextOrderCodeNumber()
     {
         if (Database.IsInMemory())
