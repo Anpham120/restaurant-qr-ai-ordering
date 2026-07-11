@@ -329,6 +329,7 @@ public static partial class TableEndpoints
             chatStore.DeleteSessionsByTableSession(session.Id);
             return;
         }
+
         await db.SaveChangesAsync(cancellationToken);
         chatStore.DeleteSessionsByTableSession(session.Id);
     }

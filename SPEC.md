@@ -25,7 +25,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V1: ∀ payment.Status=Refunded → confirm/fail reject; status, transaction, loyalty unchanged.
 - V2: ∀ runtime frontend module ∈ app import graph.
 - V3: ∀ Completed order → payment ∈ {Confirmed,Paid}.
-- V4: ∀ DineIn order → valid open unexpired TableSession.
+- V4: ∀ DineIn order → valid open unexpired TableSession; reopen expires stale session first.
 - V5: ∀ linked chat → parent TableSession active (Open, !closed, !expired); otherwise capability reject.
 - V6: ∀ chat menu lookup → current database availability + price.
 
@@ -49,3 +49,4 @@ B1|2026-07-11|`PaymentEndpoints` omit `Refunded` confirm/fail guard|V1
 B2|2026-07-11|manual table close omit `DeleteSessionsByTableSession`|V5
 B3|2026-07-11|chat read startup `RestaurantDataStore` snapshot|V6
 B4|2026-07-11|chat capability checks HMAC but not parent session expiry|V5
+B5|2026-07-11|reopen ignores expired Open session and leaves linked chat|V4,V5
