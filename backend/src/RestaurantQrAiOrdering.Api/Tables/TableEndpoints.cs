@@ -284,19 +284,11 @@ public static partial class TableEndpoints
             await MarkExpiredAsync(expiredSession, db, chatStore, now, cancellationToken);
         }
 
-        var session = await db.TableSessions
-            .Include(s => s.RestaurantTable)
-            .Where(s =>
-                s.RestaurantTableId == table.Id &&
-                s.Status == TableSessionStatus.Open &&
-                s.ClosedAt == null &&
-                s.ExpiresAt > now)
-            .OrderByDescending(s => s.OpenedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        var session = await FindActiveSessionAsync(db, table.Id, now, cancellationToken);
 
         if (session is null)
         {
-            session = new TableSession
+            var newSession = new TableSession
             {
                 Id = $"ts_{Guid.NewGuid():N}",
                 RestaurantTableId = table.Id,
@@ -310,11 +302,41 @@ public static partial class TableEndpoints
                 CreatedAt = now,
                 UpdatedAt = now
             };
-            db.TableSessions.Add(session);
-            await db.SaveChangesAsync(cancellationToken);
+            db.TableSessions.Add(newSession);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                session = newSession;
+            }
+            catch (DbUpdateException)
+            {
+                db.Entry(newSession).State = EntityState.Detached;
+                session = await FindActiveSessionAsync(db, table.Id, now, cancellationToken);
+                if (session is null)
+                {
+                    throw;
+                }
+            }
         }
 
-        return Results.Ok(ToOpenSessionResponse(session, now, signingKey));
+        return Results.Ok(ToOpenSessionResponse(session!, now, signingKey));
+    }
+
+    private static Task<TableSession?> FindActiveSessionAsync(
+        RestaurantDbContext db,
+        string tableId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return db.TableSessions
+            .Include(session => session.RestaurantTable)
+            .Where(session =>
+                session.RestaurantTableId == tableId &&
+                session.Status == TableSessionStatus.Open &&
+                session.ClosedAt == null &&
+                session.ExpiresAt > now)
+            .OrderByDescending(session => session.OpenedAt)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static async Task MarkExpiredAsync(

@@ -263,7 +263,10 @@ public class RestaurantDbContext : DbContext
                 .HasForeignKey(e => e.RestaurantTableId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.RestaurantTableId)
+                .HasDatabaseName("UX_table_sessions_active_restaurant_table")
+                .IsUnique()
+                .HasFilter("\"status\" = 'Open' AND \"closed_at\" IS NULL");
             entity.HasIndex(e => e.TableCode);
             entity.HasIndex(e => e.QrToken);
             entity.HasIndex(e => e.Status);

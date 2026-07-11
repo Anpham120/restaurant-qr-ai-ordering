@@ -25,7 +25,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V1: ∀ payment.Status=Refunded → confirm/fail reject; status, transaction, loyalty unchanged.
 - V2: ∀ runtime frontend module ∈ app import graph.
 - V3: ∀ Completed order → payment ∈ {Confirmed,Paid}.
-- V4: ∀ DineIn order → valid open unexpired TableSession; reopen expires stale session first.
+- V4: ∀ DineIn order → valid open unexpired TableSession; reopen expires stale first; ≤1 live session/table.
 - V5: ∀ linked chat → parent TableSession active (Open, !closed, !expired); otherwise capability reject.
 - V6: ∀ chat menu lookup → current database availability + price.
 - V7: ∀ terminal order (Completed/Cancelled) → item status immutable.
@@ -36,7 +36,7 @@ id|status|task|cites
 T1|x|remove unreachable frontend modules + empty utils workspace|V2
 T2|x|align customer card price + add controls|I.ui
 T3|x|payment refund terminal guard + HTTP regression test|V1,I.api
-T4|.|table-session open/close/expiry one lifecycle|V4,I.api
+T4|x|table-session open/close/expiry one lifecycle|V4,I.api
 T9|x|manual table close deletes linked chat session|V5,I.api
 T5|x|chat live menu read; delete stale in-memory menu store|V6,I.api
 T10|x|remove unregistered in-memory chat adapter; name live contract|I.api
@@ -54,3 +54,4 @@ B3|2026-07-11|chat read startup `RestaurantDataStore` snapshot|V6
 B4|2026-07-11|chat capability checks HMAC but not parent session expiry|V5
 B5|2026-07-11|reopen ignores expired Open session and leaves linked chat|V4,V5
 B6|2026-07-11|order item transition omits terminal parent order guard|V7
+B7|2026-07-11|table open query/insert has no DB uniqueness guard|V4

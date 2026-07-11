@@ -62,6 +62,22 @@ AI_MODEL=gh/gemini-3.1-pro-preview
 8. Health check kiểm tra frontend và `/api/health`.
 9. Kết quả deploy được ghi tại `/opt/cmc-restaurant/<env>/reports/last-deployment.md`.
 
+### Preflight migration phiên bàn
+
+Migration `EnforceSingleActiveTableSession` tự đánh dấu những phiên `Open` đã quá `expires_at` là `Expired`, sau đó áp dụng ràng buộc mỗi bàn chỉ có một phiên live. Trước deploy, chạy truy vấn sau trên PostgreSQL; kết quả phải rỗng:
+
+```sql
+SELECT restaurant_table_id, array_agg(id ORDER BY opened_at DESC) AS session_ids
+FROM table_sessions
+WHERE status = 'Open'
+  AND closed_at IS NULL
+  AND expires_at > NOW()
+GROUP BY restaurant_table_id
+HAVING COUNT(*) > 1;
+```
+
+Nếu còn kết quả, không tự đóng phiên live: xác nhận với vận hành/bộ phận nhà hàng phiên nào còn hợp lệ rồi đóng phiên còn lại trước khi deploy.
+
 ## Backup PostgreSQL
 
 Backup thủ công trên VPS:

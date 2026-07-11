@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Enums;
@@ -137,6 +138,22 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         var oldSession = await verificationDb.TableSessions.SingleAsync(session => session.Id == expiredSession.Id);
         Assert.Equal(TableSessionStatus.Expired, oldSession.Status);
         Assert.False(await verificationDb.ChatSessions.AnyAsync(session => session.Id == chatSessionId));
+    }
+
+    [Fact]
+    public void TestV4_ActiveTableSessionHasDatabaseUniquenessGuard()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var entityType = db.Model.FindEntityType(typeof(RestaurantQrAiOrdering.Entities.TableSession));
+        var activeSessionIndex = entityType!
+            .GetIndexes()
+            .SingleOrDefault(index =>
+                index.GetDatabaseName() == "UX_table_sessions_active_restaurant_table");
+
+        Assert.NotNull(activeSessionIndex);
+        Assert.True(activeSessionIndex!.IsUnique);
+        Assert.Equal("\"status\" = 'Open' AND \"closed_at\" IS NULL", activeSessionIndex.GetFilter());
     }
 
     private static async Task<string> SignInAsAdminAsync(HttpClient client)
