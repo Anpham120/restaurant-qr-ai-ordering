@@ -105,6 +105,40 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
     }
 
     [Fact]
+    public async Task TestV11_ActiveTableSessionRestoresItsExistingChatSession()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await SignInAsAdminAsync(client));
+
+        var tableSession = await OpenTableSessionAsync(client);
+        using var firstResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
+        {
+            tableSessionId = tableSession.Id,
+            tableCode = tableSession.TableCode
+        });
+        firstResponse.EnsureSuccessStatusCode();
+        using var firstChat = await ReadJsonAsync(firstResponse);
+        var firstChatSessionId = firstChat.RootElement.GetProperty("chatSessionId").GetString()!;
+
+        using var secondResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
+        {
+            tableSessionId = tableSession.Id,
+            tableCode = tableSession.TableCode
+        });
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        using var secondChat = await ReadJsonAsync(secondResponse);
+
+        Assert.Equal(firstChatSessionId, secondChat.RootElement.GetProperty("chatSessionId").GetString());
+        Assert.True(secondChat.RootElement.GetProperty("reused").GetBoolean());
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        Assert.Equal(1, await db.ChatSessions.CountAsync(session => session.TableSessionId == tableSession.Id));
+    }
+
+    [Fact]
     public async Task TestV4_ReopeningAfterExpiryClosesTheOldSessionAndItsChats()
     {
         using var client = factory.CreateClient();

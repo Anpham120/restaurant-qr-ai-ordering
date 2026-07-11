@@ -8,9 +8,13 @@ namespace RestaurantQrAiOrdering.Api.Tests;
 public sealed class ChatStoreTests
 {
     [Fact]
-    public void InMemoryStore_ReusesTableSessionAndRestoresHistory()
+    public void DbStore_ReusesTableSessionAndRestoresHistory()
     {
-        var store = new ChatStore();
+        var options = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        using var db = new RestaurantDbContext(options);
+        var store = new DbChatStore(db);
         var created = store.CreateOrGetSession("T01", "ts_t01");
         store.AddMessage(created.Session.Id, "user", "Tôi dị ứng hải sản");
 

@@ -16,9 +16,13 @@ public sealed record ChatMessageSnapshot(
     DateTimeOffset CreatedAt,
     IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions);
 
+public sealed record ChatSessionCreateResult(
+    ChatSessionSnapshot Session,
+    bool Reused);
+
 public interface IChatStore
 {
-    ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null);
+    ChatSessionCreateResult CreateOrGetSession(string? tableCode = null, string? tableSessionId = null);
 
     ChatSessionSnapshot? GetSession(string chatSessionId);
 
