@@ -2,9 +2,10 @@ import type { MenuItem } from "../../types";
 
 type MenuItemCardProps = {
   item: MenuItem;
-  quantity: number;
-  onAdd: (itemId: string) => void;
-  onRemove: (itemId: string) => void;
+  quantity?: number;
+  onAdd?: (itemId: string) => void;
+  onRemove?: (itemId: string) => void;
+  readOnly?: boolean;
 };
 
 const formatter = new Intl.NumberFormat("vi-VN");
@@ -60,6 +61,7 @@ export function MenuItemCard({
   quantity,
   onAdd,
   onRemove,
+  readOnly = false,
 }: MenuItemCardProps) {
   const formattedPrice = formatter.format(item.price);
 
@@ -87,13 +89,15 @@ export function MenuItemCard({
             <span className="cmc-card-price-value" aria-hidden="true">{formattedPrice}</span>
             <span className="cmc-card-price-unit" aria-hidden="true">đ</span>
           </strong>
-          {quantity > 0 ? (
+          {readOnly ? (
+            <span className="cmc-card-preview-note">Quét QR tại bàn để gọi món</span>
+          ) : quantity && quantity > 0 ? (
             <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>
-              <button onClick={() => onRemove(item.id)} type="button">
+              <button onClick={() => onRemove?.(item.id)} type="button">
                 -
               </button>
               <span>{quantity}</span>
-              <button disabled={!item.isAvailable} onClick={() => onAdd(item.id)} type="button">
+              <button disabled={!item.isAvailable} onClick={() => onAdd?.(item.id)} type="button">
                 +
               </button>
             </div>
@@ -101,7 +105,7 @@ export function MenuItemCard({
             <button
               className="cmc-add-button"
               disabled={!item.isAvailable}
-              onClick={() => onAdd(item.id)}
+              onClick={() => onAdd?.(item.id)}
               type="button"
             >
               <span className="cmc-add-button-icon" aria-hidden="true">+</span>

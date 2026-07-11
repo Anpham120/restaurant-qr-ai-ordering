@@ -1,12 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  clearCustomerSession,
-  clearMenuCart,
-  loadMenuCart,
-  loadOrderContext,
-  saveMenuCart,
-} from "../../components/customer/customerMenuStorage";
+import { clearMenuCart, loadMenuCart, saveMenuCart } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
@@ -20,6 +14,7 @@ import type {
   ValidatePromotionResponse,
 } from "../../types";
 import { Check } from "lucide-react";
+import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
@@ -31,14 +26,6 @@ function getInitialCart() {
   return loadMenuCart();
 }
 
-function getInitialOrderContext() {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  return loadOrderContext();
-}
-
 function getCartItems(cart: MenuCart, items: MenuItem[]) {
   return items.filter((item) => (cart[item.id] ?? 0) > 0);
 }
@@ -46,7 +33,7 @@ function getCartItems(cart: MenuCart, items: MenuItem[]) {
 function buildOrderPayload(
   cart: MenuCart,
   selectedItems: MenuItem[],
-  context: ReturnType<typeof getInitialOrderContext>,
+  context: { tableCode: string; qrToken: string; sessionId: string; sessionToken: string },
   promotionCode: string | null,
   customerPhoneNumber: string | null,
 ): CreateOrderRequest {
@@ -66,9 +53,9 @@ function buildOrderPayload(
 
 export function CustomerCartPage() {
   const navigate = useNavigate();
+  const { context: orderContext, refresh } = useOrderingSession();
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
-  const [orderContext, setOrderContext] = useState(getInitialOrderContext);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -109,16 +96,8 @@ export function CustomerCartPage() {
   );
   const discountAmount = appliedPromo?.discountAmount ?? 0;
   const finalTotal = Math.max(0, totalPrice - discountAmount);
-  const hasActiveSession = Boolean(
-    orderContext.tableCode &&
-      orderContext.qrToken &&
-      orderContext.sessionId &&
-      orderContext.sessionToken,
-  );
-  const tableMenuPath =
-    orderContext.tableCode && orderContext.qrToken
-      ? `/table/${orderContext.tableCode}?qr=${encodeURIComponent(orderContext.qrToken)}`
-      : "/";
+  const hasActiveSession = true;
+  const tableMenuPath = `/table-session/${orderContext.sessionId}/menu`;
   const canSubmit =
     hasActiveSession &&
     selectedItems.length > 0 &&
@@ -205,9 +184,7 @@ export function CustomerCartPage() {
           setErrorMessage("Chưa kiểm tra được phiên bàn. Vui lòng thử gửi món lại.");
           return;
         }
-        clearCustomerSession();
-        setCart({});
-        setOrderContext({});
+        await refresh();
         setErrorMessage(
           validation.status === "expired"
             ? "Phiên bàn đã hết hạn. Vui lòng quét lại QR tại bàn."
@@ -223,7 +200,7 @@ export function CustomerCartPage() {
       setPromoInput("");
       setPhoneInput("");
 
-      navigate(`/orders/${response.orderCode}`, { replace: true });
+      navigate(`/table-session/${orderContext.sessionId}/orders/${response.orderCode}`, { replace: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Không thể gửi đơn lúc này.");
     } finally {

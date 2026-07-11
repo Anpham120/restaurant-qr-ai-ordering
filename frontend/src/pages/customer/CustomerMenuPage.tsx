@@ -2,21 +2,18 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { CustomerTestimonials } from "../../components/customer/CustomerTestimonials";
 import { CustomerWhyChooseUs } from "../../components/customer/CustomerWhyChooseUs";
 import {
-  clearCustomerSession,
   loadMenuCart,
-  loadOrderContext,
   saveMenuCart,
-  saveOrderContext,
 } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../../components/menu/MenuCategoryTabs";
 import { MenuItemCard, formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { openDineInSession } from "../../services/tableSessionService";
 import type { MenuCart, MenuItem } from "../../types";
 import { LayoutGrid } from "lucide-react";
 
 type CustomerMenuPageProps = {
+  mode?: "ordering" | "preview";
   tableCode?: string;
   qrToken?: string;
 };
@@ -35,20 +32,6 @@ function getInitialCart() {
   }
 
   return loadMenuCart();
-}
-
-function hasStoredSession(tableCode?: string, qrToken?: string) {
-  if (typeof window === "undefined" || !tableCode || !qrToken) {
-    return false;
-  }
-
-  const context = loadOrderContext();
-  return Boolean(
-    context.tableCode === tableCode &&
-      context.qrToken === qrToken &&
-      context.sessionId &&
-      context.sessionToken,
-  );
 }
 
 function getCartSummary(cart: MenuCart, items: MenuItem[]) {
@@ -82,14 +65,15 @@ function buildMenuSections(menu: CustomerMenuResponse, items: MenuItem[]): MenuS
     .filter((section) => section.items.length > 0);
 }
 
-export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) {
+export function CustomerMenuPage({ mode = "preview", tableCode, qrToken }: CustomerMenuPageProps) {
+  const isOrdering = mode === "ordering";
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
   const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<MenuCart>(getInitialCart);
+  const [cart, setCart] = useState<MenuCart>(() => isOrdering ? getInitialCart() : {});
   const [menuError, setMenuError] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
-  const [isSessionOpen, setIsSessionOpen] = useState(() => hasStoredSession(tableCode, qrToken));
+  const [isSessionOpen, setIsSessionOpen] = useState(isOrdering);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -118,61 +102,9 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }, []);
 
   useEffect(() => {
-    if (!tableCode || !qrToken) {
-      setIsSessionOpen(false);
-      setSessionNotice("Bạn có thể xem thực đơn. Để đặt món, vui lòng quét QR tại bàn.");
-      return;
-    }
-
-    let isMounted = true;
-    const previousContext = loadOrderContext();
-    if (
-      previousContext.tableCode !== tableCode ||
-      previousContext.qrToken !== qrToken
-    ) {
-      clearCustomerSession();
-      setCart({});
-    }
-
-    openDineInSession(qrToken, tableCode).then((result) => {
-      if (!isMounted) {
-        return;
-      }
-
-      if (result.status === "open") {
-        saveOrderContext({
-          tableCode,
-          qrToken,
-          sessionId: result.session.sessionId,
-          sessionToken: result.session.tableSessionToken,
-        });
-        if (previousContext.sessionId !== result.session.sessionId) {
-          setCart({});
-        }
-        setIsSessionOpen(true);
-        setSessionNotice("");
-      } else if (result.status === "expired") {
-        clearCustomerSession();
-        setCart({});
-        setIsSessionOpen(false);
-        setSessionNotice("Phiên bàn đã hết hạn. Bạn vẫn có thể xem thực đơn, nhưng cần quét lại QR để đặt món.");
-      } else if (result.status === "invalid") {
-        clearCustomerSession();
-        setCart({});
-        setIsSessionOpen(false);
-        setSessionNotice("Mã QR không hợp lệ cho bàn này. Bạn vẫn có thể xem thực đơn, nhưng cần quét lại QR để đặt món.");
-      } else {
-        clearCustomerSession();
-        setCart({});
-        setIsSessionOpen(false);
-        setSessionNotice("Chưa thể mở phiên bàn. Bạn vẫn có thể xem thực đơn và gọi nhân viên hỗ trợ khi cần đặt món.");
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [tableCode, qrToken]);
+    setIsSessionOpen(isOrdering);
+    setSessionNotice(isOrdering ? "" : "Thực đơn này chỉ để xem. Vui lòng quét QR tại bàn để dùng AI và gọi món.");
+  }, [isOrdering]);
 
   const menuItems = customerMenu.items;
   const menuCategories = useMemo(
@@ -212,7 +144,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }
 
   function addItem(itemId: string) {
-    if (!isSessionOpen) {
+    if (!isOrdering || !isSessionOpen) {
       setSessionNotice("Bạn cần quét QR tại bàn để thêm món vào giỏ.");
       return;
     }
@@ -239,7 +171,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
   }
 
   return (
-    <section className={`cmc-customer-page${summary.itemCount > 0 ? " has-cart-bar" : ""}`}>
+    <section className={`cmc-customer-page${isOrdering && summary.itemCount > 0 ? " has-cart-bar" : ""}`}>
       <header className="cmc-hero cmc-menu-hero">
         <div className="cmc-menu-hero-copy">
           <p className="cmc-kicker">CMC Restaurant</p>
@@ -248,7 +180,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
           </h2>
           <p>
             Khám phá hương vị đặc biệt từ những món ăn được chế biến tươi ngon mỗi ngày.
-            Chọn món yêu thích và gửi đơn trực tiếp từ điện thoại.
+            {isOrdering ? "Chọn món yêu thích và gửi đơn trực tiếp từ điện thoại." : "Xem trước thực đơn và quét QR tại bàn khi bạn sẵn sàng gọi món."}
           </p>
           <div className="cmc-hero-actions">
             <a className="cmc-primary-link" href="#cmc-menu-sections">
@@ -352,6 +284,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
                         onAdd={addItem}
                         onRemove={removeItem}
                         quantity={cart[item.id] ?? 0}
+                        readOnly={!isOrdering}
                       />
                     ))}
                   </div>
@@ -369,7 +302,7 @@ export function CustomerMenuPage({ tableCode, qrToken }: CustomerMenuPageProps) 
 
       {/* Giỏ hàng nổi toàn cục được mount ở CustomerLayout (main.tsx) */}
 
-      {!isFilteredView && (
+      {!isOrdering && !isFilteredView && (
         <>
           <CustomerWhyChooseUs />
           <CustomerTestimonials menuItems={menuItems} />

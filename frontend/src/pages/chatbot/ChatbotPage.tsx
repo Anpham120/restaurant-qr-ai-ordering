@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChatMessageBubble } from "../../components/chatbot/ChatMessageBubble";
 import { SuggestedCartActionCard } from "../../components/chatbot/SuggestedCartActionCard";
@@ -6,13 +6,13 @@ import "../../components/chatbot/chatbot.css";
 import "../../components/chatbot/chatbot-vian-theme.css";
 import {
   loadMenuCart,
-  loadOrderContext,
   saveMenuCart,
 } from "../../components/customer/customerMenuStorage";
 import { chatApi } from "../../services/chatService";
 import { fetchCustomerMenu } from "../../services/menuService";
 import type { CustomerMenuResponse } from "../../services/menuService";
 import type { ChatMessage, SuggestedCartAction } from "../../types";
+import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
 
 
 type ActionStatus = "pending" | "confirmed" | "dismissed";
@@ -50,6 +50,7 @@ function buildUserMessage(content: string): ChatMessage {
 }
 
 export function ChatbotPage() {
+  const { context: orderContext } = useOrderingSession();
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [composerValue, setComposerValue] = useState("");
@@ -62,17 +63,8 @@ export function ChatbotPage() {
   const [cartNotice, setCartNotice] = useState("");
   const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
-  const orderContext = useMemo<ReturnType<typeof loadOrderContext>>(() => {
-    if (typeof window === "undefined") {
-      return {};
-    }
-
-    return loadOrderContext();
-  }, []);
   const tableCode = orderContext.tableCode;
-  const hasTableSession = Boolean(
-    orderContext.tableCode && orderContext.sessionId && orderContext.sessionToken,
-  );
+  const hasTableSession = true;
 
   useEffect(() => {
     let isMounted = true;

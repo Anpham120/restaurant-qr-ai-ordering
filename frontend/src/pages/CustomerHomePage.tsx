@@ -1,18 +1,16 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFacebook, faInstagram, faTiktok, faYoutube } from "@fortawesome/free-brands-svg-icons";
-import { loadOrderContext, saveMenuCart, loadMenuCart } from "../components/customer/customerMenuStorage";
+import { loadOrderContext } from "../components/customer/customerMenuStorage";
 import "../components/landing/customer-landing.css";
 import { formatVnd } from "../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../services/menuService";
-import { chatApi } from "../services/chatService";
-import type { ChatMessage, SuggestedCartAction } from "../types";
 import {
   Smartphone, UtensilsCrossed, Sparkles, MapPin, Phone, Mail, Globe,
-  MessageCircle, Bot, Send, Star, CheckCircle, X,
+  MessageCircle, Bot, Star, CheckCircle, X,
   ExternalLink, Camera, QrCode, ChevronLeft, ChevronRight, Flame,
-  ShoppingBag, BookOpen, Layers, Truck, Coffee, Play,
+  BookOpen, Layers, Truck, Coffee, Play,
 } from "lucide-react";
 
 /* ========================================================================
@@ -38,13 +36,6 @@ const TESTIMONIALS = [
   { name: "Anh Công Vũ", role: "Food Blogger", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop", stars: 5, text: "Một nơi để tìm về đúng nghĩa với mâm cơm Việt, những món ngon mộc mạc của bà của mẹ. Mình gọi đĩa thịt rang cháy cạnh và bát canh cua mồng tơi nhiều gạch kèm cà pháo muối giòn mà ưng ý vô cùng!" },
   { name: "Chị Phương Anh", role: "Nhà báo", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop", stars: 5, text: "Đồ ăn đúng vị gia đình nhưng lại được bày biện bắt mắt như nhà hàng 5 sao. Không gian quán đẹp, thoáng đãng ngập ánh nắng tự nhiên, phục vụ rất dễ thương và lên món nhanh." },
   { name: "Anh Quyết", role: "Doanh nhân", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop", stars: 5, text: "Nhà hàng cơm Việt CMC là nơi tôi tự tin rủ bạn bè, đối tác đi ăn những bữa cơm thân mật như tại nhà. Đặc biệt hệ thống quét QR đặt món tại bàn rất tiện lợi, thông minh." },
-];
-
-const CHAT_QUICK_PROMPTS = [
-  "Gợi ý món cho 2 người",
-  "Có món nào đang giảm giá?",
-  "Tôi muốn đồ uống thanh mát",
-  "Món nào phổ biến nhất?",
 ];
 
 /* ========================================================================
@@ -640,196 +631,5 @@ function FooterSection() {
         </div>
       </div>
     </footer>
-  );
-}
-
-/* ========================================================================
-   AI Chat Section (Inline on landing page)
-   ======================================================================== */
-type ChatSectionProps = {
-  menuItems: CustomerMenuResponse["items"];
-  onQrNotice: (msg?: string) => void;
-};
-
-function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", content: "Xin chào! Mình là trợ lý AI của CMC Restaurant. Hỏi mình bất cứ điều gì về thực đơn nhé!", createdAt: new Date().toISOString() },
-  ]);
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestedCartAction[]>([]);
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [messages, suggestions, thinking]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function restoreSession() {
-      try {
-        const orderContext = loadOrderContext();
-        const session = await chatApi.createSession({
-          tableCode: orderContext.tableCode,
-          tableSessionId: orderContext.sessionId,
-        });
-
-        if (active) {
-          setSessionId(session.chatSessionId);
-          setSessionToken(session.accessToken);
-          if (session.messages.length > 0) {
-            setMessages(session.messages);
-          }
-        }
-      } catch {
-        // The inline assistant remains available to retry when the customer sends a message.
-      }
-    }
-
-    void restoreSession();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function ensureSession(): Promise<{ id: string; token: string; restoredMessages?: ChatMessage[] } | null> {
-    if (sessionId && sessionToken) return { id: sessionId, token: sessionToken };
-    try {
-      const orderContext = loadOrderContext();
-      const s = await chatApi.createSession({
-        tableCode: orderContext.tableCode,
-        tableSessionId: orderContext.sessionId,
-      });
-      setSessionId(s.chatSessionId);
-      setSessionToken(s.accessToken);
-      return { id: s.chatSessionId, token: s.accessToken, restoredMessages: s.messages };
-    } catch {
-      return null;
-    }
-  }
-
-  async function send(e?: FormEvent, override?: string) {
-    e?.preventDefault();
-    const content = (override ?? input).trim();
-    if (!content || thinking) return;
-
-    const session = await ensureSession();
-    if (!session) {
-      setMessages((m) => [...m, { id: `e_${Date.now()}`, role: "assistant", content: "Xin lỗi, không thể kết nối. Bạn thử lại nhé!", createdAt: new Date().toISOString() }]);
-      return;
-    }
-
-    const userMsg: ChatMessage = { id: `u_${Date.now()}`, role: "user", content, createdAt: new Date().toISOString() };
-    setMessages((current) => [
-      ...(session.restoredMessages && session.restoredMessages.length > 0 ? session.restoredMessages : current),
-      userMsg,
-    ]);
-    setInput("");
-    setThinking(true);
-    setSuggestions([]);
-
-    try {
-      const res = await chatApi.sendMessage(session.id, { content }, session.token);
-      setMessages((m) => [...m, res.message]);
-      setSuggestions(res.suggestedCartActions);
-    } catch {
-      setMessages((m) => [...m, { id: `e_${Date.now()}`, role: "assistant", content: "Xin lỗi, mình chưa phản hồi được. Bạn thử lại nhé!", createdAt: new Date().toISOString() }]);
-    } finally {
-      setThinking(false);
-    }
-  }
-
-  function handleAddToCart(action: SuggestedCartAction) {
-    if (!hasActiveSession()) {
-      onQrNotice("Vui lòng quét mã QR tại bàn để đặt món vào giỏ hàng.");
-      return;
-    }
-    const currentCart = loadMenuCart();
-    const next = { ...currentCart, [action.menuItemId]: (currentCart[action.menuItemId] ?? 0) + action.quantity };
-    saveMenuCart(next);
-    setSuggestions((s) => s.filter((a) => a.menuItemId !== action.menuItemId));
-    setMessages((m) => [...m, { id: `cart_${Date.now()}`, role: "assistant", content: `Đã thêm ${action.name} (x${action.quantity}) vào giỏ hàng!`, createdAt: new Date().toISOString() }]);
-  }
-
-  return (
-    <section className="landing-ai-section" id="ai-tu-van" aria-labelledby="ai-title">
-      <div className="landing-ai-container">
-        {/* Left: Branding + Quick prompts */}
-        <div className="landing-ai-intro">
-          <div className="landing-ai-badge">
-            <Bot size={18} /> AI Tư vấn
-          </div>
-          <h2 id="ai-title">Trợ lý AI<br/>thông minh</h2>
-          <p>Hỏi bất cứ điều gì về thực đơn: gợi ý món, combo, đồ uống hoặc thông tin dinh dưỡng. AI sẽ tư vấn ngay cho bạn!</p>
-          <div className="landing-ai-prompts">
-            {CHAT_QUICK_PROMPTS.map((p) => (
-              <button key={p} className="landing-ai-prompt-btn" type="button" onClick={() => send(undefined, p)}>
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Chat window */}
-        <div className="landing-ai-chat-window">
-          <div className="landing-ai-chat-header">
-            <Bot size={18} />
-            <span>CMC AI Assistant</span>
-          </div>
-          <div className="landing-ai-chat-body" ref={bodyRef}>
-            {messages.map((m) => (
-              <div key={m.id} className={`landing-ai-msg ${m.role}`}>
-                {m.role === "assistant" && (
-                  <div className="landing-ai-msg-avatar"><Bot size={14} /></div>
-                )}
-                <div className="landing-ai-msg-bubble">{m.content}</div>
-              </div>
-            ))}
-
-            {suggestions.length > 0 && (
-              <div className="landing-ai-suggestions">
-                {suggestions.map((s) => {
-                  const item = menuItems.find((i) => i.id === s.menuItemId);
-                  return (
-                    <div className="landing-ai-suggestion-card" key={s.menuItemId}>
-                      {item?.imageUrl && <img src={item.imageUrl} alt={s.name} />}
-                      <div className="landing-ai-suggestion-info">
-                        <strong>{s.name}</strong>
-                        <span>{formatVnd(s.price)} × {s.quantity}</span>
-                      </div>
-                      <button className="landing-ai-suggestion-btn" type="button" onClick={() => handleAddToCart(s)}>
-                        Đặt món
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {thinking && (
-              <div className="landing-chat-typing">
-                <span /><span /><span />
-              </div>
-            )}
-          </div>
-
-          <form className="landing-ai-composer" onSubmit={(e) => send(e)}>
-            <input
-              className="landing-ai-input"
-              placeholder="Hỏi về thực đơn..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              aria-label="Nhập tin nhắn"
-            />
-            <button className="landing-ai-send" type="submit" disabled={thinking || !input.trim()} aria-label="Gửi">
-              <Send size={16} />
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
   );
 }

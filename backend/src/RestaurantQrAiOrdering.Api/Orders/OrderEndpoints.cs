@@ -718,7 +718,7 @@ public static partial class OrderEndpoints
                 .ToList());
     }
 
-    private static OrderResponse ToResponse(Order order)
+    internal static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
         return new OrderResponse(

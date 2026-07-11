@@ -8,6 +8,7 @@ using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -202,6 +203,60 @@ public static partial class TableEndpoints
         })
         .WithName("GetTableSession")
         .WithTags("Tables");
+
+        app.MapGet("/api/table-sessions/{sessionId}/orders", async (
+            string sessionId,
+            HttpRequest request,
+            RestaurantDbContext db,
+            IOptions<JwtOptions> jwtOptions,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetTableSessionToken(request, out var suppliedToken))
+            {
+                return UnauthorizedSessionCapability();
+            }
+
+            var tableSession = await db.TableSessions
+                .FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
+            if (tableSession is null)
+            {
+                return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
+            }
+
+            if (!IsValidTableSessionToken(tableSession, suppliedToken, jwtOptions.Value.SigningKey))
+            {
+                return UnauthorizedSessionCapability();
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            if (!tableSession.IsActiveAt(now))
+            {
+                if (tableSession.ExpireIfPast(now))
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+
+                return ApiErrorFactory.Result(
+                    StatusCodes.Status410Gone,
+                    "TABLE_SESSION_INACTIVE",
+                    "Table session is closed or expired. Please scan QR again.");
+            }
+
+            var orders = await db.Orders
+                .AsNoTracking()
+                .Where(order => order.TableSessionId == tableSession.Id)
+                .Include(order => order.OrderItems)
+                .Include(order => order.Payment)
+                .Include(order => order.StatusHistory)
+                .OrderByDescending(order => order.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(new OrderListResponse(
+                orders.Select(OrderEndpoints.ToResponse).ToList(),
+                orders.Count));
+        })
+        .WithName("GetTableSessionOrders")
+        .WithTags("Tables", "Orders");
 
         app.MapPost("/api/table-sessions/{sessionId}/close", async (
             string sessionId,

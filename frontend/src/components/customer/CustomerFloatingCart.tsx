@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   CART_UPDATED_EVENT,
   loadMenuCart,
-  loadOrderContext,
   saveMenuCart,
 } from "./customerMenuStorage";
 import { fetchCustomerMenu } from "../../services/menuService";
 import type { MenuCart, MenuItem } from "../../types";
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import "./customer-floating-cart.css";
+import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 
@@ -22,11 +22,9 @@ const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 export function CustomerFloatingCart() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { context: orderContext } = useOrderingSession();
   const [cart, setCart] = useState<MenuCart>({});
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [orderContext, setOrderContext] = useState(() =>
-    typeof window === "undefined" ? {} : loadOrderContext(),
-  );
   const [expanded, setExpanded] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -35,7 +33,6 @@ export function CustomerFloatingCart() {
 
   const syncFromStorage = useCallback(() => {
     setCart(loadMenuCart());
-    setOrderContext(loadOrderContext());
   }, []);
 
   useEffect(() => {
@@ -99,17 +96,12 @@ export function CustomerFloatingCart() {
     };
   }, [expanded]);
 
-  const isCheckoutPage = location.pathname.startsWith("/cart");
+  const isCheckoutPage = location.pathname.endsWith("/cart") || location.pathname.endsWith("/checkout");
   if (itemCount === 0 || isCheckoutPage) {
     return null;
   }
 
-  const hasSession = Boolean(
-    orderContext.tableCode &&
-      orderContext.qrToken &&
-      orderContext.sessionId &&
-      orderContext.sessionToken,
-  );
+  const hasSession = true;
 
   function updateQuantity(itemId: string, nextQuantity: number) {
     const nextCart = { ...cart };
@@ -238,7 +230,7 @@ export function CustomerFloatingCart() {
               className="cfc-checkout-btn"
               onClick={() => {
                 setExpanded(false);
-                navigate("/cart");
+                navigate(`/table-session/${orderContext.sessionId}/cart`);
               }}
               type="button"
             >

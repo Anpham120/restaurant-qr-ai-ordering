@@ -190,6 +190,32 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         Assert.Equal("\"status\" = 'Open' AND \"closed_at\" IS NULL", activeSessionIndex.GetFilter());
     }
 
+    [Fact]
+    public async Task TestV12_TableSessionOrderHistoryRequiresItsOwnCapability()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await SignInAsAdminAsync(client));
+
+        var tableSession = await OpenTableSessionAsync(client);
+        var initialTotal = await GetTableSessionOrderTotalAsync(client, tableSession);
+        await CreateDineInOrderAsync(client, tableSession);
+        await CreateDineInOrderAsync(client, tableSession);
+
+        using var historyRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/table-sessions/{tableSession.Id}/orders");
+        historyRequest.Headers.Add("X-Table-Session-Token", tableSession.Token);
+        using var historyResponse = await client.SendAsync(historyRequest);
+        historyResponse.EnsureSuccessStatusCode();
+        using var history = await ReadJsonAsync(historyResponse);
+        Assert.True(history.RootElement.GetProperty("total").GetInt32() >= initialTotal + 2);
+
+        using var rejectedRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/table-sessions/{tableSession.Id}/orders");
+        rejectedRequest.Headers.Add("X-Table-Session-Token", "not-a-valid-table-session-capability");
+        using var rejectedResponse = await client.SendAsync(rejectedRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejectedResponse.StatusCode);
+    }
+
     private static async Task<string> SignInAsAdminAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync("/api/auth/login", new
@@ -222,7 +248,43 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         return new TableSession(
             session.RootElement.GetProperty("sessionId").GetString()!,
             session.RootElement.GetProperty("tableCode").GetString()!,
-            qrToken);
+            qrToken,
+            session.RootElement.GetProperty("tableSessionToken").GetString()!);
+    }
+
+    private static async Task CreateDineInOrderAsync(HttpClient client, TableSession tableSession)
+    {
+        using var menuResponse = await client.GetAsync("/api/menu");
+        menuResponse.EnsureSuccessStatusCode();
+        using var menu = await ReadJsonAsync(menuResponse);
+        var menuItem = menu.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .First(item => item.GetProperty("isAvailable").GetBoolean());
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/orders")
+        {
+            Content = JsonContent.Create(new
+            {
+                orderType = "DineIn",
+                tableCode = tableSession.TableCode,
+                qrToken = tableSession.QrToken,
+                tableSessionId = tableSession.Id,
+                items = new[] { new { menuItemId = menuItem.GetProperty("id").GetString(), quantity = 1 } }
+            })
+        };
+        request.Headers.Add("Idempotency-Key", $"session-order-history-{Guid.NewGuid():N}");
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<int> GetTableSessionOrderTotalAsync(HttpClient client, TableSession tableSession)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/table-sessions/{tableSession.Id}/orders");
+        request.Headers.Add("X-Table-Session-Token", tableSession.Token);
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        using var payload = await ReadJsonAsync(response);
+        return payload.RootElement.GetProperty("total").GetInt32();
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -231,5 +293,5 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         return await JsonDocument.ParseAsync(stream);
     }
 
-    private sealed record TableSession(string Id, string TableCode, string QrToken);
+    private sealed record TableSession(string Id, string TableCode, string QrToken, string Token);
 }
