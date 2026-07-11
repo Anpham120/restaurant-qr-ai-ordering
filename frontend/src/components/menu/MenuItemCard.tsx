@@ -61,6 +61,8 @@ export function MenuItemCard({
   onAdd,
   onRemove,
 }: MenuItemCardProps) {
+  const formattedPrice = formatter.format(item.price);
+
   return (
     <article className={item.isAvailable ? "cmc-menu-card" : "cmc-menu-card disabled"}>
       <div className="cmc-card-image-wrap">
@@ -81,7 +83,10 @@ export function MenuItemCard({
           ))}
         </div>
         <div className="cmc-card-footer">
-          <strong>{formatVnd(item.price)}</strong>
+          <strong className="cmc-card-price" aria-label={`Giá ${formattedPrice} đồng`}>
+            <span className="cmc-card-price-value" aria-hidden="true">{formattedPrice}</span>
+            <span className="cmc-card-price-unit" aria-hidden="true">đ</span>
+          </strong>
           {quantity > 0 ? (
             <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>
               <button onClick={() => onRemove(item.id)} type="button">
@@ -99,7 +104,8 @@ export function MenuItemCard({
               onClick={() => onAdd(item.id)}
               type="button"
             >
-              + Thêm
+              <span className="cmc-add-button-icon" aria-hidden="true">+</span>
+              <span>Thêm</span>
             </button>
           )}
         </div>

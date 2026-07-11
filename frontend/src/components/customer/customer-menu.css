@@ -469,25 +469,51 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 16px;
+  min-height: 59px;
+  padding-top: 14px;
   border-top: 1px solid var(--vian-border);
   margin-top: auto;
 }
 
-.cmc-card-footer strong {
-  font-family: var(--font-display-vian);
-  font-size: 20px;
-  font-weight: 700;
+.cmc-card-price {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  min-width: 0;
   color: var(--vian-green);
+  font-family: var(--font-body-vian);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cmc-card-price-value {
+  display: inline-block;
+}
+
+.cmc-card-price-unit {
+  margin-left: 3px;
+  color: var(--vian-green);
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  transform: translateY(-0.24em);
 }
 
 /* Add Button - Vị An Style */
 .cmc-add-button {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  min-width: 100px;
-  height: 42px;
+  gap: 7px;
+  min-width: 108px;
+  height: 44px;
   border: none;
   border-radius: 12px;
   padding: 0 20px;
@@ -496,9 +522,20 @@
   font-family: var(--font-body-vian);
   font-size: 14px;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.25s ease;
   box-shadow: 0 4px 12px rgba(45, 80, 22, 0.25);
+}
+
+.cmc-add-button-icon {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .cmc-add-button:hover:not(:disabled) {
@@ -516,6 +553,7 @@
 /* Stepper - Vị An Style */
 .cmc-stepper {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0;
   border-radius: 12px;
@@ -527,8 +565,8 @@
 .cmc-stepper button {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border: none;
   background: transparent;
   color: var(--vian-green);
@@ -544,7 +582,7 @@
 }
 
 .cmc-stepper span {
-  min-width: 48px;
+  min-width: 40px;
   text-align: center;
   font-size: 16px;
   font-weight: 700;
