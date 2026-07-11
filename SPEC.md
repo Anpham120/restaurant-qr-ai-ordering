@@ -49,7 +49,7 @@ T15|x|add dependency-free AI guardrail regressions and CI step|I.ai
 T16|x|test menu image fallback resolver and run it in CI|I.ui
 T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
-T8|.|full repository audit; build/deploy proof|C
+T8|x|full repository audit; build/deploy proof|C
 
 ## §B
 
