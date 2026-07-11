@@ -23,7 +23,6 @@ COPY frontend/packages/auth/package.json ./packages/auth/package.json
 COPY frontend/packages/realtime-client/package.json ./packages/realtime-client/package.json
 COPY frontend/packages/shared-types/package.json ./packages/shared-types/package.json
 COPY frontend/packages/shared-ui/package.json ./packages/shared-ui/package.json
-COPY frontend/packages/utils/package.json ./packages/utils/package.json
 RUN npm ci
 
 COPY frontend/ ./
