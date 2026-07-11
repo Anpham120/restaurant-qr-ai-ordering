@@ -54,6 +54,7 @@ export function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [composerValue, setComposerValue] = useState("");
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
+  const [chatAccessToken, setChatAccessToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestedActions, setSuggestedActions] = useState<SuggestedCartAction[]>([]);
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
@@ -69,7 +70,9 @@ export function ChatbotPage() {
     return loadOrderContext();
   }, []);
   const tableCode = orderContext.tableCode;
-  const hasTableSession = Boolean(orderContext.tableCode && orderContext.sessionId);
+  const hasTableSession = Boolean(
+    orderContext.tableCode && orderContext.sessionId && orderContext.sessionToken,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -82,6 +85,7 @@ export function ChatbotPage() {
       .then((session) => {
         if (isMounted) {
           setChatSessionId(session.chatSessionId);
+          setChatAccessToken(session.accessToken);
         }
       })
       .catch(() => {
@@ -108,7 +112,7 @@ export function ChatbotPage() {
       return;
     }
 
-    if (!chatSessionId) {
+    if (!chatSessionId || !chatAccessToken) {
       setErrorMessage("Phiên chat chưa sẵn sàng. Vui lòng thử lại sau.");
       return;
     }
@@ -125,7 +129,7 @@ export function ChatbotPage() {
       const response = await chatApi.sendMessage(chatSessionId, {
         content,
         tableCode,
-      });
+      }, chatAccessToken);
 
       setMessages((current) => [...current, response.message]);
       setSuggestedActions(response.suggestedCartActions);

@@ -4,6 +4,7 @@ namespace RestaurantQrAiOrdering.Enums;
 
 public enum PaymentStatus
 {
+    NotRequested,
     Unpaid,
     Pending,
     Paid,

@@ -6,11 +6,12 @@ import type {
   SendChatMessageResponse,
 } from "../types";
 
-async function postJson<TResponse>(path: string, body?: unknown): Promise<TResponse> {
+async function postJson<TResponse>(path: string, body?: unknown, accessToken?: string): Promise<TResponse> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { "X-Chat-Session-Token": accessToken } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -30,10 +31,12 @@ export const chatApi = {
   async sendMessage(
     chatSessionId: string,
     request: SendChatMessageRequest,
+    accessToken: string,
   ): Promise<SendChatMessageResponse> {
     return postJson<SendChatMessageResponse>(
       `/chat/sessions/${chatSessionId}/messages`,
       request,
+      accessToken,
     );
   },
 };

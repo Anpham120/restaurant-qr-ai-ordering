@@ -76,7 +76,7 @@ export function SuggestedCartActionCard({
           {isAvailable ? (
             <>
               <div className="cmc-suggestion-stepper">
-                <button type="button" onClick={decrement} disabled={quantity <= 1}>−</button>
+                <button type="button" onClick={decrement} disabled={quantity <= 1}>-</button>
                 <span>{quantity}</span>
                 <button type="button" onClick={increment}>+</button>
               </div>

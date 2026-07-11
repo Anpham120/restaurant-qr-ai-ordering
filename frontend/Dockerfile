@@ -29,11 +29,12 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build:all
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/apps/customer-web/dist /usr/share/nginx/html/customer
-COPY --from=build /app/apps/admin-web/dist /usr/share/nginx/html/admin
-COPY --from=build /app/apps/kitchen-web/dist /usr/share/nginx/html/kitchen
-COPY --from=build /app/apps/staff-web/dist /usr/share/nginx/html/staff
+COPY --from=build --chown=nginx:nginx /app/apps/customer-web/dist /usr/share/nginx/html/customer
+COPY --from=build --chown=nginx:nginx /app/apps/admin-web/dist /usr/share/nginx/html/admin
+COPY --from=build --chown=nginx:nginx /app/apps/kitchen-web/dist /usr/share/nginx/html/kitchen
+COPY --from=build --chown=nginx:nginx /app/apps/staff-web/dist /usr/share/nginx/html/staff
 
-EXPOSE 80
+EXPOSE 8080
+USER nginx

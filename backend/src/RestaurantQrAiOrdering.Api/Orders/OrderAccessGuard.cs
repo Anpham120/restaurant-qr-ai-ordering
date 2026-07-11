@@ -21,19 +21,19 @@ public static class OrderAccessGuard
             return true;
         }
 
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            return false;
-        }
-
         var provided = http.Request.Headers[TokenHeaderName].ToString();
-        if (string.IsNullOrEmpty(provided))
+        return HasCustomerToken(accessToken, provided);
+    }
+
+    public static bool HasCustomerToken(string? accessToken, string? providedToken)
+    {
+        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(providedToken))
         {
             return false;
         }
 
         return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(provided),
+            Encoding.UTF8.GetBytes(providedToken),
             Encoding.UTF8.GetBytes(accessToken));
     }
 }

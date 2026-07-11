@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { UserSummary, UserRole, CreateUserRequest } from "@cmc/shared-types";
-import { ApiError, createApiClient } from "@cmc/api-client";
+import { ApiError } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { Plus, Users, X } from "lucide-react";
 import "../operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 // Backend chỉ cho phép tạo tài khoản vận hành: Staff, Kitchen, Admin.
 // Tài khoản Customer do khách tự đăng ký qua /api/auth/register.
@@ -113,7 +110,7 @@ export function AdminUserManager() {
     }
   }
 
-  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">👥</div>Đang tải...</div>;
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon"><Users aria-hidden="true" /></div>Đang tải...</div>;
 
   return (
     <div>
@@ -129,32 +126,40 @@ export function AdminUserManager() {
         <div className="ops-toolbar-search">
           <input className="ops-form-input" placeholder="Tìm theo tên, email, vai trò..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="ops-btn ops-btn--primary" onClick={() => { setForm(EMPTY); setShowForm(true); }} type="button">+ Tạo tài khoản</button>
+        <button className="ops-btn ops-btn--primary" onClick={() => { setForm(EMPTY); setShowForm(true); }} type="button">
+          <Plus aria-hidden="true" size={16} /> Tạo tài khoản
+        </button>
       </div>
 
       {showForm ? (
         <div className="ops-modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            aria-labelledby="create-user-title"
+            aria-modal="true"
+            className="ops-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+          >
             <div className="ops-modal-header">
-              <h2>Tạo tài khoản</h2>
-              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
+              <h2 id="create-user-title">Tạo tài khoản</h2>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setShowForm(false)} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">
-                <label className="ops-form-label">Họ tên *</label>
-                <input className="ops-form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+                <label className="ops-form-label" htmlFor="create-user-full-name">Họ tên *</label>
+                <input id="create-user-full-name" className="ops-form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
               <div className="ops-form-group">
-                <label className="ops-form-label">Email *</label>
-                <input className="ops-form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <label className="ops-form-label" htmlFor="create-user-email">Email *</label>
+                <input id="create-user-email" className="ops-form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div className="ops-form-group">
-                <label className="ops-form-label">Mật khẩu * (≥ 8 ký tự)</label>
-                <input className="ops-form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <label className="ops-form-label" htmlFor="create-user-password">Mật khẩu * (tối thiểu 8 ký tự)</label>
+                <input id="create-user-password" className="ops-form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>
               <div className="ops-form-group">
-                <label className="ops-form-label">Vai trò</label>
-                <select className="ops-form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
+                <label className="ops-form-label" htmlFor="create-user-role">Vai trò</label>
+                <select id="create-user-role" className="ops-form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
                   {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>)}
                 </select>
               </div>
@@ -162,7 +167,7 @@ export function AdminUserManager() {
             <div className="ops-modal-footer">
               <button className="ops-btn ops-btn--ghost" onClick={() => setShowForm(false)} type="button">Hủy</button>
               <button className="ops-btn ops-btn--primary" disabled={isSaving} onClick={handleCreate} type="button">
-                {isSaving ? "Đang tạo..." : "Tạo"}
+                {isSaving ? "Đang tạo..." : "Tạo tài khoản"}
               </button>
             </div>
           </div>

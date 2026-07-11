@@ -10,6 +10,7 @@ import {
 } from "../../services/realtimeOrderService";
 import { getKitchenOrders } from "../../services/orderService";
 import { fetchKitchenMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
+import { ChefHat, RefreshCw, UtensilsCrossed } from "lucide-react";
 import "../../components/operations/operations.css";
 
 type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
@@ -88,7 +89,7 @@ export function KitchenRealtimePage() {
   useEffect(() => {
     const unsubConnection = subscribeRealtimeConnection(setConnectionStatus);
     const unsubRealtime = subscribeOrderRealtime(() => {
-      // Any order event → refresh entire list
+      // Any order event refreshes the entire list.
       loadOrders();
     });
 
@@ -100,6 +101,12 @@ export function KitchenRealtimePage() {
       void disconnectOrderRealtime();
     };
   }, [loadOrders]);
+
+  useEffect(() => {
+    if (connectionStatus === "connected") return;
+    const interval = window.setInterval(() => void loadOrders(), 5_000);
+    return () => window.clearInterval(interval);
+  }, [connectionStatus, loadOrders]);
 
   // Toggle dish availability
   async function handleToggleAvailability(itemId: string, currentlyAvailable: boolean) {
@@ -119,7 +126,7 @@ export function KitchenRealtimePage() {
   if (isLoading) {
     return (
       <div className="ops-empty">
-        <div className="ops-empty-icon">🍳</div>
+        <div className="ops-empty-icon"><ChefHat aria-hidden="true" /></div>
         Đang tải bảng bếp...
       </div>
     );
@@ -142,14 +149,14 @@ export function KitchenRealtimePage() {
                   connectionStatus === "reconnecting" ? "Đang kết nối lại..." : "Mất kết nối"}
             </span>
             <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">
-              🔄 Làm mới
+              <RefreshCw aria-hidden="true" size={14} /> Làm mới
             </button>
             <button
               className="ops-btn ops-btn--ghost ops-btn--sm"
               onClick={() => { setShowMenuPanel(!showMenuPanel); if (!showMenuPanel) loadMenu(); }}
               type="button"
             >
-              🍽 Tắt/Mở món {unavailableCount > 0 ? `(${unavailableCount} hết)` : ""}
+              <UtensilsCrossed aria-hidden="true" size={14} /> Tắt/Mở món {unavailableCount > 0 ? `(${unavailableCount} hết)` : ""}
             </button>
           </div>
         </div>

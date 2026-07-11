@@ -488,6 +488,91 @@
   color: var(--ot-muted);
 }
 
+.cmc-ot-payment-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px;
+  border: 1px solid var(--ot-border);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 40px rgba(90, 58, 48, 0.06);
+}
+
+.cmc-ot-payment-heading,
+.cmc-ot-payment-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.cmc-ot-payment-heading > svg,
+.cmc-ot-payment-state > svg {
+  flex: 0 0 auto;
+  color: var(--ot-brown);
+}
+
+.cmc-ot-payment-heading h3,
+.cmc-ot-payment-heading p,
+.cmc-ot-payment-state strong,
+.cmc-ot-payment-state span,
+.cmc-ot-payment-notice {
+  margin: 0;
+}
+
+.cmc-ot-payment-heading h3 {
+  font-family: var(--font-display-ot);
+  font-size: 20px;
+  color: var(--ot-brown-dark);
+}
+
+.cmc-ot-payment-heading p,
+.cmc-ot-payment-state span {
+  margin-top: 4px;
+  color: var(--ot-muted);
+  font-size: 13px;
+}
+
+.cmc-ot-payment-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  background: var(--ot-brown);
+  color: #ffffff;
+  cursor: pointer;
+  font: 700 16px var(--font-body-ot);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.cmc-ot-payment-primary:hover {
+  background: var(--ot-brown-light);
+}
+
+.cmc-ot-payment-primary:active {
+  transform: scale(0.98);
+}
+
+.cmc-ot-payment-state,
+.cmc-ot-payment-notice {
+  padding: 14px 16px;
+  border: 1px solid rgba(47, 125, 79, 0.22);
+  border-radius: 16px;
+  background: var(--ot-green-bg);
+  color: var(--ot-brown-dark);
+}
+
+.cmc-ot-payment-state > div {
+  display: grid;
+  flex: 1 1 auto;
+}
+
+.cmc-ot-payment-state .cmc-secondary-link {
+  flex: 0 0 auto;
+}
+
 /* --------------------------------------------------------------------------
    Error message
    -------------------------------------------------------------------------- */
@@ -572,6 +657,7 @@
   .cmc-ot-step,
   .cmc-ot-item,
   .cmc-ot-vietqr-action button,
+  .cmc-ot-payment-primary,
   .cmc-ot-back {
     transition: none;
   }

@@ -16,6 +16,11 @@ public class Order
     // to read their own order/payment so sequential order codes can't be enumerated.
     public string? CustomerAccessToken { get; set; }
 
+    // Persists client retry identity so a timed-out create request can safely replay.
+    public string? IdempotencyKey { get; set; }
+
+    public string? RequestFingerprint { get; set; }
+
     public OrderType OrderType { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Draft;

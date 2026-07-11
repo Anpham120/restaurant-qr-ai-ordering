@@ -16,12 +16,15 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system --gid 10001 app \
+    && adduser --system --uid 10001 --ingroup app app
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080
 
-COPY --from=build /app/publish .
+COPY --from=build --chown=app:app /app/publish .
+USER app
 ENTRYPOINT ["dotnet", "RestaurantQrAiOrdering.Api.dll"]

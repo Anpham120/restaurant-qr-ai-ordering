@@ -1,5 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFacebook, faInstagram, faTiktok, faYoutube } from "@fortawesome/free-brands-svg-icons";
 import { loadOrderContext, saveMenuCart, loadMenuCart } from "../components/customer/customerMenuStorage";
 import "../components/landing/customer-landing.css";
 import { formatVnd } from "../components/menu/MenuItemCard";
@@ -10,7 +12,7 @@ import {
   Smartphone, UtensilsCrossed, Sparkles, MapPin, Phone, Mail, Globe,
   MessageCircle, Bot, Send, Star, CheckCircle, X,
   ExternalLink, Camera, QrCode, ChevronLeft, ChevronRight, Flame,
-  ShoppingBag, BookOpen, Layers, Truck, Coffee,
+  ShoppingBag, BookOpen, Layers, Truck, Coffee, Play,
 } from "lucide-react";
 
 /* ========================================================================
@@ -26,9 +28,9 @@ const HERO_FALLBACK_SLIDES = [
 ];
 
 const CUISINE_FALLBACK = [
-  { id: "f1", name: "Phở bò tái nạm", description: "Nước dùng hầm xương 12 tiếng, thịt bò tái mềm, nạm giòn, hành lá tươi — tinh hoa ẩm thực Hà Nội.", categoryName: "Phở & Bún", price: 65000, imageUrl: "/menu-images/08-pho-bo-tai-nam.png", isAvailable: true },
+  { id: "f1", name: "Phở bò tái nạm", description: "Nước dùng hầm xương 12 tiếng, thịt bò tái mềm, nạm giòn và hành lá tươi. Tinh hoa ẩm thực Hà Nội.", categoryName: "Phở & Bún", price: 65000, imageUrl: "/menu-images/08-pho-bo-tai-nam.png", isAvailable: true },
   { id: "f2", name: "Bún chả Hà Nội", description: "Chả viên và chả miếng nướng than hoa thơm lừng, ăn kèm bún tươi, rau sống và nước mắm chua ngọt.", categoryName: "Phở & Bún", price: 60000, imageUrl: "/menu-images/11-bun-cha-ha-noi.png", isAvailable: true },
-  { id: "f3", name: "Cơm tấm sườn bì chả", description: "Sườn nướng mật ong giòn ngọt, bì heo sợi giòn dai, chả trứng hấp mềm mịn — hương vị Sài Gòn chính gốc.", categoryName: "Cơm", price: 55000, imageUrl: "/menu-images/15-com-tam-suon-bi-cha.png", isAvailable: true },
+  { id: "f3", name: "Cơm tấm sườn bì chả", description: "Sườn nướng mật ong giòn ngọt, bì heo sợi giòn dai và chả trứng hấp mềm mịn, đúng vị Sài Gòn.", categoryName: "Cơm", price: 55000, imageUrl: "/menu-images/15-com-tam-suon-bi-cha.png", isAvailable: true },
   { id: "f4", name: "Lẩu hải sản chua cay", description: "Tôm, mực, nghêu tươi sống trong nước lẩu Tom Yum chua cay đậm đà, ăn kèm rau sống và bún tươi.", categoryName: "Lẩu", price: 280000, imageUrl: "/menu-images/33-lau-hai-san-chua-cay.png", isAvailable: true },
 ];
 
@@ -51,14 +53,14 @@ const CHAT_QUICK_PROMPTS = [
 function getStoredTablePath() {
   if (typeof window === "undefined") return "";
   const ctx = loadOrderContext();
-  if (!ctx.tableCode || !ctx.qrToken || !ctx.sessionId) return "";
+  if (!ctx.tableCode || !ctx.qrToken || !ctx.sessionId || !ctx.sessionToken) return "";
   return `/table/${encodeURIComponent(ctx.tableCode)}?qr=${encodeURIComponent(ctx.qrToken)}`;
 }
 
 function hasActiveSession(): boolean {
   if (typeof window === "undefined") return false;
   const ctx = loadOrderContext();
-  return Boolean(ctx.sessionId && ctx.tableCode);
+  return Boolean(ctx.sessionId && ctx.sessionToken && ctx.tableCode);
 }
 
 /* ========================================================================
@@ -85,17 +87,6 @@ function useHeroSlideshow(count: number, interval = 5000) {
     return () => clearInterval(id);
   }, [count, interval]);
   return [active, setActive] as const;
-}
-
-function useHeaderScroll() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", handler, { passive: true });
-    handler();
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
-  return scrolled;
 }
 
 /* ========================================================================
@@ -238,7 +229,7 @@ export function CustomerHomePage() {
             },
             {
               img: promoItems.drink?.imageUrl ?? "/menu-images/57-ca-phe-sua-da.png",
-              title: "Happy Hour 14h–17h",
+              title: "Happy Hour 14h-17h",
               badge: "-15%",
               desc: "Giảm 15% tất cả đồ uống và tráng miệng vào khung giờ vàng mỗi ngày.",
             },
@@ -315,14 +306,14 @@ export function CustomerHomePage() {
         </div>
       </section>
 
-      {/* 9. AI CTA BANNER — links to /chat page */}
+      {/* AI CTA banner linking to the chat page. */}
       <section className="landing-ai-cta" id="ai-tu-van">
         <div className="landing-ai-cta-inner">
           <div className="landing-ai-cta-text">
             <Bot size={28} />
             <div>
               <h3>Trợ lý AI thông minh</h3>
-              <p>Hỏi bất cứ điều gì về thực đơn — gợi ý món, combo, đồ uống. AI tư vấn ngay!</p>
+              <p>Hỏi bất cứ điều gì về thực đơn: gợi ý món, combo hoặc đồ uống. AI tư vấn ngay!</p>
             </div>
           </div>
           <a className="landing-ai-cta-btn" href="/chat">
@@ -364,10 +355,10 @@ const ROTATING_TEXTS = [
 ];
 
 const PROMO_MESSAGES = [
-  "🔥 Giảm ngay 10% cho đơn hàng đầu tiên qua AI",
-  "✨ Tặng Pepsi mát lạnh khi quét mã gọi món tại bàn",
-  "🍲 Thưởng thức Phở Thìn nóng hổi chuẩn vị truyền thống",
-  "🌿 100% nguyên liệu tươi sạch chuẩn VietGAP mỗi ngày",
+  "Giảm ngay 10% cho đơn hàng đầu tiên qua AI",
+  "Tặng Pepsi mát lạnh khi quét mã gọi món tại bàn",
+  "Thưởng thức Phở Thìn nóng hổi chuẩn vị truyền thống",
+  "100% nguyên liệu tươi sạch chuẩn VietGAP mỗi ngày",
 ];
 
 function HeroSection({ storedTablePath, scanNotice, onQrNotice, slides }: {
@@ -440,7 +431,7 @@ function AboutSection() {
       </div>
       <div className="landing-about-content" data-reveal style={{ "--reveal-index": 1 } as React.CSSProperties}>
         <p className="landing-eyebrow">Triết lý ẩm thực</p>
-        <h2 id="about-title">CMC Restaurant – Hương vị Việt tròn vị</h2>
+        <h2 id="about-title">CMC Restaurant - Hương vị Việt tròn vị</h2>
         <p>
           Tại CMC Restaurant, triết lý của chúng tôi rất đơn giản: chia sẻ hương vị ẩm thực Việt truyền thống và văn hóa thưởng thức cơm gia đình thơm ngon, tròn vị tới tất cả mọi người.
         </p>
@@ -448,7 +439,7 @@ function AboutSection() {
           Chúng tôi nâng niu từng bữa ăn bằng việc sử dụng nguồn nguyên liệu tươi sạch chuẩn VietGAP thu hoạch mỗi sớm mai, và chế biến tỉ mỉ dưới đôi bàn tay của những người đầu bếp tận tâm nhất.
         </p>
         <p>
-          Không gian nhà hàng được thiết kế mở, tối giản và ngập tràn nắng gió tự nhiên – là chốn tìm về lý tưởng cho những bữa cơm gia đình đầm ấm, buổi hẹn hò hay gặp gỡ đối tác trang trọng.
+          Không gian nhà hàng được thiết kế mở, tối giản và ngập tràn nắng gió tự nhiên. Đây là nơi phù hợp cho bữa cơm gia đình, buổi hẹn hò hoặc gặp gỡ đối tác.
         </p>
         <div className="landing-about-stats">
           <div className="landing-about-stat">
@@ -460,7 +451,7 @@ function AboutSection() {
             <span>Danh mục</span>
           </div>
           <div className="landing-about-stat">
-            <strong>5★</strong>
+            <strong><Star aria-hidden="true" size={18} /> 5/5</strong>
             <span>Đánh giá khách</span>
           </div>
         </div>
@@ -550,7 +541,7 @@ function MediaSection() {
             alt="Nem rán Hà Nội - Đặc sản CMC Restaurant"
             loading="lazy"
           />
-          <div className="play-button-icon">▶</div>
+          <div className="play-button-icon"><Play aria-hidden="true" fill="currentColor" /></div>
         </div>
       </div>
     </section>
@@ -632,19 +623,19 @@ function FooterSection() {
         />
       </div>
       <div className="landing-footer-bottom">
-        <span>© 2024 CMC Restaurant. Thiết kế & phát triển bởi CMC Technology.</span>
+        <span>Copyright 2024 CMC Restaurant. Thiết kế và phát triển bởi CMC Technology.</span>
         <div className="landing-footer-social">
           <a href="#" aria-label="Facebook" className="landing-social-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+            <FontAwesomeIcon icon={faFacebook} />
           </a>
           <a href="#" aria-label="YouTube" className="landing-social-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <FontAwesomeIcon icon={faYoutube} />
           </a>
           <a href="#" aria-label="Instagram" className="landing-social-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+            <FontAwesomeIcon icon={faInstagram} />
           </a>
           <a href="#" aria-label="TikTok" className="landing-social-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+            <FontAwesomeIcon icon={faTiktok} />
           </a>
         </div>
       </div>
@@ -662,8 +653,9 @@ type ChatSectionProps = {
 
 function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", content: "Xin chào! Mình là trợ lý AI của CMC Restaurant. Hỏi mình bất cứ điều gì về thực đơn nhé! 🍽️", createdAt: new Date().toISOString() },
+    { id: "welcome", role: "assistant", content: "Xin chào! Mình là trợ lý AI của CMC Restaurant. Hỏi mình bất cứ điều gì về thực đơn nhé!", createdAt: new Date().toISOString() },
   ]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -674,8 +666,8 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, suggestions, thinking]);
 
-  async function ensureSession(): Promise<string | null> {
-    if (sessionId) return sessionId;
+  async function ensureSession(): Promise<{ id: string; token: string } | null> {
+    if (sessionId && sessionToken) return { id: sessionId, token: sessionToken };
     try {
       const orderContext = loadOrderContext();
       const s = await chatApi.createSession({
@@ -683,7 +675,8 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
         tableSessionId: orderContext.sessionId,
       });
       setSessionId(s.chatSessionId);
-      return s.chatSessionId;
+      setSessionToken(s.accessToken);
+      return { id: s.chatSessionId, token: s.accessToken };
     } catch {
       return null;
     }
@@ -694,8 +687,8 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     const content = (override ?? input).trim();
     if (!content || thinking) return;
 
-    const sid = await ensureSession();
-    if (!sid) {
+    const session = await ensureSession();
+    if (!session) {
       setMessages((m) => [...m, { id: `e_${Date.now()}`, role: "assistant", content: "Xin lỗi, không thể kết nối. Bạn thử lại nhé!", createdAt: new Date().toISOString() }]);
       return;
     }
@@ -707,7 +700,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     setSuggestions([]);
 
     try {
-      const res = await chatApi.sendMessage(sid, { content });
+      const res = await chatApi.sendMessage(session.id, { content }, session.token);
       setMessages((m) => [...m, res.message]);
       setSuggestions(res.suggestedCartActions);
     } catch {
@@ -726,7 +719,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     const next = { ...currentCart, [action.menuItemId]: (currentCart[action.menuItemId] ?? 0) + action.quantity };
     saveMenuCart(next);
     setSuggestions((s) => s.filter((a) => a.menuItemId !== action.menuItemId));
-    setMessages((m) => [...m, { id: `cart_${Date.now()}`, role: "assistant", content: `✅ Đã thêm ${action.name} (×${action.quantity}) vào giỏ hàng!`, createdAt: new Date().toISOString() }]);
+    setMessages((m) => [...m, { id: `cart_${Date.now()}`, role: "assistant", content: `Đã thêm ${action.name} (x${action.quantity}) vào giỏ hàng!`, createdAt: new Date().toISOString() }]);
   }
 
   return (
@@ -738,7 +731,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
             <Bot size={18} /> AI Tư vấn
           </div>
           <h2 id="ai-title">Trợ lý AI<br/>thông minh</h2>
-          <p>Hỏi bất cứ điều gì về thực đơn — gợi ý món, combo, đồ uống hay thông tin dinh dưỡng. AI sẽ tư vấn ngay cho bạn!</p>
+          <p>Hỏi bất cứ điều gì về thực đơn: gợi ý món, combo, đồ uống hoặc thông tin dinh dưỡng. AI sẽ tư vấn ngay cho bạn!</p>
           <div className="landing-ai-prompts">
             {CHAT_QUICK_PROMPTS.map((p) => (
               <button key={p} className="landing-ai-prompt-btn" type="button" onClick={() => send(undefined, p)}>

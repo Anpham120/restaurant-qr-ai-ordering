@@ -28,7 +28,7 @@ public sealed class OrderUpdatesHub : Hub
         await base.OnConnectedAsync();
     }
 
-    public async Task WatchOrder(string orderCode, string? tableCode = null)
+    public async Task WatchOrder(string orderCode, string? orderToken = null)
     {
         var order = orders.GetOrder(orderCode);
         if (order is null)
@@ -36,7 +36,8 @@ public sealed class OrderUpdatesHub : Hub
             throw new HubException("ORDER_NOT_FOUND");
         }
 
-        if (!IsOperationsRole() && !CustomerCanWatchOrder(order, tableCode))
+        if (!IsOperationsRole()
+            && !OrderAccessGuard.HasCustomerToken(order.CustomerAccessToken, orderToken))
         {
             throw new HubException("ORDER_ACCESS_DENIED");
         }
@@ -46,6 +47,11 @@ public sealed class OrderUpdatesHub : Hub
 
     public async Task WatchTable(string tableCode)
     {
+        if (!IsOperationsRole())
+        {
+            throw new HubException("TABLE_ACCESS_DENIED");
+        }
+
         var normalizedTableCode = tableCode.Trim().ToUpperInvariant();
         var table = await db.RestaurantTables
             .AsNoTracking()
@@ -56,17 +62,6 @@ public sealed class OrderUpdatesHub : Hub
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, OrderRealtimeGroups.Table(table.TableCode));
-    }
-
-    private bool CustomerCanWatchOrder(OrderSnapshot order, string? tableCode)
-    {
-        if (string.IsNullOrWhiteSpace(order.TableCode))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrWhiteSpace(tableCode)
-            && order.TableCode.Equals(tableCode.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsOperationsRole()

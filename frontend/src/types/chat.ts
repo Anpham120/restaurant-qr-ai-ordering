@@ -26,6 +26,7 @@ export type ChatGuardrailFlag =
 export type CreateChatSessionResponse = {
   chatSessionId: string;
   createdAt: string;
+  accessToken: string;
 };
 
 export type CreateChatSessionRequest = {

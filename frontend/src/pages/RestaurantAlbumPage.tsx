@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { ArrowLeft, ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import "./restaurant-album.css";
 
 /* ========================================================================
@@ -140,11 +141,11 @@ export function RestaurantAlbumPage() {
         <div className="album-hero-bg" />
         <div className="album-hero-content">
           <Link className="album-breadcrumb" to="/#khong-gian">
-            ← Trang chủ
+            <ArrowLeft aria-hidden="true" size={16} /> Trang chủ
           </Link>
           <h1>Không gian quán</h1>
           <p>
-            CMC Restaurant — Nơi hội tụ tinh hoa ẩm thực Việt trong không gian
+            CMC Restaurant, nơi hội tụ tinh hoa ẩm thực Việt trong không gian
             ấm cúng, trang nhã.
           </p>
         </div>
@@ -186,12 +187,7 @@ export function RestaurantAlbumPage() {
               <div className="album-card-img">
                 <img src={item.src} alt={item.alt} loading="lazy" />
                 <div className="album-card-overlay">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
+                  <ZoomIn aria-hidden="true" size={32} />
                 </div>
               </div>
               <figcaption>{item.caption}</figcaption>
@@ -204,20 +200,20 @@ export function RestaurantAlbumPage() {
       {lightboxIdx !== null && createPortal(
         <div className="album-lightbox" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label="Xem ảnh phóng to">
           <button className="album-lightbox-close" onClick={closeLightbox} aria-label="Đóng" type="button">
-            ✕
+            <X aria-hidden="true" size={20} />
           </button>
           <button className="album-lightbox-nav prev" onClick={(e) => { e.stopPropagation(); goPrev(); }} aria-label="Ảnh trước" type="button">
-            ‹
+            <ChevronLeft aria-hidden="true" size={24} />
           </button>
           <div className="album-lightbox-content" onClick={(e) => e.stopPropagation()}>
             <img src={filteredItems[lightboxIdx].src} alt={filteredItems[lightboxIdx].alt} />
             <p className="album-lightbox-caption">
               {filteredItems[lightboxIdx].caption}
-              <span> — {lightboxIdx + 1}/{filteredItems.length}</span>
+              <span> - {lightboxIdx + 1}/{filteredItems.length}</span>
             </p>
           </div>
           <button className="album-lightbox-nav next" onClick={(e) => { e.stopPropagation(); goNext(); }} aria-label="Ảnh tiếp" type="button">
-            ›
+            <ChevronRight aria-hidden="true" size={24} />
           </button>
         </div>,
         document.body

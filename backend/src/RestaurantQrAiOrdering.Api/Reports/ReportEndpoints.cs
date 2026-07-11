@@ -60,7 +60,7 @@ public static class ReportEndpoints
                 topItems,
                 dailyRevenue));
         })
-        .RequireAuthorization("StaffOrAdmin")
+        .RequireAuthorization("AdminOnly")
         .WithName("AdminGetReportSummary")
         .WithTags("Admin Reports");
 

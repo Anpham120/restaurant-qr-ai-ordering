@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Link,
@@ -24,24 +24,35 @@ function CustomerLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const isLanding = location.pathname === "/";
 
   useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", handler, { passive: true });
-    handler();
-    return () => window.removeEventListener("scroll", handler);
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { rootMargin: "-60px 0px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   return (
     <div className={isLanding ? "landing-shell" : "customer-app-shell"}>
+      <div
+        aria-hidden="true"
+        ref={topSentinelRef}
+        style={{ height: 1, left: 0, pointerEvents: "none", position: "absolute", top: 0, width: 1 }}
+      />
       <a className="skip-link" href="#main-content">
         Chuyển đến nội dung chính
       </a>
 
-      {/* Glassmorphism header — always scrolled on non-landing pages */}
+      {/* Glassmorphism header, always scrolled on non-landing pages. */}
       <header className={`landing-header${(scrolled || !isLanding) ? " scrolled" : ""}`}>
         <div className="landing-header-inner">
           <div className="landing-header-bg" aria-hidden="true" />
@@ -99,7 +110,7 @@ function CustomerLayout() {
         </PageTransition>
       </main>
 
-      {/* Giỏ hàng nổi toàn cục — luôn hiển thị trên mọi trang khi có món */}
+      {/* Giỏ hàng nổi toàn cục, luôn hiển thị trên mọi trang khi có món. */}
       <CustomerFloatingCart />
     </div>
   );

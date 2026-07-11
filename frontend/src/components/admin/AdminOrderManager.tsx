@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Order, OrderListResponse, OrderStatus } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
 import { confirmOrderPayment, refundOrderPayment } from "../../services/orderService";
 import { failOrderPayment } from "../../services/adminOrderService";
+import { api } from "../../services/apiClient";
+import { Package, RefreshCw, X } from "lucide-react";
 import "../operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 const ALL_STATUSES: OrderStatus[] = ["Placed", "Confirmed", "Preparing", "Ready", "Served", "Completed", "Cancelled"];
@@ -44,7 +40,7 @@ export function AdminOrderManager() {
     const total = orders.reduce((s, o) => s + o.totalAmount, 0);
     return [
       { label: "Tổng đơn", value: String(orders.length), detail: "Trong kết quả filter" },
-      { label: "Đang xử lý", value: String(active), detail: "Placed → Served" },
+      { label: "Đang xử lý", value: String(active), detail: "Placed -> Served" },
       { label: "Tổng giá trị", value: formatVnd(total), detail: "Cộng dồn" },
     ];
   }, [orders]);
@@ -54,7 +50,7 @@ export function AdminOrderManager() {
     setNotice("");
     try {
       await api.orders.updateStatus(orderCode, status);
-      setNotice(`${orderCode} → ${status}`);
+      setNotice(`${orderCode} -> ${status}`);
       await load();
     } catch {
       setNotice("Cập nhật thất bại.");
@@ -78,7 +74,7 @@ export function AdminOrderManager() {
     }
   }
 
-  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">📦</div>Đang tải...</div>;
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon"><Package aria-hidden="true" /></div>Đang tải...</div>;
 
   return (
     <div>
@@ -106,7 +102,7 @@ export function AdminOrderManager() {
           {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <input className="ops-form-input" placeholder="Mã bàn (vd: T01)" value={filterTable} onChange={(e) => setFilterTable(e.target.value)} style={{ width: 140 }} />
-        <button className="ops-btn ops-btn--ghost" onClick={load} type="button">🔄 Làm mới</button>
+        <button className="ops-btn ops-btn--ghost" onClick={load} type="button"><RefreshCw aria-hidden="true" size={15} /> Làm mới</button>
       </div>
 
       <table className="ops-table">
@@ -129,7 +125,7 @@ export function AdminOrderManager() {
                   {order.orderCode}
                 </button>
               </td>
-              <td>{order.tableCode ?? "—"}</td>
+              <td>{order.tableCode ?? "-"}</td>
               <td><span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span></td>
               <td>
                 <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>
@@ -162,7 +158,7 @@ export function AdminOrderManager() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{selectedOrder.orderCode}</h2>
-              <button className="ops-modal-close" onClick={() => setSelectedOrder(null)} type="button">✕</button>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setSelectedOrder(null)} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-card-meta" style={{ marginBottom: 12, gap: 8 }}>
@@ -198,7 +194,7 @@ export function AdminOrderManager() {
                     <div key={i} style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 4 }}>
                       <span className={`ops-badge ops-badge--${ev.status.toLowerCase()}`}>{ev.status}</span>
                       {" "}{new Date(ev.createdAt).toLocaleString("vi-VN")}
-                      {ev.note ? ` — ${ev.note}` : ""}
+                      {ev.note ? ` - ${ev.note}` : ""}
                     </div>
                   ))}
                 </div>

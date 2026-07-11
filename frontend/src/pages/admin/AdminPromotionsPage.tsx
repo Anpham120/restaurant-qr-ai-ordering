@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Promotion, PromotionRequest, PromotionType } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { Tags, X } from "lucide-react";
 import "../../components/operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const EMPTY: PromotionRequest = {
   code: "",
@@ -23,7 +19,7 @@ const EMPTY: PromotionRequest = {
 };
 
 function formatVnd(value: number | null): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   return `${value.toLocaleString("vi-VN")}đ`;
 }
 
@@ -131,7 +127,7 @@ export function AdminPromotionsPage() {
   }
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">🏷️</div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><Tags aria-hidden="true" /></div>Đang tải...</div>;
   }
 
   return (
@@ -153,7 +149,7 @@ export function AdminPromotionsPage() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{editingId ? "Sửa khuyến mãi" : "Thêm khuyến mãi"}</h2>
-              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setShowForm(false)} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">

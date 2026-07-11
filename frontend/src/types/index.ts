@@ -22,8 +22,10 @@ export type {
   OrderStatusEvent,
   OrderTrackingItem,
   OrderTrackingOrder,
+  PaymentRequestResponse,
   PaymentResponse,
   PaymentMethod,
+  RequestedPaymentMethod,
   PaymentStatus,
   PaymentTransaction,
   PromotionType,
@@ -40,5 +42,4 @@ export type {
   SendChatMessageResponse,
   SuggestedCartAction,
 } from "./chat";
-
 

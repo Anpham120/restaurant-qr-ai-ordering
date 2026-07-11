@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -12,9 +13,15 @@ public interface IOrderStore
 
     OrderSnapshot? GetOrder(string orderCode);
 
+    IdempotentOrderSnapshot? GetOrderByIdempotencyKey(string idempotencyKey);
+
     UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor);
 
-    UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status);
+    UpdateOrderItemStatusResult UpdateOrderItemStatus(
+        string orderCode,
+        string orderItemId,
+        OrderItemStatus status,
+        ActorContext actor);
 
     void RecordPaymentStatusEvent(Order order, ActorContext actor, string note);
 }
@@ -30,9 +37,11 @@ public sealed class OrderStore : IOrderStore
 
     public OrderSnapshot CreateOrder(CreateOrderCommand command, ActorContext actor)
     {
+        using var transaction = db.Database.IsRelational()
+            ? db.Database.BeginTransaction(IsolationLevel.Serializable)
+            : null;
         var now = DateTimeOffset.UtcNow;
         var orderType = Enum.Parse<OrderType>(command.OrderType);
-        var paymentMethod = Enum.Parse<PaymentMethod>(command.PaymentMethod);
         var tableCode = NormalizeOptional(command.TableCode)?.ToUpperInvariant();
         var qrToken = NormalizeOptional(command.QrToken);
         var tableSessionId = NormalizeOptional(command.TableSessionId);
@@ -41,14 +50,31 @@ public sealed class OrderStore : IOrderStore
         var table = qrToken is not null
             ? db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive)
             : null;
+        if (orderType == OrderType.DineIn && table is null)
+        {
+            throw new TableSessionUnavailableException(
+                "TABLE_SESSION_INVALID",
+                "The table session is no longer valid. Please scan QR again.",
+                StatusCodes.Status409Conflict);
+        }
+
         var menuItems = LoadMenuItems(command);
         var tableSession = ResolveTableSession(tableSessionId, table, now);
+        if (orderType == OrderType.DineIn && tableSession is null)
+        {
+            throw new TableSessionUnavailableException(
+                "TABLE_SESSION_EXPIRED",
+                "Table session has expired. Please scan QR again.",
+                StatusCodes.Status410Gone);
+        }
 
         var order = new Order
         {
             Id = $"ord_{Guid.NewGuid():N}",
             OrderCode = CreateNextOrderCode(),
             CustomerAccessToken = GenerateAccessToken(),
+            IdempotencyKey = command.IdempotencyKey,
+            RequestFingerprint = command.RequestFingerprint,
             OrderType = orderType,
             Status = OrderStatus.Placed,
             RestaurantTableId = table?.Id,
@@ -60,8 +86,8 @@ public sealed class OrderStore : IOrderStore
             Payment = new Payment
             {
                 Id = $"pay_{Guid.NewGuid():N}",
-                Method = paymentMethod,
-                Status = PaymentStatus.Unpaid,
+                Method = PaymentMethod.Unselected,
+                Status = PaymentStatus.NotRequested,
                 CreatedAt = now,
                 UpdatedAt = now
             }
@@ -104,6 +130,7 @@ public sealed class OrderStore : IOrderStore
 
         db.Orders.Add(order);
         db.SaveChanges();
+        transaction?.Commit();
 
         return ToSnapshot(order);
     }
@@ -112,6 +139,25 @@ public sealed class OrderStore : IOrderStore
     {
         var order = LoadOrder(orderCode, tracking: false);
         return order is null ? null : ToSnapshot(order);
+    }
+
+    public IdempotentOrderSnapshot? GetOrderByIdempotencyKey(string idempotencyKey)
+    {
+        var normalizedKey = idempotencyKey.Trim();
+        var order = db.Orders
+            .AsNoTracking()
+            .Include(item => item.Payment)
+            .Include(item => item.OrderItems)
+            .Include(item => item.RestaurantTable)
+            .Include(item => item.StatusHistory)
+            .FirstOrDefault(item => item.IdempotencyKey == normalizedKey);
+
+        if (order is null || string.IsNullOrWhiteSpace(order.RequestFingerprint))
+        {
+            return null;
+        }
+
+        return new IdempotentOrderSnapshot(ToCreationSnapshot(order), order.RequestFingerprint);
     }
 
     public UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor)
@@ -172,7 +218,11 @@ public sealed class OrderStore : IOrderStore
         return new UpdateOrderStatusResult(true, ToSnapshot(order));
     }
 
-    public UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status)
+    public UpdateOrderItemStatusResult UpdateOrderItemStatus(
+        string orderCode,
+        string orderItemId,
+        OrderItemStatus status,
+        ActorContext actor)
     {
         var order = LoadOrder(orderCode, tracking: true);
         if (order is null)
@@ -195,8 +245,22 @@ public sealed class OrderStore : IOrderStore
         }
 
         var now = DateTimeOffset.UtcNow;
+        var previousOrderStatus = order.Status;
         item.Status = status;
         item.UpdatedAt = now;
+        var aggregateStatus = DeriveAggregateKitchenStatus(order);
+        if (aggregateStatus != order.Status)
+        {
+            order.Status = aggregateStatus;
+            AppendStatusHistory(
+                order,
+                previousOrderStatus,
+                aggregateStatus,
+                OrderStatusChangeSource.Status,
+                actor,
+                note: null,
+                now);
+        }
         order.UpdatedAt = now;
 
         try
@@ -212,7 +276,12 @@ public sealed class OrderStore : IOrderStore
         var itemSnapshot = orderSnapshot.Items.First(snapshot =>
             snapshot.OrderItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
 
-        return new UpdateOrderItemStatusResult(true, true, orderSnapshot, itemSnapshot);
+        return new UpdateOrderItemStatusResult(
+            true,
+            true,
+            orderSnapshot,
+            itemSnapshot,
+            OrderStatusChanged: previousOrderStatus != order.Status);
     }
 
     // Records a payment confirm/fail as a timeline marker on the order's status history.
@@ -370,6 +439,34 @@ public sealed class OrderStore : IOrderStore
         };
     }
 
+    private static OrderStatus DeriveAggregateKitchenStatus(Order order)
+    {
+        var activeItems = order.OrderItems
+            .Where(item => item.Status != OrderItemStatus.Cancelled)
+            .ToList();
+
+        if (activeItems.Count == 0)
+        {
+            return order.Status;
+        }
+
+        if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing
+            && activeItems.All(item => item.Status is OrderItemStatus.Ready or OrderItemStatus.Served))
+        {
+            return OrderStatus.Ready;
+        }
+
+        if (order.Status == OrderStatus.Confirmed
+            && activeItems.Any(item => item.Status is OrderItemStatus.Preparing
+                or OrderItemStatus.Ready
+                or OrderItemStatus.Served))
+        {
+            return OrderStatus.Preparing;
+        }
+
+        return order.Status;
+    }
+
     private static void CancelPendingItems(Order order, DateTimeOffset now)
     {
         foreach (var item in order.OrderItems)
@@ -416,6 +513,49 @@ public sealed class OrderStore : IOrderStore
                 .Select(ToItemSnapshot)
                 .ToList(),
             ToStatusEvents(order),
+            order.CustomerAccessToken);
+    }
+
+    private static OrderSnapshot ToCreationSnapshot(Order order)
+    {
+        return new OrderSnapshot(
+            order.Id,
+            order.OrderCode,
+            order.OrderType.ToString(),
+            order.TableCode,
+            order.TableSessionId,
+            OrderStatus.Placed.ToString(),
+            PaymentStatus.NotRequested.ToString(),
+            PaymentMethod.Unselected.ToString(),
+            order.SubtotalAmount,
+            order.DiscountAmount,
+            order.TotalAmount,
+            order.PromotionCode,
+            order.CreatedAt,
+            order.CreatedAt,
+            order.OrderItems
+                .OrderBy(item => item.CreatedAt)
+                .Select(item => new OrderItemSnapshot(
+                    item.Id,
+                    item.MenuItemId,
+                    item.MenuItemName,
+                    item.UnitPrice,
+                    item.Quantity,
+                    OrderItemStatus.Pending.ToString(),
+                    item.UnitPrice * item.Quantity,
+                    item.CreatedAt))
+                .ToList(),
+            order.StatusHistory
+                .OrderBy(history => history.CreatedAt)
+                .ThenBy(history => history.Id)
+                .Take(1)
+                .Select(history => new OrderStatusEventSnapshot(
+                    history.ToStatus.ToString(),
+                    history.Source.ToString(),
+                    history.ChangedByRole,
+                    history.Note,
+                    history.CreatedAt))
+                .ToList(),
             order.CustomerAccessToken);
     }
 
@@ -486,4 +626,18 @@ public sealed class MenuItemUnavailableException : Exception
     }
 
     public string MenuItemId { get; }
+}
+
+public sealed class TableSessionUnavailableException : Exception
+{
+    public TableSessionUnavailableException(string errorCode, string message, int statusCode)
+        : base(message)
+    {
+        ErrorCode = errorCode;
+        StatusCode = statusCode;
+    }
+
+    public string ErrorCode { get; }
+
+    public int StatusCode { get; }
 }
