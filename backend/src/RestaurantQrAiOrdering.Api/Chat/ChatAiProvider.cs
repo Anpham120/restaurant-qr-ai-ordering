@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
 
@@ -376,12 +377,12 @@ public sealed class NineRouterChatProvider : IChatAiProvider
 
 public sealed class ChatAssistantService : IChatAssistantService
 {
-    private readonly RestaurantDataStore restaurantData;
+    private readonly RestaurantDbContext db;
     private readonly IChatAiProvider aiProvider;
 
-    public ChatAssistantService(RestaurantDataStore restaurantData, IChatAiProvider aiProvider)
+    public ChatAssistantService(RestaurantDbContext db, IChatAiProvider aiProvider)
     {
-        this.restaurantData = restaurantData;
+        this.db = db;
         this.aiProvider = aiProvider;
     }
 
@@ -400,7 +401,9 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["OUT_OF_SCOPE"]);
         }
 
-        var menuItems = restaurantData.GetMenuItems();
+        var menuItems = await db.MenuItems
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
         var unavailableMatch = menuItems.FirstOrDefault(item =>
             !item.IsAvailable && normalizedMessage.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase));
 

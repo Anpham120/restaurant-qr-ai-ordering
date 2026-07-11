@@ -131,6 +131,14 @@ export async function getOrderTracking(orderCode: string): Promise<OrderTracking
   return api.orders.get(orderCode, getCustomerOrderToken(orderCode)) as Promise<OrderTrackingOrder>;
 }
 
+export async function getTableSessionOrders(
+  sessionId: string,
+  sessionToken: string,
+): Promise<OrderTrackingOrder[]> {
+  const response = await api.tables.listSessionOrders(sessionId, sessionToken);
+  return response.orders as OrderTrackingOrder[];
+}
+
 export async function updateOrderItemStatus(
   orderCode: string,
   orderItemId: string,

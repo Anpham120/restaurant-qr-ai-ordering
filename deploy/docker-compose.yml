@@ -1,5 +1,30 @@
 name: ${COMPOSE_PROJECT_NAME:-cmc-restaurant}
 
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+  ASPNETCORE_URLS: http://127.0.0.1:${BACKEND_PORT:-5000}
+  ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-restaurant_qr};Username=${POSTGRES_USER:-restaurant_user};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required};Pooling=true;Minimum Pool Size=${DB_MIN_POOL_SIZE:-2};Maximum Pool Size=${DB_MAX_POOL_SIZE:-50}
+  RUN_DB_MIGRATIONS_ON_STARTUP: ${RUN_DB_MIGRATIONS_ON_STARTUP:-false}
+  BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+  BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+  SEED_DEMO_USERS: ${SEED_DEMO_USERS:-false}
+  Jwt__Issuer: ${JWT_ISSUER:-RestaurantQrAiOrdering}
+  Jwt__Audience: ${JWT_AUDIENCE:-RestaurantQrAiOrdering.Client}
+  Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}
+  Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-60}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+  Payments__VietQr__BankId: ${PAYMENTS__VIETQR__BANKID:?PAYMENTS__VIETQR__BANKID is required}
+  Payments__VietQr__AccountNumber: ${PAYMENTS__VIETQR__ACCOUNTNUMBER:?PAYMENTS__VIETQR__ACCOUNTNUMBER is required}
+  Payments__VietQr__AccountName: "${PAYMENTS__VIETQR__ACCOUNTNAME:?PAYMENTS__VIETQR__ACCOUNTNAME is required}"
+  Payments__VietQr__Template: ${PAYMENTS__VIETQR__TEMPLATE:-compact2}
+  AI_PROVIDER: ${AI_PROVIDER:-python-rag}
+  AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
+  AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:20128/v1}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_MODEL: ${AI_MODEL:-gh/gemini-3.1-pro-preview}
+  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+  AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -25,30 +50,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
     restart: unless-stopped
-    environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ASPNETCORE_URLS: http://127.0.0.1:${BACKEND_PORT:-5000}
-      ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-restaurant_qr};Username=${POSTGRES_USER:-restaurant_user};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required};Pooling=true;Minimum Pool Size=${DB_MIN_POOL_SIZE:-2};Maximum Pool Size=${DB_MAX_POOL_SIZE:-50}
-      RUN_DB_MIGRATIONS_ON_STARTUP: ${RUN_DB_MIGRATIONS_ON_STARTUP:-true}
-      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-false}
-      Jwt__Issuer: ${JWT_ISSUER:-RestaurantQrAiOrdering}
-      Jwt__Audience: ${JWT_AUDIENCE:-RestaurantQrAiOrdering.Client}
-      Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}
-      Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-60}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
-      Payments__VietQr__BankId: ${PAYMENTS__VIETQR__BANKID:?PAYMENTS__VIETQR__BANKID is required}
-      Payments__VietQr__AccountNumber: ${PAYMENTS__VIETQR__ACCOUNTNUMBER:?PAYMENTS__VIETQR__ACCOUNTNUMBER is required}
-      Payments__VietQr__AccountName: "${PAYMENTS__VIETQR__ACCOUNTNAME:?PAYMENTS__VIETQR__ACCOUNTNAME is required}"
-      Payments__VietQr__Template: ${PAYMENTS__VIETQR__TEMPLATE:-compact2}
-      AI_PROVIDER: ${AI_PROVIDER:-python-rag}
-      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
-      AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:20128/v1}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gh/gemini-3.1-pro-preview}
-      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
-      AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
+    environment: *api-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,6 +63,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  migrate:
+    image: ${BACKEND_IMAGE:-cmc-restaurant-api:${DEPLOY_ENV:-local}}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: "no"
+    command: ["--migrate-only"]
+    environment:
+      <<: *api-environment
+      RUN_DB_MIGRATIONS_ON_STARTUP: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    network_mode: host
+    profiles: ["migrate"]
 
   ai-service:
     image: ${AI_SERVICE_IMAGE:-cmc-restaurant-ai:${DEPLOY_ENV:-local}}

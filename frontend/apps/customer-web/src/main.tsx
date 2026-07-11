@@ -1,7 +1,8 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Link,
+  Navigate,
   Outlet,
   RouterProvider,
   createBrowserRouter,
@@ -16,102 +17,42 @@ import { TableEntryPage } from "../../../src/pages/TableEntryPage";
 import { CartPage } from "../../../src/pages/CartPage";
 import { OrderStatusPage } from "../../../src/pages/OrderStatusPage";
 import { ChatPage } from "../../../src/pages/ChatPage";
-import { CustomerMenuPage } from "../../../src/pages/customer/CustomerMenuPage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
-import { CustomerFloatingCart } from "../../../src/components/customer/CustomerFloatingCart";
+import { LegacyOrderingRedirect, LegacyOrderTrackingRedirect } from "../../../src/ordering/LegacyOrderingRedirect";
+import { OrderingLayout } from "../../../src/ordering/OrderingLayout";
+import { OrderingMenuPage } from "../../../src/ordering/OrderingMenuPage";
+import { PublicMenuPreviewPage } from "../../../src/ordering/PublicMenuPreviewPage";
+import { TableScanPage } from "../../../src/ordering/TableScanPage";
+import { SessionOrdersPage } from "../../../src/ordering/SessionOrdersPage";
 
-function CustomerLayout() {
+function MarketingLayout() {
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const topSentinelRef = useRef<HTMLDivElement>(null);
-  const isLanding = location.pathname === "/";
-
-  useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
-
-  useEffect(() => {
-    const sentinel = topSentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setScrolled(!entry.isIntersecting),
-      { rootMargin: "-60px 0px 0px" },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
+  const [notice, setNotice] = useState("");
+  const showScanNotice = () => setNotice("Vui lòng quét QR tại bàn để sử dụng AI tư vấn và gọi món.");
 
   return (
-    <div className={isLanding ? "landing-shell" : "customer-app-shell"}>
-      <div
-        aria-hidden="true"
-        ref={topSentinelRef}
-        style={{ height: 1, left: 0, pointerEvents: "none", position: "absolute", top: 0, width: 1 }}
-      />
-      <a className="skip-link" href="#main-content">
-        Chuyển đến nội dung chính
-      </a>
-
-      {/* Glassmorphism header, always scrolled on non-landing pages. */}
-      <header className={`landing-header${(scrolled || !isLanding) ? " scrolled" : ""}`}>
+    <div className="landing-shell">
+      <a className="skip-link" href="#main-content">Chuyển đến nội dung chính</a>
+      <header className="landing-header">
         <div className="landing-header-inner">
-          <div className="landing-header-bg" aria-hidden="true" />
           <Link className="landing-brand" to="/" aria-label="CMC Restaurant - Trang chủ">
             <img className="landing-brand-logo" alt="" src={logoUrl} width="44" height="44" />
-            <span className="landing-brand-text" translate="no">
-              <strong>CMC Restaurant</strong>
-              <small>QR Ordering</small>
-            </span>
+            <span className="landing-brand-text" translate="no"><strong>CMC Restaurant</strong><small>QR Ordering</small></span>
           </Link>
-
-          <button
-            className="landing-menu-toggle"
-            type="button"
-            aria-expanded={menuOpen}
-            aria-controls="customer-navigation"
-            aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
-            onClick={() => setMenuOpen((o) => !o)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
-          <nav
-            className={`landing-nav${menuOpen ? " open" : ""}`}
-            id="customer-navigation"
-            aria-label="Điều hướng"
-          >
-            <a href={isLanding ? "#gioi-thieu" : "/#gioi-thieu"}>
-              <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }}></i>Giới thiệu
-            </a>
-            <Link to="/menu">
-              <i className="fa-solid fa-utensils" style={{ marginRight: 6 }}></i>Thực đơn
-            </Link>
-            <a href={isLanding ? "#danh-gia" : "/#danh-gia"}>
-              <i className="fa-solid fa-star" style={{ marginRight: 6 }}></i>Đánh giá
-            </a>
-            <Link to="/album">
-              <i className="fa-solid fa-images" style={{ marginRight: 6 }}></i>Album
-            </Link>
-            <a href={isLanding ? "#cach-dat-mon" : "/#cach-dat-mon"}>
-              <i className="fa-solid fa-qrcode" style={{ marginRight: 6 }}></i>Đặt món
-            </a>
-            <Link to="/chat">
-              <i className="fa-solid fa-robot" style={{ marginRight: 6 }}></i>AI Tư vấn
-            </Link>
+          <nav className="landing-nav" aria-label="Điều hướng marketing">
+            <Link to="/#gioi-thieu">Giới thiệu</Link>
+            <Link to="/menu">Thực đơn</Link>
+            <Link to="/#danh-gia">Đánh giá</Link>
+            <Link to="/album">Album</Link>
+            <Link to="/#cach-dat-mon">Cách gọi món</Link>
+            <button type="button" onClick={showScanNotice}>AI tư vấn</button>
           </nav>
         </div>
       </header>
-
+      {notice ? <p className="landing-scan-notice" role="status">{notice}</p> : null}
       <main id="main-content">
-        <PageTransition transitionKey={location.pathname}>
-          <Outlet />
-        </PageTransition>
+        <PageTransition transitionKey={location.pathname}><Outlet /></PageTransition>
       </main>
-
-      {/* Giỏ hàng nổi toàn cục, luôn hiển thị trên mọi trang khi có món. */}
-      <CustomerFloatingCart />
     </div>
   );
 }
@@ -119,23 +60,37 @@ function CustomerLayout() {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <CustomerLayout />,
+    element: <MarketingLayout />,
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <CustomerHomePage /> },
-      { path: "table/:tableCode", element: <TableEntryPage /> },
-      { path: "cart", element: <CartPage /> },
-      { path: "menu", element: <CustomerMenuPage /> },
-      { path: "chat", element: <ChatPage /> },
-      { path: "orders/:orderCode", element: <OrderStatusPage /> },
+      { path: "menu", element: <PublicMenuPreviewPage /> },
       { path: "album", element: <RestaurantAlbumPage /> },
-      { path: "*", element: <NotFoundPage /> },
+      { path: "scan/:qrToken", element: <TableScanPage /> },
+      { path: "table/:tableCode", element: <TableEntryPage /> },
+      { path: "cart", element: <LegacyOrderingRedirect destination="cart" /> },
+      { path: "checkout", element: <LegacyOrderingRedirect destination="checkout" /> },
+      { path: "chat", element: <LegacyOrderingRedirect destination="ai" /> },
+      { path: "orders/:orderCode", element: <LegacyOrderTrackingRedirect /> },
     ],
   },
+  {
+    path: "/table-session/:sessionId",
+    element: <OrderingLayout />,
+    errorElement: <NotFoundPage />,
+    children: [
+      { index: true, element: <Navigate replace to="menu" /> },
+      { path: "ai", element: <ChatPage /> },
+      { path: "menu", element: <OrderingMenuPage /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "checkout", element: <CartPage /> },
+      { path: "orders", element: <SessionOrdersPage /> },
+      { path: "orders/:orderCode", element: <OrderStatusPage /> },
+    ],
+  },
+  { path: "*", element: <NotFoundPage /> },
 ]);
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
+  <StrictMode><RouterProvider router={router} /></StrictMode>,
 );

@@ -360,6 +360,17 @@ public static partial class OrderEndpoints
                 return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
             }
 
+            if (result.ErrorCode == "ORDER_STATUS_TERMINAL")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for terminal order {OrderCode}.",
+                    orderCode);
+
+                return ApiResults.Conflict(
+                    "ORDER_STATUS_TERMINAL",
+                    "Completed or cancelled orders cannot be changed.");
+            }
+
             if (result.ErrorCode == "ORDER_ITEM_STATUS_TRANSITION_INVALID")
             {
                 logger.LogWarning(
@@ -707,7 +718,7 @@ public static partial class OrderEndpoints
                 .ToList());
     }
 
-    private static OrderResponse ToResponse(Order order)
+    internal static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
         return new OrderResponse(

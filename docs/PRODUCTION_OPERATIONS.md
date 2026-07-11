@@ -55,12 +55,28 @@ AI_MODEL=gh/gemini-3.1-pro-preview
 1. PR vào `main` phải qua CI.
 2. Khi merge/push vào `main`, workflow production chạy lại CI trước deploy.
 3. Workflow tạo release bundle, SSH vào VPS, ghi `.env` từ GitHub Secrets.
-4. Docker Compose build và start `postgres`, `ai-service`, `api`, `frontend`.
-5. Backend tự chạy EF Core migration khi `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
+4. Docker Compose build và start `postgres`, sau đó chạy container `migrate` one-shot.
+5. Chỉ khi migration thành công, Docker Compose start `ai-service`, `api`, `frontend`; API không tự đổi schema lúc boot.
 6. Script tạo backup PostgreSQL trước health check.
 7. Script ghi Nginx config, cấp hoặc gia hạn TLS bằng Certbot.
 8. Health check kiểm tra frontend và `/api/health`.
 9. Kết quả deploy được ghi tại `/opt/cmc-restaurant/<env>/reports/last-deployment.md`.
+
+### Preflight migration phiên bàn
+
+Migration `EnforceSingleActiveTableSession` tự đánh dấu những phiên `Open` đã quá `expires_at` là `Expired`, sau đó áp dụng ràng buộc mỗi bàn chỉ có một phiên live. Trước deploy, chạy truy vấn sau trên PostgreSQL; kết quả phải rỗng:
+
+```sql
+SELECT restaurant_table_id, array_agg(id ORDER BY opened_at DESC) AS session_ids
+FROM table_sessions
+WHERE status = 'Open'
+  AND closed_at IS NULL
+  AND expires_at > NOW()
+GROUP BY restaurant_table_id
+HAVING COUNT(*) > 1;
+```
+
+Nếu còn kết quả, không tự đóng phiên live: xác nhận với vận hành/bộ phận nhà hàng phiên nào còn hợp lệ rồi đóng phiên còn lại trước khi deploy.
 
 ## Backup PostgreSQL
 

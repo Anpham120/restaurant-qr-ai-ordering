@@ -2545,7 +2545,10 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
 
                     b.HasIndex("QrToken");
 
-                    b.HasIndex("RestaurantTableId");
+                    b.HasIndex("RestaurantTableId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_table_sessions_active_restaurant_table")
+                        .HasFilter("\"status\" = 'Open' AND \"closed_at\" IS NULL");
 
                     b.HasIndex("Status");
 

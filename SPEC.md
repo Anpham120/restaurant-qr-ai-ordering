@@ -1,0 +1,74 @@
+# CMC Restaurant QR Ordering
+
+## §G
+
+Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy proof.
+
+## §C
+
+- Public portal + API contract giữ nếu chưa deprecate.
+- Production secret ∉ git.
+- Delete source ! caller proof + build/test proof.
+- DB enum/string data ! migration + data audit trước breaking change.
+- Refactor slice nhỏ, commit riêng, verification cùng commit.
+
+## §I
+
+- ui: customer, admin, staff, kitchen Vite portals.
+- api: ASP.NET Core `/api/*`.
+- db: EF Core + PostgreSQL; Development InMemory.
+- ai: FastAPI RAG `/chat` adapter.
+- deploy: Docker Compose + GitHub Actions.
+
+## §V
+
+- V1: ∀ payment.Status=Refunded → confirm/fail reject; status, transaction, loyalty unchanged.
+- V2: ∀ runtime frontend module ∈ app import graph.
+- V3: ∀ Completed order → payment ∈ {Confirmed,Paid}.
+- V4: ∀ DineIn order → valid open unexpired TableSession; reopen expires stale first; ≤1 live session/table.
+- V5: ∀ linked chat → parent TableSession active (Open, !closed, !expired); otherwise capability reject.
+- V6: ∀ chat menu lookup → current database availability + price.
+- V7: ∀ terminal order (Completed/Cancelled) → item status immutable.
+- V8: ∀ persisted float[] embedding → structural equality + snapshot comparison.
+- V9: ∀ Order/Payment concurrent write → PostgreSQL xmin rowversion participates without schema DDL.
+- V10: ∀ deploy → PostgreSQL migration succeeds before API start; normal API boot does not migrate schema.
+- V11: ∀ active TableSession → repeated chat-session create reuses one persisted chat session.
+
+## §T
+
+id|status|task|cites
+T1|x|remove unreachable frontend modules + empty utils workspace|V2
+T2|x|align customer card price + add controls|I.ui
+T3|x|payment refund terminal guard + HTTP regression test|V1,I.api
+T4|x|table-session open/close/expiry one lifecycle|V4,I.api
+T9|x|manual table close deletes linked chat session|V5,I.api
+T5|x|chat live menu read; delete stale in-memory menu store|V6,I.api
+T10|x|remove unregistered in-memory chat adapter; name live contract|I.api
+T11|x|reject item mutation on terminal parent order|V7
+T12|x|add structural EF comparer for knowledge embeddings|V8
+T13|x|run backend regression suite in CI and document it|C
+T14|x|remove unregistered in-memory user adapter; name live contract|I.api
+T15|x|add dependency-free AI guardrail regressions and CI step|I.ai
+T16|x|test menu image fallback resolver and run it in CI|I.ui
+T17|x|replace deprecated xmin helper and isolate deploy migration|V9,V10
+T18|x|retain the restored chat-session contract through repository cleanup|V11
+T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
+T7|x|remove tracked duplicate agent skill trees + stale docs|C
+T8|x|full repository audit; build/deploy proof|C
+
+## §B
+
+id|date|cause|fix
+B1|2026-07-11|`PaymentEndpoints` omit `Refunded` confirm/fail guard|V1
+B2|2026-07-11|manual table close omit `DeleteSessionsByTableSession`|V5
+B3|2026-07-11|chat read startup `RestaurantDataStore` snapshot|V6
+B4|2026-07-11|chat capability checks HMAC but not parent session expiry|V5
+B5|2026-07-11|reopen ignores expired Open session and leaves linked chat|V4,V5
+B6|2026-07-11|order item transition omits terminal parent order guard|V7
+B7|2026-07-11|table open query/insert has no DB uniqueness guard|V4
+B8|2026-07-11|EF embedding converter has reference-only collection comparison|V8
+B9|2026-07-11|retired UserStore co-locates public result contracts|C
+B10|2026-07-11|API startup owned production schema migration|V10
+B11|2026-07-11|rebase conflict briefly mixed the table expiry query into its foreach body|compile preflight
+B12|2026-07-11|retired chat contract omitted the live CreateOrGetSession API|V11
+B13|2026-07-11|DbChatStore test omitted its required active parent TableSession|V5

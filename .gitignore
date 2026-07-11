@@ -52,6 +52,9 @@ antigravity-awesome-skills/
 .claude/
 .codex/
 .agents/
+.tabnine/
+/skills/
+/skills-lock.json
 
 # Loose source assets and binary deliverables kept out of the app repo
 frontend/91_anh_menu_theo_ten_mon/

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -263,7 +264,10 @@ public class RestaurantDbContext : DbContext
                 .HasForeignKey(e => e.RestaurantTableId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.RestaurantTableId)
+                .HasDatabaseName("UX_table_sessions_active_restaurant_table")
+                .IsUnique()
+                .HasFilter("\"status\" = 'Open' AND \"closed_at\" IS NULL");
             entity.HasIndex(e => e.TableCode);
             entity.HasIndex(e => e.QrToken);
             entity.HasIndex(e => e.Status);
@@ -372,13 +376,9 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.TableSessionId);
             entity.HasIndex(e => e.CreatedAt);
 
-            // Optimistic concurrency via the Postgres xmin system column, guarding
-            // against lost updates when two requests mutate the same order at once.
-            // The helper is deprecated but is the only mapping that emits no migration
-            // DDL (a manual xmin property generates an invalid AddColumn).
-#pragma warning disable CS0618
-            entity.UseXminAsConcurrencyToken();
-#pragma warning restore CS0618
+            // PostgreSQL maps this uint rowversion shadow property to its xmin system
+            // column, so it guards concurrent order writes without emitting table DDL.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 
@@ -540,11 +540,9 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.OrderId).IsUnique();
             entity.HasIndex(e => e.Status);
 
-            // Optimistic concurrency via xmin: guard against two staff confirming or
-            // failing the same payment at once. Deprecated helper, but emits no DDL.
-#pragma warning disable CS0618
-            entity.UseXminAsConcurrencyToken();
-#pragma warning restore CS0618
+            // PostgreSQL maps this uint rowversion shadow property to its xmin system
+            // column, preventing concurrent manual payment transitions from overwriting.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 
@@ -721,12 +719,16 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.Tags)
                 .HasColumnName("tags")
                 .HasColumnType("text[]");
-            entity.Property(e => e.Embedding)
+            var embeddingProperty = entity.Property(e => e.Embedding)
                 .HasColumnName("embedding")
                 .HasColumnType("jsonb")
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<float[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<float>());
+            embeddingProperty.Metadata.SetValueComparer(new ValueComparer<float[]>(
+                (left, right) => left.SequenceEqual(right),
+                value => value.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
+                value => value.ToArray()));
             entity.Property(e => e.IsActive)
                 .HasColumnName("is_active")
                 .IsRequired();

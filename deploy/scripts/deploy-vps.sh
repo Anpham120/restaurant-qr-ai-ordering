@@ -96,7 +96,7 @@ FRONTEND_SERVER_NAMES=$(env_quote "$FRONTEND_SERVER_NAMES")
   PAYMENTS__VIETQR__ACCOUNTNUMBER=$(env_quote "$PAYMENTS__VIETQR__ACCOUNTNUMBER")
   PAYMENTS__VIETQR__ACCOUNTNAME=$(env_quote "$PAYMENTS__VIETQR__ACCOUNTNAME")
   PAYMENTS__VIETQR__TEMPLATE=$(env_quote "${PAYMENTS__VIETQR__TEMPLATE:-compact2}")
-  RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-true}")
+RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-false}")
 AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
@@ -126,6 +126,8 @@ EOF
   tar -xzf release.tgz -C repo && \
   rm -f release.tgz && \
   set -a && . ./.env && set +a && \
+  docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' up -d --build postgres && \
+  docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' --profile migrate run --rm --build migrate && \
   docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' up -d --build --remove-orphans && \
   bash repo/deploy/scripts/backup-postgres.sh pre-health-check && \
   bash repo/deploy/scripts/write-nginx-config.sh && \

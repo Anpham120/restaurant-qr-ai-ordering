@@ -228,11 +228,9 @@ erDiagram
     CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
 ```
 
-> **Chú thích wiring (nợ kỹ thuật — xem REFACTOR_PLAN):**
-> - `KNOWLEDGE_ENTRIES` (+ cột `embedding`) **được định nghĩa nhưng chưa dùng** — RAG chạy hoàn toàn ở AI
->   service Python trên file Markdown. Bảng này hiện là "chết".
-> - `CHAT_SESSIONS`/`CHAT_MESSAGES` là entity DB nhưng chat hiện chạy qua **`ChatStore` in-memory** →
->   lịch sử chat mất khi restart.
+> **Chú thích wiring hiện tại:**
+> - `KNOWLEDGE_ENTRIES` (+ cột `embedding`) được map nhưng chưa nằm trong retrieval flow của AI service Python; giữ lại chờ data audit trước khi bỏ schema.
+> - `CHAT_SESSIONS`/`CHAT_MESSAGES` được lưu qua **`DbChatStore`**; lịch sử chat bền qua API restart và bị thu hồi theo `TableSession` khi cần.
 > - `ORDERS.xmin`/`PAYMENTS.xmin`: optimistic concurrency token (Postgres system column, P1).
 
 ## 6. Enum Chuẩn (theo code hiện tại)
@@ -398,7 +396,7 @@ sequenceDiagram
     participant AI as Python AI Service
     participant R9 as 9router (gemini)
     C->>API: POST /api/chat/sessions/{id}/messages {content, tableCode}
-    API->>AS: dựng context (menu từ RestaurantDataStore)
+    API->>AS: dựng context (menu live từ RestaurantDbContext)
     AS->>AI: POST /v1/chat {message, history, menu_items}
     AI->>AI: BM25 retrieve KB + guardrail flags (input)
     AI->>R9: chat completion (temp 0.2)
@@ -469,12 +467,12 @@ chunk theo header). LLM `gemini` qua 9router (OpenAI-compat `:20128/v1`, temp 0.
 `docker-compose`: `postgres:5432`, `api:5000`, `ai-service:8001`, `frontend:8080`. CI/CD GitHub Actions:
 `ci.yml` → `deploy-staging.yml` (nhánh `develop`) → `promote-production.yml` (PR develop→main) →
 `deploy-production.yml`; có `auto-merge.yml`, `rollback.yml`. Migration chạy qua flag
-`RUN_DB_MIGRATIONS_ON_STARTUP` (hiện `true`; xem REFACTOR_PLAN để tách thành bước deploy riêng).
+container `migrate --migrate-only` trước khi API start; `RUN_DB_MIGRATIONS_ON_STARTUP` mặc định `false`.
 
 ## 13. Definition of Done cho tài liệu
 
 - Enum/flow/state **khớp code** `develop` (đã đối chiếu 2026-07-01).
 - Không mâu thuẫn với `API_CONTRACT.md`, `Program.cs`, `OrderStore.cs`, `PaymentEndpoints.cs`,
   `docker-compose.yml`.
-- Mọi nợ kỹ thuật (KnowledgeEntry, ChatStore, session sweeper, doc drift) được trỏ sang
+- Mọi nợ kỹ thuật còn lại (KnowledgeEntry data audit, AI test coverage, doc drift) được trỏ sang
   [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md).

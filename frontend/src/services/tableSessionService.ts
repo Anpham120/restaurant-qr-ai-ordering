@@ -3,6 +3,11 @@ import { api } from "./apiClient";
 
 type TableSession = Awaited<ReturnType<typeof api.tables.openSession>>;
 
+type ResolvedTableQr = {
+  tableCode: string;
+  displayName: string;
+};
+
 export type OpenDineInSessionResult =
   | { status: "open"; session: TableSession }
   | { status: "expired" }
@@ -40,6 +45,10 @@ export async function openDineInSession(
 
     return { status: "error" };
   }
+}
+
+export async function resolveTableQr(qrToken: string): Promise<ResolvedTableQr> {
+  return api.request<ResolvedTableQr>(`/tables/qr/${encodeURIComponent(qrToken)}`);
 }
 
 export async function validateDineInSession(

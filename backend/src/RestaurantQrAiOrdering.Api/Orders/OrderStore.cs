@@ -238,6 +238,16 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
         }
 
+        if (order.Status is OrderStatus.Completed or OrderStatus.Cancelled)
+        {
+            return new UpdateOrderItemStatusResult(
+                true,
+                true,
+                ToSnapshot(order),
+                null,
+                "ORDER_STATUS_TERMINAL");
+        }
+
         if (!CanTransitionItem(item.Status, status))
         {
             return new UpdateOrderItemStatusResult(
