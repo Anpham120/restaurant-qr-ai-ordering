@@ -5,7 +5,7 @@
     "tfidf": {
       "config": {},
       "threshold": 0.23012074475944605,
-      "index_build_ms": 16.42079999874113,
+      "index_build_ms": 12.69279999905848,
       "dev": {
         "cases": 62,
         "positive_cases": 60,
@@ -17,8 +17,8 @@
         "ndcg_at_10": 0.987429146574607,
         "macro_slice_ndcg_at_10": 0.9472561179889046,
         "answerability_accuracy": 0.967741935483871,
-        "latency_p50_ms": 0.5369999998947605,
-        "latency_p95_ms": 0.6757000010111369,
+        "latency_p50_ms": 0.7537000019510742,
+        "latency_p95_ms": 1.5263000022969209,
         "by_slice": {
           "category_intent": {
             "cases": 3,
@@ -69,8 +69,8 @@
         "ndcg_at_10": 0.9826303485137712,
         "macro_slice_ndcg_at_10": 0.9460974646322097,
         "answerability_accuracy": 0.9248554913294798,
-        "latency_p50_ms": 0.6009999997331761,
-        "latency_p95_ms": 1.1416000015742611,
+        "latency_p50_ms": 0.47199999971780926,
+        "latency_p95_ms": 1.0717000004660804,
         "by_slice": {
           "category_intent": {
             "cases": 10,
@@ -136,8 +136,8 @@
         "ndcg_at_10": 0.9796797222611082,
         "macro_slice_ndcg_at_10": 0.9227671393038935,
         "answerability_accuracy": 1.0,
-        "latency_p50_ms": 0.13730000137002207,
-        "latency_p95_ms": 0.21500000002561137,
+        "latency_p50_ms": 0.17250000018975697,
+        "latency_p95_ms": 0.2762000003713183,
         "by_slice": {
           "category_intent": {
             "cases": 3,
@@ -188,8 +188,8 @@
         "ndcg_at_10": 0.9717602763100838,
         "macro_slice_ndcg_at_10": 0.9125865050418932,
         "answerability_accuracy": 0.953757225433526,
-        "latency_p50_ms": 0.11520000043674372,
-        "latency_p95_ms": 0.23009999858913943,
+        "latency_p50_ms": 0.08569999772589654,
+        "latency_p95_ms": 0.20489999951678328,
         "by_slice": {
           "category_intent": {
             "cases": 10,
@@ -241,7 +241,7 @@
         "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
       },
       "threshold": 0.38455596566200256,
-      "index_build_ms": 1729.758800000127,
+      "index_build_ms": 1547.4859999994806,
       "dev": {
         "cases": 62,
         "positive_cases": 60,
@@ -253,8 +253,8 @@
         "ndcg_at_10": 0.3711304162027909,
         "macro_slice_ndcg_at_10": 0.47446109687003674,
         "answerability_accuracy": 0.9838709677419355,
-        "latency_p50_ms": 4.84120000328403,
-        "latency_p95_ms": 7.5649000027624425,
+        "latency_p50_ms": 4.626899997674627,
+        "latency_p95_ms": 9.739000000990927,
         "by_slice": {
           "category_intent": {
             "cases": 3,
@@ -305,8 +305,8 @@
         "ndcg_at_10": 0.4005597132968118,
         "macro_slice_ndcg_at_10": 0.49518280239778917,
         "answerability_accuracy": 0.9826589595375722,
-        "latency_p50_ms": 4.783799999131588,
-        "latency_p95_ms": 8.474600002955412,
+        "latency_p50_ms": 4.577300001983531,
+        "latency_p95_ms": 6.954500000574626,
         "by_slice": {
           "category_intent": {
             "cases": 10,
@@ -366,7 +366,7 @@
         "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
       },
       "threshold": 0.19130566295799467,
-      "index_build_ms": 1729.758800000127,
+      "index_build_ms": 1547.4859999994806,
       "dev": {
         "cases": 62,
         "positive_cases": 60,
@@ -378,8 +378,8 @@
         "ndcg_at_10": 0.9172760790895411,
         "macro_slice_ndcg_at_10": 0.9206716984914824,
         "answerability_accuracy": 0.9032258064516129,
-        "latency_p50_ms": 5.204699999012519,
-        "latency_p95_ms": 6.995100000494858,
+        "latency_p50_ms": 5.5762000010872725,
+        "latency_p95_ms": 7.80769999983022,
         "by_slice": {
           "category_intent": {
             "cases": 3,
@@ -430,8 +430,8 @@
         "ndcg_at_10": 0.9167702256418145,
         "macro_slice_ndcg_at_10": 0.8949274772418336,
         "answerability_accuracy": 0.8670520231213873,
-        "latency_p50_ms": 5.664400003297487,
-        "latency_p95_ms": 11.836999998195097,
+        "latency_p50_ms": 5.640300001687137,
+        "latency_p95_ms": 8.498200000758516,
         "by_slice": {
           "category_intent": {
             "cases": 10,
@@ -486,7 +486,7 @@
         "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
       },
       "threshold": 0.2273929773929774,
-      "index_build_ms": 1746.179599998868,
+      "index_build_ms": 1560.178799998539,
       "dev": {
         "cases": 62,
         "positive_cases": 60,
@@ -498,8 +498,8 @@
         "ndcg_at_10": 0.935214915517861,
         "macro_slice_ndcg_at_10": 0.9427723888142909,
         "answerability_accuracy": 0.5,
-        "latency_p50_ms": 5.824700001539895,
-        "latency_p95_ms": 7.919499999843538,
+        "latency_p50_ms": 7.203900000604335,
+        "latency_p95_ms": 11.258700000325916,
         "by_slice": {
           "category_intent": {
             "cases": 3,
@@ -550,8 +550,8 @@
         "ndcg_at_10": 0.9132181780165868,
         "macro_slice_ndcg_at_10": 0.8950700338822649,
         "answerability_accuracy": 0.5260115606936416,
-        "latency_p50_ms": 5.841800000780495,
-        "latency_p95_ms": 9.553399999276735,
+        "latency_p50_ms": 6.633600001805462,
+        "latency_p95_ms": 9.333699999842793,
         "by_slice": {
           "category_intent": {
             "cases": 10,

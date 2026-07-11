@@ -1,11 +1,11 @@
 import csv
-import hashlib
 import json
+import tempfile
 import unittest
 from collections import defaultdict
 from pathlib import Path
 
-from research.run_experiments import _select_winner
+from research.run_experiments import _select_winner, _sha256
 
 
 AI_ROOT = Path(__file__).resolve().parents[1]
@@ -38,15 +38,15 @@ class ResearchArtifactTests(unittest.TestCase):
         self.assertEqual(environment["case_counts"]["test"], sum(case["split"] == "test" for case in cases))
         self.assertEqual(
             environment["queries_sha256"],
-            hashlib.sha256((AI_ROOT / "research" / "queries.csv").read_bytes()).hexdigest(),
+            _sha256(AI_ROOT / "research" / "queries.csv"),
         )
         self.assertEqual(
             environment["menu_snapshot_sha256"],
-            hashlib.sha256((AI_ROOT / "research" / "menu_snapshot.json").read_bytes()).hexdigest(),
+            _sha256(AI_ROOT / "research" / "menu_snapshot.json"),
         )
         self.assertEqual(
             environment["policy_sha256"],
-            hashlib.sha256((AI_ROOT / "data" / "policies.json").read_bytes()).hexdigest(),
+            _sha256(AI_ROOT / "data" / "policies.json"),
         )
         self.assertEqual(summary["winner"], production["method"])
         self.assertIn(production["method"], summary["methods"])
@@ -83,6 +83,16 @@ class ResearchArtifactTests(unittest.TestCase):
         }
 
         self.assertEqual("dev_winner", _select_winner(summaries))
+
+    def test_provenance_hash_is_line_ending_stable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lf = root / "lf.txt"
+            crlf = root / "crlf.txt"
+            lf.write_bytes(b"alpha\nbeta\n")
+            crlf.write_bytes(b"alpha\r\nbeta\r\n")
+
+            self.assertEqual(_sha256(lf), _sha256(crlf))
 
 
 if __name__ == "__main__":

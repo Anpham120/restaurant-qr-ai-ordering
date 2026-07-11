@@ -503,7 +503,8 @@ def _percentile(values: list[float], quantile: float) -> float:
 
 
 def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    canonical_text = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(canonical_text).hexdigest()
 
 
 def _write_json(path: Path, payload: Any) -> None:
