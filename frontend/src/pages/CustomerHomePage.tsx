@@ -666,7 +666,36 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, suggestions, thinking]);
 
-  async function ensureSession(): Promise<{ id: string; token: string } | null> {
+  useEffect(() => {
+    let active = true;
+
+    async function restoreSession() {
+      try {
+        const orderContext = loadOrderContext();
+        const session = await chatApi.createSession({
+          tableCode: orderContext.tableCode,
+          tableSessionId: orderContext.sessionId,
+        });
+
+        if (active) {
+          setSessionId(session.chatSessionId);
+          setSessionToken(session.accessToken);
+          if (session.messages.length > 0) {
+            setMessages(session.messages);
+          }
+        }
+      } catch {
+        // The inline assistant remains available to retry when the customer sends a message.
+      }
+    }
+
+    void restoreSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function ensureSession(): Promise<{ id: string; token: string; restoredMessages?: ChatMessage[] } | null> {
     if (sessionId && sessionToken) return { id: sessionId, token: sessionToken };
     try {
       const orderContext = loadOrderContext();
@@ -676,7 +705,7 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
       });
       setSessionId(s.chatSessionId);
       setSessionToken(s.accessToken);
-      return { id: s.chatSessionId, token: s.accessToken };
+      return { id: s.chatSessionId, token: s.accessToken, restoredMessages: s.messages };
     } catch {
       return null;
     }
@@ -694,7 +723,10 @@ function AiChatSection({ menuItems, onQrNotice }: ChatSectionProps) {
     }
 
     const userMsg: ChatMessage = { id: `u_${Date.now()}`, role: "user", content, createdAt: new Date().toISOString() };
-    setMessages((m) => [...m, userMsg]);
+    setMessages((current) => [
+      ...(session.restoredMessages && session.restoredMessages.length > 0 ? session.restoredMessages : current),
+      userMsg,
+    ]);
     setInput("");
     setThinking(true);
     setSuggestions([]);

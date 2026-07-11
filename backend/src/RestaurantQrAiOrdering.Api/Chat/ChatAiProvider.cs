@@ -10,7 +10,8 @@ public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
     IReadOnlyList<MenuItem> AvailableMenuItems,
-    string? TableCode = null);
+    string? TableCode = null,
+    string SessionMemory = "");
 
 public sealed record ChatAiResult(
     string Content,
@@ -145,12 +146,13 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             message = request.UserMessage,
             table_code = request.TableCode,
             history = request.History
-                .TakeLast(8)
+                .TakeLast(6)
                 .Select(message => new
                 {
                     role = message.Role,
                     content = message.Content
                 }),
+            session_memory = request.SessionMemory,
             menu_items = request.AvailableMenuItems.Select(item => new
             {
                 id = item.Id,
@@ -210,15 +212,15 @@ public sealed class NineRouterChatProvider : IChatAiProvider
                 .Select(item => $"- {item.Id}: {item.Name}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
 
         var recentHistory = request.History
-            .TakeLast(8)
+            .TakeLast(6)
             .Select(message => new
             {
                 role = message.Role,
                 content = message.Content
             });
 
-        return
-        [
+        var messages = new List<object>
+        {
             new
             {
                 role = "system",
@@ -228,14 +230,26 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             {
                 role = "system",
                 content = $"Available menu context:\n{menuContext}"
-            },
-            .. recentHistory,
-            new
-            {
-                role = "user",
-                content = request.UserMessage
             }
-        ];
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.SessionMemory))
+        {
+            messages.Add(new
+            {
+                role = "system",
+                content = $"Earlier table-session memory:\n{request.SessionMemory}"
+            });
+        }
+
+        messages.AddRange(recentHistory.Cast<object>());
+        messages.Add(new
+        {
+            role = "user",
+            content = request.UserMessage
+        });
+
+        return messages.ToArray();
     }
 
     private static string? ExtractAssistantContent(JsonElement root)
@@ -399,8 +413,10 @@ public sealed class ChatAssistantService : IChatAssistantService
         }
 
         var availableMenuItems = menuItems.Where(item => item.IsAvailable).ToList();
+        var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
+        var sessionMemory = BuildSessionMemory(priorHistory);
         var providerResult = await aiProvider.GenerateAsync(
-            new ChatAiRequest(userMessage, history, availableMenuItems, tableCode),
+            new ChatAiRequest(userMessage, priorHistory, availableMenuItems, tableCode, sessionMemory),
             cancellationToken);
 
         if (!providerResult.ProviderAvailable)
@@ -500,6 +516,38 @@ public sealed class ChatAssistantService : IChatAssistantService
         };
 
         return outOfScopeTerms.Any(term => normalizedMessage.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string BuildSessionMemory(IReadOnlyList<ChatMessageSnapshot> history)
+    {
+        var olderTurnCount = Math.Max(0, history.Count - 6);
+        if (olderTurnCount == 0)
+        {
+            return string.Empty;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var remembered = new List<string>();
+        foreach (var message in history.Take(olderTurnCount).Reverse())
+        {
+            var content = message.Content.Trim();
+            if (!message.Role.Equals("user", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(content) ||
+                !seen.Add(content))
+            {
+                continue;
+            }
+
+            remembered.Add(content);
+            if (remembered.Count == 8)
+            {
+                break;
+            }
+        }
+
+        remembered.Reverse();
+        var memory = string.Join("\n", remembered.Select(item => $"- {item}"));
+        return memory.Length <= 1200 ? memory : memory[..1200];
     }
 
     private static string Normalize(string value)

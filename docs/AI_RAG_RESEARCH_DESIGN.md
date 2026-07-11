@@ -102,3 +102,18 @@ Notebook phải trình bày theo thứ tự:
 8. Quyết định cấu hình production.
 
 Mẫu notebook dạng Python cell nằm tại `ai/notebooks/rag_research_protocol.py`.
+
+## Trạng thái triển khai và kiểm chứng
+
+Luồng production hiện dùng `DbChatStore` làm source of truth cho chat. Khi frontend tạo chat với cùng `tableSessionId`, API trả lại đúng `chatSessionId`, toàn bộ history có thứ tự và access token mới; vì vậy refresh, đóng/mở trình duyệt hoặc quét lại QR trong phiên bàn đang mở đều quay lại cùng cuộc hội thoại. Browser không phải nguồn dữ liệu duy nhất.
+
+Khi nhân viên đóng phiên bàn hoặc backend nhận diện phiên đã hết hạn, `TableEndpoints` xóa toàn bộ `ChatSession` và `ChatMessage` gắn với `TableSession`. Khách tiếp theo ở cùng bàn chỉ nhận một session mới.
+
+Trước khi gọi LLM, backend gửi sáu lượt gần nhất và một compact memory từ tối đa tám câu người dùng cũ hơn, giới hạn 1.200 ký tự. Câu hỏi hiện tại chỉ xuất hiện một lần trong prompt. Python RAG đưa memory này vào system context, nhưng vẫn lấy menu/chính sách hiện hành từ knowledge base để không coi memory là nguồn sự thật mới.
+
+Regression test nằm tại:
+
+- `backend/tests/RestaurantQrAiOrdering.Api.Tests/ChatStoreTests.cs`: reuse history theo table session và cleanup khi close.
+- `ai/tests/test_session_memory.py`: memory được inject, không lặp câu hỏi hiện tại và không thêm prompt khi memory rỗng.
+
+CI chạy hai test suite này cùng backend/frontend build. Chỉ khi các kiểm thử pass mới được merge vào `main` và kích hoạt release pipeline.

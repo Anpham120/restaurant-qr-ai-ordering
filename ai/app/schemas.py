@@ -21,6 +21,7 @@ class MenuItemContext(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryItem] = Field(default_factory=list)
+    session_memory: str = ""
     menu_items: list[MenuItemContext] = Field(default_factory=list)
     table_code: str | None = None
 

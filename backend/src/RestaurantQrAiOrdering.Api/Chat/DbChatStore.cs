@@ -16,14 +16,29 @@ public sealed class DbChatStore : IChatStore
         this.dbContext = dbContext;
     }
 
-    public ChatSessionSnapshot CreateSession(string? tableCode = null, string? tableSessionId = null)
+    public ChatSessionCreateResult CreateOrGetSession(string? tableCode = null, string? tableSessionId = null)
     {
+        var normalizedTableSessionId = NormalizeOptional(tableSessionId);
+        if (normalizedTableSessionId is not null)
+        {
+            var existing = dbContext.ChatSessions
+                .Include(session => session.Messages)
+                .Where(session => session.TableSessionId == normalizedTableSessionId)
+                .OrderByDescending(session => session.UpdatedAt)
+                .FirstOrDefault();
+
+            if (existing is not null)
+            {
+                return new ChatSessionCreateResult(ToSnapshot(existing), Reused: true);
+            }
+        }
+
         var now = DateTimeOffset.UtcNow;
         var session = new ChatSession
         {
             Id = $"chat_{Guid.NewGuid():N}",
             TableCode = NormalizeOptional(tableCode),
-            TableSessionId = NormalizeOptional(tableSessionId),
+            TableSessionId = normalizedTableSessionId,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -31,7 +46,7 @@ public sealed class DbChatStore : IChatStore
         dbContext.ChatSessions.Add(session);
         dbContext.SaveChanges();
 
-        return ToSnapshot(session);
+        return new ChatSessionCreateResult(ToSnapshot(session), Reused: false);
     }
 
     public int DeleteSessionsByTableSession(string tableSessionId)

@@ -32,6 +32,7 @@ class AiAssistantService:
     async def chat(self, payload: dict) -> dict:
         message = str(payload.get("message") or "").strip()
         history = payload.get("history") or []
+        session_memory = str(payload.get("session_memory") or "").strip()
         menu_items = payload.get("menu_items") or []
         retrieved = self._retriever.search(message, self._config.top_k)
         chunks = [item.chunk for item in retrieved]
@@ -48,7 +49,9 @@ class AiAssistantService:
                 self._config.timeout_seconds,
             )
             try:
-                raw_answer = await client.complete(build_messages(message, chunks, menu_items, history))
+                raw_answer = await client.complete(
+                    build_messages(message, chunks, menu_items, history, session_memory=session_memory)
+                )
                 parsed = parse_model_response(raw_answer, menu_items)
                 if parsed is None:
                     flags = _dedupe([*flags, "AI_OUTPUT_SCHEMA_INVALID"])

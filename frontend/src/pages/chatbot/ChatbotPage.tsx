@@ -86,6 +86,7 @@ export function ChatbotPage() {
         if (isMounted) {
           setChatSessionId(session.chatSessionId);
           setChatAccessToken(session.accessToken);
+          setMessages(session.messages.length > 0 ? session.messages : initialMessages);
         }
       })
       .catch(() => {
