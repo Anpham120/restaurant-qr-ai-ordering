@@ -71,3 +71,4 @@ B9|2026-07-11|retired UserStore co-locates public result contracts|C
 B10|2026-07-11|API startup owned production schema migration|V10
 B11|2026-07-11|rebase conflict briefly mixed the table expiry query into its foreach body|compile preflight
 B12|2026-07-11|retired chat contract omitted the live CreateOrGetSession API|V11
+B13|2026-07-11|DbChatStore test omitted its required active parent TableSession|V5
