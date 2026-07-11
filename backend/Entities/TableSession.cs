@@ -30,4 +30,22 @@ public class TableSession
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool IsActiveAt(DateTimeOffset now) =>
+        Status == TableSessionStatus.Open &&
+        ClosedAt is null &&
+        ExpiresAt > now;
+
+    public bool ExpireIfPast(DateTimeOffset now)
+    {
+        if (Status != TableSessionStatus.Open || ClosedAt is not null || ExpiresAt > now)
+        {
+            return false;
+        }
+
+        Status = TableSessionStatus.Expired;
+        ClosedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
 }

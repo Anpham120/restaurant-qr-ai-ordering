@@ -124,10 +124,27 @@ public sealed class DbChatStore : IChatStore
 
     private ChatSession? FindSession(string chatSessionId)
     {
-        return dbContext.ChatSessions
+        var session = dbContext.ChatSessions
             .Include(session => session.Messages)
             .FirstOrDefault(session =>
                 session.Id.Equals(chatSessionId, StringComparison.OrdinalIgnoreCase));
+
+        if (session is null || string.IsNullOrWhiteSpace(session.TableSessionId))
+        {
+            return session;
+        }
+
+        var tableSession = dbContext.TableSessions
+            .FirstOrDefault(candidate => candidate.Id == session.TableSessionId);
+        var now = DateTimeOffset.UtcNow;
+        if (tableSession?.IsActiveAt(now) == true)
+        {
+            return session;
+        }
+
+        tableSession?.ExpireIfPast(now);
+        DeleteSessionsByTableSession(session.TableSessionId);
+        return null;
     }
 
     private static ChatSessionSnapshot ToSnapshot(ChatSession session)

@@ -324,15 +324,11 @@ public static partial class TableEndpoints
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        if (session.Status == TableSessionStatus.Expired)
+        if (!session.ExpireIfPast(now))
         {
             chatStore.DeleteSessionsByTableSession(session.Id);
             return;
         }
-
-        session.Status = TableSessionStatus.Expired;
-        session.ClosedAt ??= now;
-        session.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
         chatStore.DeleteSessionsByTableSession(session.Id);
     }

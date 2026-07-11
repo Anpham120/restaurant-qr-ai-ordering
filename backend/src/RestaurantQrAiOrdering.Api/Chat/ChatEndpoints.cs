@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Categories;
+using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
@@ -11,16 +13,55 @@ public static class ChatEndpoints
 {
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/chat/sessions", (
+        app.MapPost("/api/chat/sessions", async (
             CreateChatSessionRequest? request,
             IChatStore chatStore,
+            RestaurantDbContext db,
             IOptions<JwtOptions> jwtOptions,
             IWebHostEnvironment environment,
             HttpResponse httpResponse,
-            ILoggerFactory loggerFactory) =>
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Chat.ChatEndpoints");
-            var sessionResult = chatStore.CreateOrGetSession(request?.TableCode, request?.TableSessionId);
+            var tableSessionId = request?.TableSessionId?.Trim();
+            var tableCode = request?.TableCode?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(tableSessionId))
+            {
+                var tableSession = await db.TableSessions
+                    .FirstOrDefaultAsync(session => session.Id == tableSessionId, cancellationToken);
+                if (tableSession is null)
+                {
+                    return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                if (!tableSession.IsActiveAt(now))
+                {
+                    if (tableSession.ExpireIfPast(now))
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+
+                    chatStore.DeleteSessionsByTableSession(tableSession.Id);
+                    return ApiErrorFactory.Result(
+                        StatusCodes.Status410Gone,
+                        "TABLE_SESSION_INACTIVE",
+                        "Table session is closed or expired. Please scan QR again.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(tableCode) &&
+                    !string.Equals(tableSession.TableCode, tableCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResults.BadRequest("CHAT_TABLE_MISMATCH", "Table code does not match the table session.");
+                }
+
+                tableSessionId = tableSession.Id;
+                tableCode = tableSession.TableCode;
+            }
+
+            var sessionResult = chatStore.CreateOrGetSession(tableCode, tableSessionId);
             var session = sessionResult.Session;
             var accessToken = CreateAccessToken(session, jwtOptions.Value.SigningKey);
             httpResponse.Cookies.Append("cmc_chat_session", accessToken, new CookieOptions
