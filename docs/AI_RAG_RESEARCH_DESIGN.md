@@ -17,7 +17,7 @@ flowchart LR
   Guest["Khách hàng"] --> UI["Customer UI"]
   UI -->|"Mở phiên QR"| TableSession["TableSession"]
   UI -->|"Chat có tableSessionId"| ChatApi[".NET Chat API"]
-  ChatApi --> ChatStore["ChatStore theo TableSession"]
+  ChatApi --> ChatStore["DbChatStore theo TableSession"]
   ChatApi --> AiService["Python AI/RAG"]
   AiService --> Retriever["Retriever"]
   Retriever --> KB["Knowledge Base"]
