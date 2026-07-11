@@ -30,6 +30,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V6: ∀ chat menu lookup → current database availability + price.
 - V7: ∀ terminal order (Completed/Cancelled) → item status immutable.
 - V8: ∀ persisted float[] embedding → structural equality + snapshot comparison.
+- V9: ∀ Order/Payment concurrent write → PostgreSQL xmin rowversion participates without schema DDL.
+- V10: ∀ deploy → PostgreSQL migration succeeds before API start; normal API boot does not migrate schema.
 
 ## §T
 
@@ -47,6 +49,7 @@ T13|x|run backend regression suite in CI and document it|C
 T14|x|remove unregistered in-memory user adapter; name live contract|I.api
 T15|x|add dependency-free AI guardrail regressions and CI step|I.ai
 T16|x|test menu image fallback resolver and run it in CI|I.ui
+T17|x|replace deprecated xmin helper and isolate deploy migration|V9,V10
 T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|x|full repository audit; build/deploy proof|C
@@ -63,3 +66,4 @@ B6|2026-07-11|order item transition omits terminal parent order guard|V7
 B7|2026-07-11|table open query/insert has no DB uniqueness guard|V4
 B8|2026-07-11|EF embedding converter has reference-only collection comparison|V8
 B9|2026-07-11|retired UserStore co-locates public result contracts|C
+B10|2026-07-11|API startup owned production schema migration|V10
