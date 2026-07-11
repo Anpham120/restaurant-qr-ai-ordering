@@ -28,7 +28,7 @@ Follow existing formatting: two-space indentation in TypeScript/TSX and four spa
 
 ## Verification Guidelines
 
-The repository does not retain test suites. Verify changes with frontend type-check/build, backend Release build, Python bytecode compilation, Docker Compose validation, and focused manual smoke checks for auth, orders, payments, table sessions, and AI guardrails.
+Backend regression tests live in `backend/tests/RestaurantQrAiOrdering.Api.Tests`. Verify changes with frontend type-check/build, `dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release`, Python bytecode compilation, Docker Compose validation, and focused manual smoke checks for auth, orders, payments, table sessions, and AI guardrails.
 
 ## Commit & Pull Request Guidelines
 

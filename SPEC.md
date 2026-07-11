@@ -43,6 +43,7 @@ T5|x|chat live menu read; delete stale in-memory menu store|V6,I.api
 T10|x|remove unregistered in-memory chat adapter; name live contract|I.api
 T11|x|reject item mutation on terminal parent order|V7
 T12|x|add structural EF comparer for knowledge embeddings|V8
+T13|x|run backend regression suite in CI and document it|C
 T6|.|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|.|full repository audit; build/deploy proof|C

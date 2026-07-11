@@ -62,10 +62,8 @@ jobs:
       - name: Build backend
         run: dotnet build backend/RestaurantQrAiOrdering.sln --configuration Release --no-restore
 
-      - name: Test backend chat persistence
-        run: >-
-          dotnet test backend/tests/RestaurantQrAiOrdering.Api.Tests/RestaurantQrAiOrdering.Api.Tests.csproj
-          --configuration Release --verbosity normal
+      - name: Run backend regression tests
+        run: dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-restore
 
   ai-service-build:
     name: ai-service-build
