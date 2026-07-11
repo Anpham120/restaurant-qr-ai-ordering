@@ -98,7 +98,7 @@ jobs:
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
       JWT_SIGNING_KEY: ci-placeholder-signing-key-change-me
-      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://admin.cmcrestaurant.app
+      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://customer.cmcrestaurant.app;https://admin.cmcrestaurant.app
       PAYMENTS__VIETQR__BANKID: "970436"
       PAYMENTS__VIETQR__ACCOUNTNUMBER: "ci-placeholder-account"
       PAYMENTS__VIETQR__ACCOUNTNAME: CMC CI
