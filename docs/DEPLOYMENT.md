@@ -50,7 +50,7 @@ Khi push hoặc merge vào `main`:
 1. Workflow `Deploy Production` chạy lại CI thông qua reusable workflow.
 2. Nếu CI fail, deploy không bắt đầu.
 3. Nếu CI pass, workflow deploy production lên VPS.
-4. PostgreSQL migration chạy tự động nếu `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
+4. PostgreSQL migration chạy bằng container one-shot `migrate` trước khi API start; `RUN_DB_MIGRATIONS_ON_STARTUP=false` ở deploy mặc định.
 5. Backup PostgreSQL được tạo trước health check.
 6. Health check và smoke check xác nhận release.
 

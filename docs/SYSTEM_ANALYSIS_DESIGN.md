@@ -467,7 +467,7 @@ chunk theo header). LLM `gemini` qua 9router (OpenAI-compat `:20128/v1`, temp 0.
 `docker-compose`: `postgres:5432`, `api:5000`, `ai-service:8001`, `frontend:8080`. CI/CD GitHub Actions:
 `ci.yml` → `deploy-staging.yml` (nhánh `develop`) → `promote-production.yml` (PR develop→main) →
 `deploy-production.yml`; có `auto-merge.yml`, `rollback.yml`. Migration chạy qua flag
-`RUN_DB_MIGRATIONS_ON_STARTUP` (hiện `true`; xem REFACTOR_PLAN để tách thành bước deploy riêng).
+container `migrate --migrate-only` trước khi API start; `RUN_DB_MIGRATIONS_ON_STARTUP` mặc định `false`.
 
 ## 13. Definition of Done cho tài liệu
 

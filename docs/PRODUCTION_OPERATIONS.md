@@ -55,8 +55,8 @@ AI_MODEL=gh/gemini-3.1-pro-preview
 1. PR vào `main` phải qua CI.
 2. Khi merge/push vào `main`, workflow production chạy lại CI trước deploy.
 3. Workflow tạo release bundle, SSH vào VPS, ghi `.env` từ GitHub Secrets.
-4. Docker Compose build và start `postgres`, `ai-service`, `api`, `frontend`.
-5. Backend tự chạy EF Core migration khi `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
+4. Docker Compose build và start `postgres`, sau đó chạy container `migrate` one-shot.
+5. Chỉ khi migration thành công, Docker Compose start `ai-service`, `api`, `frontend`; API không tự đổi schema lúc boot.
 6. Script tạo backup PostgreSQL trước health check.
 7. Script ghi Nginx config, cấp hoặc gia hạn TLS bằng Certbot.
 8. Health check kiểm tra frontend và `/api/health`.

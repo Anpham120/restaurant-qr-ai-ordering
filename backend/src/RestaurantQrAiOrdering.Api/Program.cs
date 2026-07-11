@@ -17,6 +17,7 @@ using RestaurantQrAiOrdering.Entities;
 const string CorsPolicyName = "CmcRestaurantCors";
 
 var builder = WebApplication.CreateBuilder(args);
+var migrateOnly = args.Contains("--migrate-only", StringComparer.OrdinalIgnoreCase);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 var defaultCorsOrigins = new[]
 {
@@ -115,6 +116,17 @@ var app = builder.Build();
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+
+    if (migrateOnly)
+    {
+        if (useInMemory)
+        {
+            throw new InvalidOperationException("--migrate-only requires a PostgreSQL connection.");
+        }
+
+        await dbContext.Database.MigrateAsync();
+        return;
+    }
 
     if (!useInMemory && builder.Configuration.GetValue<bool>("RUN_DB_MIGRATIONS_ON_STARTUP"))
     {

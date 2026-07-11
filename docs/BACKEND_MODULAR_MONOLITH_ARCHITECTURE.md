@@ -28,7 +28,7 @@ flowchart LR
 
 - Production/staging dùng `RestaurantDbContext` với PostgreSQL/Npgsql.
 - Development hoặc integration test có thể dùng EF InMemory; đây là provider thay thế, không phải các in-memory store nghiệp vụ.
-- Migration chỉ chạy khi `RUN_DB_MIGRATIONS_ON_STARTUP=true` và có PostgreSQL.
+- Deploy chạy migration qua container one-shot `migrate`; API thường chạy với `RUN_DB_MIGRATIONS_ON_STARTUP=false`.
 - `DbUserStore` là implementation đăng ký cho `IUserStore`; `DbChatStore` là implementation đăng ký cho `IChatStore`.
 - Menu, categories, tables, orders và payments đọc/ghi trực tiếp qua `RestaurantDbContext` tại module sở hữu.
 
