@@ -45,7 +45,9 @@ T11|x|reject item mutation on terminal parent order|V7
 T12|x|add structural EF comparer for knowledge embeddings|V8
 T13|x|run backend regression suite in CI and document it|C
 T14|x|remove unregistered in-memory user adapter; name live contract|I.api
-T6|.|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
+T15|x|add dependency-free AI guardrail regressions and CI step|I.ai
+T16|x|test menu image fallback resolver and run it in CI|I.ui
+T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|.|full repository audit; build/deploy proof|C
 

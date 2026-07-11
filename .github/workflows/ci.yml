@@ -41,6 +41,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Run frontend regression tests
+        run: npm test
+
       - name: Build frontend
         run: npm run build
 
@@ -85,10 +88,10 @@ jobs:
           PYTHONPATH: ai
         run: python -m compileall -q ai/app
 
-      - name: Test Python session memory
+      - name: Run AI guardrail tests
         env:
           PYTHONPATH: ai
-        run: python -m unittest discover -s ai/tests
+        run: python -m unittest discover -s ai/tests -v
 
   docker-compose-config:
     name: docker-compose-config

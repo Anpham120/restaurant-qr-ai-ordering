@@ -20,6 +20,7 @@
     "build:kitchen": "npm run build -w @cmc/kitchen-web",
     "build:staff": "npm run build -w @cmc/staff-web",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
     "preview": "npm run preview -w @cmc/customer-web"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "^5.8.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
   }
 }
