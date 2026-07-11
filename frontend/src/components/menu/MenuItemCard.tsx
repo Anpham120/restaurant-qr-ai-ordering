@@ -51,7 +51,7 @@ const TAG_LABELS: Record<string, string> = {
   "mua nong": "Mùa nóng", "mua lanh": "Mùa lạnh", "quanh nam": "Quanh năm", "giai nhiet": "Giải nhiệt",
 };
 
-function tagLabel(tag: string): string {
+export function tagLabel(tag: string): string {
   return TAG_LABELS[tag] || tag;
 }
 

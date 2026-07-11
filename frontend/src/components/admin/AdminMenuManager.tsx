@@ -11,6 +11,7 @@ import {
 import { ApiError } from "@cmc/api-client";
 import type { AdminCategory } from "@cmc/shared-types";
 import { resolveMenuImage } from "../../utils/menuImages";
+import { tagLabel } from "../menu/MenuItemCard";
 import { api } from "../../services/apiClient";
 import { ClipboardList, Utensils, X } from "lucide-react";
 import "../operations/operations.css";
@@ -342,7 +343,7 @@ export function AdminMenuManager() {
                 {item.description ? <p className="amm-desc">{item.description}</p> : null}
                 {(item.tags ?? []).length > 0 ? (
                   <div className="amm-tags">
-                    {(item.tags ?? []).slice(0, 3).map((t) => <span key={t}>{t}</span>)}
+                    {(item.tags ?? []).slice(0, 3).map((t) => <span key={t}>{tagLabel(t)}</span>)}
                   </div>
                 ) : null}
               </div>
