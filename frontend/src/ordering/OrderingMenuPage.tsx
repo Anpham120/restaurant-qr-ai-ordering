@@ -110,6 +110,21 @@ export function OrderingMenuPage() {
           </div>
         ) : null}
       </section>
+
+      {summary.count > 0 ? (
+        <Link
+          aria-label={`Xem giỏ hàng gồm ${summary.count} món, tổng ${formatVnd(summary.total)}`}
+          className="ordering-cart-dock"
+          to="../cart"
+        >
+          <span className="ordering-cart-dock-count">
+            <strong>{summary.count} món</strong>
+            <small>Đã chọn</small>
+          </span>
+          <strong className="ordering-cart-dock-total">{formatVnd(summary.total)}</strong>
+          <span className="ordering-cart-dock-action">Xem giỏ</span>
+        </Link>
+      ) : null}
     </section>
   );
 }

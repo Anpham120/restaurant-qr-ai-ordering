@@ -1,8 +1,17 @@
 .cmc-chat-layout {
-  display: grid;
+  display: block;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
   align-items: start;
+}
+
+.cmc-chat-quick-prompts-inline {
+  align-self: flex-start;
+  max-width: min(520px, 92%);
+  padding: 12px;
+  border: 1px solid var(--cmc-border, #ead8ca);
+  border-radius: 18px;
+  background: rgba(255, 250, 245, 0.88);
 }
 
 .cmc-chat-panel,
