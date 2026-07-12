@@ -22,9 +22,11 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 var defaultCorsOrigins = new[]
 {
     "https://cmcrestaurant.app",
+    "https://order.cmcrestaurant.app",
     "https://customer.cmcrestaurant.app",
     "https://admin.cmcrestaurant.app",
     "https://staging.cmcrestaurant.app",
+    "https://order-staging.cmcrestaurant.app",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",

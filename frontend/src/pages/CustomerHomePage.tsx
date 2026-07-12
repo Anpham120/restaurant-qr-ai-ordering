@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFacebook, faInstagram, faTiktok, faYoutube } from "@fortawesome/free-brands-svg-icons";
-import { loadOrderContext } from "../components/customer/customerMenuStorage";
 import "../components/landing/customer-landing.css";
 import { formatVnd } from "../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../services/menuService";
 import {
   Smartphone, UtensilsCrossed, Sparkles, MapPin, Phone, Mail, Globe,
-  MessageCircle, Bot, Star, CheckCircle, X,
+  Star, CheckCircle, X,
   ExternalLink, Camera, QrCode, ChevronLeft, ChevronRight, Flame,
   BookOpen, Layers, Truck, Coffee, Play,
 } from "lucide-react";
@@ -37,22 +36,6 @@ const TESTIMONIALS = [
   { name: "Chị Phương Anh", role: "Nhà báo", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop", stars: 5, text: "Đồ ăn đúng vị gia đình nhưng lại được bày biện bắt mắt như nhà hàng 5 sao. Không gian quán đẹp, thoáng đãng ngập ánh nắng tự nhiên, phục vụ rất dễ thương và lên món nhanh." },
   { name: "Anh Quyết", role: "Doanh nhân", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop", stars: 5, text: "Nhà hàng cơm Việt CMC là nơi tôi tự tin rủ bạn bè, đối tác đi ăn những bữa cơm thân mật như tại nhà. Đặc biệt hệ thống quét QR đặt món tại bàn rất tiện lợi, thông minh." },
 ];
-
-/* ========================================================================
-   Helpers
-   ======================================================================== */
-function getStoredTablePath() {
-  if (typeof window === "undefined") return "";
-  const ctx = loadOrderContext();
-  if (!ctx.tableCode || !ctx.qrToken || !ctx.sessionId || !ctx.sessionToken) return "";
-  return `/table/${encodeURIComponent(ctx.tableCode)}?qr=${encodeURIComponent(ctx.qrToken)}`;
-}
-
-function hasActiveSession(): boolean {
-  if (typeof window === "undefined") return false;
-  const ctx = loadOrderContext();
-  return Boolean(ctx.sessionId && ctx.sessionToken && ctx.tableCode);
-}
 
 /* ========================================================================
    Hooks
@@ -86,7 +69,6 @@ function useHeroSlideshow(count: number, interval = 5000) {
 export function CustomerHomePage() {
   const [menu, setMenu] = useState(initialMenu);
   const [scanNotice, setScanNotice] = useState("");
-  const storedTablePath = useMemo(getStoredTablePath, []);
 
   useScrollReveal();
 
@@ -153,12 +135,7 @@ export function CustomerHomePage() {
   return (
     <div className="landing-page">
       {/* 1. HERO with slideshow */}
-      <HeroSection
-        storedTablePath={storedTablePath}
-        scanNotice={scanNotice}
-        onQrNotice={showQrNotice}
-        slides={heroSlides}
-      />
+      <HeroSection slides={heroSlides} />
 
       {/* Section divider heading - Vian style */}
       <div className="landing-vian-section-title" data-reveal>
@@ -263,7 +240,7 @@ export function CustomerHomePage() {
             <div className="landing-step-icon"><UtensilsCrossed size={28} /></div>
             <div className="landing-step-number" />
             <h3>Chọn món yêu thích</h3>
-            <p>Duyệt thực đơn, nhờ AI gợi ý, thêm vào giỏ hàng và đặt món.</p>
+            <p>Duyệt thực đơn, chọn món yêu thích và gửi đơn ngay tại bàn.</p>
           </div>
           <div className="landing-step">
             <div className="landing-step-icon"><Sparkles size={28} /></div>
@@ -287,29 +264,9 @@ export function CustomerHomePage() {
           Quét mã QR trên bàn để bắt đầu phiên đặt món. Bếp nhận đơn ngay, phục vụ nhanh chóng.
         </p>
         <div style={{ marginTop: "var(--space-6)", display: "flex", justifyContent: "center", gap: "var(--space-4)", flexWrap: "wrap" }}>
-          {storedTablePath ? (
-            <a className="landing-button light" href={storedTablePath}>Tiếp tục đặt món</a>
-          ) : (
-            <button className="landing-button light" type="button" onClick={() => showQrNotice()}>
-              Quét QR để đặt món
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* AI CTA banner linking to the chat page. */}
-      <section className="landing-ai-cta" id="ai-tu-van">
-        <div className="landing-ai-cta-inner">
-          <div className="landing-ai-cta-text">
-            <Bot size={28} />
-            <div>
-              <h3>Trợ lý AI thông minh</h3>
-              <p>Hỏi bất cứ điều gì về thực đơn: gợi ý món, combo hoặc đồ uống. AI tư vấn ngay!</p>
-            </div>
-          </div>
-          <a className="landing-ai-cta-btn" href="/chat">
-            <MessageCircle size={18} /> Chat với AI ngay
-          </a>
+          <button className="landing-button light" type="button" onClick={() => showQrNotice()}>
+            Quét QR để đặt món
+          </button>
         </div>
       </section>
 
@@ -352,12 +309,7 @@ const PROMO_MESSAGES = [
   "100% nguyên liệu tươi sạch chuẩn VietGAP mỗi ngày",
 ];
 
-function HeroSection({ storedTablePath, scanNotice, onQrNotice, slides }: {
-  storedTablePath: string;
-  scanNotice: string;
-  onQrNotice: (msg?: string) => void;
-  slides: { src: string; alt: string }[];
-}) {
+function HeroSection({ slides }: { slides: { src: string; alt: string }[] }) {
   const [activeSlide, setActiveSlide] = useHeroSlideshow(slides.length);
 
   const handlePrevSlide = () => {
@@ -577,7 +529,7 @@ function FooterSection() {
       <div className="landing-footer-content">
         <div>
           <h4>CMC Restaurant</h4>
-          <p>Nhà hàng cơm Việt ngon tròn vị, kết hợp giữa ẩm thực gia đình mộc mạc và công nghệ đặt món QR AI tiện lợi.</p>
+          <p>Nhà hàng cơm Việt ngon tròn vị, kết hợp ẩm thực gia đình mộc mạc với trải nghiệm phục vụ hiện đại.</p>
           <p style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)", marginTop: "var(--space-2)" }}>
             * Nhà hàng có chỗ để xe ô tô miễn phí
           </p>

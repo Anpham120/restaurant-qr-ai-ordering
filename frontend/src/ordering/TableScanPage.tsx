@@ -13,16 +13,17 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
   const qrToken = qrTokenFromPath ?? searchParams.get("qr") ?? undefined;
 
   useEffect(() => {
-    if (!qrToken) {
+    const activeQrToken = qrToken;
+    if (!activeQrToken) {
       setState("invalid");
       return;
     }
 
     let active = true;
-    async function enterOrdering() {
+    async function enterOrdering(token: string) {
       try {
-        const resolved = tableCode ? { tableCode } : await resolveTableQr(qrToken!);
-        const result = await openDineInSession(qrToken!, resolved.tableCode);
+        const resolved = tableCode ? { tableCode } : await resolveTableQr(token);
+        const result = await openDineInSession(token, resolved.tableCode);
         if (!active) return;
 
         if (result.status !== "open") {
@@ -36,7 +37,7 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
         }
         saveOrderContext({
           tableCode: result.session.tableCode ?? resolved.tableCode,
-          qrToken,
+          qrToken: token,
           sessionId: result.session.sessionId,
           sessionToken: result.session.tableSessionToken,
         });
@@ -46,7 +47,7 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
       }
     }
 
-    void enterOrdering();
+    void enterOrdering(activeQrToken);
     return () => { active = false; };
   }, [navigate, qrToken, tableCode]);
 

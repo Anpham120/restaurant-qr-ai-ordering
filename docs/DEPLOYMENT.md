@@ -118,7 +118,9 @@ Frontend:
 
 ```bash
 curl -fsS https://cmcrestaurant.app/ >/dev/null
+curl -fsS https://order.cmcrestaurant.app/ >/dev/null
 curl -fsS https://staging.cmcrestaurant.app/ >/dev/null
+curl -fsS https://order-staging.cmcrestaurant.app/ >/dev/null
 ```
 
 Report sau deploy:

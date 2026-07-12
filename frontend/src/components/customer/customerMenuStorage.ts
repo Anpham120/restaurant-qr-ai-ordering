@@ -1,7 +1,10 @@
-import type { MenuCart, TableCode } from "../../types";
+import type { MenuCart } from "../../types";
+import {
+  browserSessionCapabilityStore,
+  type SessionCapability,
+} from "../../ordering/sessionCapabilityStore";
 
 const CART_KEY = "cmc-restaurant-menu-cart";
-const ORDER_CONTEXT_KEY = "cmc-restaurant-order-context";
 
 /** Custom event bắn ra mỗi khi giỏ hàng/phiên bàn đổi trong cùng tab,
  * để widget giỏ hàng nổi (mounted ở layout) đồng bộ ngay lập tức. */
@@ -13,12 +16,7 @@ function notifyCartUpdated() {
   }
 }
 
-export type CustomerOrderContext = {
-  tableCode?: TableCode;
-  sessionId?: string;
-  sessionToken?: string;
-  qrToken?: string;
-};
+export type CustomerOrderContext = Partial<SessionCapability>;
 
 type StoredSessionCart = {
   sessionId: string;
@@ -67,25 +65,20 @@ export function clearMenuCart() {
 }
 
 export function loadOrderContext(): CustomerOrderContext {
-  try {
-    const rawContext = window.localStorage.getItem(ORDER_CONTEXT_KEY);
-    return rawContext ? (JSON.parse(rawContext) as CustomerOrderContext) : {};
-  } catch {
-    return {};
-  }
+  return browserSessionCapabilityStore.read();
 }
 
-export function saveOrderContext(context: CustomerOrderContext) {
+export function saveOrderContext(context: SessionCapability) {
   const current = loadOrderContext();
   if (current.sessionId !== context.sessionId) {
     window.localStorage.removeItem(CART_KEY);
   }
-  window.localStorage.setItem(ORDER_CONTEXT_KEY, JSON.stringify(context));
+  browserSessionCapabilityStore.write(context);
   notifyCartUpdated();
 }
 
 export function clearCustomerSession() {
   window.localStorage.removeItem(CART_KEY);
-  window.localStorage.removeItem(ORDER_CONTEXT_KEY);
+  browserSessionCapabilityStore.clear();
   notifyCartUpdated();
 }
