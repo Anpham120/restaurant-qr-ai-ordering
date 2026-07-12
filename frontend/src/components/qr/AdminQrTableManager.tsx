@@ -18,26 +18,26 @@ type CopyState = {
 
 // QR-bearing table data is loaded from the Admin-only GET /api/admin/tables endpoint.
 
-function getCustomerBaseUrl() {
-  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
+function getOrderingBaseUrl() {
+  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
   if (configured) {
     return configured.replace(/\/$/, "");
   }
 
   if (typeof window === "undefined") {
-    return "https://customer.cmcrestaurant.app";
+    return "https://order.cmcrestaurant.app";
   }
 
   const { origin, hostname, protocol, port } = window.location;
   if (hostname.startsWith("admin.")) {
-    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
+    return `${protocol}//${hostname.replace(/^admin\./, "order.")}${port ? `:${port}` : ""}`;
   }
 
   return origin;
 }
 
-function buildCustomerLink(table: BackendTable) {
-  const baseUrl = getCustomerBaseUrl();
+function buildOrderingLink(table: BackendTable) {
+  const baseUrl = getOrderingBaseUrl();
   const customerPath = table.customerPath || `/table/${encodeURIComponent(table.tableCode)}`;
   return new URL(customerPath, baseUrl).toString();
 }
@@ -76,7 +76,7 @@ export function AdminQrTableManager() {
 
   async function copyTableLink(table: BackendTable) {
     try {
-      await navigator.clipboard.writeText(buildCustomerLink(table));
+      await navigator.clipboard.writeText(buildOrderingLink(table));
       setCopyState({ tableCode: table.tableCode, status: "success" });
     } catch {
       setCopyState({ tableCode: table.tableCode, status: "error" });
@@ -93,7 +93,7 @@ export function AdminQrTableManager() {
           <span className="table-qr-kicker">QR table control</span>
           <h3>Bàn và mã QR từ backend</h3>
           <p>
-            Mỗi link bàn luôn trỏ về customer portal. Admin chỉ quản lý và sao chép
+            Mỗi link bàn luôn trỏ về ứng dụng đặt món. Admin chỉ quản lý và sao chép
             link, khách phải mở phiên bàn bằng QR trước khi đặt món.
           </p>
           {error ? (
@@ -129,7 +129,7 @@ export function AdminQrTableManager() {
       <div className="table-zone-grid table-zone-grid-flat">
         {tables.map((table) => {
           const copied = copyState?.tableCode === table.tableCode;
-          const customerLink = buildCustomerLink(table);
+          const orderingLink = buildOrderingLink(table);
 
           return (
             <article
@@ -162,17 +162,17 @@ export function AdminQrTableManager() {
                   <TableQrCode
                     downloadName={`qr-ban-${table.tableCode}.png`}
                     label={`QR bàn ${table.tableCode}`}
-                    value={customerLink}
+                    value={orderingLink}
                   />
                   <div className="table-qr-link-copy">
-                    <span>Link customer portal</span>
-                    <code title={customerLink}>{customerLink}</code>
+                    <span>Link ứng dụng đặt món</span>
+                    <code title={orderingLink}>{orderingLink}</code>
                   </div>
                 </div>
               </div>
 
               <footer className="table-qr-actions">
-                <a href={customerLink} target="_blank" rel="noreferrer">
+                <a href={orderingLink} target="_blank" rel="noreferrer">
                   Mở trang khách
                 </a>
                 <button
