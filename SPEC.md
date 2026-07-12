@@ -34,6 +34,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V10: ∀ deploy → PostgreSQL migration succeeds before API start; normal API boot does not migrate schema.
 - V11: ∀ active TableSession → repeated chat-session create reuses one persisted chat session.
 - V12: ∀ frontend Dockerfile package-manifest COPY → source exists in build context.
+- V13: ∀ parameterized DineIn lifecycle case → isolated table/session fixture; no cross-case active-session contention.
 
 ## §T
 
@@ -74,3 +75,4 @@ B11|2026-07-11|rebase conflict briefly mixed the table expiry query into its for
 B12|2026-07-11|retired chat contract omitted the live CreateOrGetSession API|V11
 B13|2026-07-11|DbChatStore test omitted its required active parent TableSession|V5
 B14|2026-07-11|frontend Dockerfile copied retired packages/utils manifest|V12
+B15|2026-07-12|terminal-order theory rows reused the same table/session and raced during CI|V13
