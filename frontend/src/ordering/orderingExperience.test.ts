@@ -26,4 +26,14 @@ describe("ordering experience", () => {
     expect(chat).not.toContain("tableCode: orderContext.tableCode");
     expect(chat).not.toContain("content,\n        tableCode");
   });
+
+  it("keeps promotion and loyalty out of an order round", () => {
+    const cart = read("../pages/customer/CustomerCartPage.tsx");
+
+    expect(cart).not.toContain('aria-label="Mã khuyến mãi"');
+    expect(cart).not.toContain('aria-label="Số điện thoại tích điểm"');
+    expect(cart).toContain("promotionCode: null");
+    expect(cart).toContain("customerPhoneNumber: null");
+    expect(cart).toContain("Gửi món tới bếp");
+  });
 });
