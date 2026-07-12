@@ -12,9 +12,10 @@ describe("ordering routes", () => {
     expect(orderTrackingPath("session/123", "ORD #1")).toBe("/table-session/session%2F123/orders/ORD%20%231");
   });
 
-  it("exposes only the minimal ordering navigation", () => {
+  it("exposes the table-ordering navigation including AI consultation", () => {
     expect(orderingNavigation).toEqual([
       { label: "Thực đơn", path: "menu" },
+      { label: "AI tư vấn", path: "ai" },
       { label: "Giỏ hàng", path: "cart" },
       { label: "Món đã gọi", path: "orders" },
     ]);

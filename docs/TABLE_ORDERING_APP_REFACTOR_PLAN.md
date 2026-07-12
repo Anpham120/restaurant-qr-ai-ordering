@@ -38,7 +38,7 @@ Chỉ sở hữu:
 - checkout/thanh toán theo contract hiện có;
 - danh sách món đã gọi và trạng thái đơn.
 
-Không có hero marketing, album, testimonial, nội dung giới thiệu hoặc AI. Giao diện chỉ giữ ngôn ngữ thương hiệu: màu ivory/chestnut/brass, typography, logo và phong cách card.
+Không có hero marketing, album, testimonial hoặc nội dung giới thiệu. AI tư vấn món là một tính năng của phiên gọi món và chỉ hoạt động bên trong ordering app. Giao diện chỉ giữ ngôn ngữ thương hiệu: màu ivory/chestnut/brass, typography, logo và phong cách card.
 
 ### 3. Khối dùng chung
 
@@ -59,7 +59,7 @@ Hai app chỉ dùng chung package `brand-ui` và các transport/domain contract 
 1. Tách brand token và primitive thành `@cmc/brand-ui`.
 2. Tạo workspace/build độc lập `ordering-web`.
 3. Tách session capability store và chuyển capability từ local storage sang tab storage.
-4. Chuyển QR entry, menu, cart, checkout và order tracking sang ordering app.
+4. Chuyển QR entry, menu, AI chat, cart, checkout và order tracking sang ordering app.
 5. Loại bỏ route giao dịch và AI khỏi marketing app.
 6. Đổi QR do admin tạo sang `order.cmcrestaurant.app/enter/:qrToken`.
 7. Thêm artifact, Nginx host mapping, TLS host, CORS và biến môi trường cho domain mới.
@@ -91,7 +91,7 @@ Hai app chỉ dùng chung package `brand-ui` và các transport/domain contract 
 
 ## Ngoài phạm vi
 
-- AI chatbot/RAG trong ứng dụng gọi món tối giản.
+- Thay đổi nghiệp vụ hoặc mô hình RAG hiện có của AI chat.
 - Đổi nghiệp vụ backend, schema database hoặc contract thanh toán.
 - Tích hợp PayOS mới.
 - Đặt bàn trước/reservation.

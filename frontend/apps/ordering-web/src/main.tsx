@@ -8,6 +8,7 @@ import "./ordering-app.css";
 import { TableEntryPage } from "../../../src/pages/TableEntryPage";
 import { CartPage } from "../../../src/pages/CartPage";
 import { OrderStatusPage } from "../../../src/pages/OrderStatusPage";
+import { ChatPage } from "../../../src/pages/ChatPage";
 import { OrderingLayout } from "../../../src/ordering/OrderingLayout";
 import { OrderingMenuPage } from "../../../src/ordering/OrderingMenuPage";
 import { SessionOrdersPage } from "../../../src/ordering/SessionOrdersPage";
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate replace to="menu" /> },
       { path: "menu", element: <OrderingMenuPage /> },
+      { path: "ai", element: <ChatPage /> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CartPage /> },
       { path: "orders", element: <SessionOrdersPage /> },

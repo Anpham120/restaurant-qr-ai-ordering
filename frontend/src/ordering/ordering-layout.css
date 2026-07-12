@@ -29,7 +29,7 @@
   bottom: 0;
   box-shadow: 0 -10px 30px rgba(76, 41, 31, .09);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   left: 0;
   padding: .55rem .6rem calc(.55rem + env(safe-area-inset-bottom));
   position: fixed;
@@ -87,7 +87,7 @@
     border-radius: 0;
     box-shadow: none;
     gap: .55rem;
-    grid-template-columns: repeat(3, max-content);
+    grid-template-columns: repeat(4, max-content);
     justify-content: center;
     margin: 0;
     padding: .7rem 1.75rem;
