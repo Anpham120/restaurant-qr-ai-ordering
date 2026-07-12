@@ -44,6 +44,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V20: ∀ concurrent loyalty accrual → member rowversion or unique conflict prevents lost increments; caller receives conflict, never silent overwrite.
 - V21: ∀ PR→main → required `frontend-build`, `backend-test`, and `docker-compose-config` checks instantiate and pass before merge.
 - V22: frontend host routing = 6 production + 6 staging canonical domains; retired `customer` alias absent.
+- V23: ∀ deploy workflow → every `deploy-vps.sh` required variable supplied before remote mutation.
 
 ## §T
 
@@ -104,3 +105,4 @@ B30|2026-07-13|settlement completion bypassed order history and realtime notific
 B31|2026-07-13|completion audit test referenced `Status` instead of `OrderStatusHistory.ToStatus`|compile preflight
 B32|2026-07-13|CI deployment env entries were over-indented, invalidating workflow before required jobs instantiated|V21
 B33|2026-07-13|app-separation regression test still required the deliberately retired `customer` redirect|V22
+B34|2026-07-13|staging workflow omitted required VietQR deployment variables and exited before SSH|V23
