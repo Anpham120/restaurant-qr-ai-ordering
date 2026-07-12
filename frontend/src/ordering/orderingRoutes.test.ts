@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderTrackingPath, orderingPath } from "./orderingRoutes";
+import { orderTrackingPath, orderingNavigation, orderingPath } from "./orderingRoutes";
 
 describe("ordering routes", () => {
   it("keeps every transactional destination under its table-session boundary", () => {
@@ -10,5 +10,14 @@ describe("ordering routes", () => {
 
   it("preserves the session boundary when opening an individual order", () => {
     expect(orderTrackingPath("session/123", "ORD #1")).toBe("/table-session/session%2F123/orders/ORD%20%231");
+  });
+
+  it("exposes the table-ordering navigation including AI consultation", () => {
+    expect(orderingNavigation).toEqual([
+      { label: "Thực đơn", path: "menu" },
+      { label: "AI tư vấn", path: "ai" },
+      { label: "Giỏ hàng", path: "cart" },
+      { label: "Món đã gọi", path: "orders" },
+    ]);
   });
 });

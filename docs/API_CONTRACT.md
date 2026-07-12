@@ -623,11 +623,15 @@ Loi chinh: `REQUEST_INVALID`, `CHAT_MESSAGE_EMPTY`, `CHAT_SESSION_NOT_FOUND`.
 CORS origins mac dinh:
 
 - `https://cmcrestaurant.app`
+- `https://order.cmcrestaurant.app`
 - `https://customer.cmcrestaurant.app`
 - `https://admin.cmcrestaurant.app`
 - `https://staging.cmcrestaurant.app`
+- `https://order-staging.cmcrestaurant.app`
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
+- `http://localhost:5177`
+- `http://127.0.0.1:5177`
 
 Production co the override bang `CORS_ALLOWED_ORIGINS`, ngan cach bang dau `;`.
 

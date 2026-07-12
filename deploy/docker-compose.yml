@@ -112,6 +112,8 @@ services:
       args:
         VITE_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://api.cmcrestaurant.app/api}
         VITE_ORDER_HUB_URL: ${PUBLIC_ORDER_HUB_URL:-https://api.cmcrestaurant.app/hubs/orders}
+        VITE_ORDERING_BASE_URL: ${PUBLIC_ORDERING_BASE_URL:-https://order.cmcrestaurant.app}
+        VITE_MARKETING_BASE_URL: ${PUBLIC_MARKETING_BASE_URL:-https://cmcrestaurant.app}
         VITE_USE_MOCK_CHAT: ${VITE_USE_MOCK_CHAT:-false}
         VITE_USE_MOCK_ORDER: ${VITE_USE_MOCK_ORDER:-false}
         VITE_USE_MOCK_MENU: ${VITE_USE_MOCK_MENU:-false}

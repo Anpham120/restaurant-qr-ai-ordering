@@ -13,6 +13,7 @@ import { fetchCustomerMenu } from "../../services/menuService";
 import type { CustomerMenuResponse } from "../../services/menuService";
 import type { ChatMessage, SuggestedCartAction } from "../../types";
 import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
+import { orderingPath } from "../../ordering/orderingRoutes";
 
 
 type ActionStatus = "pending" | "confirmed" | "dismissed";
@@ -64,7 +65,6 @@ export function ChatbotPage() {
   const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
 
   const tableCode = orderContext.tableCode;
-  const hasTableSession = true;
 
   useEffect(() => {
     let isMounted = true;
@@ -141,12 +141,6 @@ export function ChatbotPage() {
   }
 
   function confirmSuggestedAction(action: SuggestedCartAction) {
-    if (!hasTableSession) {
-      setCartNotice("");
-      setErrorMessage("Bạn cần quét QR tại bàn để mở phiên bàn trước khi thêm gợi ý AI vào giỏ.");
-      return;
-    }
-
     const menuItem = menuData.items.find((item) => item.id === action.menuItemId);
 
     if (!menuItem || !menuItem.isAvailable) {
@@ -251,7 +245,7 @@ export function ChatbotPage() {
 
           {cartNotice ? (
             <p className="cmc-chat-notice">
-              {cartNotice} <Link to="/cart">Xem giỏ hàng</Link>
+              {cartNotice} <Link to={orderingPath(orderContext.sessionId, "cart")}>Xem giỏ hàng</Link>
             </p>
           ) : null}
 

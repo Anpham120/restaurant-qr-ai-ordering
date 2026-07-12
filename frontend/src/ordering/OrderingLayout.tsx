@@ -1,21 +1,37 @@
+import { BrandWordmark } from "@cmc/brand-ui";
 import { NavLink, Outlet, useParams } from "react-router-dom";
-import { CustomerFloatingCart } from "../components/customer/CustomerFloatingCart";
 import { OrderingSessionProvider, useOrderingSession, useOrderingSessionBoundary } from "./OrderingSessionProvider";
+import { orderingNavigation } from "./orderingRoutes";
 import "./ordering-layout.css";
 
-function SessionState({ state }: { state: "invalid" | "expired" | "error" }) {
+type UnavailableSessionState = "missing" | "invalid" | "expired" | "error";
+
+function SessionState({
+  onRetry,
+  state,
+}: {
+  onRetry: () => Promise<void>;
+  state: UnavailableSessionState;
+}) {
   const copy = state === "expired"
     ? "Phiên bàn đã hết hạn hoặc đã được nhân viên đóng. Vui lòng quét QR tại bàn để mở phiên mới."
     : state === "error"
-      ? "Không thể xác minh phiên bàn lúc này. Hãy thử lại hoặc quét QR tại bàn."
-      : "Bạn cần quét QR tại bàn để sử dụng AI tư vấn và gọi món.";
+      ? "Không thể xác minh phiên bàn lúc này. Hãy kiểm tra kết nối và thử lại."
+      : state === "missing"
+        ? "Liên kết này chưa có quyền truy cập phiên. Vui lòng mở lại bằng mã QR trên bàn."
+        : "Phiên trên thiết bị không khớp với liên kết. Vui lòng quét lại mã QR trên bàn.";
+  const marketingBaseUrl = import.meta.env.VITE_MARKETING_BASE_URL ?? "https://cmcrestaurant.app";
 
   return (
     <main className="ordering-state" aria-live="polite">
       <p className="ordering-state-kicker">CMC Restaurant</p>
       <h1>Phiên gọi món chưa sẵn sàng</h1>
       <p>{copy}</p>
-      <a href="/">Về trang giới thiệu</a>
+      <div className="ordering-state-actions">
+        {state === "error" ? <button type="button" onClick={() => void onRetry()}>Thử lại</button> : null}
+        <a href="/">Quét QR để bắt đầu</a>
+        <a className="ordering-state-secondary" href={marketingBaseUrl}>Trang giới thiệu</a>
+      </div>
     </main>
   );
 }
@@ -23,44 +39,31 @@ function SessionState({ state }: { state: "invalid" | "expired" | "error" }) {
 function OrderingShell() {
   const { context } = useOrderingSession();
   const base = `/table-session/${context.sessionId}`;
-  const tabs = [
-    ["ai", "AI"],
-    ["menu", "Thực đơn"],
-    ["cart", "Giỏ hàng"],
-    ["checkout", "Thanh toán"],
-    ["orders", "Món đã gọi"],
-  ] as const;
 
   return (
     <div className="ordering-shell">
       <header className="ordering-header">
-        <a className="ordering-brand" href={base}>
-          <strong>CMC</strong>
-          <span>QR Ordering</span>
-        </a>
+        <a className="ordering-brand" href={base}><BrandWordmark /></a>
         <div className="ordering-table" aria-label={`Phiên bàn ${context.tableCode}`}>
-          <span>Bàn</span>
+          <span>Phiên đang mở</span>
           <strong>{context.tableCode}</strong>
         </div>
       </header>
       <nav className="ordering-nav" aria-label="Điều hướng gọi món">
-        {tabs.map(([path, label]) => (
+        {orderingNavigation.map(({ path, label }) => (
           <NavLink key={path} to={path} className={({ isActive }) => isActive ? "active" : undefined}>
-            {label}
+            <span>{label}</span>
           </NavLink>
         ))}
       </nav>
-      <main className="ordering-main">
-        <Outlet />
-      </main>
-      <CustomerFloatingCart />
+      <main className="ordering-main"><Outlet /></main>
     </div>
   );
 }
 
 function OrderingBoundary() {
   const { sessionId } = useParams();
-  if (!sessionId) return <SessionState state="invalid" />;
+  if (!sessionId) return <SessionState state="missing" onRetry={async () => {}} />;
 
   return (
     <OrderingSessionProvider sessionId={sessionId}>
@@ -70,9 +73,9 @@ function OrderingBoundary() {
 }
 
 function OrderingBoundaryContent() {
-  const { state } = useOrderingSessionBoundary();
+  const { refresh, state } = useOrderingSessionBoundary();
   if (state === "loading") return <main className="ordering-state">Đang xác minh phiên bàn…</main>;
-  if (state !== "ready") return <SessionState state={state} />;
+  if (state !== "ready") return <SessionState state={state} onRetry={refresh} />;
   return <OrderingShell />;
 }
 

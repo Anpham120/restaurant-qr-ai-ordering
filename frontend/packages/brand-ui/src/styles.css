@@ -1,0 +1,53 @@
+:root {
+  --brand-ivory: #fffaf5;
+  --brand-paper: #ffffff;
+  --brand-chestnut: #6f3d2c;
+  --brand-chestnut-dark: #4c291f;
+  --brand-brass: #a47834;
+  --brand-ink: #2f1d16;
+  --brand-muted: #80685e;
+  --brand-clay-line: #ead8cd;
+  --brand-success: #2f7251;
+  --brand-danger: #b13c32;
+  --brand-font-display: "Playfair Display", Georgia, serif;
+  --brand-font-body: "Karla", system-ui, sans-serif;
+  --brand-font-utility: "Manrope", system-ui, sans-serif;
+  --brand-radius-card: 1rem;
+  --brand-shadow-soft: 0 18px 45px rgba(76, 41, 31, .1);
+}
+
+.brand-wordmark {
+  align-items: center;
+  color: var(--brand-ink);
+  display: inline-flex;
+  gap: .7rem;
+}
+
+.brand-wordmark-monogram {
+  align-items: center;
+  background: var(--brand-chestnut);
+  border-radius: .8rem;
+  color: #fff;
+  display: inline-flex;
+  font: 800 .82rem/1 var(--brand-font-utility);
+  height: 2.7rem;
+  justify-content: center;
+  letter-spacing: .05em;
+  width: 2.7rem;
+}
+
+.brand-wordmark-copy {
+  display: grid;
+  gap: .08rem;
+}
+
+.brand-wordmark-copy strong {
+  font: 700 1rem/1.15 var(--brand-font-display);
+}
+
+.brand-wordmark-copy small {
+  color: var(--brand-muted);
+  font: 600 .68rem/1.2 var(--brand-font-utility);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
