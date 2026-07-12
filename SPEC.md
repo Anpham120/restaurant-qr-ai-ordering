@@ -36,6 +36,12 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V12: ∀ frontend Dockerfile package-manifest COPY → source exists in build context.
 - V13: ∀ integration factory + parameterized DineIn lifecycle case → isolated in-memory DB + table/session fixture; no cross-test active-session contention.
 - V14: ∀ TableSession → many Order Rounds aggregate into one Table Invoice; promotion, loyalty identity, and payment never belong to an Order Round.
+- V15: ∀ integration fixture → production-valid domain values; setup HTTP failure reports response body before lifecycle assertions.
+- V16: ∀ TableSession → Order Round creation and settlement start serialize on the shared session; at most one side commits from the same version.
+- V17: ∀ TableInvoice.Status=Pending → no order/item cancellation may change payable lines; kitchen progress remains allowed.
+- V18: ∀ cancelled settlement → promotion, loyalty phone, method, and discount cleared before ordering resumes.
+- V19: ∀ paid TableSession → reports count one paid Table Invoice, while item sales aggregate all non-cancelled Order Rounds.
+- V20: ∀ concurrent loyalty accrual → member rowversion or unique conflict prevents lost increments; caller receives conflict, never silent overwrite.
 
 ## §T
 
@@ -58,7 +64,7 @@ T18|x|retain the restored chat-session contract through repository cleanup|V11
 T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|x|full repository audit; build/deploy proof|C
-T19|~|introduce aggregate Table Invoice and session settlement flow|V14,I.api,I.ui
+T19|x|introduce aggregate Table Invoice and session settlement flow|V14,I.api,I.ui
 
 ## §B
 
@@ -81,3 +87,16 @@ B15|2026-07-12|integration factories reused named EF in-memory DB and lifecycle 
 B16|2026-07-12|new Table Invoice endpoint omitted the namespace containing shared API results|compile preflight
 B17|2026-07-12|Table Invoice integration test assumed a seeded table index instead of owning its fixture|V13
 B18|2026-07-12|cart checkout and payment model attached promotion, loyalty, and settlement to one Order instead of the Table Session|V14
+B19|2026-07-12|Table Invoice payment test generated a table code rejected by the production validator|V15
+B20|2026-07-12|Table Invoice staff endpoints omitted `Api.Users` namespace for `UserRole`|compile preflight
+B21|2026-07-13|integration factory omitted required VietQR bank options for the payment lifecycle|V15
+B22|2026-07-13|EF InMemory bound array `Contains` to .NET 10 `ReadOnlySpan` overload in invoice list query|V15
+B23|2026-07-13|session-touch patch landed in status update instead of order creation and omitted realtime namespace|compile preflight
+B24|2026-07-13|settlement subtotal and new Order Round could commit from the same TableSession version|V16
+B25|2026-07-13|pending settlement allowed order/item cancellation to change payable lines|V17
+B26|2026-07-13|cancelled settlement retained stale promotion, loyalty phone, method, and discount|V18
+B27|2026-07-13|report paid count used Order Rounds while daily revenue used Table Invoices|V19
+B28|2026-07-13|loyalty accrual used unguarded read-modify-write|V20
+B29|2026-07-13|settlement migration rollback made `order_id` non-null before removing invoice-targeted payments|migration down cleanup
+B30|2026-07-13|settlement completion bypassed order history and realtime notification|OrderStore staged completion
+B31|2026-07-13|completion audit test referenced `Status` instead of `OrderStatusHistory.ToStatus`|compile preflight

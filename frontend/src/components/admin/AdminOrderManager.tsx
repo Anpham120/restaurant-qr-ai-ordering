@@ -128,9 +128,9 @@ export function AdminOrderManager() {
               <td>{order.tableCode ?? "-"}</td>
               <td><span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span></td>
               <td>
-                <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>
-                  {order.paymentMethod} · {order.paymentStatus}
-                </span>
+                {order.tableSessionId ? <span className="ops-badge">Theo phiên bàn</span> : (
+                  <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>{order.paymentMethod} · {order.paymentStatus}</span>
+                )}
               </td>
               <td>{formatVnd(order.totalAmount)}</td>
               <td style={{ fontSize: 12, color: "var(--color-muted)" }}>{new Date(order.createdAt).toLocaleString("vi-VN")}</td>
@@ -163,7 +163,7 @@ export function AdminOrderManager() {
             <div className="ops-modal-body">
               <div className="ops-card-meta" style={{ marginBottom: 12, gap: 8 }}>
                 <span className={`ops-badge ops-badge--${selectedOrder.status.toLowerCase()}`}>{selectedOrder.status}</span>
-                <span className={`ops-badge ops-badge--${selectedOrder.paymentStatus.toLowerCase()}`}>{selectedOrder.paymentMethod} · {selectedOrder.paymentStatus}</span>
+                {selectedOrder.tableSessionId ? <span className="ops-badge">Thanh toán theo phiên bàn</span> : <span className={`ops-badge ops-badge--${selectedOrder.paymentStatus.toLowerCase()}`}>{selectedOrder.paymentMethod} · {selectedOrder.paymentStatus}</span>}
                 {selectedOrder.tableCode ? <span className="ops-card-table">Bàn {selectedOrder.tableCode}</span> : null}
               </div>
 
@@ -201,13 +201,13 @@ export function AdminOrderManager() {
               ) : null}
             </div>
             <div className="ops-modal-footer">
-              {(selectedOrder.paymentStatus === "Pending" || selectedOrder.paymentStatus === "Unpaid") ? (
+              {!selectedOrder.tableSessionId && (selectedOrder.paymentStatus === "Pending" || selectedOrder.paymentStatus === "Unpaid") ? (
                 <>
                   <button className="ops-btn ops-btn--success" disabled={pendingCode === selectedOrder.orderCode} onClick={() => handlePaymentAction(selectedOrder.orderCode, "confirm")} type="button">Xác nhận thu</button>
                   <button className="ops-btn ops-btn--ghost" disabled={pendingCode === selectedOrder.orderCode} onClick={() => handlePaymentAction(selectedOrder.orderCode, "fail")} type="button">Từ chối</button>
                 </>
               ) : null}
-              {(selectedOrder.paymentStatus === "Confirmed" || selectedOrder.paymentStatus === "Paid") ? (
+              {!selectedOrder.tableSessionId && (selectedOrder.paymentStatus === "Confirmed" || selectedOrder.paymentStatus === "Paid") ? (
                 <button className="ops-btn ops-btn--danger" disabled={pendingCode === selectedOrder.orderCode} onClick={() => handlePaymentAction(selectedOrder.orderCode, "refund")} type="button">Hoàn tiền</button>
               ) : null}
               <button className="ops-btn ops-btn--ghost" onClick={() => setSelectedOrder(null)} type="button">Đóng</button>

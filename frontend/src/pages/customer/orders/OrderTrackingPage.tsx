@@ -496,6 +496,18 @@ function OrderTrackingPanel({
         ))}
       </div>
 
+      {order.tableSessionId ? (
+        <section className="cmc-ot-payment-card" aria-labelledby="cmc-payment-title">
+          <div className="cmc-ot-payment-heading">
+            <CreditCard aria-hidden="true" size={22} />
+            <div>
+              <h3 id="cmc-payment-title">Thanh toán theo phiên bàn</h3>
+              <p>Ưu đãi, tích điểm và thanh toán được tính trên toàn bộ các lần gọi món.</p>
+            </div>
+          </div>
+          <Link className="cmc-ot-payment-primary" to="..">Xem hóa đơn phiên bàn</Link>
+        </section>
+      ) : (
       <section className="cmc-ot-payment-card" aria-labelledby="cmc-payment-title">
         <div className="cmc-ot-payment-heading">
           <CreditCard aria-hidden="true" size={22} />
@@ -542,6 +554,7 @@ function OrderTrackingPanel({
           <p className="cmc-ot-payment-notice" role="status">Thanh toán đã được xác nhận.</p>
         ) : null}
       </section>
+      )}
     </>
   );
 }

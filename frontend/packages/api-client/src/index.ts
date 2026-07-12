@@ -33,6 +33,9 @@ import type {
   Table,
   AdminTableSessionListResponse,
   TableSession,
+  TableInvoice,
+  TableInvoicePaymentRequest,
+  TableInvoicePaymentRequestResponse,
   UserListResponse,
   UserSummary,
   ValidatePromotionRequest,
@@ -100,6 +103,42 @@ export function createApiClient(options: ApiClientOptions = {}) {
         }),
       closeSession: (sessionId: string) =>
         request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}/close`, { method: "POST" }),
+    },
+    tableInvoices: {
+      list: (status?: string) => {
+        const query = status ? `?status=${encodeURIComponent(status)}` : "";
+        return request<TableInvoice[]>(`/table-invoices${query}`);
+      },
+      get: (sessionId: string, sessionToken: string) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice`, {
+          headers: { "X-Table-Session-Token": sessionToken },
+        }),
+      requestPayment: (
+        sessionId: string,
+        payload: TableInvoicePaymentRequest,
+        sessionToken: string,
+        idempotencyKey: string,
+      ) => request<TableInvoicePaymentRequestResponse>(
+        `/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment-request`,
+        {
+          method: "POST",
+          headers: {
+            "X-Table-Session-Token": sessionToken,
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify(payload),
+        },
+      ),
+      confirmPayment: (sessionId: string, payload: { note?: string | null } = {}) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment/confirm`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      cancelPayment: (sessionId: string, payload: { note?: string | null } = {}) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment/cancel`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
     },
     orders: {
       create: (payload: CreateOrderRequest, idempotencyKey: string) =>

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
@@ -145,6 +146,12 @@ public static partial class OrderEndpoints
                     "ORDER_CREATE_CONFLICT",
                     "Order could not be created because its session changed. Please scan QR again.");
             }
+            catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure)
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "The table session started settlement while this order was being submitted. Reload and try again.");
+            }
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
             logger.LogInformation(
@@ -264,6 +271,13 @@ public static partial class OrderEndpoints
                     "Order cannot be cancelled after it or any item reaches Preparing.");
             }
 
+            if (result.ErrorCode == "TABLE_INVOICE_PAYMENT_PENDING")
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "Order cancellation is disabled while the table invoice is awaiting payment.");
+            }
+
             if (result.ErrorCode == "ORDER_STATUS_TRANSITION_INVALID")
             {
                 logger.LogWarning(
@@ -369,6 +383,13 @@ public static partial class OrderEndpoints
                 return ApiResults.Conflict(
                     "ORDER_STATUS_TERMINAL",
                     "Completed or cancelled orders cannot be changed.");
+            }
+
+            if (result.ErrorCode == "TABLE_INVOICE_PAYMENT_PENDING")
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "Item cancellation is disabled while the table invoice is awaiting payment.");
             }
 
             if (result.ErrorCode == "ORDER_ITEM_STATUS_TRANSITION_INVALID")
@@ -580,6 +601,7 @@ public static partial class OrderEndpoints
         var tableSessionId = request.TableSessionId.Trim();
         var session = await db.TableSessions
             .Include(tableSession => tableSession.RestaurantTable)
+            .Include(tableSession => tableSession.Invoice)
             .AsNoTracking()
             .FirstOrDefaultAsync(tableSession => tableSession.Id == tableSessionId, cancellationToken);
 
@@ -599,6 +621,13 @@ public static partial class OrderEndpoints
         if (session.OrderType != OrderType.DineIn || session.RestaurantTable is null)
         {
             return ApiResults.BadRequest("TABLE_SESSION_INVALID", "Table session is not valid for dine-in ordering.");
+        }
+
+        if (session.Invoice?.Status == PaymentStatus.Pending)
+        {
+            return ApiResults.Conflict(
+                "TABLE_INVOICE_PAYMENT_PENDING",
+                "New order rounds are disabled while payment is pending for the table invoice.");
         }
 
         if (session.TableCode != normalizedTableCode)
@@ -771,7 +800,7 @@ public static partial class OrderEndpoints
             order.CreatedAt);
     }
 
-    private static OrderStatusChangedEvent ToOrderStatusChangedEvent(OrderSnapshot order)
+    public static OrderStatusChangedEvent ToOrderStatusChangedEvent(OrderSnapshot order)
     {
         return new OrderStatusChangedEvent(
             order.OrderId,

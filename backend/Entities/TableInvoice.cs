@@ -33,6 +33,8 @@ public class TableInvoice
 
     public PaymentMethod Method { get; set; } = PaymentMethod.Unselected;
 
+    public Payment? Payment { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
