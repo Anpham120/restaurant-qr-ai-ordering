@@ -52,4 +52,13 @@ describe("marketing and ordering app separation", () => {
     expect(orderingViteConfig).toContain('publicDir: "../../public"');
     expect(orderingViteConfig).not.toContain("customer-web/public");
   });
+
+  it("generates table QR links on the ordering domain", () => {
+    const qrManager = read("src/components/qr/AdminQrTableManager.tsx");
+
+    expect(qrManager).toContain("VITE_ORDERING_BASE_URL");
+    expect(qrManager).toContain("https://order.cmcrestaurant.app");
+    expect(qrManager).not.toContain("VITE_CUSTOMER_BASE_URL");
+    expect(qrManager).not.toContain("https://customer.cmcrestaurant.app");
+  });
 });
