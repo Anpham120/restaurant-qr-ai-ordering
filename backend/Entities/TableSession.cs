@@ -31,6 +31,8 @@ public class TableSession
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    public TableInvoice? Invoice { get; set; }
+
     public bool IsActiveAt(DateTimeOffset now) =>
         Status == TableSessionStatus.Open &&
         ClosedAt is null &&

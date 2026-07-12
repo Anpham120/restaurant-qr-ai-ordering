@@ -35,6 +35,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V11: ∀ active TableSession → repeated chat-session create reuses one persisted chat session.
 - V12: ∀ frontend Dockerfile package-manifest COPY → source exists in build context.
 - V13: ∀ integration factory + parameterized DineIn lifecycle case → isolated in-memory DB + table/session fixture; no cross-test active-session contention.
+- V14: ∀ TableSession → many Order Rounds aggregate into one Table Invoice; promotion, loyalty identity, and payment never belong to an Order Round.
 
 ## §T
 
@@ -57,6 +58,7 @@ T18|x|retain the restored chat-session contract through repository cleanup|V11
 T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|x|full repository audit; build/deploy proof|C
+T19|~|introduce aggregate Table Invoice and session settlement flow|V14,I.api,I.ui
 
 ## §B
 
@@ -76,3 +78,6 @@ B12|2026-07-11|retired chat contract omitted the live CreateOrGetSession API|V11
 B13|2026-07-11|DbChatStore test omitted its required active parent TableSession|V5
 B14|2026-07-11|frontend Dockerfile copied retired packages/utils manifest|V12
 B15|2026-07-12|integration factories reused named EF in-memory DB and lifecycle rows reused table/session during parallel CI|V13
+B16|2026-07-12|new Table Invoice endpoint omitted the namespace containing shared API results|compile preflight
+B17|2026-07-12|Table Invoice integration test assumed a seeded table index instead of owning its fixture|V13
+B18|2026-07-12|cart checkout and payment model attached promotion, loyalty, and settlement to one Order instead of the Table Session|V14
