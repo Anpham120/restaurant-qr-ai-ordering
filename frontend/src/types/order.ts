@@ -148,6 +148,57 @@ export type PaymentRequestResponse = {
   vietQr: VietQrPaymentResponse | null;
 };
 
+export type TableInvoiceLine = {
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type TableInvoiceOrderRound = {
+  orderCode: string;
+  status: OrderStatus;
+  subtotalAmount: number;
+  createdAt: string;
+};
+
+export type TableInvoice = {
+  tableSessionId: string;
+  invoiceCode: string | null;
+  tableCode: TableCode | null;
+  status: PaymentStatus;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  promotionCode: string | null;
+  customerPhoneNumber: string | null;
+  method: PaymentMethod;
+  orderRounds: TableInvoiceOrderRound[];
+  items: TableInvoiceLine[];
+  vietQr: TableInvoiceVietQr | null;
+};
+
+export type TableInvoiceVietQr = {
+  invoiceCode: string;
+  amount: number;
+  transferContent: string;
+  quickLink: string;
+  qrImageDataUri: string;
+};
+
+export type TableInvoicePaymentRequest = {
+  method: RequestedPaymentMethod;
+  promotionCode?: string | null;
+  customerPhoneNumber?: string | null;
+};
+
+export type TableInvoicePaymentRequestResponse = {
+  invoice: TableInvoice;
+  payment: { paymentId: string; status: PaymentStatus; method: PaymentMethod; amount: number };
+  vietQr: TableInvoiceVietQr | null;
+};
+
 export type OrderCreatedRealtimeEvent = {
   event: "order.created";
   payload: {

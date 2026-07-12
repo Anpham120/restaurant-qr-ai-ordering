@@ -24,6 +24,11 @@ public interface IOrderStore
         ActorContext actor);
 
     void RecordPaymentStatusEvent(Order order, ActorContext actor, string note);
+
+    IReadOnlyList<OrderSnapshot> StageTableSessionCompletion(
+        string tableSessionId,
+        ActorContext actor,
+        DateTimeOffset now);
 }
 
 public sealed class OrderStore : IOrderStore
@@ -66,6 +71,11 @@ public sealed class OrderStore : IOrderStore
                 "TABLE_SESSION_EXPIRED",
                 "Table session has expired. Please scan QR again.",
                 StatusCodes.Status410Gone);
+        }
+        if (tableSession is not null)
+        {
+            // Touch the shared session row so order creation and settlement start cannot both commit.
+            tableSession.UpdatedAt = now;
         }
 
         var order = new Order
@@ -167,6 +177,10 @@ public sealed class OrderStore : IOrderStore
         {
             return new UpdateOrderStatusResult(false, null);
         }
+        if (status == OrderStatus.Cancelled && order.TableSession?.Invoice?.Status == PaymentStatus.Pending)
+        {
+            return new UpdateOrderStatusResult(true, ToSnapshot(order), "TABLE_INVOICE_PAYMENT_PENDING");
+        }
 
         if (status == OrderStatus.Cancelled && IsCancellationLocked(order))
         {
@@ -238,6 +252,12 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
         }
 
+        if (status == OrderItemStatus.Cancelled && order.TableSession?.Invoice?.Status == PaymentStatus.Pending)
+        {
+            return new UpdateOrderItemStatusResult(
+                true, true, ToSnapshot(order), null, "TABLE_INVOICE_PAYMENT_PENDING");
+        }
+
         if (order.Status is OrderStatus.Completed or OrderStatus.Cancelled)
         {
             return new UpdateOrderItemStatusResult(
@@ -294,6 +314,37 @@ public sealed class OrderStore : IOrderStore
             OrderStatusChanged: previousOrderStatus != order.Status);
     }
 
+    public IReadOnlyList<OrderSnapshot> StageTableSessionCompletion(
+        string tableSessionId,
+        ActorContext actor,
+        DateTimeOffset now)
+    {
+        var orders = db.Orders
+            .Include(order => order.Payment)
+            .Include(order => order.OrderItems)
+            .Include(order => order.RestaurantTable)
+            .Include(order => order.StatusHistory)
+            .Where(order => order.TableSessionId == tableSessionId &&
+                order.Status != OrderStatus.Completed &&
+                order.Status != OrderStatus.Cancelled)
+            .ToList();
+        foreach (var order in orders)
+        {
+            var previousStatus = order.Status;
+            order.Status = OrderStatus.Completed;
+            order.UpdatedAt = now;
+            AppendStatusHistory(
+                order,
+                previousStatus,
+                OrderStatus.Completed,
+                OrderStatusChangeSource.Status,
+                actor,
+                "Table invoice payment confirmed.",
+                now);
+        }
+        return orders.Select(ToSnapshot).ToArray();
+    }
+
     // Records a payment confirm/fail as a timeline marker on the order's status history.
     // The order status itself is unchanged; payment_transactions stays the source of truth
     // for money. Appends to the tracked order; the caller's SaveChanges persists it.
@@ -330,6 +381,8 @@ public sealed class OrderStore : IOrderStore
             .Include(order => order.OrderItems)
             .Include(order => order.RestaurantTable)
             .Include(order => order.StatusHistory)
+            .Include(order => order.TableSession)!
+                .ThenInclude(session => session!.Invoice)
             .Where(order => order.OrderCode == normalizedOrderCode);
 
         if (!tracking)

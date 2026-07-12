@@ -15,6 +15,7 @@ public sealed record TableInvoiceOrderRoundResponse(
 
 public sealed record TableInvoiceResponse(
     string TableSessionId,
+    string? InvoiceCode,
     string? TableCode,
     string Status,
     decimal SubtotalAmount,
@@ -24,4 +25,30 @@ public sealed record TableInvoiceResponse(
     string? CustomerPhoneNumber,
     string Method,
     IReadOnlyList<TableInvoiceOrderRoundResponse> OrderRounds,
-    IReadOnlyList<TableInvoiceLineResponse> Items);
+    IReadOnlyList<TableInvoiceLineResponse> Items,
+    TableInvoiceVietQrResponse? VietQr);
+
+public sealed record TableInvoicePaymentRequest(
+    string? Method,
+    string? PromotionCode,
+    string? CustomerPhoneNumber);
+
+public sealed record TableInvoiceSettlementActionRequest(string? Note);
+
+public sealed record TableInvoicePaymentStateResponse(
+    string PaymentId,
+    string Status,
+    string Method,
+    decimal Amount);
+
+public sealed record TableInvoiceVietQrResponse(
+    string InvoiceCode,
+    decimal Amount,
+    string TransferContent,
+    string QuickLink,
+    string QrImageDataUri);
+
+public sealed record TableInvoicePaymentRequestResponse(
+    TableInvoiceResponse Invoice,
+    TableInvoicePaymentStateResponse Payment,
+    TableInvoiceVietQrResponse? VietQr);

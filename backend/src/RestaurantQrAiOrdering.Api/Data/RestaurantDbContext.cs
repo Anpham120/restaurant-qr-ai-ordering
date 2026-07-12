@@ -274,6 +274,9 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.QrToken);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ExpiresAt);
+
+            // Serialize order creation against starting settlement without adding schema DDL.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 
@@ -534,7 +537,10 @@ public class RestaurantDbContext : DbContext
     {
         modelBuilder.Entity<Payment>(entity =>
         {
-            entity.ToTable("payments");
+            entity.ToTable("payments", table =>
+                table.HasCheckConstraint(
+                    "CK_payments_single_target",
+                    "(order_id IS NULL) <> (table_invoice_id IS NULL)"));
 
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id)
@@ -542,8 +548,10 @@ public class RestaurantDbContext : DbContext
                 .HasMaxLength(50);
             entity.Property(e => e.OrderId)
                 .HasColumnName("order_id")
-                .HasMaxLength(50)
-                .IsRequired();
+                .HasMaxLength(50);
+            entity.Property(e => e.TableInvoiceId)
+                .HasColumnName("table_invoice_id")
+                .HasMaxLength(50);
             entity.Property(e => e.Method)
                 .HasColumnName("method")
                 .HasConversion<string>()
@@ -574,8 +582,13 @@ public class RestaurantDbContext : DbContext
                 .WithOne(o => o.Payment)
                 .HasForeignKey<Payment>(e => e.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.TableInvoice)
+                .WithOne(invoice => invoice.Payment)
+                .HasForeignKey<Payment>(e => e.TableInvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.OrderId).IsUnique();
+            entity.HasIndex(e => e.TableInvoiceId).IsUnique();
             entity.HasIndex(e => e.Status);
 
             // PostgreSQL maps this uint rowversion shadow property to its xmin system
@@ -919,6 +932,9 @@ public class RestaurantDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(e => e.PhoneNumber).IsUnique();
+
+            // Prevent concurrent invoice confirmations from losing loyalty increments.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 

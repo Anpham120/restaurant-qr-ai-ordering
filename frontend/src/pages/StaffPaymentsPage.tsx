@@ -1,96 +1,65 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Order, RealtimeConnectionStatus } from "@cmc/shared-types";
+import type { TableInvoice } from "@cmc/shared-types";
 import {
-  confirmOrderPayment,
-  getKitchenOrders,
-  refundOrderPayment,
+  cancelTableInvoicePayment,
+  confirmTableInvoicePayment,
+  listTableInvoices,
 } from "../services/orderService";
-import { failOrderPayment } from "../services/adminOrderService";
-import {
-  connectOrderRealtime,
-  disconnectOrderRealtime,
-  subscribeOrderRealtime,
-  subscribeRealtimeConnection,
-} from "../services/realtimeOrderService";
-import { Banknote, Check, CreditCard, QrCode, RefreshCw } from "lucide-react";
+import { Banknote, Check, CreditCard, QrCode, RefreshCw, X } from "lucide-react";
 import "../components/operations/operations.css";
 
-const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
-
-function isAwaitingPayment(o: Order): boolean {
-  if (o.status === "Cancelled") return false;
-  const paid = ["Paid", "Confirmed", "Cancelled", "Refunded"];
-  if (paid.includes(o.paymentStatus)) return false;
-  if (o.paymentStatus === "Pending" || o.paymentStatus === "Failed") return true;
-  return o.status === "Served" || o.status === "Completed";
-}
-
-function isCollected(o: Order): boolean {
-  return o.paymentStatus === "Confirmed" || o.paymentStatus === "Paid" || o.paymentStatus === "Refunded";
-}
+const formatVnd = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
 export function StaffPaymentsPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [invoices, setInvoices] = useState<TableInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [pendingCode, setPendingCode] = useState<string | null>(null);
-  const [refundCode, setRefundCode] = useState<string | null>(null);
-  const [refundNote, setRefundNote] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
 
-  const loadOrders = useCallback(async () => {
+  const loadInvoices = useCallback(async () => {
     try {
-      const data = await getKitchenOrders();
-      const list = (data as { orders?: Order[] }).orders ?? (data as unknown as Order[]);
-      setOrders(Array.isArray(list) ? list : []);
+      setInvoices(await listTableInvoices());
+      setError("");
     } catch {
-      setError("Không tải được danh sách thanh toán.");
+      setError("Không tải được danh sách hóa đơn phiên bàn.");
     }
   }, []);
 
   useEffect(() => {
-    loadOrders().finally(() => setIsLoading(false));
-  }, [loadOrders]);
+    loadInvoices().finally(() => setIsLoading(false));
+  }, [loadInvoices]);
 
   useEffect(() => {
-    const unC = subscribeRealtimeConnection(setConnectionStatus);
-    const unR = subscribeOrderRealtime(() => loadOrders());
-    void connectOrderRealtime().catch(() => setConnectionStatus("error"));
-    return () => { unC(); unR(); void disconnectOrderRealtime(); };
-  }, [loadOrders]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => void loadOrders(), 5_000);
+    const interval = window.setInterval(() => void loadInvoices(), 5_000);
     return () => window.clearInterval(interval);
-  }, [loadOrders]);
+  }, [loadInvoices]);
 
-  const awaiting = useMemo(() => orders.filter(isAwaitingPayment), [orders]);
-  const collected = useMemo(() => orders.filter(isCollected), [orders]);
+  const awaiting = useMemo(
+    () => invoices.filter((invoice) => invoice.status === "Pending"),
+    [invoices],
+  );
+  const collected = useMemo(
+    () => invoices.filter((invoice) => invoice.status === "Confirmed" || invoice.status === "Paid"),
+    [invoices],
+  );
+  const stats = useMemo(() => [
+    { label: "Bàn chờ thu", value: String(awaiting.length), detail: "Hóa đơn toàn phiên" },
+    { label: "Tổng cần thu", value: formatVnd(awaiting.reduce((sum, invoice) => sum + invoice.totalAmount, 0)), detail: "Sau ưu đãi" },
+    { label: "Đã xác nhận", value: String(collected.length), detail: "Phiên đã đóng" },
+  ], [awaiting, collected]);
 
-  const stats = useMemo(() => {
-    const total = awaiting.reduce((sum, o) => sum + o.totalAmount, 0);
-    const refunded = collected.filter((o) => o.paymentStatus === "Refunded").length;
-    const paid = collected.length - refunded;
-    return [
-      { label: "Đơn chờ thu", value: String(awaiting.length), detail: "Chưa xác nhận thanh toán" },
-      { label: "Tổng cần thu", value: formatVnd(total), detail: "Cộng dồn đơn chờ" },
-      { label: "Đã thu / hoàn", value: `${paid} / ${refunded}`, detail: "Confirmed & Refunded" },
-    ];
-  }, [awaiting, collected]);
-
-  async function runAction(orderCode: string, action: () => Promise<unknown>, msg: string, cb?: () => void) {
-    setPendingCode(orderCode);
+  async function runAction(sessionId: string, action: () => Promise<unknown>, successMessage: string) {
+    setPendingSessionId(sessionId);
     setNotice("");
     try {
       await action();
-      await loadOrders();
-      setNotice(msg);
-      cb?.();
-    } catch {
-      setNotice("Thao tác thất bại. Thử lại.");
+      await loadInvoices();
+      setNotice(successMessage);
+    } catch (caughtError) {
+      setNotice(caughtError instanceof Error ? caughtError.message : "Thao tác thất bại. Thử lại.");
     } finally {
-      setPendingCode(null);
+      setPendingSessionId(null);
     }
   }
 
@@ -102,17 +71,8 @@ export function StaffPaymentsPage() {
     <div>
       <div className="ops-page-header">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1>Thu ngân</h1>
-            <p>Xác nhận, từ chối hoặc hoàn tiền cho các đơn tại bàn</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className={`ops-connection ops-connection--${connectionStatus}`}>
-              <span className="ops-connection-dot" />
-              {connectionStatus === "connected" ? "Đã kết nối" : "Mất kết nối"}
-            </span>
-            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
-          </div>
+          <div><h1>Thu ngân</h1><p>Xác nhận thanh toán cho toàn bộ hóa đơn của phiên bàn</p></div>
+          <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => void loadInvoices()} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
         </div>
       </div>
 
@@ -120,127 +80,76 @@ export function StaffPaymentsPage() {
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
 
       <div className="ops-stats">
-        {stats.map((s) => (
-          <div className="ops-stat-card" key={s.label}>
-            <div className="ops-stat-label">{s.label}</div>
-            <div className="ops-stat-value">{s.value}</div>
-            <div className="ops-stat-detail">{s.detail}</div>
+        {stats.map((stat) => (
+          <div className="ops-stat-card" key={stat.label}>
+            <div className="ops-stat-label">{stat.label}</div>
+            <div className="ops-stat-value">{stat.value}</div>
+            <div className="ops-stat-detail">{stat.detail}</div>
           </div>
         ))}
       </div>
 
-      {/* Awaiting payment */}
       {awaiting.length > 0 ? (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Đơn chờ thu ({awaiting.length})</h3>
+        <section style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Hóa đơn chờ thu ({awaiting.length})</h3>
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-            {awaiting.map((order) => (
-              <article className={`ops-card ops-card--${order.status.toLowerCase()}`} key={order.orderId}>
+            {awaiting.map((invoice) => (
+              <article className="ops-card" key={invoice.tableSessionId}>
                 <div className="ops-card-header">
-                  <span className="ops-card-code">{order.orderCode}</span>
-                  {order.tableCode ? <span className="ops-card-table">Bàn {order.tableCode}</span> : null}
+                  <span className="ops-card-code">Phiên {invoice.orderRounds.length} lượt gọi</span>
+                  <span className="ops-card-table">Bàn {invoice.tableCode}</span>
                 </div>
                 <div className="ops-card-meta">
-                  <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>
-                    {order.paymentMethod === "COD" ? <Banknote aria-hidden="true" size={14} /> : <QrCode aria-hidden="true" size={14} />}
-                    {order.paymentMethod === "COD" ? "Tiền mặt" : "QR"} · {order.paymentStatus}
+                  <span className="ops-badge ops-badge--pending">
+                    {invoice.method === "COD" ? <Banknote aria-hidden="true" size={14} /> : <QrCode aria-hidden="true" size={14} />}
+                    {invoice.method === "COD" ? "Tiền mặt" : "VietQR"} · Chờ thu
                   </span>
-                  <strong>{formatVnd(order.totalAmount)}</strong>
+                  <strong>{formatVnd(invoice.totalAmount)}</strong>
                 </div>
                 <div className="ops-card-items">
-                  {order.items.map((item) => (
-                    <span key={item.orderItemId} className="ops-card-item-chip">
-                      {item.quantity}× {item.name}
-                    </span>
-                  ))}
+                  {invoice.items.map((item) => <span className="ops-card-item-chip" key={item.menuItemId}>{item.quantity}× {item.name}</span>)}
                 </div>
+                {invoice.promotionCode ? <p>Ưu đãi: <strong>{invoice.promotionCode}</strong> (-{formatVnd(invoice.discountAmount)})</p> : null}
+                {invoice.customerPhoneNumber ? <p>Tích điểm: <strong>{invoice.customerPhoneNumber}</strong></p> : null}
                 <div className="ops-card-actions">
                   <button
                     className="ops-btn ops-btn--success ops-btn--sm"
-                    disabled={pendingCode === order.orderCode}
-                    onClick={() => runAction(order.orderCode, () => confirmOrderPayment(order.orderCode, "Thu tại bàn"), `Đã xác nhận thu ${order.orderCode}`)}
+                    disabled={pendingSessionId === invoice.tableSessionId}
+                    onClick={() => void runAction(invoice.tableSessionId, () => confirmTableInvoicePayment(invoice.tableSessionId, "Thu ngân xác nhận đã thu đủ."), `Đã thanh toán bàn ${invoice.tableCode}`)}
                     type="button"
-                  >
-                    <Check aria-hidden="true" size={14} /> Xác nhận thu
-                  </button>
+                  ><Check aria-hidden="true" size={14} /> Xác nhận thu</button>
                   <button
                     className="ops-btn ops-btn--ghost ops-btn--sm"
-                    disabled={pendingCode === order.orderCode}
-                    onClick={() => runAction(order.orderCode, () => failOrderPayment(order.orderCode, "Từ chối tại bàn"), `Đã từ chối ${order.orderCode}`)}
+                    disabled={pendingSessionId === invoice.tableSessionId}
+                    onClick={() => void runAction(invoice.tableSessionId, () => cancelTableInvoicePayment(invoice.tableSessionId, "Hủy yêu cầu để bàn tiếp tục gọi món."), `Đã hủy yêu cầu bàn ${invoice.tableCode}`)}
                     type="button"
-                  >
-                    Từ chối
-                  </button>
+                  ><X aria-hidden="true" size={14} /> Hủy yêu cầu</button>
                 </div>
               </article>
             ))}
           </div>
-        </div>
-      ) : (
-        <div className="ops-empty" style={{ padding: 24 }}>Không có đơn chờ thu</div>
-      )}
+        </section>
+      ) : <div className="ops-empty" style={{ padding: 24 }}>Không có hóa đơn chờ thu</div>}
 
-      {/* Collected */}
       {collected.length > 0 ? (
-        <div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Đã thu & hoàn tiền ({collected.length})</h3>
+        <section>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Đã thu ({collected.length})</h3>
           <table className="ops-table">
-            <thead>
-              <tr>
-                <th>Mã đơn</th>
-                <th>Bàn</th>
-                <th>PT</th>
-                <th>TT</th>
-                <th>Số tiền</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Bàn</th><th>Số lượt gọi</th><th>Phương thức</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
             <tbody>
-              {collected.map((order) => (
-                <tr key={order.orderId}>
-                  <td><strong>{order.orderCode}</strong></td>
-                  <td>{order.tableCode ?? "-"}</td>
-                  <td>{order.paymentMethod === "COD" ? "Tiền mặt" : "QR"}</td>
-                  <td><span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>{order.paymentStatus}</span></td>
-                  <td>{formatVnd(order.totalAmount)}</td>
-                  <td>
-                    {(order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid") ? (
-                      refundCode === order.orderCode ? (
-                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <input
-                            className="ops-form-input"
-                            maxLength={500}
-                            onChange={(e) => setRefundNote(e.target.value)}
-                            placeholder="Lý do hoàn tiền"
-                            style={{ width: 160, padding: "4px 8px", fontSize: 12 }}
-                            value={refundNote}
-                          />
-                          <button
-                            className="ops-btn ops-btn--danger ops-btn--sm"
-                            disabled={pendingCode === order.orderCode}
-                            onClick={() => runAction(order.orderCode, () => refundOrderPayment(order.orderCode, refundNote.trim() || undefined), `Hoàn tiền ${order.orderCode}`, () => { setRefundCode(null); setRefundNote(""); })}
-                            type="button"
-                          >
-                            Xác nhận
-                          </button>
-                          <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setRefundCode(null); setRefundNote(""); }} type="button">Hủy</button>
-                        </div>
-                      ) : (
-                        <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setRefundCode(order.orderCode); setRefundNote(""); }} type="button">
-                          Hoàn tiền
-                        </button>
-                      )
-                    ) : (
-                      <span style={{ color: "var(--color-muted)", fontSize: 12 }}>-</span>
-                    )}
-                  </td>
+              {collected.map((invoice) => (
+                <tr key={invoice.tableSessionId}>
+                  <td><strong>{invoice.tableCode}</strong></td>
+                  <td>{invoice.orderRounds.length}</td>
+                  <td>{invoice.method === "COD" ? "Tiền mặt" : "VietQR"}</td>
+                  <td>{formatVnd(invoice.totalAmount)}</td>
+                  <td><span className="ops-badge ops-badge--confirmed">Đã xác nhận</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </section>
       ) : null}
-
     </div>
   );
 }

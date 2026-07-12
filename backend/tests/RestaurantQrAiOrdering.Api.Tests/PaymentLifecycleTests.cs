@@ -189,7 +189,10 @@ public sealed class RestaurantApiFactory : WebApplicationFactory<Program>
             {
                 ["Jwt:SigningKey"] = "payment-lifecycle-test-signing-key-32-bytes",
                 ["BOOTSTRAP_ADMIN_EMAIL"] = AdminEmail,
-                ["BOOTSTRAP_ADMIN_PASSWORD"] = AdminPassword
+                ["BOOTSTRAP_ADMIN_PASSWORD"] = AdminPassword,
+                ["Payments:VietQr:BankId"] = "970436",
+                ["Payments:VietQr:AccountNumber"] = "1234567890",
+                ["Payments:VietQr:AccountName"] = "CMC TEST"
             });
         });
         builder.ConfigureServices(services =>
