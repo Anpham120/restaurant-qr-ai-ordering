@@ -30,12 +30,12 @@ jobs:
       POSTGRES_DB: restaurant_qr_staging
       POSTGRES_USER: restaurant_user
       POSTGRES_PASSWORD: ${{ secrets.STAGING_POSTGRES_PASSWORD }}
-      FRONTEND_SERVER_NAMES: staging.cmcrestaurant.app order-staging.cmcrestaurant.app
+      FRONTEND_SERVER_NAMES: staging.cmcrestaurant.app order-staging.cmcrestaurant.app admin-staging.cmcrestaurant.app staff-staging.cmcrestaurant.app kitchen-staging.cmcrestaurant.app
       API_SERVER_NAME: api-staging.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api-staging.cmcrestaurant.app/api
       PUBLIC_ORDERING_BASE_URL: https://order-staging.cmcrestaurant.app
       PUBLIC_MARKETING_BASE_URL: https://staging.cmcrestaurant.app
-      CORS_ALLOWED_ORIGINS: https://staging.cmcrestaurant.app;https://order-staging.cmcrestaurant.app
+      CORS_ALLOWED_ORIGINS: https://staging.cmcrestaurant.app;https://order-staging.cmcrestaurant.app;https://admin-staging.cmcrestaurant.app;https://staff-staging.cmcrestaurant.app;https://kitchen-staging.cmcrestaurant.app
       ASPNETCORE_ENVIRONMENT: Staging
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
       RUN_DB_MIGRATIONS_ON_STARTUP: "false"
@@ -64,6 +64,9 @@ jobs:
             echo "## Staging deployment"
             echo "- Frontend: https://staging.cmcrestaurant.app"
             echo "- Table ordering: https://order-staging.cmcrestaurant.app"
+            echo "- Admin portal: https://admin-staging.cmcrestaurant.app"
+            echo "- Staff portal: https://staff-staging.cmcrestaurant.app"
+            echo "- Kitchen board: https://kitchen-staging.cmcrestaurant.app"
             echo "- API health: https://api-staging.cmcrestaurant.app/api/health"
             echo "- Result: workflow reached post-deploy summary"
           } >> "$GITHUB_STEP_SUMMARY"

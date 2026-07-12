@@ -105,13 +105,13 @@ jobs:
       POSTGRES_DB: restaurant_qr_ci
       POSTGRES_USER: restaurant_user
       POSTGRES_PASSWORD: ci-postgres-placeholder
-      FRONTEND_SERVER_NAMES: cmcrestaurant.app order.cmcrestaurant.app customer.cmcrestaurant.app
+          FRONTEND_SERVER_NAMES: cmcrestaurant.app order.cmcrestaurant.app customer.cmcrestaurant.app admin.cmcrestaurant.app staff.cmcrestaurant.app kitchen.cmcrestaurant.app
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
       PUBLIC_ORDERING_BASE_URL: https://order.cmcrestaurant.app
       PUBLIC_MARKETING_BASE_URL: https://cmcrestaurant.app
       JWT_SIGNING_KEY: ci-placeholder-signing-key-change-me
-      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://order.cmcrestaurant.app;https://customer.cmcrestaurant.app;https://admin.cmcrestaurant.app
+          CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://order.cmcrestaurant.app;https://customer.cmcrestaurant.app;https://admin.cmcrestaurant.app;https://staff.cmcrestaurant.app;https://kitchen.cmcrestaurant.app
       PAYMENTS__VIETQR__BANKID: "970436"
       PAYMENTS__VIETQR__ACCOUNTNUMBER: "ci-placeholder-account"
       PAYMENTS__VIETQR__ACCOUNTNAME: CMC CI
