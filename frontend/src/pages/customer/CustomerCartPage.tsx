@@ -5,15 +5,13 @@ import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { createOrder, validatePromotion } from "../../services/orderService";
+import { createOrder } from "../../services/orderService";
 import { validateDineInSession } from "../../services/tableSessionService";
 import type {
   CreateOrderRequest,
   MenuCart,
   MenuItem,
-  ValidatePromotionResponse,
 } from "../../types";
-import { Check } from "lucide-react";
 import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
@@ -34,8 +32,6 @@ function buildOrderPayload(
   cart: MenuCart,
   selectedItems: MenuItem[],
   context: { tableCode: string; qrToken: string; sessionId: string; sessionToken: string },
-  promotionCode: string | null,
-  customerPhoneNumber: string | null,
 ): CreateOrderRequest {
   return {
     orderType: "DineIn",
@@ -46,8 +42,8 @@ function buildOrderPayload(
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
     })),
-    promotionCode,
-    customerPhoneNumber,
+    promotionCode: null,
+    customerPhoneNumber: null,
   };
 }
 
@@ -59,11 +55,6 @@ export function CustomerCartPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [promoInput, setPromoInput] = useState("");
-  const [phoneInput, setPhoneInput] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<ValidatePromotionResponse | null>(null);
-  const [promoError, setPromoError] = useState("");
-  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,8 +85,6 @@ export function CustomerCartPage() {
     (total, item) => total + (cart[item.id] ?? 0) * item.price,
     0,
   );
-  const discountAmount = appliedPromo?.discountAmount ?? 0;
-  const finalTotal = Math.max(0, totalPrice - discountAmount);
   const hasActiveSession = true;
   const tableMenuPath = `/table-session/${orderContext.sessionId}/menu`;
   const canSubmit =
@@ -114,38 +103,6 @@ export function CustomerCartPage() {
 
     setCart(nextCart);
     saveMenuCart(nextCart);
-    // Cart total changed, so any applied promotion must be re-validated.
-    setAppliedPromo(null);
-    setPromoError("");
-  }
-
-  async function applyPromo() {
-    const code = promoInput.trim();
-    if (!code) {
-      setPromoError("Vui lòng nhập mã khuyến mãi.");
-      return;
-    }
-    if (totalPrice <= 0) {
-      setPromoError("Giỏ hàng trống, không thể áp dụng mã.");
-      return;
-    }
-    setIsApplyingPromo(true);
-    setPromoError("");
-    try {
-      const result = await validatePromotion(code, totalPrice);
-      setAppliedPromo(result);
-    } catch (error) {
-      setAppliedPromo(null);
-      setPromoError(error instanceof Error ? error.message : "Mã khuyến mãi không hợp lệ.");
-    } finally {
-      setIsApplyingPromo(false);
-    }
-  }
-
-  function removePromo() {
-    setAppliedPromo(null);
-    setPromoInput("");
-    setPromoError("");
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
@@ -167,8 +124,6 @@ export function CustomerCartPage() {
       cart,
       selectedItems,
       orderContext,
-      appliedPromo?.code ?? null,
-      phoneInput.trim() || null,
     );
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -196,9 +151,6 @@ export function CustomerCartPage() {
       const response = await createOrder(payload);
       setCart({});
       clearMenuCart();
-      setAppliedPromo(null);
-      setPromoInput("");
-      setPhoneInput("");
 
       navigate(`/table-session/${orderContext.sessionId}/orders/${response.orderCode}`, { replace: true });
     } catch (error) {
@@ -284,19 +236,6 @@ export function CustomerCartPage() {
             <strong>{formatVnd(totalPrice)}</strong>
           </div>
 
-          {appliedPromo ? (
-            <>
-              <div className="cmc-cart-total cmc-cart-total--discount">
-                <span>Giảm giá ({appliedPromo.code})</span>
-                <strong>-{formatVnd(discountAmount)}</strong>
-              </div>
-              <div className="cmc-cart-total">
-                <span>Thành tiền</span>
-                <strong>{formatVnd(finalTotal)}</strong>
-              </div>
-            </>
-          ) : null}
-
           {unavailableItems.length > 0 ? (
             <p className="cmc-inline-error">
               Có {unavailableItems.length} món tạm hết. Vui lòng bỏ món đó khỏi giỏ trước khi đặt.
@@ -315,57 +254,14 @@ export function CustomerCartPage() {
             <span>Phiên QR: {orderContext.sessionId ? "đang hoạt động" : "chưa có"}</span>
           </div>
 
-          <div className="cmc-checkout-note">
-            <strong>Mã khuyến mãi</strong>
-            <div className="cmc-promo-row">
-              <input
-                aria-label="Mã khuyến mãi"
-                className="cmc-text-input"
-                disabled={Boolean(appliedPromo)}
-                onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
-                placeholder="VD: GIAM10"
-                value={promoInput}
-              />
-              {appliedPromo ? (
-                <button className="cmc-promo-btn" onClick={removePromo} type="button">
-                  Bỏ mã
-                </button>
-              ) : (
-                <button
-                  className="cmc-promo-btn"
-                  disabled={isApplyingPromo}
-                  onClick={applyPromo}
-                  type="button"
-                >
-                  {isApplyingPromo ? "Đang kiểm tra..." : "Áp dụng"}
-                </button>
-              )}
-            </div>
-            {promoError ? <span className="cmc-inline-error">{promoError}</span> : null}
-            {appliedPromo ? (
-              <span className="cmc-promo-success">
-                <Check aria-hidden="true" size={16} strokeWidth={2.5} />
-                Đã áp dụng {appliedPromo.name}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="cmc-checkout-note">
-            <strong>Số điện thoại tích điểm (tùy chọn)</strong>
-            <input
-              aria-label="Số điện thoại tích điểm"
-              className="cmc-text-input"
-              inputMode="tel"
-              onChange={(event) => setPhoneInput(event.target.value)}
-              placeholder="VD: 0909xxxxxx"
-              value={phoneInput}
-            />
-          </div>
+          <p className="cmc-checkout-note">
+            Mã ưu đãi, tích điểm và phương thức thanh toán sẽ được chọn khi bạn yêu cầu thanh toán toàn bộ phiên bàn.
+          </p>
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
 
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
-            {isSubmitting ? "Đang gửi món..." : "Gửi món"}
+            {isSubmitting ? "Đang gửi món..." : "Gửi món tới bếp"}
           </button>
         </form>
       </div>
