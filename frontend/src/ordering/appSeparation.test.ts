@@ -44,9 +44,16 @@ describe("marketing and ordering app separation", () => {
     const orderingViteConfig = read("apps/ordering-web/vite.config.ts");
 
     expect(nginxConfig).toContain("cmcrestaurant.app /usr/share/nginx/html/customer;");
+    expect(nginxConfig).toContain("staging.cmcrestaurant.app /usr/share/nginx/html/customer;");
     expect(nginxConfig).toContain("order.cmcrestaurant.app /usr/share/nginx/html/ordering;");
-    expect(nginxConfig).toContain("if ($host = customer.cmcrestaurant.app)");
-    expect(nginxConfig).toContain("return 308 https://order.cmcrestaurant.app$request_uri;");
+    expect(nginxConfig).toContain("order-staging.cmcrestaurant.app /usr/share/nginx/html/ordering;");
+    expect(nginxConfig).toContain("admin.cmcrestaurant.app /usr/share/nginx/html/admin;");
+    expect(nginxConfig).toContain("admin-staging.cmcrestaurant.app /usr/share/nginx/html/admin;");
+    expect(nginxConfig).toContain("staff.cmcrestaurant.app /usr/share/nginx/html/staff;");
+    expect(nginxConfig).toContain("staff-staging.cmcrestaurant.app /usr/share/nginx/html/staff;");
+    expect(nginxConfig).toContain("kitchen.cmcrestaurant.app /usr/share/nginx/html/kitchen;");
+    expect(nginxConfig).toContain("kitchen-staging.cmcrestaurant.app /usr/share/nginx/html/kitchen;");
+    expect(nginxConfig).not.toContain("customer.cmcrestaurant.app");
     expect(nginxConfig).toContain("root $cmc_app_root;");
     expect(nginxConfig).toContain("try_files $uri $uri/ /index.html;");
     expect(marketingViteConfig).toContain('publicDir: "../../public"');
