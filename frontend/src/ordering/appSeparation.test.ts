@@ -45,7 +45,8 @@ describe("marketing and ordering app separation", () => {
 
     expect(nginxConfig).toContain("cmcrestaurant.app /usr/share/nginx/html/customer;");
     expect(nginxConfig).toContain("order.cmcrestaurant.app /usr/share/nginx/html/ordering;");
-    expect(nginxConfig).toContain("customer.cmcrestaurant.app /usr/share/nginx/html/ordering;");
+    expect(nginxConfig).toContain("if ($host = customer.cmcrestaurant.app)");
+    expect(nginxConfig).toContain("return 308 https://order.cmcrestaurant.app$request_uri;");
     expect(nginxConfig).toContain("root $cmc_app_root;");
     expect(nginxConfig).toContain("try_files $uri $uri/ /index.html;");
     expect(marketingViteConfig).toContain('publicDir: "../../public"');
