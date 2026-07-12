@@ -4,7 +4,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using RestaurantQrAiOrdering.Api.Data;
 using Xunit;
 
 namespace RestaurantQrAiOrdering.Api.Tests;
@@ -174,6 +178,7 @@ public sealed class RestaurantApiFactory : WebApplicationFactory<Program>
 {
     public const string AdminEmail = "payment-test-admin@local.test";
     public const string AdminPassword = "PaymentTestPass!2026";
+    private readonly string databaseName = $"RestaurantTests-{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -186,6 +191,13 @@ public sealed class RestaurantApiFactory : WebApplicationFactory<Program>
                 ["BOOTSTRAP_ADMIN_EMAIL"] = AdminEmail,
                 ["BOOTSTRAP_ADMIN_PASSWORD"] = AdminPassword
             });
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<DbContextOptions<RestaurantDbContext>>();
+            services.RemoveAll<RestaurantDbContext>();
+            services.AddDbContext<RestaurantDbContext>(options =>
+                options.UseInMemoryDatabase(databaseName));
         });
     }
 }
