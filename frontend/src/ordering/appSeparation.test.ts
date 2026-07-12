@@ -17,6 +17,8 @@ describe("marketing and ordering app separation", () => {
     expect(marketingEntrypoint).not.toContain("CartPage");
     expect(marketingEntrypoint).not.toContain("ChatPage");
     expect(marketingEntrypoint).not.toContain("TableScanPage");
+    expect(marketingEntrypoint).not.toContain('to="/#cach-dat-mon"');
+    expect(marketingEntrypoint).not.toContain("Đặt món tại bàn");
     expect(marketingEntrypoint).toContain("OrderingHostRedirect");
     expect(menuPreview).not.toContain("customerMenuStorage");
     expect(menuPreview).not.toContain("loadMenuCart");

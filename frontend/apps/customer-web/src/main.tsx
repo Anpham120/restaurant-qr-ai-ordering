@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Link,
@@ -46,8 +46,6 @@ function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean 
 
 function MarketingLayout() {
   const location = useLocation();
-  const [notice, setNotice] = useState("");
-  const showScanNotice = () => setNotice("Vui lòng quét QR tại bàn để mở ứng dụng gọi món.");
 
   return (
     <div className="landing-shell">
@@ -63,12 +61,9 @@ function MarketingLayout() {
             <Link to="/menu">Thực đơn</Link>
             <Link to="/#danh-gia">Đánh giá</Link>
             <Link to="/album">Album</Link>
-            <Link to="/#cach-dat-mon">Cách gọi món</Link>
-            <button type="button" onClick={showScanNotice}>Đặt món tại bàn</button>
           </nav>
         </div>
       </header>
-      {notice ? <p className="landing-scan-notice" role="status">{notice}</p> : null}
       <main id="main-content">
         <PageTransition transitionKey={location.pathname}><Outlet /></PageTransition>
       </main>
