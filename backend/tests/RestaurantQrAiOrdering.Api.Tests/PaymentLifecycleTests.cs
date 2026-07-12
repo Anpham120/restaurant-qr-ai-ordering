@@ -4,7 +4,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using RestaurantQrAiOrdering.Api.Data;
 using Xunit;
 
 namespace RestaurantQrAiOrdering.Api.Tests;
@@ -27,7 +31,8 @@ public sealed class PaymentLifecycleTests : IClassFixture<RestaurantApiFactory>
         var adminToken = await SignInAsAdminAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
-        var order = await CreateDineInOrderAsync(client);
+        var tableIndex = command == "confirm" ? 0 : 1;
+        var order = await CreateDineInOrderAsync(client, tableIndex);
         await RequestPaymentAsync(client, order.OrderCode, order.AccessToken);
         await ConfirmPaymentAsync(client, order.OrderCode, "Initial confirmation.");
         await RefundPaymentAsync(client, order.OrderCode, "Refund before regression check.");
@@ -57,12 +62,14 @@ public sealed class PaymentLifecycleTests : IClassFixture<RestaurantApiFactory>
         return body.RootElement.GetProperty("accessToken").GetString()!;
     }
 
-    private static async Task<(string OrderCode, string AccessToken)> CreateDineInOrderAsync(HttpClient client)
+    private static async Task<(string OrderCode, string AccessToken)> CreateDineInOrderAsync(
+        HttpClient client,
+        int tableIndex)
     {
         using var tablesResponse = await client.GetAsync("/api/admin/tables");
         tablesResponse.EnsureSuccessStatusCode();
         using var tables = await ReadJsonAsync(tablesResponse);
-        var table = tables.RootElement.GetProperty("items")[0];
+        var table = tables.RootElement.GetProperty("items").EnumerateArray().ElementAt(tableIndex);
         var tableCode = table.GetProperty("tableCode").GetString()!;
         var qrToken = table.GetProperty("qrToken").GetString()!;
 
@@ -171,6 +178,7 @@ public sealed class RestaurantApiFactory : WebApplicationFactory<Program>
 {
     public const string AdminEmail = "payment-test-admin@local.test";
     public const string AdminPassword = "PaymentTestPass!2026";
+    private readonly string databaseName = $"RestaurantTests-{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -183,6 +191,13 @@ public sealed class RestaurantApiFactory : WebApplicationFactory<Program>
                 ["BOOTSTRAP_ADMIN_EMAIL"] = AdminEmail,
                 ["BOOTSTRAP_ADMIN_PASSWORD"] = AdminPassword
             });
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<DbContextOptions<RestaurantDbContext>>();
+            services.RemoveAll<RestaurantDbContext>();
+            services.AddDbContext<RestaurantDbContext>(options =>
+                options.UseInMemoryDatabase(databaseName));
         });
     }
 }

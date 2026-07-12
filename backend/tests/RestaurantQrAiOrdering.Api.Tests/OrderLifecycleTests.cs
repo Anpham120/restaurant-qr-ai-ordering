@@ -29,7 +29,8 @@ public sealed class OrderLifecycleTests : IClassFixture<RestaurantApiFactory>
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var order = await CreateDineInOrderAsync(client);
+        var tableIndex = terminalStatus == OrderStatus.Completed ? 0 : 1;
+        var order = await CreateDineInOrderAsync(client, tableIndex);
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
@@ -65,12 +66,12 @@ public sealed class OrderLifecycleTests : IClassFixture<RestaurantApiFactory>
         return body.RootElement.GetProperty("accessToken").GetString()!;
     }
 
-    private static async Task<CreatedOrder> CreateDineInOrderAsync(HttpClient client)
+    private static async Task<CreatedOrder> CreateDineInOrderAsync(HttpClient client, int tableIndex)
     {
         using var tablesResponse = await client.GetAsync("/api/admin/tables");
         tablesResponse.EnsureSuccessStatusCode();
         using var tables = await ReadJsonAsync(tablesResponse);
-        var table = tables.RootElement.GetProperty("items")[0];
+        var table = tables.RootElement.GetProperty("items").EnumerateArray().ElementAt(tableIndex);
         var tableCode = table.GetProperty("tableCode").GetString()!;
         var qrToken = table.GetProperty("qrToken").GetString()!;
 
