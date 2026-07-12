@@ -71,7 +71,6 @@ export function ChatbotPage() {
 
     chatApi
       .createSession({
-        tableCode: orderContext.tableCode,
         tableSessionId: orderContext.sessionId,
       })
       .then((session) => {
@@ -121,7 +120,6 @@ export function ChatbotPage() {
     try {
       const response = await chatApi.sendMessage(chatSessionId, {
         content,
-        tableCode,
       }, chatAccessToken);
 
       setMessages((current) => [...current, response.message]);
@@ -188,6 +186,15 @@ export function ChatbotPage() {
             {messages.map((message) => (
               <ChatMessageBubble key={message.id} message={message} />
             ))}
+            {messages.length <= 1 ? (
+              <div className="cmc-chat-quick-prompts cmc-chat-quick-prompts-inline" aria-label="Gợi ý nhanh">
+                {quickPrompts.map((prompt) => (
+                  <button key={prompt} type="button" onClick={() => sendMessage(undefined, prompt)}>
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {suggestedActions.length > 0 ? (
               <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món">
                 {suggestedActions.map((action) => (
@@ -214,6 +221,12 @@ export function ChatbotPage() {
                 <span />
               </div>
             ) : null}
+            {cartNotice ? (
+              <p className="cmc-chat-notice">
+                {cartNotice} <Link to={orderingPath(orderContext.sessionId, "cart")}>Xem giỏ hàng</Link>
+              </p>
+            ) : null}
+            {errorMessage ? <p className="cmc-chat-error">{errorMessage}</p> : null}
           </div>
 
           <form className="cmc-chat-composer" onSubmit={(event) => sendMessage(event)}>
@@ -231,26 +244,6 @@ export function ChatbotPage() {
           </form>
         </section>
 
-        <aside className="cmc-chat-side-panel" aria-label="Gợi ý nhanh">
-          <div>
-            <p className="cmc-chat-muted">Gợi ý nhanh</p>
-            <div className="cmc-chat-quick-prompts">
-              {quickPrompts.map((prompt) => (
-                <button key={prompt} type="button" onClick={() => sendMessage(undefined, prompt)}>
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {cartNotice ? (
-            <p className="cmc-chat-notice">
-              {cartNotice} <Link to={orderingPath(orderContext.sessionId, "cart")}>Xem giỏ hàng</Link>
-            </p>
-          ) : null}
-
-          {errorMessage ? <p className="cmc-chat-error">{errorMessage}</p> : null}
-        </aside>
       </div>
     </div>
   );
