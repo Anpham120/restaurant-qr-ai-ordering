@@ -15,7 +15,7 @@ const itemStatusLabel: Record<string, string> = {
 const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
 
 export function SessionOrdersPage() {
-  const { context, refresh } = useOrderingSession();
+  const { context } = useOrderingSession();
   const [orders, setOrders] = useState<OrderTrackingOrder[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,6 @@ export function SessionOrdersPage() {
     setLoading(true);
     setError("");
     try {
-      await refresh();
       const nextOrders = await getTableSessionOrders(context.sessionId, context.sessionToken);
       setOrders(nextOrders);
     } catch (cause) {
