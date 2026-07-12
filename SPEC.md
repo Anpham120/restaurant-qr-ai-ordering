@@ -42,6 +42,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V18: ∀ cancelled settlement → promotion, loyalty phone, method, and discount cleared before ordering resumes.
 - V19: ∀ paid TableSession → reports count one paid Table Invoice, while item sales aggregate all non-cancelled Order Rounds.
 - V20: ∀ concurrent loyalty accrual → member rowversion or unique conflict prevents lost increments; caller receives conflict, never silent overwrite.
+- V21: ∀ PR→main → required `frontend-build`, `backend-test`, and `docker-compose-config` checks instantiate and pass before merge.
 
 ## §T
 
@@ -100,3 +101,4 @@ B28|2026-07-13|loyalty accrual used unguarded read-modify-write|V20
 B29|2026-07-13|settlement migration rollback made `order_id` non-null before removing invoice-targeted payments|migration down cleanup
 B30|2026-07-13|settlement completion bypassed order history and realtime notification|OrderStore staged completion
 B31|2026-07-13|completion audit test referenced `Status` instead of `OrderStatusHistory.ToStatus`|compile preflight
+B32|2026-07-13|CI deployment env entries were over-indented, invalidating workflow before required jobs instantiated|V21
