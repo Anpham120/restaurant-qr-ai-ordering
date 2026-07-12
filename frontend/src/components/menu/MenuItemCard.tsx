@@ -89,9 +89,7 @@ export function MenuItemCard({
             <span className="cmc-card-price-value" aria-hidden="true">{formattedPrice}</span>
             <span className="cmc-card-price-unit" aria-hidden="true">đ</span>
           </strong>
-          {readOnly ? (
-            <span className="cmc-card-preview-note">Quét QR tại bàn để gọi món</span>
-          ) : quantity && quantity > 0 ? (
+          {readOnly ? null : quantity && quantity > 0 ? (
             <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>
               <button onClick={() => onRemove?.(item.id)} type="button">
                 -
