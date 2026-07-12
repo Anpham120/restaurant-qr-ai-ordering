@@ -14,6 +14,7 @@ public static class MenuTableApiRegistration
         app.MapMenuEndpoints();
         app.MapCategoryEndpoints();
         app.MapTableEndpoints();
+        app.MapTableInvoiceEndpoints();
 
         return app;
     }

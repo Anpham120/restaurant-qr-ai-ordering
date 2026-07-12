@@ -29,6 +29,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
     public DbSet<TableSession> TableSessions => Set<TableSession>();
+    public DbSet<TableInvoice> TableInvoices => Set<TableInvoice>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
@@ -50,6 +51,7 @@ public class RestaurantDbContext : DbContext
         ConfigureMenuItem(modelBuilder);
         ConfigureRestaurantTable(modelBuilder);
         ConfigureTableSession(modelBuilder);
+        ConfigureTableInvoice(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigureOrderStatusHistory(modelBuilder);
@@ -272,6 +274,42 @@ public class RestaurantDbContext : DbContext
             entity.HasIndex(e => e.QrToken);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ExpiresAt);
+        });
+    }
+
+    private static void ConfigureTableInvoice(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableInvoice>(entity =>
+        {
+            entity.ToTable("table_invoices");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.InvoiceCode).HasColumnName("invoice_code").HasMaxLength(30).IsRequired();
+            entity.Property(e => e.TableSessionId).HasColumnName("table_session_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 2);
+            entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 2);
+            entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2);
+            entity.Property(e => e.PromotionId).HasColumnName("promotion_id").HasMaxLength(50);
+            entity.Property(e => e.PromotionCode).HasColumnName("promotion_code").HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneNumber).HasColumnName("customer_phone_number").HasMaxLength(30);
+            entity.Property(e => e.Method).HasColumnName("method").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            entity.HasOne(e => e.TableSession)
+                .WithOne(session => session.Invoice)
+                .HasForeignKey<TableInvoice>(e => e.TableSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Promotion)
+                .WithMany()
+                .HasForeignKey(e => e.PromotionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.InvoiceCode).IsUnique();
+            entity.HasIndex(e => e.TableSessionId).IsUnique();
+            entity.HasIndex(e => e.Status);
         });
     }
 

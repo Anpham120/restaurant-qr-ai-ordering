@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -170,9 +168,9 @@ public static partial class TableEndpoints
             IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
-            if (!TryGetTableSessionToken(request, out var suppliedToken))
+            if (!TableSessionCapability.TryRead(request, out var suppliedToken))
             {
-                return UnauthorizedSessionCapability();
+                return TableSessionCapability.Unauthorized();
             }
 
             var session = await db.TableSessions
@@ -184,9 +182,9 @@ public static partial class TableEndpoints
                 return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
             }
 
-            if (!IsValidTableSessionToken(session, suppliedToken, jwtOptions.Value.SigningKey))
+            if (!TableSessionCapability.IsValid(session, suppliedToken, jwtOptions.Value.SigningKey))
             {
-                return UnauthorizedSessionCapability();
+                return TableSessionCapability.Unauthorized();
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -211,9 +209,9 @@ public static partial class TableEndpoints
             IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
-            if (!TryGetTableSessionToken(request, out var suppliedToken))
+            if (!TableSessionCapability.TryRead(request, out var suppliedToken))
             {
-                return UnauthorizedSessionCapability();
+                return TableSessionCapability.Unauthorized();
             }
 
             var tableSession = await db.TableSessions
@@ -223,9 +221,9 @@ public static partial class TableEndpoints
                 return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
             }
 
-            if (!IsValidTableSessionToken(tableSession, suppliedToken, jwtOptions.Value.SigningKey))
+            if (!TableSessionCapability.IsValid(tableSession, suppliedToken, jwtOptions.Value.SigningKey))
             {
-                return UnauthorizedSessionCapability();
+                return TableSessionCapability.Unauthorized();
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -458,73 +456,7 @@ public static partial class TableEndpoints
             session.ExpiresAt,
             session.ClosedAt,
             IsExpired(session, now),
-            CreateTableSessionToken(session, signingKey));
-    }
-
-    private static bool TryGetTableSessionToken(HttpRequest request, out string token)
-    {
-        token = string.Empty;
-        if (!request.Headers.TryGetValue("X-Table-Session-Token", out var values) || values.Count != 1)
-        {
-            return false;
-        }
-
-        var supplied = values[0];
-        if (string.IsNullOrWhiteSpace(supplied))
-        {
-            return false;
-        }
-
-        token = supplied;
-        return true;
-    }
-
-    private static bool IsValidTableSessionToken(
-        TableSession session,
-        string suppliedToken,
-        string signingKey)
-    {
-        byte[] suppliedSignature;
-        try
-        {
-            suppliedSignature = Base64Url.Decode(suppliedToken);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-
-        var expectedSignature = CreateTableSessionSignature(session, signingKey);
-        return CryptographicOperations.FixedTimeEquals(expectedSignature, suppliedSignature);
-    }
-
-    private static string CreateTableSessionToken(TableSession session, string signingKey)
-    {
-        return Base64Url.Encode(CreateTableSessionSignature(session, signingKey));
-    }
-
-    private static byte[] CreateTableSessionSignature(TableSession session, string signingKey)
-    {
-        if (string.IsNullOrWhiteSpace(signingKey))
-        {
-            throw new InvalidOperationException("JWT signing key is required for table session capabilities.");
-        }
-
-        var signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
-        var purpose = Encoding.UTF8.GetBytes("restaurant-qr-ai-ordering:table-session-capability:v1");
-        var purposeKey = HMACSHA256.HashData(signingKeyBytes, purpose);
-        var payload = Encoding.UTF8.GetBytes(
-            $"{session.Id}\n{session.OpenedAt.UtcDateTime.Ticks}\n{session.ExpiresAt.UtcDateTime.Ticks}");
-
-        return HMACSHA256.HashData(purposeKey, payload);
-    }
-
-    private static IResult UnauthorizedSessionCapability()
-    {
-        return ApiErrorFactory.Result(
-            StatusCodes.Status401Unauthorized,
-            "TABLE_SESSION_TOKEN_INVALID",
-            "A valid table session token is required.");
+            TableSessionCapability.CreateToken(session, signingKey));
     }
 
     private static bool IsExpired(TableSession session, DateTimeOffset now)
