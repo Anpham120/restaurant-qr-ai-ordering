@@ -52,6 +52,7 @@ class AiAssistantService:
                 self._config.api_key,
                 self._config.model,
                 self._config.timeout_seconds,
+                self._config.max_retry,
             )
             try:
                 raw_answer = await client.complete(
