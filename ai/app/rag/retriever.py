@@ -4,6 +4,7 @@ import math
 import re
 import unicodedata
 from dataclasses import dataclass
+from typing import Protocol
 
 from app.rag.knowledge_base import KnowledgeChunk
 
@@ -23,6 +24,34 @@ TAG_BOOST = 1.0
 class RetrievedChunk:
     chunk: KnowledgeChunk
     score: float
+
+
+@dataclass(frozen=True)
+class RetrievalFilters:
+    """Hard metadata constraints applied before a retriever ranks candidates."""
+
+    allowed_source_ids: frozenset[str] | None = None
+    excluded_source_ids: frozenset[str] = frozenset()
+    required_tags: frozenset[str] = frozenset()
+
+    def allows(self, chunk: KnowledgeChunk) -> bool:
+        if self.allowed_source_ids is not None and chunk.source not in self.allowed_source_ids:
+            return False
+        if chunk.source in self.excluded_source_ids:
+            return False
+        return self.required_tags.issubset(chunk.tags)
+
+
+class Retriever(Protocol):
+    """Common contract for lexical, dense, and hybrid retrieval."""
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        *,
+        filters: RetrievalFilters | None = None,
+    ) -> list[RetrievedChunk]: ...
 
 
 class BM25Retriever:
@@ -60,7 +89,16 @@ class BM25Retriever:
             for token in token_set:
                 self._doc_freq[token] = self._doc_freq.get(token, 0) + 1
 
-    def search(self, query: str, top_k: int = 5) -> list[RetrievedChunk]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        *,
+        filters: RetrievalFilters | None = None,
+    ) -> list[RetrievedChunk]:
+        if top_k <= 0:
+            return []
+
         query_tokens = _tokenize_set(query)
         if not query_tokens:
             return []
@@ -68,6 +106,9 @@ class BM25Retriever:
         scored: list[RetrievedChunk] = []
 
         for idx, chunk in enumerate(self._chunks):
+            if filters is not None and not filters.allows(chunk):
+                continue
+
             doc_tokens = self._chunk_tokens[idx]
             doc_token_set = self._chunk_token_sets[idx]
 
@@ -103,7 +144,7 @@ class BM25Retriever:
 
             scored.append(RetrievedChunk(chunk=chunk, score=round(score, 4)))
 
-        return sorted(scored, key=lambda item: item.score, reverse=True)[:top_k]
+        return sorted(scored, key=lambda item: (-item.score, item.chunk.source))[:top_k]
 
 
 # Keep the old class name as an alias for backward compatibility

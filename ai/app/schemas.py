@@ -3,9 +3,15 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class ChatHistorySuggestedAction(BaseModel):
+    menu_item_id: str
+    name: str | None = None
+
+
 class ChatHistoryItem(BaseModel):
     role: str = Field(default="user")
     content: str
+    suggested_cart_actions: list[ChatHistorySuggestedAction] = Field(default_factory=list)
 
 
 class MenuItemContext(BaseModel):

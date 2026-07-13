@@ -59,6 +59,9 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V35: ∀ explicit live category/tag catalog request → backend returns a deterministic catalog built only from matched live candidates; LLM free text cannot introduce menu items.
 - V36: ∀ request to recommend additional dishes in one chat session → response excludes every live menu item previously suggested by that session and honours a requested count from 1 to 8 (default 3).
 - V37: ∀ persisted assistant recommendation → every returned/history message retains its actionable menu cards; an unambiguous `xem chi tiết` follow-up resolves to the latest suggested live items instead of unrelated retrieval.
+- V38: ∀ research benchmark case → expected document IDs ∩ forbidden document IDs = ∅; family source and materialized JSONL remain identical; dev/test artifacts are physically separate and frozen test canonical text bytes are hash-gated before label parsing; query-family split leakage = 0; official menu corpus = exactly 91 canonical items including drinks, with production-seed parity for name/price/description.
+- V39: ∀ Python-RAG menu recommendation → live available menu is ranked by configured BM25/dense/hybrid stack; category/tag constraints apply before ranking; previously suggested or explicitly rejected IDs cannot become cards; explicit count 1..8 is filled without duplicate cards when enough candidates exist.
+- V40: ∀ production hybrid startup → exact multilingual-E5 revision is packaged in the AI image and reused across KB/live-menu indexes; unavailable dense runtime degrades to observable BM25 fallback instead of failing the AI service.
 
 ## §T
 
@@ -86,6 +89,7 @@ T20|x|ground AI menu retrieval by live category/tag; add quality/latency regress
 T21|x|return deterministic live catalog for explicit category/tag requests; regression against LLM text leakage|V35,I.ai,I.api
 T22|x|exclude previously suggested session dishes from deterministic additional recommendations; honor 1-8 requested count|V36,I.ai,I.api
 T23|x|persist recommendation cards per chat message and resolve latest-card detail follow-up|V37,I.ai,I.api,I.ui
+T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusions and reusable Gemini client into production AI|V39,V40,I.ai,I.api
 
 ## §B
 
@@ -138,3 +142,10 @@ B45|2026-07-13|AI prompt omitted live category name and passed arbitrary first m
 B46|2026-07-13|LLM could still violate candidate-only text instruction even though its action IDs were validated, returning `Khai vị` dishes for the live `Hải sản` category|V35
 B47|2026-07-13|cross-turn recommendation only deduplicated lines inside one LLM response; older AI suggestions were not a deterministic exclusion set|V36
 B48|2026-07-13|deterministic menu replies returned no suggested actions and history omitted persisted actions, so cards vanished and `xem chi tiết` lost its referent|V37
+B49|2026-07-13|broad healthy and sweet tag selectors overlapped, so rejection benchmark labels marked the same menu documents as both expected and forbidden|V38
+B50|2026-07-13|research corpus used a stale 84-item JSON snapshot and omitted the 7-item Bia & Rượu category present in the production seed|V38
+B51|2026-07-13|dev benchmark loaded a combined 360-case artifact before filtering, so frozen test labels were parsed during tuning|V38
+B52|2026-07-13|new drink records enriched canonical descriptions with unsupported serving sizes, alcohol percentages and ingredients absent from the production seed|V38
+B53|2026-07-13|Python RAG rebuilt a lexical menu index and Gemini client per request while backend history omitted action IDs and long-session memory omitted suggestions/rejections, allowing repeated cards and inconsistent requested counts|V39,V40
+B54|2026-07-13|the customer phrase `đồ uống có cồn` did not exactly match category `Bia & Rượu`; both backend deterministic grounding and Python hybrid retrieval admitted unrelated drinks/foods|V39
+B55|2026-07-13|frozen text artifacts were hashed from checkout bytes, so Windows CRLF and Linux LF produced different hashes for identical benchmark content and failed CI|V38

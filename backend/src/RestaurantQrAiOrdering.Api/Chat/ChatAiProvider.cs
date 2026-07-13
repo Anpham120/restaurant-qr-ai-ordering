@@ -196,7 +196,12 @@ public sealed class GeminiChatProvider : IChatAiProvider
                 .Select(message => new
                 {
                     role = message.Role,
-                    content = message.Content
+                    content = message.Content,
+                    suggested_cart_actions = message.SuggestedCartActions.Select(action => new
+                    {
+                        menu_item_id = action.MenuItemId,
+                        name = action.Name
+                    })
                 }),
             session_memory = request.SessionMemory,
             menu_items = request.AvailableMenuItems.Select(item => new
@@ -538,7 +543,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         }
 
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
-        var sessionMemory = BuildSessionMemory(priorHistory);
+        var sessionMemory = BuildSessionMemory(priorHistory, availableMenuItems);
         var providerResult = await aiProvider.GenerateAsync(
             new ChatAiRequest(userMessage, priorHistory, availableMenuItems, tableCode, sessionMemory),
             cancellationToken);
@@ -810,14 +815,24 @@ public sealed class ChatAssistantService : IChatAssistantService
         return outOfScopeTerms.Any(term => normalizedMessage.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string BuildSessionMemory(IReadOnlyList<ChatMessageSnapshot> history)
+    private static string BuildSessionMemory(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
-        var olderTurnCount = Math.Max(0, history.Count - 6);
-        if (olderTurnCount == 0)
+        var memoryLines = new List<string>();
+        var suggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
+        if (suggestedItemIds.Count > 0)
         {
-            return string.Empty;
+            memoryLines.Add($"SUGGESTED_MENU_ITEM_IDS: {string.Join(',', suggestedItemIds.OrderBy(id => id))}");
         }
 
+        var rejectedItemIds = GetRejectedMenuItemIds(history, availableMenuItems);
+        if (rejectedItemIds.Count > 0)
+        {
+            memoryLines.Add($"REJECTED_MENU_ITEM_IDS: {string.Join(',', rejectedItemIds.OrderBy(id => id))}");
+        }
+
+        var olderTurnCount = Math.Max(0, history.Count - 6);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var remembered = new List<string>();
         foreach (var message in history.Take(olderTurnCount).Reverse())
@@ -838,9 +853,63 @@ public sealed class ChatAssistantService : IChatAssistantService
         }
 
         remembered.Reverse();
-        var memory = string.Join("\n", remembered.Select(item => $"- {item}"));
-        return memory.Length <= 1200 ? memory : memory[..1200];
+        memoryLines.AddRange(remembered.Select(item => $"- {item}"));
+        var memory = string.Join("\n", memoryLines);
+        return memory.Length <= 12000 ? memory : memory[..12000];
     }
+
+    private static IReadOnlySet<string> GetRejectedMenuItemIds(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
+    {
+        var rejectedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlySet<string> latestAssistantItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var message in history)
+        {
+            if (message.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
+            {
+                var ids = new HashSet<string>(
+                    message.SuggestedCartActions.Select(action => action.MenuItemId),
+                    StringComparer.OrdinalIgnoreCase);
+                var content = Normalize(message.Content);
+                foreach (var item in availableMenuItems)
+                {
+                    if (content.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase))
+                    {
+                        ids.Add(item.Id);
+                    }
+                }
+
+                latestAssistantItemIds = ids;
+                continue;
+            }
+
+            if (message.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
+                && IsExplicitSuggestionRejection(Normalize(message.Content)))
+            {
+                rejectedItemIds.UnionWith(latestAssistantItemIds);
+            }
+        }
+
+        return rejectedItemIds;
+    }
+
+    private static bool IsExplicitSuggestionRejection(string normalizedMessage) =>
+        ContainsAny(
+            normalizedMessage,
+            "bỏ qua",
+            "bo qua",
+            "đừng gợi ý",
+            "dung goi y",
+            "không chọn",
+            "khong chon",
+            "không lấy",
+            "khong lay",
+            "không muốn món",
+            "khong muon mon",
+            "không thích",
+            "khong thich");
 
     private static string Normalize(string value)
     {

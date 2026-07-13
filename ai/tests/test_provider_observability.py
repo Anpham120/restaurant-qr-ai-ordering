@@ -1,7 +1,6 @@
 import asyncio
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from app.config import AiServiceConfig
 from app.services.assistant import AiAssistantService
@@ -23,16 +22,11 @@ class ProviderObservabilityTests(unittest.TestCase):
             max_retry=1,
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=1,
+            retrieval_method="bm25",
         )
-        service = AiAssistantService(config)
+        service = AiAssistantService(config, llm_client=_UnavailableProviderClient())
 
-        with (
-            patch(
-                "app.services.assistant.GeminiClient",
-                return_value=_UnavailableProviderClient(),
-            ),
-            self.assertLogs("app.services.assistant", level="ERROR") as captured,
-        ):
+        with self.assertLogs("app.services.assistant", level="ERROR") as captured:
             response = asyncio.run(
                 service.chat(
                     {

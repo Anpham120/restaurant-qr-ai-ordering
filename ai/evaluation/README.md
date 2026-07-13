@@ -1,28 +1,19 @@
 # AI/RAG Evaluation
 
-Thư mục này chứa bộ câu hỏi vàng để kiểm tra Python AI service.
+Research package dùng chung cho BM25, neural embedding và hybrid:
 
-Quy trình nghiên cứu đầy đủ nằm ở `../../docs/AI_RAG_RESEARCH_DESIGN.md`.
-Notebook protocol để chạy/ghi kết quả thí nghiệm nằm ở `../notebooks/rag_research_protocol.py`.
+- `datasets/query_families.dev.v1.json`: nguồn authoring chỉ dành cho tuning;
+- `datasets/retrieval_cases.dev.v1.jsonl`: case-level artifact của dev split;
+- `datasets/query_families.test.v1.json` và `retrieval_cases.test.v1.jsonl`:
+  frozen test artifacts được bảo vệ bằng SHA-256 và không được load trong dev-run;
+- `materialize_research_datasets.py`: materialize dev mặc định; test cần cờ xác nhận;
+- `research_corpus.py`: snapshot đủ 91 món (bao gồm đồ uống) và knowledge chunks;
+- `retrieval_metrics.py`: Hit/Precision/Recall/MRR/nDCG theo cutoff;
+- `behavior_metrics.py`: guardrail và forbidden-suggestion metrics;
+- `statistical_tests.py`: bootstrap, McNemar, Wilcoxon và Holm;
+- `run_research_baseline.py`: BM25 baseline trên dev split;
+- `run_retrieval_experiment.py`: so sánh BM25, multilingual E5 và hybrid RRF
+  trên cùng corpus/split/metrics.
 
-## Mục Tiêu Đánh Giá
-
-- Retrieval accuracy: câu hỏi có lấy đúng tài liệu liên quan không.
-- Faithfulness: câu trả lời có bám context không.
-- Safety: AI có tránh tự tạo đơn, tự thêm giỏ, bịa món, bịa giá không.
-- Usefulness: câu trả lời có giúp khách thao tác tốt hơn không.
-
-## Cách Chạy Thủ Công
-
-1. Chạy service Python.
-2. Gửi từng câu trong `golden_questions.csv` vào `POST /v1/chat`.
-3. Kiểm tra `expected_sources` có xuất hiện trong `retrieved_sources`.
-4. Kiểm tra `expected_guardrail_flags` nếu có.
-5. Đánh dấu pass/fail và ghi lỗi vào báo cáo tuần.
-
-## Chỉ Số Đề Xuất
-
-- Retrieval hit rate@5.
-- Guardrail precision.
-- Hallucination rate.
-- Human acceptance rate.
+Quy trình chạy, cổng dữ liệu và quy tắc không mở test split nằm tại
+`../../docs/AI_EVALUATION_RUNBOOK.md`.

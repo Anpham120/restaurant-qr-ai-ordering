@@ -9,7 +9,7 @@ Hệ thống sử dụng:
 - **Model:** Gemini 3.5 Flash.
 - **Cách truy cập model:** Google Gemini API chính thức.
 - **AI service:** Python FastAPI service trong thư mục `ai/`.
-- **Knowledge grounding:** RAG từ `ai/knowledge-base/`.
+- **Knowledge grounding:** hybrid RAG (BM25 + multilingual E5 + RRF) từ `ai/knowledge-base/` và thực đơn live 91 món, bao gồm đồ uống.
 - **Backend nghiệp vụ:** .NET backend vẫn kiểm tra menu, giá, trạng thái món, giỏ hàng và đơn hàng.
 
 Mô tả cách gọi model:
@@ -23,6 +23,7 @@ Customer Web
   -> .NET Backend API
     -> Python AI Service
       -> RAG retriever
+        -> BM25 + multilingual E5 + reciprocal-rank fusion
       -> Google Gemini API
         -> Gemini 3.5 Flash
 ```
@@ -48,13 +49,14 @@ AI_MODEL=gemini-3.5-flash
 GEMINI_API_KEY=<secret>
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 RAG_TOP_K=5
+RAG_RETRIEVAL_METHOD=hybrid
 ```
 
 Không commit `GEMINI_API_KEY`, `.env` thật hoặc log chứa secret.
 
 ## 4. RAG Là Gì Trong Dự Án Này?
 
-RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả lời. Gemini không tự đoán menu. Service Python lấy context từ:
+RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả lời. Gemini không tự đoán menu. Service Python dùng hybrid retrieval đã được benchmark trên tập dev, đồng thời áp bộ lọc cứng theo danh mục/tag và trạng thái còn bán. Service lấy context từ:
 
 - menu và tag món;
 - chính sách đặt món, mang về, thanh toán;
@@ -96,7 +98,7 @@ Python service trả về:
 {
   "content": "Câu trả lời tiếng Việt có dấu",
   "provider_available": true,
-  "model": "gh/gemini-3.1-pro-preview",
+  "model": "gemini-3.5-flash",
   "retrieved_sources": [
     {
       "source": "menu.md",

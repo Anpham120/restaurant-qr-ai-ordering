@@ -20,6 +20,7 @@ def health() -> dict:
         "provider": config.provider,
         "model": config.model,
         "llm_enabled": config.llm_enabled,
+        "retrieval_method": assistant.retrieval_method,
     }
 
 

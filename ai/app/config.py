@@ -18,6 +18,7 @@ class AiServiceConfig:
     max_retry: int
     knowledge_base_path: Path
     top_k: int
+    retrieval_method: str = "hybrid"
 
     @property
     def llm_enabled(self) -> bool:
@@ -39,4 +40,5 @@ def load_config() -> AiServiceConfig:
         max_retry=int(os.getenv("AI_MAX_RETRY", "1")),
         knowledge_base_path=Path(os.getenv("RAG_KNOWLEDGE_BASE_PATH", "knowledge-base")),
         top_k=int(os.getenv("RAG_TOP_K", "5")),
+        retrieval_method=os.getenv("RAG_RETRIEVAL_METHOD", "hybrid"),
     )
