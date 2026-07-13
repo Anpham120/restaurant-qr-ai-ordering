@@ -1,18 +1,21 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, ReceiptText, ShoppingBasket } from "lucide-react";
 import { clearMenuCart, loadMenuCart, saveMenuCart } from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
 import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { createOrder } from "../../services/orderService";
+import { createOrder, getTableInvoice } from "../../services/orderService";
 import { validateDineInSession } from "../../services/tableSessionService";
 import type {
   CreateOrderRequest,
   MenuCart,
   MenuItem,
+  TableInvoice,
 } from "../../types";
 import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
+import { buildCartSessionSummary } from "../../ordering/cartSessionSummary";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
@@ -55,6 +58,9 @@ export function CustomerCartPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [invoice, setInvoice] = useState<TableInvoice | null>(null);
+  const [invoiceError, setInvoiceError] = useState("");
+  const [isInvoiceLoading, setIsInvoiceLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -76,17 +82,52 @@ export function CustomerCartPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    setIsInvoiceLoading(true);
+    setInvoiceError("");
+
+    getTableInvoice(orderContext.sessionId, orderContext.sessionToken)
+      .then((nextInvoice) => {
+        if (isMounted) {
+          setInvoice(nextInvoice);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setInvoice(null);
+          setInvoiceError("Chưa tải được tổng các món đã gọi trong phiên.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsInvoiceLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderContext.sessionId, orderContext.sessionToken]);
+
   const selectedItems = useMemo(
     () => getCartItems(cart, customerMenu.items),
     [cart, customerMenu.items],
   );
   const unavailableItems = selectedItems.filter((item) => !item.isAvailable);
-  const totalPrice = selectedItems.reduce(
-    (total, item) => total + (cart[item.id] ?? 0) * item.price,
-    0,
+  const summary = useMemo(
+    () => buildCartSessionSummary(
+      invoice,
+      selectedItems.map((item) => ({
+        quantity: cart[item.id] ?? 0,
+        unitPrice: item.price,
+      })),
+    ),
+    [cart, invoice, selectedItems],
   );
   const hasActiveSession = true;
   const tableMenuPath = `/table-session/${orderContext.sessionId}/menu`;
+  const tableOrdersPath = `/table-session/${orderContext.sessionId}/orders`;
   const canSubmit =
     hasActiveSession &&
     selectedItems.length > 0 &&
@@ -167,10 +208,10 @@ export function CustomerCartPage() {
         <div>
           <p className="cmc-kicker">Giỏ hàng tại bàn</p>
           <h2>
-            Kiểm tra món và <span>gửi đơn cho bếp</span>
+            Rà soát món mới, <span>nắm trọn tổng phiên</span>
           </h2>
           <p>
-            Đơn chỉ được tạo từ phiên QR đang mở tại bàn. Bếp và nhân viên sẽ nhận đúng mã bàn sau khi khách xác nhận.
+            Món đã gọi và món đang chọn được tách riêng, giúp bạn kiểm tra đúng số tiền trước mỗi lần gửi bếp.
           </p>
           <div className="cmc-hero-actions">
             <Link className="cmc-secondary-link" to={tableMenuPath}>
@@ -192,8 +233,11 @@ export function CustomerCartPage() {
       <div className="cmc-checkout-layout">
         <div className="cmc-cart-panel" aria-label="Chi tiết giỏ hàng">
           <div className="cmc-section-title">
-            <h3>Món đã chọn</h3>
-            <span>{selectedItems.length} món</span>
+            <div>
+              <small>Lần gọi món tiếp theo</small>
+              <h3>Món đang chọn</h3>
+            </div>
+            <span>{summary.selectedQuantity} phần</span>
           </div>
 
           {selectedItems.length === 0 ? (
@@ -210,6 +254,9 @@ export function CustomerCartPage() {
                     </span>
                     {!item.isAvailable ? <em>Tạm hết, không thể đặt món này</em> : null}
                   </div>
+                  <strong className="cmc-cart-line-total">
+                    {formatVnd((cart[item.id] ?? 0) * item.price)}
+                  </strong>
                   <div className="cmc-stepper">
                     <button
                       onClick={() => updateQuantity(item.id, (cart[item.id] ?? 0) - 1)}
@@ -232,8 +279,8 @@ export function CustomerCartPage() {
           )}
 
           <div className="cmc-cart-total">
-            <span>Tạm tính</span>
-            <strong>{formatVnd(totalPrice)}</strong>
+            <span>Tạm tính món đang chọn</span>
+            <strong>{formatVnd(summary.cartSubtotal)}</strong>
           </div>
 
           {unavailableItems.length > 0 ? (
@@ -244,24 +291,65 @@ export function CustomerCartPage() {
         </div>
 
         <form className="cmc-checkout-panel" onSubmit={submitOrder}>
-          <div className="cmc-section-title">
-            <h3>Xác nhận gọi món</h3>
-            <span>Ăn tại bàn</span>
+          <div className="cmc-bill-heading">
+            <span className="cmc-bill-icon" aria-hidden="true">
+              <ReceiptText size={22} />
+            </span>
+            <div>
+              <small>Phiếu bàn {orderContext.tableCode ?? "--"}</small>
+              <h3>Tổng quan phiên</h3>
+            </div>
           </div>
 
-          <div className="cmc-checkout-note">
-            <strong>Bàn {orderContext.tableCode ?? "--"}</strong>
-            <span>Phiên QR: {orderContext.sessionId ? "đang hoạt động" : "chưa có"}</span>
+          <div className="cmc-session-bill" aria-live="polite">
+            <div className="cmc-bill-row">
+              <span>
+                Đã gọi trong phiên
+                <small>{summary.orderRoundCount} lần gọi món</small>
+              </span>
+              <strong>{isInvoiceLoading ? "Đang tải…" : invoiceError ? "--" : formatVnd(summary.orderedSubtotal)}</strong>
+            </div>
+            <div className="cmc-bill-row cmc-bill-row--cart">
+              <span>
+                Đang chọn thêm
+                <small>{summary.selectedQuantity} phần chưa gửi bếp</small>
+              </span>
+              <strong>{formatVnd(summary.cartSubtotal)}</strong>
+            </div>
+            <div className="cmc-bill-divider" aria-hidden="true" />
+            <div className="cmc-bill-total">
+              <span>Tổng sau khi gửi</span>
+              <strong>{isInvoiceLoading ? "Đang tải…" : invoiceError ? "--" : formatVnd(summary.projectedTotal)}</strong>
+            </div>
           </div>
 
-          <p className="cmc-checkout-note">
-            Mã ưu đãi, tích điểm và phương thức thanh toán sẽ được chọn khi bạn yêu cầu thanh toán toàn bộ phiên bàn.
+          {invoiceError ? (
+            <p className="cmc-inline-warning" role="status">
+              {invoiceError} Bạn vẫn có thể gửi món đang chọn.
+            </p>
+          ) : null}
+
+          <Link className="cmc-session-orders-link" to={tableOrdersPath}>
+            <ShoppingBasket aria-hidden="true" size={18} />
+            Xem món đã gọi
+            <ArrowRight aria-hidden="true" size={17} />
+          </Link>
+
+          <p className="cmc-checkout-footnote">
+            Ưu đãi, tích điểm và thanh toán chỉ áp dụng khi bạn yêu cầu thanh toán toàn bộ phiên bàn.
           </p>
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
 
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
-            {isSubmitting ? "Đang gửi món..." : "Gửi món tới bếp"}
+            {isSubmitting ? (
+              "Đang gửi món..."
+            ) : (
+              <>
+                <span>Gửi món tới bếp</span>
+                <small>{summary.selectedQuantity} phần trong lần gọi này</small>
+              </>
+            )}
           </button>
         </form>
       </div>
