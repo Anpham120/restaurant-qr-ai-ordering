@@ -19,7 +19,13 @@ class GeminiClientTests(unittest.TestCase):
             self.assertEqual(request.headers["Authorization"], "Bearer test-gemini-key")
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "gemini-3.5-flash")
-            self.assertEqual(payload["response_format"], {"type": "json_object"})
+            response_format = payload["response_format"]
+            self.assertEqual(response_format["type"], "json_schema")
+            self.assertTrue(response_format["json_schema"]["strict"])
+            self.assertEqual(
+                response_format["json_schema"]["schema"]["required"],
+                ["content", "suggested_cart_actions", "guardrail_flags"],
+            )
             self.assertEqual(payload["messages"], [{"role": "user", "content": "Xin chào"}])
             return httpx.Response(
                 200,

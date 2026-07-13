@@ -54,6 +54,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V30: ∀ production LLM call → direct Google Gemini API OpenAI-compatible endpoint; credential comes from `GEMINI_API_KEY`; no local gateway dependency.
 - V31: ∀ default production Gemini model → successful live `/chat/completions` smoke with the configured repository key before release.
 - V32: ∀ Gemini structured completion → request JSON response mode; retry 429/5xx at most `AI_MAX_RETRY` times before bounded fallback.
+- V33: ∀ Gemini restaurant chat completion → strict JSON schema requires `content`, `suggested_cart_actions`, and `guardrail_flags` before parser execution.
 
 ## §T
 
@@ -124,3 +125,4 @@ B40|2026-07-13|production AI model remained in 9Router catalog but upstream chat
 B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the workflow failed before creating jobs|V21
 B42|2026-07-13|Gemini 2.5 Flash remained in the model catalog but rejected new users with 404 after deployment|V31
 B43|2026-07-13|Gemini completion relied on prompt-only JSON and failed immediately on transient 503 or free-form output|V32
+B44|2026-07-13|Gemini `json_object` mode returned valid JSON with provider-invented field names that the restaurant parser rejected|V33
