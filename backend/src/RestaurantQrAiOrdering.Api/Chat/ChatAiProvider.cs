@@ -271,7 +271,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             new
             {
                 role = "system",
-                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. The available menu context is the exact candidate set: only mention or propose those items. Do not create orders, do not make payments, do not add items to cart. Do not repeat a sentence or an item in one response. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese and list at most four items."
+                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. The available menu context is the exact candidate set: only mention or propose those items. Do not create orders, do not make payments, do not add items to cart. Do not repeat a sentence or an item in one response. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese; suggest at most three items by default, or the requested number up to eight items."
             },
             new
             {
@@ -460,6 +460,11 @@ public sealed class ChatAssistantService : IChatAssistantService
         CancellationToken cancellationToken)
     {
         var normalizedMessage = Normalize(userMessage);
+        var isRecommendationRequest = IsRecommendationRequest(normalizedMessage);
+        var isAdditionalRecommendationRequest = IsAdditionalRecommendationRequest(normalizedMessage);
+        var explicitlyRequestedCount = GetExplicitRequestedRecommendationCount(normalizedMessage);
+        var useDeterministicRecommendations = isAdditionalRecommendationRequest
+            || (isRecommendationRequest && explicitlyRequestedCount is not null);
         if (IsOutOfScope(normalizedMessage))
         {
             return new ChatAssistantReply(
@@ -504,8 +509,19 @@ public sealed class ChatAssistantService : IChatAssistantService
                     item.CategoryId,
                     categoryNames[item.CategoryId],
                     item.Tags.ToList(),
-                    item.IsAvailable)));
+                    item.IsAvailable)),
+            useDeterministicRecommendations ? int.MaxValue : null);
         var availableMenuItems = menuGrounding.Candidates;
+        if (useDeterministicRecommendations)
+        {
+            var previouslySuggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
+            return BuildDeterministicRecommendations(
+                menuGrounding,
+                previouslySuggestedItemIds,
+                explicitlyRequestedCount ?? 3,
+                isAdditionalRecommendationRequest);
+        }
+
         if (menuGrounding.HasExplicitConstraint)
         {
             return BuildGroundedCatalog(menuGrounding);
@@ -573,6 +589,92 @@ public sealed class ChatAssistantService : IChatAssistantService
             [],
             []);
     }
+
+    private static ChatAssistantReply BuildDeterministicRecommendations(
+        ChatMenuGroundingResult grounding,
+        IReadOnlySet<string> previouslySuggestedItemIds,
+        int requestedCount,
+        bool isAdditionalRecommendationRequest)
+    {
+        var newCandidates = grounding.Candidates
+            .Where(item => !previouslySuggestedItemIds.Contains(item.Id))
+            .Take(requestedCount)
+            .ToList();
+        var scope = grounding.HasExplicitConstraint
+            ? grounding.MatchedCategoryNames.Count > 0
+                ? $" trong nhóm {string.Join(", ", grounding.MatchedCategoryNames)}"
+                : $" với tag {string.Join(", ", grounding.MatchedTags)}"
+            : string.Empty;
+
+        if (newCandidates.Count == 0)
+        {
+            return new ChatAssistantReply(
+                isAdditionalRecommendationRequest
+                    ? $"Mình đã đề xuất hết các món phù hợp còn bán{scope} trong phiên này. Bạn có thể yêu cầu một nhóm món hoặc tiêu chí khác."
+                    : $"Hiện chưa có món mới phù hợp còn bán{scope} để đề xuất trong phiên này. Bạn có thể yêu cầu một nhóm món hoặc tiêu chí khác.",
+                [],
+                []);
+        }
+
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var recommendations = string.Join(
+            Environment.NewLine,
+            newCandidates.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+
+        return new ChatAssistantReply(
+            isAdditionalRecommendationRequest
+                ? $"Mình gợi ý {newCandidates.Count} món khác chưa được đề xuất trong phiên này{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?"
+                : $"Mình gợi ý {newCandidates.Count} món phù hợp{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?",
+            [],
+            []);
+    }
+
+    private static IReadOnlySet<string> GetPreviouslySuggestedMenuItemIds(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
+    {
+        var suggestedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var message in history.Where(message => message.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var action in message.SuggestedCartActions)
+            {
+                suggestedItemIds.Add(action.MenuItemId);
+            }
+
+            var content = Normalize(message.Content);
+            foreach (var item in availableMenuItems)
+            {
+                if (content.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase))
+                {
+                    suggestedItemIds.Add(item.Id);
+                }
+            }
+        }
+
+        return suggestedItemIds;
+    }
+
+    private static bool IsAdditionalRecommendationRequest(string normalizedMessage)
+    {
+        var asksForRecommendation = IsRecommendationRequest(normalizedMessage);
+        var asksForMore = ContainsAny(normalizedMessage, "thêm", "them", "khác", "khac", "nữa", "nua");
+        return asksForRecommendation && asksForMore;
+    }
+
+    private static bool IsRecommendationRequest(string normalizedMessage) =>
+        ContainsAny(normalizedMessage, "gợi ý", "goi y", "đề xuất", "de xuat", "tư vấn", "tu van");
+
+    private static int? GetExplicitRequestedRecommendationCount(string normalizedMessage)
+    {
+        var match = Regex.Match(normalizedMessage, @"\b(?<count>\d{1,2})\s+m[oó]n\b", RegexOptions.CultureInvariant);
+        return match.Success && int.TryParse(match.Groups["count"].Value, CultureInfo.InvariantCulture, out var requestedCount)
+            ? Math.Clamp(requestedCount, 1, 8)
+            : null;
+    }
+
+    private static bool ContainsAny(string value, params string[] phrases) =>
+        phrases.Any(phrase => value.Contains(phrase, StringComparison.Ordinal));
 
     private static SuggestedCartActionResponse? BuildSuggestedAction(
         string normalizedMessage,
