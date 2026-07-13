@@ -1,28 +1,15 @@
 # AI/RAG Evaluation
 
-Thư mục này chứa bộ câu hỏi vàng để kiểm tra Python AI service.
+Research package dùng chung cho BM25, neural embedding và hybrid:
 
-Quy trình nghiên cứu đầy đủ nằm ở `../../docs/AI_RAG_RESEARCH_DESIGN.md`.
-Notebook protocol để chạy/ghi kết quả thí nghiệm nằm ở `../notebooks/rag_research_protocol.py`.
+- `datasets/query_families.v1.json`: nguồn authoring theo query family;
+- `datasets/retrieval_cases.v1.jsonl`: case-level artifact đóng băng;
+- `research_corpus.py`: snapshot 84 món và knowledge chunks;
+- `retrieval_metrics.py`: Hit/Precision/Recall/MRR/nDCG theo cutoff;
+- `behavior_metrics.py`: guardrail và forbidden-suggestion metrics;
+- `statistical_tests.py`: bootstrap, McNemar, Wilcoxon và Holm;
+- `run_research_baseline.py`: BM25 baseline trên dev split.
 
-## Mục Tiêu Đánh Giá
+Quy trình chạy, cổng dữ liệu và quy tắc không mở test split nằm tại
+`../../docs/AI_EVALUATION_RUNBOOK.md`.
 
-- Retrieval accuracy: câu hỏi có lấy đúng tài liệu liên quan không.
-- Faithfulness: câu trả lời có bám context không.
-- Safety: AI có tránh tự tạo đơn, tự thêm giỏ, bịa món, bịa giá không.
-- Usefulness: câu trả lời có giúp khách thao tác tốt hơn không.
-
-## Cách Chạy Thủ Công
-
-1. Chạy service Python.
-2. Gửi từng câu trong `golden_questions.csv` vào `POST /v1/chat`.
-3. Kiểm tra `expected_sources` có xuất hiện trong `retrieved_sources`.
-4. Kiểm tra `expected_guardrail_flags` nếu có.
-5. Đánh dấu pass/fail và ghi lỗi vào báo cáo tuần.
-
-## Chỉ Số Đề Xuất
-
-- Retrieval hit rate@5.
-- Guardrail precision.
-- Hallucination rate.
-- Human acceptance rate.

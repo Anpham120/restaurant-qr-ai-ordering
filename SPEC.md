@@ -59,6 +59,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V35: ∀ explicit live category/tag catalog request → backend returns a deterministic catalog built only from matched live candidates; LLM free text cannot introduce menu items.
 - V36: ∀ request to recommend additional dishes in one chat session → response excludes every live menu item previously suggested by that session and honours a requested count from 1 to 8 (default 3).
 - V37: ∀ persisted assistant recommendation → every returned/history message retains its actionable menu cards; an unambiguous `xem chi tiết` follow-up resolves to the latest suggested live items instead of unrelated retrieval.
+- V38: ∀ research benchmark case → expected document IDs ∩ forbidden document IDs = ∅; family source and materialized JSONL remain identical; query-family split leakage = 0.
 
 ## §T
 
@@ -138,3 +139,4 @@ B45|2026-07-13|AI prompt omitted live category name and passed arbitrary first m
 B46|2026-07-13|LLM could still violate candidate-only text instruction even though its action IDs were validated, returning `Khai vị` dishes for the live `Hải sản` category|V35
 B47|2026-07-13|cross-turn recommendation only deduplicated lines inside one LLM response; older AI suggestions were not a deterministic exclusion set|V36
 B48|2026-07-13|deterministic menu replies returned no suggested actions and history omitted persisted actions, so cards vanished and `xem chi tiết` lost its referent|V37
+B49|2026-07-13|broad healthy and sweet tag selectors overlapped, so rejection benchmark labels marked the same menu documents as both expected and forbidden|V38
