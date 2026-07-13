@@ -31,6 +31,7 @@ public sealed record SuggestedCartActionResponse(
     bool RequiresCustomerConfirmation);
 
 public sealed record SendChatMessageResponse(
+    ChatMessageResponse UserMessage,
     ChatMessageResponse Message,
     IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions,
     IReadOnlyList<string> GuardrailFlags);

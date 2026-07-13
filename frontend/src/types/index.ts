@@ -40,6 +40,7 @@ export type {
   ChatGuardrailFlag,
   ChatMessage,
   ChatRole,
+  ChatHistoryResponse,
   CreateChatSessionRequest,
   CreateChatSessionResponse,
   SendChatMessageRequest,

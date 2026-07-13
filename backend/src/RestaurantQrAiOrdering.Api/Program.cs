@@ -231,37 +231,8 @@ app.Use(async (context, next) =>
 
     await next();
 });
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (Exception exception) when (exception is BadHttpRequestException or JsonException)
-    {
-        var logger = context.RequestServices
-            .GetRequiredService<ILoggerFactory>()
-            .CreateLogger("RestaurantQrAiOrdering.Api.RequestValidation");
-
-        logger.LogWarning(
-            exception,
-            "Rejected invalid request body for {Method} {Path}.",
-            context.Request.Method,
-            context.Request.Path);
-
-        if (context.Response.HasStarted)
-        {
-            throw;
-        }
-
-        await ApiErrorFactory.WriteAsync(
-            context.Response,
-            StatusCodes.Status400BadRequest,
-            "REQUEST_INVALID",
-            "Request body is invalid.");
-    }
-});
 app.UseCors(CorsPolicyName);
+app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
