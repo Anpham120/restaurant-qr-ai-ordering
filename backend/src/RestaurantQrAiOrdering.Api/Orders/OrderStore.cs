@@ -42,6 +42,26 @@ public sealed class OrderStore : IOrderStore
 
     public OrderSnapshot CreateOrder(CreateOrderCommand command, ActorContext actor)
     {
+        var executionStrategy = db.Database.CreateExecutionStrategy();
+        return executionStrategy.Execute(() => CreateOrderAttempt(command, actor));
+    }
+
+    private OrderSnapshot CreateOrderAttempt(CreateOrderCommand command, ActorContext actor)
+    {
+        // A retry can reuse this scoped DbContext after an unknown commit result. Clear
+        // tracked state and replay by idempotency key before opening a new transaction.
+        db.ChangeTracker.Clear();
+        var existing = GetOrderByIdempotencyKey(command.IdempotencyKey);
+        if (existing is not null)
+        {
+            if (existing.RequestFingerprint != command.RequestFingerprint)
+            {
+                throw new IdempotencyKeyReuseException();
+            }
+
+            return existing.Order;
+        }
+
         using var transaction = db.Database.IsRelational()
             ? db.Database.BeginTransaction(IsolationLevel.Serializable)
             : null;
@@ -703,4 +723,12 @@ public sealed class TableSessionUnavailableException : Exception
     public string ErrorCode { get; }
 
     public int StatusCode { get; }
+}
+
+public sealed class IdempotencyKeyReuseException : Exception
+{
+    public IdempotencyKeyReuseException()
+        : base("Idempotency key was already used with a different request.")
+    {
+    }
 }

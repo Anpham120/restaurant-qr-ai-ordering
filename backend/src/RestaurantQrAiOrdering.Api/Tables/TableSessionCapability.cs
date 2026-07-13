@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Entities;
@@ -8,6 +6,9 @@ namespace RestaurantQrAiOrdering.Api.Tables;
 
 public static class TableSessionCapability
 {
+    private const string CurrentPurpose = "restaurant-qr-ai-ordering:table-session-capability:v2";
+    private const string LegacyPurpose = "restaurant-qr-ai-ordering:table-session-capability:v1";
+
     public static bool TryRead(HttpRequest request, out string token)
     {
         token = string.Empty;
@@ -27,23 +28,14 @@ public static class TableSessionCapability
     }
 
     public static bool IsValid(TableSession session, string suppliedToken, string signingKey)
-    {
-        byte[] suppliedSignature;
-        try
-        {
-            suppliedSignature = Base64Url.Decode(suppliedToken);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-
-        var expectedSignature = CreateSignature(session, signingKey);
-        return CryptographicOperations.FixedTimeEquals(expectedSignature, suppliedSignature);
-    }
+        => CapabilityTokenSigner.IsValid(
+            suppliedToken,
+            signingKey,
+            (CurrentPurpose, session.Id),
+            (LegacyPurpose, CreateLegacyPayload(session)));
 
     public static string CreateToken(TableSession session, string signingKey) =>
-        Base64Url.Encode(CreateSignature(session, signingKey));
+        CapabilityTokenSigner.CreateToken(signingKey, CurrentPurpose, session.Id);
 
     public static IResult Unauthorized() =>
         ApiErrorFactory.Result(
@@ -51,19 +43,6 @@ public static class TableSessionCapability
             "TABLE_SESSION_TOKEN_INVALID",
             "A valid table session token is required.");
 
-    private static byte[] CreateSignature(TableSession session, string signingKey)
-    {
-        if (string.IsNullOrWhiteSpace(signingKey))
-        {
-            throw new InvalidOperationException("JWT signing key is required for table session capabilities.");
-        }
-
-        var signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
-        var purpose = Encoding.UTF8.GetBytes("restaurant-qr-ai-ordering:table-session-capability:v1");
-        var purposeKey = HMACSHA256.HashData(signingKeyBytes, purpose);
-        var payload = Encoding.UTF8.GetBytes(
-            $"{session.Id}\n{session.OpenedAt.UtcDateTime.Ticks}\n{session.ExpiresAt.UtcDateTime.Ticks}");
-
-        return HMACSHA256.HashData(purposeKey, payload);
-    }
+    private static string CreateLegacyPayload(TableSession session) =>
+        $"{session.Id}\n{session.OpenedAt.UtcDateTime.Ticks}\n{session.ExpiresAt.UtcDateTime.Ticks}";
 }

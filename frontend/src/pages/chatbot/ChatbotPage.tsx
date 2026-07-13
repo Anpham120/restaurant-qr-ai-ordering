@@ -14,6 +14,10 @@ import type { CustomerMenuResponse } from "../../services/menuService";
 import type { ChatMessage, SuggestedCartAction } from "../../types";
 import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
 import { orderingPath } from "../../ordering/orderingRoutes";
+import {
+  appendCommittedExchange,
+  restoreCommittedHistory,
+} from "../../ordering/chatHistory";
 
 
 type ActionStatus = "pending" | "confirmed" | "dismissed";
@@ -56,6 +60,7 @@ export function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [composerValue, setComposerValue] = useState("");
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
+  const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
   const [chatAccessToken, setChatAccessToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestedActions, setSuggestedActions] = useState<SuggestedCartAction[]>([]);
@@ -77,7 +82,7 @@ export function ChatbotPage() {
         if (isMounted) {
           setChatSessionId(session.chatSessionId);
           setChatAccessToken(session.accessToken);
-          setMessages(session.messages.length > 0 ? session.messages : initialMessages);
+          setMessages(restoreCommittedHistory(session.messages, initialMessages[0]));
         }
       })
       .catch(() => {
@@ -111,7 +116,7 @@ export function ChatbotPage() {
 
     const userMessage = buildUserMessage(content);
 
-    setMessages((current) => [...current, userMessage]);
+    setPendingUserMessage(userMessage);
     setComposerValue("");
     setIsAssistantThinking(true);
     setErrorMessage("");
@@ -122,7 +127,7 @@ export function ChatbotPage() {
         content,
       }, chatAccessToken);
 
-      setMessages((current) => [...current, response.message]);
+      setMessages((current) => appendCommittedExchange(current, response));
       setSuggestedActions(response.suggestedCartActions);
       setActionStatuses(
         response.suggestedCartActions.reduce<Record<string, ActionStatus>>((result, action) => {
@@ -130,10 +135,22 @@ export function ChatbotPage() {
           return result;
         }, {}),
       );
-    } catch {
+    } catch (error) {
+      try {
+        const history = await chatApi.getHistory(chatSessionId, chatAccessToken);
+        setMessages(restoreCommittedHistory(history.messages, initialMessages[0]));
+      } catch {
+        // Keep the last confirmed local snapshot when history reconciliation also fails.
+      }
+      setComposerValue(content);
       setSuggestedActions([]);
-      setErrorMessage("Trợ lý AI chưa phản hồi được. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Trợ lý AI chưa phản hồi được. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp.",
+      );
     } finally {
+      setPendingUserMessage(null);
       setIsAssistantThinking(false);
     }
   }
@@ -186,6 +203,12 @@ export function ChatbotPage() {
             {messages.map((message) => (
               <ChatMessageBubble key={message.id} message={message} />
             ))}
+            {pendingUserMessage ? (
+              <div className="cmc-chat-message-pending" aria-label="Tin nhắn đang gửi">
+                <ChatMessageBubble message={pendingUserMessage} />
+                <small>Đang lưu…</small>
+              </div>
+            ) : null}
             {messages.length <= 1 ? (
               <div className="cmc-chat-quick-prompts cmc-chat-quick-prompts-inline" aria-label="Gợi ý nhanh">
                 {quickPrompts.map((prompt) => (

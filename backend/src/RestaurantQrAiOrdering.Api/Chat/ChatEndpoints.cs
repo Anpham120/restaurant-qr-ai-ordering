@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RestaurantQrAiOrdering.Api.Auth;
@@ -63,7 +61,7 @@ public static class ChatEndpoints
 
             var sessionResult = chatStore.CreateOrGetSession(tableCode, tableSessionId);
             var session = sessionResult.Session;
-            var accessToken = CreateAccessToken(session, jwtOptions.Value.SigningKey);
+            var accessToken = ChatSessionCapability.CreateToken(session, jwtOptions.Value.SigningKey);
             httpResponse.Cookies.Append("cmc_chat_session", accessToken, new CookieOptions
             {
                 HttpOnly = true,
@@ -158,6 +156,7 @@ public static class ChatEndpoints
                 assistantReply.GuardrailFlags.Count);
 
             return Results.Ok(new SendChatMessageResponse(
+                ToResponse(userMessage),
                 ToResponse(assistantMessage),
                 assistantReply.SuggestedCartActions,
                 assistantReply.GuardrailFlags));
@@ -213,25 +212,7 @@ public static class ChatEndpoints
             return false;
         }
 
-        try
-        {
-            var supplied = Base64Url.Decode(suppliedToken);
-            return CryptographicOperations.FixedTimeEquals(supplied, CreateAccessTokenBytes(session, signingKey));
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-    }
-
-    private static string CreateAccessToken(ChatSessionSnapshot session, string signingKey) =>
-        Base64Url.Encode(CreateAccessTokenBytes(session, signingKey));
-
-    private static byte[] CreateAccessTokenBytes(ChatSessionSnapshot session, string signingKey)
-    {
-        var purpose = Encoding.UTF8.GetBytes("restaurant-qr-ai-ordering:chat-session-capability:v1");
-        var key = HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), purpose);
-        return HMACSHA256.HashData(key, Encoding.UTF8.GetBytes($"{session.Id}\n{session.CreatedAt.UtcDateTime.Ticks}"));
+        return ChatSessionCapability.IsValid(session, suppliedToken, signingKey);
     }
 
     private static IResult UnauthorizedChatCapability() => ApiErrorFactory.Result(

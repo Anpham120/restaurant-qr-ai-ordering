@@ -43,7 +43,15 @@ export type SendChatMessageRequest = {
 };
 
 export type SendChatMessageResponse = {
+  userMessage: ChatMessage;
   message: ChatMessage;
   suggestedCartActions: SuggestedCartAction[];
   guardrailFlags: ChatGuardrailFlag[];
+};
+
+export type ChatHistoryResponse = {
+  chatSessionId: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
 };

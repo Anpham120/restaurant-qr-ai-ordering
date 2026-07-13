@@ -45,6 +45,11 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V21: ∀ PR→main → required `frontend-build`, `backend-test`, and `docker-compose-config` checks instantiate and pass before merge.
 - V22: frontend host routing = 6 production + 6 staging canonical domains; retired `customer` alias absent.
 - V23: ∀ deploy workflow → every `deploy-vps.sh` required variable supplied before remote mutation.
+- V24: ∀ PostgreSQL Order Round creation with retry enabled → serializable transaction executes inside `Database.CreateExecutionStrategy()` and commits exactly once.
+- V25: ∀ persisted chat session lookup → EF query translates on PostgreSQL and a refreshed client restores every committed message.
+- V26: ∀ chat message shown as committed history → send API succeeded or a subsequent server history read returned it; pending/failed text is never presented as persisted.
+- V27: ∀ unhandled API exception → structured `INTERNAL_ERROR` HTTP 500 retains allowed-origin CORS headers; browser never degrades it to opaque `Failed to fetch`.
+- V28: ∀ session capability → signature depends only on immutable persisted identity; PostgreSQL timestamp precision changes cannot invalidate a freshly issued token.
 
 ## §T
 
@@ -106,3 +111,8 @@ B31|2026-07-13|completion audit test referenced `Status` instead of `OrderStatus
 B32|2026-07-13|CI deployment env entries were over-indented, invalidating workflow before required jobs instantiated|V21
 B33|2026-07-13|app-separation regression test still required the deliberately retired `customer` redirect|V22
 B34|2026-07-13|staging workflow omitted required VietQR deployment variables and exited before SSH|V23
+B35|2026-07-13|OrderStore opened a user transaction outside Npgsql retry execution strategy|V24
+B36|2026-07-13|DbChatStore used an untranslatable `StringComparison` overload in an EF query|V25
+B37|2026-07-13|chat UI appended optimistic text to committed history before backend persistence|V26
+B38|2026-07-13|exception middleware sat outside CORS and handled only malformed request bodies|V27
+B39|2026-07-13|table/chat capability signatures included timestamps that PostgreSQL can round between issue and verify|V28

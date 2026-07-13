@@ -127,6 +127,12 @@ public static partial class OrderEndpoints
                 logger.LogWarning("Rejected order creation because the table session became unavailable.");
                 return ApiErrorFactory.Result(ex.StatusCode, ex.ErrorCode, ex.Message);
             }
+            catch (IdempotencyKeyReuseException)
+            {
+                return ApiResults.Conflict(
+                    "IDEMPOTENCY_KEY_REUSED",
+                    "Idempotency key was already used with a different request.");
+            }
             catch (DbUpdateException)
             {
                 db.ChangeTracker.Clear();

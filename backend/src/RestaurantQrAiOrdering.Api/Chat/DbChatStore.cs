@@ -124,10 +124,10 @@ public sealed class DbChatStore : IChatStore
 
     private ChatSession? FindSession(string chatSessionId)
     {
+        var normalizedChatSessionId = chatSessionId.Trim();
         var session = dbContext.ChatSessions
             .Include(session => session.Messages)
-            .FirstOrDefault(session =>
-                session.Id.Equals(chatSessionId, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(session => session.Id == normalizedChatSessionId);
 
         if (session is null || string.IsNullOrWhiteSpace(session.TableSessionId))
         {

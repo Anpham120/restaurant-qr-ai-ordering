@@ -124,6 +124,16 @@
   color: #ffffff;
 }
 
+.cmc-chat-message-pending {
+  opacity: 0.68;
+}
+
+.cmc-chat-message-pending > small {
+  display: block;
+  margin: 0.35rem 1rem 0;
+  text-align: right;
+}
+
 .cmc-chat-message-meta {
   display: flex;
   gap: 10px;
