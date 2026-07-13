@@ -36,7 +36,8 @@ public static class ChatMenuGrounding
 
     public static ChatMenuGroundingResult SelectWithConstraints(
         string message,
-        IEnumerable<ChatMenuItemContext> menuItems)
+        IEnumerable<ChatMenuItemContext> menuItems,
+        int? maxCandidates = null)
     {
         var query = Normalize(message);
         var available = menuItems.Where(item => item.IsAvailable).ToList();
@@ -64,7 +65,7 @@ public static class ChatMenuGrounding
         var candidates = constrained
             .OrderByDescending(item => Relevance(query, item))
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .Take(MaxCandidates)
+            .Take(maxCandidates ?? MaxCandidates)
             .ToList();
 
         return new ChatMenuGroundingResult(
