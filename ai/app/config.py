@@ -30,7 +30,7 @@ def load_config() -> AiServiceConfig:
         provider=os.getenv("AI_PROVIDER", "9router"),
         base_url=os.getenv("AI_BASE_URL", "http://127.0.0.1:20128/v1"),
         api_key=os.getenv("AI_API_KEY", ""),
-        model=os.getenv("AI_MODEL", "gh/gemini-3.1-pro-preview"),
+        model=os.getenv("AI_MODEL", "gh/gpt-4o"),
         timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "30")),
         knowledge_base_path=Path(os.getenv("RAG_KNOWLEDGE_BASE_PATH", "knowledge-base")),
         top_k=int(os.getenv("RAG_TOP_K", "5")),

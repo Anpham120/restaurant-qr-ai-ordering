@@ -49,7 +49,7 @@ jobs:
       AI_LLM_PROVIDER: 9router
       AI_BASE_URL: http://127.0.0.1:20128/v1
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
-      AI_MODEL: ${{ vars.AI_MODEL || 'gh/gemini-3.1-pro-preview' }}
+      AI_MODEL: ${{ vars.AI_MODEL || 'gh/gpt-4o' }}
       RAG_TOP_K: "5"
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
       BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_EMAIL || '' }}

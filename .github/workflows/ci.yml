@@ -136,7 +136,7 @@ jobs:
       AI_SERVICE_PORT: "8001"
       AI_LLM_PROVIDER: 9router
       AI_BASE_URL: http://127.0.0.1:20128/v1
-      AI_MODEL: gh/gemini-3.1-pro-preview
+      AI_MODEL: gh/gpt-4o
       AI_API_KEY: ci-placeholder
     steps:
       - name: Checkout
