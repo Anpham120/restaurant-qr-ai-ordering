@@ -35,6 +35,21 @@ public sealed class ChatMenuGroundingTests
         Assert.Equal("sea_1", candidates[0].Id);
     }
 
+    [Fact]
+    public void TestV35_ExplicitCategory_IsReportedAsHardConstraint()
+    {
+        var result = ChatMenuGrounding.SelectWithConstraints(
+            "đề xuất cho tôi các món hải sản cơ mà",
+            [
+                Item("sea_1", "Nghêu hấp sả", "Hải sản", ["Hấp"]),
+                Item("main_1", "Cơm cá kho tộ", "Món chính", ["Bữa chính"])
+            ]);
+
+        Assert.True(result.HasExplicitConstraint);
+        Assert.Equal(["Hải sản"], result.MatchedCategoryNames);
+        Assert.All(result.Candidates, item => Assert.Equal("Hải sản", item.CategoryName));
+    }
+
     private static ChatMenuItemContext Item(string id, string name, string categoryName, IReadOnlyList<string> tags) =>
         new(id, name, string.Empty, 65_000m, $"cat_{id}", categoryName, tags, true);
 }

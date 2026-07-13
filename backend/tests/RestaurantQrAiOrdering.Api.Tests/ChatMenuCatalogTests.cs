@@ -29,4 +29,22 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
 
         Assert.Contains("MENU_ITEM_UNAVAILABLE", reply.GuardrailFlags);
     }
+
+    [Fact]
+    public async Task TestV35_ExplicitSeafoodCatalog_DoesNotCallProviderOrLeakOtherCategory()
+    {
+        using var scope = factory.Services.CreateScope();
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "toàn bộ thực đơn về hải sản",
+            [],
+            null,
+            CancellationToken.None);
+
+        Assert.Contains("nhóm Hải sản", reply.Content);
+        Assert.Contains("Cua rang me", reply.Content);
+        Assert.DoesNotContain("Gỏi cuốn tôm thịt", reply.Content);
+        Assert.DoesNotContain("AI_PROVIDER_UNAVAILABLE", reply.GuardrailFlags);
+    }
 }

@@ -27,6 +27,8 @@ flowchart LR
 
 `ChatMenuGrounding` ở backend lọc category trước tag và chỉ đưa tối đa tám món còn bán cho provider. Cùng quy tắc được áp dụng ở Python RAG để bảo vệ endpoint `/v1/chat` khi gọi trực tiếp. Parser chỉ chấp nhận action ID từ candidate set đó.
 
+Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ thực đơn về hải sản”), backend không gọi LLM. Backend dựng danh sách trực tiếp từ candidate set live để chặn cả trường hợp LLM nêu tên món sai trong trường `content` dù action ID đã được validate.
+
 ## Thiết kế nghiên cứu có thể tái lập
 
 ### Dữ liệu

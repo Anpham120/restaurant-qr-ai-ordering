@@ -18,11 +18,23 @@ public sealed record ChatMenuItemContext(
     IReadOnlyList<string> Tags,
     bool IsAvailable);
 
+public sealed record ChatMenuGroundingResult(
+    IReadOnlyList<ChatMenuItemContext> Candidates,
+    IReadOnlyList<string> MatchedCategoryNames,
+    IReadOnlyList<string> MatchedTags)
+{
+    public bool HasExplicitConstraint => MatchedCategoryNames.Count > 0 || MatchedTags.Count > 0;
+}
+
 public static class ChatMenuGrounding
 {
     private const int MaxCandidates = 8;
 
     public static IReadOnlyList<ChatMenuItemContext> Select(
+        string message,
+        IEnumerable<ChatMenuItemContext> menuItems) => SelectWithConstraints(message, menuItems).Candidates;
+
+    public static ChatMenuGroundingResult SelectWithConstraints(
         string message,
         IEnumerable<ChatMenuItemContext> menuItems)
     {
@@ -30,7 +42,7 @@ public static class ChatMenuGrounding
         var available = menuItems.Where(item => item.IsAvailable).ToList();
         if (available.Count == 0)
         {
-            return [];
+            return new ChatMenuGroundingResult([], [], []);
         }
 
         var categoryMatches = available
@@ -49,11 +61,16 @@ public static class ChatMenuGrounding
                 ? available.Where(item => item.Tags.Any(tag => tagMatches.Contains(tag)))
                 : available;
 
-        return constrained
+        var candidates = constrained
             .OrderByDescending(item => Relevance(query, item))
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
             .Take(MaxCandidates)
             .ToList();
+
+        return new ChatMenuGroundingResult(
+            candidates,
+            categoryMatches.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList(),
+            tagMatches.OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase).ToList());
     }
 
     private static int Relevance(string query, ChatMenuItemContext item)
