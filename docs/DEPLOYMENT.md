@@ -1,6 +1,6 @@
 # Tài Liệu Triển Khai
 
-Tài liệu này mô tả hướng triển khai production-like cho **CMC Restaurant - Restaurant QR AI Ordering** bằng GitHub Actions, VPS, Docker Compose, PostgreSQL, Nginx, HTTPS và 9router.
+Tài liệu này mô tả hướng triển khai production-like cho **CMC Restaurant - Restaurant QR AI Ordering** bằng GitHub Actions, VPS, Docker Compose, PostgreSQL, Nginx, HTTPS và Google Gemini API.
 
 ## Mục Tiêu
 
@@ -18,8 +18,8 @@ Tài liệu này mô tả hướng triển khai production-like cho **CMC Restau
 - Frontend React build static và phục vụ qua container Nginx.
 - Backend ASP.NET Core Web API chạy theo modular monolith.
 - PostgreSQL lưu dữ liệu thật, có volume persistent và health check.
-- AI service Python RAG gọi 9router nội bộ tại `http://127.0.0.1:20128/v1`.
-- 9router không public trực tiếp ra internet.
+- AI service Python RAG gọi trực tiếp Google Gemini API qua HTTPS.
+- `GEMINI_API_KEY` chỉ được cấp cho container AI, không truyền xuống frontend hay container backend.
 
 ## Luồng CI/CD
 
@@ -66,7 +66,7 @@ STAGING_SSH_USER
 STAGING_SSH_KEY
 STAGING_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 
@@ -78,7 +78,7 @@ PRODUCTION_SSH_USER
 PRODUCTION_SSH_KEY
 PRODUCTION_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 

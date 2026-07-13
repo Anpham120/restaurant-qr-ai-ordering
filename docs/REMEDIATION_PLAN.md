@@ -13,7 +13,7 @@ Vì `admin@restaurant.local / Admin@123` đã public trên repo → coi tài kho
 
 - [ ] Tạo mới `JWT_SIGNING_KEY` và `PRODUCTION_POSTGRES_PASSWORD` (random dài) → lưu vào GitHub Secrets, KHÔNG dùng lại giá trị dev đã commit.
 - [ ] Sau khi Phase 1 deploy: buộc đổi mật khẩu mọi tài khoản vận hành.
-- [ ] Xác nhận secret prod/staging trên GitHub đã set đủ (deploy script yêu cầu: `JWT_SIGNING_KEY`, `*_POSTGRES_PASSWORD`, `AI_API_KEY`, SSH...).
+- [ ] Xác nhận secret prod/staging trên GitHub đã set đủ (deploy script yêu cầu: `JWT_SIGNING_KEY`, `*_POSTGRES_PASSWORD`, `GEMINI_API_KEY`, SSH...).
 
 ---
 

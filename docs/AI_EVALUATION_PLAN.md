@@ -54,4 +54,4 @@ Notebook `coursework/ai-ml-data-mining/CMC_Restaurant_AI_ML_Data_Mining.ipynb` c
 - baseline;
 - evaluation.
 
-Python AI service dùng kết quả đó như tri thức hỗ trợ trong RAG. Đây là cách kết nối phần học thuật với sản phẩm thật mà không tuyên bố sai rằng nhóm đã huấn luyện lại Gemini 3.1.
+Python AI service dùng kết quả đó như tri thức hỗ trợ trong RAG. Đây là cách kết nối phần học thuật với sản phẩm thật mà không tuyên bố sai rằng nhóm đã huấn luyện lại Gemini.

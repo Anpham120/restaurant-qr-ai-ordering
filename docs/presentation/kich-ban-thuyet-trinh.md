@@ -76,7 +76,7 @@ Thứ hai, **BM25 thay vì embeddings**. Kho tri thức của em nhỏ, chỉ 35
 
 ## Slide 5 — Kiến trúc hệ thống (0:45)
 
-**Lời thoại:** "Về kiến trúc: khách dùng **giao diện chat React** sau khi quét QR. Yêu cầu đi qua **backend .NET** — nơi giữ vai trò xác thực đơn. Phần thông minh nằm ở **dịch vụ AI viết bằng Python**, gồm RAG cộng LLM, đọc từ **kho tri thức 7 tài liệu, 35 đoạn**. Mô hình ngôn ngữ là **Gemini 3.1 Pro** gọi qua một gateway chuẩn OpenAI.
+**Lời thoại:** "Về kiến trúc: khách dùng **giao diện chat React** sau khi quét QR. Yêu cầu đi qua **backend .NET** — nơi giữ vai trò xác thực đơn. Phần thông minh nằm ở **dịch vụ AI viết bằng Python**, gồm RAG cộng LLM, đọc từ **kho tri thức 7 tài liệu, 35 đoạn**. Mô hình ngôn ngữ là **Gemini 2.5 Flash** gọi trực tiếp qua Google Gemini API.
 
 Mỗi câu hỏi đi qua pipeline ở dưới: guardrails đầu vào, BM25 truy xuất 5 đoạn liên quan, dựng prompt, LLM sinh JSON, output parser kiểm duyệt, rồi mới trả gợi ý cho khách xác nhận."
 

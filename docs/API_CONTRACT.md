@@ -564,7 +564,7 @@ Response `201 Created`:
 
 ### POST `/api/chat/sessions/{chatSessionId}/messages`
 
-Auth: public. Backend goi AI provider qua service rieng; frontend khong goi 9router/provider truc tiep.
+Auth: public. Backend goi AI provider qua service rieng; frontend khong goi Google Gemini API truc tiep.
 
 Request:
 
