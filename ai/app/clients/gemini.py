@@ -6,6 +6,38 @@ import httpx
 
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+RESTAURANT_CHAT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "content": {"type": "string"},
+        "suggested_cart_actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "menu_item_id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "price_vnd": {"type": ["number", "null"]},
+                    "quantity": {"type": "integer"},
+                    "reason": {"type": ["string", "null"]},
+                    "requires_customer_confirmation": {"type": "boolean"},
+                },
+                "required": [
+                    "menu_item_id",
+                    "name",
+                    "price_vnd",
+                    "quantity",
+                    "reason",
+                    "requires_customer_confirmation",
+                ],
+                "additionalProperties": False,
+            },
+        },
+        "guardrail_flags": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["content", "suggested_cart_actions", "guardrail_flags"],
+    "additionalProperties": False,
+}
 
 
 class GeminiClient:
@@ -32,7 +64,14 @@ class GeminiClient:
             "model": self._model,
             "stream": False,
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "restaurant_chat_response",
+                    "strict": True,
+                    "schema": RESTAURANT_CHAT_SCHEMA,
+                },
+            },
             "messages": messages,
         }
         headers = {"Authorization": f"Bearer {self._api_key}"}
