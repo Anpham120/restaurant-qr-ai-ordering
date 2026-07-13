@@ -50,6 +50,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V26: ∀ chat message shown as committed history → send API succeeded or a subsequent server history read returned it; pending/failed text is never presented as persisted.
 - V27: ∀ unhandled API exception → structured `INTERNAL_ERROR` HTTP 500 retains allowed-origin CORS headers; browser never degrades it to opaque `Failed to fetch`.
 - V28: ∀ session capability → signature depends only on immutable persisted identity; PostgreSQL timestamp precision changes cannot invalidate a freshly issued token.
+- V29: ∀ configured AI provider failure → fallback response carries `AI_PROVIDER_UNAVAILABLE` and server logs provider, model, and exception type without credentials or user prompt.
 
 ## §T
 
@@ -116,3 +117,5 @@ B36|2026-07-13|DbChatStore used an untranslatable `StringComparison` overload in
 B37|2026-07-13|chat UI appended optimistic text to committed history before backend persistence|V26
 B38|2026-07-13|exception middleware sat outside CORS and handled only malformed request bodies|V27
 B39|2026-07-13|table/chat capability signatures included timestamps that PostgreSQL can round between issue and verify|V28
+B40|2026-07-13|production AI model remained in 9Router catalog but upstream chat rejected it, while the service swallowed the exception and exposed only a generic fallback|V29
+B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the workflow failed before creating jobs|V21

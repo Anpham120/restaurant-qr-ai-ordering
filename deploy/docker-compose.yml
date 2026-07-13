@@ -21,7 +21,7 @@ x-api-environment: &api-environment
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:20128/v1}
   AI_API_KEY: ${AI_API_KEY:-}
-  AI_MODEL: ${AI_MODEL:-gh/gemini-3.1-pro-preview}
+  AI_MODEL: ${AI_MODEL:-gh/gpt-4o}
   AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
   AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
 
@@ -90,7 +90,7 @@ services:
       AI_PROVIDER: ${AI_LLM_PROVIDER:-9router}
       AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:20128/v1}
       AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gh/gemini-3.1-pro-preview}
+      AI_MODEL: ${AI_MODEL:-gh/gpt-4o}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
       RAG_KNOWLEDGE_BASE_PATH: ${RAG_KNOWLEDGE_BASE_PATH:-knowledge-base}
       RAG_TOP_K: ${RAG_TOP_K:-5}

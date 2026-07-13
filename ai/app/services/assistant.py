@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from app.clients.nine_router import NineRouterClient
 from app.config import AiServiceConfig
 from app.rag.guardrails import detect_guardrail_flags
@@ -8,6 +10,9 @@ from app.rag.output_parser import parse_model_response
 from app.rag.prompts import build_fallback_answer, build_messages
 from app.rag.retriever import LexicalRetriever
 from app.schemas import ChatResponse, RetrievedSource
+
+
+logger = logging.getLogger(__name__)
 
 
 class AiAssistantService:
@@ -60,7 +65,13 @@ class AiAssistantService:
                     suggested_actions = parsed.suggested_cart_actions
                     flags = _dedupe([*flags, *parsed.guardrail_flags])
                     provider_available = True
-            except Exception:
+            except Exception as exception:
+                logger.exception(
+                    "AI provider request failed provider=%s model=%s error_type=%s",
+                    self._config.provider,
+                    self._config.model,
+                    type(exception).__name__,
+                )
                 flags = _dedupe([*flags, "AI_PROVIDER_UNAVAILABLE"])
 
         if not answer:

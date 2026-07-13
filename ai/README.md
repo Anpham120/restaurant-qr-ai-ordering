@@ -36,7 +36,7 @@ Biến môi trường khuyến nghị:
 ```env
 AI_PROVIDER=9router
 AI_BASE_URL=http://127.0.0.1:20128/v1
-AI_MODEL=gh/gemini-3.1-pro-preview
+AI_MODEL=gh/gpt-4o
 AI_API_KEY=replace-with-9router-key
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 ```
