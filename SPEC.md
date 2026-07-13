@@ -51,6 +51,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V27: ∀ unhandled API exception → structured `INTERNAL_ERROR` HTTP 500 retains allowed-origin CORS headers; browser never degrades it to opaque `Failed to fetch`.
 - V28: ∀ session capability → signature depends only on immutable persisted identity; PostgreSQL timestamp precision changes cannot invalidate a freshly issued token.
 - V29: ∀ configured AI provider failure → fallback response carries `AI_PROVIDER_UNAVAILABLE` and server logs provider, model, and exception type without credentials or user prompt.
+- V30: ∀ production LLM call → direct Google Gemini API OpenAI-compatible endpoint; credential comes from `GEMINI_API_KEY`; no local gateway dependency.
 
 ## §T
 

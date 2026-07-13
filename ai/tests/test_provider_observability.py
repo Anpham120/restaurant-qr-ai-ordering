@@ -15,10 +15,10 @@ class _UnavailableProviderClient:
 class ProviderObservabilityTests(unittest.TestCase):
     def test_provider_failure_is_logged_and_returns_guarded_fallback(self) -> None:
         config = AiServiceConfig(
-            provider="9router",
-            base_url="http://127.0.0.1:20128/v1",
+            provider="gemini",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
             api_key="test-key",
-            model="gh/gpt-4o",
+            model="gemini-2.5-flash",
             timeout_seconds=1,
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=1,
@@ -27,7 +27,7 @@ class ProviderObservabilityTests(unittest.TestCase):
 
         with (
             patch(
-                "app.services.assistant.NineRouterClient",
+                "app.services.assistant.GeminiClient",
                 return_value=_UnavailableProviderClient(),
             ),
             self.assertLogs("app.services.assistant", level="ERROR") as captured,
@@ -45,8 +45,8 @@ class ProviderObservabilityTests(unittest.TestCase):
         self.assertFalse(response["provider_available"])
         self.assertIn("AI_PROVIDER_UNAVAILABLE", response["guardrail_flags"])
         log_output = "\n".join(captured.output)
-        self.assertIn("provider=9router", log_output)
-        self.assertIn("model=gh/gpt-4o", log_output)
+        self.assertIn("provider=gemini", log_output)
+        self.assertIn("model=gemini-2.5-flash", log_output)
         self.assertIn("error_type=RuntimeError", log_output)
         self.assertNotIn("test-key", log_output)
         self.assertNotIn("Gợi ý món nhẹ", log_output)

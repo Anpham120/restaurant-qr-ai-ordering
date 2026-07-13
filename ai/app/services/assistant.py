@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from app.clients.nine_router import NineRouterClient
+from app.clients.gemini import GeminiClient
 from app.config import AiServiceConfig
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
@@ -47,7 +47,7 @@ class AiAssistantService:
         suggested_actions: list[dict] = []
 
         if self._config.llm_enabled:
-            client = NineRouterClient(
+            client = GeminiClient(
                 self._config.base_url,
                 self._config.api_key,
                 self._config.model,

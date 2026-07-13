@@ -6,7 +6,7 @@ public static class ChatApiRegistration
     {
         services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
-        services.AddHttpClient<IChatAiProvider, NineRouterChatProvider>();
+        services.AddHttpClient<IChatAiProvider, GeminiChatProvider>();
 
         return services;
     }
