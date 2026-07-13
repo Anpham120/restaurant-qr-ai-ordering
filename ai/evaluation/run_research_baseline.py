@@ -43,6 +43,7 @@ from evaluation.research_dataset import (  # noqa: E402
     RetrievalTarget,
     assert_materialized_cases_match,
     build_dataset_manifest,
+    canonical_text_artifact_sha256,
     load_materialized_cases,
     load_research_dataset,
 )
@@ -60,10 +61,10 @@ MATERIALIZED_CASES_PATHS = {
 }
 FROZEN_TEST_SHA256 = {
     FAMILY_DATASET_PATHS[DatasetSplit.TEST]: (
-        "e983adb89946bef95486723f56f5ab893630d0ceb903ed3043cf63d18d85440e"
+        "6fdcc59a311b21c3c44070e5fd7fce2f70a85c245978f085e19be0c4a5e1ee28"
     ),
     MATERIALIZED_CASES_PATHS[DatasetSplit.TEST]: (
-        "759866aae852f9c3df3c32bdb7557a3a0e7934d6d1cae195a20cd6c5ac96cc28"
+        "98a08679a6883b5531571482d95879fd4b2f5ec21f9f37135889f2d2c2aaafb5"
     ),
 }
 
@@ -274,7 +275,7 @@ def _dataset_paths(split: DatasetSplit) -> tuple[Path, Path]:
     cases_path = MATERIALIZED_CASES_PATHS[split]
     if split is DatasetSplit.TEST:
         for path in (family_path, cases_path):
-            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            actual = canonical_text_artifact_sha256(path)
             if actual != FROZEN_TEST_SHA256[path]:
                 raise RuntimeError(f"Frozen test artifact hash mismatch: {path.name}")
     return family_path, cases_path

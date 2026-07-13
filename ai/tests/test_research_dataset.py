@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import tempfile
@@ -19,6 +18,7 @@ from evaluation.research_dataset import (
     assert_research_ready,
     audit_dataset,
     build_dataset_manifest,
+    canonical_text_artifact_sha256,
     expand_families,
     load_materialized_cases,
     load_research_dataset,
@@ -76,7 +76,19 @@ class ResearchDatasetTests(unittest.TestCase):
         for path, expected_sha256 in FROZEN_TEST_SHA256.items():
             self.assertEqual(
                 expected_sha256,
-                hashlib.sha256(path.read_bytes()).hexdigest(),
+                canonical_text_artifact_sha256(path),
+            )
+
+    def test_v38_frozen_text_hash_is_stable_across_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            lf_path = Path(directory) / "lf.jsonl"
+            crlf_path = Path(directory) / "crlf.jsonl"
+            lf_path.write_bytes(b'{"id": 1}\n{"id": 2}\n')
+            crlf_path.write_bytes(b'{"id": 1}\r\n{"id": 2}\r\n')
+
+            self.assertEqual(
+                canonical_text_artifact_sha256(lf_path),
+                canonical_text_artifact_sha256(crlf_path),
             )
 
     def test_v38_materialized_case_requires_reviewer_evidence(self) -> None:

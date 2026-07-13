@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -23,6 +22,8 @@ from evaluation.research_dataset import (  # noqa: E402
     assert_research_ready,
     audit_dataset,
     build_dataset_manifest,
+    canonical_text_artifact_bytes,
+    canonical_text_artifact_sha256,
     load_materialized_cases,
     load_research_dataset,
 )
@@ -102,14 +103,14 @@ def run(*, include_frozen_test: bool = False) -> dict[str, object]:
 def _frozen_test_manifest() -> dict[str, object]:
     artifacts = {}
     for path, expected_sha256 in FROZEN_TEST_SHA256.items():
-        actual_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+        actual_sha256 = canonical_text_artifact_sha256(path)
         if actual_sha256 != expected_sha256:
             raise DatasetValidationError(
                 f"Frozen test artifact hash mismatch: {path.name}"
             )
         artifacts[path.name] = {
             "sha256": actual_sha256,
-            "bytes": path.stat().st_size,
+            "bytes": len(canonical_text_artifact_bytes(path)),
         }
     return {
         "case_count": 235,

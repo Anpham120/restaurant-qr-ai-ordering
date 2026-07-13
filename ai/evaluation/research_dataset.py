@@ -428,5 +428,14 @@ def _audit_selectors(
         )
 
 
+def canonical_text_artifact_bytes(path: Path) -> bytes:
+    """Return stable bytes for text artifacts across Git checkout platforms."""
+    return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def canonical_text_artifact_sha256(path: Path) -> str:
+    return hashlib.sha256(canonical_text_artifact_bytes(path)).hexdigest()
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
