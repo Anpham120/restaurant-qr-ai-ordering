@@ -6,6 +6,7 @@ from app.clients.gemini import GeminiClient
 from app.config import AiServiceConfig
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
+from app.rag.menu_grounding import select_menu_candidates
 from app.rag.output_parser import parse_model_response
 from app.rag.prompts import build_fallback_answer, build_messages
 from app.rag.retriever import LexicalRetriever
@@ -39,6 +40,7 @@ class AiAssistantService:
         history = payload.get("history") or []
         session_memory = str(payload.get("session_memory") or "").strip()
         menu_items = payload.get("menu_items") or []
+        candidate_menu_items = select_menu_candidates(message, menu_items)
         retrieved = self._retriever.search(message, self._config.top_k)
         chunks = [item.chunk for item in retrieved]
         flags = detect_guardrail_flags(message)
@@ -56,9 +58,9 @@ class AiAssistantService:
             )
             try:
                 raw_answer = await client.complete(
-                    build_messages(message, chunks, menu_items, history, session_memory=session_memory)
+                    build_messages(message, chunks, candidate_menu_items, history, session_memory=session_memory)
                 )
-                parsed = parse_model_response(raw_answer, menu_items)
+                parsed = parse_model_response(raw_answer, candidate_menu_items)
                 if parsed is None:
                     flags = _dedupe([*flags, "AI_OUTPUT_SCHEMA_INVALID"])
                 else:

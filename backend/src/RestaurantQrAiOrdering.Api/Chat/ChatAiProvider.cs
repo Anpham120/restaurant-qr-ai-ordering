@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -10,7 +11,7 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
-    IReadOnlyList<MenuItem> AvailableMenuItems,
+    IReadOnlyList<ChatMenuItemContext> AvailableMenuItems,
     string? TableCode = null,
     string SessionMemory = "");
 
@@ -42,6 +43,48 @@ public sealed record ChatAssistantReply(
 public sealed class GeminiChatProvider : IChatAiProvider
 {
     private const string GeminiOpenAiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
+    private static readonly object RestaurantResponseFormat = new
+    {
+        type = "json_schema",
+        json_schema = new
+        {
+            name = "restaurant_chat_response",
+            strict = true,
+            schema = new
+            {
+                type = "object",
+                properties = new
+                {
+                    content = new { type = "string" },
+                    suggested_cart_actions = new
+                    {
+                        type = "array",
+                        items = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                menu_item_id = new { type = "string" },
+                                name = new { type = "string" },
+                                price_vnd = new { type = new[] { "number", "null" } },
+                                quantity = new { type = "integer" },
+                                reason = new { type = new[] { "string", "null" } },
+                                requires_customer_confirmation = new { type = "boolean" }
+                            },
+                            required = new[]
+                            {
+                                "menu_item_id", "name", "price_vnd", "quantity", "reason", "requires_customer_confirmation"
+                            },
+                            additionalProperties = false
+                        }
+                    },
+                    guardrail_flags = new { type = "array", items = new { type = "string" } }
+                },
+                required = new[] { "content", "suggested_cart_actions", "guardrail_flags" },
+                additionalProperties = false
+            }
+        }
+    };
     private readonly HttpClient httpClient;
     private readonly IConfiguration configuration;
     private readonly ILogger<GeminiChatProvider> logger;
@@ -92,6 +135,8 @@ public sealed class GeminiChatProvider : IChatAiProvider
                         model,
                         stream = false,
                         temperature = 0.2,
+                        reasoning_effort = "low",
+                        response_format = RestaurantResponseFormat,
                         messages = BuildMessages(request)
                     })
                 };
@@ -114,7 +159,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
                 {
                     // Try to parse structured JSON from LLM (content may be JSON)
                     var (parsedContent, actions, flags) = TryParseStructuredContent(content.Trim(), request.AvailableMenuItems);
-                    return new ChatAiResult(parsedContent, ProviderAvailable: true, actions, flags);
+                    return new ChatAiResult(DeduplicateResponseLines(parsedContent), ProviderAvailable: true, actions, flags);
                 }
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
@@ -157,6 +202,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             {
                 id = item.Id,
                 category_id = item.CategoryId,
+                category_name = item.CategoryName,
                 name = item.Name,
                 description = item.Description,
                 price_vnd = item.Price,
@@ -209,7 +255,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             "\n",
             request.AvailableMenuItems
                 .Take(8)
-                .Select(item => $"- {item.Id}: {item.Name}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
+                .Select(item => $"- {item.Id}: {item.Name}, category {item.CategoryName}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
 
         var recentHistory = request.History
             .TakeLast(6)
@@ -224,7 +270,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             new
             {
                 role = "system",
-                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. Do not create orders, do not make payments, do not add items to cart. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese."
+                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. The available menu context is the exact candidate set: only mention or propose those items. Do not create orders, do not make payments, do not add items to cart. Do not repeat a sentence or an item in one response. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese and list at most four items."
             },
             new
             {
@@ -295,7 +341,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
     }
 
     private static List<SuggestedCartActionResponse> ExtractPythonSuggestedActions(
-        JsonElement root, IReadOnlyList<MenuItem> availableMenuItems)
+        JsonElement root, IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         var results = new List<SuggestedCartActionResponse>();
         if (!root.TryGetProperty("suggested_cart_actions", out var actionsElement)
@@ -347,7 +393,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
     }
 
     private static (string Content, List<SuggestedCartActionResponse> Actions, List<string> Flags)
-        TryParseStructuredContent(string rawContent, IReadOnlyList<MenuItem> availableMenuItems)
+        TryParseStructuredContent(string rawContent, IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         // LLM may return JSON with content + suggested_cart_actions
         try
@@ -364,6 +410,27 @@ public sealed class GeminiChatProvider : IChatAiProvider
         }
         catch (JsonException) { /* not JSON, use raw content */ }
         return (rawContent, [], []);
+    }
+
+    private static string DeduplicateResponseLines(string content)
+    {
+        var unique = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in Regex.Split(content, @"(?<=[.!?])\s+|\r?\n", RegexOptions.CultureInvariant)
+                     .Where(value => !string.IsNullOrWhiteSpace(value))
+                     .Select(value => value.Trim()))
+        {
+            var fingerprint = new string(line
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray());
+            if (fingerprint.Length == 0 || seen.Add(fingerprint))
+            {
+                unique.Add(line);
+            }
+        }
+
+        return unique.Count == 0 ? content.Trim() : string.Join(' ', unique);
     }
 
     private static ChatAiResult Unavailable()
@@ -400,8 +467,18 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["OUT_OF_SCOPE"]);
         }
 
+        var categories = await db.Categories
+            .AsNoTracking()
+            .Where(category => category.IsActive)
+            .ToListAsync(cancellationToken);
+        var categoryNames = categories.ToDictionary(
+            category => category.Id,
+            category => category.Name,
+            StringComparer.OrdinalIgnoreCase);
+        var activeCategoryIds = categories.Select(category => category.Id).ToList();
         var menuItems = await db.MenuItems
             .AsNoTracking()
+            .Where(item => activeCategoryIds.Contains(item.CategoryId))
             .ToListAsync(cancellationToken);
         var unavailableMatch = menuItems.FirstOrDefault(item =>
             !item.IsAvailable && normalizedMessage.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase));
@@ -414,7 +491,19 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["MENU_ITEM_UNAVAILABLE"]);
         }
 
-        var availableMenuItems = menuItems.Where(item => item.IsAvailable).ToList();
+        var availableMenuItems = ChatMenuGrounding.Select(
+            userMessage,
+            menuItems
+                .Where(item => item.IsAvailable)
+                .Select(item => new ChatMenuItemContext(
+                    item.Id,
+                    item.Name,
+                    item.Description,
+                    item.Price,
+                    item.CategoryId,
+                    categoryNames[item.CategoryId],
+                    item.Tags.ToList(),
+                    item.IsAvailable)));
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
         var sessionMemory = BuildSessionMemory(priorHistory);
         var providerResult = await aiProvider.GenerateAsync(
@@ -455,7 +544,7 @@ public sealed class ChatAssistantService : IChatAssistantService
 
     private static SuggestedCartActionResponse? BuildSuggestedAction(
         string normalizedMessage,
-        IReadOnlyList<MenuItem> availableMenuItems)
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         if (availableMenuItems.Count == 0)
         {

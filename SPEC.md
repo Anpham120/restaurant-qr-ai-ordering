@@ -55,6 +55,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V31: ∀ default production Gemini model → successful live `/chat/completions` smoke with the configured repository key before release.
 - V32: ∀ Gemini structured completion → request JSON response mode; retry 429/5xx at most `AI_MAX_RETRY` times before bounded fallback.
 - V33: ∀ Gemini restaurant chat completion → strict JSON schema requires `content`, `suggested_cart_actions`, and `guardrail_flags` before parser execution.
+- V34: ∀ menu-category/tag request → every AI-listed or AI-actionable item belongs to the matched live category/tag candidate set; response contains no duplicate semantic line and uses bounded prompt context.
 
 ## §T
 
@@ -78,6 +79,7 @@ T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|x|full repository audit; build/deploy proof|C
 T19|x|introduce aggregate Table Invoice and session settlement flow|V14,I.api,I.ui
+T20|x|ground AI menu retrieval by live category/tag; add quality/latency regressions and research protocol|V34,I.ai,I.api
 
 ## §B
 
@@ -126,3 +128,4 @@ B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the
 B42|2026-07-13|Gemini 2.5 Flash remained in the model catalog but rejected new users with 404 after deployment|V31
 B43|2026-07-13|Gemini completion relied on prompt-only JSON and failed immediately on transient 503 or free-form output|V32
 B44|2026-07-13|Gemini `json_object` mode returned valid JSON with provider-invented field names that the restaurant parser rejected|V33
+B45|2026-07-13|AI prompt omitted live category name and passed arbitrary first menu items, so a seafood request could surface other categories; long unbounded context also increased latency and repetition|V34
