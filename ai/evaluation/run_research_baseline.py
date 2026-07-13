@@ -6,14 +6,16 @@ import json
 import math
 import os
 import platform
+import random
 import statistics
 import subprocess
 import sys
 import time
 from dataclasses import asdict
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +29,7 @@ from app.rag.retriever import (  # noqa: E402
     TAG_BOOST,
     TITLE_BOOST,
     BM25Retriever,
+    Retriever,
 )
 from evaluation.research_corpus import (  # noqa: E402
     KnowledgeDocumentMetadata,
@@ -46,9 +49,38 @@ from evaluation.research_dataset import (  # noqa: E402
 from evaluation.retrieval_metrics import evaluate_rankings  # noqa: E402
 
 
-FAMILY_DATASET_PATH = AI_ROOT / "evaluation" / "datasets" / "query_families.v1.json"
-MATERIALIZED_CASES_PATH = (
-    AI_ROOT / "evaluation" / "datasets" / "retrieval_cases.v1.jsonl"
+DATASET_ROOT = AI_ROOT / "evaluation" / "datasets"
+FAMILY_DATASET_PATHS = {
+    DatasetSplit.DEV: DATASET_ROOT / "query_families.dev.v1.json",
+    DatasetSplit.TEST: DATASET_ROOT / "query_families.test.v1.json",
+}
+MATERIALIZED_CASES_PATHS = {
+    DatasetSplit.DEV: DATASET_ROOT / "retrieval_cases.dev.v1.jsonl",
+    DatasetSplit.TEST: DATASET_ROOT / "retrieval_cases.test.v1.jsonl",
+}
+FROZEN_TEST_SHA256 = {
+    FAMILY_DATASET_PATHS[DatasetSplit.TEST]: (
+        "e983adb89946bef95486723f56f5ab893630d0ceb903ed3043cf63d18d85440e"
+    ),
+    MATERIALIZED_CASES_PATHS[DatasetSplit.TEST]: (
+        "759866aae852f9c3df3c32bdb7557a3a0e7934d6d1cae195a20cd6c5ac96cc28"
+    ),
+}
+
+
+RetrieverFactory = Callable[[list[KnowledgeChunk]], Retriever]
+LATENCY_WARMUP_QUERIES_PER_TARGET = 5
+LATENCY_REPETITIONS = 7
+LATENCY_CASE_ORDER_SEED = 20260713
+PROVENANCE_PACKAGES = (
+    "sentence-transformers",
+    "transformers",
+    "torch",
+    "tokenizers",
+    "huggingface-hub",
+    "numpy",
+    "scipy",
+    "scikit-learn",
 )
 
 
@@ -58,15 +90,45 @@ def run_baseline(
     top_k: int = 10,
     allow_frozen_test: bool = False,
 ) -> dict[str, object]:
-    if top_k <= 0:
-        raise ValueError("top_k must be positive")
-    if split is DatasetSplit.TEST and not allow_frozen_test:
-        raise PermissionError(
-            "Refusing to open frozen test split without explicit authorization."
-        )
+    return run_retrieval_experiment(
+        method="bm25",
+        retriever_factory=BM25Retriever,
+        retriever_provenance={
+            "name": "bm25",
+            "implementation": "app.rag.retriever.BM25Retriever",
+            "version": "repository",
+            "parameters": {
+                "k1": BM25_K1,
+                "b": BM25_B,
+                "title_boost": TITLE_BOOST,
+                "tag_boost": TAG_BOOST,
+            },
+        },
+        split=split,
+        top_k=top_k,
+        allow_frozen_test=allow_frozen_test,
+    )
 
-    dataset = load_research_dataset(FAMILY_DATASET_PATH)
-    cases = load_materialized_cases(MATERIALIZED_CASES_PATH)
+
+def run_retrieval_experiment(
+    *,
+    method: str,
+    retriever_factory: RetrieverFactory,
+    retriever_provenance: dict[str, object],
+    split: DatasetSplit = DatasetSplit.DEV,
+    top_k: int = 10,
+    allow_frozen_test: bool = False,
+) -> dict[str, object]:
+    validate_experiment_request(
+        method=method,
+        split=split,
+        top_k=top_k,
+        allow_frozen_test=allow_frozen_test,
+    )
+    family_dataset_path, materialized_cases_path = _dataset_paths(split)
+
+    dataset = load_research_dataset(family_dataset_path)
+    cases = load_materialized_cases(materialized_cases_path)
     assert_materialized_cases_match(dataset, cases)
     documents = load_research_corpus()
     documents_by_target = {
@@ -74,7 +136,7 @@ def run_baseline(
         for target in RetrievalTarget
     }
     retrievers = {
-        target: BM25Retriever(
+        target: retriever_factory(
             [
                 KnowledgeChunk(
                     source=document.document_id,
@@ -88,23 +150,43 @@ def run_baseline(
         for target, target_documents in documents_by_target.items()
     }
 
+    evaluated_cases = [
+        case
+        for case in cases
+        if case.split is split and case.labels.expected_selectors
+    ]
+    warmup_searches = 0
+    for target, retriever in retrievers.items():
+        warmup_cases = [case for case in evaluated_cases if case.target is target][
+            :LATENCY_WARMUP_QUERIES_PER_TARGET
+        ]
+        for case in warmup_cases:
+            retriever.search(case.query, top_k)
+            warmup_searches += 1
+
+    measurement_cases = list(evaluated_cases)
+    random.Random(LATENCY_CASE_ORDER_SEED).shuffle(measurement_cases)
     rankings: dict[str, list[str]] = {}
     expected_by_case: dict[str, list[str]] = {}
     forbidden_by_case: dict[str, list[str]] = {}
     latencies_ms: list[float] = []
     case_records: dict[str, dict[str, object]] = {}
-    for case in cases:
-        if case.split is not split or not case.labels.expected_selectors:
-            continue
+    for case in measurement_cases:
         expected_by_case[case.case_id] = sorted(
             resolve_selectors(case.labels.expected_selectors, documents)
         )
         forbidden_by_case[case.case_id] = sorted(
             resolve_selectors(case.labels.forbidden_selectors, documents)
         )
-        started = time.perf_counter()
-        results = retrievers[case.target].search(case.query, top_k)
-        latency_ms = (time.perf_counter() - started) * 1000
+        latency_samples_ms = []
+        results = []
+        for repetition in range(LATENCY_REPETITIONS):
+            started = time.perf_counter()
+            current_results = retrievers[case.target].search(case.query, top_k)
+            latency_samples_ms.append((time.perf_counter() - started) * 1000)
+            if repetition == 0:
+                results = current_results
+        latency_ms = statistics.median(latency_samples_ms)
         latencies_ms.append(latency_ms)
         rankings[case.case_id] = [result.chunk.source for result in results]
         case_records[case.case_id] = {
@@ -123,6 +205,7 @@ def run_baseline(
                 for result in results
             ],
             "latency_ms": latency_ms,
+            "latency_samples_ms": latency_samples_ms,
         }
 
     k_values = tuple(value for value in (1, 3, 5, 10) if value <= top_k)
@@ -139,25 +222,62 @@ def run_baseline(
         record["metrics"] = asdict(metrics_by_case[case_id])
         paired_observations.append(record)
     return {
-        "method": "bm25",
+        "method": method,
         "split": split.value,
         "top_k": top_k,
-        "provenance": _runtime_provenance(),
+        "provenance": _runtime_provenance(retriever_provenance),
         "dataset": build_dataset_manifest(
             dataset,
-            FAMILY_DATASET_PATH,
-            MATERIALIZED_CASES_PATH,
+            family_dataset_path,
+            materialized_cases_path,
         ),
+        "frozen_test_opened": split is DatasetSplit.TEST,
         "corpus": build_corpus_manifest(documents),
         "metrics": asdict(summary),
         "latency_ms": {
             "p50": statistics.median(latencies_ms) if latencies_ms else 0.0,
             "p95": _percentile(latencies_ms, 0.95),
             "samples": len(latencies_ms),
+            "protocol": {
+                "warmup_queries_per_target": LATENCY_WARMUP_QUERIES_PER_TARGET,
+                "warmup_searches": warmup_searches,
+                "repetitions_per_query": LATENCY_REPETITIONS,
+                "per_query_aggregate": "median",
+                "case_order": "deterministic-shuffle",
+                "case_order_seed": LATENCY_CASE_ORDER_SEED,
+            },
         },
         "per_query_count": len(per_query),
         "cases": paired_observations,
     }
+
+
+def validate_experiment_request(
+    *,
+    method: str,
+    split: DatasetSplit,
+    top_k: int,
+    allow_frozen_test: bool,
+) -> None:
+    if not method.strip():
+        raise ValueError("method must be a non-empty string")
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    if split is DatasetSplit.TEST and not allow_frozen_test:
+        raise PermissionError(
+            "Refusing to open frozen test split without explicit authorization."
+        )
+
+
+def _dataset_paths(split: DatasetSplit) -> tuple[Path, Path]:
+    family_path = FAMILY_DATASET_PATHS[split]
+    cases_path = MATERIALIZED_CASES_PATHS[split]
+    if split is DatasetSplit.TEST:
+        for path in (family_path, cases_path):
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            if actual != FROZEN_TEST_SHA256[path]:
+                raise RuntimeError(f"Frozen test artifact hash mismatch: {path.name}")
+    return family_path, cases_path
 
 
 def _document_tags(
@@ -179,7 +299,7 @@ def _percentile(values: list[float], percentile: float) -> float:
     return ordered[index]
 
 
-def _runtime_provenance() -> dict[str, object]:
+def _runtime_provenance(retriever_provenance: dict[str, object]) -> dict[str, object]:
     git_state = _git_state()
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -189,18 +309,19 @@ def _runtime_provenance() -> dict[str, object]:
         "platform": platform.platform(),
         "machine": platform.machine(),
         "processor": platform.processor() or "unknown",
-        "retriever": {
-            "name": "bm25",
-            "implementation": "app.rag.retriever.BM25Retriever",
-            "version": "repository",
-            "parameters": {
-                "k1": BM25_K1,
-                "b": BM25_B,
-                "title_boost": TITLE_BOOST,
-                "tag_boost": TAG_BOOST,
-            },
-        },
+        "package_versions": _package_versions(),
+        "retriever": dict(retriever_provenance),
     }
+
+
+def _package_versions() -> dict[str, str]:
+    versions = {}
+    for package in PROVENANCE_PACKAGES:
+        try:
+            versions[package] = version(package)
+        except PackageNotFoundError:
+            versions[package] = "not-installed"
+    return versions
 
 
 def _git_state() -> dict[str, object]:

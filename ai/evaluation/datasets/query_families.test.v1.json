@@ -1,86 +1,10 @@
 {
-  "dataset_version": "1.0.0",
-  "description": "Bộ 350 truy vấn theo family để so sánh retrieval cho chatbot gọi món CMC Restaurant.",
+  "dataset_version": "1.1.0",
+  "description": "Bộ 360 truy vấn theo family để so sánh retrieval cho chatbot gọi món CMC Restaurant trên đủ 91 món, bao gồm đồ uống. Split: test.",
   "annotation_origin": "curated-family-templates",
   "review_status": "engineering-reviewed",
   "reviewer_evidence": "engineering-review-v1",
   "families": [
-    {
-      "family_id": "category-khai-vi",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_category",
-      "queries": [
-        "Cho tôi xem các món Khai vị",
-        "Thực đơn có món nào thuộc nhóm Khai vị?",
-        "Liệt kê món Khai vị đang bán",
-        "Tôi muốn gọi món trong danh mục Khai vị",
-        "Khai vị hiện có những lựa chọn nào?"
-      ],
-      "expected_selectors": [
-        "menu-category:Khai vị"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Category là hard constraint lấy từ menu chính thức."
-    },
-    {
-      "family_id": "category-pho-bun",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_category",
-      "queries": [
-        "Cho tôi xem các món Phở & Bún",
-        "Thực đơn có món nào thuộc nhóm Phở & Bún?",
-        "Liệt kê món Phở & Bún đang bán",
-        "Tôi muốn gọi món trong danh mục Phở & Bún",
-        "Phở & Bún hiện có những lựa chọn nào?"
-      ],
-      "expected_selectors": [
-        "menu-category:Phở & Bún"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Category là hard constraint lấy từ menu chính thức."
-    },
-    {
-      "family_id": "category-com-viet",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_category",
-      "queries": [
-        "Cho tôi xem các món Cơm Việt",
-        "Thực đơn có món nào thuộc nhóm Cơm Việt?",
-        "Liệt kê món Cơm Việt đang bán",
-        "Tôi muốn gọi món trong danh mục Cơm Việt",
-        "Cơm Việt hiện có những lựa chọn nào?"
-      ],
-      "expected_selectors": [
-        "menu-category:Cơm Việt"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Category là hard constraint lấy từ menu chính thức."
-    },
-    {
-      "family_id": "category-hai-san",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_category",
-      "queries": [
-        "Cho tôi xem các món Hải sản",
-        "Thực đơn có món nào thuộc nhóm Hải sản?",
-        "Liệt kê món Hải sản đang bán",
-        "Tôi muốn gọi món trong danh mục Hải sản",
-        "Hải sản hiện có những lựa chọn nào?"
-      ],
-      "expected_selectors": [
-        "menu-category:Hải sản"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Category là hard constraint lấy từ menu chính thức."
-    },
     {
       "family_id": "category-lau",
       "split": "test",
@@ -232,158 +156,6 @@
       "forbidden_selectors": [],
       "guardrail_flags": [],
       "notes": "Category là hard constraint lấy từ menu chính thức."
-    },
-    {
-      "family_id": "tag-khong-cay",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn khong cay",
-        "Tôi muốn món phù hợp tiêu chí khong cay",
-        "Menu có lựa chọn nào khong cay không?",
-        "Cho tôi xem các món được đánh dấu khong cay",
-        "Món nào trong nhà hàng hợp với yêu cầu khong cay?"
-      ],
-      "expected_selectors": [
-        "menu-tag:khong cay"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-cay-nhe",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn cay nhe",
-        "Tôi muốn món phù hợp tiêu chí cay nhe",
-        "Menu có lựa chọn nào cay nhe không?",
-        "Cho tôi xem các món được đánh dấu cay nhe",
-        "Món nào trong nhà hàng hợp với yêu cầu cay nhe?"
-      ],
-      "expected_selectors": [
-        "menu-tag:cay nhe"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-cay-vua",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn cay vua",
-        "Tôi muốn món phù hợp tiêu chí cay vua",
-        "Menu có lựa chọn nào cay vua không?",
-        "Cho tôi xem các món được đánh dấu cay vua",
-        "Món nào trong nhà hàng hợp với yêu cầu cay vua?"
-      ],
-      "expected_selectors": [
-        "menu-tag:cay vua"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-cay-dam",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn cay dam",
-        "Tôi muốn món phù hợp tiêu chí cay dam",
-        "Menu có lựa chọn nào cay dam không?",
-        "Cho tôi xem các món được đánh dấu cay dam",
-        "Món nào trong nhà hàng hợp với yêu cầu cay dam?"
-      ],
-      "expected_selectors": [
-        "menu-tag:cay dam"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-ngot",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn ngot",
-        "Tôi muốn món phù hợp tiêu chí ngot",
-        "Menu có lựa chọn nào ngot không?",
-        "Cho tôi xem các món được đánh dấu ngot",
-        "Món nào trong nhà hàng hợp với yêu cầu ngot?"
-      ],
-      "expected_selectors": [
-        "menu-tag:ngot"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-chua",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn chua",
-        "Tôi muốn món phù hợp tiêu chí chua",
-        "Menu có lựa chọn nào chua không?",
-        "Cho tôi xem các món được đánh dấu chua",
-        "Món nào trong nhà hàng hợp với yêu cầu chua?"
-      ],
-      "expected_selectors": [
-        "menu-tag:chua"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-man",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn man",
-        "Tôi muốn món phù hợp tiêu chí man",
-        "Menu có lựa chọn nào man không?",
-        "Cho tôi xem các món được đánh dấu man",
-        "Món nào trong nhà hàng hợp với yêu cầu man?"
-      ],
-      "expected_selectors": [
-        "menu-tag:man"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
-    },
-    {
-      "family_id": "tag-beo",
-      "split": "dev",
-      "target": "menu",
-      "intent": "menu_tag",
-      "queries": [
-        "Gợi ý món có nhãn beo",
-        "Tôi muốn món phù hợp tiêu chí beo",
-        "Menu có lựa chọn nào beo không?",
-        "Cho tôi xem các món được đánh dấu beo",
-        "Món nào trong nhà hàng hợp với yêu cầu beo?"
-      ],
-      "expected_selectors": [
-        "menu-tag:beo"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
     },
     {
       "family_id": "tag-healthy",
@@ -614,63 +386,6 @@
       "notes": "Tag được đối chiếu với metadata menu, không suy diễn bằng prompt."
     },
     {
-      "family_id": "out-of-catalog-gluten-free",
-      "split": "dev",
-      "target": "menu",
-      "intent": "out_of_catalog",
-      "queries": [
-        "Nhà hàng có món không gluten không?",
-        "Tôi muốn ăn theo chế độ không gluten",
-        "Gợi ý món mang nhãn không gluten cho tôi",
-        "Menu có lựa chọn phù hợp không gluten chứ?",
-        "Cho tôi xem các món không gluten"
-      ],
-      "expected_selectors": [],
-      "forbidden_selectors": [],
-      "guardrail_flags": [
-        "OUT_OF_CATALOG_TAG"
-      ],
-      "notes": "Phải giải thích menu chưa có nhãn chính thức và định hướng bằng tag thật."
-    },
-    {
-      "family_id": "out-of-catalog-keto",
-      "split": "dev",
-      "target": "menu",
-      "intent": "out_of_catalog",
-      "queries": [
-        "Nhà hàng có món keto không?",
-        "Tôi muốn ăn theo chế độ keto",
-        "Gợi ý món mang nhãn keto cho tôi",
-        "Menu có lựa chọn phù hợp keto chứ?",
-        "Cho tôi xem các món keto"
-      ],
-      "expected_selectors": [],
-      "forbidden_selectors": [],
-      "guardrail_flags": [
-        "OUT_OF_CATALOG_TAG"
-      ],
-      "notes": "Phải giải thích menu chưa có nhãn chính thức và định hướng bằng tag thật."
-    },
-    {
-      "family_id": "out-of-catalog-halal",
-      "split": "dev",
-      "target": "menu",
-      "intent": "out_of_catalog",
-      "queries": [
-        "Nhà hàng có món halal không?",
-        "Tôi muốn ăn theo chế độ halal",
-        "Gợi ý món mang nhãn halal cho tôi",
-        "Menu có lựa chọn phù hợp halal chứ?",
-        "Cho tôi xem các món halal"
-      ],
-      "expected_selectors": [],
-      "forbidden_selectors": [],
-      "guardrail_flags": [
-        "OUT_OF_CATALOG_TAG"
-      ],
-      "notes": "Phải giải thích menu chưa có nhãn chính thức và định hướng bằng tag thật."
-    },
-    {
       "family_id": "out-of-catalog-kosher",
       "split": "test",
       "target": "menu",
@@ -764,77 +479,6 @@
         "OUT_OF_CATALOG_TAG"
       ],
       "notes": "Phải giải thích menu chưa có nhãn chính thức và định hướng bằng tag thật."
-    },
-    {
-      "family_id": "safety-shellfish",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "safety",
-      "queries": [
-        "Tôi dị ứng tôm cua thì ăn món nào được?",
-        "Khách bị dị ứng hải sản cần tránh món gì?",
-        "Món nào an toàn cho người không ăn được tôm?",
-        "Tôi phản ứng với cua, hãy tư vấn món phù hợp",
-        "Có món không chứa hải sản cho người dị ứng nặng không?"
-      ],
-      "expected_selectors": [
-        "kb-source:allergy-dietary.md"
-      ],
-      "forbidden_selectors": [
-        "menu-tag:co hai san",
-        "menu-tag:tom",
-        "menu-tag:cua"
-      ],
-      "guardrail_flags": [
-        "ALLERGEN_CONFIRMATION_REQUIRED"
-      ],
-      "notes": "Không khẳng định an toàn tuyệt đối; phải yêu cầu xác nhận nhân viên khi dữ liệu thiếu."
-    },
-    {
-      "family_id": "safety-peanut",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "safety",
-      "queries": [
-        "Tôi dị ứng đậu phộng, món nào cần tránh?",
-        "Nhà hàng có món chứa lạc không?",
-        "Gợi ý món cho người không ăn được đậu phộng",
-        "Đậu phộng có xuất hiện trong các món nào?",
-        "Tôi bị sốc phản vệ với lạc, AI cần tư vấn thế nào?"
-      ],
-      "expected_selectors": [
-        "kb-source:allergy-dietary.md"
-      ],
-      "forbidden_selectors": [
-        "menu-tag:co dau phong"
-      ],
-      "guardrail_flags": [
-        "ALLERGEN_CONFIRMATION_REQUIRED"
-      ],
-      "notes": "Không khẳng định an toàn tuyệt đối; phải yêu cầu xác nhận nhân viên khi dữ liệu thiếu."
-    },
-    {
-      "family_id": "safety-gluten",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "safety",
-      "queries": [
-        "Tôi dị ứng gluten thì nên chọn món nào?",
-        "Món nào có thể chứa bột mì?",
-        "Tôi không ăn được gluten, hãy cảnh báo giúp",
-        "Có món dùng bánh hoặc mì chứa gluten không?",
-        "Tư vấn thực đơn cho người nhạy cảm gluten"
-      ],
-      "expected_selectors": [
-        "kb-source:allergy-dietary.md"
-      ],
-      "forbidden_selectors": [
-        "menu-tag:co gluten"
-      ],
-      "guardrail_flags": [
-        "ALLERGEN_CONFIRMATION_REQUIRED"
-      ],
-      "notes": "Không khẳng định an toàn tuyệt đối; phải yêu cầu xác nhận nhân viên khi dữ liệu thiếu."
     },
     {
       "family_id": "safety-egg",
@@ -1007,45 +651,6 @@
       "notes": "Không khẳng định an toàn tuyệt đối; phải yêu cầu xác nhận nhân viên khi dữ liệu thiếu."
     },
     {
-      "family_id": "policy-order-confirmation",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "restaurant_policy",
-      "queries": [
-        "AI đặt món luôn cho tôi được không?",
-        "Gửi món vào bếp ngay giúp tôi",
-        "Bạn tự thêm món này vào đơn nhé",
-        "Tôi muốn chatbot xác nhận đơn thay tôi",
-        "Có cần bấm xác nhận trước khi gửi bếp không?"
-      ],
-      "expected_selectors": [
-        "kb-source:ordering-policy.md"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Câu trả lời phải trích đúng chính sách; không để LLM tự tạo quy định."
-    },
-    {
-      "family_id": "policy-cancel-order",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "restaurant_policy",
-      "queries": [
-        "Tôi có thể hủy món sau khi gửi không?",
-        "Đơn đã vào bếp thì sửa thế nào?",
-        "Lỡ gọi nhầm món, tôi cần làm gì?",
-        "Có đổi số lượng sau khi xác nhận được không?",
-        "Muốn hủy đơn đã gửi thì liên hệ ai?"
-      ],
-      "expected_selectors": [
-        "kb-source:ordering-policy.md",
-        "kb-source:faq.md"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Câu trả lời phải trích đúng chính sách; không để LLM tự tạo quy định."
-    },
-    {
       "family_id": "policy-takeaway",
       "split": "test",
       "target": "knowledge",
@@ -1199,84 +804,6 @@
       "notes": "Câu trả lời phải trích đúng chính sách; không để LLM tự tạo quy định."
     },
     {
-      "family_id": "constraint-budget",
-      "split": "dev",
-      "target": "menu",
-      "intent": "budget",
-      "queries": [
-        "Gợi ý món bình dân cho một người",
-        "Tôi muốn chọn món có mức giá tiết kiệm",
-        "Menu có món nào hợp ngân sách thấp không?",
-        "Cho tôi xem các lựa chọn giá mềm",
-        "Món nào phù hợp khi tôi muốn chi tiêu vừa phải?"
-      ],
-      "expected_selectors": [
-        "menu-tag:binh dan"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Ngân sách phải được đối chiếu với giá và tag thật, không tự sửa giá."
-    },
-    {
-      "family_id": "constraint-party-size",
-      "split": "dev",
-      "target": "menu",
-      "intent": "party_size",
-      "queries": [
-        "Gợi ý món cho hai người cùng ăn",
-        "Bàn tôi có ba khách thì nên chọn món nào?",
-        "Món nào đủ để chia sẻ cho nhóm 2 đến 3 người?",
-        "Tư vấn món chung cho một cặp đôi",
-        "Có lựa chọn nào phù hợp bàn ba người không?"
-      ],
-      "expected_selectors": [
-        "menu-tag:2-3 nguoi"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Số người là structured constraint và phải dùng tag khẩu phần hiện có."
-    },
-    {
-      "family_id": "knowledge-combo",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "combo",
-      "queries": [
-        "Gợi ý combo bữa trưa cho tôi",
-        "Hai người nên kết hợp các món nào?",
-        "Cho tôi một bộ món ăn kèm hợp lý",
-        "Nhóm bốn người nên gọi combo thế nào?",
-        "Món chính này nên dùng cùng đồ uống gì?"
-      ],
-      "expected_selectors": [
-        "kb-source:combo-pairing.md"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [],
-      "notes": "Combo phải có căn cứ pairing và vẫn kiểm tra availability của menu sống."
-    },
-    {
-      "family_id": "policy-unavailable-item",
-      "split": "dev",
-      "target": "knowledge",
-      "intent": "availability",
-      "queries": [
-        "Nếu món vừa hết thì AI phải làm gì?",
-        "Món không còn bán có được gợi ý không?",
-        "Tôi chọn món hết hàng thì hệ thống xử lý thế nào?",
-        "AI cần kiểm tra trạng thái món ở bước nào?",
-        "Hãy tư vấn lựa chọn thay thế khi món tạm hết"
-      ],
-      "expected_selectors": [
-        "kb-source:ordering-policy.md"
-      ],
-      "forbidden_selectors": [],
-      "guardrail_flags": [
-        "MENU_AVAILABILITY_REQUIRED"
-      ],
-      "notes": "Món unavailable không được xuất hiện trong candidate hoặc card."
-    },
-    {
       "family_id": "conversation-follow-up",
       "split": "test",
       "target": "menu",
@@ -1414,6 +941,28 @@
         "MULTI_INTENT_RESPONSE_REQUIRED"
       ],
       "notes": "Đánh giá truy hồi nhiều nguồn và trả lời đủ các ý trong một lượt."
+    },
+    {
+      "family_id": "drinks-alcohol-catalog",
+      "split": "test",
+      "target": "menu",
+      "intent": "menu_category",
+      "queries": [
+        "Quán có bia nào để dùng cùng món nhậu?",
+        "Có rượu truyền thống nào trong thực đơn không?",
+        "Đồ uống có cồn của nhà hàng gồm những gì?",
+        "Cho tôi xem bia lạnh và rượu đang bán",
+        "Nhà hàng có cocktail có cồn nào không?"
+      ],
+      "expected_selectors": [
+        "menu-category:Bia & Rượu"
+      ],
+      "forbidden_selectors": [
+        "menu-category:Cà phê & Trà",
+        "menu-category:Nước ép & Sinh tố"
+      ],
+      "guardrail_flags": [],
+      "notes": "Đo khả năng tách đồ uống có cồn khỏi cà phê, trà, nước ép và sinh tố."
     }
   ]
 }

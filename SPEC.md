@@ -59,7 +59,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V35: ∀ explicit live category/tag catalog request → backend returns a deterministic catalog built only from matched live candidates; LLM free text cannot introduce menu items.
 - V36: ∀ request to recommend additional dishes in one chat session → response excludes every live menu item previously suggested by that session and honours a requested count from 1 to 8 (default 3).
 - V37: ∀ persisted assistant recommendation → every returned/history message retains its actionable menu cards; an unambiguous `xem chi tiết` follow-up resolves to the latest suggested live items instead of unrelated retrieval.
-- V38: ∀ research benchmark case → expected document IDs ∩ forbidden document IDs = ∅; family source and materialized JSONL remain identical; query-family split leakage = 0.
+- V38: ∀ research benchmark case → expected document IDs ∩ forbidden document IDs = ∅; family source and materialized JSONL remain identical; dev/test artifacts are physically separate and frozen test bytes are hash-gated before label parsing; query-family split leakage = 0; official menu corpus = exactly 91 canonical items including drinks, with production-seed parity for name/price/description.
 
 ## §T
 
@@ -140,3 +140,6 @@ B46|2026-07-13|LLM could still violate candidate-only text instruction even thou
 B47|2026-07-13|cross-turn recommendation only deduplicated lines inside one LLM response; older AI suggestions were not a deterministic exclusion set|V36
 B48|2026-07-13|deterministic menu replies returned no suggested actions and history omitted persisted actions, so cards vanished and `xem chi tiết` lost its referent|V37
 B49|2026-07-13|broad healthy and sweet tag selectors overlapped, so rejection benchmark labels marked the same menu documents as both expected and forbidden|V38
+B50|2026-07-13|research corpus used a stale 84-item JSON snapshot and omitted the 7-item Bia & Rượu category present in the production seed|V38
+B51|2026-07-13|dev benchmark loaded a combined 360-case artifact before filtering, so frozen test labels were parsed during tuning|V38
+B52|2026-07-13|new drink records enriched canonical descriptions with unsupported serving sizes, alcohol percentages and ingredients absent from the production seed|V38

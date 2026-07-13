@@ -21,12 +21,17 @@ class ResearchBaselineTests(unittest.TestCase):
 
         self.assertEqual("bm25", result["method"])
         self.assertEqual("dev", result["split"])
-        self.assertEqual(350, result["dataset"]["case_count"])
-        self.assertEqual(119, result["corpus"]["document_count"])
-        self.assertEqual(105, result["per_query_count"])
-        self.assertEqual(105, result["latency_ms"]["samples"])
+        self.assertEqual(125, result["dataset"]["case_count"])
+        self.assertEqual(126, result["corpus"]["document_count"])
+        self.assertFalse(result["frozen_test_opened"])
+        self.assertEqual(110, result["per_query_count"])
+        self.assertEqual(110, result["latency_ms"]["samples"])
+        self.assertEqual(
+            7,
+            result["latency_ms"]["protocol"]["repetitions_per_query"],
+        )
         self.assertIn(5, result["metrics"]["by_k"])
-        self.assertEqual(105, len(result["cases"]))
+        self.assertEqual(110, len(result["cases"]))
         self.assertIn("menu_source_sha256", result["corpus"])
         self.assertIn("knowledge_base_sha256", result["corpus"])
 
@@ -71,6 +76,7 @@ class ResearchBaselineTests(unittest.TestCase):
         for case in cases:
             stable = dict(case)
             stable.pop("latency_ms")
+            stable.pop("latency_samples_ms")
             output.append(stable)
         return output
 

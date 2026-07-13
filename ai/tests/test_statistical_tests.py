@@ -40,12 +40,27 @@ class StatisticalTests(unittest.TestCase):
         )
         self.assertEqual(3, result.method_a_only)
         self.assertEqual(0, result.method_b_only)
+        self.assertGreater(result.success_rate_delta, 0)
+        self.assertGreaterEqual(result.ci_upper, result.ci_lower)
         self.assertAlmostEqual(0.25, result.p_value)
 
     def test_v38_wilcoxon_reports_identical_pairs_as_no_difference(self) -> None:
         result = wilcoxon_signed_rank([1.0, 2.0], [1.0, 2.0])
         self.assertEqual(0, result.non_zero_pairs)
+        self.assertEqual(0.0, result.rank_biserial)
+        self.assertEqual(0.0, result.median_delta)
         self.assertEqual(1.0, result.p_value)
+
+    def test_v38_wilcoxon_reports_effect_size_and_interval(self) -> None:
+        result = wilcoxon_signed_rank(
+            [5.0, 6.0, 7.0, 8.0],
+            [1.0, 2.0, 3.0, 4.0],
+        )
+
+        self.assertEqual(1.0, result.rank_biserial)
+        self.assertEqual(4.0, result.median_delta)
+        self.assertEqual(4.0, result.ci_lower)
+        self.assertEqual(4.0, result.ci_upper)
 
     def test_v38_holm_adjustment_is_monotonic(self) -> None:
         adjusted = holm_bonferroni({"a": 0.01, "b": 0.04, "c": 0.03})

@@ -256,13 +256,14 @@ def assert_research_ready(
     *,
     min_cases: int,
     required_intents: Iterable[str],
+    required_splits: Iterable[DatasetSplit] = tuple(DatasetSplit),
 ) -> None:
     issues = list(audit.issues)
     if audit.case_count < min_cases:
         issues.append(
             f"Dataset has {audit.case_count} cases; at least {min_cases} are required."
         )
-    for split in DatasetSplit:
+    for split in required_splits:
         if audit.split_counts.get(split.value, 0) == 0:
             issues.append(f"Dataset split {split.value!r} is empty.")
     missing_intents = sorted(set(required_intents) - set(audit.intent_counts))

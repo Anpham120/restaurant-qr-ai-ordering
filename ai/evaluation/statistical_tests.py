@@ -22,6 +22,8 @@ class McNemarResult:
     method_a_only: int
     method_b_only: int
     success_rate_delta: float
+    ci_lower: float
+    ci_upper: float
     p_value: float
 
 
@@ -31,7 +33,20 @@ class WilcoxonResult:
     w_plus: float
     w_minus: float
     statistic: float
+    median_delta: float
+    ci_lower: float
+    ci_upper: float
+    rank_biserial: float
     p_value: float
+
+
+@dataclass(frozen=True)
+class BootstrapInterval:
+    estimate: float
+    ci_lower: float
+    ci_upper: float
+    iterations: int
+    seed: int
 
 
 def paired_bootstrap(
@@ -110,10 +125,16 @@ def mcnemar_exact(
     success_rate_delta = (
         sum(method_a_success) - sum(method_b_success)
     ) / len(method_a_success)
+    interval = paired_bootstrap(
+        [float(value) for value in method_a_success],
+        [float(value) for value in method_b_success],
+    )
     return McNemarResult(
         method_a_only=method_a_only,
         method_b_only=method_b_only,
         success_rate_delta=success_rate_delta,
+        ci_lower=interval.ci_lower,
+        ci_upper=interval.ci_upper,
         p_value=p_value,
     )
 
@@ -128,8 +149,19 @@ def wilcoxon_signed_rank(
         for a, b in zip(method_a, method_b, strict=True)
         if not math.isclose(a, b, abs_tol=1e-12)
     ]
+    interval = paired_bootstrap_median(method_a, method_b)
     if not differences:
-        return WilcoxonResult(0, 0.0, 0.0, 0.0, 1.0)
+        return WilcoxonResult(
+            non_zero_pairs=0,
+            w_plus=0.0,
+            w_minus=0.0,
+            statistic=0.0,
+            median_delta=interval.estimate,
+            ci_lower=interval.ci_lower,
+            ci_upper=interval.ci_upper,
+            rank_biserial=0.0,
+            p_value=1.0,
+        )
 
     ranks = _average_ranks([abs(value) for value in differences])
     w_plus = sum(rank for rank, value in zip(ranks, differences, strict=True) if value > 0)
@@ -145,7 +177,48 @@ def wilcoxon_signed_rank(
         w_plus=w_plus,
         w_minus=w_minus,
         statistic=statistic,
+        median_delta=interval.estimate,
+        ci_lower=interval.ci_lower,
+        ci_upper=interval.ci_upper,
+        rank_biserial=(w_plus - w_minus) / (w_plus + w_minus),
         p_value=p_value,
+    )
+
+
+def paired_bootstrap_median(
+    method_a: Sequence[float],
+    method_b: Sequence[float],
+    *,
+    iterations: int = 10_000,
+    confidence: float = 0.95,
+    seed: int = 20260714,
+) -> BootstrapInterval:
+    _validate_pairs(method_a, method_b)
+    if iterations <= 0:
+        raise ValueError("iterations must be positive")
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be between 0 and 1")
+
+    deltas = [a - b for a, b in zip(method_a, method_b, strict=True)]
+    randomizer = random.Random(seed)
+    sample_medians = sorted(
+        statistics.median(
+            deltas[randomizer.randrange(len(deltas))] for _ in range(len(deltas))
+        )
+        for _ in range(iterations)
+    )
+    alpha = 1 - confidence
+    lower_index = max(0, math.floor((alpha / 2) * (iterations - 1)))
+    upper_index = min(
+        iterations - 1,
+        math.ceil((1 - alpha / 2) * (iterations - 1)),
+    )
+    return BootstrapInterval(
+        estimate=statistics.median(deltas),
+        ci_lower=sample_medians[lower_index],
+        ci_upper=sample_medians[upper_index],
+        iterations=iterations,
+        seed=seed,
     )
 
 
