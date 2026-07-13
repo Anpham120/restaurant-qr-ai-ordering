@@ -36,4 +36,14 @@ describe("ordering experience", () => {
     expect(cart).toContain("customerPhoneNumber: null");
     expect(cart).toContain("Gửi món tới bếp");
   });
+
+  it("shows the current cart separately from the full table session total", () => {
+    const cart = read("../pages/customer/CustomerCartPage.tsx");
+
+    expect(cart).toContain("getTableInvoice");
+    expect(cart).toContain("Đã gọi trong phiên");
+    expect(cart).toContain("Đang chọn thêm");
+    expect(cart).toContain("Tổng sau khi gửi");
+    expect(cart).toContain("summary.projectedTotal");
+  });
 });
