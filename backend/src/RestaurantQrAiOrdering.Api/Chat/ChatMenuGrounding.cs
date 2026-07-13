@@ -29,6 +29,11 @@ public sealed record ChatMenuGroundingResult(
 public static class ChatMenuGrounding
 {
     private const int MaxCandidates = 8;
+    private static readonly IReadOnlyDictionary<string, string[]> CategoryQueryAliases =
+        new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["bia ruou"] = ["do uong co con", "co con", "bia", "ruou", "cocktail"]
+        };
 
     public static IReadOnlyList<ChatMenuItemContext> Select(
         string message,
@@ -50,6 +55,14 @@ public static class ChatMenuGrounding
             .Select(item => item.CategoryName)
             .Where(name => IsMeaningfulPhrase(name) && ContainsPhrase(query, Normalize(name)))
             .ToHashSet(StringComparer.Ordinal);
+        foreach (var categoryName in available.Select(item => item.CategoryName).Distinct(StringComparer.Ordinal))
+        {
+            if (CategoryQueryAliases.TryGetValue(Normalize(categoryName), out var aliases)
+                && aliases.Any(alias => ContainsPhrase(query, alias)))
+            {
+                categoryMatches.Add(categoryName);
+            }
+        }
 
         var tagMatches = available
             .SelectMany(item => item.Tags)

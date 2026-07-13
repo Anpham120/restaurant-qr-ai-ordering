@@ -53,7 +53,10 @@ class SentenceTransformerE5Encoder:
             device=device,
             trust_remote_code=False,
         )
-        dimension = self._model.get_sentence_embedding_dimension()
+        if hasattr(self._model, "get_embedding_dimension"):
+            dimension = self._model.get_embedding_dimension()
+        else:
+            dimension = self._model.get_sentence_embedding_dimension()
         if dimension is None or dimension <= 0:
             raise ValueError("Embedding model did not expose a valid dimension")
         self.dimension = int(dimension)

@@ -57,6 +57,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
       RAG_TOP_K: "5"
+      RAG_RETRIEVAL_METHOD: hybrid
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
       BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
       BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}

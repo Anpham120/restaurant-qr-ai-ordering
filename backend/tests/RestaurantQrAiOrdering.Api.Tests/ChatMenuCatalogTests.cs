@@ -105,6 +105,28 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
     }
 
     [Fact]
+    public async Task TestV39_AlcoholIntent_IsGroundedToBeerAndWineCategory()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var category = await db.Categories.SingleAsync(item => item.Name == "Bia & Rượu");
+        var allowedIds = await db.MenuItems
+            .Where(item => item.CategoryId == category.Id && item.IsAvailable)
+            .Select(item => item.Id)
+            .ToListAsync();
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "gợi ý cho tôi 3 món đồ uống có cồn",
+            [],
+            null,
+            CancellationToken.None);
+
+        Assert.Equal(3, reply.SuggestedCartActions.Count);
+        Assert.All(reply.SuggestedCartActions, action => Assert.Contains(action.MenuItemId, allowedIds));
+    }
+
+    [Fact]
     public async Task TestV37_DetailFollowUp_ReturnsCardsForPreviouslySuggestedItems()
     {
         using var scope = factory.Services.CreateScope();

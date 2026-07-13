@@ -13,7 +13,13 @@ class ParsedAiResponse:
     guardrail_flags: list[str]
 
 
-def parse_model_response(raw_response: str, menu_items: list[dict]) -> ParsedAiResponse | None:
+def parse_model_response(
+    raw_response: str,
+    menu_items: list[dict],
+    *,
+    excluded_menu_item_ids: frozenset[str] = frozenset(),
+    max_actions: int = 8,
+) -> ParsedAiResponse | None:
     payload = _extract_json(raw_response)
     if payload is None:
         return None
@@ -23,7 +29,12 @@ def parse_model_response(raw_response: str, menu_items: list[dict]) -> ParsedAiR
         return None
 
     flags = _normalize_flags(payload.get("guardrail_flags"))
-    actions, action_flags = _parse_suggested_actions(payload.get("suggested_cart_actions"), menu_items)
+    actions, action_flags = _parse_suggested_actions(
+        payload.get("suggested_cart_actions"),
+        menu_items,
+        excluded_menu_item_ids=excluded_menu_item_ids,
+        max_actions=max_actions,
+    )
     flags = _dedupe([*flags, *action_flags])
 
     return ParsedAiResponse(
@@ -70,7 +81,13 @@ def _extract_json(raw_response: str) -> dict[str, Any] | None:
     return None
 
 
-def _parse_suggested_actions(value: Any, menu_items: list[dict]) -> tuple[list[dict[str, Any]], list[str]]:
+def _parse_suggested_actions(
+    value: Any,
+    menu_items: list[dict],
+    *,
+    excluded_menu_item_ids: frozenset[str],
+    max_actions: int,
+) -> tuple[list[dict[str, Any]], list[str]]:
     if value is None:
         return [], []
     if not isinstance(value, list):
@@ -84,6 +101,7 @@ def _parse_suggested_actions(value: Any, menu_items: list[dict]) -> tuple[list[d
     }
 
     actions: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     rejected_count = 0
     for item in value:
         if not isinstance(item, dict):
@@ -92,7 +110,9 @@ def _parse_suggested_actions(value: Any, menu_items: list[dict]) -> tuple[list[d
 
         item_id = str(item.get("menu_item_id") or item.get("id") or "").strip()
         menu_item = available_by_id.get(item_id)
-        if menu_item is None:
+        if item_id in seen_ids:
+            continue
+        if menu_item is None or item_id in excluded_menu_item_ids:
             rejected_count += 1
             continue
 
@@ -107,6 +127,9 @@ def _parse_suggested_actions(value: Any, menu_items: list[dict]) -> tuple[list[d
                 "requires_customer_confirmation": True,
             }
         )
+        seen_ids.add(item_id)
+        if len(actions) == max(0, max_actions):
+            break
 
     flags: list[str] = []
     if actions:

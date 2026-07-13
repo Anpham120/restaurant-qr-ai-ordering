@@ -8,7 +8,7 @@ Chỉ trả lời dựa trên menu, FAQ, chính sách nhà hàng và RAG context
 Không bịa món, không bịa giá, không tự tạo đơn, không tự thêm món vào giỏ và không tự thanh toán.
 Bạn chỉ được đề xuất món để khách xác nhận thủ công trong giao diện.
 Danh sách "Menu hiện có" là tập món được phép: chỉ được nhắc hoặc đề xuất đúng các món trong tập này.
-Không lặp câu, không lặp món trong cùng một phản hồi, và chỉ liệt kê tối đa 4 món.
+Không lặp câu, không lặp món trong cùng một phản hồi, và chỉ liệt kê tối đa __MAX_SUGGESTIONS__ món.
 Nếu thiếu dữ liệu, hãy nói rõ hệ thống chưa có đủ thông tin.
 Luôn trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.
 Schema bắt buộc:
@@ -37,6 +37,9 @@ def build_messages(
     history: list[dict],
     table_code: str | None = None,
     session_memory: str = "",
+    max_suggestions: int = 4,
+    requested_count: int | None = None,
+    excluded_menu_item_ids: frozenset[str] = frozenset(),
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
@@ -75,10 +78,24 @@ def build_messages(
         if session_memory.strip()
         else []
     )
+    exclusion_text = ", ".join(sorted(excluded_menu_item_ids)) or "không có"
+    count_instruction = (
+        f"Khách yêu cầu đúng {requested_count} món; nếu đủ món phù hợp thì trả về đúng {requested_count} thẻ gợi ý."
+        if requested_count is not None
+        else f"Chỉ tạo tối đa {max_suggestions} thẻ gợi ý khi câu hỏi thực sự cần gợi ý món."
+    )
+    recommendation_policy = (
+        f"Chính sách gợi ý cho lượt này: {count_instruction} "
+        f"Không nhắc lại hoặc tạo action cho các menu_item_id đã gợi ý/bị từ chối: {exclusion_text}."
+    )
 
     return [
-        {"role": "system", "content": SYSTEM_POLICY},
+        {
+            "role": "system",
+            "content": SYSTEM_POLICY.replace("__MAX_SUGGESTIONS__", str(max_suggestions)),
+        },
         {"role": "system", "content": f"Bối cảnh phiên: {session_context}"},
+        {"role": "system", "content": recommendation_policy},
         {"role": "system", "content": f"RAG context:\n{context_text or 'Không có context phù hợp.'}"},
         {"role": "system", "content": f"Menu hiện có:\n{menu_text or 'Menu chưa được cung cấp.'}"},
         *memory_context,
