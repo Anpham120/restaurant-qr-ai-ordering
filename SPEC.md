@@ -62,6 +62,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V38: ∀ research benchmark case → expected document IDs ∩ forbidden document IDs = ∅; family source and materialized JSONL remain identical; dev/test artifacts are physically separate and frozen test canonical text bytes are hash-gated before label parsing; query-family split leakage = 0; official menu corpus = exactly 91 canonical items including drinks, with production-seed parity for name/price/description.
 - V39: ∀ Python-RAG menu recommendation → live available menu is ranked by configured BM25/dense/hybrid stack; category/tag constraints apply before ranking; previously suggested or explicitly rejected IDs cannot become cards; explicit count 1..8 is filled without duplicate cards when enough candidates exist.
 - V40: ∀ production hybrid startup → exact multilingual-E5 revision is packaged in the AI image and reused across KB/live-menu indexes; unavailable dense runtime degrades to observable BM25 fallback instead of failing the AI service.
+- V41: ∀ production AI image build → PyTorch is installed from the official CPU-only index before RAG dependencies and CUDA/NVIDIA wheels are absent; deployment health checks retry transient TLS failures during Nginx certificate reload.
 
 ## §T
 
@@ -149,3 +150,5 @@ B52|2026-07-13|new drink records enriched canonical descriptions with unsupporte
 B53|2026-07-13|Python RAG rebuilt a lexical menu index and Gemini client per request while backend history omitted action IDs and long-session memory omitted suggestions/rejections, allowing repeated cards and inconsistent requested counts|V39,V40
 B54|2026-07-13|the customer phrase `đồ uống có cồn` did not exactly match category `Bia & Rượu`; both backend deterministic grounding and Python hybrid retrieval admitted unrelated drinks/foods|V39
 B55|2026-07-13|frozen text artifacts were hashed from checkout bytes, so Windows CRLF and Linux LF produced different hashes for identical benchmark content and failed CI|V38
+B56|2026-07-13|the production AI image resolved default PyTorch CUDA/NVIDIA wheels on a CPU VPS, creating multi-gigabyte layers until Docker export broke the SSH deployment connection|V41
+B57|2026-07-13|rollback recreated a healthy stack but its immediate API health check treated a transient TLS certificate mismatch as terminal, so the rollback workflow reported failure despite public 200 responses|V41

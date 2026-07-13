@@ -7,7 +7,10 @@ ENV HF_HOME=/app/.cache/huggingface
 WORKDIR /app
 
 COPY ai/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.13.0+cpu \
+    && pip install --no-cache-dir -r requirements.txt
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small', revision='fd1525a9fd15316a2d503bf26ab031a61d056e98', trust_remote_code=False)"
 
 RUN groupadd --system --gid 10001 app \
