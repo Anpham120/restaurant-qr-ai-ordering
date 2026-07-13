@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 
 const frontendRoot = new URL("../../", import.meta.url);
 const dockerfilePath = fileURLToPath(new URL("Dockerfile", frontendRoot));
+const aiDockerfilePath = fileURLToPath(new URL("../ai/Dockerfile", frontendRoot));
+const aiRequirementsPath = fileURLToPath(new URL("../ai/requirements.txt", frontendRoot));
+const healthCheckPath = fileURLToPath(
+  new URL("../deploy/scripts/health-check.sh", frontendRoot),
+);
 
 describe("frontend Dockerfile workspace manifests", () => {
   it("copies only package manifests that exist in the build context", () => {
@@ -15,5 +20,24 @@ describe("frontend Dockerfile workspace manifests", () => {
     for (const manifestPath of manifestPaths) {
       expect(existsSync(fileURLToPath(new URL(manifestPath, frontendRoot))), manifestPath).toBe(true);
     }
+  });
+});
+
+describe("AI Docker production dependencies", () => {
+  it("installs CPU-only PyTorch before the remaining RAG dependencies", () => {
+    const dockerfile = readFileSync(aiDockerfilePath, "utf8");
+    const requirements = readFileSync(aiRequirementsPath, "utf8");
+
+    expect(dockerfile).toContain("https://download.pytorch.org/whl/cpu");
+    expect(dockerfile).toContain("torch==2.13.0+cpu");
+    expect(requirements).not.toMatch(/^torch(?:\[.*\])?[=<>~!]/m);
+  });
+});
+
+describe("production health check retries", () => {
+  it("retries transient TLS errors while nginx certificates reload", () => {
+    const healthCheck = readFileSync(healthCheckPath, "utf8");
+
+    expect(healthCheck).toContain("--retry-all-errors");
   });
 });
