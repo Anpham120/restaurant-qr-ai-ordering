@@ -1,4 +1,4 @@
-# AI Chatbot: Gemini 3.1, 9router, Python RAG Và Guardrails
+# AI Chatbot: Gemini 2.5 Flash, Python RAG Và Guardrails
 
 Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng cấp lên kiến trúc Python RAG service. Mục tiêu là để AI trong app không chỉ là một ô chat gọi model, mà có dữ liệu, luật an toàn, đánh giá và ranh giới nghiệp vụ rõ ràng.
 
@@ -6,15 +6,15 @@ Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng c
 
 Hệ thống sử dụng:
 
-- **Model:** Gemini 3.1.
-- **Cách truy cập model:** 9router API gateway.
+- **Model:** Gemini 2.5 Flash.
+- **Cách truy cập model:** Google Gemini API chính thức.
 - **AI service:** Python FastAPI service trong thư mục `ai/`.
 - **Knowledge grounding:** RAG từ `ai/knowledge-base/`.
 - **Backend nghiệp vụ:** .NET backend vẫn kiểm tra menu, giá, trạng thái món, giỏ hàng và đơn hàng.
 
-Không gọi mô hình là "9router model". Cách gọi đúng là:
+Mô tả cách gọi model:
 
-> CMC Restaurant dùng Gemini 3.1 thông qua 9router API gateway, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
+> CMC Restaurant gọi trực tiếp Gemini 2.5 Flash qua Google Gemini API, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
 
 ## 2. Luồng Kiến Trúc
 
@@ -23,11 +23,11 @@ Customer Web
   -> .NET Backend API
     -> Python AI Service
       -> RAG retriever
-      -> 9router API gateway
-        -> Gemini 3.1
+      -> Google Gemini API
+        -> Gemini 2.5 Flash
 ```
 
-Backend không để frontend gọi 9router trực tiếp. Frontend chỉ gọi API chat của backend. Backend có thể bật provider `python-rag` để chuyển phần AI sang service Python.
+Frontend chỉ gọi API chat của backend. Backend bật provider `python-rag` để chuyển phần AI sang service Python; chỉ service Python giữ khóa và gọi Google Gemini API.
 
 ## 3. Biến Môi Trường
 
@@ -43,19 +43,18 @@ AI_MAX_RETRY=1
 Python AI service:
 
 ```env
-AI_PROVIDER=9router
-AI_BASE_URL=http://127.0.0.1:20128/v1
-AI_MODEL=gh/gemini-3.1-pro-preview
-AI_API_KEY=<secret>
+AI_PROVIDER=gemini
+AI_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=<secret>
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 RAG_TOP_K=5
 ```
 
-Không commit `AI_API_KEY`, `.env` thật hoặc log chứa secret.
+Không commit `GEMINI_API_KEY`, `.env` thật hoặc log chứa secret.
 
 ## 4. RAG Là Gì Trong Dự Án Này?
 
-RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả lời. Gemini 3.1 không tự đoán menu. Service Python lấy context từ:
+RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả lời. Gemini không tự đoán menu. Service Python lấy context từ:
 
 - menu và tag món;
 - chính sách đặt món, mang về, thanh toán;
@@ -80,7 +79,7 @@ Backend luôn là lớp kiểm tra cuối cùng. Dù Python service trả về g
 
 ## 6. Ranh Giới Với Fine-Tune
 
-Nhóm không fine-tune Gemini 3.1. Hướng triển khai hiện tại là:
+Nhóm không fine-tune Gemini. Hướng triển khai hiện tại là:
 
 - RAG để kiểm soát tri thức;
 - prompt engineering để kiểm soát hành vi;

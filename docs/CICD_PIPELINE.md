@@ -76,7 +76,7 @@ Nếu **Deploy Production** thất bại (build/migration/health-check), workflo
 Secrets đặt theo **GitHub Environments** (`staging`, `production`), không nằm trong repo:
 
 - `STAGING_HOST` / `PRODUCTION_HOST`, `*_SSH_USER`, `*_SSH_KEY`
-- `*_POSTGRES_PASSWORD`, `JWT_SIGNING_KEY`, `AI_API_KEY`
+- `*_POSTGRES_PASSWORD`, `JWT_SIGNING_KEY`, `GEMINI_API_KEY`
 - `*_BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`, `CERTBOT_EMAIL`, `RELEASE_BOT_TOKEN` (tuỳ chọn)
 
 ## 8. Kích hoạt cổng duyệt production (một lần, trong Settings)

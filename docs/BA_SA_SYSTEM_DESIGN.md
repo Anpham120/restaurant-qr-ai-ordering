@@ -32,7 +32,7 @@ Ngoài phạm vi hiện tại:
 | Staff/Counter | Nhân viên quầy | Xem đơn, xác nhận thanh toán, hỗ trợ trạng thái đơn |
 | Kitchen | Bếp | Nhận đơn mới, cập nhật trạng thái từng món |
 | Admin/Manager | Quản lý | Quản lý menu, danh mục, bàn/QR, xem trạng thái vận hành |
-| AI Service | Hệ thống phụ trợ | Nhận câu hỏi, truy xuất knowledge base, gọi 9router, trả gợi ý an toàn |
+| AI Service | Hệ thống phụ trợ | Nhận câu hỏi, truy xuất knowledge base, gọi Google Gemini API, trả gợi ý an toàn |
 | Payment/Bank/VietQR | Hệ thống thanh toán phụ trợ | Sinh nội dung chuyển khoản/VietQR để khách thanh toán |
 
 Ghi chú bảo vệ phạm vi: `AI Service` và `Payment/Bank/VietQR` là supporting systems, không phải người dùng chính. Các use case quản trị/bếp/nhân viên phải `include` đăng nhập trước khi thao tác.
@@ -140,7 +140,7 @@ flowchart TD
 1. Customer mở chat và gửi câu hỏi.
 2. Backend tạo/đọc chat session qua `/api/chat/sessions`.
 3. Backend gọi AI service nội bộ.
-4. AI service truy xuất knowledge base menu/FAQ, gọi 9router nếu có cấu hình.
+4. AI service truy xuất knowledge base menu/FAQ, gọi Google Gemini API nếu có cấu hình.
 5. AI trả lời bằng văn bản và có thể trả `SuggestedCartAction`.
 6. Frontend chỉ hiển thị đề xuất. Customer phải xác nhận trước khi thêm vào giỏ.
 7. Nếu AI lỗi hoặc trả payload không an toàn, backend dùng fallback an toàn, không tạo đơn và không sửa giỏ hàng.
@@ -195,7 +195,7 @@ sequenceDiagram
     participant API as Backend Chat API
     participant AIS as Python AI Service
     participant KB as RAG Knowledge Base
-    participant R as 9router
+    participant R as Google Gemini API
 
     C->>API: POST /api/chat/sessions/{id}/messages
     API->>AIS: Chat request with menu context
@@ -464,7 +464,7 @@ flowchart LR
     end
 
     DB["PostgreSQL"]
-    Router["9router"]
+    Router["Google Gemini API"]
     Bank["VietQR/Bank"]
 
     CustomerWeb --> Backend
@@ -493,7 +493,7 @@ flowchart TD
     API["api container"]
     AI["ai-service container"]
     PG["postgres container + volume"]
-    R["9router systemd service"]
+    R["Google Gemini API (external)"]
 
     GH -->|SSH deploy| VPS
     VPS --> Nginx

@@ -3,12 +3,20 @@ from __future__ import annotations
 import httpx
 
 
-class NineRouterClient:
-    def __init__(self, base_url: str, api_key: str, model: str, timeout_seconds: float) -> None:
+class GeminiClient:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        timeout_seconds: float,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._model = model
         self._timeout_seconds = timeout_seconds
+        self._transport = transport
 
     async def complete(self, messages: list[dict[str, str]]) -> str | None:
         payload = {
@@ -18,8 +26,15 @@ class NineRouterClient:
             "messages": messages,
         }
         headers = {"Authorization": f"Bearer {self._api_key}"}
-        async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-            response = await client.post(f"{self._base_url}/chat/completions", json=payload, headers=headers)
+        async with httpx.AsyncClient(
+            timeout=self._timeout_seconds,
+            transport=self._transport,
+        ) as client:
+            response = await client.post(
+                f"{self._base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            )
             response.raise_for_status()
             data = response.json()
 

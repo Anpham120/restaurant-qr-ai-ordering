@@ -6,7 +6,7 @@ Thư mục này chứa lớp AI viết bằng Python cho CMC Restaurant. Service
 
 - Nhận câu hỏi của khách từ backend.
 - Truy xuất tri thức nhà hàng từ `ai/knowledge-base/`.
-- Dựng prompt an toàn cho Gemini 3.1 thông qua 9router.
+- Dựng prompt an toàn và gọi trực tiếp Gemini 2.5 Flash.
 - Trả về câu trả lời, nguồn RAG đã dùng và guardrail flags.
 - Không tự tạo đơn hàng, không tự thêm món vào giỏ và không tự thanh toán.
 
@@ -17,8 +17,8 @@ Customer Web
   -> .NET Backend API
     -> Python AI Service
       -> RAG retriever
-      -> 9router API gateway
-        -> Gemini 3.1
+      -> Google Gemini API
+        -> Gemini 2.5 Flash
 ```
 
 ## Chạy Local
@@ -34,14 +34,13 @@ uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 Biến môi trường khuyến nghị:
 
 ```env
-AI_PROVIDER=9router
-AI_BASE_URL=http://127.0.0.1:20128/v1
-AI_MODEL=gh/gpt-4o
-AI_API_KEY=replace-with-9router-key
+AI_PROVIDER=gemini
+AI_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=replace-with-gemini-api-key
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 ```
 
-Nếu không có `AI_API_KEY`, service vẫn trả về fallback có kiểm soát để demo RAG và guardrails, nhưng sẽ không gọi Gemini 3.1.
+Nếu không có `GEMINI_API_KEY`, service vẫn trả về fallback có kiểm soát để demo RAG và guardrails, nhưng sẽ không gọi Gemini.
 
 ## Endpoint
 
@@ -55,4 +54,4 @@ Nếu không có `AI_API_KEY`, service vẫn trả về fallback có kiểm soá
 python -m compileall ai/app
 ```
 
-Các test này kiểm tra retriever và guardrails bằng thư viện chuẩn Python, không cần gọi 9router và không cần API key.
+Các test này kiểm tra retriever, guardrails và hợp đồng HTTP bằng mock transport, không gọi Gemini thật và không cần API key.

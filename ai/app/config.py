@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+
+
 @dataclass(frozen=True)
 class AiServiceConfig:
     provider: str
@@ -18,7 +21,7 @@ class AiServiceConfig:
     @property
     def llm_enabled(self) -> bool:
         return (
-            self.provider.lower() == "9router"
+            self.provider.lower() == "gemini"
             and bool(self.base_url.strip())
             and bool(self.api_key.strip())
             and bool(self.model.strip())
@@ -27,10 +30,10 @@ class AiServiceConfig:
 
 def load_config() -> AiServiceConfig:
     return AiServiceConfig(
-        provider=os.getenv("AI_PROVIDER", "9router"),
-        base_url=os.getenv("AI_BASE_URL", "http://127.0.0.1:20128/v1"),
-        api_key=os.getenv("AI_API_KEY", ""),
-        model=os.getenv("AI_MODEL", "gh/gpt-4o"),
+        provider=os.getenv("AI_PROVIDER", "gemini"),
+        base_url=GEMINI_OPENAI_BASE_URL,
+        api_key=os.getenv("GEMINI_API_KEY", ""),
+        model=os.getenv("AI_MODEL", "gemini-2.5-flash"),
         timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "30")),
         knowledge_base_path=Path(os.getenv("RAG_KNOWLEDGE_BASE_PATH", "knowledge-base")),
         top_k=int(os.getenv("RAG_TOP_K", "5")),

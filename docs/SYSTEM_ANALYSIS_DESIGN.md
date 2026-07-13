@@ -51,7 +51,7 @@ flowchart LR
 
     AISVC["Python AI Service (FastAPI :8001)\nBM25 retriever + guardrails + output parser"]
     DB[("PostgreSQL")]
-    R9["9router gateway\n(gemini via OpenAI-compat)"]
+    R9["Google Gemini API\n(OpenAI-compatible)"]
     Bank["VietQR payload (thủ công)"]
 
     CW & AW & SW & KW -->|HTTPS /api| API
@@ -77,7 +77,7 @@ workspaces: 4 app + 6 package (`shared-ui`, `api-client`, `shared-types`, `auth`
 | **Staff** | Người dùng chính | JWT role `Staff` | Xem tất cả đơn, đổi trạng thái đơn, xác nhận/huỷ/**hoàn** thanh toán |
 | **Kitchen** | Người dùng chính | JWT role `Kitchen` | Xem đơn, cập nhật trạng thái từng món |
 | **Admin/Manager** | Người dùng chính | JWT role `Admin` | Toàn quyền staff + quản lý menu/category/table/user |
-| **AI Service** | Hệ phụ trợ | Nội bộ (backend gọi) | Truy xuất KB, gọi 9router, trả gợi ý an toàn |
+| **AI Service** | Hệ phụ trợ | Nội bộ (backend gọi) | Truy xuất KB, gọi Google Gemini API, trả gợi ý an toàn |
 | **VietQR/Bank** | Hệ phụ trợ | — | Sinh payload chuyển khoản; đối soát **thủ công** bởi Staff |
 
 Quy tắc: mọi thao tác Staff/Kitchen/Admin **include đăng nhập** trước. Customer **không có tài khoản** — QR
@@ -394,7 +394,7 @@ sequenceDiagram
     participant API as Backend Chat API
     participant AS as ChatAssistantService (.NET)
     participant AI as Python AI Service
-    participant R9 as 9router (gemini)
+    participant R9 as Google Gemini API
     C->>API: POST /api/chat/sessions/{id}/messages {content, tableCode}
     API->>AS: dựng context (menu live từ RestaurantDbContext)
     AS->>AI: POST /v1/chat {message, history, menu_items}
@@ -458,8 +458,8 @@ enumeration.
 
 FastAPI `:8001` — `GET /health`, `POST /v1/rag/search`, `POST /v1/chat`. Retrieval **Okapi BM25**
 (K1=1.5, B=0.75, title_boost=1.5, tag_boost=1.0, top_k=5) trên KB Markdown (`ai/knowledge-base/*.md`,
-chunk theo header). LLM `gemini` qua 9router (OpenAI-compat `:20128/v1`, temp 0.2). Pipeline:
-`retriever → prompts → 9router → output_parser`; `guardrails.py` gắn cờ input.
+chunk theo header). LLM `gemini-2.5-flash` qua Google Gemini API (OpenAI-compatible, temp 0.2). Pipeline:
+`retriever → prompts → Gemini API → output_parser`; `guardrails.py` gắn cờ input.
 **RAG là lexical, không phải vector** (dù entity `KnowledgeEntry.embedding` tồn tại — chưa dùng).
 
 ## 12. Triển Khai

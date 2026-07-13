@@ -8,7 +8,7 @@ Tài liệu này mô tả cách vận hành staging/production cho CMC Restauran
 - VPS chạy Docker Compose cho `frontend`, `api`, `ai-service` và `postgres`.
 - Nginx trên VPS reverse proxy domain về các port nội bộ.
 - PostgreSQL chỉ bind trên `127.0.0.1:<POSTGRES_PORT>`, không mở public internet.
-- 9router chạy local trên VPS tại `http://127.0.0.1:20128/v1`.
+- AI service gọi trực tiếp Google Gemini API qua HTTPS.
 - Secrets nằm trong GitHub Actions Secrets hoặc file `.env` trên VPS, không commit vào repo.
 
 ## Domain Và Port
@@ -28,7 +28,7 @@ STAGING_SSH_USER
 STAGING_SSH_KEY
 STAGING_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 
@@ -40,7 +40,7 @@ PRODUCTION_SSH_USER
 PRODUCTION_SSH_KEY
 PRODUCTION_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 

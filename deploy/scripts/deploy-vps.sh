@@ -22,9 +22,8 @@ required_vars=(
   PAYMENTS__VIETQR__ACCOUNTNUMBER
   PAYMENTS__VIETQR__ACCOUNTNAME
   AI_SERVICE_URL
-  AI_BASE_URL
   AI_MODEL
-  AI_API_KEY
+  GEMINI_API_KEY
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -100,9 +99,8 @@ RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-false}
 AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
-AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-9router}")
-AI_BASE_URL=$(env_quote "$AI_BASE_URL")
-AI_API_KEY=$(env_quote "$AI_API_KEY")
+AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-gemini}")
+GEMINI_API_KEY=$(env_quote "$GEMINI_API_KEY")
 AI_MODEL=$(env_quote "$AI_MODEL")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")

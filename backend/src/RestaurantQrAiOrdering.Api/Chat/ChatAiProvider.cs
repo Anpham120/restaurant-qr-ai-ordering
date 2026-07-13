@@ -39,16 +39,17 @@ public sealed record ChatAssistantReply(
     IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions,
     IReadOnlyList<string> GuardrailFlags);
 
-public sealed class NineRouterChatProvider : IChatAiProvider
+public sealed class GeminiChatProvider : IChatAiProvider
 {
+    private const string GeminiOpenAiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
     private readonly HttpClient httpClient;
     private readonly IConfiguration configuration;
-    private readonly ILogger<NineRouterChatProvider> logger;
+    private readonly ILogger<GeminiChatProvider> logger;
 
-    public NineRouterChatProvider(
+    public GeminiChatProvider(
         HttpClient httpClient,
         IConfiguration configuration,
-        ILogger<NineRouterChatProvider> logger)
+        ILogger<GeminiChatProvider> logger)
     {
         this.httpClient = httpClient;
         this.configuration = configuration;
@@ -63,12 +64,10 @@ public sealed class NineRouterChatProvider : IChatAiProvider
             return await GenerateWithPythonRagAsync(request, cancellationToken);
         }
 
-        var baseUrl = configuration["AI_BASE_URL"] ?? configuration["Ai:BaseUrl"];
-        var apiKey = configuration["AI_API_KEY"] ?? configuration["Ai:ApiKey"];
+        var apiKey = configuration["GEMINI_API_KEY"];
         var model = configuration["AI_MODEL"] ?? configuration["Ai:Model"];
 
-        if (!string.Equals(provider, "9router", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(baseUrl)
+        if (!string.Equals(provider, "gemini", StringComparison.OrdinalIgnoreCase)
             || string.IsNullOrWhiteSpace(apiKey)
             || string.IsNullOrWhiteSpace(model))
         {
@@ -77,7 +76,7 @@ public sealed class NineRouterChatProvider : IChatAiProvider
 
         var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
         var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
-        var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";
+        var endpoint = $"{GeminiOpenAiBaseUrl}/chat/completions";
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
