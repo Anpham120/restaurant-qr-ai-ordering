@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "development model selection only",
+  "split": "dev",
+  "top_k": 10,
+  "evaluated_cases": 110,
+  "dataset_cases": {
+    "dev": 125,
+    "frozen_test": 235
+  },
+  "frozen_test_opened": false,
+  "corpus": {
+    "documents": 126,
+    "menu_items": 91,
+    "knowledge_documents": 35,
+    "includes_drinks": true,
+    "corpus_sha256": "01b220b3e7cfe4efcb27ac1237765c56b0ad4613f4c02119fca8660064393daa",
+    "menu_source_sha256": "5e79a60351b4f6e88da12867a62af429bcad05c6f585c1d5d463cacc8f179321"
+  },
+  "dataset": {
+    "family_source_sha256": "87e75ab3fcbcd3b99d6bce5adb1327fd0066a2c16d153bb318f6f8707718adf3",
+    "materialized_cases_sha256": "d7cea8c2ae7d6a9386597df497f7416ed45d413814e199787f30c7e7d0949200",
+    "frozen_test_family_sha256": "e983adb89946bef95486723f56f5ab893630d0ceb903ed3043cf63d18d85440e",
+    "frozen_test_cases_sha256": "759866aae852f9c3df3c32bdb7557a3a0e7934d6d1cae195a20cd6c5ac96cc28"
+  },
+  "provenance": {
+    "git_sha": "afa3a6e13b852f9213e08add236750496b4d8323",
+    "git_dirty": false,
+    "git_diff_sha256": "0ccbb82e4a9bef951ac23137dc1206d14b2d3457c9644a8c71e003648a0fc60f",
+    "evaluation_seed": 20260713,
+    "encoder": {
+      "model": "intfloat/multilingual-e5-small",
+      "revision": "fd1525a9fd15316a2d503bf26ab031a61d056e98",
+      "dimension": 384,
+      "normalized_embeddings": true
+    },
+    "package_versions": {
+      "sentence-transformers": "5.5.1",
+      "transformers": "5.13.1",
+      "torch": "2.13.0",
+      "tokenizers": "0.22.2",
+      "huggingface-hub": "1.23.0",
+      "numpy": "2.3.5",
+      "scipy": "1.18.0",
+      "scikit-learn": "1.9.0"
+    },
+    "method_order": {
+      "strategy": "deterministic-shuffle",
+      "seed": 20260713,
+      "execution_order": [
+        "bm25",
+        "hybrid_rrf",
+        "dense_e5"
+      ]
+    },
+    "latency_protocol": {
+      "warmup_queries_per_target": 5,
+      "warmup_searches": 10,
+      "repetitions_per_query": 7,
+      "per_query_aggregate": "median",
+      "case_order": "deterministic-shuffle",
+      "case_order_seed": 20260713
+    }
+  },
+  "methods": {
+    "bm25": {
+      "hit_at_1": 0.572727273,
+      "hit_at_5": 0.890909091,
+      "hit_at_10": 0.963636364,
+      "mrr_at_5": 0.679848485,
+      "ndcg_at_5": 0.499119860,
+      "forbidden_at_10": 0.0,
+      "p50_ms": 1.060100,
+      "p95_ms": 1.612900
+    },
+    "dense_e5": {
+      "hit_at_1": 0.645454545,
+      "hit_at_5": 0.909090909,
+      "hit_at_10": 0.963636364,
+      "mrr_at_5": 0.741515152,
+      "ndcg_at_5": 0.583793130,
+      "forbidden_at_10": 0.0,
+      "p50_ms": 13.284100,
+      "p95_ms": 17.743000
+    },
+    "hybrid_rrf": {
+      "hit_at_1": 0.654545455,
+      "hit_at_5": 0.936363636,
+      "hit_at_10": 1.0,
+      "mrr_at_5": 0.766060606,
+      "ndcg_at_5": 0.609978072,
+      "forbidden_at_10": 0.0,
+      "p50_ms": 15.065000,
+      "p95_ms": 18.630900
+    }
+  },
+  "pairwise_statistics": {
+    "correction": "Holm-Bonferroni within each test family across method pairs",
+    "dense_e5_vs_bm25": {
+      "mrr_delta": 0.060530303,
+      "mrr_ci95": [-0.015797258, 0.137489177],
+      "mrr_holm_p": 0.248775122,
+      "ndcg_delta": 0.051444472,
+      "ndcg_ci95": [-0.009436364, 0.111990547],
+      "ndcg_holm_p": 0.107389261,
+      "hit_delta": 0.0,
+      "hit_ci95": [-0.054545455, 0.045454545],
+      "hit_holm_p": 1.0,
+      "rank_biserial": 0.236842105,
+      "rank_holm_p": 0.247283030,
+      "latency_median_delta_ms": 12.269600,
+      "latency_ci95_ms": [12.105900, 12.594600],
+      "latency_holm_p": 2.66083684e-19
+    },
+    "hybrid_rrf_vs_bm25": {
+      "mrr_delta": 0.085670996,
+      "mrr_ci95": [0.025378788, 0.146616162],
+      "mrr_holm_p": 0.0203979602,
+      "ndcg_delta": 0.090573929,
+      "ndcg_ci95": [0.054296273, 0.126321119],
+      "ndcg_holm_p": 0.000299970003,
+      "hit_delta": 0.036363636,
+      "hit_ci95": [0.009090909, 0.072727273],
+      "hit_holm_p": 0.375,
+      "rank_biserial": 0.448129252,
+      "rank_holm_p": 0.0202951461,
+      "latency_median_delta_ms": 13.966600,
+      "latency_ci95_ms": [13.529600, 14.248400],
+      "latency_holm_p": 2.66083684e-19
+    },
+    "hybrid_rrf_vs_dense_e5": {
+      "mrr_delta": 0.025140693,
+      "mrr_ci95": [-0.031237374, 0.083762626],
+      "mrr_holm_p": 0.389861014,
+      "ndcg_delta": 0.039129457,
+      "ndcg_ci95": [0.001061243, 0.078400928],
+      "ndcg_holm_p": 0.107389261,
+      "hit_delta": 0.036363636,
+      "hit_ci95": [0.009090909, 0.072727273],
+      "hit_holm_p": 0.375,
+      "rank_biserial": 0.163763066,
+      "rank_holm_p": 0.363064283,
+      "latency_median_delta_ms": 1.375800,
+      "latency_ci95_ms": [1.027700, 1.751600],
+      "latency_holm_p": 5.10837626e-7
+    }
+  },
+  "selection": {
+    "provisional_method": "hybrid_rrf",
+    "basis": "Best dev point estimates, perfect Hit@10, zero forbidden hits, and statistically significant MRR/nDCG/rank gains over BM25 after Holm correction.",
+    "caveat": "Hybrid quality gains over dense E5 are not significant after Holm correction; final test split remains unopened."
+  }
+}
