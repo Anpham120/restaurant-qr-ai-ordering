@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -491,7 +492,7 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["MENU_ITEM_UNAVAILABLE"]);
         }
 
-        var availableMenuItems = ChatMenuGrounding.Select(
+        var menuGrounding = ChatMenuGrounding.SelectWithConstraints(
             userMessage,
             menuItems
                 .Where(item => item.IsAvailable)
@@ -504,6 +505,12 @@ public sealed class ChatAssistantService : IChatAssistantService
                     categoryNames[item.CategoryId],
                     item.Tags.ToList(),
                     item.IsAvailable)));
+        var availableMenuItems = menuGrounding.Candidates;
+        if (menuGrounding.HasExplicitConstraint)
+        {
+            return BuildGroundedCatalog(menuGrounding);
+        }
+
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
         var sessionMemory = BuildSessionMemory(priorHistory);
         var providerResult = await aiProvider.GenerateAsync(
@@ -540,6 +547,31 @@ public sealed class ChatAssistantService : IChatAssistantService
             providerResult.Content,
             suggestedActions,
             guardrailFlags);
+    }
+
+    private static ChatAssistantReply BuildGroundedCatalog(ChatMenuGroundingResult grounding)
+    {
+        var scope = grounding.MatchedCategoryNames.Count > 0
+            ? $"nhóm {string.Join(", ", grounding.MatchedCategoryNames)}"
+            : $"tag {string.Join(", ", grounding.MatchedTags)}";
+        if (grounding.Candidates.Count == 0)
+        {
+            return new ChatAssistantReply(
+                $"Hiện chưa có món còn bán phù hợp với {scope} trong thực đơn.",
+                [],
+                []);
+        }
+
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var catalog = string.Join(
+            Environment.NewLine,
+            grounding.Candidates.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+
+        return new ChatAssistantReply(
+            $"Đây là các món thuộc {scope} hiện còn bán:{Environment.NewLine}{Environment.NewLine}{catalog}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem chi tiết hay thêm món nào vào giỏ?",
+            [],
+            []);
     }
 
     private static SuggestedCartActionResponse? BuildSuggestedAction(
