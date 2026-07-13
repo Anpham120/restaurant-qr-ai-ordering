@@ -53,6 +53,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V29: ∀ configured AI provider failure → fallback response carries `AI_PROVIDER_UNAVAILABLE` and server logs provider, model, and exception type without credentials or user prompt.
 - V30: ∀ production LLM call → direct Google Gemini API OpenAI-compatible endpoint; credential comes from `GEMINI_API_KEY`; no local gateway dependency.
 - V31: ∀ default production Gemini model → successful live `/chat/completions` smoke with the configured repository key before release.
+- V32: ∀ Gemini structured completion → request JSON response mode; retry 429/5xx at most `AI_MAX_RETRY` times before bounded fallback.
 
 ## §T
 
@@ -122,3 +123,4 @@ B39|2026-07-13|table/chat capability signatures included timestamps that Postgre
 B40|2026-07-13|production AI model remained in 9Router catalog but upstream chat rejected it, while the service swallowed the exception and exposed only a generic fallback|V29
 B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the workflow failed before creating jobs|V21
 B42|2026-07-13|Gemini 2.5 Flash remained in the model catalog but rejected new users with 404 after deployment|V31
+B43|2026-07-13|Gemini completion relied on prompt-only JSON and failed immediately on transient 503 or free-form output|V32

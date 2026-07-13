@@ -20,6 +20,7 @@ class ProviderObservabilityTests(unittest.TestCase):
             api_key="test-key",
             model="gemini-3.5-flash",
             timeout_seconds=1,
+            max_retry=1,
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=1,
         )

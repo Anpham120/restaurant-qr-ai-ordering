@@ -15,6 +15,7 @@ class AiServiceConfig:
     api_key: str
     model: str
     timeout_seconds: float
+    max_retry: int
     knowledge_base_path: Path
     top_k: int
 
@@ -35,6 +36,7 @@ def load_config() -> AiServiceConfig:
         api_key=os.getenv("GEMINI_API_KEY", ""),
         model=os.getenv("AI_MODEL", "gemini-3.5-flash"),
         timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "30")),
+        max_retry=int(os.getenv("AI_MAX_RETRY", "1")),
         knowledge_base_path=Path(os.getenv("RAG_KNOWLEDGE_BASE_PATH", "knowledge-base")),
         top_k=int(os.getenv("RAG_TOP_K", "5")),
     )

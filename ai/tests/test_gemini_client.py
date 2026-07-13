@@ -19,6 +19,7 @@ class GeminiClientTests(unittest.TestCase):
             self.assertEqual(request.headers["Authorization"], "Bearer test-gemini-key")
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "gemini-3.5-flash")
+            self.assertEqual(payload["response_format"], {"type": "json_object"})
             self.assertEqual(payload["messages"], [{"role": "user", "content": "Xin chào"}])
             return httpx.Response(
                 200,
@@ -36,6 +37,31 @@ class GeminiClientTests(unittest.TestCase):
         result = asyncio.run(client.complete([{"role": "user", "content": "Xin chào"}]))
 
         self.assertEqual(result, "Chào bạn")
+
+    def test_v32_retries_retryable_status_then_succeeds(self) -> None:
+        attempts = 0
+
+        def handler(_: httpx.Request) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                return httpx.Response(503, json={"error": {"message": "temporarily unavailable"}})
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+
+        client = GeminiClient(
+            "https://generativelanguage.googleapis.com/v1beta/openai",
+            "test-gemini-key",
+            "gemini-3.5-flash",
+            30,
+            max_retry=1,
+            retry_delay_seconds=0,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = asyncio.run(client.complete([{"role": "user", "content": "Xin chào"}]))
+
+        self.assertEqual(result, "OK")
+        self.assertEqual(attempts, 2)
 
 
 if __name__ == "__main__":
