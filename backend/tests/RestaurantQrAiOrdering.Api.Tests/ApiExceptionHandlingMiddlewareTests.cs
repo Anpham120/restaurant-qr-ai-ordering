@@ -41,6 +41,8 @@ public sealed class ApiExceptionHandlingMiddlewareTests
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal(origin, response.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Equal("INTERNAL_ERROR", body.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 }

@@ -23,11 +23,7 @@ public sealed class ApiExceptionHandlingMiddleware
         }
         catch (Exception exception) when (exception is BadHttpRequestException or JsonException)
         {
-            logger.LogWarning(
-                exception,
-                "Rejected invalid request body for {Method} {Path}.",
-                context.Request.Method,
-                context.Request.Path);
+            logger.LogWarning(exception, "Rejected invalid request body.");
 
             await WriteErrorAsync(
                 context,
@@ -37,18 +33,11 @@ public sealed class ApiExceptionHandlingMiddleware
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            logger.LogDebug(
-                "Request was cancelled by the client for {Method} {Path}.",
-                context.Request.Method,
-                context.Request.Path);
+            logger.LogDebug("Request was cancelled by the client.");
         }
         catch (Exception exception)
         {
-            logger.LogError(
-                exception,
-                "Unhandled API exception for {Method} {Path}.",
-                context.Request.Method,
-                context.Request.Path);
+            logger.LogError(exception, "Unhandled API exception.");
 
             await WriteErrorAsync(
                 context,
@@ -70,6 +59,10 @@ public sealed class ApiExceptionHandlingMiddleware
         }
 
         context.Response.Clear();
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers.CacheControl = "no-store";
         await ApiErrorFactory.WriteAsync(context.Response, statusCode, code, message);
     }
 }
