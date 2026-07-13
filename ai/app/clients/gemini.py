@@ -64,6 +64,7 @@ class GeminiClient:
             "model": self._model,
             "stream": False,
             "temperature": 0.2,
+            "reasoning_effort": "low",
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {

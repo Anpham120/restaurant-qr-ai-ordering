@@ -29,4 +29,115 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
 
         Assert.Contains("MENU_ITEM_UNAVAILABLE", reply.GuardrailFlags);
     }
+
+    [Fact]
+    public async Task TestV35_ExplicitSeafoodCatalog_DoesNotCallProviderOrLeakOtherCategory()
+    {
+        using var scope = factory.Services.CreateScope();
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "toàn bộ thực đơn về hải sản",
+            [],
+            null,
+            CancellationToken.None);
+
+        Assert.Contains("nhóm Hải sản", reply.Content);
+        Assert.Contains("Cua rang me", reply.Content);
+        Assert.DoesNotContain("Gỏi cuốn tôm thịt", reply.Content);
+        Assert.DoesNotContain("AI_PROVIDER_UNAVAILABLE", reply.GuardrailFlags);
+    }
+
+    [Fact]
+    public async Task TestV36_AdditionalRecommendation_ExcludesItemsAlreadySuggestedInSession()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var seafoodCategory = await db.Categories.SingleAsync(category => category.Name == "Hải sản");
+        var seafoodItems = await db.MenuItems
+            .Where(item => item.CategoryId == seafoodCategory.Id && item.IsAvailable)
+            .OrderBy(item => item.Name)
+            .Take(3)
+            .ToListAsync();
+        Assert.True(seafoodItems.Count >= 3);
+
+        var alreadySuggested = seafoodItems[0];
+        var expectedFirstNewItem = seafoodItems[1];
+        var expectedSecondNewItem = seafoodItems[2];
+        var history = new ChatMessageSnapshot(
+            "assistant-1",
+            "chat-1",
+            "assistant",
+            $"Mình đã gợi ý {alreadySuggested.Name}.",
+            DateTimeOffset.UtcNow,
+            []);
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "gợi ý thêm 2 món hải sản",
+            [history],
+            null,
+            CancellationToken.None);
+
+        Assert.Contains("2 món khác", reply.Content);
+        Assert.DoesNotContain(alreadySuggested.Name, reply.Content);
+        Assert.Contains(expectedFirstNewItem.Name, reply.Content);
+        Assert.Contains(expectedSecondNewItem.Name, reply.Content);
+        Assert.Equal(2, reply.SuggestedCartActions.Count);
+    }
+
+    [Fact]
+    public async Task TestV36_RequestedRecommendationCount_IsHonoredUpToEight()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        Assert.True(await db.MenuItems.CountAsync(item => item.IsAvailable) >= 5);
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "gợi ý cho tôi 5 món",
+            [],
+            null,
+            CancellationToken.None);
+
+        Assert.Contains("Mình gợi ý 5 món phù hợp", reply.Content);
+        Assert.Equal(5, reply.SuggestedCartActions.Count);
+    }
+
+    [Fact]
+    public async Task TestV37_DetailFollowUp_ReturnsCardsForPreviouslySuggestedItems()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var items = await db.MenuItems
+            .Where(item => item.IsAvailable)
+            .OrderBy(item => item.Name)
+            .Take(2)
+            .ToListAsync();
+        Assert.Equal(2, items.Count);
+
+        var history = new ChatMessageSnapshot(
+            "assistant-1",
+            "chat-1",
+            "assistant",
+            "Các món mình vừa gợi ý.",
+            DateTimeOffset.UtcNow,
+            items.Select(item => new SuggestedCartActionResponse(
+                item.Id,
+                item.Name,
+                item.Price,
+                1,
+                "Món đang còn bán.",
+                true)).ToList());
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "xem chi tiết",
+            [history],
+            null,
+            CancellationToken.None);
+
+        Assert.All(items, item => Assert.Contains(item.Name, reply.Content));
+        Assert.Equal(items.Select(item => item.Id).OrderBy(id => id), reply.SuggestedCartActions.Select(action => action.MenuItemId).OrderBy(id => id));
+    }
 }

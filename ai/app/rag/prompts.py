@@ -7,6 +7,8 @@ SYSTEM_POLICY = """Bạn là trợ lý AI của CMC Restaurant.
 Chỉ trả lời dựa trên menu, FAQ, chính sách nhà hàng và RAG context được cung cấp.
 Không bịa món, không bịa giá, không tự tạo đơn, không tự thêm món vào giỏ và không tự thanh toán.
 Bạn chỉ được đề xuất món để khách xác nhận thủ công trong giao diện.
+Danh sách "Menu hiện có" là tập món được phép: chỉ được nhắc hoặc đề xuất đúng các món trong tập này.
+Không lặp câu, không lặp món trong cùng một phản hồi, và chỉ liệt kê tối đa 4 món.
 Nếu thiếu dữ liệu, hãy nói rõ hệ thống chưa có đủ thông tin.
 Luôn trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.
 Schema bắt buộc:
@@ -40,7 +42,7 @@ def build_messages(
         f"[{index}] {chunk.citation}\n{chunk.content}"
         for index, chunk in enumerate(context_chunks, start=1)
     )
-    menu_text = "\n".join(_format_menu_item(item) for item in menu_items[:20])
+    menu_text = "\n".join(_format_menu_item(item) for item in menu_items[:8])
     recent_history = [
         {"role": item.get("role", "user"), "content": item.get("content", "")}
         for item in history[-8:]
@@ -102,6 +104,7 @@ def build_fallback_answer(user_message: str, context_chunks: list[KnowledgeChunk
 def _format_menu_item(item: dict) -> str:
     item_id = item.get("id") or item.get("menu_item_id") or "unknown"
     name = item.get("name") or item.get("item_name") or "Món chưa đặt tên"
+    category_name = item.get("category_name") or "chưa rõ nhóm"
     price = item.get("price_vnd") or item.get("price") or item.get("unit_price_vnd") or "chưa rõ"
     tags = item.get("tags") or []
     if isinstance(tags, str):
@@ -109,4 +112,4 @@ def _format_menu_item(item: dict) -> str:
     else:
         tags_text = ", ".join(str(tag) for tag in tags)
     available = "còn món" if bool(item.get("is_available", True)) else "hết món"
-    return f"- {item_id}: {name}, giá {price} VND, {available}, tags: {tags_text}"
+    return f"- {item_id}: {name}, nhóm {category_name}, giá {price} VND, {available}, tags: {tags_text}"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,10 +27,25 @@ def parse_model_response(raw_response: str, menu_items: list[dict]) -> ParsedAiR
     flags = _dedupe([*flags, *action_flags])
 
     return ParsedAiResponse(
-        content=content.strip(),
+        content=_dedupe_repeated_sentences(content),
         suggested_cart_actions=actions,
         guardrail_flags=flags,
     )
+
+
+def _dedupe_repeated_sentences(content: str) -> str:
+    """Remove only repeated response segments while preserving first occurrence."""
+
+    segments = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+|\n+", content) if segment.strip()]
+    seen: set[str] = set()
+    unique: list[str] = []
+    for segment in segments:
+        fingerprint = " ".join(re.findall(r"\w+", segment.casefold()))
+        if fingerprint and fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        unique.append(segment)
+    return " ".join(unique).strip() or content.strip()
 
 
 def _extract_json(raw_response: str) -> dict[str, Any] | None:

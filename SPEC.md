@@ -55,6 +55,10 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V31: ∀ default production Gemini model → successful live `/chat/completions` smoke with the configured repository key before release.
 - V32: ∀ Gemini structured completion → request JSON response mode; retry 429/5xx at most `AI_MAX_RETRY` times before bounded fallback.
 - V33: ∀ Gemini restaurant chat completion → strict JSON schema requires `content`, `suggested_cart_actions`, and `guardrail_flags` before parser execution.
+- V34: ∀ menu-category/tag request → every AI-listed or AI-actionable item belongs to the matched live category/tag candidate set; response contains no duplicate semantic line and uses bounded prompt context.
+- V35: ∀ explicit live category/tag catalog request → backend returns a deterministic catalog built only from matched live candidates; LLM free text cannot introduce menu items.
+- V36: ∀ request to recommend additional dishes in one chat session → response excludes every live menu item previously suggested by that session and honours a requested count from 1 to 8 (default 3).
+- V37: ∀ persisted assistant recommendation → every returned/history message retains its actionable menu cards; an unambiguous `xem chi tiết` follow-up resolves to the latest suggested live items instead of unrelated retrieval.
 
 ## §T
 
@@ -78,6 +82,10 @@ T6|x|add backend/AI/frontend regression test surfaces|V1,V2,V3,V4
 T7|x|remove tracked duplicate agent skill trees + stale docs|C
 T8|x|full repository audit; build/deploy proof|C
 T19|x|introduce aggregate Table Invoice and session settlement flow|V14,I.api,I.ui
+T20|x|ground AI menu retrieval by live category/tag; add quality/latency regressions and research protocol|V34,I.ai,I.api
+T21|x|return deterministic live catalog for explicit category/tag requests; regression against LLM text leakage|V35,I.ai,I.api
+T22|x|exclude previously suggested session dishes from deterministic additional recommendations; honor 1-8 requested count|V36,I.ai,I.api
+T23|x|persist recommendation cards per chat message and resolve latest-card detail follow-up|V37,I.ai,I.api,I.ui
 
 ## §B
 
@@ -126,3 +134,7 @@ B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the
 B42|2026-07-13|Gemini 2.5 Flash remained in the model catalog but rejected new users with 404 after deployment|V31
 B43|2026-07-13|Gemini completion relied on prompt-only JSON and failed immediately on transient 503 or free-form output|V32
 B44|2026-07-13|Gemini `json_object` mode returned valid JSON with provider-invented field names that the restaurant parser rejected|V33
+B45|2026-07-13|AI prompt omitted live category name and passed arbitrary first menu items, so a seafood request could surface other categories; long unbounded context also increased latency and repetition|V34
+B46|2026-07-13|LLM could still violate candidate-only text instruction even though its action IDs were validated, returning `Khai vị` dishes for the live `Hải sản` category|V35
+B47|2026-07-13|cross-turn recommendation only deduplicated lines inside one LLM response; older AI suggestions were not a deterministic exclusion set|V36
+B48|2026-07-13|deterministic menu replies returned no suggested actions and history omitted persisted actions, so cards vanished and `xem chi tiết` lost its referent|V37

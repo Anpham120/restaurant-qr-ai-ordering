@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -10,7 +12,7 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public sealed record ChatAiRequest(
     string UserMessage,
     IReadOnlyList<ChatMessageSnapshot> History,
-    IReadOnlyList<MenuItem> AvailableMenuItems,
+    IReadOnlyList<ChatMenuItemContext> AvailableMenuItems,
     string? TableCode = null,
     string SessionMemory = "");
 
@@ -42,6 +44,48 @@ public sealed record ChatAssistantReply(
 public sealed class GeminiChatProvider : IChatAiProvider
 {
     private const string GeminiOpenAiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
+    private static readonly object RestaurantResponseFormat = new
+    {
+        type = "json_schema",
+        json_schema = new
+        {
+            name = "restaurant_chat_response",
+            strict = true,
+            schema = new
+            {
+                type = "object",
+                properties = new
+                {
+                    content = new { type = "string" },
+                    suggested_cart_actions = new
+                    {
+                        type = "array",
+                        items = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                menu_item_id = new { type = "string" },
+                                name = new { type = "string" },
+                                price_vnd = new { type = new[] { "number", "null" } },
+                                quantity = new { type = "integer" },
+                                reason = new { type = new[] { "string", "null" } },
+                                requires_customer_confirmation = new { type = "boolean" }
+                            },
+                            required = new[]
+                            {
+                                "menu_item_id", "name", "price_vnd", "quantity", "reason", "requires_customer_confirmation"
+                            },
+                            additionalProperties = false
+                        }
+                    },
+                    guardrail_flags = new { type = "array", items = new { type = "string" } }
+                },
+                required = new[] { "content", "suggested_cart_actions", "guardrail_flags" },
+                additionalProperties = false
+            }
+        }
+    };
     private readonly HttpClient httpClient;
     private readonly IConfiguration configuration;
     private readonly ILogger<GeminiChatProvider> logger;
@@ -92,6 +136,8 @@ public sealed class GeminiChatProvider : IChatAiProvider
                         model,
                         stream = false,
                         temperature = 0.2,
+                        reasoning_effort = "low",
+                        response_format = RestaurantResponseFormat,
                         messages = BuildMessages(request)
                     })
                 };
@@ -114,7 +160,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
                 {
                     // Try to parse structured JSON from LLM (content may be JSON)
                     var (parsedContent, actions, flags) = TryParseStructuredContent(content.Trim(), request.AvailableMenuItems);
-                    return new ChatAiResult(parsedContent, ProviderAvailable: true, actions, flags);
+                    return new ChatAiResult(DeduplicateResponseLines(parsedContent), ProviderAvailable: true, actions, flags);
                 }
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
@@ -157,6 +203,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             {
                 id = item.Id,
                 category_id = item.CategoryId,
+                category_name = item.CategoryName,
                 name = item.Name,
                 description = item.Description,
                 price_vnd = item.Price,
@@ -209,7 +256,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             "\n",
             request.AvailableMenuItems
                 .Take(8)
-                .Select(item => $"- {item.Id}: {item.Name}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
+                .Select(item => $"- {item.Id}: {item.Name}, category {item.CategoryName}, price {item.Price:0} VND, tags {string.Join(", ", item.Tags)}"));
 
         var recentHistory = request.History
             .TakeLast(6)
@@ -224,7 +271,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             new
             {
                 role = "system",
-                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. Do not create orders, do not make payments, do not add items to cart. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese."
+                content = "You are the CMC Restaurant assistant. Answer only about menu, FAQ, restaurant policy, and safe dish suggestions. The available menu context is the exact candidate set: only mention or propose those items. Do not create orders, do not make payments, do not add items to cart. Do not repeat a sentence or an item in one response. If context is insufficient, say the system does not have enough information. Keep the answer concise in Vietnamese; suggest at most three items by default, or the requested number up to eight items."
             },
             new
             {
@@ -295,7 +342,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
     }
 
     private static List<SuggestedCartActionResponse> ExtractPythonSuggestedActions(
-        JsonElement root, IReadOnlyList<MenuItem> availableMenuItems)
+        JsonElement root, IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         var results = new List<SuggestedCartActionResponse>();
         if (!root.TryGetProperty("suggested_cart_actions", out var actionsElement)
@@ -347,7 +394,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
     }
 
     private static (string Content, List<SuggestedCartActionResponse> Actions, List<string> Flags)
-        TryParseStructuredContent(string rawContent, IReadOnlyList<MenuItem> availableMenuItems)
+        TryParseStructuredContent(string rawContent, IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         // LLM may return JSON with content + suggested_cart_actions
         try
@@ -364,6 +411,27 @@ public sealed class GeminiChatProvider : IChatAiProvider
         }
         catch (JsonException) { /* not JSON, use raw content */ }
         return (rawContent, [], []);
+    }
+
+    private static string DeduplicateResponseLines(string content)
+    {
+        var unique = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in Regex.Split(content, @"(?<=[.!?])\s+|\r?\n", RegexOptions.CultureInvariant)
+                     .Where(value => !string.IsNullOrWhiteSpace(value))
+                     .Select(value => value.Trim()))
+        {
+            var fingerprint = new string(line
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray());
+            if (fingerprint.Length == 0 || seen.Add(fingerprint))
+            {
+                unique.Add(line);
+            }
+        }
+
+        return unique.Count == 0 ? content.Trim() : string.Join(' ', unique);
     }
 
     private static ChatAiResult Unavailable()
@@ -392,6 +460,12 @@ public sealed class ChatAssistantService : IChatAssistantService
         CancellationToken cancellationToken)
     {
         var normalizedMessage = Normalize(userMessage);
+        var isRecommendationRequest = IsRecommendationRequest(normalizedMessage);
+        var isAdditionalRecommendationRequest = IsAdditionalRecommendationRequest(normalizedMessage);
+        var isDetailFollowUp = IsDetailFollowUp(normalizedMessage);
+        var explicitlyRequestedCount = GetExplicitRequestedRecommendationCount(normalizedMessage);
+        var useDeterministicRecommendations = isAdditionalRecommendationRequest
+            || (isRecommendationRequest && explicitlyRequestedCount is not null);
         if (IsOutOfScope(normalizedMessage))
         {
             return new ChatAssistantReply(
@@ -400,8 +474,18 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["OUT_OF_SCOPE"]);
         }
 
+        var categories = await db.Categories
+            .AsNoTracking()
+            .Where(category => category.IsActive)
+            .ToListAsync(cancellationToken);
+        var categoryNames = categories.ToDictionary(
+            category => category.Id,
+            category => category.Name,
+            StringComparer.OrdinalIgnoreCase);
+        var activeCategoryIds = categories.Select(category => category.Id).ToList();
         var menuItems = await db.MenuItems
             .AsNoTracking()
+            .Where(item => activeCategoryIds.Contains(item.CategoryId))
             .ToListAsync(cancellationToken);
         var unavailableMatch = menuItems.FirstOrDefault(item =>
             !item.IsAvailable && normalizedMessage.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase));
@@ -414,7 +498,45 @@ public sealed class ChatAssistantService : IChatAssistantService
                 ["MENU_ITEM_UNAVAILABLE"]);
         }
 
-        var availableMenuItems = menuItems.Where(item => item.IsAvailable).ToList();
+        var menuGrounding = ChatMenuGrounding.SelectWithConstraints(
+            userMessage,
+            menuItems
+                .Where(item => item.IsAvailable)
+                .Select(item => new ChatMenuItemContext(
+                    item.Id,
+                    item.Name,
+                    item.Description,
+                    item.Price,
+                    item.CategoryId,
+                    categoryNames[item.CategoryId],
+                    item.Tags.ToList(),
+                    item.IsAvailable)),
+            useDeterministicRecommendations || isDetailFollowUp ? int.MaxValue : null);
+        var availableMenuItems = menuGrounding.Candidates;
+        if (isDetailFollowUp)
+        {
+            var detailedItems = GetMostRecentSuggestedMenuItems(history, availableMenuItems);
+            if (detailedItems.Count > 0)
+            {
+                return BuildSuggestedItemDetails(detailedItems);
+            }
+        }
+
+        if (useDeterministicRecommendations)
+        {
+            var previouslySuggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
+            return BuildDeterministicRecommendations(
+                menuGrounding,
+                previouslySuggestedItemIds,
+                explicitlyRequestedCount ?? 3,
+                isAdditionalRecommendationRequest);
+        }
+
+        if (menuGrounding.HasExplicitConstraint)
+        {
+            return BuildGroundedCatalog(menuGrounding);
+        }
+
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
         var sessionMemory = BuildSessionMemory(priorHistory);
         var providerResult = await aiProvider.GenerateAsync(
@@ -453,9 +575,177 @@ public sealed class ChatAssistantService : IChatAssistantService
             guardrailFlags);
     }
 
+    private static ChatAssistantReply BuildGroundedCatalog(ChatMenuGroundingResult grounding)
+    {
+        var scope = grounding.MatchedCategoryNames.Count > 0
+            ? $"nhóm {string.Join(", ", grounding.MatchedCategoryNames)}"
+            : $"tag {string.Join(", ", grounding.MatchedTags)}";
+        if (grounding.Candidates.Count == 0)
+        {
+            return new ChatAssistantReply(
+                $"Hiện chưa có món còn bán phù hợp với {scope} trong thực đơn.",
+                [],
+                []);
+        }
+
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var catalog = string.Join(
+            Environment.NewLine,
+            grounding.Candidates.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+
+        return new ChatAssistantReply(
+            $"Đây là các món thuộc {scope} hiện còn bán:{Environment.NewLine}{Environment.NewLine}{catalog}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem chi tiết hay thêm món nào vào giỏ?",
+            BuildSuggestedCartActions(grounding.Candidates),
+            grounding.Candidates.Count > 0 ? ["CUSTOMER_CONFIRMATION_REQUIRED"] : []);
+    }
+
+    private static ChatAssistantReply BuildDeterministicRecommendations(
+        ChatMenuGroundingResult grounding,
+        IReadOnlySet<string> previouslySuggestedItemIds,
+        int requestedCount,
+        bool isAdditionalRecommendationRequest)
+    {
+        var newCandidates = grounding.Candidates
+            .Where(item => !previouslySuggestedItemIds.Contains(item.Id))
+            .Take(requestedCount)
+            .ToList();
+        var scope = grounding.HasExplicitConstraint
+            ? grounding.MatchedCategoryNames.Count > 0
+                ? $" trong nhóm {string.Join(", ", grounding.MatchedCategoryNames)}"
+                : $" với tag {string.Join(", ", grounding.MatchedTags)}"
+            : string.Empty;
+
+        if (newCandidates.Count == 0)
+        {
+            return new ChatAssistantReply(
+                isAdditionalRecommendationRequest
+                    ? $"Mình đã đề xuất hết các món phù hợp còn bán{scope} trong phiên này. Bạn có thể yêu cầu một nhóm món hoặc tiêu chí khác."
+                    : $"Hiện chưa có món mới phù hợp còn bán{scope} để đề xuất trong phiên này. Bạn có thể yêu cầu một nhóm món hoặc tiêu chí khác.",
+                [],
+                []);
+        }
+
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var recommendations = string.Join(
+            Environment.NewLine,
+            newCandidates.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+
+        return new ChatAssistantReply(
+            isAdditionalRecommendationRequest
+                ? $"Mình gợi ý {newCandidates.Count} món khác chưa được đề xuất trong phiên này{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?"
+                : $"Mình gợi ý {newCandidates.Count} món phù hợp{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?",
+            BuildSuggestedCartActions(newCandidates),
+            ["CUSTOMER_CONFIRMATION_REQUIRED"]);
+    }
+
+    private static ChatAssistantReply BuildSuggestedItemDetails(IReadOnlyList<ChatMenuItemContext> items)
+    {
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var details = string.Join(
+            Environment.NewLine,
+            items.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+        return new ChatAssistantReply(
+            $"Chi tiết các món bạn vừa quan tâm:{Environment.NewLine}{Environment.NewLine}{details}{Environment.NewLine}{Environment.NewLine}Bạn có thể xác nhận trên card để thêm món vào giỏ.",
+            BuildSuggestedCartActions(items),
+            ["CUSTOMER_CONFIRMATION_REQUIRED"]);
+    }
+
+    private static IReadOnlyList<SuggestedCartActionResponse> BuildSuggestedCartActions(
+        IEnumerable<ChatMenuItemContext> items) =>
+        items.Select(item => new SuggestedCartActionResponse(
+                item.Id,
+                item.Name,
+                item.Price,
+                Quantity: 1,
+                Reason: "Món còn bán trong thực đơn hiện tại và cần khách xác nhận trước khi thêm vào giỏ.",
+                RequiresCustomerConfirmation: true))
+            .ToList();
+
+    private static IReadOnlyList<ChatMenuItemContext> GetMostRecentSuggestedMenuItems(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
+    {
+        var byId = availableMenuItems.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var message in history.Where(message => message.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)).Reverse())
+        {
+            var fromActions = message.SuggestedCartActions
+                .Where(action => byId.ContainsKey(action.MenuItemId))
+                .Select(action => byId[action.MenuItemId])
+                .DistinctBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (fromActions.Count > 0)
+            {
+                return fromActions;
+            }
+
+            var content = Normalize(message.Content);
+            var fromContent = availableMenuItems
+                .Where(item => content.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (fromContent.Count > 0)
+            {
+                return fromContent;
+            }
+        }
+
+        return [];
+    }
+
+    private static IReadOnlySet<string> GetPreviouslySuggestedMenuItemIds(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
+    {
+        var suggestedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var message in history.Where(message => message.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var action in message.SuggestedCartActions)
+            {
+                suggestedItemIds.Add(action.MenuItemId);
+            }
+
+            var content = Normalize(message.Content);
+            foreach (var item in availableMenuItems)
+            {
+                if (content.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase))
+                {
+                    suggestedItemIds.Add(item.Id);
+                }
+            }
+        }
+
+        return suggestedItemIds;
+    }
+
+    private static bool IsAdditionalRecommendationRequest(string normalizedMessage)
+    {
+        var asksForRecommendation = IsRecommendationRequest(normalizedMessage);
+        var asksForMore = ContainsAny(normalizedMessage, "thêm", "them", "khác", "khac", "nữa", "nua");
+        return asksForRecommendation && asksForMore;
+    }
+
+    private static bool IsRecommendationRequest(string normalizedMessage) =>
+        ContainsAny(normalizedMessage, "gợi ý", "goi y", "đề xuất", "de xuat", "tư vấn", "tu van");
+
+    private static bool IsDetailFollowUp(string normalizedMessage) =>
+        ContainsAny(normalizedMessage, "xem chi tiết", "xem chi tiet", "chi tiết", "chi tiet");
+
+    private static int? GetExplicitRequestedRecommendationCount(string normalizedMessage)
+    {
+        var match = Regex.Match(normalizedMessage, @"\b(?<count>\d{1,2})\s+m[oó]n\b", RegexOptions.CultureInvariant);
+        return match.Success && int.TryParse(match.Groups["count"].Value, CultureInfo.InvariantCulture, out var requestedCount)
+            ? Math.Clamp(requestedCount, 1, 8)
+            : null;
+    }
+
+    private static bool ContainsAny(string value, params string[] phrases) =>
+        phrases.Any(phrase => value.Contains(phrase, StringComparison.Ordinal));
+
     private static SuggestedCartActionResponse? BuildSuggestedAction(
         string normalizedMessage,
-        IReadOnlyList<MenuItem> availableMenuItems)
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
     {
         if (availableMenuItems.Count == 0)
         {
