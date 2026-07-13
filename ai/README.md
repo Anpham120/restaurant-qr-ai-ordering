@@ -6,7 +6,7 @@ Thư mục này chứa lớp AI viết bằng Python cho CMC Restaurant. Service
 
 - Nhận câu hỏi của khách từ backend.
 - Truy xuất tri thức nhà hàng từ `ai/knowledge-base/`.
-- Dựng prompt an toàn và gọi trực tiếp Gemini 2.5 Flash.
+- Dựng prompt an toàn và gọi trực tiếp Gemini 3.5 Flash.
 - Trả về câu trả lời, nguồn RAG đã dùng và guardrail flags.
 - Không tự tạo đơn hàng, không tự thêm món vào giỏ và không tự thanh toán.
 
@@ -18,7 +18,7 @@ Customer Web
     -> Python AI Service
       -> RAG retriever
       -> Google Gemini API
-        -> Gemini 2.5 Flash
+        -> Gemini 3.5 Flash
 ```
 
 ## Chạy Local
@@ -35,7 +35,7 @@ Biến môi trường khuyến nghị:
 
 ```env
 AI_PROVIDER=gemini
-AI_MODEL=gemini-2.5-flash
+AI_MODEL=gemini-3.5-flash
 GEMINI_API_KEY=replace-with-gemini-api-key
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 ```

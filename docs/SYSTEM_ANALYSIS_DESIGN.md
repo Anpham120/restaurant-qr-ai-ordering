@@ -458,7 +458,7 @@ enumeration.
 
 FastAPI `:8001` — `GET /health`, `POST /v1/rag/search`, `POST /v1/chat`. Retrieval **Okapi BM25**
 (K1=1.5, B=0.75, title_boost=1.5, tag_boost=1.0, top_k=5) trên KB Markdown (`ai/knowledge-base/*.md`,
-chunk theo header). LLM `gemini-2.5-flash` qua Google Gemini API (OpenAI-compatible, temp 0.2). Pipeline:
+chunk theo header). LLM `gemini-3.5-flash` qua Google Gemini API (OpenAI-compatible, temp 0.2). Pipeline:
 `retriever → prompts → Gemini API → output_parser`; `guardrails.py` gắn cờ input.
 **RAG là lexical, không phải vector** (dù entity `KnowledgeEntry.embedding` tồn tại — chưa dùng).
 

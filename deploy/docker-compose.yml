@@ -86,7 +86,7 @@ services:
     environment:
       AI_PROVIDER: ${AI_LLM_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gemini-2.5-flash}
+      AI_MODEL: ${AI_MODEL:-gemini-3.5-flash}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
       RAG_KNOWLEDGE_BASE_PATH: ${RAG_KNOWLEDGE_BASE_PATH:-knowledge-base}
       RAG_TOP_K: ${RAG_TOP_K:-5}

@@ -52,6 +52,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V28: ∀ session capability → signature depends only on immutable persisted identity; PostgreSQL timestamp precision changes cannot invalidate a freshly issued token.
 - V29: ∀ configured AI provider failure → fallback response carries `AI_PROVIDER_UNAVAILABLE` and server logs provider, model, and exception type without credentials or user prompt.
 - V30: ∀ production LLM call → direct Google Gemini API OpenAI-compatible endpoint; credential comes from `GEMINI_API_KEY`; no local gateway dependency.
+- V31: ∀ default production Gemini model → successful live `/chat/completions` smoke with the configured repository key before release.
 
 ## §T
 
@@ -120,3 +121,4 @@ B38|2026-07-13|exception middleware sat outside CORS and handled only malformed 
 B39|2026-07-13|table/chat capability signatures included timestamps that PostgreSQL can round between issue and verify|V28
 B40|2026-07-13|production AI model remained in 9Router catalog but upstream chat rejected it, while the service swallowed the exception and exposed only a generic fallback|V29
 B41|2026-07-13|CI `AI_MODEL` env entry retained invalid over-indentation, so the workflow failed before creating jobs|V21
+B42|2026-07-13|Gemini 2.5 Flash remained in the model catalog but rejected new users with 404 after deployment|V31
