@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChatMessageBubble } from "../../components/chatbot/ChatMessageBubble";
 import { SuggestedCartActionCard } from "../../components/chatbot/SuggestedCartActionCard";
@@ -36,6 +36,7 @@ const initialMessages: ChatMessage[] = [
     content:
       "Xin chào, mình là trợ lý AI của CMC Restaurant. Mình có thể gợi ý món và tạo thẻ đề xuất, nhưng chỉ thêm vào giỏ khi bạn xác nhận.",
     createdAt: new Date().toISOString(),
+    suggestedCartActions: [],
   },
 ];
 
@@ -51,6 +52,7 @@ function buildUserMessage(content: string): ChatMessage {
     role: "user",
     content,
     createdAt: new Date().toISOString(),
+    suggestedCartActions: [],
   };
 }
 
@@ -63,7 +65,6 @@ export function ChatbotPage() {
   const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
   const [chatAccessToken, setChatAccessToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [suggestedActions, setSuggestedActions] = useState<SuggestedCartAction[]>([]);
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
 
   const [cartNotice, setCartNotice] = useState("");
@@ -128,12 +129,11 @@ export function ChatbotPage() {
       }, chatAccessToken);
 
       setMessages((current) => appendCommittedExchange(current, response));
-      setSuggestedActions(response.suggestedCartActions);
-      setActionStatuses(
+      setActionStatuses((current) =>
         response.suggestedCartActions.reduce<Record<string, ActionStatus>>((result, action) => {
           result[getActionKey(action)] = "pending";
           return result;
-        }, {}),
+        }, { ...current }),
       );
     } catch (error) {
       try {
@@ -143,7 +143,6 @@ export function ChatbotPage() {
         // Keep the last confirmed local snapshot when history reconciliation also fails.
       }
       setComposerValue(content);
-      setSuggestedActions([]);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -200,9 +199,33 @@ export function ChatbotPage() {
           </div>
 
           <div className="cmc-chat-transcript" aria-live="polite">
-            {messages.map((message) => (
-              <ChatMessageBubble key={message.id} message={message} />
-            ))}
+            {messages.map((message) => {
+              const actions = message.suggestedCartActions ?? [];
+              return (
+                <Fragment key={message.id}>
+                  <ChatMessageBubble message={message} />
+                  {message.role === "assistant" && actions.length > 0 ? (
+                    <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món">
+                      {actions.map((action) => (
+                        <SuggestedCartActionCard
+                          action={action}
+                          key={getActionKey(action)}
+                          status={actionStatuses[getActionKey(action)] ?? "pending"}
+                          imageUrl={
+                            menuData.items.find((item) => item.id === action.menuItemId)?.imageUrl ?? null
+                          }
+                          isAvailable={
+                            menuData.items.find((item) => item.id === action.menuItemId)?.isAvailable ?? true
+                          }
+                          onConfirm={confirmSuggestedAction}
+                          onDismiss={dismissSuggestedAction}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </Fragment>
+              );
+            })}
             {pendingUserMessage ? (
               <div className="cmc-chat-message-pending" aria-label="Tin nhắn đang gửi">
                 <ChatMessageBubble message={pendingUserMessage} />
@@ -215,25 +238,6 @@ export function ChatbotPage() {
                   <button key={prompt} type="button" onClick={() => sendMessage(undefined, prompt)}>
                     {prompt}
                   </button>
-                ))}
-              </div>
-            ) : null}
-            {suggestedActions.length > 0 ? (
-              <div className="cmc-chat-suggestions-inline" aria-label="Gợi ý món">
-                {suggestedActions.map((action) => (
-                  <SuggestedCartActionCard
-                    action={action}
-                    key={getActionKey(action)}
-                    status={actionStatuses[getActionKey(action)] ?? "pending"}
-                    imageUrl={
-                      menuData.items.find((item) => item.id === action.menuItemId)?.imageUrl ?? null
-                    }
-                    isAvailable={
-                      menuData.items.find((item) => item.id === action.menuItemId)?.isAvailable ?? true
-                    }
-                    onConfirm={confirmSuggestedAction}
-                    onDismiss={dismissSuggestedAction}
-                  />
                 ))}
               </div>
             ) : null}

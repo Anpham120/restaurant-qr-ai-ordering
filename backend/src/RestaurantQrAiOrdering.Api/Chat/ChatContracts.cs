@@ -20,7 +20,8 @@ public sealed record ChatMessageResponse(
     string Id,
     string Role,
     string Content,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<SuggestedCartActionResponse> SuggestedCartActions);
 
 public sealed record SuggestedCartActionResponse(
     string MenuItemId,

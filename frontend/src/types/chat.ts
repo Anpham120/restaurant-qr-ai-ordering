@@ -5,6 +5,7 @@ export type ChatMessage = {
   role: ChatRole;
   content: string;
   createdAt: string;
+  suggestedCartActions?: SuggestedCartAction[];
 };
 
 export type SuggestedCartAction = {

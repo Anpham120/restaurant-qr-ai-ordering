@@ -199,7 +199,8 @@ public static class ChatEndpoints
             message.Id,
             message.Role,
             message.Content,
-            message.CreatedAt);
+            message.CreatedAt,
+            message.SuggestedCartActions);
     }
 
     private static bool HasValidAccessToken(HttpRequest request, ChatSessionSnapshot session, string signingKey)
