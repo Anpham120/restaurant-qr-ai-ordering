@@ -36,4 +36,23 @@ describe("chat history lifecycle", () => {
     expect(restoreCommittedHistory(persisted, welcome)).toEqual(persisted);
     expect(restoreCommittedHistory([], welcome)).toEqual([welcome]);
   });
+
+  it("TestV37_restores persisted recommendation cards with the assistant message", () => {
+    const assistantWithCard: ChatMessage = {
+      id: "msg_ai_card",
+      role: "assistant",
+      content: "Mình gợi ý Cua rang me.",
+      createdAt: "2026-07-13T00:02:00Z",
+      suggestedCartActions: [{
+        menuItemId: "m_025",
+        name: "Cua rang me",
+        price: 380000,
+        quantity: 1,
+        reason: "Món còn bán.",
+        requiresCustomerConfirmation: true,
+      }],
+    };
+
+    expect(restoreCommittedHistory([assistantWithCard], welcome)).toEqual([assistantWithCard]);
+  });
 });

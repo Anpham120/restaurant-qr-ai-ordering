@@ -83,7 +83,7 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
         Assert.DoesNotContain(alreadySuggested.Name, reply.Content);
         Assert.Contains(expectedFirstNewItem.Name, reply.Content);
         Assert.Contains(expectedSecondNewItem.Name, reply.Content);
-        Assert.Empty(reply.SuggestedCartActions);
+        Assert.Equal(2, reply.SuggestedCartActions.Count);
     }
 
     [Fact]
@@ -101,6 +101,43 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
             CancellationToken.None);
 
         Assert.Contains("Mình gợi ý 5 món phù hợp", reply.Content);
-        Assert.Empty(reply.SuggestedCartActions);
+        Assert.Equal(5, reply.SuggestedCartActions.Count);
+    }
+
+    [Fact]
+    public async Task TestV37_DetailFollowUp_ReturnsCardsForPreviouslySuggestedItems()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var items = await db.MenuItems
+            .Where(item => item.IsAvailable)
+            .OrderBy(item => item.Name)
+            .Take(2)
+            .ToListAsync();
+        Assert.Equal(2, items.Count);
+
+        var history = new ChatMessageSnapshot(
+            "assistant-1",
+            "chat-1",
+            "assistant",
+            "Các món mình vừa gợi ý.",
+            DateTimeOffset.UtcNow,
+            items.Select(item => new SuggestedCartActionResponse(
+                item.Id,
+                item.Name,
+                item.Price,
+                1,
+                "Món đang còn bán.",
+                true)).ToList());
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await assistant.GenerateReplyAsync(
+            "xem chi tiết",
+            [history],
+            null,
+            CancellationToken.None);
+
+        Assert.All(items, item => Assert.Contains(item.Name, reply.Content));
+        Assert.Equal(items.Select(item => item.Id).OrderBy(id => id), reply.SuggestedCartActions.Select(action => action.MenuItemId).OrderBy(id => id));
     }
 }

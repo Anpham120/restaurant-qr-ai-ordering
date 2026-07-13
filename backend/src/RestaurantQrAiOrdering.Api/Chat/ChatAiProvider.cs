@@ -462,6 +462,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         var normalizedMessage = Normalize(userMessage);
         var isRecommendationRequest = IsRecommendationRequest(normalizedMessage);
         var isAdditionalRecommendationRequest = IsAdditionalRecommendationRequest(normalizedMessage);
+        var isDetailFollowUp = IsDetailFollowUp(normalizedMessage);
         var explicitlyRequestedCount = GetExplicitRequestedRecommendationCount(normalizedMessage);
         var useDeterministicRecommendations = isAdditionalRecommendationRequest
             || (isRecommendationRequest && explicitlyRequestedCount is not null);
@@ -510,8 +511,17 @@ public sealed class ChatAssistantService : IChatAssistantService
                     categoryNames[item.CategoryId],
                     item.Tags.ToList(),
                     item.IsAvailable)),
-            useDeterministicRecommendations ? int.MaxValue : null);
+            useDeterministicRecommendations || isDetailFollowUp ? int.MaxValue : null);
         var availableMenuItems = menuGrounding.Candidates;
+        if (isDetailFollowUp)
+        {
+            var detailedItems = GetMostRecentSuggestedMenuItems(history, availableMenuItems);
+            if (detailedItems.Count > 0)
+            {
+                return BuildSuggestedItemDetails(detailedItems);
+            }
+        }
+
         if (useDeterministicRecommendations)
         {
             var previouslySuggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
@@ -586,8 +596,8 @@ public sealed class ChatAssistantService : IChatAssistantService
 
         return new ChatAssistantReply(
             $"Đây là các món thuộc {scope} hiện còn bán:{Environment.NewLine}{Environment.NewLine}{catalog}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem chi tiết hay thêm món nào vào giỏ?",
-            [],
-            []);
+            BuildSuggestedCartActions(grounding.Candidates),
+            grounding.Candidates.Count > 0 ? ["CUSTOMER_CONFIRMATION_REQUIRED"] : []);
     }
 
     private static ChatAssistantReply BuildDeterministicRecommendations(
@@ -626,8 +636,62 @@ public sealed class ChatAssistantService : IChatAssistantService
             isAdditionalRecommendationRequest
                 ? $"Mình gợi ý {newCandidates.Count} món khác chưa được đề xuất trong phiên này{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?"
                 : $"Mình gợi ý {newCandidates.Count} món phù hợp{scope}:{Environment.NewLine}{Environment.NewLine}{recommendations}{Environment.NewLine}{Environment.NewLine}Bạn muốn xem thêm món khác hay chọn món nào để thêm vào giỏ?",
-            [],
-            []);
+            BuildSuggestedCartActions(newCandidates),
+            ["CUSTOMER_CONFIRMATION_REQUIRED"]);
+    }
+
+    private static ChatAssistantReply BuildSuggestedItemDetails(IReadOnlyList<ChatMenuItemContext> items)
+    {
+        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var details = string.Join(
+            Environment.NewLine,
+            items.Select((item, index) =>
+                $"{index + 1}. {item.Name} ({item.Id}) - {item.Price.ToString("#,0", culture)}đ: {item.Description}"));
+        return new ChatAssistantReply(
+            $"Chi tiết các món bạn vừa quan tâm:{Environment.NewLine}{Environment.NewLine}{details}{Environment.NewLine}{Environment.NewLine}Bạn có thể xác nhận trên card để thêm món vào giỏ.",
+            BuildSuggestedCartActions(items),
+            ["CUSTOMER_CONFIRMATION_REQUIRED"]);
+    }
+
+    private static IReadOnlyList<SuggestedCartActionResponse> BuildSuggestedCartActions(
+        IEnumerable<ChatMenuItemContext> items) =>
+        items.Select(item => new SuggestedCartActionResponse(
+                item.Id,
+                item.Name,
+                item.Price,
+                Quantity: 1,
+                Reason: "Món còn bán trong thực đơn hiện tại và cần khách xác nhận trước khi thêm vào giỏ.",
+                RequiresCustomerConfirmation: true))
+            .ToList();
+
+    private static IReadOnlyList<ChatMenuItemContext> GetMostRecentSuggestedMenuItems(
+        IReadOnlyList<ChatMessageSnapshot> history,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems)
+    {
+        var byId = availableMenuItems.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var message in history.Where(message => message.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)).Reverse())
+        {
+            var fromActions = message.SuggestedCartActions
+                .Where(action => byId.ContainsKey(action.MenuItemId))
+                .Select(action => byId[action.MenuItemId])
+                .DistinctBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (fromActions.Count > 0)
+            {
+                return fromActions;
+            }
+
+            var content = Normalize(message.Content);
+            var fromContent = availableMenuItems
+                .Where(item => content.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (fromContent.Count > 0)
+            {
+                return fromContent;
+            }
+        }
+
+        return [];
     }
 
     private static IReadOnlySet<string> GetPreviouslySuggestedMenuItemIds(
@@ -664,6 +728,9 @@ public sealed class ChatAssistantService : IChatAssistantService
 
     private static bool IsRecommendationRequest(string normalizedMessage) =>
         ContainsAny(normalizedMessage, "gợi ý", "goi y", "đề xuất", "de xuat", "tư vấn", "tu van");
+
+    private static bool IsDetailFollowUp(string normalizedMessage) =>
+        ContainsAny(normalizedMessage, "xem chi tiết", "xem chi tiet", "chi tiết", "chi tiet");
 
     private static int? GetExplicitRequestedRecommendationCount(string normalizedMessage)
     {
