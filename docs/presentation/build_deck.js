@@ -178,7 +178,7 @@ function badge(s, x, y, n, color) {
   // Gemini API below AI service
   const aiX = 0.75 + 2 * (bw + gap); // start x of 3rd box
   card(s, aiX, y + bh + 0.7, bw, 1.0, C.cyan, C.soft2);
-  s.addText("Gemini 2.5 Flash", { x: aiX + 0.1, y: y + bh + 0.82, w: bw - 0.2, h: 0.4, fontFace: F, fontSize: 14, bold: true, color: C.primary, align: "center", margin: 0 });
+  s.addText("Gemini 3.5 Flash", { x: aiX + 0.1, y: y + bh + 0.82, w: bw - 0.2, h: 0.4, fontFace: F, fontSize: 14, bold: true, color: C.primary, align: "center", margin: 0 });
   s.addText("Google API chính thức", { x: aiX + 0.1, y: y + bh + 1.2, w: bw - 0.2, h: 0.35, fontFace: F, fontSize: 11, color: C.muted, align: "center", margin: 0 });
   s.addShape(p.shapes.LINE, { x: aiX + bw / 2, y: y + bh + 0.04, w: 0, h: 0.62, line: { color: C.teal, width: 2.5, endArrowType: "triangle", beginArrowType: "triangle" } });
   // caption

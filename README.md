@@ -84,7 +84,7 @@ flowchart TB
   API --> Data["Database Layer"]
   API --> AiService["Python RAG AI Service"]
   AiService --> RAG["Knowledge Base"]
-  AiService --> Gemini["Google Gemini API / Gemini 2.5 Flash"]
+  AiService --> Gemini["Google Gemini API / Gemini 3.5 Flash"]
 ```
 
 ## Công Nghệ
@@ -94,7 +94,7 @@ flowchart TB
 | Frontend | React, TypeScript, Vite |
 | Backend | ASP.NET Core Web API |
 | AI service | Python, FastAPI, RAG knowledge base |
-| LLM access | Gemini 2.5 Flash qua Google Gemini API chính thức |
+| LLM access | Gemini 3.5 Flash qua Google Gemini API chính thức |
 | Realtime | SignalR định hướng cho cập nhật đơn |
 | Auth | JWT/HMAC foundation, role-based access |
 | Testing | .NET integration tests, Python RAG tests, frontend build checks |

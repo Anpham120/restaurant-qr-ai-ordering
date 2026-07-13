@@ -18,7 +18,7 @@ class GeminiClientTests(unittest.TestCase):
             )
             self.assertEqual(request.headers["Authorization"], "Bearer test-gemini-key")
             payload = json.loads(request.content)
-            self.assertEqual(payload["model"], "gemini-2.5-flash")
+            self.assertEqual(payload["model"], "gemini-3.5-flash")
             self.assertEqual(payload["messages"], [{"role": "user", "content": "Xin chào"}])
             return httpx.Response(
                 200,
@@ -28,7 +28,7 @@ class GeminiClientTests(unittest.TestCase):
         client = GeminiClient(
             "https://generativelanguage.googleapis.com/v1beta/openai",
             "test-gemini-key",
-            "gemini-2.5-flash",
+            "gemini-3.5-flash",
             30,
             transport=httpx.MockTransport(handler),
         )

@@ -1,4 +1,4 @@
-# AI Chatbot: Gemini 2.5 Flash, Python RAG Và Guardrails
+# AI Chatbot: Gemini 3.5 Flash, Python RAG Và Guardrails
 
 Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng cấp lên kiến trúc Python RAG service. Mục tiêu là để AI trong app không chỉ là một ô chat gọi model, mà có dữ liệu, luật an toàn, đánh giá và ranh giới nghiệp vụ rõ ràng.
 
@@ -6,7 +6,7 @@ Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng c
 
 Hệ thống sử dụng:
 
-- **Model:** Gemini 2.5 Flash.
+- **Model:** Gemini 3.5 Flash.
 - **Cách truy cập model:** Google Gemini API chính thức.
 - **AI service:** Python FastAPI service trong thư mục `ai/`.
 - **Knowledge grounding:** RAG từ `ai/knowledge-base/`.
@@ -14,7 +14,7 @@ Hệ thống sử dụng:
 
 Mô tả cách gọi model:
 
-> CMC Restaurant gọi trực tiếp Gemini 2.5 Flash qua Google Gemini API, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
+> CMC Restaurant gọi trực tiếp Gemini 3.5 Flash qua Google Gemini API, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
 
 ## 2. Luồng Kiến Trúc
 
@@ -24,7 +24,7 @@ Customer Web
     -> Python AI Service
       -> RAG retriever
       -> Google Gemini API
-        -> Gemini 2.5 Flash
+        -> Gemini 3.5 Flash
 ```
 
 Frontend chỉ gọi API chat của backend. Backend bật provider `python-rag` để chuyển phần AI sang service Python; chỉ service Python giữ khóa và gọi Google Gemini API.
@@ -44,7 +44,7 @@ Python AI service:
 
 ```env
 AI_PROVIDER=gemini
-AI_MODEL=gemini-2.5-flash
+AI_MODEL=gemini-3.5-flash
 GEMINI_API_KEY=<secret>
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 RAG_TOP_K=5

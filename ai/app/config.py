@@ -33,7 +33,7 @@ def load_config() -> AiServiceConfig:
         provider=os.getenv("AI_PROVIDER", "gemini"),
         base_url=GEMINI_OPENAI_BASE_URL,
         api_key=os.getenv("GEMINI_API_KEY", ""),
-        model=os.getenv("AI_MODEL", "gemini-2.5-flash"),
+        model=os.getenv("AI_MODEL", "gemini-3.5-flash"),
         timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "30")),
         knowledge_base_path=Path(os.getenv("RAG_KNOWLEDGE_BASE_PATH", "knowledge-base")),
         top_k=int(os.getenv("RAG_TOP_K", "5")),

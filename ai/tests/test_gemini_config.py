@@ -15,7 +15,7 @@ class GeminiConfigTests(unittest.TestCase):
                 "AI_PROVIDER": "gemini",
                 "AI_BASE_URL": "http://127.0.0.1:20128/v1",
                 "GEMINI_API_KEY": "test-gemini-key",
-                "AI_MODEL": "gemini-2.5-flash",
+                "AI_MODEL": "gemini-3.5-flash",
             },
             clear=True,
         ):
@@ -30,13 +30,26 @@ class GeminiConfigTests(unittest.TestCase):
             {
                 "AI_PROVIDER": "gemini",
                 "AI_API_KEY": "legacy-gateway-key",
-                "AI_MODEL": "gemini-2.5-flash",
+                "AI_MODEL": "gemini-3.5-flash",
             },
             clear=True,
         ):
             config = load_config()
 
         self.assertFalse(config.llm_enabled)
+
+    def test_v31_defaults_to_current_verified_gemini_model(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "AI_PROVIDER": "gemini",
+                "GEMINI_API_KEY": "test-gemini-key",
+            },
+            clear=True,
+        ):
+            config = load_config()
+
+        self.assertEqual(config.model, "gemini-3.5-flash")
 
 
 if __name__ == "__main__":

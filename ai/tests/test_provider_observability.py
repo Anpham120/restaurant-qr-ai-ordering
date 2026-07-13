@@ -18,7 +18,7 @@ class ProviderObservabilityTests(unittest.TestCase):
             provider="gemini",
             base_url="https://generativelanguage.googleapis.com/v1beta/openai",
             api_key="test-key",
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             timeout_seconds=1,
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=1,
@@ -46,7 +46,7 @@ class ProviderObservabilityTests(unittest.TestCase):
         self.assertIn("AI_PROVIDER_UNAVAILABLE", response["guardrail_flags"])
         log_output = "\n".join(captured.output)
         self.assertIn("provider=gemini", log_output)
-        self.assertIn("model=gemini-2.5-flash", log_output)
+        self.assertIn("model=gemini-3.5-flash", log_output)
         self.assertIn("error_type=RuntimeError", log_output)
         self.assertNotIn("test-key", log_output)
         self.assertNotIn("Gợi ý món nhẹ", log_output)

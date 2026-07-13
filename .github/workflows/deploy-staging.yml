@@ -48,7 +48,7 @@ jobs:
       AI_SERVICE_PORT: "8001"
       AI_LLM_PROVIDER: gemini
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      AI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+      AI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
       RAG_TOP_K: "5"
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
       BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_EMAIL || '' }}

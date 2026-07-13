@@ -10,8 +10,8 @@ Tách phần AI khỏi backend nghiệp vụ để hệ thống có thể phát 
 | --- | --- |
 | Frontend | Gửi câu hỏi của khách tới backend chat API. |
 | .NET Backend | Quản lý session chat, menu, giỏ hàng, đơn hàng và validate nghiệp vụ. |
-| Python AI Service | Truy xuất RAG, dựng prompt, gọi trực tiếp Gemini 2.5 Flash. |
-| Google Gemini API | API chính thức cung cấp model Gemini 2.5 Flash. |
+| Python AI Service | Truy xuất RAG, dựng prompt, gọi trực tiếp Gemini 3.5 Flash. |
+| Google Gemini API | API chính thức cung cấp model Gemini 3.5 Flash. |
 | Knowledge Base | Tài liệu nhà hàng để grounding câu trả lời. |
 | Evaluation Set | Bộ câu hỏi vàng để đo retrieval, safety và hallucination. |
 
@@ -25,7 +25,7 @@ POST /api/chat/sessions/{id}/messages
         -> POST /v1/chat (Python)
           -> LexicalRetriever
           -> Prompt Builder
-          -> Google Gemini API / Gemini 2.5 Flash
+          -> Google Gemini API / Gemini 3.5 Flash
           -> Guardrail metadata
     -> Backend validate business rules
   -> Chat response to frontend
