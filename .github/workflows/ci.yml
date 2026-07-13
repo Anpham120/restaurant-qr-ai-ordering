@@ -109,6 +109,11 @@ jobs:
           PYTHONPATH: ai
         run: python -m unittest discover -s ai/tests -v
 
+      - name: Run reproducible RAG benchmark
+        env:
+          PYTHONPATH: ai
+        run: python ai/evaluation/retrieval_benchmark.py
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest
