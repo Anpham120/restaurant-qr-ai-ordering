@@ -100,3 +100,61 @@ class GeminiClient:
         message = first.get("message") or {}
         content = message.get("content") or first.get("text")
         return content.strip() if isinstance(content, str) and content.strip() else None
+
+    async def complete_stream(
+        self,
+        messages: list[dict[str, str]],
+    ) -> "AsyncIterator[str]":
+        """Stream completion tokens via SSE.
+
+        Yields content delta strings as they arrive.
+        Useful for reducing perceived latency on the frontend.
+        Note: When using json_schema response_format, some providers
+        may not support streaming; falls back to single-shot in that case.
+        """
+        payload = {
+            "model": self._model,
+            "stream": True,
+            "temperature": 0.2,
+            "reasoning_effort": "low",
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "restaurant_chat_response",
+                    "strict": True,
+                    "schema": RESTAURANT_CHAT_SCHEMA,
+                },
+            },
+            "messages": messages,
+        }
+        headers = {"Authorization": f"Bearer {self._api_key}"}
+        async with httpx.AsyncClient(
+            timeout=self._timeout_seconds,
+            transport=self._transport,
+        ) as client:
+            async with client.stream(
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        import json as _json
+
+                        chunk = _json.loads(data_str)
+                        delta = (
+                            chunk.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
+                        if delta:
+                            yield delta
+                    except (ValueError, IndexError, KeyError):
+                        continue
