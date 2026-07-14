@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useEffect, useState } from "react";
+import { FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChatMessageBubble } from "../../components/chatbot/ChatMessageBubble";
 import { SuggestedCartActionCard } from "../../components/chatbot/SuggestedCartActionCard";
@@ -69,6 +69,7 @@ export function ChatbotPage() {
 
   const [cartNotice, setCartNotice] = useState("");
   const [menuData, setMenuData] = useState<CustomerMenuResponse>({ categories: [], items: [] });
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const tableCode = orderContext.tableCode;
 
@@ -94,6 +95,8 @@ export function ChatbotPage() {
 
     return () => {
       isMounted = false;
+      // Cancel any pending chat request when leaving the tab
+      abortControllerRef.current?.abort();
     };
   }, [orderContext.sessionId, orderContext.tableCode]);
 
@@ -124,9 +127,16 @@ export function ChatbotPage() {
     setCartNotice("");
 
     try {
+      // Cancel any previous pending request
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const response = await chatApi.sendMessage(chatSessionId, {
         content,
-      }, chatAccessToken);
+      }, chatAccessToken, controller.signal);
+
+      abortControllerRef.current = null;
 
       setMessages((current) => appendCommittedExchange(current, response));
       setActionStatuses((current) =>
@@ -136,6 +146,10 @@ export function ChatbotPage() {
         }, { ...current }),
       );
     } catch (error) {
+      // Silently ignore aborted requests (user switched tabs)
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       try {
         const history = await chatApi.getHistory(chatSessionId, chatAccessToken);
         setMessages(restoreCommittedHistory(history.messages, initialMessages[0]));

@@ -29,6 +29,7 @@ async function requestJson<TResponse>(
   method: "GET" | "POST",
   body?: unknown,
   accessToken?: string,
+  signal?: AbortSignal,
 ): Promise<TResponse> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method,
@@ -37,6 +38,7 @@ async function requestJson<TResponse>(
       ...(accessToken ? { "X-Chat-Session-Token": accessToken } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   if (!response.ok) {
@@ -66,12 +68,14 @@ export const chatApi = {
     chatSessionId: string,
     request: SendChatMessageRequest,
     accessToken: string,
+    signal?: AbortSignal,
   ): Promise<SendChatMessageResponse> {
     return requestJson<SendChatMessageResponse>(
       `/chat/sessions/${encodeURIComponent(chatSessionId)}/messages`,
       "POST",
       request,
       accessToken,
+      signal,
     );
   },
 

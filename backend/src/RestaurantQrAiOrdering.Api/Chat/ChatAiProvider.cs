@@ -180,7 +180,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             return Unavailable();
         }
 
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 8);
+        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 30);
         var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 0);
         var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat";
 
@@ -469,16 +469,16 @@ public sealed class ChatAssistantService : IChatAssistantService
         var isAdditionalRecommendationRequest = IsAdditionalRecommendationRequest(normalizedMessage);
         var isDetailFollowUp = IsDetailFollowUp(normalizedMessage);
         var explicitlyRequestedCount = GetExplicitRequestedRecommendationCount(normalizedMessage);
-        var useDeterministicRecommendations = isAdditionalRecommendationRequest
-            || (isRecommendationRequest && explicitlyRequestedCount is not null);
+
+        // --- Build intent context hints for LLM (instead of hard-coded returns) ---
+        var contextHints = new List<string>();
+
         if (IsOutOfScope(normalizedMessage))
         {
-            return new ChatAssistantReply(
-                "Mình chỉ hỗ trợ chọn món, hỏi đáp thực đơn và gợi ý giỏ hàng an toàn cho CMC Restaurant.",
-                [],
-                ["OUT_OF_SCOPE"]);
+            contextHints.Add("USER_INTENT: The message appears out-of-scope (not about restaurant/menu/food). Politely decline and redirect the user to restaurant-related topics. Add OUT_OF_SCOPE to guardrail_flags.");
         }
 
+        // --- Load menu data ---
         var categories = await db.Categories
             .AsNoTracking()
             .Where(category => category.IsActive)
@@ -492,15 +492,12 @@ public sealed class ChatAssistantService : IChatAssistantService
             .AsNoTracking()
             .Where(item => activeCategoryIds.Contains(item.CategoryId))
             .ToListAsync(cancellationToken);
+
         var unavailableMatch = menuItems.FirstOrDefault(item =>
             !item.IsAvailable && normalizedMessage.Contains(Normalize(item.Name), StringComparison.OrdinalIgnoreCase));
-
         if (unavailableMatch is not null)
         {
-            return new ChatAssistantReply(
-                $"{unavailableMatch.Name} hiện đang hết hàng nên mình không thể gợi ý thêm món này vào giỏ.",
-                [],
-                ["MENU_ITEM_UNAVAILABLE"]);
+            contextHints.Add($"ITEM_UNAVAILABLE: The user asked about \"{unavailableMatch.Name}\" which is currently out of stock. Inform the user it is unavailable and suggest similar alternatives from the available menu. Add MENU_ITEM_UNAVAILABLE to guardrail_flags.");
         }
 
         var menuGrounding = ChatMenuGrounding.SelectWithConstraints(
@@ -516,44 +513,62 @@ public sealed class ChatAssistantService : IChatAssistantService
                     categoryNames[item.CategoryId],
                     item.Tags.ToList(),
                     item.IsAvailable)),
-            useDeterministicRecommendations || isDetailFollowUp ? int.MaxValue : null);
+            null);
         var availableMenuItems = menuGrounding.Candidates;
+
         if (isDetailFollowUp)
         {
             var detailedItems = GetMostRecentSuggestedMenuItems(history, availableMenuItems);
             if (detailedItems.Count > 0)
             {
-                return BuildSuggestedItemDetails(detailedItems);
+                var itemNames = string.Join(", ", detailedItems.Select(i => $"{i.Name} ({i.Id})"));
+                contextHints.Add($"USER_INTENT: The user wants detailed information about previously suggested items: {itemNames}. Provide rich descriptions including ingredients, taste, and pairing suggestions for these items. Include suggested_cart_actions for them.");
             }
         }
 
-        if (useDeterministicRecommendations)
+        if (isAdditionalRecommendationRequest)
         {
             var previouslySuggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
-            return BuildDeterministicRecommendations(
-                menuGrounding,
-                previouslySuggestedItemIds,
-                explicitlyRequestedCount ?? 3,
-                isAdditionalRecommendationRequest);
+            if (previouslySuggestedItemIds.Count > 0)
+            {
+                contextHints.Add($"USER_INTENT: The user wants MORE/DIFFERENT recommendations. Do NOT suggest these already-suggested items: {string.Join(", ", previouslySuggestedItemIds)}. Suggest {explicitlyRequestedCount ?? 3} NEW items they haven't seen yet.");
+            }
+        }
+        else if (isRecommendationRequest && explicitlyRequestedCount is not null)
+        {
+            contextHints.Add($"USER_INTENT: The user explicitly asked for {explicitlyRequestedCount} dish recommendations. Suggest exactly {explicitlyRequestedCount} items with suggested_cart_actions.");
         }
 
         if (menuGrounding.HasExplicitConstraint)
         {
-            return BuildGroundedCatalog(menuGrounding);
+            var scope = menuGrounding.MatchedCategoryNames.Count > 0
+                ? $"category: {string.Join(", ", menuGrounding.MatchedCategoryNames)}"
+                : $"tags: {string.Join(", ", menuGrounding.MatchedTags)}";
+            contextHints.Add($"MENU_FILTER: The user is asking about a specific {scope}. Focus your answer on the {availableMenuItems.Count} matching items from this group. List them with prices and brief descriptions.");
         }
 
+        // --- ALL requests go to LLM ---
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
         var sessionMemory = BuildSessionMemory(priorHistory, availableMenuItems);
+
+        if (contextHints.Count > 0)
+        {
+            sessionMemory = string.IsNullOrEmpty(sessionMemory)
+                ? string.Join("\n", contextHints)
+                : sessionMemory + "\n" + string.Join("\n", contextHints);
+        }
+
         var providerResult = await aiProvider.GenerateAsync(
             new ChatAiRequest(userMessage, priorHistory, availableMenuItems, tableCode, sessionMemory),
             cancellationToken);
 
+        // --- Fallback to deterministic response ONLY when LLM is unavailable ---
         if (!providerResult.ProviderAvailable)
         {
-            return new ChatAssistantReply(
-                providerResult.Content,
-                [],
-                ["AI_PROVIDER_UNAVAILABLE"]);
+            return BuildDeterministicFallback(
+                normalizedMessage, menuGrounding, availableMenuItems, history,
+                isDetailFollowUp, isAdditionalRecommendationRequest, isRecommendationRequest,
+                explicitlyRequestedCount, unavailableMatch);
         }
 
         // Use AI-provided suggestions if available, fallback to string-matching
@@ -578,6 +593,69 @@ public sealed class ChatAssistantService : IChatAssistantService
             providerResult.Content,
             suggestedActions,
             guardrailFlags);
+    }
+
+    /// <summary>
+    /// Deterministic fallback used ONLY when the LLM provider is unavailable.
+    /// Preserves the original if-else behavior as a safety net.
+    /// </summary>
+    private static ChatAssistantReply BuildDeterministicFallback(
+        string normalizedMessage,
+        ChatMenuGroundingResult menuGrounding,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems,
+        IReadOnlyList<ChatMessageSnapshot> history,
+        bool isDetailFollowUp,
+        bool isAdditionalRecommendationRequest,
+        bool isRecommendationRequest,
+        int? explicitlyRequestedCount,
+        MenuItem? unavailableMatch)
+    {
+        if (IsOutOfScope(normalizedMessage))
+        {
+            return new ChatAssistantReply(
+                "Mình chỉ hỗ trợ chọn món, hỏi đáp thực đơn và gợi ý giỏ hàng an toàn cho CMC Restaurant. Hiện tại trợ lý AI chưa sẵn sàng, bạn vẫn có thể xem thực đơn và đặt món trực tiếp.",
+                [],
+                ["OUT_OF_SCOPE", "AI_PROVIDER_UNAVAILABLE"]);
+        }
+
+        if (unavailableMatch is not null)
+        {
+            return new ChatAssistantReply(
+                $"{unavailableMatch.Name} hiện đang hết hàng. Trợ lý AI chưa sẵn sàng để gợi ý món thay thế, bạn có thể xem thực đơn trực tiếp.",
+                [],
+                ["MENU_ITEM_UNAVAILABLE", "AI_PROVIDER_UNAVAILABLE"]);
+        }
+
+        if (isDetailFollowUp)
+        {
+            var detailedItems = GetMostRecentSuggestedMenuItems(history, availableMenuItems);
+            if (detailedItems.Count > 0)
+            {
+                return BuildSuggestedItemDetails(detailedItems);
+            }
+        }
+
+        var useDeterministicRecommendations = isAdditionalRecommendationRequest
+            || (isRecommendationRequest && explicitlyRequestedCount is not null);
+        if (useDeterministicRecommendations)
+        {
+            var previouslySuggestedItemIds = GetPreviouslySuggestedMenuItemIds(history, availableMenuItems);
+            return BuildDeterministicRecommendations(
+                menuGrounding,
+                previouslySuggestedItemIds,
+                explicitlyRequestedCount ?? 3,
+                isAdditionalRecommendationRequest);
+        }
+
+        if (menuGrounding.HasExplicitConstraint)
+        {
+            return BuildGroundedCatalog(menuGrounding);
+        }
+
+        return new ChatAssistantReply(
+            "Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.",
+            [],
+            ["AI_PROVIDER_UNAVAILABLE"]);
     }
 
     private static ChatAssistantReply BuildGroundedCatalog(ChatMenuGroundingResult grounding)
