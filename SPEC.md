@@ -82,6 +82,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V57: ∀ verification command → execute from its authoritative component root or pass an explicit project/config path; parent-workspace invocation forbidden.
 - V58: ∀ `Placed|Confirmed` order, first active item `Pending→Preparing` → aggregate order `Preparing` in same mutation; refreshed Kitchen board moves card `confirmed→preparing`.
 - V59: Kitchen board @ desktop → exactly 4 equal columns `confirmed|preparing|ready|served` in one row; tablet → 2 columns; mobile → 1 column.
+- V60: ∀ Kitchen card → one explicit action advances exactly one lane `confirmed→preparing→ready→served`; legacy aggregate/item drift repaired before use so zero-item no-op cannot strand card in an earlier lane.
 
 ## §T
 
@@ -124,6 +125,7 @@ T35|x|route repeat scans + upgrade session orders to realtime state hub|V52,V53,
 T36|x|add atomic Served transition + fourth Kitchen column|V54,I.api,I.ui
 T37|x|remove superseded QR/Kitchen logic + full verification|V55,C
 T38|x|fix Kitchen card movement + four-column responsive board|V54,V55,V58,V59,I.api,I.ui
+T39|x|repair legacy Kitchen state drift + complete sequential card actions|V54,V58,V59,V60,I.api,I.ui
 
 ## §B
 
@@ -205,3 +207,6 @@ B74|2026-07-15|release verification invoked Compose without the authoritative `d
 B75|2026-07-15|admin user endpoint logged route-controlled `userId`, so CodeQL found two CWE-117 log-forging paths and unresolved review threads blocked merge|V56
 B76|2026-07-15|backend verification ran from the parent workspace without an explicit solution path, so MSBuild found no project and produced a false test failure|V57
 B77|2026-07-15|`Placed` omitted from item-status aggregation + board `auto-fit minmax(340px,1fr)` wrapped Served lane below|V58,V59
+B78|2026-07-15|legacy order remained `Placed` while every item was `Ready`; confirmed action selected 0 Pending items and preparing cards had no bulk Ready action|V60
+B79|2026-07-15|EF migration-script verification omitted required design-time `EF_CONNECTION_STRING`|V57
+B80|2026-07-15|desktop shell PATH omitted required `rtk` wrapper while context runtime provided it|V57

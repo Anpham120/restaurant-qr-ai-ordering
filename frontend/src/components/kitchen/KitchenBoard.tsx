@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { Order, OrderItemStatus } from "@cmc/shared-types";
 import { CheckCircle2, Circle, Clock3, Flame, X } from "lucide-react";
 import { updateOrderItemStatus, updateOrderStatus } from "../../services/orderService";
-import { getKitchenBoardColumn, type KitchenBoardColumn } from "./kitchenOrderPipeline";
+import {
+  getKitchenBoardAdvancePlan,
+  getKitchenBoardColumn,
+  type KitchenBoardColumn,
+} from "./kitchenOrderPipeline";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -59,6 +63,30 @@ function StartCookingButton({
     >
       <Flame aria-hidden="true" size={compact ? 14 : 16} />
       {compact ? "Bắt đầu nấu" : "Bắt đầu nấu đơn"}
+    </button>
+  );
+}
+
+function FinishCookingButton({
+  order,
+  isPending,
+  onMoveNext,
+  compact = false,
+}: {
+  order: Order;
+  isPending: boolean;
+  onMoveNext: (order: Order) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      className={`ops-btn ops-btn--primary${compact ? " ops-btn--sm" : ""}`}
+      disabled={isPending}
+      onClick={() => onMoveNext(order)}
+      type="button"
+    >
+      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
+      {compact ? "Nấu xong" : "Đánh dấu tất cả đã sẵn sàng"}
     </button>
   );
 }
@@ -157,6 +185,11 @@ function OrderCard({
           <StartCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
         </div>
       ) : null}
+      {column === "preparing" ? (
+        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
+          <FinishCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
+        </div>
+      ) : null}
       {column === "ready" ? (
         <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
           <MarkServedButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
@@ -247,6 +280,11 @@ function OrderDetailModal({
         {column === "confirmed" ? (
           <div className="ops-modal-footer">
             <StartCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
+          </div>
+        ) : null}
+        {column === "preparing" ? (
+          <div className="ops-modal-footer">
+            <FinishCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
           </div>
         ) : null}
         {column === "ready" ? (
@@ -342,17 +380,29 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
     setPendingCode(order.orderCode);
     setNotice("");
     try {
-      if (order.status === "Ready") {
-        await updateOrderStatus(order.orderCode, "Served");
+      const plan = getKitchenBoardAdvancePlan(order.status);
+      if (!plan) {
+        return;
+      }
+
+      if (plan.kind === "order") {
+        await updateOrderStatus(order.orderCode, plan.nextOrderStatus);
         setNotice(`${order.orderCode}: đã phục vụ`);
         return;
       }
 
-      const pendingItems = order.items.filter((item) => item.status === "Pending");
-      for (const item of pendingItems) {
-        await updateOrderItemStatus(order.orderCode, item.orderItemId, "Preparing");
+      const eligibleItems = order.items.filter((item) =>
+        plan.eligibleItemStatuses.some((status) => status === item.status),
+      );
+      for (const item of eligibleItems) {
+        await updateOrderItemStatus(order.orderCode, item.orderItemId, plan.nextItemStatus);
       }
-      setNotice(`${order.orderCode}: đã bắt đầu nấu ${pendingItems.length} món`);
+
+      if (plan.nextItemStatus === "Preparing") {
+        setNotice(`${order.orderCode}: đã bắt đầu nấu ${eligibleItems.length} món`);
+      } else {
+        setNotice(`${order.orderCode}: ${eligibleItems.length} món đã sẵn sàng`);
+      }
     } catch {
       setNotice("Cập nhật thất bại. Thử lại.");
     } finally {

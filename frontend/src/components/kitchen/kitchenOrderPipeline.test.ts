@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getKitchenBoardColumn, isKitchenActiveOrderStatus } from "./kitchenOrderPipeline";
+import {
+  getKitchenBoardAdvancePlan,
+  getKitchenBoardColumn,
+  isKitchenActiveOrderStatus,
+} from "./kitchenOrderPipeline";
 
 describe("kitchen order pipeline", () => {
   it("shows newly placed orders in the new-order column", () => {
@@ -15,5 +19,23 @@ describe("kitchen order pipeline", () => {
     expect(isKitchenActiveOrderStatus("Served")).toBe(true);
     expect(getKitchenBoardColumn("Completed")).toBeNull();
     expect(getKitchenBoardColumn("Cancelled")).toBeNull();
+  });
+
+  it("advances each card exactly one lane at a time", () => {
+    expect(getKitchenBoardAdvancePlan("Placed")).toEqual({
+      kind: "items",
+      eligibleItemStatuses: ["Pending"],
+      nextItemStatus: "Preparing",
+    });
+    expect(getKitchenBoardAdvancePlan("Preparing")).toEqual({
+      kind: "items",
+      eligibleItemStatuses: ["Pending", "Preparing"],
+      nextItemStatus: "Ready",
+    });
+    expect(getKitchenBoardAdvancePlan("Ready")).toEqual({
+      kind: "order",
+      nextOrderStatus: "Served",
+    });
+    expect(getKitchenBoardAdvancePlan("Served")).toBeNull();
   });
 });

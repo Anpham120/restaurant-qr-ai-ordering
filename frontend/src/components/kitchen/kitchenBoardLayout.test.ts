@@ -15,6 +15,10 @@ describe("V59 Kitchen board layout", () => {
     for (const title of ["Đơn mới", "Đang nấu", "Sẵn sàng", "Đã phục vụ"]) {
       expect(board).toContain(`title="${title}"`);
     }
+
+    expect(board).toMatch(
+      /column === "preparing"[\s\S]*?<FinishCookingButton[\s\S]*?onMoveNext=/,
+    );
   });
 
   it("keeps four desktop lanes and responsive tablet/mobile fallbacks", () => {
