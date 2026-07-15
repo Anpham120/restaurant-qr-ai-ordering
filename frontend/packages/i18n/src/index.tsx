@@ -405,6 +405,8 @@ export const EN_COPY: Record<string, string> = {
   "Đang tải": "Loading",
   "Không thể thêm món vào giỏ.": "The item could not be added to your cart.",
   "Không gửi được yêu cầu hỗ trợ.": "The assistance request could not be sent.",
+  "Mở menu": "Open menu",
+  "Đóng menu": "Close menu",
   "Mã ưu đãi không hợp lệ.": "The promotion code is invalid.",
   "Vui lòng bấm Áp dụng để kiểm tra mã ưu đãi và xem đúng số tiền cần thanh toán.": "Select Apply to validate the promotion code and see the correct amount due.",
 };

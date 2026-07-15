@@ -16,8 +16,8 @@
   cursor: pointer;
   font: 800 .68rem/1 var(--brand-font-utility);
   letter-spacing: .06em;
-  min-height: 1.9rem;
-  min-width: 2.35rem;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
   padding: .45rem .55rem;
 }
 

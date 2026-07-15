@@ -24,8 +24,10 @@ function OrderingEntryPage() {
   return (
     <main className="ordering-entry">
       <section className="ordering-entry-card">
-        <BrandWordmark />
-        <LanguageSwitcher />
+        <div className="ordering-entry-top">
+          <BrandWordmark />
+          <LanguageSwitcher />
+        </div>
         <h1>{t("Quét QR để gọi món")}</h1>
         <p>{t("Mở camera và quét mã QR trên bàn. Phiên gọi món chỉ hoạt động trên thiết bị đã quét mã.")}</p>
         <div className="ordering-entry-actions">

@@ -3,6 +3,7 @@
   color: var(--brand-ink);
   min-height: 100dvh;
   padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
+  overflow-x: clip;
 }
 
 .ordering-shell :is([class*="price"], [class*="total"], [data-money]) {
@@ -17,7 +18,7 @@
   border-bottom: 2px dashed var(--brand-clay-line);
   display: flex;
   justify-content: space-between;
-  padding: .9rem 1rem 1rem;
+  padding: max(.65rem, env(safe-area-inset-top)) max(.75rem, env(safe-area-inset-right)) .75rem max(.75rem, env(safe-area-inset-left));
   position: sticky;
   top: 0;
   z-index: 30;
@@ -44,9 +45,13 @@
 }
 
 .ordering-nav a {
+  align-items: center;
   border-radius: .75rem;
   color: var(--brand-muted);
   font: 700 .76rem/1 var(--brand-font-utility);
+  display: flex;
+  justify-content: center;
+  min-height: 3.25rem;
   padding: .75rem .4rem;
   text-align: center;
   text-decoration: none;
@@ -74,7 +79,7 @@
 .ordering-page-heading, .ordering-order-card header, .ordering-order-card footer { align-items: center; display: flex; gap: 1rem; justify-content: space-between; }
 .ordering-page-heading h1 { color: var(--brand-chestnut); font-family: var(--brand-font-display); margin: .15rem 0; }
 .ordering-page-heading p, .ordering-order-card header span { color: var(--brand-muted); font-size: .84rem; margin: 0; }
-.ordering-page button, .ordering-inline-error button { background: var(--brand-chestnut); border: 0; border-radius: .6rem; color: #fff; cursor: pointer; padding: .55rem .8rem; }
+.ordering-page button, .ordering-inline-error button { background: var(--brand-chestnut); border: 0; border-radius: .6rem; color: #fff; cursor: pointer; min-height: 44px; padding: .55rem .8rem; }
 .ordering-orders-list { display: grid; gap: .8rem; margin-top: 1rem; }
 .ordering-order-card { background: var(--brand-paper); border: 1px solid var(--brand-clay-line); border-radius: var(--brand-radius-card); padding: 1rem; }
 .ordering-order-card header a, .ordering-empty a { color: var(--brand-chestnut); font-weight: 700; }
@@ -137,6 +142,8 @@
 .table-invoice-methods small { color: var(--brand-muted); }
 .table-invoice-modal-actions { background: var(--brand-paper); border-top: 1px solid var(--brand-clay-line); display: grid; gap: .65rem; grid-template-columns: .75fr 1.5fr; padding: .8rem 1rem calc(.8rem + env(safe-area-inset-bottom)); }
 .table-invoice-modal-actions button { font-weight: 800; padding: .8rem; }
+.table-invoice-modal-header button,
+.table-invoice-modal-actions button { min-height: 44px; min-width: 44px; }
 .table-invoice-modal-actions .is-secondary { background: transparent; border: 1px solid var(--brand-clay-line); color: var(--brand-chestnut); }
 
 @media (min-width: 760px) {
@@ -159,4 +166,34 @@
   .ordering-page { padding: 1.5rem 2rem 3rem; }
   .table-invoice-overlay { align-items: center; padding: 1rem; }
   .table-invoice-modal { border-radius: 1.35rem; }
+}
+
+@media (max-width: 520px) {
+  .ordering-header {
+    display: grid;
+    gap: .35rem;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .ordering-brand { min-width: 0; overflow: hidden; }
+  .ordering-header .brand-wordmark { gap: .45rem; min-width: 0; }
+  .ordering-header .brand-wordmark-monogram { border-radius: .65rem; height: 2.45rem; width: 2.45rem; }
+  .ordering-header .brand-wordmark-copy { min-width: 0; }
+  .ordering-header .brand-wordmark-copy strong { font-size: .86rem; white-space: nowrap; }
+  .ordering-header .brand-wordmark-copy small { display: none; }
+  .ordering-table strong { font-size: 1rem; }
+  .ordering-table span { font-size: .58rem; }
+  .ordering-nav { padding-inline: max(.35rem, env(safe-area-inset-left)) max(.35rem, env(safe-area-inset-right)); }
+  .ordering-nav a { font-size: .68rem; padding-inline: .2rem; }
+  .ordering-page { padding: .8rem .75rem 1.5rem; }
+  .ordering-page-heading { align-items: flex-start; }
+  .table-invoice-summary-heading { align-items: flex-start; flex-direction: column; }
+  .table-invoice-vietqr { align-items: flex-start; flex-direction: column; }
+  .table-invoice-vietqr img { align-self: center; height: min(11rem, 56vw); width: min(11rem, 56vw); }
+  .table-invoice-modal-body { padding: .75rem; }
+  .table-invoice-modal-actions { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 350px) {
+  .ordering-header .brand-wordmark-copy { display: none; }
+  .ordering-table span { display: none; }
 }

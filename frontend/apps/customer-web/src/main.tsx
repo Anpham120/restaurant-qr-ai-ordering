@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Link,
@@ -17,6 +17,7 @@ import logoUrl from "../../../src/mocks/images/logo.png";
 import { CustomerHomePage } from "../../../src/pages/CustomerHomePage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
 import { PublicMenuPreviewPage } from "../../../src/pages/customer/PublicMenuPreviewPage";
+import { Menu, X } from "lucide-react";
 
 document.documentElement.classList.add("brand-theme");
 
@@ -52,6 +53,9 @@ function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean 
 function MarketingLayout() {
   const { t } = useI18n();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
 
   return (
     <div className="landing-shell">
@@ -62,13 +66,25 @@ function MarketingLayout() {
             <img className="landing-brand-logo" alt="" src={logoUrl} width="44" height="44" />
             <span className="landing-brand-text" translate="no"><strong>CMC Restaurant</strong><small>Restaurant</small></span>
           </Link>
-          <nav className="landing-nav" aria-label={t("Điều hướng trang giới thiệu")}>
-            <Link to="/#gioi-thieu">{t("Giới thiệu")}</Link>
-            <Link to="/menu">{t("Thực đơn")}</Link>
-            <Link to="/#danh-gia">{t("Đánh giá")}</Link>
-            <Link to="/album">{t("Album")}</Link>
+          <nav className={`landing-nav${menuOpen ? " open" : ""}`} id="landing-mobile-nav" aria-label={t("Điều hướng trang giới thiệu")}>
+            <Link to="/#gioi-thieu" onClick={() => setMenuOpen(false)}>{t("Giới thiệu")}</Link>
+            <Link to="/menu" onClick={() => setMenuOpen(false)}>{t("Thực đơn")}</Link>
+            <Link to="/#danh-gia" onClick={() => setMenuOpen(false)}>{t("Đánh giá")}</Link>
+            <Link to="/album" onClick={() => setMenuOpen(false)}>{t("Album")}</Link>
           </nav>
-          <LanguageSwitcher className="landing-language-switcher" />
+          <div className="landing-header-actions">
+            <LanguageSwitcher className="landing-language-switcher" />
+            <button
+              aria-controls="landing-mobile-nav"
+              aria-expanded={menuOpen}
+              aria-label={t(menuOpen ? "Đóng menu" : "Mở menu")}
+              className="landing-menu-toggle"
+              onClick={() => setMenuOpen((open) => !open)}
+              type="button"
+            >
+              {menuOpen ? <X aria-hidden="true" size={21} /> : <Menu aria-hidden="true" size={21} />}
+            </button>
+          </div>
         </div>
       </header>
       <main id="main-content">

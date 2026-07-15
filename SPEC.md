@@ -99,7 +99,7 @@ T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusio
 T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
 T26|x|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
 T27|x|add persistent VI/EN switch + full landing/ordering/menu localization|V44,V46,I.ui
-T28|~|optimize landing + ordering responsive mobile layout + regressions|V45,I.ui
+T28|x|optimize landing + ordering responsive mobile layout + regressions|V45,I.ui
 T29|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44,V45
 
 ## §B

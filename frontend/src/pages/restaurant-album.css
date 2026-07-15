@@ -361,7 +361,17 @@
   }
 
   .album-filter-btn {
-    padding: 6px 14px;
+    min-height: 44px;
+    padding: 8px 14px;
     font-size: 12px;
+  }
+
+  .album-container {
+    padding-inline: 14px;
+  }
+
+  .album-lightbox-close {
+    height: 44px;
+    width: 44px;
   }
 }
