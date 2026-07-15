@@ -83,6 +83,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V58: ∀ `Placed|Confirmed` order, first active item `Pending→Preparing` → aggregate order `Preparing` in same mutation; refreshed Kitchen board moves card `confirmed→preparing`.
 - V59: Kitchen board @ desktop → exactly 4 equal columns `confirmed|preparing|ready|served` in one row; tablet → 2 columns; mobile → 1 column.
 - V60: ∀ Kitchen card → one explicit action advances exactly one lane `confirmed→preparing→ready→served`; legacy aggregate/item drift repaired before use so zero-item no-op cannot strand card in an earlier lane.
+- V61: Kitchen desktop card supports drag/drop only to its immediate next lane; invalid/backward/skip drops never mutate state; Served remains read-only; visible button + keyboard detail flow remain available.
 
 ## §T
 
@@ -126,6 +127,7 @@ T36|x|add atomic Served transition + fourth Kitchen column|V54,I.api,I.ui
 T37|x|remove superseded QR/Kitchen logic + full verification|V55,C
 T38|x|fix Kitchen card movement + four-column responsive board|V54,V55,V58,V59,I.api,I.ui
 T39|x|repair legacy Kitchen state drift + complete sequential card actions|V54,V58,V59,V60,I.api,I.ui
+T40|x|add guarded Kitchen card drag/drop + visual drop targets|V54,V59,V60,V61,I.ui
 
 ## §B
 

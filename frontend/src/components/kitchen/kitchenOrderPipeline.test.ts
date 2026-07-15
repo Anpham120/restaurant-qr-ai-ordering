@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  canDropKitchenOrder,
   getKitchenBoardAdvancePlan,
   getKitchenBoardColumn,
+  getNextKitchenBoardColumn,
   isKitchenActiveOrderStatus,
 } from "./kitchenOrderPipeline";
 
@@ -37,5 +39,19 @@ describe("kitchen order pipeline", () => {
       nextOrderStatus: "Served",
     });
     expect(getKitchenBoardAdvancePlan("Served")).toBeNull();
+  });
+
+  it("accepts drag/drop only into the immediate next lane", () => {
+    expect(getNextKitchenBoardColumn("Placed")).toBe("preparing");
+    expect(getNextKitchenBoardColumn("Preparing")).toBe("ready");
+    expect(getNextKitchenBoardColumn("Ready")).toBe("served");
+    expect(getNextKitchenBoardColumn("Served")).toBeNull();
+
+    expect(canDropKitchenOrder("Placed", "preparing")).toBe(true);
+    expect(canDropKitchenOrder("Preparing", "ready")).toBe(true);
+    expect(canDropKitchenOrder("Ready", "served")).toBe(true);
+    expect(canDropKitchenOrder("Placed", "ready")).toBe(false);
+    expect(canDropKitchenOrder("Preparing", "confirmed")).toBe(false);
+    expect(canDropKitchenOrder("Served", "ready")).toBe(false);
   });
 });

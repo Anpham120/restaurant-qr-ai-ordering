@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type ReactNode,
+} from "react";
 import type { Order, OrderItemStatus } from "@cmc/shared-types";
-import { CheckCircle2, Circle, Clock3, Flame, X } from "lucide-react";
+import { CheckCircle2, Circle, Clock3, Flame, GripVertical, X } from "lucide-react";
 import { updateOrderItemStatus, updateOrderStatus } from "../../services/orderService";
 import {
+  canDropKitchenOrder,
   getKitchenBoardAdvancePlan,
   getKitchenBoardColumn,
   type KitchenBoardColumn,
@@ -121,13 +129,19 @@ function OrderCard({
   column,
   onOpenDetail,
   onMoveNext,
+  onDragStart,
+  onDragEnd,
   isPending,
+  isDragging,
 }: {
   order: Order;
   column: KitchenBoardColumn;
   onOpenDetail: (order: Order) => void;
   onMoveNext: (order: Order) => void;
+  onDragStart: (order: Order, event: ReactDragEvent<HTMLElement>) => void;
+  onDragEnd: () => void;
   isPending: boolean;
+  isDragging: boolean;
 }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.createdAt));
 
@@ -139,17 +153,25 @@ function OrderCard({
   const isUrgent = Date.now() - new Date(order.createdAt).getTime() > 15 * 60_000;
   const readyCount = order.items.filter((i) => i.status === "Ready" || i.status === "Served").length;
   const totalCount = order.items.filter((i) => i.status !== "Cancelled").length;
+  const isDraggable = column !== "served" && !isPending;
 
   return (
     <article
-      className={`ops-card ops-card--${order.status.toLowerCase()}`}
+      className={`ops-card ops-card--${order.status.toLowerCase()}${isDragging ? " ops-card--dragging" : ""}`}
+      draggable={isDraggable}
       onClick={() => onOpenDetail(order)}
+      onDragEnd={onDragEnd}
+      onDragStart={isDraggable ? (event) => onDragStart(order, event) : undefined}
       role="button"
       tabIndex={0}
+      title={isDraggable ? "Kéo sang cột trạng thái tiếp theo" : undefined}
       onKeyDown={(e) => e.key === "Enter" && onOpenDetail(order)}
     >
       <div className="ops-card-header">
-        <span className="ops-card-code">{order.orderCode}</span>
+        <span className="ops-card-code">
+          {isDraggable ? <GripVertical aria-hidden="true" className="ops-card-drag-handle" size={15} /> : null}
+          {order.orderCode}
+        </span>
         {order.tableCode ? (
           <span className="ops-card-table">Bàn {order.tableCode}</span>
         ) : null}
@@ -305,7 +327,14 @@ function KitchenColumn({
   orders,
   onOpenDetail,
   onMoveNext,
+  onCardDragStart,
+  onCardDragEnd,
+  onColumnDragOver,
+  onColumnDragLeave,
+  onColumnDrop,
   pendingCode,
+  draggedOrderCode,
+  isDropTarget,
 }: {
   title: string;
   icon: ReactNode;
@@ -313,14 +342,27 @@ function KitchenColumn({
   orders: Order[];
   onOpenDetail: (o: Order) => void;
   onMoveNext: (o: Order) => void;
+  onCardDragStart: (order: Order, event: ReactDragEvent<HTMLElement>) => void;
+  onCardDragEnd: () => void;
+  onColumnDragOver: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
+  onColumnDragLeave: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
+  onColumnDrop: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
   pendingCode: string | null;
+  draggedOrderCode: string | null;
+  isDropTarget: boolean;
 }) {
   return (
-    <div className={`ops-column ops-column--${column}`}>
+    <div
+      className={`ops-column ops-column--${column}${isDropTarget ? " ops-column--drop-target" : ""}`}
+      onDragLeave={(event) => onColumnDragLeave(column, event)}
+      onDragOver={(event) => onColumnDragOver(column, event)}
+      onDrop={(event) => onColumnDrop(column, event)}
+    >
       <div className="ops-column-header">
         <h3>{icon} {title}</h3>
         <span className="ops-count">{orders.length}</span>
       </div>
+      {isDropTarget ? <div className="ops-drop-hint">Thả vào đây để chuyển trạng thái</div> : null}
       <div className="ops-column-body">
         {orders.length === 0 ? (
           <div className="ops-column-empty">Không có đơn</div>
@@ -332,7 +374,10 @@ function KitchenColumn({
               column={column}
               onOpenDetail={onOpenDetail}
               onMoveNext={onMoveNext}
+              onDragStart={onCardDragStart}
+              onDragEnd={onCardDragEnd}
               isPending={pendingCode === order.orderCode}
+              isDragging={draggedOrderCode === order.orderCode}
             />
           ))
         )}
@@ -346,6 +391,8 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [draggedOrderCode, setDraggedOrderCode] = useState<string | null>(null);
+  const [dropTargetColumn, setDropTargetColumn] = useState<KitchenBoardColumn | null>(null);
 
   const confirmed = useMemo(
     () => orders.filter((o) => getKitchenBoardColumn(o.status) === "confirmed"),
@@ -411,6 +458,64 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
     }
   }, [onRefresh]);
 
+  const handleCardDragStart = useCallback((order: Order, event: ReactDragEvent<HTMLElement>) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", order.orderCode);
+    setDraggedOrderCode(order.orderCode);
+    setDropTargetColumn(null);
+  }, []);
+
+  const handleCardDragEnd = useCallback(() => {
+    setDraggedOrderCode(null);
+    setDropTargetColumn(null);
+  }, []);
+
+  const handleColumnDragOver = useCallback((
+    column: KitchenBoardColumn,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    const draggedOrder = orders.find((order) => order.orderCode === draggedOrderCode);
+    const isAllowed = Boolean(
+      draggedOrder
+      && draggedOrder.orderCode !== pendingCode
+      && canDropKitchenOrder(draggedOrder.status, column),
+    );
+    event.dataTransfer.dropEffect = isAllowed ? "move" : "none";
+    setDropTargetColumn(isAllowed ? column : null);
+  }, [draggedOrderCode, orders, pendingCode]);
+
+  const handleColumnDragLeave = useCallback((
+    column: KitchenBoardColumn,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+    setDropTargetColumn((current) => current === column ? null : current);
+  }, []);
+
+  const handleColumnDrop = useCallback((
+    column: KitchenBoardColumn,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const draggedOrder = orders.find((order) => order.orderCode === draggedOrderCode);
+    setDraggedOrderCode(null);
+    setDropTargetColumn(null);
+
+    if (
+      !draggedOrder
+      || draggedOrder.orderCode === pendingCode
+      || !canDropKitchenOrder(draggedOrder.status, column)
+    ) {
+      setNotice("Chỉ có thể chuyển thẻ sang cột trạng thái kế tiếp.");
+      return;
+    }
+
+    void handleMoveNext(draggedOrder);
+  }, [draggedOrderCode, handleMoveNext, orders, pendingCode]);
+
   const handleItemAction = useCallback(async (order: Order, itemId: string, nextStatus: OrderItemStatus) => {
     setPendingCode(order.orderCode);
     setNotice("");
@@ -424,6 +529,15 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
     }
   }, [onRefresh]);
 
+  const kitchenDragHandlers = {
+    onCardDragStart: handleCardDragStart,
+    onCardDragEnd: handleCardDragEnd,
+    onColumnDragOver: handleColumnDragOver,
+    onColumnDragLeave: handleColumnDragLeave,
+    onColumnDrop: handleColumnDrop,
+    draggedOrderCode,
+  };
+
   return (
     <>
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
@@ -436,7 +550,9 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={confirmed}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          isDropTarget={dropTargetColumn === "confirmed"}
         />
         <KitchenColumn
           title="Đang nấu"
@@ -445,7 +561,9 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={preparing}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          isDropTarget={dropTargetColumn === "preparing"}
         />
         <KitchenColumn
           title="Sẵn sàng"
@@ -454,7 +572,9 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={ready}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          isDropTarget={dropTargetColumn === "ready"}
         />
         <KitchenColumn
           title="Đã phục vụ"
@@ -463,7 +583,9 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={served}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          isDropTarget={dropTargetColumn === "served"}
         />
       </div>
 
