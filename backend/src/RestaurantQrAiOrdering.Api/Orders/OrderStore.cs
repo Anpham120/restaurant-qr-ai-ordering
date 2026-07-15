@@ -197,6 +197,7 @@ public sealed class OrderStore : IOrderStore
         var now = DateTimeOffset.UtcNow;
         item.Status = status;
         item.UpdatedAt = now;
+        order.Status = DeriveAggregateKitchenStatus(order);
         order.UpdatedAt = now;
 
         try
@@ -368,6 +369,40 @@ public sealed class OrderStore : IOrderStore
             OrderItemStatus.Ready => next is OrderItemStatus.Served,
             _ => false
         };
+    }
+
+    private static OrderStatus DeriveAggregateKitchenStatus(Order order)
+    {
+        var activeItems = order.OrderItems
+            .Where(item => item.Status != OrderItemStatus.Cancelled)
+            .ToList();
+
+        if (activeItems.Count == 0)
+        {
+            return order.Status;
+        }
+
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed or OrderStatus.Preparing
+            && activeItems.All(item => item.Status is OrderItemStatus.Ready or OrderItemStatus.Served))
+        {
+            return OrderStatus.Ready;
+        }
+
+        if (order.Status == OrderStatus.Ready
+            && activeItems.All(item => item.Status == OrderItemStatus.Served))
+        {
+            return OrderStatus.Served;
+        }
+
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed
+            && activeItems.Any(item => item.Status is OrderItemStatus.Preparing
+                or OrderItemStatus.Ready
+                or OrderItemStatus.Served))
+        {
+            return OrderStatus.Preparing;
+        }
+
+        return order.Status;
     }
 
     private static void CancelPendingItems(Order order, DateTimeOffset now)
