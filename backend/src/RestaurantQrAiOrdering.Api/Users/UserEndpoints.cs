@@ -67,7 +67,7 @@ public static class UserEndpoints
             var validationError = ValidateUpdateUserRequest(request, roleCatalog);
             if (validationError is not null)
             {
-                logger.LogWarning("Rejected admin user update request during validation for user {UserId}.", userId);
+                logger.LogWarning("Rejected admin user update request during validation.");
                 return validationError;
             }
 
@@ -119,7 +119,7 @@ public static class UserEndpoints
             }
 
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Users.UserEndpoints");
-            logger.LogInformation("Admin deleted user {UserId}.", userId);
+            logger.LogInformation("Admin deleted a user account.");
             return Results.NoContent();
         })
         .WithName("DeleteUser");

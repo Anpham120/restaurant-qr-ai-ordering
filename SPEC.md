@@ -78,6 +78,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V53: session orders hub reflects aggregate orders/items/invoice; order/payment realtime reloads hub; disconnected realtime → 5s polling; payment pending/paid forbids new ordering.
 - V54: `Ready→Served` atomic order + all non-cancelled items; Kitchen|Staff allowed, Kitchen forbidden any other order transition; Kitchen board contains read-only Served column and realtime movement.
 - V55: QR/Kitchen state logic has one live resolver/pipeline each; superseded one-shot routing, duplicate status maps, unused feature files/imports absent; full typecheck + tests pass.
+- V56: ∀ application log entry → request-controlled values omitted or CR/LF-sanitized before emission; CodeQL `cs/log-forging` findings = 0.
+- V57: ∀ verification command → execute from its authoritative component root or pass an explicit project/config path; parent-workspace invocation forbidden.
 
 ## §T
 
@@ -197,3 +199,5 @@ B71|2026-07-15|scan page always redirected successful reusable session to `/menu
 B72|2026-07-15|V53 integration fixture assumed invoice GET persisted a `TableInvoice`; GET only projects a response, so payment-state setup had no row|V53
 B73|2026-07-15|concurrent QR opens raced past the pre-insert lookup; non-relational tests exposed multiple returned session ids because uniqueness catch was provider-dependent|V51
 B74|2026-07-15|release verification invoked Compose without the authoritative `deploy/docker-compose.yml` path and its required CI environment|V21
+B75|2026-07-15|admin user endpoint logged route-controlled `userId`, so CodeQL found two CWE-117 log-forging paths and unresolved review threads blocked merge|V56
+B76|2026-07-15|backend verification ran from the parent workspace without an explicit solution path, so MSBuild found no project and produced a false test failure|V57
