@@ -63,6 +63,9 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V39: ∀ Python-RAG menu recommendation → live available menu is ranked by configured BM25/dense/hybrid stack; category/tag constraints apply before ranking; previously suggested or explicitly rejected IDs cannot become cards; explicit count 1..8 is filled without duplicate cards when enough candidates exist.
 - V40: ∀ production hybrid startup → exact multilingual-E5 revision is packaged in the AI image and reused across KB/live-menu indexes; unavailable dense runtime degrades to observable BM25 fallback instead of failing the AI service.
 - V41: ∀ production AI image build → PyTorch is installed from the official CPU-only index before RAG dependencies and CUDA/NVIDIA wheels are absent; deployment health checks retry transient TLS failures during Nginx certificate reload.
+- V42: ∀ `/api/users` mutation → `AdminOnly`; create/update/delete persists; duplicate email + missing user deterministic; current admin cannot delete self or remove own Admin role.
+- V43: landing + ordering → one warm Vietnamese brand token set; display/body/utility fonts + VND formatting identical; money uses tabular utility numerals.
+- V44: landing + ordering locale ∈ {`vi`,`en`} persists across hosts; switch updates static UI, navigation, accessibility copy, dates, money, category, item name + description.
 
 ## §T
 
@@ -91,6 +94,10 @@ T21|x|return deterministic live catalog for explicit category/tag requests; regr
 T22|x|exclude previously suggested session dishes from deterministic additional recommendations; honor 1-8 requested count|V36,I.ai,I.api
 T23|x|persist recommendation cards per chat message and resolve latest-card detail follow-up|V37,I.ai,I.api,I.ui
 T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusions and reusable Gemini client into production AI|V39,V40,I.ai,I.api
+T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
+T26|.|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
+T27|.|add persistent VI/EN switch + full landing/ordering/menu localization|V44,I.ui
+T28|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44
 
 ## §B
 

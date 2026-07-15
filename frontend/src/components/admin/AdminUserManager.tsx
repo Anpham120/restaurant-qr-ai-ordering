@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import type { UserSummary, UserRole, CreateUserRequest } from "@cmc/shared-types";
+import { useAuth } from "@cmc/auth";
+import type { UserSummary, UserRole } from "@cmc/shared-types";
 import { ApiError } from "@cmc/api-client";
 import { api } from "../../services/apiClient";
-import { Plus, Users, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import "../operations/operations.css";
 
-// Backend chỉ cho phép tạo tài khoản vận hành: Staff, Kitchen, Admin.
-// Tài khoản Customer do khách tự đăng ký qua /api/auth/register.
-const ROLES: UserRole[] = ["Staff", "Kitchen", "Admin"];
+const ROLES: UserRole[] = ["Customer", "Staff", "Kitchen", "Admin"];
 
 const ROLE_LABELS: Record<string, string> = {
   Staff: "Nhân viên phục vụ",
@@ -21,8 +20,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   EMAIL_INVALID: "Email không hợp lệ.",
   PASSWORD_TOO_SHORT: "Mật khẩu phải có ít nhất 8 ký tự.",
   FULL_NAME_REQUIRED: "Họ tên không được để trống.",
-  ROLE_INVALID: "Vai trò chỉ được là Nhân viên phục vụ, Nhân viên bếp hoặc Quản trị viên.",
+  ROLE_INVALID: "Vai trò tài khoản không hợp lệ.",
   USER_NOT_FOUND: "Không tìm thấy tài khoản.",
+  CANNOT_DELETE_CURRENT_USER: "Bạn không thể xóa tài khoản đang đăng nhập.",
+  CANNOT_REMOVE_OWN_ADMIN_ROLE: "Bạn không thể tự gỡ quyền Quản trị viên của tài khoản đang đăng nhập.",
   HTTP_401: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
   HTTP_403: "Bạn không có quyền thực hiện thao tác này (chỉ Admin).",
 };
@@ -34,22 +35,28 @@ function translateError(err: unknown, fallback: string): string {
   return fallback;
 }
 
-const EMPTY: CreateUserRequest = { fullName: "", email: "", password: "", role: "Staff" };
+type UserForm = { fullName: string; email: string; password: string; role: UserRole };
+
+const EMPTY: UserForm = { fullName: "", email: "", password: "", role: "Staff" };
 
 export function AdminUserManager() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<CreateUserRequest>(EMPTY);
+  const [form, setForm] = useState<UserForm>(EMPTY);
+  const [editingUser, setEditingUser] = useState<UserSummary | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
+      setError("");
       const data = await api.users.list();
       setUsers(data.users);
     } catch {
@@ -67,7 +74,26 @@ export function AdminUserManager() {
     return u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
   });
 
-  async function handleCreate() {
+  function openCreateForm() {
+    setEditingUser(null);
+    setForm(EMPTY);
+    setNotice("");
+    setShowForm(true);
+  }
+
+  function openEditForm(user: UserSummary) {
+    setEditingUser(user);
+    setForm({ fullName: user.fullName, email: user.email, password: "", role: user.role });
+    setNotice("");
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingUser(null);
+  }
+
+  async function handleSave() {
     if (!form.fullName.trim()) {
       setNotice("Vui lòng nhập họ tên.");
       return;
@@ -76,25 +102,49 @@ export function AdminUserManager() {
       setNotice("Vui lòng nhập email hợp lệ.");
       return;
     }
-    if (form.password.length < 8) {
+    if (!editingUser && form.password.length < 8) {
       setNotice("Mật khẩu phải có ít nhất 8 ký tự.");
       return;
     }
     setIsSaving(true);
     setNotice("");
     try {
-      await api.users.create({
-        ...form,
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-      });
-      setNotice(`Đã tạo tài khoản ${ROLE_LABELS[form.role] ?? form.role} cho ${form.email.trim()}.`);
-      setShowForm(false);
+      if (editingUser) {
+        await api.users.update(editingUser.userId, {
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          role: form.role,
+        });
+        setNotice(`Đã cập nhật tài khoản ${form.email.trim()}.`);
+      } else {
+        await api.users.create({
+          ...form,
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+        });
+        setNotice(`Đã tạo tài khoản ${ROLE_LABELS[form.role] ?? form.role} cho ${form.email.trim()}.`);
+      }
+      closeForm();
       await load();
     } catch (err) {
-      setNotice(translateError(err, "Tạo tài khoản thất bại."));
+      setNotice(translateError(err, editingUser ? "Cập nhật tài khoản thất bại." : "Tạo tài khoản thất bại."));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(user: UserSummary) {
+    if (!window.confirm(`Xóa tài khoản ${user.email}? Thao tác này không thể hoàn tác.`)) return;
+    setDeletingId(user.userId);
+    setNotice("");
+    try {
+      await api.users.delete(user.userId);
+      setNotice(`Đã xóa tài khoản ${user.email}.`);
+      await load();
+    } catch (err) {
+      setNotice(translateError(err, "Xóa tài khoản thất bại."));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -116,7 +166,7 @@ export function AdminUserManager() {
     <div>
       <div className="ops-page-header">
         <h1>Người dùng</h1>
-        <p>Tạo tài khoản nhân viên phục vụ, bếp, quản trị viên và đặt lại mật khẩu</p>
+        <p>Thêm, sửa, xóa tài khoản, phân quyền và đặt lại mật khẩu</p>
       </div>
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
@@ -126,23 +176,23 @@ export function AdminUserManager() {
         <div className="ops-toolbar-search">
           <input className="ops-form-input" placeholder="Tìm theo tên, email, vai trò..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="ops-btn ops-btn--primary" onClick={() => { setForm(EMPTY); setShowForm(true); }} type="button">
+        <button className="ops-btn ops-btn--primary" onClick={openCreateForm} type="button">
           <Plus aria-hidden="true" size={16} /> Tạo tài khoản
         </button>
       </div>
 
       {showForm ? (
-        <div className="ops-modal-overlay" onClick={() => setShowForm(false)}>
+        <div className="ops-modal-overlay" onClick={closeForm}>
           <div
-            aria-labelledby="create-user-title"
+            aria-labelledby="user-form-title"
             aria-modal="true"
             className="ops-modal"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
           >
             <div className="ops-modal-header">
-              <h2 id="create-user-title">Tạo tài khoản</h2>
-              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setShowForm(false)} type="button"><X aria-hidden="true" size={18} /></button>
+              <h2 id="user-form-title">{editingUser ? "Sửa tài khoản" : "Tạo tài khoản"}</h2>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={closeForm} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">
@@ -153,10 +203,12 @@ export function AdminUserManager() {
                 <label className="ops-form-label" htmlFor="create-user-email">Email *</label>
                 <input id="create-user-email" className="ops-form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
-              <div className="ops-form-group">
-                <label className="ops-form-label" htmlFor="create-user-password">Mật khẩu * (tối thiểu 8 ký tự)</label>
-                <input id="create-user-password" className="ops-form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              </div>
+              {!editingUser ? (
+                <div className="ops-form-group">
+                  <label className="ops-form-label" htmlFor="create-user-password">Mật khẩu * (tối thiểu 8 ký tự)</label>
+                  <input id="create-user-password" className="ops-form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                </div>
+              ) : null}
               <div className="ops-form-group">
                 <label className="ops-form-label" htmlFor="create-user-role">Vai trò</label>
                 <select id="create-user-role" className="ops-form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
@@ -165,9 +217,9 @@ export function AdminUserManager() {
               </div>
             </div>
             <div className="ops-modal-footer">
-              <button className="ops-btn ops-btn--ghost" onClick={() => setShowForm(false)} type="button">Hủy</button>
-              <button className="ops-btn ops-btn--primary" disabled={isSaving} onClick={handleCreate} type="button">
-                {isSaving ? "Đang tạo..." : "Tạo tài khoản"}
+              <button className="ops-btn ops-btn--ghost" onClick={closeForm} type="button">Hủy</button>
+              <button className="ops-btn ops-btn--primary" disabled={isSaving} onClick={handleSave} type="button">
+                {isSaving ? "Đang lưu..." : editingUser ? "Lưu thay đổi" : "Tạo tài khoản"}
               </button>
             </div>
           </div>
@@ -196,6 +248,7 @@ export function AdminUserManager() {
               </td>
               <td style={{ fontSize: 12, color: "var(--color-muted)" }}>{new Date(user.createdAt).toLocaleDateString("vi-VN")}</td>
               <td>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                 {resetId === user.userId ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input
@@ -210,10 +263,25 @@ export function AdminUserManager() {
                     <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setResetId(null); setNewPassword(""); }} type="button">Hủy</button>
                   </div>
                 ) : (
-                  <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setResetId(user.userId); setNewPassword(""); }} type="button">
-                    Reset mật khẩu
-                  </button>
+                  <>
+                    <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => openEditForm(user)} type="button">
+                      <Pencil aria-hidden="true" size={14} /> Sửa
+                    </button>
+                    <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => { setResetId(user.userId); setNewPassword(""); }} type="button">
+                      Reset mật khẩu
+                    </button>
+                    <button
+                      className="ops-btn ops-btn--danger ops-btn--sm"
+                      disabled={deletingId === user.userId || currentUser?.userId === user.userId}
+                      onClick={() => void handleDelete(user)}
+                      title={currentUser?.userId === user.userId ? "Không thể xóa tài khoản đang đăng nhập" : "Xóa tài khoản"}
+                      type="button"
+                    >
+                      <Trash2 aria-hidden="true" size={14} /> {deletingId === user.userId ? "Đang xóa..." : "Xóa"}
+                    </button>
+                  </>
                 )}
+                </div>
               </td>
             </tr>
           ))}

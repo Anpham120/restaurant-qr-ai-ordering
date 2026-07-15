@@ -51,6 +51,7 @@ export type RegisterRequest = { fullName: string; email: string; password: strin
 export type UserSummary = { userId: string; fullName: string; email: string; role: UserRole; createdAt: string };
 export type UserListResponse = { users: UserSummary[] };
 export type CreateUserRequest = { fullName: string; email: string; password: string; role: UserRole };
+export type UpdateUserRequest = { fullName: string; email: string; role: UserRole };
 export type ResetPasswordRequest = { newPassword: string };
 export type ChangePasswordRequest = { currentPassword: string; newPassword: string };
 export type RefundPaymentRequest = { note?: string | null };
