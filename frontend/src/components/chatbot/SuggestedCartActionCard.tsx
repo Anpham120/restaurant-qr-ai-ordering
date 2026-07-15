@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatVnd } from "@cmc/brand-ui";
 import type { SuggestedCartAction } from "../../types";
 
 type SuggestedCartActionCardProps = {
@@ -9,14 +10,6 @@ type SuggestedCartActionCardProps = {
   onConfirm: (action: SuggestedCartAction) => void;
   onDismiss: (action: SuggestedCartAction) => void;
 };
-
-function formatVnd(value: number) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 export function SuggestedCartActionCard({
   action,

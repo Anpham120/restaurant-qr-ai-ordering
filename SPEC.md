@@ -95,7 +95,7 @@ T22|x|exclude previously suggested session dishes from deterministic additional 
 T23|x|persist recommendation cards per chat message and resolve latest-card detail follow-up|V37,I.ai,I.api,I.ui
 T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusions and reusable Gemini client into production AI|V39,V40,I.ai,I.api
 T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
-T26|.|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
+T26|x|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
 T27|.|add persistent VI/EN switch + full landing/ordering/menu localization|V44,I.ui
 T28|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44
 

@@ -14,6 +14,8 @@ import { OrderingMenuPage } from "../../../src/ordering/OrderingMenuPage";
 import { SessionOrdersPage } from "../../../src/ordering/SessionOrdersPage";
 import { TableScanPage } from "../../../src/ordering/TableScanPage";
 
+document.documentElement.classList.add("brand-theme");
+
 function OrderingEntryPage() {
   const marketingBaseUrl = import.meta.env.VITE_MARKETING_BASE_URL ?? "https://cmcrestaurant.app";
   return (

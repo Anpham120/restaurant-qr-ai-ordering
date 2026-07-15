@@ -1,3 +1,4 @@
+import { formatVnd as formatBrandVnd } from "@cmc/brand-ui";
 import type { MenuItem } from "../../types";
 
 type MenuItemCardProps = {
@@ -8,10 +9,8 @@ type MenuItemCardProps = {
   readOnly?: boolean;
 };
 
-const formatter = new Intl.NumberFormat("vi-VN");
-
 export function formatVnd(price: number) {
-  return `${formatter.format(price)}đ`;
+  return formatBrandVnd(price);
 }
 
 /** Map ASCII tag keys to Vietnamese display labels with diacritics. */
@@ -63,7 +62,7 @@ export function MenuItemCard({
   onRemove,
   readOnly = false,
 }: MenuItemCardProps) {
-  const formattedPrice = formatter.format(item.price);
+  const formattedPrice = formatVnd(item.price);
 
   return (
     <article className={item.isAvailable ? "cmc-menu-card" : "cmc-menu-card disabled"}>
@@ -85,9 +84,8 @@ export function MenuItemCard({
           ))}
         </div>
         <div className="cmc-card-footer">
-          <strong className="cmc-card-price" aria-label={`Giá ${formattedPrice} đồng`}>
+          <strong className="cmc-card-price" data-money aria-label={`Giá ${formattedPrice}`}>
             <span className="cmc-card-price-value" aria-hidden="true">{formattedPrice}</span>
-            <span className="cmc-card-price-unit" aria-hidden="true">đ</span>
           </strong>
           {readOnly ? null : quantity && quantity > 0 ? (
             <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>

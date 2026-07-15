@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Banknote, CheckCircle2, QrCode, ReceiptText } from "lucide-react";
+import { formatVnd } from "@cmc/brand-ui";
 import type {
   OrderTrackingOrder,
   TableInvoice,
@@ -22,8 +23,6 @@ const itemStatusLabel: Record<string, string> = {
   Served: "Đã phục vụ",
   Cancelled: "Đã hủy",
 };
-
-const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
 
 export function SessionOrdersPage() {
   const { context } = useOrderingSession();

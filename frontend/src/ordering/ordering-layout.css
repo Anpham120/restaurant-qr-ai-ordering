@@ -5,6 +5,12 @@
   padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
 }
 
+.ordering-shell :is([class*="price"], [class*="total"], [data-money]) {
+  font-family: var(--brand-font-utility);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.015em;
+}
+
 .ordering-header {
   align-items: center;
   background: rgba(255, 250, 245, .96);

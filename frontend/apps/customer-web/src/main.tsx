@@ -16,6 +16,8 @@ import { CustomerHomePage } from "../../../src/pages/CustomerHomePage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
 import { PublicMenuPreviewPage } from "../../../src/pages/customer/PublicMenuPreviewPage";
 
+document.documentElement.classList.add("brand-theme");
+
 function getOrderingBaseUrl() {
   const configured = import.meta.env.VITE_ORDERING_BASE_URL;
   if (configured) return configured.replace(/\/$/, "");

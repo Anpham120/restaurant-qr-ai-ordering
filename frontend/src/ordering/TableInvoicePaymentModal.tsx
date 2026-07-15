@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatVnd } from "@cmc/brand-ui";
 import { Banknote, QrCode, ReceiptText, X } from "lucide-react";
 import { validatePromotion } from "../services/orderService";
 import type {
@@ -17,8 +18,6 @@ type Props = {
   onClose: () => void;
   onRequest: (payload: TableInvoicePaymentRequest) => Promise<void>;
 };
-
-const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
 
 export function TableInvoicePaymentModal({ invoice, onClose, onRequest }: Props) {
   const [method, setMethod] = useState<RequestedPaymentMethod>("COD");

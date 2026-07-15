@@ -7,30 +7,30 @@
   display: grid;
   gap: 24px;
   overflow-x: hidden;
-  background: linear-gradient(180deg, #FDF8F0 0%, #FFFBF5 50%, #FFF9F0 100%);
-  color: #3D2914;
+  background: linear-gradient(180deg, var(--brand-ivory) 0%, var(--brand-paper) 50%, #fff7f1 100%);
+  color: var(--brand-ink);
   min-height: 100vh;
 
   /* tokens */
-  --ot-brown: #5a3a30;
-  --ot-brown-dark: #3D2914;
-  --ot-brown-light: #6e453b;
-  --ot-gold: #C4A35A;
-  --ot-gold-light: #D4B86A;
-  --ot-cream: #FDF8F0;
-  --ot-warm-white: #FFFBF5;
-  --ot-muted: #8B7355;
-  --ot-border: #E8DFD0;
-  --ot-green: #2f7d4f;
+  --ot-brown: var(--brand-chestnut);
+  --ot-brown-dark: var(--brand-ink);
+  --ot-brown-light: var(--brand-chestnut-dark);
+  --ot-gold: var(--brand-brass);
+  --ot-gold-light: #d2ad70;
+  --ot-cream: var(--brand-ivory);
+  --ot-warm-white: var(--brand-paper);
+  --ot-muted: var(--brand-muted);
+  --ot-border: var(--brand-clay-line);
+  --ot-green: var(--brand-success);
   --ot-green-bg: rgba(47, 125, 79, 0.08);
-  --ot-red: #C44536;
+  --ot-red: var(--brand-danger);
   --ot-amber: #92400e;
   --ot-amber-bg: rgba(217, 165, 32, 0.12);
   --ot-blue: #005BAC;
   --ot-blue-bg: rgba(0, 91, 172, 0.06);
-  --font-display-ot: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display-ot: var(--brand-font-display);
   --font-script-ot: "Dancing Script", cursive;
-  --font-body-ot: "Karla", "Segoe UI", system-ui, sans-serif;
+  --font-body-ot: var(--brand-font-body);
 }
 
 /* --------------------------------------------------------------------------

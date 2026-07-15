@@ -2,22 +2,20 @@
    CMC Restaurant - Vị An Style (Restaurant-inspired Design)
    Warm Brown Theme | Fonts: Playfair Display + Karla
    ========================================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Karla:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&display=swap');
-
 .cmc-customer-page {
   /* Vị An Color Palette - Warm Brown */
-  --vian-green: #5a3a30;
-  --vian-green-light: #6e453b;
-  --vian-green-soft: #7a4f42;
-  --vian-gold: #C4A35A;
-  --vian-gold-light: #D4B86A;
-  --vian-cream: #FDF8F0;
-  --vian-warm-white: #FFFBF5;
-  --vian-brown: #3D2914;
-  --vian-brown-light: #5C4023;
-  --vian-muted: #8B7355;
-  --vian-red: #C44536;
-  --vian-border: #E8DFD0;
+  --vian-green: var(--brand-chestnut-dark);
+  --vian-green-light: var(--brand-chestnut);
+  --vian-green-soft: #8a5848;
+  --vian-gold: var(--brand-brass);
+  --vian-gold-light: #d2ad70;
+  --vian-cream: var(--brand-ivory);
+  --vian-warm-white: var(--brand-paper);
+  --vian-brown: var(--brand-ink);
+  --vian-brown-light: var(--brand-chestnut-dark);
+  --vian-muted: var(--brand-muted);
+  --vian-red: var(--brand-danger);
+  --vian-border: var(--brand-clay-line);
   
   /* Gradient backgrounds */
   --vian-gradient-hero: linear-gradient(135deg, #5a3a30 0%, #6e453b 40%, #7a4f42 70%, #a07060 100%);
@@ -25,9 +23,9 @@
   --vian-gradient-card: linear-gradient(180deg, rgba(90, 58, 48, 0.03) 0%, rgba(196, 163, 90, 0.02) 100%);
   
   /* Font families */
-  --font-display-vian: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display-vian: var(--brand-font-display);
   --font-script: "Dancing Script", cursive;
-  --font-body-vian: "Karla", "Segoe UI", system-ui, sans-serif;
+  --font-body-vian: var(--brand-font-body);
   
   display: grid;
   gap: 24px;

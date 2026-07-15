@@ -3,22 +3,24 @@
    Warm cream/beige palette with elegant serif typography
    ========================================================================== */
 
-/* ---- Exact Vian color palette (global for portal components) ---- */
-:root {
-  --vian-primary: #6e453b;
-  --vian-secondary: #d8bfa4;
-  --vian-light: #dfc5ab;
-  --vian-cream: #fff2ee;
-  --vian-sand: #f5ede0;
-  --vian-brown: #6e453b;
-  --vian-brown-dark: #5a3a30;
-  --vian-brown-light: #8B6F5E;
-  --vian-gold: #ddc5a5;
-  --vian-gold-dark: #e4ccac;
-  --vian-beige: #f5ede0;
-  --vian-divider: #d8bfa4;
-  --vian-footer-bg: #64473f;
-  --vian-card-bg: #e4ccac;
+/* ---- Shared warm Vietnamese brand palette ---- */
+:root.brand-theme {
+  --vian-primary: var(--brand-chestnut);
+  --vian-secondary: var(--brand-clay-line);
+  --vian-light: #f2dfd2;
+  --vian-cream: var(--brand-ivory);
+  --vian-sand: #f8eee5;
+  --vian-brown: var(--brand-chestnut);
+  --vian-brown-dark: var(--brand-chestnut-dark);
+  --vian-brown-light: var(--brand-muted);
+  --vian-gold: #d2ad70;
+  --vian-gold-dark: var(--brand-brass);
+  --vian-green: var(--brand-success);
+  --vian-beige: #f8eee5;
+  --vian-divider: var(--brand-clay-line);
+  --vian-footer-bg: var(--brand-chestnut-dark);
+  --vian-card-bg: #f1dfd3;
+  --font-script: "Dancing Script", cursive;
 }
 
 .landing-page {
@@ -29,6 +31,18 @@
   color: var(--vian-brown-dark);
   font-family: var(--font-ui);
   line-height: var(--leading-normal);
+}
+
+.landing-page :is(
+  .landing-cuisine-price,
+  .signature-dish-price,
+  .landing-promo-rich-price strong,
+  .cmc-card-price,
+  [class*="total"]
+) {
+  font-family: var(--brand-font-utility);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.015em;
 }
 
 .landing-page h1,

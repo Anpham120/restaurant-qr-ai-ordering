@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatVnd } from "@cmc/brand-ui";
 import { getOrderPayment } from "../../services/orderService";
 import type { VietQrPaymentResponse, PaymentResponse } from "../../types";
 import { CircleCheck, X } from "lucide-react";
@@ -121,7 +122,7 @@ export function VietQrPaymentModal({ orderCode, qrData, onClose, onPaymentConfir
                     </div>
                     <div>
                       <dt>Số tiền</dt>
-                      <dd><strong>{resolvedQrData.amount.toLocaleString("vi-VN")}đ</strong></dd>
+          <dd><strong data-money>{formatVnd(resolvedQrData.amount)}</strong></dd>
                     </div>
                     <div>
                       <dt>Nội dung CK</dt>
