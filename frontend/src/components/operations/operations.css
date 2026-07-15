@@ -35,6 +35,26 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  outline: 2px dashed transparent;
+  outline-offset: -4px;
+  transition: background-color 0.16s ease, outline-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ops-column--drop-target {
+  background: color-mix(in srgb, var(--color-primary, #005bac) 9%, #f5f7fa);
+  outline-color: var(--color-primary, #005bac);
+  box-shadow: inset 0 0 0 1px rgba(0, 91, 172, 0.14);
+}
+
+.ops-drop-hint {
+  border: 1px dashed var(--color-primary, #005bac);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--color-primary, #005bac);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .ops-column-header {
@@ -126,6 +146,20 @@
   transform: translateY(-1px);
 }
 
+.ops-card[draggable="true"] {
+  cursor: grab;
+}
+
+.ops-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.ops-card--dragging {
+  opacity: 0.48;
+  transform: scale(0.98) rotate(-0.4deg);
+  box-shadow: none;
+}
+
 .ops-card--confirmed { border-left-color: #f59e0b; }
 .ops-card--preparing { border-left-color: #ef4444; }
 .ops-card--ready { border-left-color: #22c55e; }
@@ -143,6 +177,14 @@
   font-weight: 700;
   font-size: 14px;
   color: var(--color-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ops-card-drag-handle {
+  color: var(--color-muted);
+  opacity: 0.65;
 }
 
 .ops-card-table {
