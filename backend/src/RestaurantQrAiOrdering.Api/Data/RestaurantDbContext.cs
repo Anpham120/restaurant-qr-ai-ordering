@@ -37,6 +37,11 @@ public class RestaurantDbContext : DbContext
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatRecommendation> ChatRecommendations => Set<ChatRecommendation>();
+    public DbSet<ChatSessionFact> ChatSessionFacts => Set<ChatSessionFact>();
+    public DbSet<ChatFeedback> ChatFeedbacks => Set<ChatFeedback>();
+    public DbSet<TableSessionCartItem> TableSessionCartItems => Set<TableSessionCartItem>();
+    public DbSet<MenuItemKnowledge> MenuItemKnowledgeEntries => Set<MenuItemKnowledge>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
@@ -59,6 +64,11 @@ public class RestaurantDbContext : DbContext
         ConfigurePaymentTransaction(modelBuilder);
         ConfigureChatSession(modelBuilder);
         ConfigureChatMessage(modelBuilder);
+        ConfigureChatRecommendation(modelBuilder);
+        ConfigureChatSessionFact(modelBuilder);
+        ConfigureChatFeedback(modelBuilder);
+        ConfigureTableSessionCartItem(modelBuilder);
+        ConfigureMenuItemKnowledge(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
         ConfigureUser(modelBuilder);
         ConfigurePromotion(modelBuilder);
@@ -682,6 +692,8 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.IsClosed)
                 .HasColumnName("is_closed")
                 .IsRequired();
+            entity.Property(e => e.RollingSummary)
+                .HasColumnName("rolling_summary");
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -740,6 +752,232 @@ public class RestaurantDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.ChatSessionId);
+        });
+    }
+
+    private static void ConfigureChatRecommendation(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatRecommendation>(entity =>
+        {
+            entity.ToTable("chat_recommendations");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.TurnId)
+                .HasColumnName("turn_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Recommendations)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => new { e.ChatSessionId, e.MenuItemId, e.Status })
+                .IsUnique();
+        });
+    }
+
+    private static void ConfigureChatSessionFact(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatSessionFact>(entity =>
+        {
+            entity.ToTable("chat_session_facts");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Kind)
+                .HasColumnName("kind")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Value)
+                .HasColumnName("value")
+                .HasMaxLength(500)
+                .IsRequired();
+            entity.Property(e => e.SourceTurnId)
+                .HasColumnName("source_turn_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.Confidence)
+                .HasColumnName("confidence")
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Facts)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => new { e.ChatSessionId, e.Kind, e.Value })
+                .IsUnique();
+        });
+    }
+
+    private static void ConfigureChatFeedback(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatFeedback>(entity =>
+        {
+            entity.ToTable("chat_feedback");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MessageId)
+                .HasColumnName("message_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Rating)
+                .HasColumnName("rating")
+                .HasMaxLength(10)
+                .IsRequired();
+            entity.Property(e => e.Reason)
+                .HasColumnName("reason")
+                .HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Feedback)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Message)
+                .WithMany()
+                .HasForeignKey(e => e.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => e.MessageId);
+        });
+    }
+
+    private static void ConfigureTableSessionCartItem(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableSessionCartItem>(entity =>
+        {
+            entity.ToTable("table_session_cart_items");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.TableSessionId)
+                .HasColumnName("table_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Quantity)
+                .HasColumnName("quantity")
+                .IsRequired();
+            entity.Property(e => e.Note)
+                .HasColumnName("note")
+                .HasMaxLength(500);
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.TableSession)
+                .WithMany()
+                .HasForeignKey(e => e.TableSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MenuItem)
+                .WithMany()
+                .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TableSessionId, e.MenuItemId })
+                .IsUnique();
+            entity.HasIndex(e => e.TableSessionId);
+        });
+    }
+
+    private static void ConfigureMenuItemKnowledge(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MenuItemKnowledge>(entity =>
+        {
+            entity.ToTable("menu_item_knowledge");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Ingredients)
+                .HasColumnName("ingredients");
+            entity.Property(e => e.Allergens)
+                .HasColumnName("allergens")
+                .HasMaxLength(500);
+            entity.Property(e => e.SpiceLevel)
+                .HasColumnName("spice_level")
+                .IsRequired();
+            entity.Property(e => e.CaloriesEstimate)
+                .HasColumnName("calories_estimate");
+            entity.Property(e => e.FlavorProfile)
+                .HasColumnName("flavor_profile")
+                .HasMaxLength(500);
+            entity.Property(e => e.DietaryTags)
+                .HasColumnName("dietary_tags")
+                .HasMaxLength(500);
+            entity.Property(e => e.CookingMethod)
+                .HasColumnName("cooking_method")
+                .HasMaxLength(200);
+            entity.Property(e => e.ServingSizePeople)
+                .HasColumnName("serving_size_people");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.MenuItem)
+                .WithMany()
+                .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.MenuItemId)
+                .IsUnique();
         });
     }
 

@@ -244,8 +244,42 @@ export type PaymentRequestedRealtimeEvent = {
   };
 };
 
+export type CartUpdatedRealtimeEvent = {
+  event: "cart.updated";
+  payload: {
+    tableSessionId: string;
+    tableCode: string | null;
+    itemCount: number;
+    subtotal: number;
+    updatedAt: string;
+  };
+};
+
+export type AssistanceRequestedRealtimeEvent = {
+  event: "assistance.requested";
+  payload: {
+    tableCode: string;
+    tableSessionId: string | null;
+    note: string | null;
+    requestedAt: string;
+  };
+};
+
+/** Backend event name: menu.availabilityChanged (not yet emitted by all deployments). */
+export type MenuAvailabilityChangedRealtimeEvent = {
+  event: "menu.availabilityChanged";
+  payload: {
+    menuItemId: string;
+    isAvailable: boolean;
+    updatedAt: string;
+  };
+};
+
 export type OrderRealtimeEvent =
   | OrderCreatedRealtimeEvent
   | OrderStatusChangedRealtimeEvent
   | OrderItemStatusChangedRealtimeEvent
-  | PaymentRequestedRealtimeEvent;
+  | PaymentRequestedRealtimeEvent
+  | CartUpdatedRealtimeEvent
+  | AssistanceRequestedRealtimeEvent
+  | MenuAvailabilityChangedRealtimeEvent;

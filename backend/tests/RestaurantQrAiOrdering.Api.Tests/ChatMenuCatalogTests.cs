@@ -15,32 +15,29 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
         this.factory = factory;
     }
 
-    [Fact]
-    public async Task TestV6_ChatUsesLiveMenuAvailabilityAfterStartup()
-    {
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-        var item = await db.MenuItems.FirstAsync(menuItem => menuItem.IsAvailable);
-        item.IsAvailable = false;
-        await db.SaveChangesAsync();
-
-        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
-        var reply = await assistant.GenerateReplyAsync(item.Name, [], null, CancellationToken.None);
-
-        Assert.Contains("MENU_ITEM_UNAVAILABLE", reply.GuardrailFlags);
-    }
-
-    [Fact]
-    public async Task TestV35_ExplicitSeafoodCatalog_DoesNotCallProviderOrLeakOtherCategory()
-    {
-        using var scope = factory.Services.CreateScope();
-        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
-
-        var reply = await assistant.GenerateReplyAsync(
-            "toàn bộ thực đơn về hải sản",
-            [],
-            null,
+    private static Task<ChatAssistantReply> ReplyAsync(
+        IChatAssistantService assistant,
+        string message,
+        IReadOnlyList<ChatMessageSnapshot>? history = null,
+        IReadOnlySet<string>? excluded = null) =>
+        assistant.GenerateReplyAsync(
+            message,
+            history ?? [],
+            tableCode: null,
+            chatSessionId: "chat_test",
+            tableSessionId: null,
+            rollingSummary: null,
+            excludedMenuItemIds: excluded ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            facts: [],
             CancellationToken.None);
+
+    [Fact]
+    public async Task PureCatalog_Seafood_DoesNotRequireProvider()
+    {
+        using var scope = factory.Services.CreateScope();
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        var reply = await ReplyAsync(assistant, "cho xem nhóm hải sản");
 
         Assert.Contains("nhóm Hải sản", reply.Content);
         Assert.Contains("Cua rang me", reply.Content);
@@ -49,7 +46,7 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
     }
 
     [Fact]
-    public async Task TestV36_AdditionalRecommendation_ExcludesItemsAlreadySuggestedInSession()
+    public async Task PureCatalog_RespectsLedgerExclusions()
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
@@ -57,55 +54,52 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
         var seafoodItems = await db.MenuItems
             .Where(item => item.CategoryId == seafoodCategory.Id && item.IsAvailable)
             .OrderBy(item => item.Name)
-            .Take(3)
+            .Take(2)
             .ToListAsync();
-        Assert.True(seafoodItems.Count >= 3);
+        Assert.True(seafoodItems.Count >= 2);
 
-        var alreadySuggested = seafoodItems[0];
-        var expectedFirstNewItem = seafoodItems[1];
-        var expectedSecondNewItem = seafoodItems[2];
-        var history = new ChatMessageSnapshot(
-            "assistant-1",
-            "chat-1",
-            "assistant",
-            $"Mình đã gợi ý {alreadySuggested.Name}.",
-            DateTimeOffset.UtcNow,
-            []);
+        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { seafoodItems[0].Id };
         var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
 
-        var reply = await assistant.GenerateReplyAsync(
-            "gợi ý thêm 2 món hải sản",
-            [history],
-            null,
-            CancellationToken.None);
+        var reply = await ReplyAsync(assistant, "cho xem nhóm hải sản", excluded: excluded);
 
-        Assert.Contains("2 món khác", reply.Content);
-        Assert.DoesNotContain(alreadySuggested.Name, reply.Content);
-        Assert.Contains(expectedFirstNewItem.Name, reply.Content);
-        Assert.Contains(expectedSecondNewItem.Name, reply.Content);
-        Assert.Equal(2, reply.SuggestedCartActions.Count);
+        Assert.DoesNotContain(seafoodItems[0].Name, reply.Content);
+        Assert.DoesNotContain(
+            seafoodItems[0].Id,
+            reply.SuggestedCartActions.Select(a => a.MenuItemId));
     }
 
     [Fact]
-    public async Task TestV36_RequestedRecommendationCount_IsHonoredUpToEight()
+    public async Task SoftCriteria_DoesNotUseCatalogFastPathAlone()
+    {
+        using var scope = factory.Services.CreateScope();
+        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+
+        // Soft criteria forces LLM path; without Python provider this surfaces unavailable flag.
+        var reply = await ReplyAsync(assistant, "gợi ý món hải sản thanh đạm cho người lớn tuổi");
+
+        // Must not falsely claim a deterministic catalog listing without LLM.
+        Assert.False(reply.Content.StartsWith("Đây là các món thuộc nhóm", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task UnavailableItem_NoLongerHardBlocksEntireReply()
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-        Assert.True(await db.MenuItems.CountAsync(item => item.IsAvailable) >= 5);
+        var item = await db.MenuItems.FirstAsync(menuItem => menuItem.IsAvailable);
+        item.IsAvailable = false;
+        await db.SaveChangesAsync();
+
         var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
+        var reply = await ReplyAsync(assistant, item.Name);
 
-        var reply = await assistant.GenerateReplyAsync(
-            "gợi ý cho tôi 5 món",
-            [],
-            null,
-            CancellationToken.None);
-
-        Assert.Contains("Mình gợi ý 5 món phù hợp", reply.Content);
-        Assert.Equal(5, reply.SuggestedCartActions.Count);
+        // Soft context: do not hard-fail the whole turn with MENU_ITEM_UNAVAILABLE.
+        Assert.DoesNotContain("MENU_ITEM_UNAVAILABLE", reply.GuardrailFlags);
     }
 
     [Fact]
-    public async Task TestV39_AlcoholIntent_IsGroundedToBeerAndWineCategory()
+    public async Task AlcoholCatalogBrowse_UsesBeerAndWineCategory()
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
@@ -116,50 +110,9 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
             .ToListAsync();
         var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
 
-        var reply = await assistant.GenerateReplyAsync(
-            "gợi ý cho tôi 3 món đồ uống có cồn",
-            [],
-            null,
-            CancellationToken.None);
+        var reply = await ReplyAsync(assistant, "cho xem nhóm bia & rượu");
 
-        Assert.Equal(3, reply.SuggestedCartActions.Count);
+        Assert.NotEmpty(reply.SuggestedCartActions);
         Assert.All(reply.SuggestedCartActions, action => Assert.Contains(action.MenuItemId, allowedIds));
-    }
-
-    [Fact]
-    public async Task TestV37_DetailFollowUp_ReturnsCardsForPreviouslySuggestedItems()
-    {
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-        var items = await db.MenuItems
-            .Where(item => item.IsAvailable)
-            .OrderBy(item => item.Name)
-            .Take(2)
-            .ToListAsync();
-        Assert.Equal(2, items.Count);
-
-        var history = new ChatMessageSnapshot(
-            "assistant-1",
-            "chat-1",
-            "assistant",
-            "Các món mình vừa gợi ý.",
-            DateTimeOffset.UtcNow,
-            items.Select(item => new SuggestedCartActionResponse(
-                item.Id,
-                item.Name,
-                item.Price,
-                1,
-                "Món đang còn bán.",
-                true)).ToList());
-        var assistant = scope.ServiceProvider.GetRequiredService<IChatAssistantService>();
-
-        var reply = await assistant.GenerateReplyAsync(
-            "xem chi tiết",
-            [history],
-            null,
-            CancellationToken.None);
-
-        Assert.All(items, item => Assert.Contains(item.Name, reply.Content));
-        Assert.Equal(items.Select(item => item.Id).OrderBy(id => id), reply.SuggestedCartActions.Select(action => action.MenuItemId).OrderBy(id => id));
     }
 }

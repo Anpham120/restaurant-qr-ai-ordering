@@ -6,6 +6,7 @@ public static class ChatApiRegistration
     {
         services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
+        services.AddSingleton<IChatRateLimiter, ChatRateLimiter>();
         services.AddHttpClient<IChatAiProvider, GeminiChatProvider>();
 
         return services;
@@ -14,6 +15,8 @@ public static class ChatApiRegistration
     public static IEndpointRouteBuilder MapRestaurantChatApis(this IEndpointRouteBuilder app)
     {
         app.MapChatEndpoints();
+        app.MapChatStreamEndpoints();
+        app.MapChatAdminEndpoints();
 
         return app;
     }

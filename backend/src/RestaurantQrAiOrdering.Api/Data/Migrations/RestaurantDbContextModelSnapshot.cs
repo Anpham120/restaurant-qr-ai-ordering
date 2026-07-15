@@ -182,6 +182,49 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatFeedback", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChatSessionId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("chat_session_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("message_id");
+
+                    b.Property<string>("Rating")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("rating");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("MessageId");
+
+                    b.ToTable("chat_feedback", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatMessage", b =>
                 {
                     b.Property<string>("Id")
@@ -221,6 +264,54 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.ToTable("chat_messages", (string)null);
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatRecommendation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChatSessionId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("chat_session_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("MenuItemId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("menu_item_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TurnId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("turn_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("ChatSessionId", "MenuItemId", "Status")
+                        .IsUnique();
+
+                    b.ToTable("chat_recommendations", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatSession", b =>
                 {
                     b.Property<string>("Id")
@@ -245,6 +336,10 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("restaurant_table_id");
+
+                    b.Property<string>("RollingSummary")
+                        .HasColumnType("text")
+                        .HasColumnName("rolling_summary");
 
                     b.Property<string>("TableCode")
                         .HasMaxLength(20)
@@ -271,6 +366,58 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.HasIndex("TableSessionId");
 
                     b.ToTable("chat_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatSessionFact", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChatSessionId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("chat_session_id");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double precision")
+                        .HasColumnName("confidence");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("SourceTurnId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_turn_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("ChatSessionId", "Kind", "Value")
+                        .IsUnique();
+
+                    b.ToTable("chat_session_facts", (string)null);
                 });
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.KnowledgeEntry", b =>
@@ -1670,6 +1817,67 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.MenuItemKnowledge", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Allergens")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("allergens");
+
+                    b.Property<int?>("CaloriesEstimate")
+                        .HasColumnType("integer")
+                        .HasColumnName("calories_estimate");
+
+                    b.Property<string>("CookingMethod")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("cooking_method");
+
+                    b.Property<string>("DietaryTags")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("dietary_tags");
+
+                    b.Property<string>("FlavorProfile")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("flavor_profile");
+
+                    b.Property<string>("Ingredients")
+                        .HasColumnType("text")
+                        .HasColumnName("ingredients");
+
+                    b.Property<string>("MenuItemId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("menu_item_id");
+
+                    b.Property<int?>("ServingSizePeople")
+                        .HasColumnType("integer")
+                        .HasColumnName("serving_size_people");
+
+                    b.Property<int>("SpiceLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("spice_level");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId")
+                        .IsUnique();
+
+                    b.ToTable("menu_item_knowledge", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Order", b =>
                 {
                     b.Property<string>("Id")
@@ -2663,6 +2871,50 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.ToTable("table_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSessionCartItem", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("MenuItemId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("menu_item_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("TableSessionId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("table_session_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.HasIndex("TableSessionId");
+
+                    b.HasIndex("TableSessionId", "MenuItemId")
+                        .IsUnique();
+
+                    b.ToTable("table_session_cart_items", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.User", b =>
                 {
                     b.Property<string>("Id")
@@ -2720,10 +2972,40 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatFeedback", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.ChatSession", "ChatSession")
+                        .WithMany("Feedback")
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantQrAiOrdering.Entities.ChatMessage", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatSession");
+
+                    b.Navigation("Message");
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatMessage", b =>
                 {
                     b.HasOne("RestaurantQrAiOrdering.Entities.ChatSession", "ChatSession")
                         .WithMany("Messages")
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatSession");
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatRecommendation", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.ChatSession", "ChatSession")
+                        .WithMany("Recommendations")
                         .HasForeignKey("ChatSessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2748,6 +3030,17 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("RestaurantTable");
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatSessionFact", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.ChatSession", "ChatSession")
+                        .WithMany("Facts")
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatSession");
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.KnowledgeEntry", b =>
                 {
                     b.HasOne("RestaurantQrAiOrdering.Entities.MenuItem", "MenuItem")
@@ -2767,6 +3060,17 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.MenuItemKnowledge", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
                 });
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Order", b =>
@@ -2879,6 +3183,25 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                     b.Navigation("RestaurantTable");
                 });
 
+            modelBuilder.Entity("RestaurantQrAiOrdering.Entities.TableSessionCartItem", b =>
+                {
+                    b.HasOne("RestaurantQrAiOrdering.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantQrAiOrdering.Entities.TableSession", "TableSession")
+                        .WithMany()
+                        .HasForeignKey("TableSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+
+                    b.Navigation("TableSession");
+                });
+
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Category", b =>
                 {
                     b.Navigation("MenuItems");
@@ -2886,7 +3209,13 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.ChatSession", b =>
                 {
+                    b.Navigation("Facts");
+
+                    b.Navigation("Feedback");
+
                     b.Navigation("Messages");
+
+                    b.Navigation("Recommendations");
                 });
 
             modelBuilder.Entity("RestaurantQrAiOrdering.Entities.Order", b =>

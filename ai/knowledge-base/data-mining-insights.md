@@ -1,3 +1,16 @@
+---
+id: kb.analytics.insights.v1
+title: Insight Khai Phá Dữ Liệu
+domain: analytics
+tags: [data-mining, insights, bestseller]
+language: vi
+source: analytics_pipeline
+reviewed_by: data_team
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: low
+---
+
 # Insight Từ Học Máy Và Khai Phá Dữ Liệu
 
 Knowledge base này tổng hợp kết quả phân tích dữ liệu 1000 đơn hàng thực tế tại CMC Restaurant, sử dụng các kỹ thuật khai phá dữ liệu trong `ai/evaluation/datasets/synthetic_orders.json`.

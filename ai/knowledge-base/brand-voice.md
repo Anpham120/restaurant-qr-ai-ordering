@@ -1,3 +1,16 @@
+---
+id: kb.brand.voice.v1
+title: Phong Cách Trả Lời AI
+domain: brand
+tags: [brand, voice, tone]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: low
+---
+
 # Phong Cách Trả Lời CMC Restaurant AI
 
 ## Giọng Văn

@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 
@@ -84,7 +86,14 @@ public static class MenuEndpoints
         // Kitchen-accessible endpoint: toggle menu item availability only.
         // Kitchen staff can mark dishes as unavailable when ingredients run out,
         // without requiring full admin menu CRUD access.
-        app.MapPatch("/api/kitchen/menu-items/{menuItemId}/availability", async (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDbContext db) =>
+        app.MapPatch("/api/kitchen/menu-items/{menuItemId}/availability", async (
+            string menuItemId,
+            ToggleAvailabilityRequest? request,
+            RestaurantDbContext db,
+            IOrderRealtimeNotifier realtime,
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration,
+            CancellationToken cancellationToken) =>
         {
             if (request is null)
             {
@@ -92,7 +101,7 @@ public static class MenuEndpoints
             }
 
             var item = await db.MenuItems
-                .FirstOrDefaultAsync(i => i.Id == menuItemId);
+                .FirstOrDefaultAsync(i => i.Id == menuItemId, cancellationToken);
 
             if (item is null)
             {
@@ -102,10 +111,33 @@ public static class MenuEndpoints
             item.IsAvailable = request.IsAvailable;
             item.UpdatedAt = DateTimeOffset.UtcNow;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
+
+            await realtime.NotifyMenuAvailabilityChangedAsync(
+                new MenuAvailabilityChangedEvent(item.Id, item.Name, item.IsAvailable, item.UpdatedAt),
+                cancellationToken);
+
+            // Best-effort invalidate Python AI cache
+            var aiUrl = configuration["AI_SERVICE_URL"] ?? configuration["Ai:ServiceUrl"];
+            if (!string.IsNullOrWhiteSpace(aiUrl))
+            {
+                try
+                {
+                    var client = httpClientFactory.CreateClient();
+                    client.Timeout = TimeSpan.FromSeconds(3);
+                    await client.PostAsJsonAsync(
+                        $"{aiUrl.TrimEnd('/')}/v1/cache/invalidate",
+                        new { reason = "menu_availability_changed", menu_item_id = item.Id },
+                        cancellationToken);
+                }
+                catch
+                {
+                    // ignore cache invalidate failures
+                }
+            }
 
             var category = await db.Categories
-                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId, cancellationToken);
 
             return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })

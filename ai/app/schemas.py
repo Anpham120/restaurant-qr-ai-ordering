@@ -29,6 +29,16 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryItem] = Field(default_factory=list)
     session_memory: str = ""
+    rolling_summary: str = ""
+    session_id: str = ""
+    menu_version: str = ""
+    excluded_menu_item_ids: list[str] = Field(default_factory=list)
+    facts: list[dict] = Field(default_factory=list)
+    cart_items: list[dict] = Field(default_factory=list)
+    orders: list[dict] = Field(default_factory=list)
+    promotions: list[dict] = Field(default_factory=list)
+    local_time: str | None = None
+    meal_period: str | None = None
     menu_items: list[MenuItemContext] = Field(default_factory=list)
     table_code: str | None = None
 
@@ -53,6 +63,11 @@ class SuggestedCartAction(BaseModel):
     requires_customer_confirmation: bool = True
 
 
+class FollowUp(BaseModel):
+    can_show_more: bool = False
+    remaining_count: int = 0
+
+
 class ChatResponse(BaseModel):
     content: str
     provider_available: bool
@@ -60,3 +75,5 @@ class ChatResponse(BaseModel):
     retrieved_sources: list[RetrievedSource] = Field(default_factory=list)
     guardrail_flags: list[str] = Field(default_factory=list)
     suggested_cart_actions: list[SuggestedCartAction] = Field(default_factory=list)
+    follow_up: FollowUp = Field(default_factory=FollowUp)
+    suggest_staff_handoff: bool = False

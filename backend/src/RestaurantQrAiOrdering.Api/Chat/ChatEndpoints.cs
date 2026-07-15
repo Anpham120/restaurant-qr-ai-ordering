@@ -4,11 +4,17 @@ using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
+using RestaurantQrAiOrdering.Api.Realtime;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
 
 public static class ChatEndpoints
 {
+    private static readonly HashSet<string> AllowedRecommendationStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "rejected", "accepted", "added_to_cart"
+    };
+
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/chat/sessions", async (
@@ -81,7 +87,8 @@ public static class ChatEndpoints
                 session.UpdatedAt,
                 accessToken,
                 sessionResult.Reused,
-                session.Messages.Select(ToResponse).ToList());
+                session.Messages.Select(ToResponse).ToList(),
+                ToRecommendationResponses(session.Recommendations));
 
             return sessionResult.Reused
                 ? Results.Ok(response)
@@ -95,6 +102,7 @@ public static class ChatEndpoints
             SendChatMessageRequest? request,
             IChatStore chatStore,
             IChatAssistantService assistant,
+            IChatRateLimiter rateLimiter,
             IOptions<JwtOptions> jwtOptions,
             HttpRequest httpRequest,
             ILoggerFactory loggerFactory,
@@ -113,6 +121,11 @@ public static class ChatEndpoints
                 return ApiResults.BadRequest("CHAT_MESSAGE_EMPTY", "Chat message content is required.");
             }
 
+            if (request.Content.Trim().Length > 2000)
+            {
+                return ApiResults.BadRequest("CHAT_MESSAGE_TOO_LONG", "Chat message must be at most 2000 characters.");
+            }
+
             var chatSession = chatStore.GetSession(chatSessionId);
             if (chatSession is null)
             {
@@ -123,6 +136,14 @@ public static class ChatEndpoints
             if (!HasValidAccessToken(httpRequest, chatSession, jwtOptions.Value.SigningKey))
             {
                 return UnauthorizedChatCapability();
+            }
+
+            if (!rateLimiter.TryAcquire(chatSessionId))
+            {
+                return ApiErrorFactory.Result(
+                    StatusCodes.Status429TooManyRequests,
+                    "CHAT_RATE_LIMITED",
+                    "Too many messages. Please wait a moment before sending again.");
             }
 
             var userMessage = chatStore.AddMessage(chatSessionId, "user", request.Content.Trim());
@@ -136,7 +157,18 @@ public static class ChatEndpoints
             var tableCode = string.IsNullOrWhiteSpace(request.TableCode)
                 ? chatSession.TableCode
                 : request.TableCode.Trim();
-            var assistantReply = await assistant.GenerateReplyAsync(userMessage.Content, history, tableCode, cancellationToken);
+            var excludedIds = chatStore.GetExcludedMenuItemIds(chatSessionId);
+            var facts = chatStore.GetFacts(chatSessionId);
+            var assistantReply = await assistant.GenerateReplyAsync(
+                userMessage.Content,
+                history,
+                tableCode,
+                chatSessionId,
+                chatSession.TableSessionId,
+                chatSession.RollingSummary,
+                excludedIds,
+                facts,
+                cancellationToken);
             var assistantMessage = chatStore.AddMessage(
                 chatSessionId,
                 "assistant",
@@ -149,6 +181,25 @@ public static class ChatEndpoints
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
+            if (assistantReply.FactsToPersist is { Count: > 0 } factsToPersist)
+            {
+                chatStore.UpsertFacts(
+                    chatSessionId,
+                    factsToPersist.Select(f => (f.Kind, f.Value, f.Confidence, (string?)assistantMessage.Id)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(assistantReply.UpdatedRollingSummary))
+            {
+                chatStore.UpdateRollingSummary(chatSessionId, assistantReply.UpdatedRollingSummary);
+            }
+
+            if (assistantReply.RejectedMenuItemIds is { Count: > 0 } rejectedIds)
+            {
+                chatStore.UpsertRecommendations(
+                    chatSessionId,
+                    rejectedIds.Select(id => (id, "rejected", (string?)userMessage.Id)));
+            }
+
             logger.LogInformation(
                 "Stored chat exchange for session {ChatSessionId} with {SuggestedActionCount} suggested actions and {GuardrailCount} guardrail flags.",
                 chatSessionId,
@@ -159,7 +210,9 @@ public static class ChatEndpoints
                 ToResponse(userMessage),
                 ToResponse(assistantMessage),
                 assistantReply.SuggestedCartActions,
-                assistantReply.GuardrailFlags));
+                assistantReply.GuardrailFlags,
+                assistantReply.SuggestStaffHandoff,
+                assistantReply.FollowUp));
         })
         .WithName("SendChatMessage")
         .WithTags("Chat");
@@ -183,11 +236,110 @@ public static class ChatEndpoints
                 session.Id,
                 session.CreatedAt,
                 session.UpdatedAt,
-                session.Messages.Select(ToResponse).ToList());
+                session.Messages.Select(ToResponse).ToList(),
+                ToRecommendationResponses(session.Recommendations));
 
             return Results.Ok(response);
         })
         .WithName("GetChatHistory")
+        .WithTags("Chat");
+
+        app.MapPost("/api/chat/sessions/{chatSessionId}/recommendations", (
+            string chatSessionId,
+            UpdateRecommendationRequest? request,
+            HttpRequest httpRequest,
+            IChatStore chatStore,
+            IOptions<JwtOptions> jwtOptions) =>
+        {
+            if (request is null || string.IsNullOrWhiteSpace(request.MenuItemId) || string.IsNullOrWhiteSpace(request.Status))
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "menuItemId and status are required.");
+            }
+
+            if (!AllowedRecommendationStatuses.Contains(request.Status))
+            {
+                return ApiResults.BadRequest("RECOMMENDATION_STATUS_INVALID", "Status must be rejected, accepted, or added_to_cart.");
+            }
+
+            var session = chatStore.GetSession(chatSessionId);
+            if (session is null)
+            {
+                return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
+            }
+
+            if (!HasValidAccessToken(httpRequest, session, jwtOptions.Value.SigningKey))
+            {
+                return UnauthorizedChatCapability();
+            }
+
+            var updated = chatStore.UpsertRecommendations(
+                chatSessionId,
+                [(request.MenuItemId.Trim(), request.Status.Trim().ToLowerInvariant(), request.TurnId)]);
+
+            return Results.Ok(updated.Select(r => new ChatRecommendationResponse(r.MenuItemId, r.Status, r.TurnId, r.UpdatedAt)));
+        })
+        .WithName("UpdateChatRecommendation")
+        .WithTags("Chat");
+
+        app.MapPost("/api/chat/sessions/{chatSessionId}/feedback", (
+            string chatSessionId,
+            ChatFeedbackRequest? request,
+            HttpRequest httpRequest,
+            IChatStore chatStore,
+            IOptions<JwtOptions> jwtOptions) =>
+        {
+            if (request is null || string.IsNullOrWhiteSpace(request.MessageId) || string.IsNullOrWhiteSpace(request.Rating))
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "messageId and rating are required.");
+            }
+
+            var session = chatStore.GetSession(chatSessionId);
+            if (session is null)
+            {
+                return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
+            }
+
+            if (!HasValidAccessToken(httpRequest, session, jwtOptions.Value.SigningKey))
+            {
+                return UnauthorizedChatCapability();
+            }
+
+            chatStore.AddFeedback(chatSessionId, request.MessageId, request.Rating, request.Reason);
+            return Results.Ok(new { ok = true });
+        })
+        .WithName("SubmitChatFeedback")
+        .WithTags("Chat");
+
+        app.MapPost("/api/chat/sessions/{chatSessionId}/assistance", async (
+            string chatSessionId,
+            AssistanceRequestBody? request,
+            HttpRequest httpRequest,
+            IChatStore chatStore,
+            IOptions<JwtOptions> jwtOptions,
+            IOrderRealtimeNotifier realtime,
+            CancellationToken cancellationToken) =>
+        {
+            var session = chatStore.GetSession(chatSessionId);
+            if (session is null)
+            {
+                return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
+            }
+
+            if (!HasValidAccessToken(httpRequest, session, jwtOptions.Value.SigningKey))
+            {
+                return UnauthorizedChatCapability();
+            }
+
+            var tableCode = session.TableCode ?? "unknown";
+            await realtime.NotifyAssistanceRequestedAsync(
+                tableCode,
+                session.TableSessionId,
+                request?.Note,
+                cancellationToken);
+
+            return Results.Ok(new { ok = true, tableCode });
+        })
+        .WithName("RequestAssistance")
         .WithTags("Chat");
 
         return app;
@@ -201,6 +353,19 @@ public static class ChatEndpoints
             message.Content,
             message.CreatedAt,
             message.SuggestedCartActions);
+    }
+
+    private static IReadOnlyList<ChatRecommendationResponse> ToRecommendationResponses(
+        IReadOnlyList<ChatRecommendationSnapshot>? recommendations)
+    {
+        if (recommendations is null || recommendations.Count == 0)
+        {
+            return [];
+        }
+
+        return recommendations
+            .Select(r => new ChatRecommendationResponse(r.MenuItemId, r.Status, r.TurnId, r.UpdatedAt))
+            .ToList();
     }
 
     private static bool HasValidAccessToken(HttpRequest request, ChatSessionSnapshot session, string signingKey)

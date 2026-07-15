@@ -27,7 +27,9 @@ def load_markdown_knowledge_base(path: Path) -> list[KnowledgeChunk]:
 
 
 def _split_markdown_file(file_path: Path) -> list[KnowledgeChunk]:
-    lines = file_path.read_text(encoding="utf-8").splitlines()
+    raw_text = file_path.read_text(encoding="utf-8")
+    raw_text = _strip_yaml_frontmatter(raw_text)
+    lines = raw_text.splitlines()
     chunks: list[KnowledgeChunk] = []
     current_title = file_path.stem.replace("-", " ").title()
     current_lines: list[str] = []
@@ -59,3 +61,12 @@ def _split_markdown_file(file_path: Path) -> list[KnowledgeChunk]:
 
 def _tags_from_filename(file_path: Path) -> tuple[str, ...]:
     return tuple(part for part in file_path.stem.replace("_", "-").split("-") if part)
+
+
+def _strip_yaml_frontmatter(text: str) -> str:
+    if not text.startswith("---"):
+        return text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return text
+    return text[end + 4 :].lstrip("\n")

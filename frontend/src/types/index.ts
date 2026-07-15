@@ -39,6 +39,7 @@ export type {
 export type {
   ChatGuardrailFlag,
   ChatMessage,
+  ChatRecommendation,
   ChatRole,
   ChatHistoryResponse,
   CreateChatSessionRequest,

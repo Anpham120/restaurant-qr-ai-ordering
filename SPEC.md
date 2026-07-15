@@ -100,7 +100,7 @@ T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
 T26|x|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
 T27|x|add persistent VI/EN switch + full landing/ordering/menu localization|V44,V46,I.ui
 T28|x|optimize landing + ordering responsive mobile layout + regressions|V45,I.ui
-T29|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44,V45
+T29|x|run full repo verification; commit + push AI and requested features|C,V42,V43,V44,V45
 
 ## §B
 
@@ -167,3 +167,7 @@ B59|2026-07-15|menu localization generic required category metadata absent from 
 B60|2026-07-15|localized menu filters read a nonexistent `MenuItem.categoryId` instead of joining canonical category name to response category ID|V44
 B61|2026-07-15|verification batch ran from the parent workspace, so relative `frontend` prefix missed the repository package|repo-scoped verification command
 B62|2026-07-15|menu parity regression expected materialized `m_###` strings while the canonical C# seed declares `Item(index, ...)`|V44
+B63|2026-07-15|server-render payment regression mounted a localized component without its required `I18nProvider` runtime contract|V44
+B64|2026-07-15|payment regression still expected legacy `220.000đ` after shared money formatting standardized the UI on Intl VND output|V43
+B65|2026-07-15|AI verification launched pytest from the repository root even though tests import the `ai` directory as their package root|AI-scoped verification command
+B66|2026-07-15|AI retriever ADR used Markdown hard-break spaces that failed the authoritative staged whitespace gate|`git diff --cached --check`

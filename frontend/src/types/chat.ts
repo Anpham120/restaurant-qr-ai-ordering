@@ -15,6 +15,15 @@ export type SuggestedCartAction = {
   quantity: number;
   reason: string;
   requiresCustomerConfirmation: true;
+  status?: "pending" | "confirmed" | "dismissed";
+  evidenceIds?: string[];
+};
+
+export type ChatRecommendation = {
+  menuItemId: string;
+  status: string;
+  turnId?: string;
+  updatedAt: string;
 };
 
 export type ChatGuardrailFlag =
@@ -31,6 +40,7 @@ export type CreateChatSessionResponse = {
   accessToken: string;
   reused: boolean;
   messages: ChatMessage[];
+  recommendations: ChatRecommendation[];
 };
 
 export type CreateChatSessionRequest = {
@@ -48,6 +58,8 @@ export type SendChatMessageResponse = {
   message: ChatMessage;
   suggestedCartActions: SuggestedCartAction[];
   guardrailFlags: ChatGuardrailFlag[];
+  suggestStaffHandoff?: boolean;
+  followUp?: { canShowMore: boolean; remainingCount: number };
 };
 
 export type ChatHistoryResponse = {
@@ -55,4 +67,5 @@ export type ChatHistoryResponse = {
   createdAt: string;
   updatedAt: string;
   messages: ChatMessage[];
+  recommendations: ChatRecommendation[];
 };

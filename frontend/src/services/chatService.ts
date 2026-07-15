@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "./apiClient";
 import type {
   ChatHistoryResponse,
+  ChatRecommendation,
   CreateChatSessionRequest,
   CreateChatSessionResponse,
   SendChatMessageRequest,
@@ -80,6 +81,45 @@ export const chatApi = {
       `/chat/sessions/${encodeURIComponent(chatSessionId)}/messages`,
       "GET",
       undefined,
+      accessToken,
+    );
+  },
+
+  async updateRecommendation(
+    chatSessionId: string,
+    request: { menuItemId: string; status: string; turnId?: string },
+    accessToken: string,
+  ): Promise<ChatRecommendation[]> {
+    return requestJson<ChatRecommendation[]>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/recommendations`,
+      "POST",
+      request,
+      accessToken,
+    );
+  },
+
+  async submitFeedback(
+    chatSessionId: string,
+    request: { messageId: string; rating: "up" | "down"; reason?: string },
+    accessToken: string,
+  ): Promise<{ ok: boolean }> {
+    return requestJson<{ ok: boolean }>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/feedback`,
+      "POST",
+      request,
+      accessToken,
+    );
+  },
+
+  async requestAssistance(
+    chatSessionId: string,
+    request: { note?: string },
+    accessToken: string,
+  ): Promise<{ ok: boolean; tableCode: string }> {
+    return requestJson<{ ok: boolean; tableCode: string }>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/assistance`,
+      "POST",
+      request,
       accessToken,
     );
   },

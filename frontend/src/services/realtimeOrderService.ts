@@ -9,6 +9,16 @@ const realtimeListeners = new Set<RealtimeListener>();
 const connectionListeners = new Set<ConnectionListener>();
 let connectionStatus: RealtimeConnectionStatus = "disconnected";
 
+/**
+ * SignalR event names supported by the order hub:
+ * - order.created
+ * - order.statusChanged
+ * - order.itemStatusChanged
+ * - payment.requested
+ * - cart.updated
+ * - assistance.requested
+ * - menu.availabilityChanged (reserved; may not be emitted on all deployments)
+ */
 const client = createOrderHubClient({
   accessTokenFactory: authStorage.token,
   handlers: {
@@ -16,6 +26,9 @@ const client = createOrderHubClient({
     onOrderStatusChanged: payload => notifyRealtimeListeners({ event: "order.statusChanged", payload }),
     onOrderItemStatusChanged: payload => notifyRealtimeListeners({ event: "order.itemStatusChanged", payload }),
     onPaymentRequested: payload => notifyRealtimeListeners({ event: "payment.requested", payload }),
+    onCartUpdated: payload => notifyRealtimeListeners({ event: "cart.updated", payload }),
+    onAssistanceRequested: payload => notifyRealtimeListeners({ event: "assistance.requested", payload }),
+    onMenuAvailabilityChanged: payload => notifyRealtimeListeners({ event: "menu.availabilityChanged", payload }),
     onStatusChanged: setConnectionStatus,
   },
 });

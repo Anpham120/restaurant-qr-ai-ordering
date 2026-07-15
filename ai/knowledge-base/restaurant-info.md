@@ -1,3 +1,16 @@
+---
+id: kb.info.restaurant.v1
+title: Thông Tin Nhà Hàng
+domain: restaurant
+tags: [hours, location, wifi]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: medium
+---
+
 # Thông Tin Nhà Hàng CMC Restaurant
 
 ## Tổng Quan

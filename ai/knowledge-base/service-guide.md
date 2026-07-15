@@ -1,3 +1,16 @@
+---
+id: kb.guide.service.v1
+title: Hướng Dẫn Dịch Vụ
+domain: service
+tags: [qr, service, how-to]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: medium
+---
+
 # Hướng Dẫn Sử Dụng & Dịch Vụ
 
 ## Cách Đặt Món Qua QR

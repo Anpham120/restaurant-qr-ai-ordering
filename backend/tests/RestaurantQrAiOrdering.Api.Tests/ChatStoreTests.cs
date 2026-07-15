@@ -41,12 +41,48 @@ public sealed class ChatStoreTests
         var store = new DbChatStore(db);
         var created = store.CreateOrGetSession("T01", "ts_t01");
         store.AddMessage(created.Session.Id, "user", "Khách muốn món không hải sản");
+        store.AddMessage(
+            created.Session.Id,
+            "assistant",
+            "Gợi ý món",
+            [
+                new SuggestedCartActionResponse("m_001", "Phở", 45000, 1, "ngon", true)
+            ]);
+        store.UpsertFacts(created.Session.Id, [("allergen", "hải sản", 0.9, null)]);
 
         var deleted = store.DeleteSessionsByTableSession("ts_t01");
 
         Assert.Equal(1, deleted);
         Assert.Null(store.GetSession(created.Session.Id));
         Assert.Empty(db.ChatMessages);
+        Assert.Empty(db.ChatRecommendations);
+        Assert.Empty(db.ChatSessionFacts);
+    }
+
+    [Fact]
+    public void DbStore_LedgerExcludesSuggestedItems()
+    {
+        var options = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        using var db = new RestaurantDbContext(options);
+        SeedOpenTableSession(db, "ts_t02");
+        var store = new DbChatStore(db);
+        var created = store.CreateOrGetSession("T01", "ts_t02");
+        store.AddMessage(
+            created.Session.Id,
+            "assistant",
+            "Gợi ý",
+            [
+                new SuggestedCartActionResponse("m_001", "Phở", 45000, 1, "ngon", true),
+                new SuggestedCartActionResponse("m_002", "Cơm", 50000, 1, "no", true)
+            ]);
+        store.UpsertRecommendations(created.Session.Id, [("m_002", "rejected", null)]);
+
+        var excluded = store.GetExcludedMenuItemIds(created.Session.Id);
+
+        Assert.Contains("m_001", excluded);
+        Assert.Contains("m_002", excluded);
     }
 
     private static void SeedOpenTableSession(RestaurantDbContext db, string sessionId)
