@@ -39,6 +39,20 @@ export function createOrderHubClient(options: { hubUrl?: string; accessTokenFact
   const hubUrl = options.hubUrl ?? import.meta.env.VITE_ORDER_HUB_URL ?? "https://localhost:7296/hubs/orders";
   let connection: HubConnection | null = null;
   let operation = Promise.resolve();
+  const activeWatches = new Map<string, { method: string; args: unknown[] }>();
+
+  async function restoreWatches() {
+    if (!connection) return;
+    for (const watch of activeWatches.values()) {
+      await connection.invoke(watch.method, ...watch.args);
+    }
+  }
+
+  async function watch(key: string, method: string, ...args: unknown[]) {
+    const current = connection ?? build();
+    await current.invoke(method, ...args);
+    activeWatches.set(key, { method, args });
+  }
 
   function build() {
     const builder = new HubConnectionBuilder().withUrl(hubUrl, {
@@ -54,7 +68,14 @@ export function createOrderHubClient(options: { hubUrl?: string; accessTokenFact
     connection.on("assistance.requested", event => handlers.onAssistanceRequested?.(event));
     connection.on("menu.availabilityChanged", event => handlers.onMenuAvailabilityChanged?.(event));
     connection.onreconnecting(() => handlers.onStatusChanged?.("reconnecting"));
-    connection.onreconnected(() => handlers.onStatusChanged?.("connected"));
+    connection.onreconnected(async () => {
+      try {
+        await restoreWatches();
+        handlers.onStatusChanged?.("connected");
+      } catch {
+        handlers.onStatusChanged?.("error");
+      }
+    });
     connection.onclose(error => handlers.onStatusChanged?.(error ? "error" : "disconnected"));
     return connection;
   }
@@ -81,9 +102,11 @@ export function createOrderHubClient(options: { hubUrl?: string; accessTokenFact
         if (connection && connection.state !== HubConnectionState.Disconnected) {
           await connection.stop();
         }
+        activeWatches.clear();
       });
     },
-    async watchOrder(orderCode: string, orderToken: string) { await (connection ?? build()).invoke("WatchOrder", orderCode, orderToken); },
-    async watchTable(tableCode: string) { await (connection ?? build()).invoke("WatchTable", tableCode); },
+    async watchOrder(orderCode: string, orderToken: string) { await watch("order", "WatchOrder", orderCode, orderToken); },
+    async watchTable(tableCode: string) { await watch("table", "WatchTable", tableCode); },
+    async watchTableSession(tableSessionId: string, sessionToken: string) { await watch("table-session", "WatchTableSession", tableSessionId, sessionToken); },
   };
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Order, OrderItemStatus } from "@cmc/shared-types";
-import { Circle, Clock3, Flame, X } from "lucide-react";
-import { updateOrderItemStatus } from "../../services/orderService";
+import { CheckCircle2, Circle, Clock3, Flame, X } from "lucide-react";
+import { updateOrderItemStatus, updateOrderStatus } from "../../services/orderService";
+import { getKitchenBoardColumn, type KitchenBoardColumn } from "./kitchenOrderPipeline";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -33,8 +34,6 @@ function itemActionLabel(current: OrderItemStatus): string {
 }
 
 /* ---------- types ---------- */
-type KitchenColumn = "confirmed" | "preparing" | "ready";
-
 interface KitchenBoardProps {
   orders: Order[];
   onRefresh: () => void | Promise<void>;
@@ -64,6 +63,30 @@ function StartCookingButton({
   );
 }
 
+function MarkServedButton({
+  order,
+  isPending,
+  onMoveNext,
+  compact = false,
+}: {
+  order: Order;
+  isPending: boolean;
+  onMoveNext: (order: Order) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      className="ops-btn ops-btn--primary"
+      disabled={isPending}
+      onClick={() => onMoveNext(order)}
+      type="button"
+    >
+      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
+      {compact ? "Đã phục vụ" : "Xác nhận đã phục vụ"}
+    </button>
+  );
+}
+
 /* ---------- Order Card ---------- */
 function OrderCard({
   order,
@@ -73,7 +96,7 @@ function OrderCard({
   isPending,
 }: {
   order: Order;
-  column: KitchenColumn;
+  column: KitchenBoardColumn;
   onOpenDetail: (order: Order) => void;
   onMoveNext: (order: Order) => void;
   isPending: boolean;
@@ -86,7 +109,7 @@ function OrderCard({
   }, [order.createdAt]);
 
   const isUrgent = Date.now() - new Date(order.createdAt).getTime() > 15 * 60_000;
-  const readyCount = order.items.filter((i) => i.status === "Ready").length;
+  const readyCount = order.items.filter((i) => i.status === "Ready" || i.status === "Served").length;
   const totalCount = order.items.filter((i) => i.status !== "Cancelled").length;
 
   return (
@@ -117,7 +140,7 @@ function OrderCard({
           <span
             key={item.orderItemId}
             className={
-              item.status === "Ready" || item.status === "Cancelled"
+              item.status === "Ready" || item.status === "Served" || item.status === "Cancelled"
                 ? "ops-card-item-chip ops-card-item-chip--done"
                 : item.status === "Preparing"
                   ? "ops-card-item-chip ops-card-item-chip--active"
@@ -132,6 +155,11 @@ function OrderCard({
       {column === "confirmed" ? (
         <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
           <StartCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
+        </div>
+      ) : null}
+      {column === "ready" ? (
+        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
+          <MarkServedButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
         </div>
       ) : null}
     </article>
@@ -152,8 +180,7 @@ function OrderDetailModal({
   onMoveNext: (order: Order) => void;
   isPending: boolean;
 }) {
-  const column: KitchenColumn =
-    order.status === "Confirmed" ? "confirmed" : order.status === "Preparing" ? "preparing" : "ready";
+  const column = getKitchenBoardColumn(order.status) ?? "confirmed";
 
   return (
     <div className="ops-modal-overlay" onClick={onClose}>
@@ -200,7 +227,7 @@ function OrderDetailModal({
                         {itemActionLabel(item.status)}
                       </button>
                     ) : null}
-                    {item.status !== "Cancelled" && item.status !== "Ready" ? (
+                    {item.status === "Pending" || item.status === "Preparing" ? (
                       <button
                         className="ops-btn ops-btn--sm ops-btn--ghost"
                         disabled={isPending}
@@ -222,6 +249,11 @@ function OrderDetailModal({
             <StartCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
           </div>
         ) : null}
+        {column === "ready" ? (
+          <div className="ops-modal-footer">
+            <MarkServedButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -239,7 +271,7 @@ function KitchenColumn({
 }: {
   title: string;
   icon: ReactNode;
-  column: KitchenColumn;
+  column: KitchenBoardColumn;
   orders: Order[];
   onOpenDetail: (o: Order) => void;
   onMoveNext: (o: Order) => void;
@@ -278,15 +310,19 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   const [notice, setNotice] = useState("");
 
   const confirmed = useMemo(
-    () => orders.filter((o) => o.status === "Confirmed"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "confirmed"),
     [orders],
   );
   const preparing = useMemo(
-    () => orders.filter((o) => o.status === "Preparing"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "preparing"),
     [orders],
   );
   const ready = useMemo(
-    () => orders.filter((o) => o.status === "Ready"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "ready"),
+    [orders],
+  );
+  const served = useMemo(
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "served"),
     [orders],
   );
 
@@ -303,11 +339,16 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   }, [orders]);
 
   const handleMoveNext = useCallback(async (order: Order) => {
-    const pendingItems = order.items.filter((item) => item.status === "Pending");
-
     setPendingCode(order.orderCode);
     setNotice("");
     try {
+      if (order.status === "Ready") {
+        await updateOrderStatus(order.orderCode, "Served");
+        setNotice(`${order.orderCode}: đã phục vụ`);
+        return;
+      }
+
+      const pendingItems = order.items.filter((item) => item.status === "Pending");
       for (const item of pendingItems) {
         await updateOrderItemStatus(order.orderCode, item.orderItemId, "Preparing");
       }
@@ -361,6 +402,15 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
           column="ready"
           orders={ready}
+          onOpenDetail={setSelectedOrder}
+          onMoveNext={handleMoveNext}
+          pendingCode={pendingCode}
+        />
+        <KitchenColumn
+          title="Đã phục vụ"
+          icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
+          column="served"
+          orders={served}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
           pendingCode={pendingCode}

@@ -37,6 +37,7 @@ export async function connectOrderRealtime() { await client.connect(); }
 export async function disconnectOrderRealtime() { await client.disconnect(); }
 export async function watchOrderRealtime(orderCode: string, orderToken: string) { await client.watchOrder(orderCode, orderToken); }
 export async function watchTableRealtime(tableCode: string) { await client.watchTable(tableCode); }
+export async function watchTableSessionRealtime(tableSessionId: string, sessionToken: string) { await client.watchTableSession(tableSessionId, sessionToken); }
 export function subscribeOrderRealtime(listener: RealtimeListener) { realtimeListeners.add(listener); return () => realtimeListeners.delete(listener); }
 export function subscribeRealtimeConnection(listener: ConnectionListener) { connectionListeners.add(listener); listener(connectionStatus); return () => connectionListeners.delete(listener); }
 

@@ -8,6 +8,7 @@ using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Tables;
 using RestaurantQrAiOrdering.Entities;
+using RestaurantQrAiOrdering.Enums;
 
 namespace RestaurantQrAiOrdering.Api.Cart;
 
@@ -73,6 +74,26 @@ public static class CartEndpoints
             await using var transaction = db.Database.IsRelational()
                 ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
                 : null;
+
+            if (request.Delta > 0)
+            {
+                var invoiceStatus = await db.TableInvoices
+                    .Where(invoice => invoice.TableSessionId == tableSessionId)
+                    .Select(invoice => (PaymentStatus?)invoice.Status)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (invoiceStatus == PaymentStatus.Pending)
+                {
+                    return ApiResults.Conflict(
+                        "TABLE_INVOICE_PAYMENT_PENDING",
+                        "New cart items are disabled while payment is pending for the table invoice.");
+                }
+                if (invoiceStatus is PaymentStatus.Paid or PaymentStatus.Confirmed)
+                {
+                    return ApiResults.Conflict(
+                        "TABLE_SESSION_SETTLED",
+                        "New cart items are disabled after the table invoice is settled.");
+                }
+            }
 
             var menuItemId = request.MenuItemId.Trim();
             if (request.Delta > 0)

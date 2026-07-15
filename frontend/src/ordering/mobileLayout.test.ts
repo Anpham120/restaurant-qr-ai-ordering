@@ -23,6 +23,7 @@ describe("V45 mobile customer journeys", () => {
   });
 
   it("prevents ordering chrome and actions from overflowing 320px", () => {
+    const orderingLayout = read("src/ordering/OrderingLayout.tsx");
     const orderingEntryCss = read("apps/ordering-web/src/ordering-app.css");
     const orderingCss = read("src/ordering/ordering-layout.css");
     const menuCss = read("src/components/customer/customer-menu.css");
@@ -31,7 +32,9 @@ describe("V45 mobile customer journeys", () => {
 
     expect(orderingEntryCss).toContain(".ordering-entry-top");
     expect(orderingEntryCss).toContain("env(safe-area-inset-top)");
+    expect(orderingLayout).toContain('variant="toggle"');
     expect(orderingCss).toContain("overflow-x: clip");
+    expect(orderingCss).not.toContain("border-bottom: 2px dashed");
     expect(orderingCss).toContain("@media (max-width: 350px)");
     expect(orderingCss).toContain("min-height: 3.25rem");
     expect(menuCss).toContain("width: 44px");

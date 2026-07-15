@@ -41,7 +41,8 @@ public sealed record OpenTableSessionResponse(
     DateTimeOffset ExpiresAt,
     DateTimeOffset? ClosedAt,
     bool IsExpired,
-    string TableSessionToken);
+    string TableSessionToken,
+    string ResumeState);
 
 public sealed record TableListResponse(
     IReadOnlyList<AdminTableResponse> Items,

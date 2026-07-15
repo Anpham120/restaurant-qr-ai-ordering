@@ -53,6 +53,55 @@ public sealed class OrderLifecycleTests : IClassFixture<RestaurantApiFactory>
         Assert.Equal(OrderItemStatus.Pending, verifiedOrder.OrderItems.Single().Status);
     }
 
+    [Fact]
+    public async Task TestV54_KitchenReadyToServedUpdatesOrderAndItemsAtomically()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await SignInAsAdminAsync(client));
+
+        var order = await CreateDineInOrderAsync(client, tableIndex: 0);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            var persistedOrder = await db.Orders
+                .Include(candidate => candidate.OrderItems)
+                .SingleAsync(candidate => candidate.OrderCode == order.Code);
+            persistedOrder.Status = OrderStatus.Ready;
+            foreach (var item in persistedOrder.OrderItems)
+            {
+                item.Status = OrderItemStatus.Ready;
+            }
+            await db.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await CreateKitchenAccessTokenAsync(client));
+
+        using var servedResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{order.Code}/status",
+            new { status = "Served" });
+        Assert.Equal(HttpStatusCode.OK, servedResponse.StatusCode);
+
+        using var forbiddenResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{order.Code}/status",
+            new { status = "Completed" });
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var verifiedOrder = await verificationDb.Orders
+            .AsNoTracking()
+            .Include(candidate => candidate.OrderItems)
+            .SingleAsync(candidate => candidate.OrderCode == order.Code);
+        Assert.Equal(OrderStatus.Served, verifiedOrder.Status);
+        Assert.All(
+            verifiedOrder.OrderItems.Where(item => item.Status != OrderItemStatus.Cancelled),
+            item => Assert.Equal(OrderItemStatus.Served, item.Status));
+    }
+
     private static async Task<string> SignInAsAdminAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync("/api/auth/login", new
@@ -64,6 +113,25 @@ public sealed class OrderLifecycleTests : IClassFixture<RestaurantApiFactory>
 
         using var body = await ReadJsonAsync(response);
         return body.RootElement.GetProperty("accessToken").GetString()!;
+    }
+
+    private static async Task<string> CreateKitchenAccessTokenAsync(HttpClient client)
+    {
+        var email = $"kitchen-{Guid.NewGuid():N}@local.test";
+        const string password = "KitchenPass!2026";
+        using var createResponse = await client.PostAsJsonAsync("/api/users", new
+        {
+            fullName = "Kitchen Lifecycle Test",
+            email,
+            password,
+            role = "Kitchen"
+        });
+        createResponse.EnsureSuccessStatusCode();
+
+        using var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
+        loginResponse.EnsureSuccessStatusCode();
+        using var login = await ReadJsonAsync(loginResponse);
+        return login.RootElement.GetProperty("accessToken").GetString()!;
     }
 
     private static async Task<CreatedOrder> CreateDineInOrderAsync(HttpClient client, int tableIndex)

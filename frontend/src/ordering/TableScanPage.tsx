@@ -3,6 +3,7 @@ import { LanguageSwitcher, useI18n } from "@cmc/i18n";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearMenuCart, loadOrderContext, saveOrderContext } from "../components/customer/customerMenuStorage";
 import { openDineInSession, resolveTableQr } from "../services/tableSessionService";
+import { getSessionResumeDestination } from "./sessionResumeState";
 
 type ScanState = "loading" | "invalid" | "expired" | "error";
 
@@ -43,7 +44,10 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
           sessionId: result.session.sessionId,
           sessionToken: result.session.tableSessionToken,
         });
-        navigate(`/table-session/${result.session.sessionId}/menu`, { replace: true });
+        navigate(
+          getSessionResumeDestination(result.session.sessionId, result.session.resumeState),
+          { replace: true },
+        );
       } catch {
         if (active) setState("error");
       }

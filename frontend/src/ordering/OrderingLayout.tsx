@@ -27,7 +27,7 @@ function SessionState({
   return (
     <main className="ordering-state" aria-live="polite">
       <p className="ordering-state-kicker">CMC Restaurant</p>
-      <LanguageSwitcher />
+      <LanguageSwitcher variant="toggle" />
       <h1>{t("Phiên gọi món chưa sẵn sàng")}</h1>
       <p>{t(copy)}</p>
       <div className="ordering-state-actions">
@@ -48,7 +48,7 @@ function OrderingShell() {
     <div className="ordering-shell">
       <header className="ordering-header">
         <a className="ordering-brand" href={base}><BrandWordmark /></a>
-        <LanguageSwitcher />
+        <LanguageSwitcher variant="toggle" />
         <div className="ordering-table" aria-label={t("Phiên bàn {table}", { table: context.tableCode })}>
           <span>{t("Phiên đang mở")}</span>
           <strong>{context.tableCode}</strong>

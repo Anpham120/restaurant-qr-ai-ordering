@@ -409,6 +409,23 @@ export const EN_COPY: Record<string, string> = {
   "Đóng menu": "Close menu",
   "Mã ưu đãi không hợp lệ.": "The promotion code is invalid.",
   "Vui lòng bấm Áp dụng để kiểm tra mã ưu đãi và xem đúng số tiền cần thanh toán.": "Select Apply to validate the promotion code and see the correct amount due.",
+  "Bàn của bạn": "Your table",
+  "Bắt đầu gọi món": "Start ordering",
+  "Bếp đang chuẩn bị món": "The kitchen is preparing your order",
+  "Bàn đã sẵn sàng thanh toán": "Your table is ready for payment",
+  "Đang chờ xác nhận thanh toán": "Awaiting payment confirmation",
+  "Gọi món": "Order",
+  "Gọi thêm món": "Order more",
+  "Chế biến": "Preparing",
+  "Phục vụ": "Serving",
+  "Tiến trình phiên bàn": "Table session progress",
+  "Đang cập nhật trực tiếp": "Live updates active",
+  "Đang đồng bộ lại": "Resyncing",
+  "{ready}/{total} món đã sẵn sàng": "{ready}/{total} items are ready",
+  "Quét QR thành công. Bạn có thể bắt đầu gọi món.": "QR scanned successfully. You can start ordering.",
+  "Bếp đã nhận món và đang cập nhật tiến độ.": "The kitchen received your order and is updating its progress.",
+  "Các món đã được phục vụ. Bạn có thể yêu cầu thanh toán.": "Your order has been served. You can request payment.",
+  "Yêu cầu đã được gửi. Vui lòng chờ nhà hàng xác nhận.": "Your request was sent. Please wait for the restaurant to confirm it.",
 };
 
 function replaceParams(template: string, params?: TranslationParams) {
@@ -503,8 +520,34 @@ export function useI18n() {
   return context;
 }
 
-export function LanguageSwitcher({ className = "" }: { className?: string }) {
+export function getNextLocale(locale: Locale): Locale {
+  return locale === "vi" ? "en" : "vi";
+}
+
+export function LanguageSwitcher({
+  className = "",
+  variant = "segmented",
+}: {
+  className?: string;
+  variant?: "segmented" | "toggle";
+}) {
   const { locale, setLocale, t } = useI18n();
+  if (variant === "toggle") {
+    const nextLocale = getNextLocale(locale);
+    const nextLocaleLabel = nextLocale === "vi" ? t("Tiếng Việt") : t("Tiếng Anh");
+    return (
+      <button
+        aria-label={`${t("Chuyển ngôn ngữ")}: ${nextLocaleLabel}`}
+        className={`language-toggle ${className}`.trim()}
+        onClick={() => setLocale(nextLocale)}
+        title={nextLocaleLabel}
+        type="button"
+      >
+        {locale.toUpperCase()}
+      </button>
+    );
+  }
+
   return (
     <div className={`language-switcher ${className}`.trim()} role="group" aria-label={t("Chuyển ngôn ngữ")}>
       <button aria-label={t("Tiếng Việt")} aria-pressed={locale === "vi"} onClick={() => setLocale("vi")} type="button">VI</button>

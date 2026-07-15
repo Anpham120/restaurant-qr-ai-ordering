@@ -30,6 +30,7 @@ import type {
   RequestedPaymentMethod,
   VietQrPaymentResponse,
 } from "../../../types";
+import { orderingPath } from "../../../ordering/orderingRoutes";
 import { ArrowLeft, Banknote, CreditCard, QrCode } from "lucide-react";
 
 /* ========================================================================
@@ -192,7 +193,7 @@ function calculateOrderStatus(items: OrderTrackingItem[]) {
 
 export function OrderTrackingPage() {
   const { formatDateTime, locale, t } = useI18n();
-  const { orderCode = "ORD-1001" } = useParams();
+  const { orderCode = "ORD-1001", sessionId = "" } = useParams();
   const [order, setOrder] = useState<OrderTrackingOrder | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<RealtimeConnectionStatus>("connected");
@@ -358,6 +359,7 @@ export function OrderTrackingPage() {
       {order ? (
         <div className="cmc-ot-content">
           <OrderTrackingPanel
+            invoicePath={orderingPath(sessionId, "orders")}
             order={order}
             onRequestPayment={() => setShowPaymentRequest(true)}
             onShowVietQr={() => setShowVietQr(true)}
@@ -399,12 +401,14 @@ export function OrderTrackingPage() {
    ======================================================================== */
 
 function OrderTrackingPanel({
+  invoicePath,
   order,
   onRequestPayment,
   onShowVietQr,
   paymentNotice,
   vietQrAvailable,
 }: {
+  invoicePath: string;
   order: OrderTrackingOrder;
   onRequestPayment: () => void;
   onShowVietQr: () => void;
@@ -499,7 +503,9 @@ function OrderTrackingPanel({
               <p>{t("Ưu đãi, tích điểm và thanh toán được tính trên toàn bộ các lần gọi món.")}</p>
             </div>
           </div>
-          <Link className="cmc-ot-payment-primary" to="..">{t("Xem hóa đơn phiên bàn")}</Link>
+          <Link className="cmc-ot-payment-primary" to={invoicePath}>
+            {t("Xem hóa đơn phiên bàn")}
+          </Link>
         </section>
       ) : (
       <section className="cmc-ot-payment-card" aria-labelledby="cmc-payment-title">

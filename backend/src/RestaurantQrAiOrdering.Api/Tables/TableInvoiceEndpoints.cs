@@ -70,6 +70,10 @@ public static class TableInvoiceEndpoints
             IVietQrProvider vietQrProvider,
             CancellationToken cancellationToken) =>
         {
+            var executionStrategy = db.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync<IResult>(async () =>
+            {
+                db.ChangeTracker.Clear();
             await using var transaction = db.Database.IsRelational()
                 ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
                 : null;
@@ -272,7 +276,8 @@ public static class TableInvoiceEndpoints
                 var persistedVietQr = CreateVietQrPayload(persistedInvoice, vietQrProvider);
                 return Results.Ok(CreatePaymentResponse(session, persistedInvoice!, orderRounds, persistedVietQr));
             }
-            return Results.Ok(CreatePaymentResponse(session, invoice!, orderRounds, vietQrPayload));
+                return Results.Ok(CreatePaymentResponse(session, invoice!, orderRounds, vietQrPayload));
+            });
         })
         .WithName("RequestTableInvoicePayment")
         .WithTags("Table Invoices");

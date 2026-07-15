@@ -233,6 +233,13 @@ public sealed class OrderStore : IOrderStore
             CancelPendingItems(order, now);
         }
 
+        // Serving from the board is a single atomic transition: the order and every
+        // non-cancelled item must agree before the update is committed.
+        if (status == OrderStatus.Served)
+        {
+            ServeActiveItems(order, now);
+        }
+
         // Stage the table-session close in the same unit of work as the status change so
         // a completed order and its closed session commit (or roll back) atomically.
         if (status == OrderStatus.Completed && order.TableSessionId is not null)
@@ -539,6 +546,12 @@ public sealed class OrderStore : IOrderStore
             return OrderStatus.Ready;
         }
 
+        if (order.Status == OrderStatus.Ready
+            && activeItems.All(item => item.Status == OrderItemStatus.Served))
+        {
+            return OrderStatus.Served;
+        }
+
         if (order.Status == OrderStatus.Confirmed
             && activeItems.Any(item => item.Status is OrderItemStatus.Preparing
                 or OrderItemStatus.Ready
@@ -557,6 +570,18 @@ public sealed class OrderStore : IOrderStore
             if (item.Status == OrderItemStatus.Pending)
             {
                 item.Status = OrderItemStatus.Cancelled;
+                item.UpdatedAt = now;
+            }
+        }
+    }
+
+    private static void ServeActiveItems(Order order, DateTimeOffset now)
+    {
+        foreach (var item in order.OrderItems)
+        {
+            if (item.Status != OrderItemStatus.Cancelled)
+            {
+                item.Status = OrderItemStatus.Served;
                 item.UpdatedAt = now;
             }
         }

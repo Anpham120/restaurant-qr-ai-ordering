@@ -12,5 +12,20 @@ describe("session orders lifecycle", () => {
     expect(source).not.toContain("await refresh()");
     expect(source).not.toContain("context, refresh");
     expect(source).toContain("getTableSessionOrders(context.sessionId, context.sessionToken)");
+    expect(source).toContain("watchTableSessionRealtime(context.sessionId, context.sessionToken)");
+    expect(source).toContain("subscribeOrderRealtime(refresh)");
+    expect(source).toContain("window.setInterval");
+    expect(source).toContain('searchParams.get("focus") === "invoice"');
+    expect(source).toContain('hubState === "ReadyForPayment"');
+  });
+
+  it("routes every successful scan through the semantic resume-state resolver", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("./TableScanPage.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(source).toContain("getSessionResumeDestination(result.session.sessionId, result.session.resumeState)");
+    expect(source).not.toMatch(/navigate\([^)]*\/menu/);
   });
 });

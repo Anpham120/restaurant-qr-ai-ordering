@@ -259,6 +259,19 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
             }
 
+            var isKitchenOnly = user.IsInRole(UserRole.Kitchen)
+                && !user.IsInRole(UserRole.Staff)
+                && !user.IsInRole(UserRole.Admin);
+            if (isKitchenOnly && status != OrderStatus.Served)
+            {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because Kitchen can only mark an order Served.",
+                    orderCode);
+                return ApiResults.Forbidden(
+                    "KITCHEN_ORDER_STATUS_FORBIDDEN",
+                    "Kitchen can only mark a Ready order as Served.");
+            }
+
             var result = orders.UpdateOrderStatus(orderCode, status, ActorContext.FromPrincipal(user));
             if (!result.IsFound || result.Order is null)
             {
@@ -323,7 +336,7 @@ public static partial class OrderEndpoints
 
             return Results.Ok(ToResponse(result.Order));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Kitchen, UserRole.Staff, UserRole.Admin))
         .WithName("UpdateOrderStatus")
         .WithTags("Orders");
 
@@ -634,6 +647,13 @@ public static partial class OrderEndpoints
             return ApiResults.Conflict(
                 "TABLE_INVOICE_PAYMENT_PENDING",
                 "New order rounds are disabled while payment is pending for the table invoice.");
+        }
+
+        if (session.Invoice?.Status is PaymentStatus.Paid or PaymentStatus.Confirmed)
+        {
+            return ApiResults.Conflict(
+                "TABLE_SESSION_SETTLED",
+                "New order rounds are disabled after the table invoice is settled.");
         }
 
         if (session.TableCode != normalizedTableCode)

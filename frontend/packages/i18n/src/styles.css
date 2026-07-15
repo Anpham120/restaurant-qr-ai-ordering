@@ -30,3 +30,32 @@
   outline: 2px solid var(--brand-brass);
   outline-offset: 2px;
 }
+
+.language-toggle {
+  align-items: center;
+  background: var(--brand-chestnut);
+  border: 1px solid color-mix(in srgb, var(--brand-chestnut) 82%, #fff);
+  border-radius: 999px;
+  box-shadow: 0 5px 14px rgba(76, 41, 31, .14);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: 800 .72rem/1 var(--brand-font-utility);
+  justify-content: center;
+  letter-spacing: .08em;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: .55rem;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.language-toggle:hover {
+  background: color-mix(in srgb, var(--brand-chestnut) 88%, var(--brand-brass));
+  box-shadow: 0 7px 18px rgba(76, 41, 31, .2);
+  transform: translateY(-1px);
+}
+
+.language-toggle:focus-visible {
+  outline: 2px solid var(--brand-brass);
+  outline-offset: 3px;
+}
