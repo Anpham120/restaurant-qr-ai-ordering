@@ -1,11 +1,9 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const frontendRoot = new URL("../../../", import.meta.url);
-
 function read(relativePath: string) {
-  return readFileSync(fileURLToPath(new URL(relativePath, frontendRoot)), "utf8");
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
 }
 
 describe("V59 Kitchen board layout", () => {
