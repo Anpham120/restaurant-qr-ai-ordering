@@ -80,6 +80,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V55: QR/Kitchen state logic has one live resolver/pipeline each; superseded one-shot routing, duplicate status maps, unused feature files/imports absent; full typecheck + tests pass.
 - V56: ∀ application log entry → request-controlled values omitted or CR/LF-sanitized before emission; CodeQL `cs/log-forging` findings = 0.
 - V57: ∀ verification command → execute from its authoritative component root or pass an explicit project/config path; parent-workspace invocation forbidden.
+- V58: ∀ `Placed|Confirmed` order, first active item `Pending→Preparing` → aggregate order `Preparing` in same mutation; refreshed Kitchen board moves card `confirmed→preparing`.
+- V59: Kitchen board @ desktop → exactly 4 equal columns `confirmed|preparing|ready|served` in one row; tablet → 2 columns; mobile → 1 column.
 
 ## §T
 
@@ -121,6 +123,7 @@ T34|x|add table-session resume-state resolver + additive open response|V51,I.api
 T35|x|route repeat scans + upgrade session orders to realtime state hub|V52,V53,I.ui,I.api
 T36|x|add atomic Served transition + fourth Kitchen column|V54,I.api,I.ui
 T37|x|remove superseded QR/Kitchen logic + full verification|V55,C
+T38|x|fix Kitchen card movement + four-column responsive board|V54,V55,V58,V59,I.api,I.ui
 
 ## §B
 
@@ -201,3 +204,4 @@ B73|2026-07-15|concurrent QR opens raced past the pre-insert lookup; non-relatio
 B74|2026-07-15|release verification invoked Compose without the authoritative `deploy/docker-compose.yml` path and its required CI environment|V21
 B75|2026-07-15|admin user endpoint logged route-controlled `userId`, so CodeQL found two CWE-117 log-forging paths and unresolved review threads blocked merge|V56
 B76|2026-07-15|backend verification ran from the parent workspace without an explicit solution path, so MSBuild found no project and produced a false test failure|V57
+B77|2026-07-15|`Placed` omitted from item-status aggregation + board `auto-fit minmax(340px,1fr)` wrapped Served lane below|V58,V59

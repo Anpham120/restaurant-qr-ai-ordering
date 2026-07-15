@@ -54,6 +54,37 @@ public sealed class OrderLifecycleTests : IClassFixture<RestaurantApiFactory>
     }
 
     [Fact]
+    public async Task TestV58_KitchenStartingPlacedOrderMovesToPreparing()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await SignInAsAdminAsync(client));
+
+        var order = await CreateDineInOrderAsync(client, tableIndex: 0);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await CreateKitchenAccessTokenAsync(client));
+
+        using var startResponse = await client.PatchAsJsonAsync(
+            $"/api/orders/{order.Code}/items/{order.ItemId}/status",
+            new { status = "Preparing" });
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        using var started = await ReadJsonAsync(startResponse);
+        Assert.Equal("Preparing", started.RootElement.GetProperty("status").GetString());
+
+        using var verificationScope = factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var verifiedOrder = await verificationDb.Orders
+            .AsNoTracking()
+            .Include(candidate => candidate.OrderItems)
+            .SingleAsync(candidate => candidate.OrderCode == order.Code);
+        Assert.Equal(OrderStatus.Preparing, verifiedOrder.Status);
+        Assert.Equal(OrderItemStatus.Preparing, verifiedOrder.OrderItems.Single().Status);
+    }
+
+    [Fact]
     public async Task TestV54_KitchenReadyToServedUpdatesOrderAndItemsAtomically()
     {
         using var client = factory.CreateClient();

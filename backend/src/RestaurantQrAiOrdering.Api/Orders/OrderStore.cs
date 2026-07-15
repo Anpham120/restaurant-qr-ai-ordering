@@ -540,7 +540,7 @@ public sealed class OrderStore : IOrderStore
             return order.Status;
         }
 
-        if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed or OrderStatus.Preparing
             && activeItems.All(item => item.Status is OrderItemStatus.Ready or OrderItemStatus.Served))
         {
             return OrderStatus.Ready;
@@ -552,7 +552,7 @@ public sealed class OrderStore : IOrderStore
             return OrderStatus.Served;
         }
 
-        if (order.Status == OrderStatus.Confirmed
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed
             && activeItems.Any(item => item.Status is OrderItemStatus.Preparing
                 or OrderItemStatus.Ready
                 or OrderItemStatus.Served))

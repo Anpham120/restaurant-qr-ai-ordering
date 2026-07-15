@@ -378,7 +378,7 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
     <>
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
 
-      <div className="ops-board">
+      <div className="ops-board ops-board--kitchen">
         <KitchenColumn
           title="Đơn mới"
           icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
