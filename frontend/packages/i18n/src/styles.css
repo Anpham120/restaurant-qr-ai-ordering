@@ -1,0 +1,32 @@
+.language-switcher {
+  align-items: center;
+  background: color-mix(in srgb, var(--brand-paper) 88%, transparent);
+  border: 1px solid var(--brand-clay-line);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: .15rem;
+  padding: .2rem;
+}
+
+.language-switcher button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--brand-muted);
+  cursor: pointer;
+  font: 800 .68rem/1 var(--brand-font-utility);
+  letter-spacing: .06em;
+  min-height: 1.9rem;
+  min-width: 2.35rem;
+  padding: .45rem .55rem;
+}
+
+.language-switcher button[aria-pressed="true"] {
+  background: var(--brand-chestnut);
+  color: #fff;
+}
+
+.language-switcher button:focus-visible {
+  outline: 2px solid var(--brand-brass);
+  outline-offset: 2px;
+}

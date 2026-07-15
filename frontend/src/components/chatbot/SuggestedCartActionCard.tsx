@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { formatVnd } from "@cmc/brand-ui";
+import { useI18n } from "@cmc/i18n";
+import { localizeMenuItemName } from "@cmc/i18n/menu";
 import type { SuggestedCartAction } from "../../types";
 
 type SuggestedCartActionCardProps = {
@@ -19,7 +20,9 @@ export function SuggestedCartActionCard({
   onConfirm,
   onDismiss,
 }: SuggestedCartActionCardProps) {
+  const { formatMoney, locale, t } = useI18n();
   const [quantity, setQuantity] = useState(action.quantity);
+  const displayName = localizeMenuItemName(action.menuItemId, action.name, locale);
 
   function increment() {
     setQuantity((q) => q + 1);
@@ -36,32 +39,32 @@ export function SuggestedCartActionCard({
   return (
     <article className={`cmc-suggestion-card ${status}${isAvailable ? "" : " unavailable"}`}>
       {imageUrl ? (
-        <img className="cmc-suggestion-image" alt={action.name} src={imageUrl} loading="lazy" />
+        <img className="cmc-suggestion-image" alt={displayName} src={imageUrl} loading="lazy" />
       ) : null}
       <div>
         <p className="cmc-suggestion-eyebrow">
-          {isAvailable ? "Gợi ý cần xác nhận" : "Tạm hết hàng"}
+          {isAvailable ? t("Gợi ý cần xác nhận") : t("Tạm hết hàng")}
         </p>
-        <h3>{action.name}</h3>
+        <h3>{displayName}</h3>
         <p>{action.reason}</p>
         {isAvailable ? (
           <p className="cmc-suggestion-confirmation">
-            AI chỉ đề xuất món này. Giỏ hàng chỉ thay đổi sau khi bạn bấm xác nhận.
+            {t("AI chỉ đề xuất món này. Giỏ hàng chỉ thay đổi sau khi bạn bấm xác nhận.")}
           </p>
         ) : (
           <p className="cmc-suggestion-unavailable">
-            Món này tạm hết. Không thể thêm vào giỏ hàng.
+            {t("Món này tạm hết. Không thể thêm vào giỏ hàng.")}
           </p>
         )}
       </div>
       <dl>
         <div>
-          <dt>Giá</dt>
-          <dd>{formatVnd(action.price)}</dd>
+          <dt>{t("Giá")}</dt>
+          <dd data-money>{formatMoney(action.price)}</dd>
         </div>
         <div>
-          <dt>Tổng</dt>
-          <dd>{formatVnd(action.price * quantity)}</dd>
+          <dt>{t("Tổng")}</dt>
+          <dd data-money>{formatMoney(action.price * quantity)}</dd>
         </div>
       </dl>
       {status === "pending" ? (
@@ -74,23 +77,23 @@ export function SuggestedCartActionCard({
                 <button type="button" onClick={increment}>+</button>
               </div>
               <button type="button" className="cmc-chat-button primary" onClick={handleConfirm}>
-                Thêm vào giỏ
+                {t("Thêm vào giỏ")}
               </button>
               <button type="button" className="cmc-chat-button ghost" onClick={() => onDismiss(action)}>
-                Bỏ qua
+                {t("Bỏ qua")}
               </button>
             </>
           ) : (
             <button type="button" className="cmc-chat-button ghost" onClick={() => onDismiss(action)}>
-              Bỏ qua
+              {t("Bỏ qua")}
             </button>
           )}
         </div>
       ) : (
         <p className="cmc-suggestion-status">
           {status === "confirmed"
-            ? `Đã thêm ${quantity} phần vào giỏ.`
-            : "Bạn đã bỏ qua gợi ý này."}
+            ? t("Đã thêm {count} phần vào giỏ.", { count: quantity })
+            : t("Bạn đã bỏ qua gợi ý này.")}
         </p>
       )}
     </article>

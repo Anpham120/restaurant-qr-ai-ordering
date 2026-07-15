@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Banknote, CheckCircle2, QrCode, ReceiptText } from "lucide-react";
-import { formatVnd } from "@cmc/brand-ui";
+import { useI18n } from "@cmc/i18n";
+import { localizeMenuItemName } from "@cmc/i18n/menu";
 import type {
   OrderTrackingOrder,
   TableInvoice,
@@ -24,7 +25,19 @@ const itemStatusLabel: Record<string, string> = {
   Cancelled: "Đã hủy",
 };
 
+const orderStatusLabel: Record<string, string> = {
+  Draft: "Bản nháp",
+  Placed: "Đã gửi",
+  Confirmed: "Đã xác nhận",
+  Preparing: "Đang chuẩn bị",
+  Ready: "Sẵn sàng phục vụ",
+  Served: "Đã phục vụ",
+  Completed: "Hoàn tất",
+  Cancelled: "Đã hủy",
+};
+
 export function SessionOrdersPage() {
+  const { formatDateTime, formatMoney, locale, t } = useI18n();
   const { context } = useOrderingSession();
   const [orders, setOrders] = useState<OrderTrackingOrder[]>([]);
   const [invoice, setInvoice] = useState<TableInvoice | null>(null);
@@ -44,7 +57,7 @@ export function SessionOrdersPage() {
       setOrders(nextOrders);
       setInvoice(nextInvoice);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể tải các món đã gọi.");
+      setError(t(cause instanceof Error ? cause.message : "Không thể tải các món đã gọi."));
     } finally {
       setLoading(false);
     }
@@ -63,7 +76,7 @@ export function SessionOrdersPage() {
 
   useEffect(() => { void loadOrders(); }, [context.sessionId, context.sessionToken]);
 
-  if (loading) return <section className="ordering-page"><p>Đang tải hóa đơn phiên bàn…</p></section>;
+  if (loading) return <section className="ordering-page"><p>{t("Đang tải hóa đơn phiên bàn…")}</p></section>;
 
   const canRequestPayment = Boolean(
     invoice &&
@@ -77,51 +90,51 @@ export function SessionOrdersPage() {
   return (
     <section className="ordering-page" aria-labelledby="session-orders-title">
       <header className="ordering-page-heading">
-        <div><p>Phiên bàn {context.tableCode}</p><h1 id="session-orders-title">Món đã gọi</h1></div>
-        <button type="button" onClick={() => void loadOrders()}>Làm mới</button>
+        <div><p>{t("Phiên bàn {table}", { table: context.tableCode })}</p><h1 id="session-orders-title">{t("Món đã gọi")}</h1></div>
+        <button type="button" onClick={() => void loadOrders()}>{t("Làm mới")}</button>
       </header>
 
-      {error ? <div className="ordering-inline-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadOrders()}>Thử lại</button></div> : null}
+      {error ? <div className="ordering-inline-error" role="alert"><p>{error}</p><button type="button" onClick={() => void loadOrders()}>{t("Thử lại")}</button></div> : null}
 
       {!error && invoice ? (
         <section className={`table-invoice-summary ${isPending ? "is-pending" : ""} ${isPaid ? "is-paid" : ""}`} aria-labelledby="table-invoice-title">
           <div className="table-invoice-summary-heading">
-            <div><ReceiptText aria-hidden="true" size={22} /><span><small>Hóa đơn toàn phiên</small><strong id="table-invoice-title">{invoice.orderRounds.length} lần gọi món</strong></span></div>
-            <strong>{formatVnd(invoice.totalAmount)}</strong>
+            <div><ReceiptText aria-hidden="true" size={22} /><span><small>{t("Hóa đơn toàn phiên")}</small><strong id="table-invoice-title">{t("{count} lần gọi món", { count: invoice.orderRounds.length })}</strong></span></div>
+            <strong data-money>{formatMoney(invoice.totalAmount)}</strong>
           </div>
-          <p>Mã ưu đãi, tích điểm và thanh toán được áp dụng một lần cho toàn bộ món trong phiên bàn.</p>
+          <p>{t("Mã ưu đãi, tích điểm và thanh toán được áp dụng một lần cho toàn bộ món trong phiên bàn.")}</p>
 
-          {canRequestPayment ? <button className="table-invoice-pay-button" onClick={() => setShowPaymentRequest(true)} type="button">Yêu cầu thanh toán</button> : null}
-          {isPending && invoice.method === "COD" ? <div className="table-invoice-status"><Banknote aria-hidden="true" size={20} /><span><strong>Đang chờ thanh toán tiền mặt</strong><small>Nhân viên sẽ đến bàn để thu tiền và xác nhận hóa đơn.</small></span></div> : null}
-          {isPending && invoice.method === "VietQR" ? <div className="table-invoice-status"><QrCode aria-hidden="true" size={20} /><span><strong>Đang chờ thanh toán VietQR</strong><small>Chuyển đúng số tiền và nội dung trên mã QR.</small></span></div> : null}
-          {isPaid ? <div className="table-invoice-status"><CheckCircle2 aria-hidden="true" size={20} /><span><strong>Hóa đơn đã thanh toán</strong><small>Cảm ơn bạn đã dùng bữa tại CMC Restaurant.</small></span></div> : null}
+          {canRequestPayment ? <button className="table-invoice-pay-button" onClick={() => setShowPaymentRequest(true)} type="button">{t("Yêu cầu thanh toán")}</button> : null}
+          {isPending && invoice.method === "COD" ? <div className="table-invoice-status"><Banknote aria-hidden="true" size={20} /><span><strong>{t("Đang chờ thanh toán tiền mặt")}</strong><small>{t("Nhân viên sẽ đến bàn để thu tiền và xác nhận hóa đơn.")}</small></span></div> : null}
+          {isPending && invoice.method === "VietQR" ? <div className="table-invoice-status"><QrCode aria-hidden="true" size={20} /><span><strong>{t("Đang chờ thanh toán VietQR")}</strong><small>{t("Chuyển đúng số tiền và nội dung trên mã QR.")}</small></span></div> : null}
+          {isPaid ? <div className="table-invoice-status"><CheckCircle2 aria-hidden="true" size={20} /><span><strong>{t("Hóa đơn đã thanh toán")}</strong><small>{t("Cảm ơn bạn đã dùng bữa tại CMC Restaurant.")}</small></span></div> : null}
 
           {vietQr ? (
             <div className="table-invoice-vietqr" role="status">
-              <img alt={`Mã VietQR cho hóa đơn ${vietQr.invoiceCode}`} src={vietQr.qrImageDataUri} />
-              <div><small>Nội dung chuyển khoản</small><strong>{vietQr.transferContent}</strong><span>{formatVnd(vietQr.amount)}</span></div>
+              <img alt={t("Mã VietQR cho hóa đơn {code}", { code: vietQr.invoiceCode })} src={vietQr.qrImageDataUri} />
+              <div><small>{t("Nội dung chuyển khoản")}</small><strong>{vietQr.transferContent}</strong><span data-money>{formatMoney(vietQr.amount)}</span></div>
             </div>
           ) : null}
         </section>
       ) : null}
 
       {!error && orders.length === 0 ? (
-        <div className="ordering-empty"><p>Bàn chưa có lần gọi món nào trong phiên này.</p><Link to="../menu">Quay lại thực đơn</Link></div>
+        <div className="ordering-empty"><p>{t("Bàn chưa có lần gọi món nào trong phiên này.")}</p><Link to="../menu">{t("Quay lại thực đơn")}</Link></div>
       ) : null}
 
       <div className="ordering-orders-list">
         {orders.map((order) => (
           <article className="ordering-order-card" key={order.orderId}>
             <header>
-              <div><strong>{order.orderCode}</strong><span>{new Date(order.createdAt).toLocaleString("vi-VN")}</span></div>
-              <Link to={order.orderCode}>Chi tiết</Link>
+              <div><strong>{order.orderCode}</strong><span>{formatDateTime(order.createdAt)}</span></div>
+              <Link to={order.orderCode}>{t("Chi tiết")}</Link>
             </header>
             <ul>
               {order.items.map((item) => (
-                <li key={item.orderItemId}><span>{item.quantity}× {item.name}</span><em>{itemStatusLabel[item.status] ?? item.status}</em></li>
+                <li key={item.orderItemId}><span>{item.quantity}× {localizeMenuItemName(item.menuItemId, item.name, locale)}</span><em>{t(itemStatusLabel[item.status] ?? item.status)}</em></li>
               ))}
             </ul>
-            <footer><span>Trạng thái: {order.status}</span><strong>{formatVnd(order.subtotalAmount)}</strong></footer>
+            <footer><span>{t("Trạng thái: {status}", { status: t(orderStatusLabel[order.status] ?? order.status) })}</span><strong data-money>{formatMoney(order.subtotalAmount)}</strong></footer>
           </article>
         ))}
       </div>

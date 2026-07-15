@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LanguageSwitcher, useI18n } from "@cmc/i18n";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearMenuCart, loadOrderContext, saveOrderContext } from "../components/customer/customerMenuStorage";
 import { openDineInSession, resolveTableQr } from "../services/tableSessionService";
@@ -6,6 +7,7 @@ import { openDineInSession, resolveTableQr } from "../services/tableSessionServi
 type ScanState = "loading" | "invalid" | "expired" | "error";
 
 export function TableScanPage({ tableCode }: { tableCode?: string }) {
+  const { t } = useI18n();
   const { qrToken: qrTokenFromPath } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -59,7 +61,8 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
 
   return (
     <main className="ordering-state" aria-live="polite">
-      {state === "loading" ? <p>Đang mở phiên gọi món…</p> : <><h1>Không thể mở phiên bàn</h1><p>{copy}</p><a href="/">Về trang giới thiệu</a></>}
+      <LanguageSwitcher />
+      {state === "loading" ? <p>{t("Đang mở phiên gọi món…")}</p> : <><h1>{t("Không thể mở phiên bàn")}</h1><p>{t(copy)}</p><a href="/">{t("Về trang giới thiệu")}</a></>}
     </main>
   );
 }

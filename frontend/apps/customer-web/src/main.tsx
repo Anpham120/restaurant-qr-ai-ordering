@@ -8,7 +8,9 @@ import {
   useLocation,
 } from "react-router-dom";
 import { NotFoundPage, PageTransition } from "@cmc/shared-ui";
+import { I18nProvider, LanguageSwitcher, useI18n } from "@cmc/i18n";
 import "@cmc/brand-ui/styles.css";
+import "@cmc/i18n/styles.css";
 import "@cmc/shared-ui/styles.css";
 import "../../../src/styles.css";
 import logoUrl from "../../../src/mocks/images/logo.png";
@@ -28,6 +30,7 @@ function getOrderingBaseUrl() {
 }
 
 function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean }) {
+  const { t } = useI18n();
   const location = useLocation();
   const target = new URL(
     preservePath ? `${location.pathname}${location.search}` : "/",
@@ -40,30 +43,32 @@ function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean 
 
   return (
     <main className="ordering-state">
-      <p>Đang mở ứng dụng gọi món…</p>
-      <a href={target}>Tiếp tục</a>
+      <p>{t("Đang mở ứng dụng gọi món…")}</p>
+      <a href={target}>{t("Tiếp tục")}</a>
     </main>
   );
 }
 
 function MarketingLayout() {
+  const { t } = useI18n();
   const location = useLocation();
 
   return (
     <div className="landing-shell">
-      <a className="skip-link" href="#main-content">Chuyển đến nội dung chính</a>
+      <a className="skip-link" href="#main-content">{t("Chuyển đến nội dung chính")}</a>
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link className="landing-brand" to="/" aria-label="CMC Restaurant - Trang chủ">
+          <Link className="landing-brand" to="/" aria-label={`CMC Restaurant - ${t("Trang chủ")}`}>
             <img className="landing-brand-logo" alt="" src={logoUrl} width="44" height="44" />
             <span className="landing-brand-text" translate="no"><strong>CMC Restaurant</strong><small>Restaurant</small></span>
           </Link>
-          <nav className="landing-nav" aria-label="Điều hướng marketing">
-            <Link to="/#gioi-thieu">Giới thiệu</Link>
-            <Link to="/menu">Thực đơn</Link>
-            <Link to="/#danh-gia">Đánh giá</Link>
-            <Link to="/album">Album</Link>
+          <nav className="landing-nav" aria-label={t("Điều hướng trang giới thiệu")}>
+            <Link to="/#gioi-thieu">{t("Giới thiệu")}</Link>
+            <Link to="/menu">{t("Thực đơn")}</Link>
+            <Link to="/#danh-gia">{t("Đánh giá")}</Link>
+            <Link to="/album">{t("Album")}</Link>
           </nav>
+          <LanguageSwitcher className="landing-language-switcher" />
         </div>
       </header>
       <main id="main-content">
@@ -95,5 +100,5 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><RouterProvider router={router} /></StrictMode>,
+  <StrictMode><I18nProvider><RouterProvider router={router} /></I18nProvider></StrictMode>,
 );

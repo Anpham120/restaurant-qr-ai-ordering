@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from "react";
+import { useI18n } from "@cmc/i18n";
 
 export type BrandLocale = "vi" | "en";
 
@@ -12,12 +13,13 @@ export function formatVnd(amount: number, locale: BrandLocale = "vi") {
 }
 
 export function BrandWordmark({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+  const { t } = useI18n();
   return (
     <div className={`brand-wordmark ${className}`.trim()} {...props}>
       <span className="brand-wordmark-monogram" aria-hidden="true">CMC</span>
       <span className="brand-wordmark-copy">
         <strong>CMC Restaurant</strong>
-        <small>Gọi món tại bàn</small>
+        <small>{t("Gọi món tại bàn")}</small>
       </span>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useI18n } from "@cmc/i18n";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { ApiError, createApiClient } from "@cmc/api-client";
@@ -62,10 +63,11 @@ export function StatusBadge({
 }
 
 export function NotFoundPage() {
+  const { t } = useI18n();
   return (
     <StatePanel
-      title="Không tìm thấy trang"
-      message="Đường dẫn này không tồn tại trong portal hiện tại."
+      title={t("Không tìm thấy trang")}
+      message={t("Đường dẫn này không tồn tại trong portal hiện tại.")}
       kind="error"
     />
   );

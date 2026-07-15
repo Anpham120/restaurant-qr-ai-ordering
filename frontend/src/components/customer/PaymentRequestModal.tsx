@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@cmc/i18n";
 import { Banknote, QrCode, X } from "lucide-react";
 import type { RequestedPaymentMethod } from "../../types";
 
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function PaymentRequestModal({ onClose, onRequest }: Props) {
+  const { t } = useI18n();
   const [method, setMethod] = useState<RequestedPaymentMethod>("COD");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +36,7 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Không gửi được yêu cầu thanh toán.",
+          : t("Không gửi được yêu cầu thanh toán."),
       );
     } finally {
       isSubmittingRef.current = false;
@@ -50,18 +52,18 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
       }}
     >
       <section
-        aria-label="Yêu cầu thanh toán"
+        aria-label={t("Yêu cầu thanh toán")}
         aria-modal="true"
         className="payment-request-modal"
         role="dialog"
       >
         <header className="payment-request-header">
           <div>
-            <span className="panel-kicker">Thanh toán tại bàn</span>
-            <h3>Yêu cầu thanh toán</h3>
+            <span className="panel-kicker">{t("Thanh toán tại bàn")}</span>
+            <h3>{t("Yêu cầu thanh toán")}</h3>
           </div>
           <button
-            aria-label="Đóng"
+            aria-label={t("Đóng")}
             className="vietqr-close"
             disabled={isSubmitting}
             onClick={onClose}
@@ -72,14 +74,14 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
         </header>
 
         <p className="payment-request-copy">
-          Chọn cách thanh toán. Nhân viên sẽ xác nhận sau khi nhận đủ tiền.
+          {t("Chọn cách thanh toán. Nhân viên sẽ xác nhận sau khi nhận đủ tiền.")}
         </p>
 
         <fieldset className="payment-request-options">
-          <legend>Phương thức thanh toán</legend>
+          <legend>{t("Phương thức thanh toán")}</legend>
           <label className={method === "COD" ? "is-selected" : ""}>
             <input
-              aria-label="Tiền mặt"
+              aria-label={t("Tiền mặt")}
               checked={method === "COD"}
               name="payment-method"
               onChange={() => setMethod("COD")}
@@ -88,8 +90,8 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
             />
             <Banknote aria-hidden="true" size={22} />
             <span>
-              <strong>Tiền mặt</strong>
-              <small>Nhân viên đến bàn thu tiền</small>
+              <strong>{t("Tiền mặt")}</strong>
+              <small>{t("Nhân viên đến bàn thu tiền")}</small>
             </span>
           </label>
           <label className={method === "VietQR" ? "is-selected" : ""}>
@@ -103,7 +105,7 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
             <QrCode aria-hidden="true" size={22} />
             <span>
               <strong>VietQR</strong>
-              <small>Quét mã bằng ứng dụng ngân hàng</small>
+              <small>{t("Quét mã bằng ứng dụng ngân hàng")}</small>
             </span>
           </label>
         </fieldset>
@@ -112,10 +114,10 @@ export function PaymentRequestModal({ onClose, onRequest }: Props) {
 
         <footer className="payment-request-actions">
           <button className="cmc-secondary-link" disabled={isSubmitting} onClick={onClose} type="button">
-            Để sau
+            {t("Để sau")}
           </button>
           <button className="cmc-payment-request-submit" disabled={isSubmitting} onClick={submitRequest} type="button">
-            {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu"}
+            {isSubmitting ? t("Đang gửi...") : t("Gửi yêu cầu")}
           </button>
         </footer>
       </section>

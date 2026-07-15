@@ -66,6 +66,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V42: ∀ `/api/users` mutation → `AdminOnly`; create/update/delete persists; duplicate email + missing user deterministic; current admin cannot delete self or remove own Admin role.
 - V43: landing + ordering → one warm Vietnamese brand token set; display/body/utility fonts + VND formatting identical; money uses tabular utility numerals.
 - V44: landing + ordering locale ∈ {`vi`,`en`} persists across hosts; switch updates static UI, navigation, accessibility copy, dates, money, category, item name + description.
+- V45: landing + ordering @ viewport ≥320px → no horizontal overflow; primary controls touch target ≥44px; header/nav/modal respect safe-area; content hierarchy remains readable without zoom.
+- V46: ∀ declared `@cmc/*` workspace dependency → matching workspace package + lock entry exist; fresh install then frontend typecheck resolves every package.
 
 ## §T
 
@@ -96,8 +98,9 @@ T23|x|persist recommendation cards per chat message and resolve latest-card deta
 T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusions and reusable Gemini client into production AI|V39,V40,I.ai,I.api
 T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
 T26|x|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
-T27|.|add persistent VI/EN switch + full landing/ordering/menu localization|V44,I.ui
-T28|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44
+T27|x|add persistent VI/EN switch + full landing/ordering/menu localization|V44,V46,I.ui
+T28|~|optimize landing + ordering responsive mobile layout + regressions|V45,I.ui
+T29|.|run full repo verification; commit + push AI and requested features|C,V42,V43,V44,V45
 
 ## §B
 
@@ -159,3 +162,8 @@ B54|2026-07-13|the customer phrase `đồ uống có cồn` did not exactly matc
 B55|2026-07-13|frozen text artifacts were hashed from checkout bytes, so Windows CRLF and Linux LF produced different hashes for identical benchmark content and failed CI|V38
 B56|2026-07-13|the production AI image resolved default PyTorch CUDA/NVIDIA wheels on a CPU VPS, creating multi-gigabyte layers until Docker export broke the SSH deployment connection|V41
 B57|2026-07-13|rollback recreated a healthy stack but its immediate API health check treated a transient TLS certificate mismatch as terminal, so the rollback workflow reported failure despite public 200 responses|V41
+B58|2026-07-15|new `@cmc/i18n` workspace package was declared before lock/install refresh, so typecheck could not resolve it|V46
+B59|2026-07-15|menu localization generic required category metadata absent from the shared customer `MenuItem` contract|V44
+B60|2026-07-15|localized menu filters read a nonexistent `MenuItem.categoryId` instead of joining canonical category name to response category ID|V44
+B61|2026-07-15|verification batch ran from the parent workspace, so relative `frontend` prefix missed the repository package|repo-scoped verification command
+B62|2026-07-15|menu parity regression expected materialized `m_###` strings while the canonical C# seed declares `Item(index, ...)`|V44
