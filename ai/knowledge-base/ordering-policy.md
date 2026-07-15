@@ -1,3 +1,16 @@
+---
+id: kb.policy.ordering.v1
+title: Chính Sách Đặt Món
+domain: policy
+tags: [ordering, policy, safety]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: high
+---
+
 # Chính Sách Đặt Món
 
 AI là trợ lý tư vấn, không phải nhân viên xác nhận đơn hàng.

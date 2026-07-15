@@ -16,6 +16,7 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 
 - ui: customer, admin, staff, kitchen Vite portals.
 - api: ASP.NET Core `/api/*`.
+- api: `POST /api/table-sessions` → active session + capability + `resumeState ∈ {New,CartPending,OrderInProgress,ReadyForPayment,PaymentPending,Paid}`.
 - db: EF Core + PostgreSQL; Development InMemory.
 - ai: FastAPI RAG `/chat` adapter.
 - deploy: Docker Compose + GitHub Actions.
@@ -63,6 +64,22 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V39: ∀ Python-RAG menu recommendation → live available menu is ranked by configured BM25/dense/hybrid stack; category/tag constraints apply before ranking; previously suggested or explicitly rejected IDs cannot become cards; explicit count 1..8 is filled without duplicate cards when enough candidates exist.
 - V40: ∀ production hybrid startup → exact multilingual-E5 revision is packaged in the AI image and reused across KB/live-menu indexes; unavailable dense runtime degrades to observable BM25 fallback instead of failing the AI service.
 - V41: ∀ production AI image build → PyTorch is installed from the official CPU-only index before RAG dependencies and CUDA/NVIDIA wheels are absent; deployment health checks retry transient TLS failures during Nginx certificate reload.
+- V42: ∀ `/api/users` mutation → `AdminOnly`; create/update/delete persists; duplicate email + missing user deterministic; current admin cannot delete self or remove own Admin role.
+- V43: landing + ordering → one warm Vietnamese brand token set; display/body/utility fonts + VND formatting identical; money uses tabular utility numerals.
+- V44: landing + ordering locale ∈ {`vi`,`en`} persists across hosts; switch updates static UI, navigation, accessibility copy, dates, money, category, item name + description.
+- V45: landing + ordering @ viewport ≥320px → no horizontal overflow; primary controls touch target ≥44px; header/nav/modal respect safe-area; content hierarchy remains readable without zoom.
+- V46: ∀ declared `@cmc/*` workspace dependency → matching workspace package + lock entry exist; fresh install then frontend typecheck resolves every package.
+- V47: ∀ order-detail invoice action → canonical `/table-session/:sessionId/orders`; never session root/menu.
+- V48: kitchen active pipeline = `Placed|Confirmed|Preparing|Ready`; `order.created` reloads board; `Placed` visible in new-order column.
+- V49: ∀ relational table-invoice payment request → serializable transaction executes inside EF execution strategy; COD/VietQR capability + idempotency preserved; missing session → structured 404, never 500.
+- V50: ordering header has no dashed divider; locale control = one ≥44px current-locale `VI|EN` button; click flips locale.
+- V51: ∀ valid table QR scan while session `Open` & unexpired → same `sessionId`; concurrent/multi-device scans create ≤1 active session; response `resumeState` deterministic, token values never logged.
+- V52: scan destination solely maps `resumeState`: `New→menu`, `CartPending→cart`, `OrderInProgress→orders`, payment states→`orders?focus=invoice`; ⊥ hardcoded post-scan menu redirect.
+- V53: session orders hub reflects aggregate orders/items/invoice; order/payment realtime reloads hub; disconnected realtime → 5s polling; payment pending/paid forbids new ordering.
+- V54: `Ready→Served` atomic order + all non-cancelled items; Kitchen|Staff allowed, Kitchen forbidden any other order transition; Kitchen board contains read-only Served column and realtime movement.
+- V55: QR/Kitchen state logic has one live resolver/pipeline each; superseded one-shot routing, duplicate status maps, unused feature files/imports absent; full typecheck + tests pass.
+- V56: ∀ application log entry → request-controlled values omitted or CR/LF-sanitized before emission; CodeQL `cs/log-forging` findings = 0.
+- V57: ∀ verification command → execute from its authoritative component root or pass an explicit project/config path; parent-workspace invocation forbidden.
 
 ## §T
 
@@ -91,6 +108,19 @@ T21|x|return deterministic live catalog for explicit category/tag requests; regr
 T22|x|exclude previously suggested session dishes from deterministic additional recommendations; honor 1-8 requested count|V36,I.ai,I.api
 T23|x|persist recommendation cards per chat message and resolve latest-card detail follow-up|V37,I.ai,I.api,I.ui
 T24|x|integrate benchmark-selected hybrid retrieval, structured session exclusions and reusable Gemini client into production AI|V39,V40,I.ai,I.api
+T25|x|add admin user create/update/delete API + UI + regressions|V42,I.api,I.ui
+T26|x|unify landing + ordering brand tokens, typography + VND formatting|V43,I.ui
+T27|x|add persistent VI/EN switch + full landing/ordering/menu localization|V44,V46,I.ui
+T28|x|optimize landing + ordering responsive mobile layout + regressions|V45,I.ui
+T29|x|run full repo verification; commit + push AI and requested features|C,V42,V43,V44,V45
+T30|x|fix order-detail invoice route|V47
+T31|x|surface placed orders in kitchen pipeline|V48
+T32|x|run table-invoice payment transaction inside retry strategy|V49
+T33|x|simplify ordering header + locale toggle|V45,V50
+T34|x|add table-session resume-state resolver + additive open response|V51,I.api
+T35|x|route repeat scans + upgrade session orders to realtime state hub|V52,V53,I.ui,I.api
+T36|x|add atomic Served transition + fourth Kitchen column|V54,I.api,I.ui
+T37|x|remove superseded QR/Kitchen logic + full verification|V55,C
 
 ## §B
 
@@ -152,3 +182,22 @@ B54|2026-07-13|the customer phrase `đồ uống có cồn` did not exactly matc
 B55|2026-07-13|frozen text artifacts were hashed from checkout bytes, so Windows CRLF and Linux LF produced different hashes for identical benchmark content and failed CI|V38
 B56|2026-07-13|the production AI image resolved default PyTorch CUDA/NVIDIA wheels on a CPU VPS, creating multi-gigabyte layers until Docker export broke the SSH deployment connection|V41
 B57|2026-07-13|rollback recreated a healthy stack but its immediate API health check treated a transient TLS certificate mismatch as terminal, so the rollback workflow reported failure despite public 200 responses|V41
+B58|2026-07-15|new `@cmc/i18n` workspace package was declared before lock/install refresh, so typecheck could not resolve it|V46
+B59|2026-07-15|menu localization generic required category metadata absent from the shared customer `MenuItem` contract|V44
+B60|2026-07-15|localized menu filters read a nonexistent `MenuItem.categoryId` instead of joining canonical category name to response category ID|V44
+B61|2026-07-15|verification batch ran from the parent workspace, so relative `frontend` prefix missed the repository package|repo-scoped verification command
+B62|2026-07-15|menu parity regression expected materialized `m_###` strings while the canonical C# seed declares `Item(index, ...)`|V44
+B63|2026-07-15|server-render payment regression mounted a localized component without its required `I18nProvider` runtime contract|V44
+B64|2026-07-15|payment regression still expected legacy `220.000đ` after shared money formatting standardized the UI on Intl VND output|V43
+B65|2026-07-15|AI verification launched pytest from the repository root even though tests import the `ai` directory as their package root|AI-scoped verification command
+B66|2026-07-15|AI retriever ADR used Markdown hard-break spaces that failed the authoritative staged whitespace gate|`git diff --cached --check`
+B67|2026-07-15|order-detail invoice link used route-relative parent, resolving to session index then menu redirect|V47
+B68|2026-07-15|new orders start `Placed`, but kitchen page and board both admitted only `Confirmed` into new-order column|V48
+B69|2026-07-15|payment endpoint opened a serializable transaction outside Npgsql retry execution strategy, causing production 500 before session lookup|V49
+B70|2026-07-15|invoice route was referenced inside nested tracking panel without passing session scope, so source assertion passed but ordering typecheck failed|V47,frontend typecheck
+B71|2026-07-15|scan page always redirected successful reusable session to `/menu`; open response exposed no semantic resume state|V51,V52
+B72|2026-07-15|V53 integration fixture assumed invoice GET persisted a `TableInvoice`; GET only projects a response, so payment-state setup had no row|V53
+B73|2026-07-15|concurrent QR opens raced past the pre-insert lookup; non-relational tests exposed multiple returned session ids because uniqueness catch was provider-dependent|V51
+B74|2026-07-15|release verification invoked Compose without the authoritative `deploy/docker-compose.yml` path and its required CI environment|V21
+B75|2026-07-15|admin user endpoint logged route-controlled `userId`, so CodeQL found two CWE-117 log-forging paths and unresolved review threads blocked merge|V56
+B76|2026-07-15|backend verification ran from the parent workspace without an explicit solution path, so MSBuild found no project and produced a false test failure|V57

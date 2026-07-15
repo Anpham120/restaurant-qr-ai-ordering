@@ -1,0 +1,186 @@
+import type { Locale } from "./index";
+
+type MenuTranslation = readonly [name: string, description: string];
+
+export const CATEGORY_EN: Record<string, string> = {
+  cat_appetizer: "Appetizers",
+  cat_noodle: "Pho & Noodles",
+  cat_main: "Vietnamese Rice",
+  cat_seafood: "Seafood",
+  cat_hotpot: "Hotpot",
+  cat_chicken: "Chicken",
+  cat_regional: "Regional Specialties",
+  cat_vegetarian: "Vegetarian",
+  cat_drink: "Coffee & Tea",
+  cat_juice: "Juices & Smoothies",
+  cat_dessert: "Desserts",
+  cat_fruit: "Fresh Fruit",
+  cat_alcohol: "Beer & Wine",
+};
+
+const CATEGORY_NAME_EN: Record<string, string> = {
+  "Khai vị": "Appetizers",
+  "Phở & Bún": "Pho & Noodles",
+  "Cơm Việt": "Vietnamese Rice",
+  "Cơm": "Vietnamese Rice",
+  "Hải sản": "Seafood",
+  "Lẩu": "Hotpot",
+  "Gà": "Chicken",
+  "Món gà": "Chicken",
+  "Đặc sản vùng miền": "Regional Specialties",
+  "Món chay": "Vegetarian",
+  "Cà phê & Trà": "Coffee & Tea",
+  "Nước ép & Sinh tố": "Juices & Smoothies",
+  "Tráng miệng": "Desserts",
+  "Trái cây": "Fresh Fruit",
+  "Trái cây tươi": "Fresh Fruit",
+  "Bia & Rượu": "Beer & Wine",
+};
+
+export const MENU_ITEM_EN: Record<string, MenuTranslation> = {
+  m_001: ["Fresh shrimp and pork rolls", "Fresh shrimp, boiled pork, rice noodles and herbs wrapped in rice paper with peanut sauce."],
+  m_002: ["Hanoi fried spring rolls", "Crispy rolls filled with pork, wood ear mushrooms, glass noodles and egg, served with sweet fish sauce."],
+  m_003: ["Mekong Delta crispy pancake", "Golden rice pancake with shrimp, pork and bean sprouts, wrapped with herbs and dipped in fish sauce."],
+  m_004: ["Thanh Tri steamed rice rolls", "Silky rice rolls with pork and wood ear mushrooms, served with cinnamon pork and fish sauce."],
+  m_005: ["Green mango and tiger prawn salad", "Crunchy green mango tossed with tiger prawns, roasted peanuts, herbs and sweet-sour fish sauce."],
+  m_006: ["Saigon pate baguette", "Crisp baguette with pate, pork sausage, cucumber, pickles and fresh coriander."],
+  m_007: ["Crab and asparagus soup", "Hot soup with crab meat, fresh asparagus, quail eggs and fragrant shiitake mushrooms."],
+  m_008: ["Pho with rare and brisket beef", "Twelve-hour bone broth with tender rare beef, brisket and fresh spring onions."],
+  m_009: ["Free-range chicken pho", "Clear chicken pho broth with sweet, firm free-range chicken and fragrant fried shallots."],
+  m_010: ["Hue spicy beef noodle soup", "Lemongrass-chilli broth with beef, pork knuckle and authentic Hue crab cake."],
+  m_011: ["Hanoi grilled pork noodles", "Charcoal-grilled pork patties and slices with rice noodles and sweet-sour fish sauce."],
+  m_012: ["Field crab noodle soup", "Tomato and field-crab broth with rich crab curd, tofu and water spinach."],
+  m_013: ["Mekong fermented fish noodles", "Rich fermented fish broth with shrimp, squid, roast pork and Mekong herbs."],
+  m_014: ["Noodles with fried tofu and shrimp paste", "Pressed rice noodles, crisp tofu, green rice pork, fermented pork and traditional shrimp paste."],
+  m_015: ["Broken rice with pork chop", "Honey-grilled pork chop, shredded pork skin and steamed egg loaf in classic Saigon style."],
+  m_016: ["Hoi An chicken rice", "Golden turmeric rice with shredded chicken, herbs and signature ginger fish sauce."],
+  m_017: ["Rice with grilled pork ribs", "Five-spice charcoal-grilled pork ribs with steamed rice, pickles and fish sauce."],
+  m_018: ["Clay-pot caramelized fish rice", "Basa fish braised in a clay pot with coconut caramel, pepper, onion and chilli."],
+  m_019: ["Saigon fried rice", "Garlic fried rice with Chinese sausage, shrimp, egg, green beans and carrot."],
+  m_020: ["Hue baby clam rice", "Rice mixed with sauteed baby clams, herbs, peanuts and Hue fermented shrimp paste."],
+  m_021: ["Vietnamese shaking beef rice", "Butter-garlic seared Australian beef cubes with steamed rice and green salad."],
+  m_022: ["Grilled lobster with scallion oil", "Fresh lobster grilled with fragrant scallion oil, served with fried rice."],
+  m_023: ["Mekong straw-grilled snakehead fish", "Whole snakehead fish grilled over straw, wrapped in rice paper with herbs and anchovy sauce."],
+  m_024: ["Tay Ninh salt-roasted prawns", "Tiger prawns roasted with chilli salt, crisp garlic and kaffir lime leaves."],
+  m_025: ["Tamarind crab", "Sea crab tossed in a bold sweet-sour tamarind sauce, served with warm bread."],
+  m_026: ["Squid with satay", "Fresh squid stir-fried with spicy satay, onion, bell pepper and water spinach."],
+  m_027: ["Lemongrass-steamed clams", "Fresh clams steamed with lemongrass and chilli in their naturally sweet broth."],
+  m_028: ["Garlic-butter spotted babylon snails", "Sweet, crisp snails roasted in golden garlic butter."],
+  m_029: ["Sour red-tail catfish hotpot", "Fresh fish in tamarind sour broth with taro stems and herbs."],
+  m_030: ["Vinegar beef hotpot", "Thin Australian beef slices cooked in fermented-vinegar broth with noodles and vegetables."],
+  m_031: ["Vegetarian mushroom hotpot", "Aromatic broth with shiitake, enoki, king oyster mushrooms and fresh vegetables."],
+  m_032: ["Da Lat chicken and lemon basil hotpot", "Free-range chicken simmered with aromatic Da Lat lemon basil."],
+  m_033: ["Spicy seafood hotpot", "Shrimp, squid and clams in a bold Thai-Vietnamese tom yum broth."],
+  m_034: ["Herbal goat hotpot", "Tender young goat slow-cooked with nourishing Chinese herbs, noodles and greens."],
+  m_035: ["Mekong fermented fish hotpot", "Authentic fermented fish broth with field vegetables and sesbania flowers."],
+  m_036: ["Honey-grilled chicken", "Free-range chicken grilled golden with honey for crisp skin and tender meat."],
+  m_037: ["Lime-leaf steamed chicken", "Free-range chicken steamed with fragrant lime leaves and served with citrus pepper salt."],
+  m_038: ["Fish-sauce fried chicken wings", "Crispy wings glazed with caramelized garlic-chilli fish sauce."],
+  m_039: ["Lemongrass chilli chicken", "Free-range chicken stir-fried with lemongrass, chilli, onion and bell pepper."],
+  m_040: ["Green chilli salt grilled chicken", "Nha Trang-style chicken grilled with green chilli salt until crisp and savoury."],
+  m_041: ["Herbal braised chicken", "Free-range chicken gently braised with Chinese herbs in a clear, sweet broth."],
+  m_042: ["Vietnamese rotisserie chicken", "Golden Vietnamese-style rotisserie chicken with potatoes and salad."],
+  m_043: ["Quang noodles with shrimp and pork", "Golden Quang noodles with shrimp, pork, peanuts and toasted rice cracker."],
+  m_044: ["Hoi An cao lau noodles", "Chewy cao lau noodles with char siu pork and fresh Hoi An greens."],
+  m_045: ["Cau Mong rare veal", "Tender smoked veal with crisp skin, wrapped in rice paper and fresh herbs."],
+  m_046: ["Nam Vang pork and prawn noodles", "Clear-broth noodles with shrimp, pork, liver, bean sprouts and garlic chives."],
+  m_047: ["Pork and herb rice-paper rolls", "Boiled pork wrapped with rice paper and herbs, served with anchovy dipping sauce."],
+  m_048: ["Saigon pork offal congee", "Hot rice porridge with fresh pork offal, bean sprouts, fried shallots and crisp dough sticks."],
+  m_049: ["Hanoi chicken sticky rice", "Fragrant sticky rice with shredded chicken, fried shallots and scallion oil."],
+  m_050: ["Vegetarian shiitake pho", "Mushroom broth pho with tofu, fresh mushrooms and herbs."],
+  m_051: ["Five-colour vegetarian fried rice", "Fried rice with mushrooms, tofu, carrot, green beans and sweet corn."],
+  m_052: ["Vegetarian fresh rolls", "Rice-paper rolls with tofu, noodles, herbs and avocado, served with bean sauce."],
+  m_053: ["Bitter melon soup with mushroom", "Cooling bitter melon filled with shiitake mushrooms in a light broth."],
+  m_054: ["Tofu in tomato sauce", "Crisp tofu in fresh tomato sauce with spring onion and coriander."],
+  m_055: ["Vegetarian Quang noodles", "Quang noodles in mushroom broth with tofu, herbs and peanuts."],
+  m_056: ["Vegetarian Hue noodle soup", "Lemongrass-chilli vegetarian broth with tofu, mushrooms and greens."],
+  m_057: ["Vietnamese iced milk coffee", "Traditional phin coffee with condensed milk and ice."],
+  m_058: ["Hanoi egg coffee", "Bold black coffee topped with rich, silky Hanoi-style egg cream."],
+  m_059: ["Saigon bac xiu coffee", "A gentle Saigon drink with plenty of condensed milk and a touch of coffee."],
+  m_060: ["Peach orange lemongrass tea", "Tea with fresh peach, orange and fragrant lemongrass over ice."],
+  m_061: ["West Lake lotus tea", "Delicate tea scented with West Lake lotus and served in a traditional pot."],
+  m_062: ["Pearl milk tea", "Rich milk tea with house-made chewy black tapioca pearls."],
+  m_063: ["Coconut coffee", "Phin coffee blended with creamy coconut milk and crushed ice."],
+  m_064: ["Fresh orange juice", "Pure fresh-pressed orange juice with no added sugar, rich in vitamin C."],
+  m_065: ["Dak Lak avocado smoothie", "Dak Lak 034 avocado blended with condensed milk and ice."],
+  m_066: ["Watermelon juice", "Fresh-pressed red watermelon served chilled for a refreshing drink."],
+  m_067: ["Hoa Loc mango smoothie", "Ripe Hoa Loc mango blended with fresh milk and ice."],
+  m_068: ["Pennywort juice", "Fresh blended pennywort, naturally cooling and refreshing."],
+  m_069: ["Da Lat strawberry smoothie", "Da Lat strawberries blended with fresh milk for gentle natural sweetness."],
+  m_070: ["Saigon sugarcane juice", "Fresh sugarcane pressed with kumquat and ice, a Saigon street classic."],
+  m_071: ["Almond panna cotta sweet soup", "Chilled almond panna cotta with lychee and coconut milk."],
+  m_072: ["Caramel flan", "Silky baked custard with a lightly bitter caramel layer."],
+  m_073: ["Pomelo sweet soup", "Pomelo pith and mung bean sweet soup with creamy coconut milk."],
+  m_074: ["Jelly and pomegranate pearl dessert", "Chilled jelly with crunchy ruby pearls and coconut milk."],
+  m_075: ["Glutinous rice balls in ginger syrup", "Chewy rice balls filled with mung bean in warm sweet ginger syrup."],
+  m_076: ["Baked banana cake", "Golden baked banana cake with rich coconut milk and toasted sesame."],
+  m_077: ["Mango sticky rice", "Fragrant sticky rice with ripe mango and creamy coconut milk."],
+  m_078: ["Seasonal fruit platter", "A beautifully arranged selection of fresh seasonal fruit."],
+  m_079: ["Hoa Loc mango", "Golden ripe Hoa Loc mango with intense sweetness and aroma."],
+  m_080: ["Ri6 durian", "Ri6 durian with thick golden flesh, rich flavour and little fibre."],
+  m_081: ["Chilled watermelon", "Refreshing red watermelon, chilled and cut for easy sharing."],
+  m_082: ["Ben Tre green-skin pomelo", "Pink-fleshed green-skin pomelo with gentle sweetness and no bitterness."],
+  m_083: ["Binh Thuan dragon fruit", "Fresh red-fleshed Binh Thuan dragon fruit, light and nutritious."],
+  m_084: ["Honey-ripe papaya", "Golden ripe papaya cut and finished with a drizzle of honey."],
+  m_085: ["Saigon Special beer", "A 330 ml can of full-flavoured traditional Saigon Special beer."],
+  m_086: ["Hanoi beer", "A 330 ml can of light, refreshing Hanoi beer."],
+  m_087: ["Tiger Crystal beer", "A 330 ml can of crisp, light Tiger Crystal beer."],
+  m_088: ["Fresh Hanoi draught beer", "A chilled 330 ml glass of fresh Hanoi draught beer."],
+  m_089: ["Purple sticky rice wine", "Traditional purple sticky rice wine with a mellow sweetness and deep aroma."],
+  m_090: ["Hanoi plum wine", "Chilled Hanoi plum wine with a balanced sweet and sour finish."],
+  m_091: ["Peach lime honey cocktail", "A refreshing peach-lime cocktail with honey and natural sweetness."],
+};
+
+const TAG_EN: Record<string, string> = {
+  "pho bien": "Popular", signature: "Signature", chien: "Fried", "Ha Noi": "Hanoi",
+  "mien Tay": "Mekong Delta", chua: "Sour", tom: "Shrimp", "Sai Gon": "Saigon",
+  "binh dan": "Everyday", cua: "Crab", nong: "Hot", bo: "Beef", ga: "Chicken",
+  "cay vua": "Medium spicy", Hue: "Hue", nuong: "Grilled", "dam da": "Rich",
+  "nhom ban": "Groups", "Hoi An": "Hoi An", heo: "Pork", kho: "Braised",
+  "cao cap": "Premium", tiec: "Celebration", share: "Sharing", muc: "Squid",
+  hap: "Steamed", nhau: "Drinks pairing", rang: "Roasted", ca: "Fish",
+  "3-5 nguoi": "Serves 3–5", chay: "Vegetarian", nam: "Mushroom",
+  "Tay Nguyen": "Central Highlands", "cay dam": "Very spicy", "co hai san": "Contains seafood",
+  tiem: "Slow-braised", ngot: "Sweet", "gia dinh": "Family", "tre em": "Kids",
+  "cay nhe": "Mild spicy", "nguoi gia": "Seniors", "mien Trung": "Central Vietnam",
+  "mien Nam": "Southern Vietnam", "Da Nang": "Da Nang", cuon: "Rolls",
+  "an khuya": "Late night", sang: "Breakfast", healthy: "Healthy", "dau hu": "Tofu",
+  "giai nhiet": "Refreshing", beo: "Creamy", "thanh nhe": "Delicate", "mua lanh": "Cool season", xao: "Stir-fried",
+};
+
+export function localizeMenuCategory(categoryId: string, fallbackName: string, locale: Locale) {
+  return locale === "en" ? CATEGORY_EN[categoryId] ?? fallbackName : fallbackName;
+}
+
+export function localizeMenuCategoryName(categoryName: string, locale: Locale) {
+  return locale === "en" ? CATEGORY_NAME_EN[categoryName] ?? categoryName : categoryName;
+}
+
+export function localizeMenuItem<T extends {
+  id: string;
+  name: string;
+  description: string;
+  categoryId?: string;
+  categoryName?: string;
+}>(item: T, locale: Locale): T {
+  if (locale === "vi") return item;
+  const translation = MENU_ITEM_EN[item.id];
+  const localized = {
+    ...item,
+    name: translation?.[0] ?? item.name,
+    description: translation?.[1] ?? item.description,
+  };
+  if (!item.categoryId || !item.categoryName) return localized;
+  return {
+    ...localized,
+    categoryName: CATEGORY_EN[item.categoryId] ?? item.categoryName,
+  };
+}
+
+export function localizeMenuItemName(itemId: string, fallbackName: string, locale: Locale) {
+  return locale === "en" ? MENU_ITEM_EN[itemId]?.[0] ?? fallbackName : fallbackName;
+}
+
+export function localizeMenuTag(tag: string, locale: Locale, vietnameseLabel: string) {
+  return locale === "en" ? TAG_EN[tag] ?? tag : vietnameseLabel;
+}

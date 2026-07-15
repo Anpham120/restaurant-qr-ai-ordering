@@ -83,6 +83,82 @@ public sealed class TableInvoiceTests : IClassFixture<RestaurantApiFactory>
         Assert.Equal("NotRequested", invoice.RootElement.GetProperty("status").GetString());
     }
 
+    [Theory]
+    [InlineData(PaymentStatus.Pending, "TABLE_INVOICE_PAYMENT_PENDING")]
+    [InlineData(PaymentStatus.Paid, "TABLE_SESSION_SETTLED")]
+    public async Task TestV53_PaymentStateBlocksNewCartItemsAndOrderRounds(
+        PaymentStatus paymentStatus,
+        string expectedErrorCode)
+    {
+        using var client = factory.CreateClient();
+        var tableCode = paymentStatus == PaymentStatus.Pending ? "T94" : "T95";
+        var qrToken = $"ordering-lock-{Guid.NewGuid():N}";
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            db.RestaurantTables.Add(new RestaurantTable
+            {
+                Id = $"table-ordering-lock-{Guid.NewGuid():N}",
+                TableCode = tableCode,
+                DisplayName = "Table Ordering Lock Test",
+                QrToken = qrToken,
+                IsActive = true
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var sessionResponse = await client.PostAsJsonAsync("/api/table-sessions", new { qrToken, tableCode });
+        sessionResponse.EnsureSuccessStatusCode();
+        using var session = await ReadJsonAsync(sessionResponse);
+        var sessionId = session.RootElement.GetProperty("sessionId").GetString()!;
+        var sessionToken = session.RootElement.GetProperty("tableSessionToken").GetString()!;
+
+        using var menuResponse = await client.GetAsync("/api/menu");
+        menuResponse.EnsureSuccessStatusCode();
+        using var menu = await ReadJsonAsync(menuResponse);
+        var menuItemId = menu.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .First(item => item.GetProperty("isAvailable").GetBoolean())
+            .GetProperty("id")
+            .GetString()!;
+
+        await CreateOrderRoundAsync(client, tableCode, qrToken, sessionId, menuItemId, quantity: 1);
+        using var paymentRequest = CreateInvoicePaymentRequest(
+            sessionId,
+            sessionToken,
+            $"ordering-lock-{Guid.NewGuid():N}",
+            new { method = "COD", customerPhoneNumber = "0909000222" });
+        using var paymentResponse = await client.SendAsync(paymentRequest);
+        paymentResponse.EnsureSuccessStatusCode();
+
+        if (paymentStatus != PaymentStatus.Pending)
+        {
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            var invoice = await db.TableInvoices.SingleAsync(candidate => candidate.TableSessionId == sessionId);
+            invoice.Status = paymentStatus;
+            await db.SaveChangesAsync();
+        }
+
+        using var cartRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/table-sessions/{sessionId}/cart/items")
+        {
+            Content = JsonContent.Create(new { menuItemId, delta = 1 })
+        };
+        cartRequest.Headers.Add("X-Table-Session-Token", sessionToken);
+        using var cartResponse = await client.SendAsync(cartRequest);
+        Assert.Equal(HttpStatusCode.Conflict, cartResponse.StatusCode);
+        using var cartError = await ReadJsonAsync(cartResponse);
+        Assert.Equal(expectedErrorCode, cartError.RootElement.GetProperty("error").GetProperty("code").GetString());
+
+        using var orderRequest = CreateOrderRoundRequest(tableCode, qrToken, sessionId, menuItemId, quantity: 1);
+        using var orderResponse = await client.SendAsync(orderRequest);
+        Assert.Equal(HttpStatusCode.Conflict, orderResponse.StatusCode);
+        using var orderError = await ReadJsonAsync(orderResponse);
+        Assert.Equal(expectedErrorCode, orderError.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
     [Fact]
     public async Task TestV14_V17_V18_V19_PaymentRequestSettlesWholeSession()
     {

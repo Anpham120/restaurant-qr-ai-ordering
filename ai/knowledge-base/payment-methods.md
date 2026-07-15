@@ -1,3 +1,16 @@
+---
+id: kb.policy.payment.v1
+title: Phương Thức Thanh Toán
+domain: payment
+tags: [payment, vietqr, cash]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: high
+---
+
 # Phương Thức Thanh Toán
 
 ## Tổng Quan

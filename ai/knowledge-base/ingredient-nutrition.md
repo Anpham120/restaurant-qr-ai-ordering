@@ -1,3 +1,16 @@
+---
+id: kb.nutrition.ingredients.v1
+title: Nguyên Liệu Và Dinh Dưỡng
+domain: nutrition
+tags: [ingredients, nutrition, tags]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: high
+---
+
 # Thông Tin Nguyên Liệu & Dinh Dưỡng
 
 ## Nguyên Liệu Chính Theo Nhóm

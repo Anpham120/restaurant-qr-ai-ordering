@@ -2,22 +2,20 @@
    CMC Restaurant - Vị An Style (Restaurant-inspired Design)
    Warm Brown Theme | Fonts: Playfair Display + Karla
    ========================================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Karla:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&display=swap');
-
 .cmc-customer-page {
   /* Vị An Color Palette - Warm Brown */
-  --vian-green: #5a3a30;
-  --vian-green-light: #6e453b;
-  --vian-green-soft: #7a4f42;
-  --vian-gold: #C4A35A;
-  --vian-gold-light: #D4B86A;
-  --vian-cream: #FDF8F0;
-  --vian-warm-white: #FFFBF5;
-  --vian-brown: #3D2914;
-  --vian-brown-light: #5C4023;
-  --vian-muted: #8B7355;
-  --vian-red: #C44536;
-  --vian-border: #E8DFD0;
+  --vian-green: var(--brand-chestnut-dark);
+  --vian-green-light: var(--brand-chestnut);
+  --vian-green-soft: #8a5848;
+  --vian-gold: var(--brand-brass);
+  --vian-gold-light: #d2ad70;
+  --vian-cream: var(--brand-ivory);
+  --vian-warm-white: var(--brand-paper);
+  --vian-brown: var(--brand-ink);
+  --vian-brown-light: var(--brand-chestnut-dark);
+  --vian-muted: var(--brand-muted);
+  --vian-red: var(--brand-danger);
+  --vian-border: var(--brand-clay-line);
   
   /* Gradient backgrounds */
   --vian-gradient-hero: linear-gradient(135deg, #5a3a30 0%, #6e453b 40%, #7a4f42 70%, #a07060 100%);
@@ -25,9 +23,9 @@
   --vian-gradient-card: linear-gradient(180deg, rgba(90, 58, 48, 0.03) 0%, rgba(196, 163, 90, 0.02) 100%);
   
   /* Font families */
-  --font-display-vian: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display-vian: var(--brand-font-display);
   --font-script: "Dancing Script", cursive;
-  --font-body-vian: "Karla", "Segoe UI", system-ui, sans-serif;
+  --font-body-vian: var(--brand-font-body);
   
   display: grid;
   gap: 24px;
@@ -201,6 +199,8 @@
   font-family: var(--font-body-vian);
   font-size: 15px;
   outline: none;
+  min-width: 0;
+  width: 100%;
 }
 
 .cmc-search-input::placeholder {
@@ -619,8 +619,8 @@
 .cmc-stepper button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: transparent;
   color: var(--vian-green);
@@ -828,12 +828,71 @@
 }
 
 @media (max-width: 640px) {
+  .cmc-customer-page {
+    gap: 16px;
+  }
+
+  .cmc-menu-hero-copy {
+    padding: 28px 18px 32px;
+  }
+
   .cmc-menu-hero-copy h2 {
     font-size: 28px;
+  }
+
+  .cmc-menu-toolbar,
+  .cmc-menu-layout {
+    padding-inline: 12px;
+  }
+
+  .cmc-search-row {
+    padding: 10px 12px;
+  }
+
+  .cmc-menu-master-title {
+    align-items: flex-start;
+    padding: 18px 16px;
+  }
+
+  .cmc-menu-category-section {
+    border-radius: 18px;
+    padding: 16px;
   }
   
   .cmc-card-content {
     padding: 16px;
+  }
+
+  .cmc-cart-bar-icon {
+    display: none;
+  }
+
+  .cmc-cart-bar {
+    gap: 10px;
+  }
+
+  .cmc-cart-bar-btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .cmc-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cmc-add-button,
+  .cmc-stepper {
+    width: 100%;
+  }
+
+  .cmc-stepper {
+    justify-content: space-between;
+  }
+
+  .cmc-cart-bar-text span {
+    display: none;
   }
 }
 
@@ -1217,6 +1276,7 @@
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
+  min-height: 44px;
 }
 
 .cmc-menu-category-tabs button:hover {

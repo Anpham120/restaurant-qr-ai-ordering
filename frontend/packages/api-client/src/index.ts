@@ -38,6 +38,7 @@ import type {
   TableInvoicePaymentRequestResponse,
   UserListResponse,
   UserSummary,
+  UpdateUserRequest,
   ValidatePromotionRequest,
   ValidatePromotionResponse,
 } from "@cmc/shared-types";
@@ -81,6 +82,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
     users: {
       list: () => request<UserListResponse>("/users"),
       create: (payload: CreateUserRequest) => request<UserSummary>("/users", { method: "POST", body: JSON.stringify(payload) }),
+      update: (userId: string, payload: UpdateUserRequest) => request<UserSummary>(`/users/${encodeURIComponent(userId)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      delete: (userId: string) => request<void>(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" }),
       resetPassword: (userId: string, payload: ResetPasswordRequest) => request<void>(`/users/${encodeURIComponent(userId)}/reset-password`, { method: "POST", body: JSON.stringify(payload) }),
     },
     menu: { get: () => request<MenuResponse>("/menu") },

@@ -1,3 +1,16 @@
+---
+id: kb.combo.pairing.v1
+title: Combo Và Ghép Món
+domain: combo
+tags: [combo, pairing]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: medium
+---
+
 # Combo Và Gợi Ý Ghép Món
 
 ## Combo Bữa Trưa 1 Người (Budget 60k–100k)

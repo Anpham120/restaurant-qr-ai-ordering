@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@cmc/i18n";
+import { localizeMenuCategory, localizeMenuItem } from "@cmc/i18n/menu";
 import { Link } from "react-router-dom";
 import {
+  applyCartDelta,
+  CART_UPDATED_EVENT,
   loadMenuCart,
-  saveMenuCart,
+  reconcileCartOnLoad,
 } from "../components/customer/customerMenuStorage";
 import "../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../components/menu/MenuCategoryTabs";
-import { MenuItemCard, formatVnd } from "../components/menu/MenuItemCard";
+import { MenuItemCard } from "../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../services/menuService";
 import type { MenuCart } from "../types";
 import { useOrderingSession } from "./OrderingSessionProvider";
 
-const ALL_CATEGORY = "Tất cả";
+const ALL_CATEGORY = "__all";
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
 function getInitialCart(): MenuCart {
@@ -19,6 +23,7 @@ function getInitialCart(): MenuCart {
 }
 
 export function OrderingMenuPage() {
+  const { formatMoney, locale, t } = useI18n();
   const { context } = useOrderingSession();
   const [menu, setMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
@@ -31,23 +36,53 @@ export function OrderingMenuPage() {
     let active = true;
     fetchCustomerMenu()
       .then((result) => { if (active) setMenu(result); })
-      .catch(() => { if (active) setError("Không tải được thực đơn. Hãy thử lại."); })
+      .catch(() => { if (active) setError(t("Không tải được thực đơn. Hãy thử lại.")); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
+  }, [t]);
+
+  useEffect(() => {
+    let active = true;
+    void reconcileCartOnLoad()
+      .then((nextCart) => {
+        if (active) {
+          setCart(nextCart);
+        }
+      })
+      .catch(() => undefined);
+
+    const handleCartUpdated = () => {
+      setCart(loadMenuCart());
+    };
+
+    window.addEventListener(CART_UPDATED_EVENT, handleCartUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener(CART_UPDATED_EVENT, handleCartUpdated);
+    };
   }, []);
 
   const categories = useMemo(
-    () => [ALL_CATEGORY, ...menu.categories.map((category) => category.name)],
-    [menu.categories],
+    () => [
+      { id: ALL_CATEGORY, label: t("Tất cả") },
+      ...menu.categories.map((category) => ({
+        id: category.categoryId,
+        label: localizeMenuCategory(category.categoryId, category.name, locale),
+      })),
+    ],
+    [locale, menu.categories, t],
   );
   const filteredItems = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("vi-VN");
+    const query = search.trim().toLocaleLowerCase(locale === "vi" ? "vi-VN" : "en-US");
+    const categoryIdByName = new Map(menu.categories.map((category) => [category.name, category.categoryId]));
     return menu.items.filter((item) => {
-      const matchesCategory = selectedCategory === ALL_CATEGORY || item.categoryName === selectedCategory;
-      const matchesSearch = !query || `${item.name} ${item.description}`.toLocaleLowerCase("vi-VN").includes(query);
-      return matchesCategory && matchesSearch;
+      const matchesCategory = selectedCategory === ALL_CATEGORY || categoryIdByName.get(item.categoryName) === selectedCategory;
+      return matchesCategory;
+    }).map((item) => localizeMenuItem(item, locale)).filter((item) => {
+      const matchesSearch = !query || `${item.name} ${item.description}`.toLocaleLowerCase(locale === "vi" ? "vi-VN" : "en-US").includes(query);
+      return matchesSearch;
     });
-  }, [menu.items, search, selectedCategory]);
+  }, [locale, menu.categories, menu.items, search, selectedCategory]);
   const summary = useMemo(() => menu.items.reduce(
     (value, item) => {
       const quantity = cart[item.id] ?? 0;
@@ -57,30 +92,25 @@ export function OrderingMenuPage() {
   ), [cart, menu.items]);
 
   function updateQuantity(itemId: string, delta: number) {
-    setCart((current) => {
-      const next = { ...current };
-      const quantity = Math.max(0, (next[itemId] ?? 0) + delta);
-      if (quantity === 0) delete next[itemId];
-      else next[itemId] = quantity;
-      saveMenuCart(next);
-      return next;
-    });
+    void applyCartDelta(itemId, delta)
+      .then((next) => setCart(next))
+      .catch(() => setError(t("Không cập nhật được giỏ hàng. Vui lòng thử lại.")));
   }
 
   return (
     <section className="cmc-customer-page ordering-menu-page">
-      <section className="cmc-menu-toolbar" aria-label="Chọn món">
-        <span className="cmc-table-badge">Bàn {context.tableCode}</span>
+      <section className="cmc-menu-toolbar" aria-label={t("Chọn món")}>
+        <span className="cmc-table-badge">{t("Bàn {table}", { table: context.tableCode })}</span>
         {error ? <p className="cmc-inline-error" role="alert">{error}</p> : null}
         <div className="cmc-search-row">
           <input
             className="cmc-search-input"
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm món ăn, đồ uống..."
+            placeholder={t("Tìm món ăn, đồ uống...")}
             type="search"
             value={search}
           />
-          <span className="cmc-result-count">{filteredItems.length} món</span>
+          <span className="cmc-result-count">{t("{count} món", { count: filteredItems.length })}</span>
         </div>
         <MenuCategoryTabs
           categories={categories}
@@ -91,11 +121,11 @@ export function OrderingMenuPage() {
 
       <section className="cmc-menu-sections" aria-busy={loading} aria-labelledby="ordering-menu-title">
         <div className="cmc-section-title cmc-menu-master-title">
-          <div><p>Gọi món tại bàn</p><h1 id="ordering-menu-title">Chọn món</h1></div>
-          {summary.count > 0 ? <Link to="../cart">{summary.count} món · {formatVnd(summary.total)}</Link> : null}
+          <div><p>{t("Gọi món tại bàn")}</p><h1 id="ordering-menu-title">{t("Chọn món")}</h1></div>
+          {summary.count > 0 ? <Link to="../cart">{t("{count} món", { count: summary.count })} · {formatMoney(summary.total)}</Link> : null}
         </div>
-        {loading ? <p>Đang tải thực đơn…</p> : null}
-        {!loading && !error && filteredItems.length === 0 ? <p>Không tìm thấy món phù hợp.</p> : null}
+        {loading ? <p>{t("Đang tải thực đơn…")}</p> : null}
+        {!loading && !error && filteredItems.length === 0 ? <p>{t("Không tìm thấy món phù hợp.")}</p> : null}
         {!loading ? (
           <div className="cmc-menu-grid">
             {filteredItems.map((item) => (
@@ -113,16 +143,16 @@ export function OrderingMenuPage() {
 
       {summary.count > 0 ? (
         <Link
-          aria-label={`Xem giỏ hàng gồm ${summary.count} món, tổng ${formatVnd(summary.total)}`}
+          aria-label={t("Xem giỏ hàng gồm {count} món, tổng {total}", { count: summary.count, total: formatMoney(summary.total) })}
           className="ordering-cart-dock"
           to="../cart"
         >
           <span className="ordering-cart-dock-count">
             <strong>{summary.count} món</strong>
-            <small>Đã chọn</small>
+            <small>{t("Đã chọn")}</small>
           </span>
-          <strong className="ordering-cart-dock-total">{formatVnd(summary.total)}</strong>
-          <span className="ordering-cart-dock-action">Xem giỏ</span>
+          <strong className="ordering-cart-dock-total" data-money>{formatMoney(summary.total)}</strong>
+          <span className="ordering-cart-dock-action">{t("Xem giỏ")}</span>
         </Link>
       ) : null}
     </section>

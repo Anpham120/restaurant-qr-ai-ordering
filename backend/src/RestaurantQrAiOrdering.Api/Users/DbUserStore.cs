@@ -145,6 +145,43 @@ public sealed class DbUserStore : IUserStore
         return CreateUserResult.Success(ToUserAccount(user));
     }
 
+    public UpdateUserResult UpdateUser(string userId, string fullName, string email, string role)
+    {
+        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
+        if (user is null)
+        {
+            return UpdateUserResult.UserNotFound();
+        }
+
+        var normalizedEmail = NormalizeEmail(email);
+        var duplicateEmail = dbContext.Users.Any(u => u.Id != userId && u.Email.ToLower() == normalizedEmail.ToLower());
+        if (duplicateEmail)
+        {
+            return UpdateUserResult.DuplicateEmail();
+        }
+
+        user.FullName = fullName.Trim();
+        user.Email = normalizedEmail;
+        user.Role = role;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        dbContext.SaveChanges();
+
+        return UpdateUserResult.Success(ToUserAccount(user));
+    }
+
+    public DeleteUserResult DeleteUser(string userId)
+    {
+        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
+        if (user is null)
+        {
+            return DeleteUserResult.UserNotFound();
+        }
+
+        dbContext.Users.Remove(user);
+        dbContext.SaveChanges();
+        return DeleteUserResult.Success();
+    }
+
     public ChangePasswordResult ChangePassword(string userId, string currentPassword, string newPassword)
     {
         var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);

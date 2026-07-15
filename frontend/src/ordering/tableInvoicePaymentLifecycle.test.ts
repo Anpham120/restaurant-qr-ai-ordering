@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@cmc/i18n";
 import type { TableInvoice } from "../types";
 import { TableInvoicePaymentModal } from "./TableInvoicePaymentModal";
 import { getInvoicePaymentTotal, validateAppliedPromotion } from "./tableInvoicePaymentModel";
@@ -29,15 +30,19 @@ const invoice: TableInvoice = {
 describe("table invoice payment lifecycle", () => {
   it("renders one settlement form for all order rounds", () => {
     const html = renderToStaticMarkup(
-      createElement(TableInvoicePaymentModal, {
-        invoice,
-        onClose: vi.fn(),
-        onRequest: vi.fn(),
-      }),
+      createElement(
+        I18nProvider,
+        null,
+        createElement(TableInvoicePaymentModal, {
+          invoice,
+          onClose: vi.fn(),
+          onRequest: vi.fn(),
+        }),
+      ),
     );
 
     expect(html).toContain("2 lần gọi món");
-    expect(html).toContain("220.000đ");
+    expect(html).toMatch(/220\.000(?:\u00a0|\s)₫/);
     expect(html).toContain("Mã ưu đãi");
     expect(html).toContain("Số điện thoại tích điểm");
     expect(html).toContain("Phương thức thanh toán");

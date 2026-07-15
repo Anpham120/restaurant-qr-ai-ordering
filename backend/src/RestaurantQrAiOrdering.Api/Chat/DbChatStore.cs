@@ -8,8 +8,14 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 public sealed class DbChatStore : IChatStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly HashSet<string> ExclusionStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "suggested", "rejected", "accepted", "added_to_cart"
+    };
 
     private readonly RestaurantDbContext dbContext;
+    private static readonly Dictionary<string, object> SessionLocks = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object SessionLocksGate = new();
 
     public DbChatStore(RestaurantDbContext dbContext)
     {
@@ -23,6 +29,8 @@ public sealed class DbChatStore : IChatStore
         {
             var existing = dbContext.ChatSessions
                 .Include(session => session.Messages)
+                .Include(session => session.Recommendations)
+                .Include(session => session.Facts)
                 .Where(session => session.TableSessionId == normalizedTableSessionId)
                 .OrderByDescending(session => session.UpdatedAt)
                 .FirstOrDefault();
@@ -57,9 +65,12 @@ public sealed class DbChatStore : IChatStore
             return 0;
         }
 
-        // Messages xóa theo cascade (FK ChatMessage -> ChatSession).
+        // Recommendations, facts, feedback, messages cascade via FK.
         var sessions = dbContext.ChatSessions
             .Include(session => session.Messages)
+            .Include(session => session.Recommendations)
+            .Include(session => session.Facts)
+            .Include(session => session.Feedback)
             .Where(session => session.TableSessionId == normalized)
             .ToList();
 
@@ -86,7 +97,7 @@ public sealed class DbChatStore : IChatStore
             ? null
             : session.Messages
                 .OrderBy(message => message.CreatedAt)
-                .Select(ToMessageSnapshot)
+                .Select(m => ToMessageSnapshot(m, session))
                 .ToList();
     }
 
@@ -96,30 +107,259 @@ public sealed class DbChatStore : IChatStore
         string content,
         IReadOnlyList<SuggestedCartActionResponse>? suggestedCartActions = null)
     {
+        lock (GetSessionLock(chatSessionId))
+        {
+            var session = FindSession(chatSessionId);
+            if (session is null)
+            {
+                return null;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var message = new ChatMessage
+            {
+                Id = $"msg_{Guid.NewGuid():N}",
+                ChatSessionId = session.Id,
+                Role = role,
+                Content = content,
+                SuggestedCartActionsJson = suggestedCartActions is { Count: > 0 }
+                    ? JsonSerializer.Serialize(suggestedCartActions, JsonOptions)
+                    : null,
+                CreatedAt = now
+            };
+
+            session.Messages.Add(message);
+            session.UpdatedAt = now;
+
+            if (role.Equals("assistant", StringComparison.OrdinalIgnoreCase)
+                && suggestedCartActions is { Count: > 0 })
+            {
+                foreach (var action in suggestedCartActions)
+                {
+                    UpsertRecommendationInternal(session, action.MenuItemId, "suggested", message.Id, now);
+                }
+            }
+
+            dbContext.SaveChanges();
+            return ToMessageSnapshot(message, session);
+        }
+    }
+
+    public IReadOnlyList<ChatRecommendationSnapshot> UpsertRecommendations(
+        string chatSessionId,
+        IEnumerable<(string MenuItemId, string Status, string? TurnId)> entries)
+    {
+        lock (GetSessionLock(chatSessionId))
+        {
+            var session = FindSession(chatSessionId);
+            if (session is null)
+            {
+                return [];
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var results = new List<ChatRecommendationSnapshot>();
+            foreach (var (menuItemId, status, turnId) in entries)
+            {
+                var entry = UpsertRecommendationInternal(session, menuItemId, status, turnId, now);
+                if (entry is not null)
+                {
+                    results.Add(ToRecommendationSnapshot(entry));
+                }
+            }
+
+            session.UpdatedAt = now;
+            dbContext.SaveChanges();
+            return results;
+        }
+    }
+
+    public IReadOnlyList<ChatRecommendationSnapshot> GetRecommendations(string chatSessionId)
+    {
         var session = FindSession(chatSessionId);
         if (session is null)
+        {
+            return [];
+        }
+
+        return session.Recommendations
+            .OrderBy(r => r.CreatedAt)
+            .Select(ToRecommendationSnapshot)
+            .ToList();
+    }
+
+    public IReadOnlySet<string> GetExcludedMenuItemIds(string chatSessionId)
+    {
+        var session = FindSession(chatSessionId);
+        if (session is null)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return session.Recommendations
+            .Where(r => ExclusionStatuses.Contains(r.Status))
+            .Select(r => r.MenuItemId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public void UpsertFacts(
+        string chatSessionId,
+        IEnumerable<(string Kind, string Value, double Confidence, string? SourceTurnId)> facts)
+    {
+        lock (GetSessionLock(chatSessionId))
+        {
+            var session = FindSession(chatSessionId);
+            if (session is null)
+            {
+                return;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var (kind, value, confidence, sourceTurnId) in facts)
+            {
+                var normalizedKind = kind.Trim().ToLowerInvariant();
+                var normalizedValue = value.Trim();
+                if (string.IsNullOrWhiteSpace(normalizedKind) || string.IsNullOrWhiteSpace(normalizedValue))
+                {
+                    continue;
+                }
+
+                var existing = session.Facts.FirstOrDefault(f =>
+                    f.Kind.Equals(normalizedKind, StringComparison.OrdinalIgnoreCase)
+                    && f.Value.Equals(normalizedValue, StringComparison.OrdinalIgnoreCase));
+
+                if (existing is null)
+                {
+                    existing = new ChatSessionFact
+                    {
+                        Id = $"fact_{Guid.NewGuid():N}",
+                        ChatSessionId = session.Id,
+                        Kind = normalizedKind,
+                        Value = normalizedValue,
+                        Confidence = confidence,
+                        SourceTurnId = sourceTurnId,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    session.Facts.Add(existing);
+                    dbContext.ChatSessionFacts.Add(existing);
+                }
+                else
+                {
+                    existing.Confidence = Math.Max(existing.Confidence, confidence);
+                    existing.SourceTurnId = sourceTurnId ?? existing.SourceTurnId;
+                    existing.UpdatedAt = now;
+                }
+            }
+
+            session.UpdatedAt = now;
+            dbContext.SaveChanges();
+        }
+    }
+
+    public IReadOnlyList<ChatSessionFactSnapshot> GetFacts(string chatSessionId)
+    {
+        var session = FindSession(chatSessionId);
+        if (session is null)
+        {
+            return [];
+        }
+
+        return session.Facts
+            .Select(f => new ChatSessionFactSnapshot(f.Kind, f.Value, f.Confidence, f.SourceTurnId))
+            .ToList();
+    }
+
+    public void UpdateRollingSummary(string chatSessionId, string summary)
+    {
+        lock (GetSessionLock(chatSessionId))
+        {
+            var session = FindSession(chatSessionId);
+            if (session is null)
+            {
+                return;
+            }
+
+            session.RollingSummary = summary.Length <= 8000 ? summary : summary[..8000];
+            session.UpdatedAt = DateTimeOffset.UtcNow;
+            dbContext.SaveChanges();
+        }
+    }
+
+    public void AddFeedback(string chatSessionId, string messageId, string rating, string? reason)
+    {
+        var session = FindSession(chatSessionId);
+        if (session is null)
+        {
+            return;
+        }
+
+        var normalizedRating = rating.Trim().ToLowerInvariant();
+        if (normalizedRating is not ("up" or "down"))
+        {
+            return;
+        }
+
+        var feedback = new ChatFeedback
+        {
+            Id = $"fb_{Guid.NewGuid():N}",
+            ChatSessionId = session.Id,
+            MessageId = messageId.Trim(),
+            Rating = normalizedRating,
+            Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        dbContext.ChatFeedbacks.Add(feedback);
+        dbContext.SaveChanges();
+    }
+
+    private ChatRecommendation? UpsertRecommendationInternal(
+        ChatSession session,
+        string menuItemId,
+        string status,
+        string? turnId,
+        DateTimeOffset now)
+    {
+        var normalizedStatus = status.Trim().ToLowerInvariant();
+        if (!ExclusionStatuses.Contains(normalizedStatus) || string.IsNullOrWhiteSpace(menuItemId))
         {
             return null;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var message = new ChatMessage
+        var existing = session.Recommendations.FirstOrDefault(r =>
+            r.MenuItemId.Equals(menuItemId, StringComparison.OrdinalIgnoreCase)
+            && r.Status.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is not null)
         {
-            Id = $"msg_{Guid.NewGuid():N}",
+            existing.TurnId = turnId ?? existing.TurnId;
+            existing.UpdatedAt = now;
+            return existing;
+        }
+
+        // Escalate status: if already added_to_cart, don't downgrade to suggested.
+        var sameItem = session.Recommendations
+            .Where(r => r.MenuItemId.Equals(menuItemId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (normalizedStatus == "suggested"
+            && sameItem.Any(r => r.Status is "rejected" or "accepted" or "added_to_cart"))
+        {
+            return sameItem.OrderByDescending(r => r.UpdatedAt).First();
+        }
+
+        var entry = new ChatRecommendation
+        {
+            Id = $"rec_{Guid.NewGuid():N}",
             ChatSessionId = session.Id,
-            Role = role,
-            Content = content,
-            SuggestedCartActionsJson = suggestedCartActions is { Count: > 0 }
-                ? JsonSerializer.Serialize(suggestedCartActions, JsonOptions)
-                : null,
-            CreatedAt = now
+            MenuItemId = menuItemId.Trim(),
+            Status = normalizedStatus,
+            TurnId = turnId,
+            CreatedAt = now,
+            UpdatedAt = now
         };
-
-        session.Messages.Add(message);
-        session.UpdatedAt = now;
-        dbContext.SaveChanges();
-
-        return ToMessageSnapshot(message);
+        session.Recommendations.Add(entry);
+        dbContext.ChatRecommendations.Add(entry);
+        return entry;
     }
 
     private ChatSession? FindSession(string chatSessionId)
@@ -127,6 +367,8 @@ public sealed class DbChatStore : IChatStore
         var normalizedChatSessionId = chatSessionId.Trim();
         var session = dbContext.ChatSessions
             .Include(session => session.Messages)
+            .Include(session => session.Recommendations)
+            .Include(session => session.Facts)
             .FirstOrDefault(session => session.Id == normalizedChatSessionId);
 
         if (session is null || string.IsNullOrWhiteSpace(session.TableSessionId))
@@ -156,21 +398,56 @@ public sealed class DbChatStore : IChatStore
             session.UpdatedAt,
             session.Messages
                 .OrderBy(message => message.CreatedAt)
-                .Select(ToMessageSnapshot)
+                .Select(m => ToMessageSnapshot(m, session))
                 .ToList(),
-            session.TableSessionId);
+            session.TableSessionId,
+            session.RollingSummary,
+            session.Recommendations.Select(ToRecommendationSnapshot).ToList(),
+            session.Facts.Select(f => new ChatSessionFactSnapshot(f.Kind, f.Value, f.Confidence, f.SourceTurnId)).ToList());
     }
 
-    private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message)
+    private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message, ChatSession session)
     {
+        var actions = DeserializeActions(message.SuggestedCartActionsJson);
+        var statusByItem = session.Recommendations
+            .GroupBy(r => r.MenuItemId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => PickDisplayStatus(g.Select(x => x.Status)),
+                StringComparer.OrdinalIgnoreCase);
+
+        var enriched = actions.Select(action =>
+        {
+            statusByItem.TryGetValue(action.MenuItemId, out var status);
+            return action with { Status = MapLedgerToCardStatus(status) };
+        }).ToList();
+
         return new ChatMessageSnapshot(
             message.Id,
             message.ChatSessionId,
             message.Role,
             message.Content,
             message.CreatedAt,
-            DeserializeActions(message.SuggestedCartActionsJson));
+            enriched);
     }
+
+    private static string PickDisplayStatus(IEnumerable<string> statuses)
+    {
+        var set = statuses.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (set.Contains("added_to_cart") || set.Contains("accepted")) return "accepted";
+        if (set.Contains("rejected")) return "rejected";
+        return "suggested";
+    }
+
+    private static string MapLedgerToCardStatus(string? ledgerStatus) => ledgerStatus switch
+    {
+        "accepted" or "added_to_cart" => "confirmed",
+        "rejected" => "dismissed",
+        _ => "pending"
+    };
+
+    private static ChatRecommendationSnapshot ToRecommendationSnapshot(ChatRecommendation r) =>
+        new(r.Id, r.MenuItemId, r.Status, r.TurnId, r.UpdatedAt);
 
     private static IReadOnlyList<SuggestedCartActionResponse> DeserializeActions(string? json)
     {
@@ -192,5 +469,19 @@ public sealed class DbChatStore : IChatStore
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static object GetSessionLock(string chatSessionId)
+    {
+        lock (SessionLocksGate)
+        {
+            if (!SessionLocks.TryGetValue(chatSessionId, out var gate))
+            {
+                gate = new object();
+                SessionLocks[chatSessionId] = gate;
+            }
+
+            return gate;
+        }
     }
 }

@@ -5,12 +5,12 @@
 
 /* ── Page background ── */
 .page-shell-chat {
-  --vian-brown: #6e453b;
-  --vian-brown-dark: #5a3a30;
-  --vian-brown-light: #a78264;
-  --vian-cream: #fdf8f4;
-  --vian-sand: #f5ede0;
-  --vian-gold: #ddc5a5;
+  --vian-brown: var(--brand-chestnut);
+  --vian-brown-dark: var(--brand-chestnut-dark);
+  --vian-brown-light: var(--brand-muted);
+  --vian-cream: var(--brand-ivory);
+  --vian-sand: #f8eee5;
+  --vian-gold: #d2ad70;
 }
 
 .page-shell-chat .page-heading .eyebrow {

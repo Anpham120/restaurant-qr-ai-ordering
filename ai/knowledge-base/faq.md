@@ -1,3 +1,16 @@
+---
+id: kb.faq.general.v1
+title: FAQ CMC Restaurant
+domain: faq
+tags: [faq, general]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: medium
+---
+
 # FAQ CMC Restaurant
 
 ## Nhà hàng phục vụ gì?

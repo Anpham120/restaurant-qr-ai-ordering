@@ -6,6 +6,9 @@ public static class OrderRealtimeEvents
     public const string OrderStatusChanged = "order.statusChanged";
     public const string OrderItemStatusChanged = "order.itemStatusChanged";
     public const string PaymentRequested = "payment.requested";
+    public const string CartUpdated = "cart.updated";
+    public const string AssistanceRequested = "assistance.requested";
+    public const string MenuAvailabilityChanged = "menu.availabilityChanged";
 }
 
 public static class OrderRealtimeGroups
@@ -51,4 +54,23 @@ public sealed record PaymentRequestedEvent(
     string Method,
     string Status,
     decimal Amount,
+    DateTimeOffset UpdatedAt);
+
+public sealed record CartUpdatedEvent(
+    string TableSessionId,
+    string? TableCode,
+    int ItemCount,
+    decimal Subtotal,
+    DateTimeOffset UpdatedAt);
+
+public sealed record AssistanceRequestedEvent(
+    string TableCode,
+    string? TableSessionId,
+    string? Note,
+    DateTimeOffset RequestedAt);
+
+public sealed record MenuAvailabilityChangedEvent(
+    string MenuItemId,
+    string Name,
+    bool IsAvailable,
     DateTimeOffset UpdatedAt);

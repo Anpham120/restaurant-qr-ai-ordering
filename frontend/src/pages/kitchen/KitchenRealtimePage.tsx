@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
+import type { Order, RealtimeConnectionStatus } from "@cmc/shared-types";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
+import {
+  getKitchenBoardColumn,
+  isKitchenActiveOrderStatus,
+} from "../../components/kitchen/kitchenOrderPipeline";
 import {
   connectOrderRealtime,
   disconnectOrderRealtime,
@@ -15,8 +19,6 @@ import "../../components/operations/operations.css";
 
 type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
 
-const KITCHEN_STATUSES: OrderStatus[] = ["Confirmed", "Preparing", "Ready"];
-
 export function KitchenRealtimePage() {
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -29,14 +31,17 @@ export function KitchenRealtimePage() {
 
   // Filter orders relevant to kitchen
   const kitchenOrders = useMemo(
-    () => orders.filter((o) => KITCHEN_STATUSES.includes(o.status)),
+    () => orders.filter((o) => isKitchenActiveOrderStatus(o.status)),
     [orders],
   );
 
   const stats = useMemo(() => {
-    const confirmed = kitchenOrders.filter((o) => o.status === "Confirmed").length;
+    const confirmed = kitchenOrders.filter(
+      (o) => getKitchenBoardColumn(o.status) === "confirmed",
+    ).length;
     const preparing = kitchenOrders.filter((o) => o.status === "Preparing").length;
     const ready = kitchenOrders.filter((o) => o.status === "Ready").length;
+    const served = kitchenOrders.filter((o) => o.status === "Served").length;
     const totalItems = kitchenOrders.reduce(
       (sum, o) => sum + o.items.filter((i) => i.status !== "Cancelled").length,
       0,
@@ -44,7 +49,8 @@ export function KitchenRealtimePage() {
     return [
       { label: "Đơn chờ nấu", value: String(confirmed), detail: "Confirmed" },
       { label: "Đang nấu", value: String(preparing), detail: "Preparing" },
-      { label: "Sẵn sàng", value: String(ready), detail: "Chờ Staff mang ra" },
+      { label: "Sẵn sàng", value: String(ready), detail: "Chờ mang ra" },
+      { label: "Đã phục vụ", value: String(served), detail: "Đã giao tại bàn" },
       { label: "Tổng món", value: String(totalItems), detail: "Trong pipeline" },
     ];
   }, [kitchenOrders]);

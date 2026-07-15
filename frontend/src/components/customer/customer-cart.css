@@ -660,7 +660,18 @@
 
 @media (max-width: 480px) {
   .cmc-checkout-hero {
-    padding: 24px 20px 28px;
+    padding: 22px 16px 26px;
+  }
+
+  .cmc-checkout-layout {
+    gap: 14px;
+    padding: 14px 12px 24px;
+  }
+
+  .cmc-cart-panel,
+  .cmc-checkout-panel {
+    border-radius: 18px;
+    padding: 16px 14px;
   }
 
   .cmc-order-type-tabs {
@@ -704,6 +715,15 @@
   .cmc-bill-total {
     flex-direction: column;
     gap: 6px;
+  }
+
+  .cmc-promo-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cmc-promo-btn {
+    width: 100%;
   }
 }
 

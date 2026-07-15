@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Link,
@@ -8,13 +8,18 @@ import {
   useLocation,
 } from "react-router-dom";
 import { NotFoundPage, PageTransition } from "@cmc/shared-ui";
+import { I18nProvider, LanguageSwitcher, useI18n } from "@cmc/i18n";
 import "@cmc/brand-ui/styles.css";
+import "@cmc/i18n/styles.css";
 import "@cmc/shared-ui/styles.css";
 import "../../../src/styles.css";
 import logoUrl from "../../../src/mocks/images/logo.png";
 import { CustomerHomePage } from "../../../src/pages/CustomerHomePage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
 import { PublicMenuPreviewPage } from "../../../src/pages/customer/PublicMenuPreviewPage";
+import { Menu, X } from "lucide-react";
+
+document.documentElement.classList.add("brand-theme");
 
 function getOrderingBaseUrl() {
   const configured = import.meta.env.VITE_ORDERING_BASE_URL;
@@ -26,6 +31,7 @@ function getOrderingBaseUrl() {
 }
 
 function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean }) {
+  const { t } = useI18n();
   const location = useLocation();
   const target = new URL(
     preservePath ? `${location.pathname}${location.search}` : "/",
@@ -38,30 +44,47 @@ function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean 
 
   return (
     <main className="ordering-state">
-      <p>Đang mở ứng dụng gọi món…</p>
-      <a href={target}>Tiếp tục</a>
+      <p>{t("Đang mở ứng dụng gọi món…")}</p>
+      <a href={target}>{t("Tiếp tục")}</a>
     </main>
   );
 }
 
 function MarketingLayout() {
+  const { t } = useI18n();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
 
   return (
     <div className="landing-shell">
-      <a className="skip-link" href="#main-content">Chuyển đến nội dung chính</a>
+      <a className="skip-link" href="#main-content">{t("Chuyển đến nội dung chính")}</a>
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link className="landing-brand" to="/" aria-label="CMC Restaurant - Trang chủ">
+          <Link className="landing-brand" to="/" aria-label={`CMC Restaurant - ${t("Trang chủ")}`}>
             <img className="landing-brand-logo" alt="" src={logoUrl} width="44" height="44" />
             <span className="landing-brand-text" translate="no"><strong>CMC Restaurant</strong><small>Restaurant</small></span>
           </Link>
-          <nav className="landing-nav" aria-label="Điều hướng marketing">
-            <Link to="/#gioi-thieu">Giới thiệu</Link>
-            <Link to="/menu">Thực đơn</Link>
-            <Link to="/#danh-gia">Đánh giá</Link>
-            <Link to="/album">Album</Link>
+          <nav className={`landing-nav${menuOpen ? " open" : ""}`} id="landing-mobile-nav" aria-label={t("Điều hướng trang giới thiệu")}>
+            <Link to="/#gioi-thieu" onClick={() => setMenuOpen(false)}>{t("Giới thiệu")}</Link>
+            <Link to="/menu" onClick={() => setMenuOpen(false)}>{t("Thực đơn")}</Link>
+            <Link to="/#danh-gia" onClick={() => setMenuOpen(false)}>{t("Đánh giá")}</Link>
+            <Link to="/album" onClick={() => setMenuOpen(false)}>{t("Album")}</Link>
           </nav>
+          <div className="landing-header-actions">
+            <LanguageSwitcher className="landing-language-switcher" />
+            <button
+              aria-controls="landing-mobile-nav"
+              aria-expanded={menuOpen}
+              aria-label={t(menuOpen ? "Đóng menu" : "Mở menu")}
+              className="landing-menu-toggle"
+              onClick={() => setMenuOpen((open) => !open)}
+              type="button"
+            >
+              {menuOpen ? <X aria-hidden="true" size={21} /> : <Menu aria-hidden="true" size={21} />}
+            </button>
+          </div>
         </div>
       </header>
       <main id="main-content">
@@ -93,5 +116,5 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><RouterProvider router={router} /></StrictMode>,
+  <StrictMode><I18nProvider><RouterProvider router={router} /></I18nProvider></StrictMode>,
 );

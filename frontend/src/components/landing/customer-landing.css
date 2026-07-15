@@ -3,22 +3,24 @@
    Warm cream/beige palette with elegant serif typography
    ========================================================================== */
 
-/* ---- Exact Vian color palette (global for portal components) ---- */
-:root {
-  --vian-primary: #6e453b;
-  --vian-secondary: #d8bfa4;
-  --vian-light: #dfc5ab;
-  --vian-cream: #fff2ee;
-  --vian-sand: #f5ede0;
-  --vian-brown: #6e453b;
-  --vian-brown-dark: #5a3a30;
-  --vian-brown-light: #8B6F5E;
-  --vian-gold: #ddc5a5;
-  --vian-gold-dark: #e4ccac;
-  --vian-beige: #f5ede0;
-  --vian-divider: #d8bfa4;
-  --vian-footer-bg: #64473f;
-  --vian-card-bg: #e4ccac;
+/* ---- Shared warm Vietnamese brand palette ---- */
+:root.brand-theme {
+  --vian-primary: var(--brand-chestnut);
+  --vian-secondary: var(--brand-clay-line);
+  --vian-light: #f2dfd2;
+  --vian-cream: var(--brand-ivory);
+  --vian-sand: #f8eee5;
+  --vian-brown: var(--brand-chestnut);
+  --vian-brown-dark: var(--brand-chestnut-dark);
+  --vian-brown-light: var(--brand-muted);
+  --vian-gold: #d2ad70;
+  --vian-gold-dark: var(--brand-brass);
+  --vian-green: var(--brand-success);
+  --vian-beige: #f8eee5;
+  --vian-divider: var(--brand-clay-line);
+  --vian-footer-bg: var(--brand-chestnut-dark);
+  --vian-card-bg: #f1dfd3;
+  --font-script: "Dancing Script", cursive;
 }
 
 .landing-page {
@@ -29,6 +31,18 @@
   color: var(--vian-brown-dark);
   font-family: var(--font-ui);
   line-height: var(--leading-normal);
+}
+
+.landing-page :is(
+  .landing-cuisine-price,
+  .signature-dish-price,
+  .landing-promo-rich-price strong,
+  .cmc-card-price,
+  [class*="total"]
+) {
+  font-family: var(--brand-font-utility);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.015em;
 }
 
 .landing-page h1,
@@ -142,6 +156,14 @@
   border-radius: 0;
   box-shadow: 0 0.5rem 1rem rgba(110, 69, 59, 0.1), inset 0 -1px 0 rgba(110, 69, 59, 0.2);
   overflow: hidden;
+}
+
+.landing-header-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  z-index: 2;
 }
 
 /* Background image dimmed behind glass */
@@ -282,6 +304,8 @@
   background: transparent;
   cursor: pointer;
   z-index: 1;
+  align-items: center;
+  color: #fff;
 }
 .landing-menu-toggle span {
   display: block;
@@ -2350,14 +2374,26 @@
 }
 
 @media (max-width: 768px) {
+  .landing-header-inner {
+    gap: 8px;
+    overflow: visible;
+    padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  }
+  .landing-brand { gap: 8px; min-width: 0; }
+  .landing-brand-logo { height: 40px; width: 40px; }
+  .landing-brand-text { min-width: 0; }
+  .landing-brand-text strong { font-size: .92rem; line-height: 1.05; white-space: nowrap; }
+  .landing-brand-text small { display: none; }
+  .landing-menu-toggle { border-color: rgba(255, 255, 255, .45); flex: 0 0 44px; }
+  .landing-header.scrolled .landing-menu-toggle { border-color: var(--brand-clay-line); color: var(--brand-chestnut); }
   .landing-nav { display: none; }
   .landing-nav.open {
     display: flex;
     flex-direction: column;
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
     background: var(--color-card);
     border: 1px solid var(--color-border-light);
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
@@ -2367,6 +2403,10 @@
     z-index: 100;
   }
   .landing-nav.open a {
+    align-items: center;
+    color: var(--brand-chestnut);
+    display: flex;
+    min-height: 44px;
     width: 100%;
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
@@ -2418,6 +2458,23 @@
     bottom: var(--space-4);
     right: var(--space-4);
   }
+  .landing-toast {
+    bottom: max(84px, calc(68px + env(safe-area-inset-bottom))) !important;
+    max-width: calc(100vw - 24px);
+    text-align: center;
+    white-space: normal !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .landing-brand-text strong { font-size: .78rem; }
+  .landing-header-actions { gap: 4px; }
+  .landing-language-switcher button { min-width: 42px; }
+  .landing-section { padding-inline: 16px; }
+  .landing-about-stats { grid-template-columns: 1fr; }
+  .landing-footer-content,
+  .landing-footer-map,
+  .landing-footer-bottom { padding-inline: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

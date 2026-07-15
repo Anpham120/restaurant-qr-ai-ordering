@@ -1,3 +1,16 @@
+---
+id: kb.diet.allergy.v1
+title: Dị Ứng Và Chế Độ Ăn
+domain: dietary
+tags: [allergy, dietary, chay]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: critical
+---
+
 # Thông Tin Dị Ứng Và Chế Độ Ăn
 
 ## Dị Ứng Hải Sản (Tôm, Cua, Mực, Nghêu, Ốc)

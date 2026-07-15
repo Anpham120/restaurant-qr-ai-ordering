@@ -1,3 +1,16 @@
+---
+id: kb.promo.seasonal.v1
+title: Khuyến Mãi Mùa
+domain: promotion
+tags: [promotion, happy-hour, combo]
+language: vi
+source: restaurant_ops_manual
+reviewed_by: restaurant_manager
+reviewed_at: 2026-07-13
+expires_at: 2027-01-13
+safety_level: medium
+---
+
 # Khuyến Mãi & Chương Trình Đặc Biệt
 
 ## Happy Hour (Thứ 2 – Thứ 6)
