@@ -2,6 +2,13 @@ import type { OrderItemStatus, OrderStatus } from "@cmc/shared-types";
 
 export type KitchenBoardColumn = "confirmed" | "preparing" | "ready" | "served";
 
+const kitchenBoardColumns: readonly KitchenBoardColumn[] = [
+  "confirmed",
+  "preparing",
+  "ready",
+  "served",
+];
+
 export type KitchenBoardAdvancePlan =
   | {
       kind: "items";
@@ -45,4 +52,19 @@ export function getKitchenBoardAdvancePlan(status: OrderStatus): KitchenBoardAdv
     return { kind: "order", nextOrderStatus: "Served" };
   }
   return null;
+}
+
+export function getNextKitchenBoardColumn(status: OrderStatus): KitchenBoardColumn | null {
+  const currentColumn = getKitchenBoardColumn(status);
+  if (!currentColumn) return null;
+
+  const currentIndex = kitchenBoardColumns.indexOf(currentColumn);
+  return kitchenBoardColumns[currentIndex + 1] ?? null;
+}
+
+export function canDropKitchenOrder(
+  status: OrderStatus,
+  targetColumn: KitchenBoardColumn,
+): boolean {
+  return getNextKitchenBoardColumn(status) === targetColumn;
 }

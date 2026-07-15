@@ -34,4 +34,16 @@ describe("V59 Kitchen board layout", () => {
       /@media \(max-width:\s*768px\)[\s\S]*?\.ops-board--kitchen\s*\{[^}]*grid-template-columns:\s*1fr/,
     );
   });
+
+  it("keeps drag/drop guarded and visibly discoverable", () => {
+    const board = read("src/components/kitchen/KitchenBoard.tsx");
+    const css = read("src/components/operations/operations.css");
+
+    expect(board).toContain("draggable={isDraggable}");
+    expect(board).toContain("onDragStart=");
+    expect(board).toContain("onDrop=");
+    expect(board).toContain("ops-column--drop-target");
+    expect(css).toMatch(/\.ops-card\[draggable="true"\]/);
+    expect(css).toMatch(/\.ops-column--drop-target/);
+  });
 });
