@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Order, OrderItem, OrderItemStatus, OrderStatus } from "@cmc/shared-types";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Order, OrderItemStatus } from "@cmc/shared-types";
+import { CheckCircle2, Circle, Clock3, Flame, X } from "lucide-react";
 import { updateOrderItemStatus, updateOrderStatus } from "../../services/orderService";
+import {
+  getKitchenBoardAdvancePlan,
+  getKitchenBoardColumn,
+  type KitchenBoardColumn,
+} from "./kitchenOrderPipeline";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -31,16 +37,82 @@ function itemActionLabel(current: OrderItemStatus): string {
   return "";
 }
 
-function allItemsReady(items: OrderItem[]): boolean {
-  return items.length > 0 && items.every((i) => i.status === "Ready" || i.status === "Cancelled");
-}
-
 /* ---------- types ---------- */
-type KitchenColumn = "confirmed" | "preparing" | "ready";
-
 interface KitchenBoardProps {
   orders: Order[];
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
+}
+
+function StartCookingButton({
+  order,
+  isPending,
+  onMoveNext,
+  compact = false,
+}: {
+  order: Order;
+  isPending: boolean;
+  onMoveNext: (order: Order) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      className={`ops-btn ops-btn--warning${compact ? " ops-btn--sm" : ""}`}
+      disabled={isPending}
+      onClick={() => onMoveNext(order)}
+      type="button"
+    >
+      <Flame aria-hidden="true" size={compact ? 14 : 16} />
+      {compact ? "Bắt đầu nấu" : "Bắt đầu nấu đơn"}
+    </button>
+  );
+}
+
+function FinishCookingButton({
+  order,
+  isPending,
+  onMoveNext,
+  compact = false,
+}: {
+  order: Order;
+  isPending: boolean;
+  onMoveNext: (order: Order) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      className={`ops-btn ops-btn--primary${compact ? " ops-btn--sm" : ""}`}
+      disabled={isPending}
+      onClick={() => onMoveNext(order)}
+      type="button"
+    >
+      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
+      {compact ? "Nấu xong" : "Đánh dấu tất cả đã sẵn sàng"}
+    </button>
+  );
+}
+
+function MarkServedButton({
+  order,
+  isPending,
+  onMoveNext,
+  compact = false,
+}: {
+  order: Order;
+  isPending: boolean;
+  onMoveNext: (order: Order) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      className="ops-btn ops-btn--primary"
+      disabled={isPending}
+      onClick={() => onMoveNext(order)}
+      type="button"
+    >
+      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
+      {compact ? "Đã phục vụ" : "Xác nhận đã phục vụ"}
+    </button>
+  );
 }
 
 /* ---------- Order Card ---------- */
@@ -52,7 +124,7 @@ function OrderCard({
   isPending,
 }: {
   order: Order;
-  column: KitchenColumn;
+  column: KitchenBoardColumn;
   onOpenDetail: (order: Order) => void;
   onMoveNext: (order: Order) => void;
   isPending: boolean;
@@ -65,7 +137,7 @@ function OrderCard({
   }, [order.createdAt]);
 
   const isUrgent = Date.now() - new Date(order.createdAt).getTime() > 15 * 60_000;
-  const readyCount = order.items.filter((i) => i.status === "Ready").length;
+  const readyCount = order.items.filter((i) => i.status === "Ready" || i.status === "Served").length;
   const totalCount = order.items.filter((i) => i.status !== "Cancelled").length;
 
   return (
@@ -85,7 +157,7 @@ function OrderCard({
 
       <div className="ops-card-meta">
         <span className={isUrgent ? "ops-timer ops-timer--urgent" : "ops-timer ops-timer--normal"}>
-          ⏱ {elapsed}
+          <Clock3 aria-hidden="true" size={14} /> {elapsed}
         </span>
         <span>{readyCount}/{totalCount} món xong</span>
         <span>{formatVnd(order.totalAmount)}</span>
@@ -96,7 +168,7 @@ function OrderCard({
           <span
             key={item.orderItemId}
             className={
-              item.status === "Ready" || item.status === "Cancelled"
+              item.status === "Ready" || item.status === "Served" || item.status === "Cancelled"
                 ? "ops-card-item-chip ops-card-item-chip--done"
                 : item.status === "Preparing"
                   ? "ops-card-item-chip ops-card-item-chip--active"
@@ -108,16 +180,19 @@ function OrderCard({
         ))}
       </div>
 
-      {column !== "ready" ? (
+      {column === "confirmed" ? (
         <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            className={column === "confirmed" ? "ops-btn ops-btn--warning ops-btn--sm" : "ops-btn ops-btn--success ops-btn--sm"}
-            disabled={isPending || (column === "preparing" && !allItemsReady(order.items))}
-            onClick={() => onMoveNext(order)}
-            type="button"
-          >
-            {column === "confirmed" ? "🔥 Bắt đầu nấu" : "✅ Đơn sẵn sàng"}
-          </button>
+          <StartCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
+        </div>
+      ) : null}
+      {column === "preparing" ? (
+        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
+          <FinishCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
+        </div>
+      ) : null}
+      {column === "ready" ? (
+        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
+          <MarkServedButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
         </div>
       ) : null}
     </article>
@@ -138,22 +213,27 @@ function OrderDetailModal({
   onMoveNext: (order: Order) => void;
   isPending: boolean;
 }) {
-  const column: KitchenColumn =
-    order.status === "Confirmed" ? "confirmed" : order.status === "Preparing" ? "preparing" : "ready";
+  const column = getKitchenBoardColumn(order.status) ?? "confirmed";
 
   return (
     <div className="ops-modal-overlay" onClick={onClose}>
-      <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        aria-labelledby="kitchen-order-title"
+        aria-modal="true"
+        className="ops-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
         <div className="ops-modal-header">
           <div>
-            <h2>{order.orderCode}</h2>
+            <h2 id="kitchen-order-title">{order.orderCode}</h2>
             <div className="ops-card-meta" style={{ marginTop: 4 }}>
               <span className={statusBadgeClass(order.status)}>{order.status}</span>
               {order.tableCode ? <span>Bàn {order.tableCode}</span> : null}
               <span>{formatVnd(order.totalAmount)}</span>
             </div>
           </div>
-          <button className="ops-modal-close" onClick={onClose} type="button">✕</button>
+          <button aria-label="Đóng" className="ops-modal-close" onClick={onClose} type="button"><X aria-hidden="true" size={18} /></button>
         </div>
 
         <div className="ops-modal-body">
@@ -180,7 +260,7 @@ function OrderDetailModal({
                         {itemActionLabel(item.status)}
                       </button>
                     ) : null}
-                    {item.status !== "Cancelled" && item.status !== "Ready" ? (
+                    {item.status === "Pending" || item.status === "Preparing" ? (
                       <button
                         className="ops-btn ops-btn--sm ops-btn--ghost"
                         disabled={isPending}
@@ -197,27 +277,19 @@ function OrderDetailModal({
           </div>
         </div>
 
-        {column !== "ready" ? (
+        {column === "confirmed" ? (
           <div className="ops-modal-footer">
-            {column === "confirmed" ? (
-              <button
-                className="ops-btn ops-btn--warning"
-                disabled={isPending}
-                onClick={() => onMoveNext(order)}
-                type="button"
-              >
-                🔥 Bắt đầu nấu đơn
-              </button>
-            ) : (
-              <button
-                className="ops-btn ops-btn--success"
-                disabled={isPending || !allItemsReady(order.items)}
-                onClick={() => onMoveNext(order)}
-                type="button"
-              >
-                ✅ Đơn sẵn sàng
-              </button>
-            )}
+            <StartCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
+          </div>
+        ) : null}
+        {column === "preparing" ? (
+          <div className="ops-modal-footer">
+            <FinishCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
+          </div>
+        ) : null}
+        {column === "ready" ? (
+          <div className="ops-modal-footer">
+            <MarkServedButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
           </div>
         ) : null}
       </div>
@@ -236,8 +308,8 @@ function KitchenColumn({
   pendingCode,
 }: {
   title: string;
-  icon: string;
-  column: KitchenColumn;
+  icon: ReactNode;
+  column: KitchenBoardColumn;
   orders: Order[];
   onOpenDetail: (o: Order) => void;
   onMoveNext: (o: Order) => void;
@@ -276,15 +348,19 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   const [notice, setNotice] = useState("");
 
   const confirmed = useMemo(
-    () => orders.filter((o) => o.status === "Confirmed"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "confirmed"),
     [orders],
   );
   const preparing = useMemo(
-    () => orders.filter((o) => o.status === "Preparing"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "preparing"),
     [orders],
   );
   const ready = useMemo(
-    () => orders.filter((o) => o.status === "Ready"),
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "ready"),
+    [orders],
+  );
+  const served = useMemo(
+    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "served"),
     [orders],
   );
 
@@ -301,18 +377,36 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   }, [orders]);
 
   const handleMoveNext = useCallback(async (order: Order) => {
-    const nextStatus: OrderStatus =
-      order.status === "Confirmed" ? "Preparing" : "Ready";
-
     setPendingCode(order.orderCode);
     setNotice("");
     try {
-      await updateOrderStatus(order.orderCode, nextStatus);
-      setNotice(`${order.orderCode} → ${nextStatus}`);
-      onRefresh();
+      const plan = getKitchenBoardAdvancePlan(order.status);
+      if (!plan) {
+        return;
+      }
+
+      if (plan.kind === "order") {
+        await updateOrderStatus(order.orderCode, plan.nextOrderStatus);
+        setNotice(`${order.orderCode}: đã phục vụ`);
+        return;
+      }
+
+      const eligibleItems = order.items.filter((item) =>
+        plan.eligibleItemStatuses.some((status) => status === item.status),
+      );
+      for (const item of eligibleItems) {
+        await updateOrderItemStatus(order.orderCode, item.orderItemId, plan.nextItemStatus);
+      }
+
+      if (plan.nextItemStatus === "Preparing") {
+        setNotice(`${order.orderCode}: đã bắt đầu nấu ${eligibleItems.length} món`);
+      } else {
+        setNotice(`${order.orderCode}: ${eligibleItems.length} món đã sẵn sàng`);
+      }
     } catch {
       setNotice("Cập nhật thất bại. Thử lại.");
     } finally {
+      await onRefresh();
       setPendingCode(null);
     }
   }, [onRefresh]);
@@ -322,10 +416,10 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
     setNotice("");
     try {
       await updateOrderItemStatus(order.orderCode, itemId, nextStatus);
-      onRefresh();
     } catch {
       setNotice("Cập nhật món thất bại.");
     } finally {
+      await onRefresh();
       setPendingCode(null);
     }
   }, [onRefresh]);
@@ -337,7 +431,7 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
       <div className="ops-board ops-board--kitchen">
         <KitchenColumn
           title="Đơn mới"
-          icon="🟡"
+          icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
           column="confirmed"
           orders={confirmed}
           onOpenDetail={setSelectedOrder}
@@ -346,7 +440,7 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
         />
         <KitchenColumn
           title="Đang nấu"
-          icon="🔴"
+          icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
           column="preparing"
           orders={preparing}
           onOpenDetail={setSelectedOrder}
@@ -355,9 +449,18 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
         />
         <KitchenColumn
           title="Sẵn sàng"
-          icon="🟢"
+          icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
           column="ready"
           orders={ready}
+          onOpenDetail={setSelectedOrder}
+          onMoveNext={handleMoveNext}
+          pendingCode={pendingCode}
+        />
+        <KitchenColumn
+          title="Đã phục vụ"
+          icon={<Circle aria-hidden="true" fill="currentColor" size={12} />}
+          column="served"
+          orders={served}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
           pendingCode={pendingCode}
