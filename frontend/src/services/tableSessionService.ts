@@ -1,21 +1,11 @@
-import { ApiError } from "@cmc/api-client";
-import { api } from "./apiClient";
+import { ApiError, createApiClient } from "@cmc/api-client";
+
+const api = createApiClient();
 
 type TableSession = Awaited<ReturnType<typeof api.tables.openSession>>;
 
-type ResolvedTableQr = {
-  tableCode: string;
-  displayName: string;
-};
-
 export type OpenDineInSessionResult =
   | { status: "open"; session: TableSession }
-  | { status: "expired" }
-  | { status: "invalid" }
-  | { status: "error" };
-
-export type ValidateDineInSessionResult =
-  | { status: "open"; session: Awaited<ReturnType<typeof api.tables.getSession>> }
   | { status: "expired" }
   | { status: "invalid" }
   | { status: "error" };
@@ -43,43 +33,6 @@ export async function openDineInSession(
       }
     }
 
-    return { status: "error" };
-  }
-}
-
-export async function resolveTableQr(qrToken: string): Promise<ResolvedTableQr> {
-  return api.request<ResolvedTableQr>(`/tables/qr/${encodeURIComponent(qrToken)}`);
-}
-
-export async function validateDineInSession(
-  sessionId: string,
-  sessionToken: string,
-  tableCode: string,
-): Promise<ValidateDineInSessionResult> {
-  try {
-    const session = await api.tables.getSession(sessionId, sessionToken);
-    if (session.status !== "Open" || session.isExpired) {
-      return { status: "expired" };
-    }
-    if (session.tableCode !== tableCode) {
-      return { status: "invalid" };
-    }
-    return { status: "open", session };
-  } catch (error) {
-    if (error instanceof ApiError) {
-      if (error.status === 410 || error.code === "TABLE_SESSION_EXPIRED") {
-        return { status: "expired" };
-      }
-      if (
-        error.status === 401 ||
-        error.status === 403 ||
-        error.status === 404 ||
-        error.code === "TABLE_SESSION_TOKEN_INVALID" ||
-        error.code === "TABLE_SESSION_NOT_FOUND"
-      ) {
-        return { status: "invalid" };
-      }
-    }
     return { status: "error" };
   }
 }

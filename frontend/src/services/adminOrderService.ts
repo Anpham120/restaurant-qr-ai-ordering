@@ -1,5 +1,10 @@
+import { createApiClient } from "@cmc/api-client";
 import type { AdminOrder, OrderTrackingOrder, PaymentResponse } from "../types";
-import { api } from "./apiClient";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 export async function getAdminOrders(): Promise<AdminOrder[]> {
   const response = await api.orders.list();

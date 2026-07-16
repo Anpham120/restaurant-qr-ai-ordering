@@ -8,7 +8,7 @@ Chứng minh hệ thống chạy qua backend/database thật giữa nhiều thi�
 
 - Local: backend API + PostgreSQL + frontend trỏ về `VITE_API_BASE_URL` thật.
 - Staging: domain/subdomain staging trỏ về backend và database staging.
-- Gemini API có thể bật thật; nếu provider lỗi, chatbot phải fallback an toàn và không tự sửa giỏ hàng.
+- 9router/AI có thể bật thật; nếu provider lỗi, chatbot phải fallback an toàn và không tự sửa giỏ hàng.
 
 ## Kịch bản smoke bắt buộc
 

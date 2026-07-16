@@ -4,7 +4,6 @@ using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Loyalty;
 using RestaurantQrAiOrdering.Api.Orders;
-using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -21,13 +20,6 @@ public static class PaymentEndpoints
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
-            if (http.User.IsInRole(UserRole.Kitchen))
-            {
-                return ApiResults.Forbidden(
-                    "PAYMENT_ACCESS_DENIED",
-                    "Kitchen users cannot access payment operations.");
-            }
-
             var payment = await LoadPaymentAsync(db, orderCode, tracking: false, cancellationToken);
             return payment is null || !OrderAccessGuard.CanRead(http, payment.Order?.CustomerAccessToken)
                 ? ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.")
@@ -36,110 +28,52 @@ public static class PaymentEndpoints
         .WithName("GetOrderPayment")
         .WithTags("Payments");
 
-        app.MapPost("/api/orders/{orderCode}/payment/request", async (
+        app.MapPost("/api/orders/{orderCode}/payment/vietqr", async (
             string orderCode,
-            PaymentRequest? request,
             RestaurantDbContext db,
             IVietQrProvider vietQrProvider,
-            IOrderRealtimeNotifier realtime,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
-            if (http.User.IsInRole(UserRole.Kitchen))
-            {
-                return ApiResults.Forbidden(
-                    "PAYMENT_ACCESS_DENIED",
-                    "Kitchen users cannot access payment operations.");
-            }
-
             var payment = await LoadPaymentAsync(db, orderCode, tracking: true, cancellationToken);
-            var providedOrderToken = http.Request.Headers[OrderAccessGuard.TokenHeaderName].ToString();
-            if (payment?.Order is null
-                || !OrderAccessGuard.HasCustomerToken(payment.Order.CustomerAccessToken, providedOrderToken))
+            if (payment?.Order is null || !OrderAccessGuard.CanRead(http, payment.Order.CustomerAccessToken))
             {
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }
 
-            if (request is null)
+            if (payment.Method != PaymentMethod.VietQR)
             {
-                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+                return ApiResults.BadRequest("PAYMENT_METHOD_INVALID", "VietQR can only be generated for VietQR payments.");
             }
 
-            if (!TryParseRequestedMethod(request.Method, out var method))
+            if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
             {
-                return ApiResults.BadRequest("PAYMENT_METHOD_INVALID", "Payment method must be COD or VietQR.");
+                return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", "Payment was already confirmed.");
             }
 
-            if (!RequestIdempotency.TryRead(http.Request, out var idempotencyKey))
+            VietQrPayload payload;
+            try
             {
-                return http.Request.Headers.ContainsKey(RequestIdempotency.HeaderName)
-                    ? ApiResults.BadRequest(
-                        "IDEMPOTENCY_KEY_INVALID",
-                        "Idempotency-Key must contain 1 to 100 letters, numbers, '.', '_', ':' or '-'.")
-                    : ApiResults.BadRequest(
-                        "IDEMPOTENCY_KEY_REQUIRED",
-                        "Idempotency-Key header is required.");
+                payload = vietQrProvider.CreatePayload(payment.Order.OrderCode, payment.Amount);
             }
-
-            var requestFingerprint = RequestIdempotency.ComputeFingerprint(new { Method = method.ToString() });
-            var existingRequest = await FindPaymentRequestAsync(db, idempotencyKey, cancellationToken);
-            if (existingRequest is not null)
+            catch (InvalidOperationException)
             {
-                if (existingRequest.Payment?.Order?.OrderCode != payment.Order.OrderCode
-                    || existingRequest.RequestFingerprint != requestFingerprint)
-                {
-                    return ApiResults.Conflict(
-                        "IDEMPOTENCY_KEY_REUSED",
-                        "Idempotency key was already used with a different request.");
-                }
-
-                return Results.Ok(CreatePaymentRequestReplayResponse(
-                    payment,
-                    existingRequest,
-                    vietQrProvider));
-            }
-
-            if (payment.Status is PaymentStatus.Pending
-                or PaymentStatus.Confirmed
-                or PaymentStatus.Paid
-                or PaymentStatus.Refunded)
-            {
-                return ApiResults.Conflict(
-                    "PAYMENT_ALREADY_REQUESTED",
-                    "Payment was already requested or completed.");
-            }
-
-            VietQrPayload? payload = null;
-            if (method == PaymentMethod.VietQR)
-            {
-                try
-                {
-                    payload = vietQrProvider.CreatePayload(payment.Order.OrderCode, payment.Amount);
-                }
-                catch (InvalidOperationException)
-                {
-                    return ApiResults.BadRequest("VIETQR_CONFIG_MISSING", "VietQR bank configuration is missing.");
-                }
+                return ApiResults.BadRequest("VIETQR_CONFIG_MISSING", "VietQR bank configuration is missing.");
             }
 
             var now = DateTimeOffset.UtcNow;
-            payment.Method = method;
             payment.Status = PaymentStatus.Pending;
             payment.UpdatedAt = now;
             payment.Transactions.Add(new PaymentTransaction
             {
                 Id = $"ptx_{Guid.NewGuid():N}",
                 PaymentId = payment.Id,
-                Method = method,
+                Method = PaymentMethod.VietQR,
                 Status = PaymentStatus.Pending,
                 Amount = payment.Amount,
-                Provider = method.ToString(),
-                ProviderTransactionId = payload?.TransferContent,
-                Note = method == PaymentMethod.VietQR
-                    ? "Customer requested VietQR payment."
-                    : "Customer requested cash payment.",
-                IdempotencyKey = idempotencyKey,
-                RequestFingerprint = requestFingerprint,
+                Provider = "VietQR",
+                ProviderTransactionId = payload.TransferContent,
+                Note = "VietQR generated for manual reconciliation.",
                 CreatedAt = now
             });
             try
@@ -148,60 +82,24 @@ public static class PaymentEndpoints
             }
             catch (DbUpdateConcurrencyException)
             {
-                db.ChangeTracker.Clear();
-                var duplicate = await FindPaymentRequestAsync(db, idempotencyKey, cancellationToken);
-                if (duplicate?.Payment?.Order?.OrderCode == orderCode.Trim()
-                    && duplicate.RequestFingerprint == requestFingerprint)
-                {
-                    var reloaded = await LoadPaymentAsync(db, orderCode, tracking: false, cancellationToken);
-                    if (reloaded is not null)
-                    {
-                        return Results.Ok(CreatePaymentRequestReplayResponse(
-                            reloaded,
-                            duplicate,
-                            vietQrProvider));
-                    }
-                }
-
                 return ApiResults.Conflict(
                     "CONFLICT_STALE",
                     "Payment was modified by another request. Reload and try again.");
             }
-            catch (DbUpdateException)
-            {
-                db.ChangeTracker.Clear();
-                var duplicate = await FindPaymentRequestAsync(db, idempotencyKey, cancellationToken);
-                if (duplicate?.Payment?.Order?.OrderCode != orderCode.Trim()
-                    || duplicate.RequestFingerprint != requestFingerprint)
-                {
-                    return ApiResults.Conflict(
-                        "IDEMPOTENCY_KEY_REUSED",
-                        "Idempotency key was already used with a different request.");
-                }
 
-                var reloaded = await LoadPaymentAsync(db, orderCode, tracking: false, cancellationToken);
-                return reloaded is null
-                    ? ApiResults.Conflict("CONFLICT_STALE", "Payment changed while the request was processed.")
-                    : Results.Ok(CreatePaymentRequestReplayResponse(
-                        reloaded,
-                        duplicate,
-                        vietQrProvider));
-            }
-
-            await realtime.PaymentRequestedAsync(
-                new PaymentRequestedEvent(
-                    payment.Order.Id,
-                    payment.Order.OrderCode,
-                    payment.Method.ToString(),
-                    payment.Status.ToString(),
-                    payment.Amount,
-                    payment.UpdatedAt),
-                payment.Order.TableCode,
-                cancellationToken);
-
-            return Results.Ok(CreatePaymentRequestResponse(payment, method, vietQrProvider));
+            return Results.Ok(new VietQrResponse(
+                payment.Order.OrderCode,
+                payload.Amount,
+                payload.TransferContent,
+                payload.BankId,
+                payload.AccountNumber,
+                payload.AccountName,
+                payload.QuickLink,
+                payload.QrPayload,
+                payload.QrImageDataUri,
+                payment.Status.ToString()));
         })
-        .WithName("RequestOrderPayment")
+        .WithName("GenerateVietQrPayment")
         .WithTags("Payments");
 
         app.MapPost("/api/orders/{orderCode}/payment/confirm", async (
@@ -224,9 +122,14 @@ public static class PaymentEndpoints
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }
 
-            if (ValidateManualPaymentTransition(payment, PaymentStatus.Confirmed) is { } transitionError)
+            if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
             {
-                return transitionError;
+                return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", "Payment was already confirmed.");
+            }
+
+            if (payment.Status == PaymentStatus.Failed)
+            {
+                return ApiResults.BadRequest("PAYMENT_ALREADY_FAILED", "Failed payment cannot be confirmed.");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -293,9 +196,9 @@ public static class PaymentEndpoints
                 return ApiResults.NotFound("PAYMENT_NOT_FOUND", "Payment was not found.");
             }
 
-            if (ValidateManualPaymentTransition(payment, PaymentStatus.Failed) is { } transitionError)
+            if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
             {
-                return transitionError;
+                return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", "Confirmed payment cannot be failed.");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -408,42 +311,6 @@ public static class PaymentEndpoints
         return null;
     }
 
-    private static IResult? ValidateManualPaymentTransition(Payment payment, PaymentStatus nextStatus)
-    {
-        if (payment.Status == PaymentStatus.NotRequested || payment.Method == PaymentMethod.Unselected)
-        {
-            return ApiResults.BadRequest(
-                "PAYMENT_NOT_REQUESTED",
-                "Customer has not requested payment yet.");
-        }
-
-        if (payment.Status == PaymentStatus.Refunded)
-        {
-            var action = nextStatus == PaymentStatus.Confirmed ? "confirmed" : "failed";
-            return ApiResults.BadRequest(
-                "PAYMENT_ALREADY_REFUNDED",
-                $"Refunded payment cannot be {action}.");
-        }
-
-        if (payment.Status is PaymentStatus.Confirmed or PaymentStatus.Paid)
-        {
-            var message = nextStatus == PaymentStatus.Confirmed
-                ? "Payment was already confirmed."
-                : "Confirmed payment cannot be failed.";
-            return ApiResults.BadRequest("PAYMENT_ALREADY_CONFIRMED", message);
-        }
-
-        if (payment.Status == PaymentStatus.Failed)
-        {
-            var message = nextStatus == PaymentStatus.Confirmed
-                ? "Failed payment cannot be confirmed."
-                : "Payment was already failed.";
-            return ApiResults.BadRequest("PAYMENT_ALREADY_FAILED", message);
-        }
-
-        return null;
-    }
-
     private static Task<Payment?> LoadPaymentAsync(
         RestaurantDbContext db,
         string orderCode,
@@ -463,93 +330,6 @@ public static class PaymentEndpoints
         return query.FirstOrDefaultAsync(cancellationToken);
     }
 
-    private static Task<PaymentTransaction?> FindPaymentRequestAsync(
-        RestaurantDbContext db,
-        string idempotencyKey,
-        CancellationToken cancellationToken)
-    {
-        return db.PaymentTransactions
-            .AsNoTracking()
-            .Include(transaction => transaction.Payment)
-                .ThenInclude(payment => payment!.Order)
-            .FirstOrDefaultAsync(
-                transaction => transaction.IdempotencyKey == idempotencyKey,
-                cancellationToken);
-    }
-
-    private static bool TryParseRequestedMethod(string? value, out PaymentMethod method)
-    {
-        return Enum.TryParse(value?.Trim(), ignoreCase: false, out method)
-            && method is PaymentMethod.COD or PaymentMethod.VietQR;
-    }
-
-    private static PaymentRequestResponse CreatePaymentRequestResponse(
-        Payment payment,
-        PaymentMethod method,
-        IVietQrProvider vietQrProvider)
-    {
-        VietQrResponse? vietQr = null;
-        if (method == PaymentMethod.VietQR && payment.Order is not null)
-        {
-            var payload = vietQrProvider.CreatePayload(payment.Order.OrderCode, payment.Amount);
-            vietQr = new VietQrResponse(
-                payment.Order.OrderCode,
-                payload.Amount,
-                payload.TransferContent,
-                payload.BankId,
-                payload.AccountNumber,
-                payload.AccountName,
-                payload.QuickLink,
-                payload.QrPayload,
-                payload.QrImageDataUri,
-                PaymentStatus.Pending.ToString());
-        }
-
-        return new PaymentRequestResponse(ToResponse(payment), vietQr);
-    }
-
-    private static PaymentRequestResponse CreatePaymentRequestReplayResponse(
-        Payment payment,
-        PaymentTransaction requestTransaction,
-        IVietQrProvider vietQrProvider)
-    {
-        var originalPayment = new PaymentResponse(
-            payment.Id,
-            payment.Order?.OrderCode ?? string.Empty,
-            requestTransaction.Method.ToString(),
-            requestTransaction.Status.ToString(),
-            payment.Amount,
-            null,
-            payment.CreatedAt,
-            null,
-            requestTransaction.CreatedAt,
-            payment.Transactions
-                .Where(transaction => transaction.CreatedAt < requestTransaction.CreatedAt
-                    || transaction.Id == requestTransaction.Id)
-                .OrderBy(transaction => transaction.CreatedAt)
-                .Select(ToTransactionResponse)
-                .ToList());
-
-        VietQrResponse? vietQr = null;
-        if (requestTransaction.Method == PaymentMethod.VietQR && payment.Order is not null)
-        {
-            var payload = vietQrProvider.CreatePayload(payment.Order.OrderCode, payment.Amount);
-            vietQr = new VietQrResponse(
-                payment.Order.OrderCode,
-                payload.Amount,
-                payload.TransferContent,
-                payload.BankId,
-                payload.AccountNumber,
-                payload.AccountName,
-                payload.QuickLink,
-                payload.QrPayload,
-                payload.QrImageDataUri,
-                requestTransaction.Status.ToString());
-        }
-
-        return new PaymentRequestResponse(originalPayment, vietQr);
-    }
-
     private static PaymentResponse ToResponse(Payment payment)
     {
         return new PaymentResponse(
@@ -564,20 +344,15 @@ public static class PaymentEndpoints
             payment.UpdatedAt,
             payment.Transactions
                 .OrderBy(transaction => transaction.CreatedAt)
-                .Select(ToTransactionResponse)
+                .Select(transaction => new PaymentTransactionResponse(
+                    transaction.Id,
+                    transaction.Method.ToString(),
+                    transaction.Status.ToString(),
+                    transaction.Amount,
+                    transaction.Provider,
+                    transaction.ProviderTransactionId,
+                    transaction.Note,
+                    transaction.CreatedAt))
                 .ToList());
-    }
-
-    private static PaymentTransactionResponse ToTransactionResponse(PaymentTransaction transaction)
-    {
-        return new PaymentTransactionResponse(
-            transaction.Id,
-            transaction.Method.ToString(),
-            transaction.Status.ToString(),
-            transaction.Amount,
-            transaction.Provider,
-            transaction.ProviderTransactionId,
-            transaction.Note,
-            transaction.CreatedAt);
     }
 }

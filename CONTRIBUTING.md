@@ -24,14 +24,14 @@ Cảm ơn bạn đã đóng góp cho **CMC Restaurant — QR AI Ordering**.
 
 ```bash
 # Frontend
-cd frontend && npm ci && npm run build
+cd frontend && npm ci && npm run build && npm test
 
 # Backend
-dotnet build backend/RestaurantQrAiOrdering.sln --configuration Release
+dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release
 
 # AI service
 python -m pip install -r ai/requirements.txt
-PYTHONPATH=ai python -m compileall ai/app
+PYTHONPATH=ai python -m unittest discover -s ai/tests
 ```
 
 ## Nguyên tắc

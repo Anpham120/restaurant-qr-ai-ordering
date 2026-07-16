@@ -41,9 +41,8 @@ public sealed record CreateOrderCommand(
     string? TableCode,
     string? QrToken,
     string? TableSessionId,
+    string PaymentMethod,
     IReadOnlyList<CreateOrderItemRequest> Items,
-    string IdempotencyKey,
-    string RequestFingerprint,
     decimal DiscountAmount = 0m,
     string? PromotionId = null,
     string? PromotionCode = null,
@@ -51,12 +50,4 @@ public sealed record CreateOrderCommand(
 
 public sealed record UpdateOrderStatusResult(bool IsFound, OrderSnapshot? Order, string? ErrorCode = null);
 
-public sealed record IdempotentOrderSnapshot(OrderSnapshot Order, string RequestFingerprint);
-
-public sealed record UpdateOrderItemStatusResult(
-    bool IsOrderFound,
-    bool IsItemFound,
-    OrderSnapshot? Order,
-    OrderItemSnapshot? Item,
-    string? ErrorCode = null,
-    bool OrderStatusChanged = false);
+public sealed record UpdateOrderItemStatusResult(bool IsOrderFound, bool IsItemFound, OrderSnapshot? Order, OrderItemSnapshot? Item, string? ErrorCode = null);

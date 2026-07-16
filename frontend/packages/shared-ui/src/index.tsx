@@ -9,13 +9,12 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useI18n } from "@cmc/i18n";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { ApiError, createApiClient } from "@cmc/api-client";
 import { authStorage, useAuth } from "@cmc/auth";
 import type { UserRole } from "@cmc/shared-types";
-import { Mail, Lock, Eye, EyeOff, LogIn, LogOut, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft } from "lucide-react";
 
 export function Button({
   children,
@@ -63,11 +62,10 @@ export function StatusBadge({
 }
 
 export function NotFoundPage() {
-  const { t } = useI18n();
   return (
     <StatePanel
-      title={t("Không tìm thấy trang")}
-      message={t("Đường dẫn này không tồn tại trong portal hiện tại.")}
+      title="Không tìm thấy trang"
+      message="Đường dẫn này không tồn tại trong portal hiện tại."
       kind="error"
     />
   );
@@ -313,7 +311,10 @@ export function OperationsLayout({
               navigate("/login");
             }}
           >
-            <LogOut aria-hidden="true" size={16} />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5M21 12H9" />
+            </svg>
             Đăng xuất
           </button>
         </div>
@@ -346,18 +347,10 @@ export function LoginPage({
   const target = (location.state as { from?: string } | null)?.from ?? "/";
 
   function resolveTarget(role: UserRole) {
-    const roleTarget = roleRedirects[role];
-    if (!roleTarget) {
+    if (target !== "/") {
       return target;
     }
-
-    const targetIsAnotherPortal = Object.values(roleRedirects).some((redirect) =>
-      typeof redirect === "string"
-      && redirect !== "/"
-      && (target === redirect || target.startsWith(`${redirect}/`)),
-    );
-
-    return target === "/" || targetIsAnotherPortal ? roleTarget : target;
+    return roleRedirects[role] ?? target;
   }
 
   async function submit(event: FormEvent) {
@@ -374,7 +367,7 @@ export function LoginPage({
     } catch (reason) {
       if (reason instanceof ApiError && reason.code === "INVALID_CREDENTIALS") {
         setError(
-          "Email hoặc mật khẩu không đúng. Sau nhiều lần thử sai, tài khoản sẽ tạm khoá 15 phút. Vui lòng thử lại sau.",
+          "Email hoặc mật khẩu không đúng. Sau nhiều lần thử sai, tài khoản sẽ tạm khoá 15 phút — vui lòng thử lại sau.",
         );
       } else {
         setError(reason instanceof Error ? reason.message : "Đăng nhập thất bại.");
@@ -478,8 +471,36 @@ export function LoginPage({
               </button>
             </form>
 
+            <div className="cmc-login-divider">
+              <span>hoặc</span>
+            </div>
+
+            <div className="cmc-login-social-btns">
+              <button
+                type="button"
+                className="cmc-social-btn cmc-facebook-btn"
+                onClick={() => alert("Đang chuyển hướng kết nối Facebook...")}
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style={{ marginRight: 6 }}>
+                  <path d="M9 8H7v3h2v9h4v-9h3.6l.4-3H13V6c0-.5.5-1 1-1h2V1h-3a5 5 0 00-5 5v2z" />
+                </svg>
+                Facebook
+              </button>
+              <button
+                type="button"
+                className="cmc-social-btn cmc-google-btn"
+                onClick={() => alert("Đang chuyển hướng kết nối Google...")}
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style={{ marginRight: 6 }}>
+                  <path d="M12.24 10.285V13.4h6.887c-.648 2.41-2.519 4.13-5.136 4.13a5.55 5.55 0 01-5.55-5.55 5.55 5.55 0 015.55-5.55c2.25 0 4.01.9 4.96 2.04l2.64-2.64C19.78 4.005 16.32 2.3 12.24 2.3 6.64 2.3 2.3 6.64 2.3 12.24s4.34 9.94 9.94 9.94c5.7 0 10.28-4.58 10.28-10.28 0-.6-.05-1.2-.17-1.78l-9.87.165z" />
+                </svg>
+                Google
+              </button>
+            </div>
+
             <div className="cmc-login-footer">
-              <span>Tài khoản vận hành do quản trị viên cấp.</span>
+              <span>Chưa có tài khoản? <a href="#" onClick={(e) => { e.preventDefault(); alert("Liên hệ quản trị viên để được tạo tài khoản vận hành."); }}>Đăng ký</a></span>
+              <br />
               <Link to="/" className="cmc-login-back-link">
                 <ArrowLeft size={14} style={{ marginRight: 4, verticalAlign: "-2px" }} />
                 Quay lại trang chủ

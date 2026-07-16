@@ -7,30 +7,30 @@
   display: grid;
   gap: 24px;
   overflow-x: hidden;
-  background: linear-gradient(180deg, var(--brand-ivory) 0%, var(--brand-paper) 50%, #fff7f1 100%);
-  color: var(--brand-ink);
+  background: linear-gradient(180deg, #FDF8F0 0%, #FFFBF5 50%, #FFF9F0 100%);
+  color: #3D2914;
   min-height: 100vh;
 
   /* tokens */
-  --ot-brown: var(--brand-chestnut);
-  --ot-brown-dark: var(--brand-ink);
-  --ot-brown-light: var(--brand-chestnut-dark);
-  --ot-gold: var(--brand-brass);
-  --ot-gold-light: #d2ad70;
-  --ot-cream: var(--brand-ivory);
-  --ot-warm-white: var(--brand-paper);
-  --ot-muted: var(--brand-muted);
-  --ot-border: var(--brand-clay-line);
-  --ot-green: var(--brand-success);
+  --ot-brown: #5a3a30;
+  --ot-brown-dark: #3D2914;
+  --ot-brown-light: #6e453b;
+  --ot-gold: #C4A35A;
+  --ot-gold-light: #D4B86A;
+  --ot-cream: #FDF8F0;
+  --ot-warm-white: #FFFBF5;
+  --ot-muted: #8B7355;
+  --ot-border: #E8DFD0;
+  --ot-green: #2f7d4f;
   --ot-green-bg: rgba(47, 125, 79, 0.08);
-  --ot-red: var(--brand-danger);
+  --ot-red: #C44536;
   --ot-amber: #92400e;
   --ot-amber-bg: rgba(217, 165, 32, 0.12);
   --ot-blue: #005BAC;
   --ot-blue-bg: rgba(0, 91, 172, 0.06);
-  --font-display-ot: var(--brand-font-display);
+  --font-display-ot: "Playfair Display", Georgia, "Times New Roman", serif;
   --font-script-ot: "Dancing Script", cursive;
-  --font-body-ot: var(--brand-font-body);
+  --font-body-ot: "Karla", "Segoe UI", system-ui, sans-serif;
 }
 
 /* --------------------------------------------------------------------------
@@ -488,91 +488,6 @@
   color: var(--ot-muted);
 }
 
-.cmc-ot-payment-card {
-  display: grid;
-  gap: 16px;
-  padding: 22px 24px;
-  border: 1px solid var(--ot-border);
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 12px 40px rgba(90, 58, 48, 0.06);
-}
-
-.cmc-ot-payment-heading,
-.cmc-ot-payment-state {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.cmc-ot-payment-heading > svg,
-.cmc-ot-payment-state > svg {
-  flex: 0 0 auto;
-  color: var(--ot-brown);
-}
-
-.cmc-ot-payment-heading h3,
-.cmc-ot-payment-heading p,
-.cmc-ot-payment-state strong,
-.cmc-ot-payment-state span,
-.cmc-ot-payment-notice {
-  margin: 0;
-}
-
-.cmc-ot-payment-heading h3 {
-  font-family: var(--font-display-ot);
-  font-size: 20px;
-  color: var(--ot-brown-dark);
-}
-
-.cmc-ot-payment-heading p,
-.cmc-ot-payment-state span {
-  margin-top: 4px;
-  color: var(--ot-muted);
-  font-size: 13px;
-}
-
-.cmc-ot-payment-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 52px;
-  width: 100%;
-  border: 0;
-  border-radius: 16px;
-  background: var(--ot-brown);
-  color: #ffffff;
-  cursor: pointer;
-  font: 700 16px var(--font-body-ot);
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-.cmc-ot-payment-primary:hover {
-  background: var(--ot-brown-light);
-}
-
-.cmc-ot-payment-primary:active {
-  transform: scale(0.98);
-}
-
-.cmc-ot-payment-state,
-.cmc-ot-payment-notice {
-  padding: 14px 16px;
-  border: 1px solid rgba(47, 125, 79, 0.22);
-  border-radius: 16px;
-  background: var(--ot-green-bg);
-  color: var(--ot-brown-dark);
-}
-
-.cmc-ot-payment-state > div {
-  display: grid;
-  flex: 1 1 auto;
-}
-
-.cmc-ot-payment-state .cmc-secondary-link {
-  flex: 0 0 auto;
-}
-
 /* --------------------------------------------------------------------------
    Error message
    -------------------------------------------------------------------------- */
@@ -647,32 +562,9 @@
 }
 
 @media (max-width: 480px) {
-  .cmc-ot-hero {
-    padding: 26px 16px;
-  }
-
   .cmc-ot-connection-bar {
     flex-direction: column;
     align-items: flex-start;
-    margin-inline: 12px;
-    padding: 14px;
-  }
-
-  .cmc-ot-content {
-    gap: 14px;
-    padding: 0 12px max(24px, env(safe-area-inset-bottom));
-  }
-
-  .cmc-ot-summary,
-  .cmc-ot-item {
-    border-radius: 18px;
-    padding: 16px;
-  }
-
-  .cmc-ot-payment-primary,
-  .cmc-ot-vietqr-action button,
-  .cmc-ot-back {
-    min-height: 44px;
   }
 }
 
@@ -680,7 +572,6 @@
   .cmc-ot-step,
   .cmc-ot-item,
   .cmc-ot-vietqr-action button,
-  .cmc-ot-payment-primary,
   .cmc-ot-back {
     transition: none;
   }

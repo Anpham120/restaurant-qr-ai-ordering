@@ -10,10 +10,10 @@ frontend_url="${FRONTEND_HEALTH_URL:-https://${primary_frontend_domain}/}"
 api_health_url="${API_HEALTH_URL:-https://${API_SERVER_NAME}/api/health}"
 
 echo "Checking frontend: ${frontend_url}"
-curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors "$frontend_url" >/dev/null
+curl --fail --show-error --silent --retry 10 --retry-delay 5 "$frontend_url" >/dev/null
 
 echo "Checking API health: ${api_health_url}"
-curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors "$api_health_url"
+curl --fail --show-error --silent --retry 10 --retry-delay 5 "$api_health_url"
 
 report_dir="/opt/cmc-restaurant/${DEPLOY_ENV}/reports"
 mkdir -p "$report_dir"

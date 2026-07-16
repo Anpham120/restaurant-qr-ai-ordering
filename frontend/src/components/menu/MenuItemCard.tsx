@@ -1,21 +1,19 @@
-import { formatVnd as formatBrandVnd } from "@cmc/brand-ui";
-import { useI18n } from "@cmc/i18n";
-import { localizeMenuItem, localizeMenuTag } from "@cmc/i18n/menu";
 import type { MenuItem } from "../../types";
 
 type MenuItemCardProps = {
   item: MenuItem;
-  quantity?: number;
-  onAdd?: (itemId: string) => void;
-  onRemove?: (itemId: string) => void;
-  readOnly?: boolean;
+  quantity: number;
+  onAdd: (itemId: string) => void;
+  onRemove: (itemId: string) => void;
 };
 
+const formatter = new Intl.NumberFormat("vi-VN");
+
 export function formatVnd(price: number) {
-  return formatBrandVnd(price);
+  return `${formatter.format(price)}đ`;
 }
 
-/** Map ASCII tag keys to Vietnamese display labels with diacritics. */
+/** Map ASCII tag keys → Vietnamese display labels with diacritics */
 const TAG_LABELS: Record<string, string> = {
   // Mức cay
   "khong cay": "Không cay", "cay nhe": "Cay nhẹ", "cay vua": "Cay vừa", "cay dam": "Cay đậm",
@@ -53,7 +51,7 @@ const TAG_LABELS: Record<string, string> = {
   "mua nong": "Mùa nóng", "mua lanh": "Mùa lạnh", "quanh nam": "Quanh năm", "giai nhiet": "Giải nhiệt",
 };
 
-export function tagLabel(tag: string): string {
+function tagLabel(tag: string): string {
   return TAG_LABELS[tag] || tag;
 }
 
@@ -62,42 +60,35 @@ export function MenuItemCard({
   quantity,
   onAdd,
   onRemove,
-  readOnly = false,
 }: MenuItemCardProps) {
-  const { formatMoney, locale, t } = useI18n();
-  const displayItem = localizeMenuItem(item, locale);
-  const formattedPrice = formatMoney(item.price);
-
   return (
     <article className={item.isAvailable ? "cmc-menu-card" : "cmc-menu-card disabled"}>
       <div className="cmc-card-image-wrap">
-        <img alt={displayItem.name} className="cmc-card-image" src={item.imageUrl} />
+        <img alt={item.name} className="cmc-card-image" src={item.imageUrl} />
         <span className={item.isAvailable ? "cmc-availability ready" : "cmc-availability muted"}>
-          {item.isAvailable ? t("Còn món") : t("Tạm hết")}
+          {item.isAvailable ? "Còn món" : "Tạm hết"}
         </span>
       </div>
       <div className="cmc-card-content">
         <div>
-          <p className="cmc-card-category">{displayItem.categoryName}</p>
-          <h3>{displayItem.name}</h3>
-          <p>{displayItem.description}</p>
+          <p className="cmc-card-category">{item.categoryName}</p>
+          <h3>{item.name}</h3>
+          <p>{item.description}</p>
         </div>
         <div className="cmc-tag-row">
           {item.tags.slice(0, 3).map((tag) => (
-            <span key={tag}>{localizeMenuTag(tag, locale, tagLabel(tag))}</span>
+            <span key={tag}>{tagLabel(tag)}</span>
           ))}
         </div>
         <div className="cmc-card-footer">
-          <strong className="cmc-card-price" data-money aria-label={t("Giá {price}", { price: formattedPrice })}>
-            <span className="cmc-card-price-value" aria-hidden="true">{formattedPrice}</span>
-          </strong>
-          {readOnly ? null : quantity && quantity > 0 ? (
-            <div className="cmc-stepper anim-scale-in" aria-label={t("Số lượng {item}", { item: displayItem.name })}>
-              <button onClick={() => onRemove?.(item.id)} type="button">
+          <strong>{formatVnd(item.price)}</strong>
+          {quantity > 0 ? (
+            <div className="cmc-stepper anim-scale-in" aria-label={`${item.name} quantity`}>
+              <button onClick={() => onRemove(item.id)} type="button">
                 -
               </button>
               <span>{quantity}</span>
-              <button disabled={!item.isAvailable} onClick={() => onAdd?.(item.id)} type="button">
+              <button disabled={!item.isAvailable} onClick={() => onAdd(item.id)} type="button">
                 +
               </button>
             </div>
@@ -105,11 +96,10 @@ export function MenuItemCard({
             <button
               className="cmc-add-button"
               disabled={!item.isAvailable}
-              onClick={() => onAdd?.(item.id)}
+              onClick={() => onAdd(item.id)}
               type="button"
             >
-              <span className="cmc-add-button-icon" aria-hidden="true">+</span>
-              <span>{t("Thêm")}</span>
+              + Thêm
             </button>
           )}
         </div>

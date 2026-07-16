@@ -145,43 +145,6 @@ public sealed class DbUserStore : IUserStore
         return CreateUserResult.Success(ToUserAccount(user));
     }
 
-    public UpdateUserResult UpdateUser(string userId, string fullName, string email, string role)
-    {
-        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
-        if (user is null)
-        {
-            return UpdateUserResult.UserNotFound();
-        }
-
-        var normalizedEmail = NormalizeEmail(email);
-        var duplicateEmail = dbContext.Users.Any(u => u.Id != userId && u.Email.ToLower() == normalizedEmail.ToLower());
-        if (duplicateEmail)
-        {
-            return UpdateUserResult.DuplicateEmail();
-        }
-
-        user.FullName = fullName.Trim();
-        user.Email = normalizedEmail;
-        user.Role = role;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-        dbContext.SaveChanges();
-
-        return UpdateUserResult.Success(ToUserAccount(user));
-    }
-
-    public DeleteUserResult DeleteUser(string userId)
-    {
-        var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
-        if (user is null)
-        {
-            return DeleteUserResult.UserNotFound();
-        }
-
-        dbContext.Users.Remove(user);
-        dbContext.SaveChanges();
-        return DeleteUserResult.Success();
-    }
-
     public ChangePasswordResult ChangePassword(string userId, string currentPassword, string newPassword)
     {
         var user = dbContext.Users.FirstOrDefault(u => u.Id == userId);
@@ -217,16 +180,6 @@ public sealed class DbUserStore : IUserStore
         return ResetPasswordResult.Success();
     }
 
-    public long? GetSecurityStampTicks(string userId)
-    {
-        var updatedAt = dbContext.Users
-            .AsNoTracking()
-            .Where(user => user.Id == userId)
-            .Select(user => (DateTimeOffset?)user.UpdatedAt)
-            .FirstOrDefault();
-        return updatedAt?.UtcTicks;
-    }
-
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
@@ -241,8 +194,7 @@ public sealed class DbUserStore : IUserStore
             Email = user.Email,
             PasswordHash = user.PasswordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt,
-            SecurityStampTicks = user.UpdatedAt.UtcTicks
+            CreatedAt = user.CreatedAt
         };
     }
 
@@ -255,8 +207,7 @@ public sealed class DbUserStore : IUserStore
             Email = user.Email,
             PasswordHash = user.PasswordHash,
             Role = user.Role,
-            CreatedAt = user.CreatedAt,
-            SecurityStampTicks = user.UpdatedAt.UtcTicks
+            CreatedAt = user.CreatedAt
         };
     }
 }

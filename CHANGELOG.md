@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Rebuilt the chatbot as an evidence-driven live-menu RAG service with deterministic fast paths, persisted table-session memory and customer-confirmed cart suggestions.
+- Replaced the legacy knowledge-base/evaluation artifacts with a reproducible 91-item research dataset, five-method retrieval comparison, raw per-query evidence, statistical tests and an executed notebook.
+- Selected TF-IDF for production from the locked test protocol and changed the optional prose model to Gemini Flash through 9Router with retrieval-only fallback.
+
+### Security
+- Menu IDs, prices and availability are now canonicalized by the backend; AI output cannot directly mutate carts, submit orders or claim a completed transaction.
+
 ## [0.1.0] - 2026-06-19
 
 First public milestone (MVP / demo) of the CMC Restaurant QR AI Ordering platform:

@@ -3,7 +3,6 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using RestaurantQrAiOrdering.Api.Errors;
-using RestaurantQrAiOrdering.Api.Users;
 
 namespace RestaurantQrAiOrdering.Api.Auth;
 
@@ -12,32 +11,20 @@ public sealed class HmacJwtAuthenticationHandler : AuthenticationHandler<Authent
     public const string SchemeName = "Bearer";
 
     private readonly IJwtTokenService jwtTokenService;
-    private readonly IUserStore users;
 
     public HmacJwtAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IJwtTokenService jwtTokenService,
-        IUserStore users)
+        IJwtTokenService jwtTokenService)
         : base(options, logger, encoder)
     {
         this.jwtTokenService = jwtTokenService;
-        this.users = users;
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var authorization = Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(authorization)
-            && Request.Path.StartsWithSegments("/hubs/orders")
-            && Request.Query.TryGetValue("access_token", out var queryTokens)
-            && queryTokens.Count == 1
-            && !string.IsNullOrWhiteSpace(queryTokens[0]))
-        {
-            authorization = $"Bearer {queryTokens[0]}";
-        }
-
         if (string.IsNullOrWhiteSpace(authorization))
         {
             Logger.LogDebug(
@@ -63,15 +50,6 @@ public sealed class HmacJwtAuthenticationHandler : AuthenticationHandler<Authent
             Logger.LogWarning("Authentication failed because the access token is invalid for {Path}.", Request.Path);
 
             return Task.FromResult(AuthenticateResult.Fail("Invalid access token."));
-        }
-
-
-        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        var authVersionText = principal.FindFirstValue("auth_version");
-        if (!long.TryParse(authVersionText, out var authVersion)
-            || (authVersion != 0 && users.GetSecurityStampTicks(userId ?? string.Empty) != authVersion))
-        {
-            return Task.FromResult(AuthenticateResult.Fail("Access token has been revoked."));
         }
 
         Logger.LogInformation(

@@ -13,7 +13,7 @@ Vì `admin@restaurant.local / Admin@123` đã public trên repo → coi tài kho
 
 - [ ] Tạo mới `JWT_SIGNING_KEY` và `PRODUCTION_POSTGRES_PASSWORD` (random dài) → lưu vào GitHub Secrets, KHÔNG dùng lại giá trị dev đã commit.
 - [ ] Sau khi Phase 1 deploy: buộc đổi mật khẩu mọi tài khoản vận hành.
-- [ ] Xác nhận secret prod/staging trên GitHub đã set đủ (deploy script yêu cầu: `JWT_SIGNING_KEY`, `*_POSTGRES_PASSWORD`, `GEMINI_API_KEY`, SSH...).
+- [ ] Xác nhận secret prod/staging trên GitHub đã set đủ (deploy script yêu cầu: `JWT_SIGNING_KEY`, `*_POSTGRES_PASSWORD`, `AI_API_KEY`, SSH...).
 
 ---
 
@@ -28,7 +28,7 @@ Vì `admin@restaurant.local / Admin@123` đã public trên repo → coi tài kho
 
 **File:** `backend/src/RestaurantQrAiOrdering.Api/Program.cs` (khối seed ~dòng 80–110)
 
-**Vấn đề lịch sử:** seed cố định từng reset hash khi deploy cũ dùng startup migration; hiện bootstrap/demo seed đã tách khỏi migration và được kiểm soát bằng biến môi trường.
+**Vấn đề:** seed cố định 4 tài khoản + RESET hash về mật khẩu mặc định mỗi lần khởi động khi `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
 
 **Cách sửa:**
 1. Tách seed khỏi flag migration.
@@ -91,11 +91,15 @@ if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
 
 ## Phase 3 — Migration & prod hardening 🟠
 
-> ✅ **Đã triển khai:** deploy start PostgreSQL, chạy container `migrate --migrate-only`, rồi mới start API; `RUN_DB_MIGRATIONS_ON_STARTUP=false` mặc định. `AllowedHosts` production/staging đã giới hạn hostname API và loopback cho health check.
+> 🟠 **Hoãn có chủ đích — CHƯA triển khai trong PR này.** Lý do: nhóm thay đổi này sửa hành vi deploy thật trên VPS mà không kiểm chứng được trong môi trường hiện tại:
+> - Đổi migrate-on-startup → bước deploy riêng cần hạ tầng (one-shot migrate container/step) chưa test được → rủi ro phá deploy.
+> - Thu hẹp `AllowedHosts` rủi ro chặn health check sau nginx.
+>
+> Giữ nguyên `RUN_DB_MIGRATIONS_ON_STARTUP=true` và `AllowedHosts="*"` để không phá deploy đang chạy. **Đã dọn đường:** Program.cs giờ TÁCH `MigrateAsync()` khỏi seed (migrate chạy độc lập theo flag), nên khi làm Phase 3 chỉ cần đổi flag mặc định + thêm migrate step vào workflow.
 
-- [x] `RUN_DB_MIGRATIONS_ON_STARTUP` mặc định **false** cho production. Chạy migration thành bước deploy riêng qua container `migrate --migrate-only` trước khi `api` start.
+- [ ] `RUN_DB_MIGRATIONS_ON_STARTUP` mặc định **false** cho production. Chạy migration thành **bước deploy riêng** (one-shot `dotnet ef database update` hoặc container migrate trước khi `api` start) trong `deploy/scripts/deploy-vps.sh` + workflow.
   - File: `.github/workflows/deploy-production.yml:44`, `deploy-staging.yml:38`, `deploy/docker-compose.yml:32`.
-- [x] `AllowedHosts: "*"` → hostname thật theo môi trường, kèm `localhost`/`127.0.0.1` cho health check.
+- [ ] `AllowedHosts: "*"` → hostname thật theo môi trường (`appsettings.Production.json`).
 - [ ] (Tùy chọn) thu hẹp CORS list localhost trong `Program.cs` cho production.
 
 **Verify:** deploy script chạy migrate step; `/api/health` xanh sau deploy.
@@ -104,13 +108,13 @@ if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
 
 ## Phase 4 — Gộp frontend, bỏ bản trùng 🟡
 
-**Hiện trạng:** `frontend/apps/*-web` là entry chuẩn (build:all build chúng), import code qua `../../../src/...`. Bản legacy đã được xóa: `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/index.html`, `frontend/vite.config.ts`, script `dev:legacy`/`build:legacy`.
+**Hiện trạng:** `frontend/apps/*-web` là entry chuẩn (build:all build chúng), import code qua `../../../src/...`. Bản legacy chết: `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/index.html`, `frontend/vite.config.ts`, script `dev:legacy`/`build:legacy`.
 
 **Option A (làm ngay, rủi ro thấp):**
-- [x] Xóa: `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/index.html`, `frontend/vite.config.ts`.
-- [x] Bỏ script `dev:legacy`, `build:legacy` trong `frontend/package.json`.
-- [x] Giữ `frontend/src/{pages,components,services,types,utils,mocks,styles.css}` làm code dùng chung cho apps.
-- [x] Giữ `frontend/tsconfig.json` theo workspace hiện tại; typecheck/build bốn portal đã pass.
+- [ ] Xóa: `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/index.html`, `frontend/vite.config.ts`.
+- [ ] Bỏ script `dev:legacy`, `build:legacy` trong `frontend/package.json`.
+- [ ] Giữ `frontend/src/{pages,components,services,types,utils,mocks,styles.css}` làm code dùng chung cho apps.
+- [ ] Sửa `frontend/tsconfig.json` nếu cần (đang `include: ["src"]`).
 
 **Option B (refactor sau, sạch hơn):**
 - [ ] Chuyển `src/{pages,components,services...}` vào `packages/` (đã có `shared-ui`), thay import `../../../src` bằng `@cmc/...`.
@@ -119,19 +123,18 @@ if (builder.Configuration.GetValue<bool>("SEED_DEMO_USERS"))
 
 ---
 
-## Phase 5 — AI: nói đúng bản chất 🟡
+## Phase 5 — AI: completed by academic chatbot v2 ✅
 
-`ai/app/rag/retriever.py` là **lexical retrieval** (token overlap + idf), không phải vector RAG.
-
-- [ ] **Ngắn hạn:** sửa `README.md` + `docs/AI_RAG_ARCHITECTURE.md` ghi rõ "lexical retrieval", bỏ từ "vector/embeddings" nếu chưa có.
-- [ ] **Dài hạn (tùy chọn):** thêm embeddings thật (API embeddings + cosine) nếu cần chất lượng.
+The legacy retriever and duplicated knowledge base were removed. The replacement compares TF-IDF, BM25,
+a real multilingual embedding model and two hybrids under one locked protocol, then deploys the measured
+winner from `production_config.json`. See `ACADEMIC_CHATBOT_V2.md` and the executed notebook.
 
 ---
 
 ## Phase 6 — Vệ sinh repo & CI 🟢
 
-- [x] `coursework/` và scratch artifact không còn tracked.
-- [x] `.github/workflows/ci.yml` chạy `npm test`, backend regression và AI guardrail tests.
+- [ ] `git rm -r --cached coursework/` rồi commit (đã có trong `.gitignore` nhưng vẫn tracked — 10 file bài tập AI/ML không liên quan sản phẩm).
+- [ ] `.github/workflows/ci.yml` job `frontend-build`: thêm bước `npm test` (vitest hiện không chạy trong CI). Cân nhắc thêm playwright smoke.
 - [ ] Dọn branch cũ: `merge/develop-into-main`, `fix/production-deploy-health`, các `codex/*` đã merge.
 - [ ] Dọn file scratch local (đã gitignore): `commit_msg.txt`, `pr_*.txt`, `issue_comment.txt`, `tmp/`, `output/`, `site-demo/`.
 

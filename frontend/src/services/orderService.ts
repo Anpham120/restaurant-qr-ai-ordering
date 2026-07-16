@@ -1,30 +1,23 @@
+import { createApiClient } from "@cmc/api-client";
 import type {
   CreateOrderRequest,
   CreateOrderResponse,
   OrderItemStatus,
-  PaymentMethod,
-  PaymentStatus,
-  PaymentRequestResponse,
   PaymentResponse,
-  TableInvoice,
-  TableInvoicePaymentRequest,
-  TableInvoicePaymentRequestResponse,
   OrderTrackingOrder,
   ValidatePromotionResponse,
   VietQrPaymentResponse,
 } from "../types";
-import { api } from "./apiClient";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 // Per-order customer access tokens, keyed by order code. Issued by the backend at create
 // time and replayed (X-Order-Token) on customer reads so guessable order codes can't be
 // enumerated. Operators read via their bearer token instead and don't need this.
 const ORDER_TOKENS_KEY = "cmc.orderTokens";
-const ORDER_IDEMPOTENCY_KEY = "cmc.orderIdempotency";
-const PAYMENT_IDEMPOTENCY_KEY = "cmc.paymentIdempotency";
-const TABLE_INVOICE_PAYMENT_IDEMPOTENCY_KEY = "cmc.tableInvoicePaymentIdempotency";
-const VIETQR_CACHE_KEY = "cmc.vietQrPayments";
-
-type PendingIdempotency = { fingerprint: string; key: string };
 
 function readOrderTokens(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -42,120 +35,15 @@ function rememberOrderToken(orderCode: string, token: string | null | undefined)
   window.localStorage.setItem(ORDER_TOKENS_KEY, JSON.stringify(tokens));
 }
 
-export function getCustomerOrderToken(orderCode: string): string | undefined {
+function getOrderToken(orderCode: string): string | undefined {
   return readOrderTokens()[orderCode];
-}
-
-export function hasCustomerOrderToken(orderCode: string): boolean {
-  return Boolean(getCustomerOrderToken(orderCode));
-}
-
-function createIdempotencyKey(prefix: "order" | "payment" | "table-invoice") {
-  const suffix = globalThis.crypto?.randomUUID?.() ??
-    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `${prefix}-${suffix}`;
-}
-
-function createStableFingerprint(value: unknown): string {
-  const input = JSON.stringify(value);
-  let hash = 2166136261;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    return JSON.parse(window.localStorage.getItem(key) ?? "") as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function getOrderIdempotency({
-  orderType,
-  tableCode,
-  items,
-  promotionCode,
-}: CreateOrderRequest): PendingIdempotency {
-  // Keep only non-sensitive order details in browser storage. The idempotency
-  // fingerprint must not persist customer contact or table access credentials.
-  const fingerprint = JSON.stringify({ orderType, tableCode, items, promotionCode });
-  const pending = readJson<PendingIdempotency | null>(ORDER_IDEMPOTENCY_KEY, null);
-  if (pending?.fingerprint === fingerprint) return pending;
-  const next = { fingerprint, key: createIdempotencyKey("order") };
-  window.localStorage.setItem(ORDER_IDEMPOTENCY_KEY, JSON.stringify(next));
-  return next;
-}
-
-function clearOrderIdempotency(pending: PendingIdempotency) {
-  const current = readJson<PendingIdempotency | null>(ORDER_IDEMPOTENCY_KEY, null);
-  if (current?.fingerprint === pending.fingerprint && current.key === pending.key) {
-    window.localStorage.removeItem(ORDER_IDEMPOTENCY_KEY);
-  }
-}
-
-function getPaymentIdempotency(orderCode: string, method: PaymentMethod) {
-  const records = readJson<Record<string, string>>(PAYMENT_IDEMPOTENCY_KEY, {});
-  const fingerprint = `${orderCode}:${method}`;
-  const existing = records[fingerprint];
-  if (existing) return existing;
-  const key = createIdempotencyKey("payment");
-  records[fingerprint] = key;
-  window.localStorage.setItem(PAYMENT_IDEMPOTENCY_KEY, JSON.stringify(records));
-  return key;
-}
-
-function getTableInvoicePaymentIdempotency(
-  sessionId: string,
-  payload: TableInvoicePaymentRequest,
-): string {
-  const records = readJson<Record<string, string>>(TABLE_INVOICE_PAYMENT_IDEMPOTENCY_KEY, {});
-  const fingerprint = createStableFingerprint({
-    sessionId,
-    method: payload.method,
-    promotionCode: payload.promotionCode?.trim().toUpperCase() || null,
-    customerPhoneNumber: payload.customerPhoneNumber?.trim() || null,
-  });
-  const storageKey = `${sessionId}:${fingerprint}`;
-  const existing = records[storageKey];
-  if (existing) return existing;
-  const key = createIdempotencyKey("table-invoice");
-  records[storageKey] = key;
-  window.localStorage.setItem(TABLE_INVOICE_PAYMENT_IDEMPOTENCY_KEY, JSON.stringify(records));
-  return key;
-}
-
-function clearTableInvoicePaymentIdempotency(sessionId: string): void {
-  if (typeof window === "undefined") return;
-  const records = readJson<Record<string, string>>(TABLE_INVOICE_PAYMENT_IDEMPOTENCY_KEY, {});
-  for (const key of Object.keys(records)) {
-    if (key.startsWith(`${sessionId}:`)) delete records[key];
-  }
-  window.localStorage.setItem(TABLE_INVOICE_PAYMENT_IDEMPOTENCY_KEY, JSON.stringify(records));
-}
-
-function rememberVietQrPayment(data: VietQrPaymentResponse | null) {
-  if (!data || typeof window === "undefined") return;
-  const records = readJson<Record<string, VietQrPaymentResponse>>(VIETQR_CACHE_KEY, {});
-  records[data.orderCode] = data;
-  window.localStorage.setItem(VIETQR_CACHE_KEY, JSON.stringify(records));
-}
-
-export function getStoredVietQrPayment(orderCode: string): VietQrPaymentResponse | null {
-  return readJson<Record<string, VietQrPaymentResponse>>(VIETQR_CACHE_KEY, {})[orderCode] ?? null;
 }
 
 export async function createOrder(
   payload: CreateOrderRequest,
 ): Promise<CreateOrderResponse> {
-  const pending = getOrderIdempotency(payload);
-  const response = (await api.orders.create(payload, pending.key)) as CreateOrderResponse;
+  const response = (await api.orders.create(payload)) as CreateOrderResponse;
   rememberOrderToken(response.orderCode, response.customerAccessToken);
-  clearOrderIdempotency(pending);
   return response;
 }
 
@@ -172,15 +60,7 @@ export async function getKitchenOrders(): Promise<OrderTrackingOrder[]> {
 }
 
 export async function getOrderTracking(orderCode: string): Promise<OrderTrackingOrder> {
-  return api.orders.get(orderCode, getCustomerOrderToken(orderCode)) as Promise<OrderTrackingOrder>;
-}
-
-export async function getTableSessionOrders(
-  sessionId: string,
-  sessionToken: string,
-): Promise<OrderTrackingOrder[]> {
-  const response = await api.tables.listSessionOrders(sessionId, sessionToken);
-  return response.orders as OrderTrackingOrder[];
+  return api.orders.get(orderCode, getOrderToken(orderCode)) as Promise<OrderTrackingOrder>;
 }
 
 export async function updateOrderItemStatus(
@@ -199,63 +79,11 @@ export async function updateOrderStatus(
 }
 
 export async function getOrderPayment(orderCode: string): Promise<PaymentResponse> {
-  return api.payments.get(orderCode, getCustomerOrderToken(orderCode)) as Promise<PaymentResponse>;
+  return api.payments.get(orderCode, getOrderToken(orderCode)) as Promise<PaymentResponse>;
 }
 
-export async function requestOrderPayment(
-  orderCode: string,
-  method: Exclude<PaymentMethod, "Unselected">,
-): Promise<PaymentRequestResponse> {
-  const orderToken = getCustomerOrderToken(orderCode);
-  if (!orderToken) {
-    throw new Error("Không còn quyền truy cập đơn này.");
-  }
-  const idempotencyKey = getPaymentIdempotency(orderCode, method);
-  const response = await api.payments.request(
-    orderCode,
-    { method },
-    orderToken,
-    idempotencyKey,
-  ) as PaymentRequestResponse;
-  rememberVietQrPayment(response.vietQr);
-  return response;
-}
-
-export async function getTableInvoice(
-  sessionId: string,
-  sessionToken: string,
-): Promise<TableInvoice> {
-  const invoice = await api.tableInvoices.get(sessionId, sessionToken) as TableInvoice;
-  if (["Cancelled", "Confirmed", "Paid"].includes(invoice.status)) {
-    clearTableInvoicePaymentIdempotency(sessionId);
-  }
-  return invoice;
-}
-
-export async function listTableInvoices(status?: PaymentStatus): Promise<TableInvoice[]> {
-  return api.tableInvoices.list(status) as Promise<TableInvoice[]>;
-}
-
-export async function requestTableInvoicePayment(
-  sessionId: string,
-  sessionToken: string,
-  payload: TableInvoicePaymentRequest,
-): Promise<TableInvoicePaymentRequestResponse> {
-  const key = getTableInvoicePaymentIdempotency(sessionId, payload);
-  return api.tableInvoices.requestPayment(
-    sessionId,
-    payload,
-    sessionToken,
-    key,
-  ) as Promise<TableInvoicePaymentRequestResponse>;
-}
-
-export async function confirmTableInvoicePayment(sessionId: string, note?: string): Promise<TableInvoice> {
-  return api.tableInvoices.confirmPayment(sessionId, { note }) as Promise<TableInvoice>;
-}
-
-export async function cancelTableInvoicePayment(sessionId: string, note?: string): Promise<TableInvoice> {
-  return api.tableInvoices.cancelPayment(sessionId, { note }) as Promise<TableInvoice>;
+export async function generateVietQrPayment(orderCode: string): Promise<VietQrPaymentResponse> {
+  return api.payments.generateVietQr(orderCode, getOrderToken(orderCode)) as Promise<VietQrPaymentResponse>;
 }
 
 export async function confirmOrderPayment(orderCode: string, note?: string): Promise<PaymentResponse> {

@@ -1,5 +1,10 @@
+import { createApiClient } from "@cmc/api-client";
 import type { AdminMenuCategory, AdminMenuItem, AdminMenuOverview } from "../types";
-import { api } from "./apiClient";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 export type AdminMenuItemPayload = {
   categoryId: string;

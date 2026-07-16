@@ -3,16 +3,12 @@ WORKDIR /app
 
 ARG VITE_API_BASE_URL=https://api.cmcrestaurant.app/api
 ARG VITE_ORDER_HUB_URL=https://api.cmcrestaurant.app/hubs/orders
-ARG VITE_ORDERING_BASE_URL=https://order.cmcrestaurant.app
-ARG VITE_MARKETING_BASE_URL=https://cmcrestaurant.app
 ARG VITE_USE_MOCK_CHAT=false
 ARG VITE_USE_MOCK_ORDER=false
 ARG VITE_USE_MOCK_MENU=false
 
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_ORDER_HUB_URL=$VITE_ORDER_HUB_URL
-ENV VITE_ORDERING_BASE_URL=$VITE_ORDERING_BASE_URL
-ENV VITE_MARKETING_BASE_URL=$VITE_MARKETING_BASE_URL
 ENV VITE_USE_MOCK_CHAT=$VITE_USE_MOCK_CHAT
 ENV VITE_USE_MOCK_ORDER=$VITE_USE_MOCK_ORDER
 ENV VITE_USE_MOCK_MENU=$VITE_USE_MOCK_MENU
@@ -21,26 +17,23 @@ COPY frontend/package*.json ./
 COPY frontend/apps/admin-web/package.json ./apps/admin-web/package.json
 COPY frontend/apps/customer-web/package.json ./apps/customer-web/package.json
 COPY frontend/apps/kitchen-web/package.json ./apps/kitchen-web/package.json
-COPY frontend/apps/ordering-web/package.json ./apps/ordering-web/package.json
 COPY frontend/apps/staff-web/package.json ./apps/staff-web/package.json
-COPY frontend/packages/brand-ui/package.json ./packages/brand-ui/package.json
 COPY frontend/packages/api-client/package.json ./packages/api-client/package.json
 COPY frontend/packages/auth/package.json ./packages/auth/package.json
 COPY frontend/packages/realtime-client/package.json ./packages/realtime-client/package.json
 COPY frontend/packages/shared-types/package.json ./packages/shared-types/package.json
 COPY frontend/packages/shared-ui/package.json ./packages/shared-ui/package.json
+COPY frontend/packages/utils/package.json ./packages/utils/package.json
 RUN npm ci
 
 COPY frontend/ ./
 RUN npm run build:all
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginx:1.27-alpine AS runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build --chown=nginx:nginx /app/apps/customer-web/dist /usr/share/nginx/html/customer
-COPY --from=build --chown=nginx:nginx /app/apps/ordering-web/dist /usr/share/nginx/html/ordering
-COPY --from=build --chown=nginx:nginx /app/apps/admin-web/dist /usr/share/nginx/html/admin
-COPY --from=build --chown=nginx:nginx /app/apps/kitchen-web/dist /usr/share/nginx/html/kitchen
-COPY --from=build --chown=nginx:nginx /app/apps/staff-web/dist /usr/share/nginx/html/staff
+COPY --from=build /app/apps/customer-web/dist /usr/share/nginx/html/customer
+COPY --from=build /app/apps/admin-web/dist /usr/share/nginx/html/admin
+COPY --from=build /app/apps/kitchen-web/dist /usr/share/nginx/html/kitchen
+COPY --from=build /app/apps/staff-web/dist /usr/share/nginx/html/staff
 
-EXPOSE 8080
-USER nginx
+EXPOSE 80

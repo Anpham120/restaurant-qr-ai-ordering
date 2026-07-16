@@ -10,8 +10,7 @@ public static class LoyaltyEndpoints
 {
     public static IEndpointRouteBuilder MapLoyaltyEndpoints(this IEndpointRouteBuilder app)
     {
-        // Personal loyalty balances are never public: only an authenticated customer
-        // or an operator may query a phone number.
+        // Public lookup: a customer checks their own points/rewards by phone number.
         app.MapGet("/api/loyalty/lookup", async (
             string? phone,
             RestaurantDbContext db,
@@ -43,8 +42,7 @@ public static class LoyaltyEndpoints
                 rewards.Select(ToRewardResponse).ToList()));
         })
         .WithName("LoyaltyLookup")
-        .WithTags("Loyalty")
-        .RequireAuthorization();
+        .WithTags("Loyalty");
 
         MapAdminMembers(app);
         MapAdminRewards(app);
@@ -56,7 +54,7 @@ public static class LoyaltyEndpoints
     {
         var members = app.MapGroup("/api/admin/loyalty/members")
             .WithTags("Admin Loyalty")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOrAdmin");
 
         members.MapGet("/", async (RestaurantDbContext db, CancellationToken cancellationToken) =>
         {
@@ -191,7 +189,7 @@ public static class LoyaltyEndpoints
     {
         var rewards = app.MapGroup("/api/admin/loyalty/rewards")
             .WithTags("Admin Loyalty")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOrAdmin");
 
         rewards.MapGet("/", async (RestaurantDbContext db, CancellationToken cancellationToken) =>
         {

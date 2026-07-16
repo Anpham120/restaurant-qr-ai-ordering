@@ -47,8 +47,7 @@ public sealed class JwtTokenService : IJwtTokenService
             ["iat"] = now.ToUnixTimeSeconds(),
             ["nbf"] = now.ToUnixTimeSeconds(),
             ["exp"] = expiresAt.ToUnixTimeSeconds(),
-            ["jti"] = Guid.NewGuid().ToString("N"),
-            ["auth_version"] = user.SecurityStampTicks
+            ["jti"] = Guid.NewGuid().ToString("N")
         };
 
         var encodedHeader = Base64Url.Encode(JsonSerializer.Serialize(header, SerializerOptions));
@@ -102,10 +101,8 @@ public sealed class JwtTokenService : IJwtTokenService
             || !TryGetString(payload, "role", out var role)
             || !TryGetLong(payload, "nbf", out var notBefore)
             || !TryGetLong(payload, "exp", out var expiresAt)
-            || !TryGetLong(payload, "auth_version", out var authVersion)
             || !issuer.Equals(options.Issuer, StringComparison.Ordinal)
-            || !audience.Equals(options.Audience, StringComparison.Ordinal)
-            || !UserRole.All.Contains(role, StringComparer.Ordinal))
+            || !audience.Equals(options.Audience, StringComparison.Ordinal))
         {
             return null;
         }
@@ -123,8 +120,7 @@ public sealed class JwtTokenService : IJwtTokenService
             new(ClaimTypes.Name, fullName),
             new(ClaimTypes.Email, email),
             new(ClaimTypes.Role, role),
-            new("role", role),
-            new("auth_version", authVersion.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            new("role", role)
         };
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));

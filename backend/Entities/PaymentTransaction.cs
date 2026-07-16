@@ -25,10 +25,5 @@ public class PaymentTransaction
 
     public string? Note { get; set; }
 
-    // Present for customer payment requests. Staff reconciliation transactions may omit it.
-    public string? IdempotencyKey { get; set; }
-
-    public string? RequestFingerprint { get; set; }
-
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

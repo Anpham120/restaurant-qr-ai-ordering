@@ -27,18 +27,9 @@ public class ChatSession
 
     public bool IsClosed { get; set; }
 
-    /// <summary>LLM rolling summary of older turns in this session.</summary>
-    public string? RollingSummary { get; set; }
-
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
-
-    public ICollection<ChatRecommendation> Recommendations { get; set; } = new List<ChatRecommendation>();
-
-    public ICollection<ChatSessionFact> Facts { get; set; } = new List<ChatSessionFact>();
-
-    public ICollection<ChatFeedback> Feedback { get; set; } = new List<ChatFeedback>();
 }
