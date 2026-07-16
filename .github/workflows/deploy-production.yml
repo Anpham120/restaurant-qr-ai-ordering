@@ -37,22 +37,27 @@ jobs:
       POSTGRES_DB: restaurant_qr
       POSTGRES_USER: restaurant_user
       POSTGRES_PASSWORD: ${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
-      FRONTEND_SERVER_NAMES: cmcrestaurant.app customer.cmcrestaurant.app admin.cmcrestaurant.app
+      FRONTEND_SERVER_NAMES: cmcrestaurant.app order.cmcrestaurant.app admin.cmcrestaurant.app staff.cmcrestaurant.app kitchen.cmcrestaurant.app
       API_SERVER_NAME: api.cmcrestaurant.app
       PUBLIC_API_BASE_URL: https://api.cmcrestaurant.app/api
+      PUBLIC_ORDERING_BASE_URL: https://order.cmcrestaurant.app
+      PUBLIC_MARKETING_BASE_URL: https://cmcrestaurant.app
+      CORS_ALLOWED_ORIGINS: https://cmcrestaurant.app;https://order.cmcrestaurant.app;https://admin.cmcrestaurant.app;https://staff.cmcrestaurant.app;https://kitchen.cmcrestaurant.app
       ASPNETCORE_ENVIRONMENT: Production
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-      RUN_DB_MIGRATIONS_ON_STARTUP: "true"
+      PAYMENTS__VIETQR__BANKID: ${{ secrets.PAYMENTS__VIETQR__BANKID }}
+      PAYMENTS__VIETQR__ACCOUNTNUMBER: ${{ secrets.PAYMENTS__VIETQR__ACCOUNTNUMBER }}
+      PAYMENTS__VIETQR__ACCOUNTNAME: ${{ secrets.PAYMENTS__VIETQR__ACCOUNTNAME }}
+      PAYMENTS__VIETQR__TEMPLATE: ${{ secrets.PAYMENTS__VIETQR__TEMPLATE }}
+      RUN_DB_MIGRATIONS_ON_STARTUP: "false"
+      AI_PROVIDER: python-rag
       AI_SERVICE_URL: http://127.0.0.1:8002
       AI_SERVICE_PORT: "8002"
-      AI_LLM_PROVIDER: 9router
-      AI_BASE_URL: http://127.0.0.1:20128/v1
-      AI_API_KEY: ${{ secrets.AI_API_KEY }}
-      AI_MODEL: ${{ vars.AI_MODEL || 'gc/gemini-3-flash' }}
-      AI_BACKEND_TIMEOUT_SECONDS: "8"
-      AI_TIMEOUT_SECONDS: "7"
-      AI_MAX_OUTPUT_TOKENS: "220"
+      AI_LLM_PROVIDER: gemini
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
       RAG_TOP_K: "5"
+      RAG_RETRIEVAL_METHOD: hybrid
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
       BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
       BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}
@@ -78,8 +83,10 @@ jobs:
           {
             echo "## Production deployment"
             echo "- Frontend: https://cmcrestaurant.app"
-            echo "- Customer alias: https://customer.cmcrestaurant.app"
+            echo "- Table ordering: https://order.cmcrestaurant.app"
             echo "- Admin alias: https://admin.cmcrestaurant.app"
+            echo "- Staff portal: https://staff.cmcrestaurant.app"
+            echo "- Kitchen board: https://kitchen.cmcrestaurant.app"
             echo "- API health: https://api.cmcrestaurant.app/api/health"
             echo "- Result: workflow reached post-deploy summary"
           } >> "$GITHUB_STEP_SUMMARY"

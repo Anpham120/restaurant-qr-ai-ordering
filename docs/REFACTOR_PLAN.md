@@ -1,5 +1,7 @@
 # Kế Hoạch Refactor — CMC Restaurant QR AI Ordering
 
+> **Trạng thái 2026-07-11:** Đây là baseline lịch sử. Kiến trúc runtime hiện tại được mô tả tại [Backend Modular Monolith](BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md). Mục 2.1 đã hoàn thành; `KnowledgeEntry` được giữ lại chờ data audit thay vì xoá schema mù.
+
 > **Trạng thái: KẾ HOẠCH (plan-only). Chưa thực thi thay đổi code nào.** Tài liệu này liệt kê phần _thừa cần bỏ_ và _thiếu cần thêm_, kèm trình tự PR và rủi ro, để review trước khi bắt tay refactor.
 >
 > Nguồn chuẩn kiến trúc: [`docs/SYSTEM_ANALYSIS_DESIGN.md`](SYSTEM_ANALYSIS_DESIGN.md).
@@ -29,14 +31,12 @@ Backend đã bỏ hoàn toàn Delivery và Pickup (enum `OrderStatus` không cò
 
 **Rủi ro:** đổi shared type → lan ra typecheck 4 app. Medium. **Gate:** `npm run typecheck` + `vitest` + build cả 4 app.
 
-### 1.2 ⚠️ `KnowledgeEntry` — bảng DB chết
+### 1.2 ⚠️ `KnowledgeEntry` — chờ data audit
 
 - Định nghĩa: `backend/Entities/KnowledgeEntry.cs:8`. DbSet: `RestaurantDbContext.cs:38`. Config (map cột `embedding` jsonb): `RestaurantDbContext.cs:677`. Có trong mọi migration snapshot.
 - **Không nơi nào populate hay query** entity này. Toàn bộ RAG (retrieval, embedding, KB) chạy ở Python AI service; backend .NET không làm retrieval.
 
-**Việc cần làm (quyết định):**
-- **Phương án A (khuyến nghị): bỏ.** Xóa entity + DbSet + config, migration `DropTable`. Lý do: Python sở hữu RAG, bảng này chỉ là schema chết gây hiểu nhầm "backend có vector store".
-- **Phương án B: giữ + document** nếu có kế hoạch chuyển RAG về .NET (hiện chưa có).
+**Trạng thái hiện tại:** giữ entity và schema cho đến khi kiểm tra production/staging không còn dữ liệu hoặc consumer ngoài repo. Mapping `float[] embedding` đã có structural value comparer để EF tracking đúng.
 
 **Rủi ro:** migration drop bảng → kiểm tra prod có dữ liệu không (hiện không có đường ghi nên gần như trống). Low–Medium. **Gate:** `dotnet build` + `dotnet ef database update` trên scratch DB.
 
@@ -50,15 +50,11 @@ Backend đã bỏ hoàn toàn Delivery và Pickup (enum `OrderStatus` không cò
 
 ## 2. THIẾU — Cần Thêm (đã verify)
 
-### 2.1 Chat persistence: in-memory → DB
+### 2.1 Chat persistence: in-memory → DB — **Đã hoàn thành**
 
-- `ChatStore` đăng ký singleton in-memory: `backend/src/RestaurantQrAiOrdering.Api/Chat/ChatApiRegistration.cs:7` (`AddSingleton<IChatStore, ChatStore>()`).
-- Entity + DbSet **đã tồn tại nhưng không dùng**: `DbSet<ChatSession>` / `DbSet<ChatMessage>` tại `RestaurantDbContext.cs:36-37`.
-- **Hệ quả:** lịch sử chat mất khi restart process; `GET /api/chat/sessions/{id}/messages` không bền vững.
-
-**Việc cần làm:** thêm `DbChatStore : IChatStore` ghi/đọc qua EF (giống mẫu `DbUserStore`), đổi đăng ký sang scoped/`DbChatStore`. Không cần migration (bảng đã map).
-
-**Rủi ro:** Medium (đổi vòng đời store, transaction). **Gate:** `dotnet test` + smoke test chat flow.
+- `DbChatStore : IChatStore` là adapter được DI đăng ký theo scope và lưu `ChatSession`/`ChatMessage` qua EF Core.
+- `ChatStore` in-memory đã bị xoá; history không mất khi API restart.
+- Chat gắn `TableSession` bị thu hồi khi phiên bàn đóng hoặc hết hạn.
 
 ### 2.2 Test cho AI service
 
@@ -80,7 +76,7 @@ Danh sách này để tránh "refactor nhầm" thứ đang chạy đúng:
 
 | Nghi ngờ ban đầu | Thực tế (verified) |
 | --- | --- |
-| `RestaurantDataStore` là dead code | **Live** — dùng bởi `ChatAiProvider` (`ChatAiProvider.cs:362,365`), đăng ký `MenuTableApiRegistration.cs:10`. |
+| `RestaurantDataStore` là dead code | **Đã xử lý 2026-07-11** — `ChatAssistantService` đọc menu live từ `RestaurantDbContext`; store cũ đã bị xoá. |
 | `--cmc-brown` không định nghĩa | **Có** — `tokens.css:110` → `var(--color-ink)`. |
 | Frontend legacy entry còn sót | **Đã xóa** (main.tsx/App.tsx/index.html/vite.config.ts cũ). |
 | Thiếu `.env.example` | **Có** — backend/frontend/deploy đều có. |
@@ -94,7 +90,7 @@ Danh sách này để tránh "refactor nhầm" thứ đang chạy đúng:
 | PR | Phạm vi | Rủi ro | Gate xanh |
 | --- | --- | --- | --- |
 | **R1** | 1.1 — Dọn Delivery/Pickup drift frontend (11 file) | Med | `typecheck` + `vitest` + build 4 app |
-| **R2** | 2.1 — `DbChatStore` (chat bền vững) | Med | `dotnet test` + smoke chat |
+| **R2** | 2.1 — `DbChatStore` (chat bền vững) — hoàn thành | Med | `dotnet test` + smoke chat |
 | **R3** | 1.2 — Bỏ `KnowledgeEntry` (sau khi chốt A/B) | Low–Med | `dotnet build` + `ef database update` scratch |
 | **R4** | 2.2 — Test AI service | Low | `pytest` |
 | **H** | 1.3 — Xử lý `antigravity-awesome-skills/` (sau khi owner xác nhận) | Low | — |

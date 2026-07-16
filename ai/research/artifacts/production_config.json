@@ -1,8 +1,0 @@
-{
-  "method": "tfidf",
-  "selection_rule": "Highest development macro slice nDCG@10; methods within 0.005 use the lower P95 query latency. The frozen test set is used only for post-selection evaluation.",
-  "config": {},
-  "threshold": 0.23012074475944605,
-  "embedding_model": null,
-  "embedding_model_sha256": null
-}

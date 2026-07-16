@@ -22,7 +22,7 @@ Hệ thống đã được triển khai trực tuyến qua pipeline CI/CD (Nginx
 | Nhân viên | Tiếp nhận đơn, kiểm tra bàn, hỗ trợ khách trong quá trình phục vụ |
 | Bếp | Xem danh sách món cần chuẩn bị và cập nhật tiến độ chế biến |
 | Quản trị viên | Quản lý menu, bàn, đơn hàng và trạng thái vận hành |
-| AI Chat | RAG trên menu trực tiếp, trả lời chính sách, lưu lịch sử và chỉ tạo gợi ý cần khách xác nhận |
+| AI Chat | Tư vấn món, trả lời câu hỏi theo menu/FAQ và hỗ trợ lựa chọn nhanh |
 | DevOps | Kế hoạch CI/CD với auto-merge, merge queue, staging, production deploy và health check |
 
 ## Bài Toán
@@ -83,9 +83,8 @@ flowchart TB
   API --> Realtime["Realtime Updates"]
   API --> Data["Database Layer"]
   API --> AiService["Python RAG AI Service"]
-  AiService --> RAG["Live-menu retrieval"]
-  AiService --> Router["9router API Gateway"]
-  Router --> Gemini["Gemini Flash"]
+  AiService --> RAG["Knowledge Base"]
+  AiService --> Gemini["Google Gemini API / Gemini 3.5 Flash"]
 ```
 
 ## Công Nghệ
@@ -94,8 +93,8 @@ flowchart TB
 | --- | --- |
 | Frontend | React, TypeScript, Vite |
 | Backend | ASP.NET Core Web API |
-| AI service | Python, FastAPI, measured TF-IDF RAG over the live 91-item menu |
-| LLM access | Gemini Flash thông qua 9router; retrieval-only fallback khi provider lỗi |
+| AI service | Python, FastAPI, RAG knowledge base |
+| LLM access | Gemini 3.5 Flash qua Google Gemini API chính thức |
 | Realtime | SignalR định hướng cho cập nhật đơn |
 | Auth | JWT/HMAC foundation, role-based access |
 | Testing | .NET integration tests, Python RAG tests, frontend build checks |
@@ -108,7 +107,6 @@ flowchart TB
 - Node.js phù hợp với Vite/React toolchain.
 - .NET SDK phù hợp với solution backend.
 - Git.
-- Python 3.12 cho AI service và notebook nghiên cứu.
 
 ### Frontend
 
@@ -143,7 +141,7 @@ Chạy test backend:
 
 ```bash
 cd backend
-dotnet test RestaurantQrAiOrdering.sln
+dotnet build RestaurantQrAiOrdering.sln --configuration Release
 ```
 
 ## Cấu Trúc Repository
@@ -152,7 +150,6 @@ dotnet test RestaurantQrAiOrdering.sln
 .
 ├── backend/          # ASP.NET Core API, solution và integration tests
 ├── frontend/         # React + TypeScript UI cho customer, staff, kitchen, admin
-├── ai/               # FastAPI RAG, evaluation artifacts và executed notebook
 ├── docs/             # Tài liệu nghiệp vụ, API, Git, DevOps và deployment
 ├── site-demo/        # Tài nguyên demo nếu có
 └── tools/            # Script kiểm tra hoặc hỗ trợ dự án
@@ -169,8 +166,6 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 - [Quy trình Git](docs/GIT_WORKFLOW.md)
 - [Quy trình DevOps và release](docs/DEVOPS_RELEASE_PROCESS.md)
 - [Tài liệu triển khai](docs/DEPLOYMENT.md)
-- [Nghiên cứu và kiến trúc chatbot v2](docs/ACADEMIC_CHATBOT_V2.md)
-- [Notebook so sánh retrieval](ai/notebooks/academic_retrieval_study.ipynb)
 - [Quy trình làm việc nhóm](docs/TEAM_WORKFLOW.md)
 - [Mẫu báo cáo tuần](docs/WEEKLY_REPORT_TEMPLATE.md)
 
@@ -178,7 +173,7 @@ Dự án đang ở giai đoạn MVP/demo và được phát triển theo từng 
 
 - Hoàn thiện luồng đặt món từ QR đến đơn hàng.
 - Đồng bộ realtime cho trạng thái đơn giữa khách, nhân viên và bếp.
-- Thu thập log hội thoại ẩn danh có đồng thuận để tạo tập kiểm thử ngoài phân phối cho chatbot.
+- Hoàn thiện chatbot AI theo dữ liệu menu/FAQ.
 - Bật branch ruleset, required checks và lưu bằng chứng deploy thực tế cho CI/CD.
 - Chuẩn hóa bằng chứng demo, health check và báo cáo triển khai.
 

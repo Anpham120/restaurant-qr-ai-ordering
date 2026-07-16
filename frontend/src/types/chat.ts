@@ -15,12 +15,19 @@ export type SuggestedCartAction = {
   quantity: number;
   reason: string;
   requiresCustomerConfirmation: true;
+  status?: "pending" | "confirmed" | "dismissed";
+  evidenceIds?: string[];
+};
+
+export type ChatRecommendation = {
+  menuItemId: string;
+  status: string;
+  turnId?: string;
+  updatedAt: string;
 };
 
 export type ChatGuardrailFlag =
-  | "AI_SERVICE_UNAVAILABLE"
-  | "AI_OUTPUT_POLICY_VIOLATION"
-  | "PROMPT_INJECTION_BLOCKED"
+  | "AI_PROVIDER_UNAVAILABLE"
   | "MENU_ITEM_NOT_FOUND"
   | "MENU_ITEM_UNAVAILABLE"
   | "OUT_OF_SCOPE"
@@ -30,8 +37,10 @@ export type CreateChatSessionResponse = {
   chatSessionId: string;
   createdAt: string;
   updatedAt: string;
+  accessToken: string;
   reused: boolean;
   messages: ChatMessage[];
+  recommendations: ChatRecommendation[];
 };
 
 export type CreateChatSessionRequest = {
@@ -41,29 +50,16 @@ export type CreateChatSessionRequest = {
 
 export type SendChatMessageRequest = {
   content: string;
-};
-
-export type RetrievedSource = {
-  source: string;
-  title: string;
-  score: number;
-};
-
-export type ChatDiagnostics = {
-  aiServiceAvailable: boolean;
-  llmProviderAvailable: boolean;
-  model: string;
-  retrievalMethod: string;
-  fastPath?: string | null;
-  latencyMs: Record<string, number>;
-  retrievedSources: RetrievedSource[];
+  tableCode?: string;
 };
 
 export type SendChatMessageResponse = {
+  userMessage: ChatMessage;
   message: ChatMessage;
   suggestedCartActions: SuggestedCartAction[];
   guardrailFlags: ChatGuardrailFlag[];
-  diagnostics: ChatDiagnostics;
+  suggestStaffHandoff?: boolean;
+  followUp?: { canShowMore: boolean; remainingCount: number };
 };
 
 export type ChatHistoryResponse = {
@@ -71,4 +67,5 @@ export type ChatHistoryResponse = {
   createdAt: string;
   updatedAt: string;
   messages: ChatMessage[];
+  recommendations: ChatRecommendation[];
 };

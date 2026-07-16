@@ -47,6 +47,10 @@
                        {
                            "categoryId":  "cat_trái_cây_tươi",
                            "name":  "Trái cây tươi"
+                       },
+                       {
+                           "categoryId":  "cat_alcohol",
+                           "name":  "Bia \u0026 Rượu"
                        }
                    ],
     "items":  [
@@ -2340,6 +2344,167 @@
                                    "tam trung",
                                    "share",
                                    "2-3 nguoi",
+                                   "quanh nam"
+                                ]
+                  },
+                  {
+                      "id":  "m_085",
+                      "name":  "Bia Sài Gòn Special",
+                      "description":  "Bia Sài Gòn Special lon 330ml, vị đậm đà truyền thống.",
+                      "price":  20000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/85-bia-sai-gon-special.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "mien Nam",
+                                   "Sai Gon",
+                                   "toi",
+                                   "nhau",
+                                   "nhom ban",
+                                   "gia dinh",
+                                   "dam da",
+                                   "binh dan",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_086",
+                      "name":  "Bia Hà Nội",
+                      "description":  "Bia Hà Nội lon 330ml, vị nhẹ thanh mát.",
+                      "price":  18000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/86-bia-ha-noi.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "mien Bac",
+                                   "Ha Noi",
+                                   "toi",
+                                   "nhau",
+                                   "nhom ban",
+                                   "dam da",
+                                   "binh dan",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_087",
+                      "name":  "Bia Tiger Crystal",
+                      "description":  "Bia Tiger Crystal lon 330ml, vị thanh nhẹ.",
+                      "price":  22000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/87-bia-tiger-crystal.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "toi",
+                                   "nhau",
+                                   "nhom ban",
+                                   "hen ho",
+                                   "thanh nhe",
+                                   "binh dan",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_088",
+                      "name":  "Bia hơi Hà Nội",
+                      "description":  "Bia hơi Hà Nội tươi mát, cốc 330ml.",
+                      "price":  12000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/88-bia-hoi-ha-noi.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "mien Bac",
+                                   "Ha Noi",
+                                   "toi",
+                                   "an khuya",
+                                   "nhau",
+                                   "nhom ban",
+                                   "thanh nhe",
+                                   "binh dan",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_089",
+                      "name":  "Rượu nếp cẩm",
+                      "description":  "Rượu nếp cẩm truyền thống, ngọt dịu, thơm nồng.",
+                      "price":  35000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/89-ruou-nep-cam.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "mien Bac",
+                                   "toi",
+                                   "tiec",
+                                   "nhau",
+                                   "tiep khach",
+                                   "ngot",
+                                   "dam da",
+                                   "tam trung",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_090",
+                      "name":  "Rượu mơ Hà Nội",
+                      "description":  "Rượu mơ Hà Nội chua ngọt thanh, uống lạnh.",
+                      "price":  40000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/90-ruou-mo-ha-noi.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "mien Bac",
+                                   "Ha Noi",
+                                   "toi",
+                                   "tiec",
+                                   "hen ho",
+                                   "tiep khach",
+                                   "chua",
+                                   "ngot",
+                                   "thanh nhe",
+                                   "tam trung",
+                                   "ca nhan",
+                                   "quanh nam"
+                               ]
+                  },
+                  {
+                      "id":  "m_091",
+                      "name":  "Cocktail chanh đào mật ong",
+                      "description":  "Cocktail chanh đào mật ong tươi mát, thơm ngọt tự nhiên.",
+                      "price":  65000,
+                      "categoryId":  "cat_alcohol",
+                      "categoryName":  "Bia \u0026 Rượu",
+                      "imageUrl":  "/menu-images/91-cocktail-chanh-dao-mat-ong.png",
+                      "isAvailable":  true,
+                      "tags":  [
+                                   "khong cay",
+                                   "toi",
+                                   "tiec",
+                                   "hen ho",
+                                   "sinh nhat",
+                                   "nhom ban",
+                                   "chua",
+                                   "ngot",
+                                   "thanh nhe",
+                                   "tam trung",
+                                   "ca nhan",
                                    "quanh nam"
                                ]
                   }

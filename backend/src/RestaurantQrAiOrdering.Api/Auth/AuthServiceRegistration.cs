@@ -8,7 +8,13 @@ public static class AuthServiceRegistration
     public static IServiceCollection AddRestaurantAuth(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddRestaurantUsers();
-        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.SigningKey) && options.SigningKey.Length >= 32,
+                "Jwt:SigningKey must be supplied through environment configuration and contain at least 32 characters.")
+            .Validate(options => options.AccessTokenMinutes is >= 1 and <= 1440, "JWT lifetime must be between 1 and 1440 minutes.")
+            .ValidateOnStart();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         services

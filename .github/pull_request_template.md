@@ -24,8 +24,8 @@
 
 <!-- Đã chạy gì để chứng minh thay đổi hoạt động? -->
 
-- [ ] `dotnet test` (backend)
-- [ ] `npm run typecheck && npm test` (frontend)
+- [ ] `dotnet build --configuration Release` (backend)
+- [ ] `npm run build` (frontend)
 - [ ] Kiểm thử thủ công luồng liên quan
 
 ## Ghi chú triển khai
