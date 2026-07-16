@@ -51,7 +51,7 @@ flowchart LR
 
     AISVC["Python AI Service (FastAPI :8001)\nBM25 retriever + guardrails + output parser"]
     DB[("PostgreSQL")]
-    R9["9router gateway\n(gemini via OpenAI-compat)"]
+    R9["Google Gemini API\n(OpenAI-compatible)"]
     Bank["VietQR payload (thủ công)"]
 
     CW & AW & SW & KW -->|HTTPS /api| API
@@ -77,7 +77,7 @@ workspaces: 4 app + 6 package (`shared-ui`, `api-client`, `shared-types`, `auth`
 | **Staff** | Người dùng chính | JWT role `Staff` | Xem tất cả đơn, đổi trạng thái đơn, xác nhận/huỷ/**hoàn** thanh toán |
 | **Kitchen** | Người dùng chính | JWT role `Kitchen` | Xem đơn, cập nhật trạng thái từng món |
 | **Admin/Manager** | Người dùng chính | JWT role `Admin` | Toàn quyền staff + quản lý menu/category/table/user |
-| **AI Service** | Hệ phụ trợ | Nội bộ (backend gọi) | Truy xuất KB, gọi 9router, trả gợi ý an toàn |
+| **AI Service** | Hệ phụ trợ | Nội bộ (backend gọi) | Truy xuất KB, gọi Google Gemini API, trả gợi ý an toàn |
 | **VietQR/Bank** | Hệ phụ trợ | — | Sinh payload chuyển khoản; đối soát **thủ công** bởi Staff |
 
 Quy tắc: mọi thao tác Staff/Kitchen/Admin **include đăng nhập** trước. Customer **không có tài khoản** — QR
@@ -228,11 +228,9 @@ erDiagram
     CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
 ```
 
-> **Chú thích wiring (nợ kỹ thuật — xem REFACTOR_PLAN):**
-> - `KNOWLEDGE_ENTRIES` (+ cột `embedding`) **được định nghĩa nhưng chưa dùng** — RAG chạy hoàn toàn ở AI
->   service Python trên file Markdown. Bảng này hiện là "chết".
-> - `CHAT_SESSIONS`/`CHAT_MESSAGES` là entity DB nhưng chat hiện chạy qua **`ChatStore` in-memory** →
->   lịch sử chat mất khi restart.
+> **Chú thích wiring hiện tại:**
+> - `KNOWLEDGE_ENTRIES` (+ cột `embedding`) được map nhưng chưa nằm trong retrieval flow của AI service Python; giữ lại chờ data audit trước khi bỏ schema.
+> - `CHAT_SESSIONS`/`CHAT_MESSAGES` được lưu qua **`DbChatStore`**; lịch sử chat bền qua API restart và bị thu hồi theo `TableSession` khi cần.
 > - `ORDERS.xmin`/`PAYMENTS.xmin`: optimistic concurrency token (Postgres system column, P1).
 
 ## 6. Enum Chuẩn (theo code hiện tại)
@@ -336,15 +334,15 @@ background job** đổi Open→Expired (chỉ tính lúc đọc).
 
 ```mermaid
 flowchart TD
-    A["Khách quét QR /table/{code}"] --> B["GET /api/tables/{code}"]
-    B --> C{Bàn active?}
+    A["Khách quét QR vật lý"] --> B["POST /api/table-sessions bằng QR token"]
+    B --> C{QR + bàn active?}
     C -->|Không| E1["Báo lỗi bàn không hợp lệ"]
-    C -->|Có| D["GET /api/menu"]
+    C -->|Có| D["Nhận sessionId + tableSessionToken; GET /api/menu"]
     D --> F["Chọn món + giỏ hàng"]
-    F --> G["POST /api/orders"]
+    F --> G["POST /api/orders + Idempotency-Key"]
     G --> H{Backend validate}
     H -->|Fail| E2["Lỗi API chuẩn (400/404)"]
-    H -->|OK| I["Tạo order status=Placed, gắn session,\nsinh CustomerAccessToken + Payment=Unpaid"]
+    H -->|OK| I["Tạo order status=Placed, gắn session,\nsinh CustomerAccessToken + Payment=NotRequested"]
     I --> J["Broadcast order.created (SignalR)"]
     J --> K["Trả 201 + orderCode + customerAccessToken"]
     K --> L["Khách theo dõi qua GET /api/orders/{code} + X-Order-Token"]
@@ -359,7 +357,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant RT as SignalR Hub
     participant K as Kitchen web
-    C->>API: POST /api/orders
+    C->>API: POST /api/orders + Idempotency-Key
     API->>DB: validate menu/table + insert (order, items, payment, history)
     DB-->>API: orderCode + token
     API->>RT: order.created
@@ -375,9 +373,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A["Order tạo → Payment=Unpaid"] --> B{PaymentMethod}
-    B -->|COD| C["Khách trả tại quầy/bàn"]
-    B -->|VietQR| D["POST /payment/vietqr → Pending + QR payload"]
+    A["Order tạo → Payment=NotRequested/Unselected"] --> B["Khách bấm Yêu cầu thanh toán"]
+    B --> M{Chọn phương thức}
+    M -->|COD| C["POST /payment/request → Pending; gọi Staff"]
+    M -->|VietQR| D["POST /payment/request → Pending + QR payload"]
     D --> E["Khách chuyển khoản"]
     C --> F["Staff: POST /payment/confirm"]
     E --> F
@@ -395,25 +394,22 @@ sequenceDiagram
     participant API as Backend Chat API
     participant AS as ChatAssistantService (.NET)
     participant AI as Python AI Service
-    participant R9 as 9router (gemini)
-    C->>API: POST /api/chat/sessions/{id}/messages {content}
-    API->>AS: đọc menu live + lịch sử trước lượt hiện tại
+    participant R9 as Google Gemini API
+    C->>API: POST /api/chat/sessions/{id}/messages {content, tableCode}
+    API->>AS: dựng context (menu live từ RestaurantDbContext)
     AS->>AI: POST /v1/chat {message, history, menu_items}
-    AI->>AI: TF-IDF retrieve menu/policy + guardrails
-    alt price/policy/action/guardrail fast path
-        AI-->>AS: deterministic grounded response
-    else grounded generation
-        AI->>R9: Gemini Flash completion (temp 0.2, max 220 tokens)
-        R9-->>AI: grounded prose
-    end
-    AI-->>AS: answer + sources + action candidates + latency
-    AS->>AS: canonicalize ID/name/price/availability; reject completion claims
+    AI->>AI: BM25 retrieve KB + guardrail flags (input)
+    AI->>R9: chat completion (temp 0.2)
+    R9-->>AI: raw answer
+    AI->>AI: output parser (clamp qty 1..20, ép requiresCustomerConfirmation=true)
+    AI-->>AS: {content, suggestedCartActions, guardrailFlags, providerAvailable}
+    AS->>AS: fallback an toàn nếu provider lỗi / schema sai
     AS-->>API: câu trả lời an toàn
     API-->>C: message + suggestedCartActions (khách phải bấm Confirm)
 ```
 
-**Guardrail:** intent/availability checks run before the provider, generation is grounded in retrieved context,
-and the backend validates every action against PostgreSQL. AI **không** tự tạo đơn / sửa giỏ / bịa giá; mọi
+**Guardrail:** 5 cờ input (Python `guardrails.py`) + 2 cờ hệ thống backend thêm
+(`AI_PROVIDER_UNAVAILABLE`, `AI_OUTPUT_SCHEMA_INVALID`). AI **không** tự tạo đơn / sửa giỏ / bịa giá; mọi
 `suggestedCartAction` mang `requiresCustomerConfirmation=true`.
 
 ### 8.5 Đăng nhập + khoá tài khoản (P3)
@@ -434,12 +430,12 @@ enumeration.
 | Nhóm | Endpoint tiêu biểu | Auth |
 | --- | --- | --- |
 | Auth/User | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/change-password`, `/api/users` (Admin) | public / JWT |
-| Menu | `GET /api/menu`; `/api/admin/categories`, `/api/admin/menu-items` | public / Staff+Admin |
-| Tables | `GET /api/tables/{code}`, `/api/tables/qr/{qrToken}`, `POST /api/table-sessions` | public |
+| Menu | `GET /api/menu`; `/api/admin/categories`, `/api/admin/menu-items` | public / AdminOnly |
+| Tables | safe public resolve/session; `/api/admin/tables` co QR | public capability / AdminOnly |
 | Orders | `POST /api/orders`, `GET /api/orders/{code}` (**X-Order-Token**), `GET /api/orders`, `PATCH .../status`, `PATCH .../items/{id}/status` | mixed |
-| Payments | `GET .../payment`, `POST .../payment/vietqr` (token), `.../confirm`, `.../fail`, `.../refund` | mixed / Staff+Admin |
+| Payments | `GET .../payment`, `POST .../payment/request` (token + idempotency), `.../confirm`, `.../fail`, `.../refund` | mixed / Staff+Admin |
 | Chat | `POST /api/chat/sessions`, `POST .../messages`, `GET .../messages` | public |
-| Realtime | SignalR hub `OrderUpdatesHub`; events `order.created`, `order.statusChanged`, `order.itemStatusChanged` | — |
+| Realtime | SignalR hub; order token cho customer, JWT cho operator; them `payment.requested` | mixed |
 | Health | `/api/health`, `/health/live`, `/health/ready` | public |
 
 ## 10. Thiết Kế Bảo Mật
@@ -447,6 +443,9 @@ enumeration.
 - **Per-order access token** (P0): mỗi order sinh token 32-byte base64url; customer đọc order/payment
   riêng qua header **`X-Order-Token`** (`OrderAccessGuard.CanRead`). Role vận hành bỏ qua token. Sai/thiếu
   → **404** (không xác nhận tồn tại) → chống enumerate order code tuần tự `ORD-n`.
+- **Table-session capability**: public session read bat buoc `X-Table-Session-Token`; QR token chi hien trong Admin API.
+- **Idempotency**: create order/payment request luu key + fingerprint; retry khong tao don/giao dich trung.
+- **RBAC**: management API AdminOnly; Staff chi order/payment/session operations; Kitchen chi kitchen operations.
 - **Optimistic concurrency** (P1): `xmin` trên `Order`/`Payment`; ghi đè đồng thời → `409 CONFLICT_STALE`.
 - **Order code**: Postgres sequence (`NextOrderCodeNumber()`), hết race `Count()+1`.
 - **Completion gate** (P1): không `Completed` khi payment chưa settle.
@@ -457,24 +456,23 @@ enumeration.
 
 ## 11. AI / RAG Service
 
-FastAPI `:8001` — `GET /health`, `POST /v1/retrieval/search`, `POST /v1/chat`. Runtime reads the live
-91-item menu from the backend and uses the winner recorded in `production_config.json`. The reproducible
-study compares TF-IDF, BM25, a real multilingual embedding model and two RRF hybrids on identical qrels;
-TF-IDF won the locked-test selection rule and is therefore deployed. Gemini Flash through 9router only writes
-grounded prose when no deterministic fast path applies. Full protocol and limitations are in
-[`ACADEMIC_CHATBOT_V2.md`](ACADEMIC_CHATBOT_V2.md).
+FastAPI `:8001` — `GET /health`, `POST /v1/rag/search`, `POST /v1/chat`. Retrieval **Okapi BM25**
+(K1=1.5, B=0.75, title_boost=1.5, tag_boost=1.0, top_k=5) trên KB Markdown (`ai/knowledge-base/*.md`,
+chunk theo header). LLM `gemini-3.5-flash` qua Google Gemini API (OpenAI-compatible, temp 0.2). Pipeline:
+`retriever → prompts → Gemini API → output_parser`; `guardrails.py` gắn cờ input.
+**RAG là lexical, không phải vector** (dù entity `KnowledgeEntry.embedding` tồn tại — chưa dùng).
 
 ## 12. Triển Khai
 
 `docker-compose`: `postgres:5432`, `api:5000`, `ai-service:8001`, `frontend:8080`. CI/CD GitHub Actions:
 `ci.yml` → `deploy-staging.yml` (nhánh `develop`) → `promote-production.yml` (PR develop→main) →
 `deploy-production.yml`; có `auto-merge.yml`, `rollback.yml`. Migration chạy qua flag
-`RUN_DB_MIGRATIONS_ON_STARTUP` (hiện `true`; xem REFACTOR_PLAN để tách thành bước deploy riêng).
+container `migrate --migrate-only` trước khi API start; `RUN_DB_MIGRATIONS_ON_STARTUP` mặc định `false`.
 
 ## 13. Definition of Done cho tài liệu
 
 - Enum/flow/state **khớp code** `develop` (đã đối chiếu 2026-07-01).
 - Không mâu thuẫn với `API_CONTRACT.md`, `Program.cs`, `OrderStore.cs`, `PaymentEndpoints.cs`,
   `docker-compose.yml`.
-- Mọi nợ kỹ thuật (KnowledgeEntry, ChatStore, session sweeper, doc drift) được trỏ sang
+- Mọi nợ kỹ thuật còn lại (KnowledgeEntry data audit, AI test coverage, doc drift) được trỏ sang
   [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md).

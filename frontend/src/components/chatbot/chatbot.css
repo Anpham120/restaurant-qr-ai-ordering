@@ -1,8 +1,17 @@
 .cmc-chat-layout {
-  display: grid;
+  display: block;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
   align-items: start;
+}
+
+.cmc-chat-quick-prompts-inline {
+  align-self: flex-start;
+  max-width: min(520px, 92%);
+  padding: 12px;
+  border: 1px solid var(--cmc-border, #ead8ca);
+  border-radius: 18px;
+  background: rgba(255, 250, 245, 0.88);
 }
 
 .cmc-chat-panel,
@@ -18,7 +27,7 @@
   min-height: 580px;
   overflow: hidden;
   display: grid;
-  grid-template-rows: auto minmax(320px, 1fr) auto;
+  grid-template-rows: auto auto minmax(320px, 1fr) auto;
 }
 
 .cmc-chat-session-bar,
@@ -54,6 +63,67 @@
 .cmc-chat-muted {
   color: var(--cmc-muted);
   font-size: 13px;
+}
+
+.cmc-chat-allergen-disclaimer {
+  margin: 8px 0 0;
+  color: var(--cmc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 52ch;
+}
+
+.cmc-chat-assistance-button {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 18px;
+  border: 1px solid rgba(0, 91, 172, 0.24);
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: var(--color-primary);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cmc-chat-assistance-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.cmc-chat-handoff-banner {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(0, 91, 172, 0.24);
+  border-radius: 20px;
+  padding: 12px 14px;
+  background: #EAF7FC;
+  color: #005BAC;
+}
+
+.cmc-chat-handoff-banner p {
+  margin: 0;
+  font-weight: 800;
+}
+
+.cmc-chat-feedback {
+  display: flex;
+  gap: 8px;
+}
+
+.cmc-chat-feedback-button {
+  border: 1px solid var(--cmc-line);
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cmc-chat-feedback-button:hover {
+  border-color: var(--color-primary);
 }
 
 .cmc-chat-transcript {
@@ -113,6 +183,16 @@
   align-self: flex-end;
   background: var(--color-primary);
   color: #ffffff;
+}
+
+.cmc-chat-message-pending {
+  opacity: 0.68;
+}
+
+.cmc-chat-message-pending > small {
+  display: block;
+  margin: 0.35rem 1rem 0;
+  text-align: right;
 }
 
 .cmc-chat-message-meta {
@@ -418,7 +498,7 @@
 
 @media (max-width: 640px) {
   .cmc-chat-panel {
-    min-height: 520px;
+    min-height: min(520px, calc(100dvh - 12rem));
   }
 
   .cmc-chat-session-bar {
@@ -431,5 +511,19 @@
   .cmc-chat-session-bar,
   .cmc-chat-side-panel {
     padding: 14px;
+  }
+
+  .cmc-chat-composer {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .cmc-chat-quick-prompts {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .cmc-chat-quick-prompts button,
+  .cmc-chat-composer button {
+    min-height: 44px;
   }
 }

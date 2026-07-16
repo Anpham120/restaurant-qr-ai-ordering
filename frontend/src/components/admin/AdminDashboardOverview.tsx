@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AdminTableSessionSummary, Order, OrderListResponse } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
+import type { AdminTableSessionSummary, Order, OrderListResponse, ReportSummaryResponse } from "@cmc/shared-types";
+import { api } from "../../services/apiClient";
+import { BarChart3 } from "lucide-react";
 import "../operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 
@@ -15,17 +11,25 @@ export function AdminDashboardOverview() {
   const [menuCount, setMenuCount] = useState<number>(0);
   const [tableCount, setTableCount] = useState<number>(0);
   const [servingCount, setServingCount] = useState<number>(0);
+  const [todayRevenue, setTodayRevenue] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
       try {
-        const [orderData, menuData, tableData, sessionData] = await Promise.all([
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const [orderData, menuData, tableData, sessionData, reportData] = await Promise.all([
           api.orders.list(),
           api.request<unknown[]>("/admin/menu-items"),
-          api.tables.list(),
+          api.tables.listAdmin(),
           api.tables.listAdminSessions("Open"),
+          api.reports.summary({
+            from: new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString(),
+            to: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate()).toISOString(),
+          }),
         ]);
         setOrders((orderData as OrderListResponse).orders);
         setMenuCount(menuData.length);
@@ -36,6 +40,7 @@ export function AdminDashboardOverview() {
             .map((s: AdminTableSessionSummary) => s.tableCode),
         );
         setServingCount(servingTables.size);
+        setTodayRevenue((reportData as ReportSummaryResponse).netRevenue);
       } catch {
         setError("Không tải được dữ liệu tổng quan.");
       } finally {
@@ -48,16 +53,13 @@ export function AdminDashboardOverview() {
   const stats = useMemo(() => {
     const today = new Date().toDateString();
     const todayOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === today);
-    const revenue = todayOrders
-      .filter((o) => o.paymentStatus === "Confirmed" || o.paymentStatus === "Paid")
-      .reduce((sum, o) => sum + o.totalAmount, 0);
     const pending = orders.filter((o) => ["Placed", "Confirmed", "Preparing", "Ready", "Served"].includes(o.status)).length;
     const completed = todayOrders.filter((o) => o.status === "Completed").length;
-    return { todayOrders: todayOrders.length, revenue, pending, completed, menuCount };
-  }, [orders, menuCount]);
+    return { todayOrders: todayOrders.length, revenue: todayRevenue, pending, completed, menuCount };
+  }, [orders, menuCount, todayRevenue]);
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">📊</div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><BarChart3 aria-hidden="true" /></div>Đang tải...</div>;
   }
 
   return (
@@ -83,7 +85,7 @@ export function AdminDashboardOverview() {
         <div className="ops-stat-card">
           <div className="ops-stat-label">Đang xử lý</div>
           <div className="ops-stat-value">{stats.pending}</div>
-          <div className="ops-stat-detail">Placed → Served</div>
+          <div className="ops-stat-detail">{"Placed -> Served"}</div>
         </div>
         <div className="ops-stat-card">
           <div className="ops-stat-label">Hoàn tất hôm nay</div>
@@ -120,12 +122,12 @@ export function AdminDashboardOverview() {
             {orders.slice(0, 20).map((order) => (
               <tr key={order.orderId}>
                 <td><strong>{order.orderCode}</strong></td>
-                <td>{order.tableCode ?? "—"}</td>
+                <td>{order.tableCode ?? "-"}</td>
                 <td><span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span></td>
                 <td>
-                  <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>
-                    {order.paymentMethod} · {order.paymentStatus}
-                  </span>
+                  {order.tableSessionId ? <span className="ops-badge">Theo phiên bàn</span> : (
+                    <span className={`ops-badge ops-badge--${order.paymentStatus.toLowerCase()}`}>{order.paymentMethod} · {order.paymentStatus}</span>
+                  )}
                 </td>
                 <td>{formatVnd(order.totalAmount)}</td>
                 <td style={{ fontSize: 12, color: "var(--color-muted)" }}>

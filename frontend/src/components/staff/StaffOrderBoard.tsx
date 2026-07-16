@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
+import { Check, CircleCheck, ClipboardList, Clock3, Inbox, RefreshCw, Utensils } from "lucide-react";
 import { getKitchenOrders, updateOrderStatus } from "../../services/orderService";
 import {
   connectOrderRealtime,
@@ -52,7 +53,7 @@ function StaffCard({
         {order.tableCode ? <span className="ops-card-table">Bàn {order.tableCode}</span> : null}
       </div>
       <div className="ops-card-meta">
-        <span className="ops-timer ops-timer--normal">⏱ {elapsed}</span>
+        <span className="ops-timer ops-timer--normal"><Clock3 aria-hidden="true" size={14} /> {elapsed}</span>
         <span>{order.items.length} món</span>
         <span>{formatVnd(order.totalAmount)}</span>
       </div>
@@ -81,12 +82,12 @@ function StaffCard({
       <div className="ops-card-actions">
         {order.status === "Placed" ? (
           <button className="ops-btn ops-btn--primary ops-btn--sm" disabled={isPending} onClick={() => onAction(order.orderCode, "Confirmed")} type="button">
-            ✓ Xác nhận đơn
+            <Check aria-hidden="true" size={14} /> Xác nhận đơn
           </button>
         ) : null}
         {order.status === "Ready" ? (
           <button className="ops-btn ops-btn--success ops-btn--sm" disabled={isPending} onClick={() => onAction(order.orderCode, "Served")} type="button">
-            🍽 Đã phục vụ
+            <Utensils aria-hidden="true" size={14} /> Đã phục vụ
           </button>
         ) : null}
         {order.status === "Served" ? (
@@ -97,7 +98,7 @@ function StaffCard({
             type="button"
             title={order.paymentStatus !== "Confirmed" && order.paymentStatus !== "Paid" ? "Cần thu tiền trước" : ""}
           >
-            ✅ Hoàn tất
+            <CircleCheck aria-hidden="true" size={14} /> Hoàn tất
           </button>
         ) : null}
         {(order.status === "Placed" || order.status === "Confirmed") ? (
@@ -120,7 +121,7 @@ function StaffColumn({
   pendingCode,
 }: {
   title: string;
-  icon: string;
+  icon: ReactNode;
   variant: string;
   orders: Order[];
   onAction: (code: string, status: OrderStatus) => void;
@@ -176,6 +177,12 @@ export function StaffOrderBoard() {
     return () => { unC(); unR(); void disconnectOrderRealtime(); };
   }, [loadOrders]);
 
+  useEffect(() => {
+    if (connectionStatus === "connected") return;
+    const interval = window.setInterval(() => void loadOrders(), 5_000);
+    return () => window.clearInterval(interval);
+  }, [connectionStatus, loadOrders]);
+
   const placed = useMemo(() => orders.filter((o) => o.status === "Placed"), [orders]);
   const ready = useMemo(() => orders.filter((o) => o.status === "Ready"), [orders]);
   const served = useMemo(() => orders.filter((o) => o.status === "Served"), [orders]);
@@ -196,7 +203,7 @@ export function StaffOrderBoard() {
     setNotice("");
     try {
       await updateOrderStatus(orderCode, status);
-      setNotice(`${orderCode} → ${status}`);
+      setNotice(`${orderCode} -> ${status}`);
       await loadOrders();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Thao tác thất bại.");
@@ -206,7 +213,7 @@ export function StaffOrderBoard() {
   }, [loadOrders]);
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon">📋</div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon"><ClipboardList aria-hidden="true" /></div>Đang tải...</div>;
   }
 
   return (
@@ -222,7 +229,7 @@ export function StaffOrderBoard() {
               <span className="ops-connection-dot" />
               {connectionStatus === "connected" ? "Đã kết nối" : connectionStatus === "connecting" ? "Đang kết nối..." : "Mất kết nối"}
             </span>
-            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">🔄 Làm mới</button>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
           </div>
         </div>
       </div>
@@ -241,9 +248,9 @@ export function StaffOrderBoard() {
       </div>
 
       <div className="ops-board">
-        <StaffColumn title="Đơn mới" icon="📩" variant="placed" orders={placed} onAction={handleAction} pendingCode={pendingCode} />
-        <StaffColumn title="Sẵn sàng" icon="🍽" variant="ready" orders={ready} onAction={handleAction} pendingCode={pendingCode} />
-        <StaffColumn title="Đã phục vụ" icon="✅" variant="served" orders={served} onAction={handleAction} pendingCode={pendingCode} />
+        <StaffColumn title="Đơn mới" icon={<Inbox aria-hidden="true" size={16} />} variant="placed" orders={placed} onAction={handleAction} pendingCode={pendingCode} />
+        <StaffColumn title="Sẵn sàng" icon={<Utensils aria-hidden="true" size={16} />} variant="ready" orders={ready} onAction={handleAction} pendingCode={pendingCode} />
+        <StaffColumn title="Đã phục vụ" icon={<CircleCheck aria-hidden="true" size={16} />} variant="served" orders={served} onAction={handleAction} pendingCode={pendingCode} />
       </div>
     </div>
   );

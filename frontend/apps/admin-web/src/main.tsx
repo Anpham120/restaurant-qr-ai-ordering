@@ -71,19 +71,22 @@ const kitchenLinks = [
   { to: "/kitchen/board", label: "Bảng bếp", icon: <ClipboardList size={18} /> },
 ];
 
-function getCustomerBaseUrl() {
-  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
+function getOrderingBaseUrl() {
+  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
   if (configured) {
     return configured.replace(/\/$/, "");
   }
 
   if (typeof window === "undefined") {
-    return "https://customer.cmcrestaurant.app";
+    return "https://order.cmcrestaurant.app";
   }
 
   const { origin, hostname, protocol, port } = window.location;
+  if (["localhost", "127.0.0.1"].includes(hostname)) {
+    return `${protocol}//${hostname}:5177`;
+  }
   if (hostname.startsWith("admin.")) {
-    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
+    return `${protocol}//${hostname.replace(/^admin\./, "order.")}${port ? `:${port}` : ""}`;
   }
 
   return origin;
@@ -94,18 +97,18 @@ function CustomerTableRedirect() {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const target = new URL(`/table/${encodeURIComponent(tableCode ?? "")}`, getCustomerBaseUrl());
     const qrToken = searchParams.get("qr");
-    if (qrToken) {
-      target.searchParams.set("qr", qrToken);
-    }
+    const path = qrToken
+      ? `/enter/${encodeURIComponent(qrToken)}`
+      : `/table/${encodeURIComponent(tableCode ?? "")}`;
+    const target = new URL(path, getOrderingBaseUrl());
     window.location.replace(target.toString());
   }, [searchParams, tableCode]);
 
   return (
     <main className="cmc-redirect-page">
-      <h1>Đang chuyển sang trang khách hàng</h1>
-      <p>Link bàn thuộc customer portal. Hệ thống đang mở đúng domain cho khách.</p>
+      <h1>Đang mở ứng dụng gọi món</h1>
+      <p>Link bàn thuộc ordering app. Hệ thống đang mở đúng domain cho khách.</p>
     </main>
   );
 }

@@ -34,7 +34,6 @@ updates:
       dev-tooling:
         patterns:
           - "@types/*"
-          - "vitest"
           - "@vitejs/*"
           - "typescript"
 

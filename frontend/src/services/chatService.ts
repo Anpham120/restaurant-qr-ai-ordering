@@ -1,52 +1,126 @@
 import { getApiBaseUrl } from "./apiClient";
 import type {
+  ChatHistoryResponse,
+  ChatRecommendation,
   CreateChatSessionRequest,
   CreateChatSessionResponse,
-  ChatHistoryResponse,
   SendChatMessageRequest,
   SendChatMessageResponse,
 } from "../types";
 
-async function postJson<TResponse>(path: string, body?: unknown): Promise<TResponse> {
+type ChatApiErrorBody = {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+export class ChatApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function requestJson<TResponse>(
+  path: string,
+  method: "GET" | "POST",
+  body?: unknown,
+  accessToken?: string,
+): Promise<TResponse> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    method: "POST",
+    method,
     headers: {
-      "Content-Type": "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(accessToken ? { "X-Chat-Session-Token": accessToken } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
-    throw new Error(`Chat API failed with HTTP ${response.status}`);
+    let errorBody: ChatApiErrorBody | null = null;
+    try {
+      errorBody = await response.json() as ChatApiErrorBody;
+    } catch {
+      errorBody = null;
+    }
+
+    throw new ChatApiError(
+      response.status,
+      errorBody?.error?.code ?? `HTTP_${response.status}`,
+      errorBody?.error?.message ?? "Không thể kết nối tới dịch vụ tư vấn.",
+    );
   }
 
-  return (await response.json()) as TResponse;
-}
-
-async function getJson<TResponse>(path: string): Promise<TResponse> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`);
-  if (!response.ok) {
-    throw new Error(`Chat API failed with HTTP ${response.status}`);
-  }
   return (await response.json()) as TResponse;
 }
 
 export const chatApi = {
   async createSession(request?: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
-    return postJson<CreateChatSessionResponse>("/chat/sessions", request);
+    return requestJson<CreateChatSessionResponse>("/chat/sessions", "POST", request);
   },
 
   async sendMessage(
     chatSessionId: string,
     request: SendChatMessageRequest,
+    accessToken: string,
   ): Promise<SendChatMessageResponse> {
-    return postJson<SendChatMessageResponse>(
-      `/chat/sessions/${chatSessionId}/messages`,
+    return requestJson<SendChatMessageResponse>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/messages`,
+      "POST",
       request,
+      accessToken,
     );
   },
 
-  async getHistory(chatSessionId: string): Promise<ChatHistoryResponse> {
-    return getJson<ChatHistoryResponse>(`/chat/sessions/${chatSessionId}/messages`);
+  async getHistory(chatSessionId: string, accessToken: string): Promise<ChatHistoryResponse> {
+    return requestJson<ChatHistoryResponse>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/messages`,
+      "GET",
+      undefined,
+      accessToken,
+    );
+  },
+
+  async updateRecommendation(
+    chatSessionId: string,
+    request: { menuItemId: string; status: string; turnId?: string },
+    accessToken: string,
+  ): Promise<ChatRecommendation[]> {
+    return requestJson<ChatRecommendation[]>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/recommendations`,
+      "POST",
+      request,
+      accessToken,
+    );
+  },
+
+  async submitFeedback(
+    chatSessionId: string,
+    request: { messageId: string; rating: "up" | "down"; reason?: string },
+    accessToken: string,
+  ): Promise<{ ok: boolean }> {
+    return requestJson<{ ok: boolean }>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/feedback`,
+      "POST",
+      request,
+      accessToken,
+    );
+  },
+
+  async requestAssistance(
+    chatSessionId: string,
+    request: { note?: string },
+    accessToken: string,
+  ): Promise<{ ok: boolean; tableCode: string }> {
+    return requestJson<{ ok: boolean; tableCode: string }>(
+      `/chat/sessions/${encodeURIComponent(chatSessionId)}/assistance`,
+      "POST",
+      request,
+      accessToken,
+    );
   },
 };

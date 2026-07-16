@@ -1,0 +1,91 @@
+@import "@fontsource/playfair-display/vietnamese-600.css";
+@import "@fontsource/playfair-display/vietnamese-700.css";
+@import "@fontsource/karla/latin-ext-400.css";
+@import "@fontsource/karla/latin-ext-500.css";
+@import "@fontsource/karla/latin-ext-600.css";
+@import "@fontsource/karla/latin-ext-700.css";
+@import "@fontsource/manrope/vietnamese-500.css";
+@import "@fontsource/manrope/vietnamese-700.css";
+@import "@fontsource/manrope/vietnamese-800.css";
+@import "@fontsource/dancing-script/vietnamese-600.css";
+@import "@fontsource/dancing-script/vietnamese-700.css";
+
+:root {
+  --brand-ivory: #fffaf5;
+  --brand-paper: #ffffff;
+  --brand-chestnut: #6f3d2c;
+  --brand-chestnut-dark: #4c291f;
+  --brand-brass: #a47834;
+  --brand-ink: #2f1d16;
+  --brand-muted: #80685e;
+  --brand-clay-line: #ead8cd;
+  --brand-success: #2f7251;
+  --brand-danger: #b13c32;
+  --brand-font-display: "Playfair Display", Georgia, serif;
+  --brand-font-body: "Karla", system-ui, sans-serif;
+  --brand-font-utility: "Manrope", system-ui, sans-serif;
+  --brand-radius-card: 1rem;
+  --brand-shadow-soft: 0 18px 45px rgba(76, 41, 31, .1);
+}
+
+:root.brand-theme {
+  --color-bg: var(--brand-ivory);
+  --color-bg-subtle: #fff4ec;
+  --color-bg-section: #fff7f1;
+  --color-card: var(--brand-paper);
+  --color-ink: var(--brand-ink);
+  --color-muted: var(--brand-muted);
+  --color-border: var(--brand-clay-line);
+  --color-border-light: #f2e5dd;
+  --color-primary: var(--brand-chestnut);
+  --color-primary-hover: var(--brand-chestnut-dark);
+  --color-primary-dark: var(--brand-chestnut-dark);
+  --color-warning: var(--brand-brass);
+  --font-display: var(--brand-font-display);
+  --font-ui: var(--brand-font-body);
+  --font-body: var(--brand-font-body);
+  --font-utility: var(--brand-font-utility);
+}
+
+:where([data-money], .brand-money) {
+  font-family: var(--brand-font-utility);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.015em;
+  white-space: nowrap;
+}
+
+.brand-wordmark {
+  align-items: center;
+  color: var(--brand-ink);
+  display: inline-flex;
+  gap: .7rem;
+}
+
+.brand-wordmark-monogram {
+  align-items: center;
+  background: var(--brand-chestnut);
+  border-radius: .8rem;
+  color: #fff;
+  display: inline-flex;
+  font: 800 .82rem/1 var(--brand-font-utility);
+  height: 2.7rem;
+  justify-content: center;
+  letter-spacing: .05em;
+  width: 2.7rem;
+}
+
+.brand-wordmark-copy {
+  display: grid;
+  gap: .08rem;
+}
+
+.brand-wordmark-copy strong {
+  font: 700 1rem/1.15 var(--brand-font-display);
+}
+
+.brand-wordmark-copy small {
+  color: var(--brand-muted);
+  font: 600 .68rem/1.2 var(--brand-font-utility);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}

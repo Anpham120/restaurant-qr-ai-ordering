@@ -22,8 +22,12 @@
  */
 
 const API = process.env.API_BASE ?? "http://localhost:5084/api";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@restaurant.local";
-const ADMIN_PASS = process.env.ADMIN_PASS ?? "Admin@1234";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASS = process.env.ADMIN_PASS;
+
+if (!ADMIN_EMAIL || !ADMIN_PASS) {
+  throw new Error("ADMIN_EMAIL and ADMIN_PASS must be set before seeding menu data.");
+}
 
 async function login() {
   const res = await fetch(`${API}/auth/login`, {

@@ -83,7 +83,6 @@ jobs:
 
       - name: Scan for hardcoded secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -98,13 +97,11 @@ jobs:
         run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Scan filesystem for vulnerabilities, secrets & misconfigurations
-        # Report only (exit-code 0): surface findings without failing the pipeline
-        # on pre-existing issues.
         run: >-
           trivy fs
           --scanners vuln,secret,misconfig
           --severity HIGH,CRITICAL
           --ignore-unfixed
           --no-progress
-          --exit-code 0
+          --exit-code 1
           .
