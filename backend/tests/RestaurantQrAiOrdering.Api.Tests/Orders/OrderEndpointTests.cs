@@ -171,6 +171,25 @@ public sealed class OrderEndpointTests
     }
 
     [Fact]
+    public async Task UpdateOrderItemStatus_FirstPreparingItemAdvancesPlacedOrder()
+    {
+        await using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var order = await CreateOrderAsync(client, factory);
+        var orderCode = order.RootElement.GetProperty("orderCode").GetString()!;
+        var orderItemId = order.RootElement.GetProperty("items")[0].GetProperty("orderItemId").GetString()!;
+
+        client.DefaultRequestHeaders.Authorization = CreateAuthorization(factory, UserRole.Kitchen);
+        using var response = await client.PatchAsJsonAsync(
+            $"/api/orders/{orderCode}/items/{orderItemId}/status",
+            new { status = "Preparing" });
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Preparing", body.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task UpdateOrderItemStatus_RejectsCustomerRole()
     {
         await using var factory = new TestWebApplicationFactory();
