@@ -1,10 +1,12 @@
 import type {
   AdminCategory,
   AdminCategoryRequest,
+  AdminTableListResponse,
   ApiErrorBody,
   AuthUser,
   ChangePasswordRequest,
   CreateOrderRequest,
+  CreateOrderResponse,
   CreateUserRequest,
   LoginRequest,
   LoginResponse,
@@ -18,7 +20,10 @@ import type {
   OrderItemStatus,
   OrderListResponse,
   OrderStatus,
+  OpenTableSessionResponse,
   Payment,
+  PaymentRequest,
+  PaymentRequestResponse,
   Promotion,
   PromotionRequest,
   RefundPaymentRequest,
@@ -26,21 +31,27 @@ import type {
   ReportSummaryResponse,
   ResetPasswordRequest,
   Table,
-  TableListResponse,
   AdminTableSessionListResponse,
   TableSession,
+  TableInvoice,
+  TableInvoicePaymentRequest,
+  TableInvoicePaymentRequestResponse,
   UserListResponse,
   UserSummary,
+  UpdateUserRequest,
   ValidatePromotionRequest,
   ValidatePromotionResponse,
-  VietQrPayment,
 } from "@cmc/shared-types";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public details: Record<string, unknown> = {}) { super(message); }
 }
 
-export type ApiClientOptions = { baseUrl?: string; getAccessToken?: () => string | null };
+export type ApiClientOptions = {
+  baseUrl?: string;
+  getAccessToken?: () => string | null;
+  onUnauthorized?: () => void;
+};
 
 export function createApiClient(options: ApiClientOptions = {}) {
   const baseUrl = (options.baseUrl ?? import.meta.env.VITE_API_BASE_URL ?? "https://localhost:7296/api").replace(/\/$/, "");
@@ -51,6 +62,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
     if (!response.ok) {
+      if (response.status === 401 && token) {
+        options.onUnauthorized?.();
+      }
       let body: ApiErrorBody | undefined;
       try { body = await response.json() as ApiErrorBody; } catch { body = undefined; }
       throw new ApiError(response.status, body?.error.code ?? `HTTP_${response.status}`, body?.error.message ?? response.statusText, body?.error.details);
@@ -68,24 +82,74 @@ export function createApiClient(options: ApiClientOptions = {}) {
     users: {
       list: () => request<UserListResponse>("/users"),
       create: (payload: CreateUserRequest) => request<UserSummary>("/users", { method: "POST", body: JSON.stringify(payload) }),
+      update: (userId: string, payload: UpdateUserRequest) => request<UserSummary>(`/users/${encodeURIComponent(userId)}`, { method: "PUT", body: JSON.stringify(payload) }),
+      delete: (userId: string) => request<void>(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" }),
       resetPassword: (userId: string, payload: ResetPasswordRequest) => request<void>(`/users/${encodeURIComponent(userId)}/reset-password`, { method: "POST", body: JSON.stringify(payload) }),
     },
     menu: { get: () => request<MenuResponse>("/menu") },
     tables: {
-      list: () => request<TableListResponse>("/tables"),
       get: (code: string) => request<Table>(`/tables/${encodeURIComponent(code)}`),
+      listAdmin: () => request<AdminTableListResponse>("/admin/tables"),
       listAdminSessions: (status?: string) => {
         const query = status ? `?status=${encodeURIComponent(status)}` : "";
         return request<AdminTableSessionListResponse>(`/admin/table-sessions${query}`);
       },
       openSession: (payload: { qrToken: string; tableCode?: string | null }) =>
-        request<TableSession>("/table-sessions", { method: "POST", body: JSON.stringify(payload) }),
-      getSession: (sessionId: string) => request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}`),
+        request<OpenTableSessionResponse>("/table-sessions", { method: "POST", body: JSON.stringify(payload) }),
+      getSession: (sessionId: string, sessionToken: string) =>
+        request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}`, {
+          headers: { "X-Table-Session-Token": sessionToken },
+        }),
+      listSessionOrders: (sessionId: string, sessionToken: string) =>
+        request<OrderListResponse>(`/table-sessions/${encodeURIComponent(sessionId)}/orders`, {
+          headers: { "X-Table-Session-Token": sessionToken },
+        }),
       closeSession: (sessionId: string) =>
         request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}/close`, { method: "POST" }),
     },
+    tableInvoices: {
+      list: (status?: string) => {
+        const query = status ? `?status=${encodeURIComponent(status)}` : "";
+        return request<TableInvoice[]>(`/table-invoices${query}`);
+      },
+      get: (sessionId: string, sessionToken: string) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice`, {
+          headers: { "X-Table-Session-Token": sessionToken },
+        }),
+      requestPayment: (
+        sessionId: string,
+        payload: TableInvoicePaymentRequest,
+        sessionToken: string,
+        idempotencyKey: string,
+      ) => request<TableInvoicePaymentRequestResponse>(
+        `/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment-request`,
+        {
+          method: "POST",
+          headers: {
+            "X-Table-Session-Token": sessionToken,
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify(payload),
+        },
+      ),
+      confirmPayment: (sessionId: string, payload: { note?: string | null } = {}) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment/confirm`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      cancelPayment: (sessionId: string, payload: { note?: string | null } = {}) =>
+        request<TableInvoice>(`/table-sessions/${encodeURIComponent(sessionId)}/invoice/payment/cancel`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+    },
     orders: {
-      create: (payload: CreateOrderRequest) => request<Order>("/orders", { method: "POST", body: JSON.stringify(payload) }),
+      create: (payload: CreateOrderRequest, idempotencyKey: string) =>
+        request<CreateOrderResponse>("/orders", {
+          method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: JSON.stringify(payload),
+        }),
       get: (code: string, accessToken?: string | null) =>
         request<Order>(`/orders/${encodeURIComponent(code)}`, accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
       list: (filters: { status?: string; tableCode?: string; updatedSince?: string } = {}) => {
@@ -102,10 +166,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
     payments: {
       get: (orderCode: string, accessToken?: string | null) =>
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment`, accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
-      generateVietQr: (orderCode: string, accessToken?: string | null) =>
-        request<VietQrPayment>(`/orders/${encodeURIComponent(orderCode)}/payment/vietqr`, {
+      request: (
+        orderCode: string,
+        payload: PaymentRequest,
+        accessToken: string,
+        idempotencyKey: string,
+      ) =>
+        request<PaymentRequestResponse>(`/orders/${encodeURIComponent(orderCode)}/payment/request`, {
           method: "POST",
-          ...(accessToken ? { headers: { "X-Order-Token": accessToken } } : {}),
+          headers: {
+            "X-Order-Token": accessToken,
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify(payload),
         }),
       confirm: (orderCode: string, payload: { providerTransactionId?: string | null; note?: string | null } = {}) =>
         request<Payment>(`/orders/${encodeURIComponent(orderCode)}/payment/confirm`, { method: "POST", body: JSON.stringify(payload) }),

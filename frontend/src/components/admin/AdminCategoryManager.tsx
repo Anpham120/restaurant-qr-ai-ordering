@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminCategory, AdminCategoryRequest } from "@cmc/shared-types";
-import { createApiClient } from "@cmc/api-client";
+import { api } from "../../services/apiClient";
+import { Folder, X } from "lucide-react";
 import "../operations/operations.css";
-
-const api = createApiClient({
-  getAccessToken: () =>
-    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
-});
 
 const EMPTY: AdminCategoryRequest = { name: "", displayOrder: 0, isActive: true };
 
@@ -77,7 +73,7 @@ export function AdminCategoryManager() {
     }
   }
 
-  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon">📂</div>Đang tải...</div>;
+  if (isLoading) return <div className="ops-empty"><div className="ops-empty-icon"><Folder aria-hidden="true" /></div>Đang tải...</div>;
 
   return (
     <div>
@@ -98,7 +94,7 @@ export function AdminCategoryManager() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{editingId ? "Sửa danh mục" : "Thêm danh mục"}</h2>
-              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
+              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setShowForm(false)} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">

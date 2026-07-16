@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
@@ -23,12 +24,31 @@ public static partial class OrderEndpoints
             CreateOrderRequest? request,
             RestaurantDbContext db,
             IOrderStore orders,
+            HttpContext http,
             ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Orders.OrderEndpoints");
+            var hasValidIdempotencyKey = RequestIdempotency.TryRead(http.Request, out var idempotencyKey);
+            var requestFingerprint = request is null ? null : ComputeCreateOrderFingerprint(request);
+
+            if (hasValidIdempotencyKey && requestFingerprint is not null)
+            {
+                var existing = orders.GetOrderByIdempotencyKey(idempotencyKey);
+                if (existing is not null)
+                {
+                    return existing.RequestFingerprint == requestFingerprint
+                        ? Results.Created(
+                            $"/api/orders/{existing.Order.OrderCode}",
+                            ToCreateResponse(existing.Order))
+                        : ApiResults.Conflict(
+                            "IDEMPOTENCY_KEY_REUSED",
+                            "Idempotency key was already used with a different request.");
+                }
+            }
+
             var validationError = await ValidateCreateOrderRequestAsync(request, db, cancellationToken);
             if (validationError is not null)
             {
@@ -37,6 +57,16 @@ public static partial class OrderEndpoints
             }
 
             var validatedRequest = request!;
+            if (!hasValidIdempotencyKey)
+            {
+                return http.Request.Headers.ContainsKey(RequestIdempotency.HeaderName)
+                    ? ApiResults.BadRequest(
+                        "IDEMPOTENCY_KEY_INVALID",
+                        "Idempotency-Key must contain 1 to 100 letters, numbers, '.', '_', ':' or '-'.")
+                    : ApiResults.BadRequest(
+                        "IDEMPOTENCY_KEY_REQUIRED",
+                        "Idempotency-Key header is required.");
+            }
 
             // Apply the promotion before creating the order so an invalid code fails the
             // whole request (HTTP 400) instead of silently creating an undiscounted order.
@@ -78,8 +108,9 @@ public static partial class OrderEndpoints
                         validatedRequest.TableCode?.Trim().ToUpperInvariant(),
                         validatedRequest.QrToken?.Trim(),
                         validatedRequest.TableSessionId?.Trim(),
-                        validatedRequest.PaymentMethod!.Trim(),
                         validatedRequest.Items!,
+                        idempotencyKey,
+                        requestFingerprint!,
                         discountAmount,
                         promotionId,
                         promotionCode,
@@ -91,6 +122,42 @@ public static partial class OrderEndpoints
                 logger.LogWarning("Rejected order creation because menu item {MenuItemId} became unavailable.", ex.MenuItemId);
                 return ApiResults.BadRequest("MENU_ITEM_UNAVAILABLE", "Menu item is unavailable.");
             }
+            catch (TableSessionUnavailableException ex)
+            {
+                logger.LogWarning("Rejected order creation because the table session became unavailable.");
+                return ApiErrorFactory.Result(ex.StatusCode, ex.ErrorCode, ex.Message);
+            }
+            catch (IdempotencyKeyReuseException)
+            {
+                return ApiResults.Conflict(
+                    "IDEMPOTENCY_KEY_REUSED",
+                    "Idempotency key was already used with a different request.");
+            }
+            catch (DbUpdateException)
+            {
+                db.ChangeTracker.Clear();
+                var existing = orders.GetOrderByIdempotencyKey(idempotencyKey);
+                if (existing is not null)
+                {
+                    return existing.RequestFingerprint == requestFingerprint
+                        ? Results.Created(
+                            $"/api/orders/{existing.Order.OrderCode}",
+                            ToCreateResponse(existing.Order))
+                        : ApiResults.Conflict(
+                            "IDEMPOTENCY_KEY_REUSED",
+                            "Idempotency key was already used with a different request.");
+                }
+
+                return ApiResults.Conflict(
+                    "ORDER_CREATE_CONFLICT",
+                    "Order could not be created because its session changed. Please scan QR again.");
+            }
+            catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure)
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "The table session started settlement while this order was being submitted. Reload and try again.");
+            }
 
             await realtime.OrderCreatedAsync(ToOrderCreatedEvent(order), cancellationToken);
             logger.LogInformation(
@@ -99,7 +166,7 @@ public static partial class OrderEndpoints
                 order.Items.Count,
                 order.OrderType);
 
-            return Results.Created($"/api/orders/{order.OrderCode}", ToResponse(order));
+            return Results.Created($"/api/orders/{order.OrderCode}", ToCreateResponse(order));
         })
         .WithName("CreateOrder")
         .WithTags("Orders");
@@ -192,6 +259,19 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("ORDER_STATUS_INVALID", "Order status is invalid.");
             }
 
+            var isKitchenOnly = user.IsInRole(UserRole.Kitchen)
+                && !user.IsInRole(UserRole.Staff)
+                && !user.IsInRole(UserRole.Admin);
+            if (isKitchenOnly && status != OrderStatus.Served)
+            {
+                logger.LogWarning(
+                    "Rejected status update for order {OrderCode} because Kitchen can only mark an order Served.",
+                    orderCode);
+                return ApiResults.Forbidden(
+                    "KITCHEN_ORDER_STATUS_FORBIDDEN",
+                    "Kitchen can only mark a Ready order as Served.");
+            }
+
             var result = orders.UpdateOrderStatus(orderCode, status, ActorContext.FromPrincipal(user));
             if (!result.IsFound || result.Order is null)
             {
@@ -208,6 +288,13 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest(
                     "ORDER_CANCEL_NOT_ALLOWED",
                     "Order cannot be cancelled after it or any item reaches Preparing.");
+            }
+
+            if (result.ErrorCode == "TABLE_INVOICE_PAYMENT_PENDING")
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "Order cancellation is disabled while the table invoice is awaiting payment.");
             }
 
             if (result.ErrorCode == "ORDER_STATUS_TRANSITION_INVALID")
@@ -258,6 +345,7 @@ public static partial class OrderEndpoints
             string orderItemId,
             UpdateOrderItemStatusRequest? request,
             IOrderStore orders,
+            ClaimsPrincipal user,
             IOrderRealtimeNotifier realtime,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -284,7 +372,11 @@ public static partial class OrderEndpoints
                 return ApiResults.BadRequest("ORDER_ITEM_STATUS_INVALID", "Order item status is invalid.");
             }
 
-            var result = orders.UpdateOrderItemStatus(orderCode, orderItemId, status);
+            var result = orders.UpdateOrderItemStatus(
+                orderCode,
+                orderItemId,
+                status,
+                ActorContext.FromPrincipal(user));
             if (!result.IsOrderFound || result.Order is null)
             {
                 logger.LogWarning("Rejected item status update because order {OrderCode} was not found.", orderCode);
@@ -299,6 +391,24 @@ public static partial class OrderEndpoints
                     orderCode);
 
                 return ApiResults.NotFound("ORDER_ITEM_NOT_FOUND", "Order item was not found.");
+            }
+
+            if (result.ErrorCode == "ORDER_STATUS_TERMINAL")
+            {
+                logger.LogWarning(
+                    "Rejected item status update for terminal order {OrderCode}.",
+                    orderCode);
+
+                return ApiResults.Conflict(
+                    "ORDER_STATUS_TERMINAL",
+                    "Completed or cancelled orders cannot be changed.");
+            }
+
+            if (result.ErrorCode == "TABLE_INVOICE_PAYMENT_PENDING")
+            {
+                return ApiResults.Conflict(
+                    "TABLE_INVOICE_PAYMENT_PENDING",
+                    "Item cancellation is disabled while the table invoice is awaiting payment.");
             }
 
             if (result.ErrorCode == "ORDER_ITEM_STATUS_TRANSITION_INVALID")
@@ -334,6 +444,13 @@ public static partial class OrderEndpoints
                 ToOrderItemStatusChangedEvent(result.Order, result.Item),
                 result.Order.TableCode,
                 cancellationToken);
+            if (result.OrderStatusChanged)
+            {
+                await realtime.OrderStatusChangedAsync(
+                    ToOrderStatusChangedEvent(result.Order),
+                    result.Order.TableCode,
+                    cancellationToken);
+            }
             logger.LogInformation(
                 "Updated order {OrderCode} item {OrderItemId} status to {Status}.",
                 result.Order.OrderCode,
@@ -390,11 +507,6 @@ public static partial class OrderEndpoints
         if (!TryParseEnum<OrderType>(request.OrderType, out var orderType))
         {
             return ApiResults.BadRequest("ORDER_TYPE_INVALID", "Order type is invalid.");
-        }
-
-        if (!TryParseEnum<PaymentMethod>(request.PaymentMethod, out _))
-        {
-            return ApiResults.BadRequest("PAYMENT_METHOD_INVALID", "Payment method is invalid.");
         }
 
         var sharedValidationError = ValidateSharedOrderItems(request);
@@ -508,6 +620,7 @@ public static partial class OrderEndpoints
         var tableSessionId = request.TableSessionId.Trim();
         var session = await db.TableSessions
             .Include(tableSession => tableSession.RestaurantTable)
+            .Include(tableSession => tableSession.Invoice)
             .AsNoTracking()
             .FirstOrDefaultAsync(tableSession => tableSession.Id == tableSessionId, cancellationToken);
 
@@ -529,6 +642,20 @@ public static partial class OrderEndpoints
             return ApiResults.BadRequest("TABLE_SESSION_INVALID", "Table session is not valid for dine-in ordering.");
         }
 
+        if (session.Invoice?.Status == PaymentStatus.Pending)
+        {
+            return ApiResults.Conflict(
+                "TABLE_INVOICE_PAYMENT_PENDING",
+                "New order rounds are disabled while payment is pending for the table invoice.");
+        }
+
+        if (session.Invoice?.Status is PaymentStatus.Paid or PaymentStatus.Confirmed)
+        {
+            return ApiResults.Conflict(
+                "TABLE_SESSION_SETTLED",
+                "New order rounds are disabled after the table invoice is settled.");
+        }
+
         if (session.TableCode != normalizedTableCode)
         {
             return ApiResults.BadRequest("TABLE_SESSION_TABLE_MISMATCH", "Table session does not match the requested table.");
@@ -546,6 +673,66 @@ public static partial class OrderEndpoints
         where TEnum : struct
     {
         return Enum.TryParse(value?.Trim(), ignoreCase: false, out parsed);
+    }
+
+    private static string ComputeCreateOrderFingerprint(CreateOrderRequest request)
+    {
+        return RequestIdempotency.ComputeFingerprint(new
+        {
+            OrderType = request.OrderType?.Trim(),
+            TableCode = request.TableCode?.Trim().ToUpperInvariant(),
+            QrToken = request.QrToken?.Trim(),
+            TableSessionId = request.TableSessionId?.Trim(),
+            Items = request.Items?
+                .Select(item => new
+                {
+                    MenuItemId = item.MenuItemId?.Trim(),
+                    item.Quantity
+                })
+                .OrderBy(item => item.MenuItemId, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            PromotionCode = request.PromotionCode?.Trim().ToUpperInvariant(),
+            CustomerPhoneNumber = request.CustomerPhoneNumber?.Trim()
+        });
+    }
+
+    private static CreateOrderResponse ToCreateResponse(OrderSnapshot order)
+    {
+        return new CreateOrderResponse(
+            order.OrderId,
+            order.OrderCode,
+            order.OrderType,
+            order.TableCode,
+            order.TableSessionId,
+            order.Status,
+            order.PaymentStatus,
+            order.PaymentMethod,
+            order.SubtotalAmount,
+            order.DiscountAmount,
+            order.TotalAmount,
+            order.PromotionCode,
+            order.CreatedAt,
+            order.UpdatedAt,
+            order.Items
+                .Select(item => new OrderItemResponse(
+                    item.OrderItemId,
+                    item.MenuItemId,
+                    item.Name,
+                    item.UnitPrice,
+                    item.Quantity,
+                    item.Status,
+                    item.LineTotal,
+                    item.UpdatedAt))
+                .ToList(),
+            order.Events
+                .Select(item => new OrderStatusEventResponse(
+                    item.Status,
+                    item.Source,
+                    item.ChangedByRole,
+                    item.Note,
+                    item.CreatedAt))
+                .ToList(),
+            order.CustomerAccessToken ?? string.Empty);
     }
 
     private static OrderResponse ToResponse(OrderSnapshot order)
@@ -583,11 +770,10 @@ public static partial class OrderEndpoints
                     item.ChangedByRole,
                     item.Note,
                     item.CreatedAt))
-                .ToList(),
-            order.CustomerAccessToken);
+                .ToList());
     }
 
-    private static OrderResponse ToResponse(Order order)
+    internal static OrderResponse ToResponse(Order order)
     {
         var payment = order.Payment;
         return new OrderResponse(
@@ -597,8 +783,8 @@ public static partial class OrderEndpoints
             order.TableCode,
             order.TableSessionId,
             order.Status.ToString(),
-            (payment?.Status ?? PaymentStatus.Unpaid).ToString(),
-            (payment?.Method ?? PaymentMethod.COD).ToString(),
+            (payment?.Status ?? PaymentStatus.NotRequested).ToString(),
+            (payment?.Method ?? PaymentMethod.Unselected).ToString(),
             order.SubtotalAmount,
             order.DiscountAmount,
             order.TotalAmount,
@@ -626,9 +812,7 @@ public static partial class OrderEndpoints
                     history.ChangedByRole,
                     history.Note,
                     history.CreatedAt))
-                .ToList(),
-            // Listing is operators-only; don't bulk-expose per-order customer tokens.
-            null);
+                .ToList());
     }
 
     private static OrderCreatedEvent ToOrderCreatedEvent(OrderSnapshot order)
@@ -642,7 +826,7 @@ public static partial class OrderEndpoints
             order.CreatedAt);
     }
 
-    private static OrderStatusChangedEvent ToOrderStatusChangedEvent(OrderSnapshot order)
+    public static OrderStatusChangedEvent ToOrderStatusChangedEvent(OrderSnapshot order)
     {
         return new OrderStatusChangedEvent(
             order.OrderId,

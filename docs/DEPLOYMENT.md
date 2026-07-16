@@ -1,6 +1,6 @@
 # Tài Liệu Triển Khai
 
-Tài liệu này mô tả hướng triển khai production-like cho **CMC Restaurant - Restaurant QR AI Ordering** bằng GitHub Actions, VPS, Docker Compose, PostgreSQL, Nginx, HTTPS và 9router.
+Tài liệu này mô tả hướng triển khai production-like cho **CMC Restaurant - Restaurant QR AI Ordering** bằng GitHub Actions, VPS, Docker Compose, PostgreSQL, Nginx, HTTPS và Google Gemini API.
 
 ## Mục Tiêu
 
@@ -18,8 +18,8 @@ Tài liệu này mô tả hướng triển khai production-like cho **CMC Restau
 - Frontend React build static và phục vụ qua container Nginx.
 - Backend ASP.NET Core Web API chạy theo modular monolith.
 - PostgreSQL lưu dữ liệu thật, có volume persistent và health check.
-- AI service Python RAG gọi 9router nội bộ tại `http://127.0.0.1:20128/v1`.
-- 9router không public trực tiếp ra internet.
+- AI service Python RAG gọi trực tiếp Google Gemini API qua HTTPS.
+- `GEMINI_API_KEY` chỉ được cấp cho container AI, không truyền xuống frontend hay container backend.
 
 ## Luồng CI/CD
 
@@ -50,7 +50,7 @@ Khi push hoặc merge vào `main`:
 1. Workflow `Deploy Production` chạy lại CI thông qua reusable workflow.
 2. Nếu CI fail, deploy không bắt đầu.
 3. Nếu CI pass, workflow deploy production lên VPS.
-4. PostgreSQL migration chạy tự động nếu `RUN_DB_MIGRATIONS_ON_STARTUP=true`.
+4. PostgreSQL migration chạy bằng container one-shot `migrate` trước khi API start; `RUN_DB_MIGRATIONS_ON_STARTUP=false` ở deploy mặc định.
 5. Backup PostgreSQL được tạo trước health check.
 6. Health check và smoke check xác nhận release.
 
@@ -66,7 +66,7 @@ STAGING_SSH_USER
 STAGING_SSH_KEY
 STAGING_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 
@@ -78,14 +78,14 @@ PRODUCTION_SSH_USER
 PRODUCTION_SSH_KEY
 PRODUCTION_POSTGRES_PASSWORD
 JWT_SIGNING_KEY
-AI_API_KEY
+GEMINI_API_KEY
 CERTBOT_EMAIL
 ```
 
 Variables khuyến nghị:
 
 ```text
-AI_MODEL=gc/gemini-3-flash
+AI_MODEL=gh/gemini-3.1-pro-preview
 ```
 
 ## Docker Compose
@@ -118,7 +118,9 @@ Frontend:
 
 ```bash
 curl -fsS https://cmcrestaurant.app/ >/dev/null
+curl -fsS https://order.cmcrestaurant.app/ >/dev/null
 curl -fsS https://staging.cmcrestaurant.app/ >/dev/null
+curl -fsS https://order-staging.cmcrestaurant.app/ >/dev/null
 ```
 
 Report sau deploy:

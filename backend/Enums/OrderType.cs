@@ -4,5 +4,9 @@ namespace RestaurantQrAiOrdering.Enums;
 
 public enum OrderType
 {
-    DineIn
+    DineIn,
+
+    // Retained so historical pickup orders remain readable after the
+    // application moved to QR dine-in ordering only.
+    Pickup
 }

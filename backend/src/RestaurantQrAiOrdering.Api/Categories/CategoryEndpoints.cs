@@ -11,7 +11,7 @@ public static class CategoryEndpoints
     {
         var adminCategories = app.MapGroup("/api/admin/categories")
             .WithTags("Admin Categories")
-            .RequireAuthorization("StaffOrAdmin");
+            .RequireAuthorization("AdminOnly");
 
         adminCategories.MapGet("/", async (RestaurantDbContext db) =>
         {

@@ -10,13 +10,17 @@ public class Payment
 {
     public string Id { get; set; } = string.Empty;
 
-    public string OrderId { get; set; } = string.Empty;
+    public string? OrderId { get; set; }
 
     public Order? Order { get; set; }
 
-    public PaymentMethod Method { get; set; } = PaymentMethod.COD;
+    public string? TableInvoiceId { get; set; }
 
-    public PaymentStatus Status { get; set; } = PaymentStatus.Unpaid;
+    public TableInvoice? TableInvoice { get; set; }
+
+    public PaymentMethod Method { get; set; } = PaymentMethod.Unselected;
+
+    public PaymentStatus Status { get; set; } = PaymentStatus.NotRequested;
 
     public decimal Amount { get; set; }
 

@@ -25,6 +25,7 @@ fi
 certbot --nginx \
   --non-interactive \
   --agree-tos \
+  --expand \
   --redirect \
   "${email_args[@]}" \
   "${domains[@]}"

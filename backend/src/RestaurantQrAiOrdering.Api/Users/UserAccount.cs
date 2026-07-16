@@ -13,4 +13,6 @@ public sealed class UserAccount
     public required string Role { get; init; }
 
     public required DateTimeOffset CreatedAt { get; init; }
+
+    public long SecurityStampTicks { get; init; }
 }

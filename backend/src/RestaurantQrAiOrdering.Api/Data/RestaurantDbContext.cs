@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -28,6 +29,7 @@ public class RestaurantDbContext : DbContext
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
     public DbSet<TableSession> TableSessions => Set<TableSession>();
+    public DbSet<TableInvoice> TableInvoices => Set<TableInvoice>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
@@ -35,6 +37,11 @@ public class RestaurantDbContext : DbContext
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatRecommendation> ChatRecommendations => Set<ChatRecommendation>();
+    public DbSet<ChatSessionFact> ChatSessionFacts => Set<ChatSessionFact>();
+    public DbSet<ChatFeedback> ChatFeedbacks => Set<ChatFeedback>();
+    public DbSet<TableSessionCartItem> TableSessionCartItems => Set<TableSessionCartItem>();
+    public DbSet<MenuItemKnowledge> MenuItemKnowledgeEntries => Set<MenuItemKnowledge>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
@@ -49,6 +56,7 @@ public class RestaurantDbContext : DbContext
         ConfigureMenuItem(modelBuilder);
         ConfigureRestaurantTable(modelBuilder);
         ConfigureTableSession(modelBuilder);
+        ConfigureTableInvoice(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigureOrderStatusHistory(modelBuilder);
@@ -56,6 +64,11 @@ public class RestaurantDbContext : DbContext
         ConfigurePaymentTransaction(modelBuilder);
         ConfigureChatSession(modelBuilder);
         ConfigureChatMessage(modelBuilder);
+        ConfigureChatRecommendation(modelBuilder);
+        ConfigureChatSessionFact(modelBuilder);
+        ConfigureChatFeedback(modelBuilder);
+        ConfigureTableSessionCartItem(modelBuilder);
+        ConfigureMenuItemKnowledge(modelBuilder);
         ConfigureKnowledgeEntry(modelBuilder);
         ConfigureUser(modelBuilder);
         ConfigurePromotion(modelBuilder);
@@ -71,7 +84,7 @@ public class RestaurantDbContext : DbContext
 
     // Atomically reserves the next order-code number from the Postgres sequence.
     // Falls back to a simple counter for InMemory provider.
-    private long _inMemoryOrderCodeCounter = 1000;
+    private static long _inMemoryOrderCodeCounter = 1000;
     public virtual long NextOrderCodeNumber()
     {
         if (Database.IsInMemory())
@@ -263,11 +276,53 @@ public class RestaurantDbContext : DbContext
                 .HasForeignKey(e => e.RestaurantTableId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasIndex(e => e.RestaurantTableId);
+            entity.HasIndex(e => e.RestaurantTableId)
+                .HasDatabaseName("UX_table_sessions_active_restaurant_table")
+                .IsUnique()
+                .HasFilter("\"status\" = 'Open' AND \"closed_at\" IS NULL");
             entity.HasIndex(e => e.TableCode);
             entity.HasIndex(e => e.QrToken);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ExpiresAt);
+
+            // Serialize order creation against starting settlement without adding schema DDL.
+            entity.Property<uint>("xmin").IsRowVersion();
+        });
+    }
+
+    private static void ConfigureTableInvoice(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableInvoice>(entity =>
+        {
+            entity.ToTable("table_invoices");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.InvoiceCode).HasColumnName("invoice_code").HasMaxLength(30).IsRequired();
+            entity.Property(e => e.TableSessionId).HasColumnName("table_session_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 2);
+            entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 2);
+            entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2);
+            entity.Property(e => e.PromotionId).HasColumnName("promotion_id").HasMaxLength(50);
+            entity.Property(e => e.PromotionCode).HasColumnName("promotion_code").HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneNumber).HasColumnName("customer_phone_number").HasMaxLength(30);
+            entity.Property(e => e.Method).HasColumnName("method").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            entity.HasOne(e => e.TableSession)
+                .WithOne(session => session.Invoice)
+                .HasForeignKey<TableInvoice>(e => e.TableSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Promotion)
+                .WithMany()
+                .HasForeignKey(e => e.PromotionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.InvoiceCode).IsUnique();
+            entity.HasIndex(e => e.TableSessionId).IsUnique();
+            entity.HasIndex(e => e.Status);
         });
     }
 
@@ -287,6 +342,12 @@ public class RestaurantDbContext : DbContext
                 .IsRequired();
             entity.Property(e => e.CustomerAccessToken)
                 .HasColumnName("customer_access_token")
+                .HasMaxLength(64);
+            entity.Property(e => e.IdempotencyKey)
+                .HasColumnName("idempotency_key")
+                .HasMaxLength(100);
+            entity.Property(e => e.RequestFingerprint)
+                .HasColumnName("request_fingerprint")
                 .HasMaxLength(64);
             entity.Property(e => e.OrderType)
                 .HasColumnName("order_type")
@@ -359,19 +420,16 @@ public class RestaurantDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => e.OrderCode).IsUnique();
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
             entity.HasIndex(e => e.PromotionId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.RestaurantTableId);
             entity.HasIndex(e => e.TableSessionId);
             entity.HasIndex(e => e.CreatedAt);
 
-            // Optimistic concurrency via the Postgres xmin system column, guarding
-            // against lost updates when two requests mutate the same order at once.
-            // The helper is deprecated but is the only mapping that emits no migration
-            // DDL (a manual xmin property generates an invalid AddColumn).
-#pragma warning disable CS0618
-            entity.UseXminAsConcurrencyToken();
-#pragma warning restore CS0618
+            // PostgreSQL maps this uint rowversion shadow property to its xmin system
+            // column, so it guards concurrent order writes without emitting table DDL.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 
@@ -489,7 +547,10 @@ public class RestaurantDbContext : DbContext
     {
         modelBuilder.Entity<Payment>(entity =>
         {
-            entity.ToTable("payments");
+            entity.ToTable("payments", table =>
+                table.HasCheckConstraint(
+                    "CK_payments_single_target",
+                    "(order_id IS NULL) <> (table_invoice_id IS NULL)"));
 
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id)
@@ -497,8 +558,10 @@ public class RestaurantDbContext : DbContext
                 .HasMaxLength(50);
             entity.Property(e => e.OrderId)
                 .HasColumnName("order_id")
-                .HasMaxLength(50)
-                .IsRequired();
+                .HasMaxLength(50);
+            entity.Property(e => e.TableInvoiceId)
+                .HasColumnName("table_invoice_id")
+                .HasMaxLength(50);
             entity.Property(e => e.Method)
                 .HasColumnName("method")
                 .HasConversion<string>()
@@ -529,15 +592,18 @@ public class RestaurantDbContext : DbContext
                 .WithOne(o => o.Payment)
                 .HasForeignKey<Payment>(e => e.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.TableInvoice)
+                .WithOne(invoice => invoice.Payment)
+                .HasForeignKey<Payment>(e => e.TableInvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.OrderId).IsUnique();
+            entity.HasIndex(e => e.TableInvoiceId).IsUnique();
             entity.HasIndex(e => e.Status);
 
-            // Optimistic concurrency via xmin: guard against two staff confirming or
-            // failing the same payment at once. Deprecated helper, but emits no DDL.
-#pragma warning disable CS0618
-            entity.UseXminAsConcurrencyToken();
-#pragma warning restore CS0618
+            // PostgreSQL maps this uint rowversion shadow property to its xmin system
+            // column, preventing concurrent manual payment transitions from overwriting.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 
@@ -579,6 +645,12 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.Note)
                 .HasColumnName("note")
                 .HasMaxLength(500);
+            entity.Property(e => e.IdempotencyKey)
+                .HasColumnName("idempotency_key")
+                .HasMaxLength(100);
+            entity.Property(e => e.RequestFingerprint)
+                .HasColumnName("request_fingerprint")
+                .HasMaxLength(64);
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -589,6 +661,7 @@ public class RestaurantDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ProviderTransactionId);
         });
@@ -619,6 +692,8 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.IsClosed)
                 .HasColumnName("is_closed")
                 .IsRequired();
+            entity.Property(e => e.RollingSummary)
+                .HasColumnName("rolling_summary");
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -680,6 +755,232 @@ public class RestaurantDbContext : DbContext
         });
     }
 
+    private static void ConfigureChatRecommendation(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatRecommendation>(entity =>
+        {
+            entity.ToTable("chat_recommendations");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.TurnId)
+                .HasColumnName("turn_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Recommendations)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => new { e.ChatSessionId, e.MenuItemId, e.Status })
+                .IsUnique();
+        });
+    }
+
+    private static void ConfigureChatSessionFact(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatSessionFact>(entity =>
+        {
+            entity.ToTable("chat_session_facts");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Kind)
+                .HasColumnName("kind")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Value)
+                .HasColumnName("value")
+                .HasMaxLength(500)
+                .IsRequired();
+            entity.Property(e => e.SourceTurnId)
+                .HasColumnName("source_turn_id")
+                .HasMaxLength(50);
+            entity.Property(e => e.Confidence)
+                .HasColumnName("confidence")
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Facts)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => new { e.ChatSessionId, e.Kind, e.Value })
+                .IsUnique();
+        });
+    }
+
+    private static void ConfigureChatFeedback(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChatFeedback>(entity =>
+        {
+            entity.ToTable("chat_feedback");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.ChatSessionId)
+                .HasColumnName("chat_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MessageId)
+                .HasColumnName("message_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Rating)
+                .HasColumnName("rating")
+                .HasMaxLength(10)
+                .IsRequired();
+            entity.Property(e => e.Reason)
+                .HasColumnName("reason")
+                .HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.ChatSession)
+                .WithMany(s => s.Feedback)
+                .HasForeignKey(e => e.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Message)
+                .WithMany()
+                .HasForeignKey(e => e.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatSessionId);
+            entity.HasIndex(e => e.MessageId);
+        });
+    }
+
+    private static void ConfigureTableSessionCartItem(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TableSessionCartItem>(entity =>
+        {
+            entity.ToTable("table_session_cart_items");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.TableSessionId)
+                .HasColumnName("table_session_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Quantity)
+                .HasColumnName("quantity")
+                .IsRequired();
+            entity.Property(e => e.Note)
+                .HasColumnName("note")
+                .HasMaxLength(500);
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.TableSession)
+                .WithMany()
+                .HasForeignKey(e => e.TableSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MenuItem)
+                .WithMany()
+                .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TableSessionId, e.MenuItemId })
+                .IsUnique();
+            entity.HasIndex(e => e.TableSessionId);
+        });
+    }
+
+    private static void ConfigureMenuItemKnowledge(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MenuItemKnowledge>(entity =>
+        {
+            entity.ToTable("menu_item_knowledge");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasMaxLength(50);
+            entity.Property(e => e.MenuItemId)
+                .HasColumnName("menu_item_id")
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.Ingredients)
+                .HasColumnName("ingredients");
+            entity.Property(e => e.Allergens)
+                .HasColumnName("allergens")
+                .HasMaxLength(500);
+            entity.Property(e => e.SpiceLevel)
+                .HasColumnName("spice_level")
+                .IsRequired();
+            entity.Property(e => e.CaloriesEstimate)
+                .HasColumnName("calories_estimate");
+            entity.Property(e => e.FlavorProfile)
+                .HasColumnName("flavor_profile")
+                .HasMaxLength(500);
+            entity.Property(e => e.DietaryTags)
+                .HasColumnName("dietary_tags")
+                .HasMaxLength(500);
+            entity.Property(e => e.CookingMethod)
+                .HasColumnName("cooking_method")
+                .HasMaxLength(200);
+            entity.Property(e => e.ServingSizePeople)
+                .HasColumnName("serving_size_people");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            entity.HasOne(e => e.MenuItem)
+                .WithMany()
+                .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.MenuItemId)
+                .IsUnique();
+        });
+    }
+
     private static void ConfigureKnowledgeEntry(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<KnowledgeEntry>(entity =>
@@ -707,12 +1008,16 @@ public class RestaurantDbContext : DbContext
             entity.Property(e => e.Tags)
                 .HasColumnName("tags")
                 .HasColumnType("text[]");
-            entity.Property(e => e.Embedding)
+            var embeddingProperty = entity.Property(e => e.Embedding)
                 .HasColumnName("embedding")
                 .HasColumnType("jsonb")
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<float[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<float>());
+            embeddingProperty.Metadata.SetValueComparer(new ValueComparer<float[]>(
+                (left, right) => left.SequenceEqual(right),
+                value => value.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
+                value => value.ToArray()));
             entity.Property(e => e.IsActive)
                 .HasColumnName("is_active")
                 .IsRequired();
@@ -865,6 +1170,9 @@ public class RestaurantDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(e => e.PhoneNumber).IsUnique();
+
+            // Prevent concurrent invoice confirmations from losing loyalty increments.
+            entity.Property<uint>("xmin").IsRowVersion();
         });
     }
 

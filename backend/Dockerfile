@@ -23,5 +23,6 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080
 
-COPY --from=build /app/publish .
+COPY --from=build --chown=app:app /app/publish .
+USER app
 ENTRYPOINT ["dotnet", "RestaurantQrAiOrdering.Api.dll"]
