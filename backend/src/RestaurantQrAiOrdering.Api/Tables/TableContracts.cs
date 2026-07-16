@@ -3,18 +3,15 @@ namespace RestaurantQrAiOrdering.Api.Tables;
 public sealed record TableResponse(
     string TableCode,
     string DisplayName,
-    bool IsActive);
-
-public sealed record AdminTableResponse(
-    string TableCode,
-    string DisplayName,
     bool IsActive,
     string? QrToken,
     string CustomerPath);
 
 public sealed record TableQrResponse(
     string TableCode,
-    string DisplayName);
+    string DisplayName,
+    string QrToken,
+    string CustomerPath);
 
 public sealed record OpenTableSessionRequest(
     string? QrToken,
@@ -26,26 +23,15 @@ public sealed record TableSessionResponse(
     string Status,
     string? TableCode,
     string? TableDisplayName,
+    string? QrToken,
+    string CustomerPath,
     DateTimeOffset OpenedAt,
     DateTimeOffset ExpiresAt,
     DateTimeOffset? ClosedAt,
     bool IsExpired);
 
-public sealed record OpenTableSessionResponse(
-    string SessionId,
-    string OrderType,
-    string Status,
-    string? TableCode,
-    string? TableDisplayName,
-    DateTimeOffset OpenedAt,
-    DateTimeOffset ExpiresAt,
-    DateTimeOffset? ClosedAt,
-    bool IsExpired,
-    string TableSessionToken,
-    string ResumeState);
-
 public sealed record TableListResponse(
-    IReadOnlyList<AdminTableResponse> Items,
+    IReadOnlyList<TableResponse> Items,
     int Total);
 
 public sealed record AdminTableSessionSummaryResponse(

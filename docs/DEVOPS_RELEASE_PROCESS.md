@@ -244,7 +244,7 @@ Quy trinh DevOps da duoc chuyen tu ke hoach sang cau hinh co the chay:
 
 Lead/DevOps van phai bat repository settings tuong ung: allow auto-merge,
 required checks va merge queue/ruleset cho `develop` va `main`. GitHub Secrets
-bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `GEMINI_API_KEY`, `AI_MODEL`
-va `RELEASE_BOT_TOKEN`. `RELEASE_BOT_TOKEN` nen la token cua bot
+bat buoc gom SSH deploy secrets, `JWT_SIGNING_KEY`, `AI_BASE_URL`, `AI_MODEL`,
+`AI_API_KEY` va `RELEASE_BOT_TOKEN`. `RELEASE_BOT_TOKEN` nen la token cua bot
 hoac tai khoan release rieng co quyen contents, pull requests va actions trong
 repo. Khong dong issue #16 neu chua co Actions run/deploy evidence.

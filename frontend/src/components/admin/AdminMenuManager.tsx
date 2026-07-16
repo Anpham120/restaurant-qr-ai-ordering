@@ -8,14 +8,16 @@ import {
   setAdminMenuItemAvailability,
   type AdminMenuItemPayload,
 } from "../../services/adminMenuService";
-import { ApiError } from "@cmc/api-client";
+import { ApiError, createApiClient } from "@cmc/api-client";
 import type { AdminCategory } from "@cmc/shared-types";
 import { resolveMenuImage } from "../../utils/menuImages";
-import { tagLabel } from "../menu/MenuItemCard";
-import { api } from "../../services/apiClient";
-import { ClipboardList, Utensils, X } from "lucide-react";
 import "../operations/operations.css";
 import "./admin-menu-cards.css";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 
@@ -205,14 +207,14 @@ export function AdminMenuManager() {
   }
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon"><ClipboardList aria-hidden="true" /></div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon">📋</div>Đang tải...</div>;
   }
 
   return (
     <div>
       <div className="ops-page-header">
         <h1>Quản lý thực đơn</h1>
-        <p>{items.length} món / {categories.length} danh mục. Hiển thị đúng như khách hàng nhìn thấy.</p>
+        <p>{items.length} món · {categories.length} danh mục — hiển thị đúng như khách hàng nhìn thấy</p>
       </div>
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
@@ -266,7 +268,7 @@ export function AdminMenuManager() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{editingId ? "Sửa món" : "Thêm món mới"}</h2>
-              <button aria-label="Đóng" className="ops-modal-close" onClick={() => setShowForm(false)} type="button"><X aria-hidden="true" size={18} /></button>
+              <button className="ops-modal-close" onClick={() => setShowForm(false)} type="button">✕</button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">
@@ -321,7 +323,7 @@ export function AdminMenuManager() {
         </div>
       ) : null}
 
-      {/* Lưới thẻ món cùng bố cục với trang thực đơn khách hàng. */}
+      {/* Lưới thẻ món — cùng bố cục với trang thực đơn khách hàng */}
       <div className="amm-grid">
         {filtered.map((item, index) => {
           const imageUrl = toDisplayImageUrl(resolveMenuImage(item.name, item.imageUrl, index));
@@ -331,7 +333,7 @@ export function AdminMenuManager() {
                 {imageUrl ? (
                   <img className="amm-image" src={imageUrl} alt={item.name} loading="lazy" />
                 ) : (
-                  <div className="amm-image-empty" aria-hidden="true"><Utensils /></div>
+                  <div className="amm-image-empty" aria-hidden="true">🍽️</div>
                 )}
                 <span className={`amm-availability ${item.isAvailable ? "on" : "off"}`}>
                   {item.isAvailable ? "Còn món" : "Tạm hết"}
@@ -343,7 +345,7 @@ export function AdminMenuManager() {
                 {item.description ? <p className="amm-desc">{item.description}</p> : null}
                 {(item.tags ?? []).length > 0 ? (
                   <div className="amm-tags">
-                    {(item.tags ?? []).slice(0, 3).map((t) => <span key={t}>{tagLabel(t)}</span>)}
+                    {(item.tags ?? []).slice(0, 3).map((t) => <span key={t}>{t}</span>)}
                   </div>
                 ) : null}
               </div>

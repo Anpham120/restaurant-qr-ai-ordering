@@ -5,39 +5,49 @@ import "@fontsource/manrope/vietnamese-600.css";
 import "@fontsource/manrope/latin-700.css";
 import "@fontsource/manrope/vietnamese-700.css";
 import { useEffect, useState } from "react";
+import { createApiClient } from "@cmc/api-client";
 import { TableQrCode } from "./TableQrCode";
-import { api } from "../../services/apiClient";
-import type { AdminTable } from "@cmc/shared-types";
 
-type BackendTable = AdminTable;
+type BackendTable = {
+  tableCode: string;
+  displayName: string;
+  isActive: boolean;
+  qrToken?: string | null;
+  customerPath: string;
+};
 
 type CopyState = {
   tableCode: string;
   status: "success" | "error";
 } | null;
 
-// QR-bearing table data is loaded from the Admin-only GET /api/admin/tables endpoint.
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
-function getOrderingBaseUrl() {
-  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
+// Table list is loaded from GET /api/tables (30 seeded tables T01–T30).
+
+function getCustomerBaseUrl() {
+  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
   if (configured) {
     return configured.replace(/\/$/, "");
   }
 
   if (typeof window === "undefined") {
-    return "https://order.cmcrestaurant.app";
+    return "https://customer.cmcrestaurant.app";
   }
 
   const { origin, hostname, protocol, port } = window.location;
   if (hostname.startsWith("admin.")) {
-    return `${protocol}//${hostname.replace(/^admin\./, "order.")}${port ? `:${port}` : ""}`;
+    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
   }
 
   return origin;
 }
 
-function buildOrderingLink(table: BackendTable) {
-  const baseUrl = getOrderingBaseUrl();
+function buildCustomerLink(table: BackendTable) {
+  const baseUrl = getCustomerBaseUrl();
   const customerPath = table.customerPath || `/table/${encodeURIComponent(table.tableCode)}`;
   return new URL(customerPath, baseUrl).toString();
 }
@@ -51,7 +61,7 @@ export function AdminQrTableManager() {
   useEffect(() => {
     let isMounted = true;
 
-    api.tables.listAdmin()
+    api.tables.list()
       .then((response) => {
         if (isMounted) {
           setTables(response.items);
@@ -76,7 +86,7 @@ export function AdminQrTableManager() {
 
   async function copyTableLink(table: BackendTable) {
     try {
-      await navigator.clipboard.writeText(buildOrderingLink(table));
+      await navigator.clipboard.writeText(buildCustomerLink(table));
       setCopyState({ tableCode: table.tableCode, status: "success" });
     } catch {
       setCopyState({ tableCode: table.tableCode, status: "error" });
@@ -93,7 +103,7 @@ export function AdminQrTableManager() {
           <span className="table-qr-kicker">QR table control</span>
           <h3>Bàn và mã QR từ backend</h3>
           <p>
-            Mỗi link bàn luôn trỏ về ứng dụng đặt món. Admin chỉ quản lý và sao chép
+            Mỗi link bàn luôn trỏ về customer portal. Admin chỉ quản lý và sao chép
             link, khách phải mở phiên bàn bằng QR trước khi đặt món.
           </p>
           {error ? (
@@ -129,7 +139,7 @@ export function AdminQrTableManager() {
       <div className="table-zone-grid table-zone-grid-flat">
         {tables.map((table) => {
           const copied = copyState?.tableCode === table.tableCode;
-          const orderingLink = buildOrderingLink(table);
+          const customerLink = buildCustomerLink(table);
 
           return (
             <article
@@ -162,17 +172,17 @@ export function AdminQrTableManager() {
                   <TableQrCode
                     downloadName={`qr-ban-${table.tableCode}.png`}
                     label={`QR bàn ${table.tableCode}`}
-                    value={orderingLink}
+                    value={customerLink}
                   />
                   <div className="table-qr-link-copy">
-                    <span>Link ứng dụng đặt món</span>
-                    <code title={orderingLink}>{orderingLink}</code>
+                    <span>Link customer portal</span>
+                    <code title={customerLink}>{customerLink}</code>
                   </div>
                 </div>
               </div>
 
               <footer className="table-qr-actions">
-                <a href={orderingLink} target="_blank" rel="noreferrer">
+                <a href={customerLink} target="_blank" rel="noreferrer">
                   Mở trang khách
                 </a>
                 <button

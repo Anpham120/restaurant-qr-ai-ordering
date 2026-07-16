@@ -8,88 +8,99 @@ import {
   useLocation,
 } from "react-router-dom";
 import { NotFoundPage, PageTransition } from "@cmc/shared-ui";
-import { I18nProvider, LanguageSwitcher, useI18n } from "@cmc/i18n";
-import "@cmc/brand-ui/styles.css";
-import "@cmc/i18n/styles.css";
 import "@cmc/shared-ui/styles.css";
 import "../../../src/styles.css";
 import logoUrl from "../../../src/mocks/images/logo.png";
 import { CustomerHomePage } from "../../../src/pages/CustomerHomePage";
+import { TableEntryPage } from "../../../src/pages/TableEntryPage";
+import { CartPage } from "../../../src/pages/CartPage";
+import { OrderStatusPage } from "../../../src/pages/OrderStatusPage";
+import { ChatPage } from "../../../src/pages/ChatPage";
+import { CustomerMenuPage } from "../../../src/pages/customer/CustomerMenuPage";
 import { RestaurantAlbumPage } from "../../../src/pages/RestaurantAlbumPage";
-import { PublicMenuPreviewPage } from "../../../src/pages/customer/PublicMenuPreviewPage";
-import { Menu, X } from "lucide-react";
+import { CustomerFloatingCart } from "../../../src/components/customer/CustomerFloatingCart";
 
-document.documentElement.classList.add("brand-theme");
-
-function getOrderingBaseUrl() {
-  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
-  if (configured) return configured.replace(/\/$/, "");
-  if (typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-    return `${window.location.protocol}//${window.location.hostname}:5177`;
-  }
-  return "https://order.cmcrestaurant.app";
-}
-
-function OrderingHostRedirect({ preservePath = true }: { preservePath?: boolean }) {
-  const { t } = useI18n();
-  const location = useLocation();
-  const target = new URL(
-    preservePath ? `${location.pathname}${location.search}` : "/",
-    getOrderingBaseUrl(),
-  ).toString();
-
-  useEffect(() => {
-    window.location.replace(target);
-  }, [target]);
-
-  return (
-    <main className="ordering-state">
-      <p>{t("Đang mở ứng dụng gọi món…")}</p>
-      <a href={target}>{t("Tiếp tục")}</a>
-    </main>
-  );
-}
-
-function MarketingLayout() {
-  const { t } = useI18n();
+function CustomerLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const isLanding = location.pathname === "/";
 
   useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
 
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler();
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
   return (
-    <div className="landing-shell">
-      <a className="skip-link" href="#main-content">{t("Chuyển đến nội dung chính")}</a>
-      <header className="landing-header">
+    <div className={isLanding ? "landing-shell" : "customer-app-shell"}>
+      <a className="skip-link" href="#main-content">
+        Chuyển đến nội dung chính
+      </a>
+
+      {/* Glassmorphism header — always scrolled on non-landing pages */}
+      <header className={`landing-header${(scrolled || !isLanding) ? " scrolled" : ""}`}>
         <div className="landing-header-inner">
-          <Link className="landing-brand" to="/" aria-label={`CMC Restaurant - ${t("Trang chủ")}`}>
+          <div className="landing-header-bg" aria-hidden="true" />
+          <Link className="landing-brand" to="/" aria-label="CMC Restaurant - Trang chủ">
             <img className="landing-brand-logo" alt="" src={logoUrl} width="44" height="44" />
-            <span className="landing-brand-text" translate="no"><strong>CMC Restaurant</strong><small>Restaurant</small></span>
+            <span className="landing-brand-text" translate="no">
+              <strong>CMC Restaurant</strong>
+              <small>QR Ordering</small>
+            </span>
           </Link>
-          <nav className={`landing-nav${menuOpen ? " open" : ""}`} id="landing-mobile-nav" aria-label={t("Điều hướng trang giới thiệu")}>
-            <Link to="/#gioi-thieu" onClick={() => setMenuOpen(false)}>{t("Giới thiệu")}</Link>
-            <Link to="/menu" onClick={() => setMenuOpen(false)}>{t("Thực đơn")}</Link>
-            <Link to="/#danh-gia" onClick={() => setMenuOpen(false)}>{t("Đánh giá")}</Link>
-            <Link to="/album" onClick={() => setMenuOpen(false)}>{t("Album")}</Link>
+
+          <button
+            className="landing-menu-toggle"
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls="customer-navigation"
+            aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <nav
+            className={`landing-nav${menuOpen ? " open" : ""}`}
+            id="customer-navigation"
+            aria-label="Điều hướng"
+          >
+            <a href={isLanding ? "#gioi-thieu" : "/#gioi-thieu"}>
+              <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }}></i>Giới thiệu
+            </a>
+            <Link to="/menu">
+              <i className="fa-solid fa-utensils" style={{ marginRight: 6 }}></i>Thực đơn
+            </Link>
+            <a href={isLanding ? "#danh-gia" : "/#danh-gia"}>
+              <i className="fa-solid fa-star" style={{ marginRight: 6 }}></i>Đánh giá
+            </a>
+            <Link to="/album">
+              <i className="fa-solid fa-images" style={{ marginRight: 6 }}></i>Album
+            </Link>
+            <a href={isLanding ? "#cach-dat-mon" : "/#cach-dat-mon"}>
+              <i className="fa-solid fa-qrcode" style={{ marginRight: 6 }}></i>Đặt món
+            </a>
+            <Link to="/chat">
+              <i className="fa-solid fa-robot" style={{ marginRight: 6 }}></i>AI Tư vấn
+            </Link>
           </nav>
-          <div className="landing-header-actions">
-            <LanguageSwitcher className="landing-language-switcher" />
-            <button
-              aria-controls="landing-mobile-nav"
-              aria-expanded={menuOpen}
-              aria-label={t(menuOpen ? "Đóng menu" : "Mở menu")}
-              className="landing-menu-toggle"
-              onClick={() => setMenuOpen((open) => !open)}
-              type="button"
-            >
-              {menuOpen ? <X aria-hidden="true" size={21} /> : <Menu aria-hidden="true" size={21} />}
-            </button>
-          </div>
         </div>
       </header>
+
       <main id="main-content">
-        <PageTransition transitionKey={location.pathname}><Outlet /></PageTransition>
+        <PageTransition transitionKey={location.pathname}>
+          <Outlet />
+        </PageTransition>
       </main>
+
+      {/* Giỏ hàng nổi toàn cục — luôn hiển thị trên mọi trang khi có món */}
+      <CustomerFloatingCart />
     </div>
   );
 }
@@ -97,24 +108,23 @@ function MarketingLayout() {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <MarketingLayout />,
+    element: <CustomerLayout />,
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <CustomerHomePage /> },
-      { path: "menu", element: <PublicMenuPreviewPage /> },
+      { path: "table/:tableCode", element: <TableEntryPage /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "menu", element: <CustomerMenuPage /> },
+      { path: "chat", element: <ChatPage /> },
+      { path: "orders/:orderCode", element: <OrderStatusPage /> },
       { path: "album", element: <RestaurantAlbumPage /> },
-      { path: "scan/:qrToken", element: <OrderingHostRedirect /> },
-      { path: "table/:tableCode", element: <OrderingHostRedirect /> },
-      { path: "table-session/:sessionId/*", element: <OrderingHostRedirect /> },
-      { path: "cart", element: <OrderingHostRedirect preservePath={false} /> },
-      { path: "checkout", element: <OrderingHostRedirect preservePath={false} /> },
-      { path: "chat", element: <OrderingHostRedirect preservePath={false} /> },
-      { path: "orders/:orderCode", element: <OrderingHostRedirect preservePath={false} /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
-  { path: "*", element: <NotFoundPage /> },
 ]);
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><I18nProvider><RouterProvider router={router} /></I18nProvider></StrictMode>,
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
 );

@@ -1,8 +1,6 @@
-using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Data;
-using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 
@@ -56,7 +54,7 @@ public static class MenuEndpoints
 
         // Kitchen-accessible list: includes unavailable items so kitchen staff can
         // re-enable dishes. /api/menu hides unavailable items and /api/admin/menu-items
-        // is Admin-only, so Kitchen needs its own read endpoint.
+        // is StaffOrAdmin-only, so Kitchen needs its own read endpoint.
         app.MapGet("/api/kitchen/menu-items", async (RestaurantDbContext db) =>
         {
             var categories = await db.Categories
@@ -86,14 +84,7 @@ public static class MenuEndpoints
         // Kitchen-accessible endpoint: toggle menu item availability only.
         // Kitchen staff can mark dishes as unavailable when ingredients run out,
         // without requiring full admin menu CRUD access.
-        app.MapPatch("/api/kitchen/menu-items/{menuItemId}/availability", async (
-            string menuItemId,
-            ToggleAvailabilityRequest? request,
-            RestaurantDbContext db,
-            IOrderRealtimeNotifier realtime,
-            IHttpClientFactory httpClientFactory,
-            IConfiguration configuration,
-            CancellationToken cancellationToken) =>
+        app.MapPatch("/api/kitchen/menu-items/{menuItemId}/availability", async (string menuItemId, ToggleAvailabilityRequest? request, RestaurantDbContext db) =>
         {
             if (request is null)
             {
@@ -101,7 +92,7 @@ public static class MenuEndpoints
             }
 
             var item = await db.MenuItems
-                .FirstOrDefaultAsync(i => i.Id == menuItemId, cancellationToken);
+                .FirstOrDefaultAsync(i => i.Id == menuItemId);
 
             if (item is null)
             {
@@ -111,33 +102,10 @@ public static class MenuEndpoints
             item.IsAvailable = request.IsAvailable;
             item.UpdatedAt = DateTimeOffset.UtcNow;
 
-            await db.SaveChangesAsync(cancellationToken);
-
-            await realtime.NotifyMenuAvailabilityChangedAsync(
-                new MenuAvailabilityChangedEvent(item.Id, item.Name, item.IsAvailable, item.UpdatedAt),
-                cancellationToken);
-
-            // Best-effort invalidate Python AI cache
-            var aiUrl = configuration["AI_SERVICE_URL"] ?? configuration["Ai:ServiceUrl"];
-            if (!string.IsNullOrWhiteSpace(aiUrl))
-            {
-                try
-                {
-                    var client = httpClientFactory.CreateClient();
-                    client.Timeout = TimeSpan.FromSeconds(3);
-                    await client.PostAsJsonAsync(
-                        $"{aiUrl.TrimEnd('/')}/v1/cache/invalidate",
-                        new { reason = "menu_availability_changed", menu_item_id = item.Id },
-                        cancellationToken);
-                }
-                catch
-                {
-                    // ignore cache invalidate failures
-                }
-            }
+            await db.SaveChangesAsync();
 
             var category = await db.Categories
-                .FirstOrDefaultAsync(c => c.Id == item.CategoryId, cancellationToken);
+                .FirstOrDefaultAsync(c => c.Id == item.CategoryId);
 
             return Results.Ok(ToMenuItemResponse(item, category?.Name ?? string.Empty));
         })
@@ -147,7 +115,7 @@ public static class MenuEndpoints
 
         var adminMenu = app.MapGroup("/api/admin/menu-items")
             .WithTags("Admin Menu")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOrAdmin");
 
         adminMenu.MapGet("/", async (bool includeInactiveCategories = false, RestaurantDbContext db = null!) =>
         {

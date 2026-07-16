@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Data;
 using Microsoft.EntityFrameworkCore;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -13,22 +12,11 @@ public interface IOrderStore
 
     OrderSnapshot? GetOrder(string orderCode);
 
-    IdempotentOrderSnapshot? GetOrderByIdempotencyKey(string idempotencyKey);
-
     UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor);
 
-    UpdateOrderItemStatusResult UpdateOrderItemStatus(
-        string orderCode,
-        string orderItemId,
-        OrderItemStatus status,
-        ActorContext actor);
+    UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status);
 
     void RecordPaymentStatusEvent(Order order, ActorContext actor, string note);
-
-    IReadOnlyList<OrderSnapshot> StageTableSessionCompletion(
-        string tableSessionId,
-        ActorContext actor,
-        DateTimeOffset now);
 }
 
 public sealed class OrderStore : IOrderStore
@@ -42,31 +30,9 @@ public sealed class OrderStore : IOrderStore
 
     public OrderSnapshot CreateOrder(CreateOrderCommand command, ActorContext actor)
     {
-        var executionStrategy = db.Database.CreateExecutionStrategy();
-        return executionStrategy.Execute(() => CreateOrderAttempt(command, actor));
-    }
-
-    private OrderSnapshot CreateOrderAttempt(CreateOrderCommand command, ActorContext actor)
-    {
-        // A retry can reuse this scoped DbContext after an unknown commit result. Clear
-        // tracked state and replay by idempotency key before opening a new transaction.
-        db.ChangeTracker.Clear();
-        var existing = GetOrderByIdempotencyKey(command.IdempotencyKey);
-        if (existing is not null)
-        {
-            if (existing.RequestFingerprint != command.RequestFingerprint)
-            {
-                throw new IdempotencyKeyReuseException();
-            }
-
-            return existing.Order;
-        }
-
-        using var transaction = db.Database.IsRelational()
-            ? db.Database.BeginTransaction(IsolationLevel.Serializable)
-            : null;
         var now = DateTimeOffset.UtcNow;
         var orderType = Enum.Parse<OrderType>(command.OrderType);
+        var paymentMethod = Enum.Parse<PaymentMethod>(command.PaymentMethod);
         var tableCode = NormalizeOptional(command.TableCode)?.ToUpperInvariant();
         var qrToken = NormalizeOptional(command.QrToken);
         var tableSessionId = NormalizeOptional(command.TableSessionId);
@@ -75,36 +41,14 @@ public sealed class OrderStore : IOrderStore
         var table = qrToken is not null
             ? db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive)
             : null;
-        if (orderType == OrderType.DineIn && table is null)
-        {
-            throw new TableSessionUnavailableException(
-                "TABLE_SESSION_INVALID",
-                "The table session is no longer valid. Please scan QR again.",
-                StatusCodes.Status409Conflict);
-        }
-
         var menuItems = LoadMenuItems(command);
         var tableSession = ResolveTableSession(tableSessionId, table, now);
-        if (orderType == OrderType.DineIn && tableSession is null)
-        {
-            throw new TableSessionUnavailableException(
-                "TABLE_SESSION_EXPIRED",
-                "Table session has expired. Please scan QR again.",
-                StatusCodes.Status410Gone);
-        }
-        if (tableSession is not null)
-        {
-            // Touch the shared session row so order creation and settlement start cannot both commit.
-            tableSession.UpdatedAt = now;
-        }
 
         var order = new Order
         {
             Id = $"ord_{Guid.NewGuid():N}",
             OrderCode = CreateNextOrderCode(),
             CustomerAccessToken = GenerateAccessToken(),
-            IdempotencyKey = command.IdempotencyKey,
-            RequestFingerprint = command.RequestFingerprint,
             OrderType = orderType,
             Status = OrderStatus.Placed,
             RestaurantTableId = table?.Id,
@@ -116,8 +60,8 @@ public sealed class OrderStore : IOrderStore
             Payment = new Payment
             {
                 Id = $"pay_{Guid.NewGuid():N}",
-                Method = PaymentMethod.Unselected,
-                Status = PaymentStatus.NotRequested,
+                Method = paymentMethod,
+                Status = PaymentStatus.Unpaid,
                 CreatedAt = now,
                 UpdatedAt = now
             }
@@ -160,7 +104,6 @@ public sealed class OrderStore : IOrderStore
 
         db.Orders.Add(order);
         db.SaveChanges();
-        transaction?.Commit();
 
         return ToSnapshot(order);
     }
@@ -171,35 +114,12 @@ public sealed class OrderStore : IOrderStore
         return order is null ? null : ToSnapshot(order);
     }
 
-    public IdempotentOrderSnapshot? GetOrderByIdempotencyKey(string idempotencyKey)
-    {
-        var normalizedKey = idempotencyKey.Trim();
-        var order = db.Orders
-            .AsNoTracking()
-            .Include(item => item.Payment)
-            .Include(item => item.OrderItems)
-            .Include(item => item.RestaurantTable)
-            .Include(item => item.StatusHistory)
-            .FirstOrDefault(item => item.IdempotencyKey == normalizedKey);
-
-        if (order is null || string.IsNullOrWhiteSpace(order.RequestFingerprint))
-        {
-            return null;
-        }
-
-        return new IdempotentOrderSnapshot(ToCreationSnapshot(order), order.RequestFingerprint);
-    }
-
     public UpdateOrderStatusResult UpdateOrderStatus(string orderCode, OrderStatus status, ActorContext actor)
     {
         var order = LoadOrder(orderCode, tracking: true);
         if (order is null)
         {
             return new UpdateOrderStatusResult(false, null);
-        }
-        if (status == OrderStatus.Cancelled && order.TableSession?.Invoice?.Status == PaymentStatus.Pending)
-        {
-            return new UpdateOrderStatusResult(true, ToSnapshot(order), "TABLE_INVOICE_PAYMENT_PENDING");
         }
 
         if (status == OrderStatus.Cancelled && IsCancellationLocked(order))
@@ -233,13 +153,6 @@ public sealed class OrderStore : IOrderStore
             CancelPendingItems(order, now);
         }
 
-        // Serving from the board is a single atomic transition: the order and every
-        // non-cancelled item must agree before the update is committed.
-        if (status == OrderStatus.Served)
-        {
-            ServeActiveItems(order, now);
-        }
-
         // Stage the table-session close in the same unit of work as the status change so
         // a completed order and its closed session commit (or roll back) atomically.
         if (status == OrderStatus.Completed && order.TableSessionId is not null)
@@ -259,11 +172,7 @@ public sealed class OrderStore : IOrderStore
         return new UpdateOrderStatusResult(true, ToSnapshot(order));
     }
 
-    public UpdateOrderItemStatusResult UpdateOrderItemStatus(
-        string orderCode,
-        string orderItemId,
-        OrderItemStatus status,
-        ActorContext actor)
+    public UpdateOrderItemStatusResult UpdateOrderItemStatus(string orderCode, string orderItemId, OrderItemStatus status)
     {
         var order = LoadOrder(orderCode, tracking: true);
         if (order is null)
@@ -279,22 +188,6 @@ public sealed class OrderStore : IOrderStore
             return new UpdateOrderItemStatusResult(true, false, ToSnapshot(order), null);
         }
 
-        if (status == OrderItemStatus.Cancelled && order.TableSession?.Invoice?.Status == PaymentStatus.Pending)
-        {
-            return new UpdateOrderItemStatusResult(
-                true, true, ToSnapshot(order), null, "TABLE_INVOICE_PAYMENT_PENDING");
-        }
-
-        if (order.Status is OrderStatus.Completed or OrderStatus.Cancelled)
-        {
-            return new UpdateOrderItemStatusResult(
-                true,
-                true,
-                ToSnapshot(order),
-                null,
-                "ORDER_STATUS_TERMINAL");
-        }
-
         if (!CanTransitionItem(item.Status, status))
         {
             return new UpdateOrderItemStatusResult(
@@ -302,22 +195,9 @@ public sealed class OrderStore : IOrderStore
         }
 
         var now = DateTimeOffset.UtcNow;
-        var previousOrderStatus = order.Status;
         item.Status = status;
         item.UpdatedAt = now;
-        var aggregateStatus = DeriveAggregateKitchenStatus(order);
-        if (aggregateStatus != order.Status)
-        {
-            order.Status = aggregateStatus;
-            AppendStatusHistory(
-                order,
-                previousOrderStatus,
-                aggregateStatus,
-                OrderStatusChangeSource.Status,
-                actor,
-                note: null,
-                now);
-        }
+        order.Status = DeriveAggregateKitchenStatus(order);
         order.UpdatedAt = now;
 
         try
@@ -333,43 +213,7 @@ public sealed class OrderStore : IOrderStore
         var itemSnapshot = orderSnapshot.Items.First(snapshot =>
             snapshot.OrderItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
 
-        return new UpdateOrderItemStatusResult(
-            true,
-            true,
-            orderSnapshot,
-            itemSnapshot,
-            OrderStatusChanged: previousOrderStatus != order.Status);
-    }
-
-    public IReadOnlyList<OrderSnapshot> StageTableSessionCompletion(
-        string tableSessionId,
-        ActorContext actor,
-        DateTimeOffset now)
-    {
-        var orders = db.Orders
-            .Include(order => order.Payment)
-            .Include(order => order.OrderItems)
-            .Include(order => order.RestaurantTable)
-            .Include(order => order.StatusHistory)
-            .Where(order => order.TableSessionId == tableSessionId &&
-                order.Status != OrderStatus.Completed &&
-                order.Status != OrderStatus.Cancelled)
-            .ToList();
-        foreach (var order in orders)
-        {
-            var previousStatus = order.Status;
-            order.Status = OrderStatus.Completed;
-            order.UpdatedAt = now;
-            AppendStatusHistory(
-                order,
-                previousStatus,
-                OrderStatus.Completed,
-                OrderStatusChangeSource.Status,
-                actor,
-                "Table invoice payment confirmed.",
-                now);
-        }
-        return orders.Select(ToSnapshot).ToArray();
+        return new UpdateOrderItemStatusResult(true, true, orderSnapshot, itemSnapshot);
     }
 
     // Records a payment confirm/fail as a timeline marker on the order's status history.
@@ -408,8 +252,6 @@ public sealed class OrderStore : IOrderStore
             .Include(order => order.OrderItems)
             .Include(order => order.RestaurantTable)
             .Include(order => order.StatusHistory)
-            .Include(order => order.TableSession)!
-                .ThenInclude(session => session!.Invoice)
             .Where(order => order.OrderCode == normalizedOrderCode);
 
         if (!tracking)
@@ -540,7 +382,7 @@ public sealed class OrderStore : IOrderStore
             return order.Status;
         }
 
-        if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed or OrderStatus.Preparing
             && activeItems.All(item => item.Status is OrderItemStatus.Ready or OrderItemStatus.Served))
         {
             return OrderStatus.Ready;
@@ -552,7 +394,7 @@ public sealed class OrderStore : IOrderStore
             return OrderStatus.Served;
         }
 
-        if (order.Status == OrderStatus.Confirmed
+        if (order.Status is OrderStatus.Placed or OrderStatus.Confirmed
             && activeItems.Any(item => item.Status is OrderItemStatus.Preparing
                 or OrderItemStatus.Ready
                 or OrderItemStatus.Served))
@@ -570,18 +412,6 @@ public sealed class OrderStore : IOrderStore
             if (item.Status == OrderItemStatus.Pending)
             {
                 item.Status = OrderItemStatus.Cancelled;
-                item.UpdatedAt = now;
-            }
-        }
-    }
-
-    private static void ServeActiveItems(Order order, DateTimeOffset now)
-    {
-        foreach (var item in order.OrderItems)
-        {
-            if (item.Status != OrderItemStatus.Cancelled)
-            {
-                item.Status = OrderItemStatus.Served;
                 item.UpdatedAt = now;
             }
         }
@@ -621,49 +451,6 @@ public sealed class OrderStore : IOrderStore
                 .Select(ToItemSnapshot)
                 .ToList(),
             ToStatusEvents(order),
-            order.CustomerAccessToken);
-    }
-
-    private static OrderSnapshot ToCreationSnapshot(Order order)
-    {
-        return new OrderSnapshot(
-            order.Id,
-            order.OrderCode,
-            order.OrderType.ToString(),
-            order.TableCode,
-            order.TableSessionId,
-            OrderStatus.Placed.ToString(),
-            PaymentStatus.NotRequested.ToString(),
-            PaymentMethod.Unselected.ToString(),
-            order.SubtotalAmount,
-            order.DiscountAmount,
-            order.TotalAmount,
-            order.PromotionCode,
-            order.CreatedAt,
-            order.CreatedAt,
-            order.OrderItems
-                .OrderBy(item => item.CreatedAt)
-                .Select(item => new OrderItemSnapshot(
-                    item.Id,
-                    item.MenuItemId,
-                    item.MenuItemName,
-                    item.UnitPrice,
-                    item.Quantity,
-                    OrderItemStatus.Pending.ToString(),
-                    item.UnitPrice * item.Quantity,
-                    item.CreatedAt))
-                .ToList(),
-            order.StatusHistory
-                .OrderBy(history => history.CreatedAt)
-                .ThenBy(history => history.Id)
-                .Take(1)
-                .Select(history => new OrderStatusEventSnapshot(
-                    history.ToStatus.ToString(),
-                    history.Source.ToString(),
-                    history.ChangedByRole,
-                    history.Note,
-                    history.CreatedAt))
-                .ToList(),
             order.CustomerAccessToken);
     }
 
@@ -734,26 +521,4 @@ public sealed class MenuItemUnavailableException : Exception
     }
 
     public string MenuItemId { get; }
-}
-
-public sealed class TableSessionUnavailableException : Exception
-{
-    public TableSessionUnavailableException(string errorCode, string message, int statusCode)
-        : base(message)
-    {
-        ErrorCode = errorCode;
-        StatusCode = statusCode;
-    }
-
-    public string ErrorCode { get; }
-
-    public int StatusCode { get; }
-}
-
-public sealed class IdempotencyKeyReuseException : Exception
-{
-    public IdempotencyKeyReuseException()
-        : base("Idempotency key was already used with a different request.")
-    {
-    }
 }

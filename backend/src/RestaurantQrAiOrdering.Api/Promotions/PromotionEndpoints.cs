@@ -58,7 +58,7 @@ public static class PromotionEndpoints
 
         var adminPromotions = app.MapGroup("/api/admin/promotions")
             .WithTags("Admin Promotions")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOrAdmin");
 
         adminPromotions.MapGet("/", async (RestaurantDbContext db, CancellationToken cancellationToken) =>
         {

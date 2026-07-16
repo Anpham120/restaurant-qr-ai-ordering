@@ -5,9 +5,13 @@ import type {
   LoyaltyReward,
   LoyaltyRewardRequest,
 } from "@cmc/shared-types";
-import { api } from "../../services/apiClient";
-import { Star, X } from "lucide-react";
+import { createApiClient } from "@cmc/api-client";
 import "../../components/operations/operations.css";
+
+const api = createApiClient({
+  getAccessToken: () =>
+    typeof window === "undefined" ? null : window.localStorage.getItem("cmc.accessToken"),
+});
 
 const EMPTY_MEMBER: LoyaltyMemberRequest = { phoneNumber: "", fullName: "", points: 0 };
 const EMPTY_REWARD: LoyaltyRewardRequest = { name: "", description: "", pointsRequired: 10, isActive: true };
@@ -123,7 +127,7 @@ export function AdminLoyaltyPage() {
   }
 
   if (isLoading) {
-    return <div className="ops-empty"><div className="ops-empty-icon"><Star aria-hidden="true" /></div>Đang tải...</div>;
+    return <div className="ops-empty"><div className="ops-empty-icon">⭐</div>Đang tải...</div>;
   }
 
   return (
@@ -159,7 +163,7 @@ export function AdminLoyaltyPage() {
           {members.map((member) => (
             <tr key={member.memberId}>
               <td><strong>{member.phoneNumber}</strong></td>
-              <td>{member.fullName ?? "-"}</td>
+              <td>{member.fullName ?? "—"}</td>
               <td>{member.points}</td>
               <td>{formatVnd(member.lifetimeSpend)}</td>
               <td>
@@ -216,7 +220,7 @@ export function AdminLoyaltyPage() {
           {rewards.map((reward) => (
             <tr key={reward.rewardId}>
               <td><strong>{reward.name}</strong></td>
-              <td>{reward.description ?? "-"}</td>
+              <td>{reward.description ?? "—"}</td>
               <td>{reward.pointsRequired}</td>
               <td>
                 <span className={`ops-badge ${reward.isActive ? "ops-badge--ready" : "ops-badge--cancelled"}`}>
@@ -253,7 +257,7 @@ export function AdminLoyaltyPage() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{editingMemberId ? "Sửa thành viên" : "Thêm thành viên"}</h2>
-              <button aria-label="Đóng" className="ops-modal-close" type="button" onClick={() => setShowMemberForm(false)}><X aria-hidden="true" size={18} /></button>
+              <button className="ops-modal-close" type="button" onClick={() => setShowMemberForm(false)}>✕</button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">
@@ -282,7 +286,7 @@ export function AdminLoyaltyPage() {
           <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ops-modal-header">
               <h2>{editingRewardId ? "Sửa phần thưởng" : "Thêm phần thưởng"}</h2>
-              <button aria-label="Đóng" className="ops-modal-close" type="button" onClick={() => setShowRewardForm(false)}><X aria-hidden="true" size={18} /></button>
+              <button className="ops-modal-close" type="button" onClick={() => setShowRewardForm(false)}>✕</button>
             </div>
             <div className="ops-modal-body">
               <div className="ops-form-group">

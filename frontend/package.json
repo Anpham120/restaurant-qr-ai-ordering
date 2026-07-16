@@ -10,19 +10,18 @@
   "scripts": {
     "dev": "npm run dev:customer",
     "dev:customer": "npm run dev -w @cmc/customer-web",
-    "dev:ordering": "npm run dev -w @cmc/ordering-web",
     "dev:admin": "npm run dev -w @cmc/admin-web",
     "dev:kitchen": "npm run dev -w @cmc/kitchen-web",
     "dev:staff": "npm run dev -w @cmc/staff-web",
     "build": "npm run typecheck && npm run build:all",
     "build:all": "npm run build --workspaces --if-present",
     "build:customer": "npm run build -w @cmc/customer-web",
-    "build:ordering": "npm run build -w @cmc/ordering-web",
     "build:admin": "npm run build -w @cmc/admin-web",
     "build:kitchen": "npm run build -w @cmc/kitchen-web",
     "build:staff": "npm run build -w @cmc/staff-web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "preview": "npm run preview -w @cmc/customer-web"
   },
   "dependencies": {
@@ -31,8 +30,6 @@
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
     "@fontsource/playfair-display": "^5.2.8",
-    "@fortawesome/free-brands-svg-icons": "^7.3.0",
-    "@fortawesome/react-fontawesome": "^3.4.0",
     "@microsoft/signalr": "^9.0.6",
     "lucide-react": "^1.23.0",
     "qrcode": "^1.5.4",
@@ -41,12 +38,16 @@
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^26.1.0",
     "typescript": "^5.8.0",
     "vite": "^7.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^3.2.4"
   }
 }

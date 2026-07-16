@@ -1,22 +1,25 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useI18n } from "@cmc/i18n";
-import { localizeMenuItem } from "@cmc/i18n/menu";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, ReceiptText, ShoppingBasket } from "lucide-react";
-import { clearMenuCart, applyCartDelta, CART_UPDATED_EVENT, loadMenuCart, reconcileCartOnLoad } from "../../components/customer/customerMenuStorage";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  clearMenuCart,
+  loadMenuCart,
+  loadOrderContext,
+  saveMenuCart,
+} from "../../components/customer/customerMenuStorage";
 import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
+import { formatVnd } from "../../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
-import { createOrder, getTableInvoice } from "../../services/orderService";
-import { validateDineInSession } from "../../services/tableSessionService";
+import { createOrder, generateVietQrPayment, validatePromotion } from "../../services/orderService";
 import type {
   CreateOrderRequest,
+  CreateOrderResponse,
   MenuCart,
   MenuItem,
-  TableInvoice,
+  PaymentMethod,
+  ValidatePromotionResponse,
+  VietQrPaymentResponse,
 } from "../../types";
-import { useOrderingSession } from "../../ordering/OrderingSessionProvider";
-import { buildCartSessionSummary } from "../../ordering/cartSessionSummary";
 
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
 
@@ -28,6 +31,14 @@ function getInitialCart() {
   return loadMenuCart();
 }
 
+function getInitialOrderContext() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  return loadOrderContext();
+}
+
 function getCartItems(cart: MenuCart, items: MenuItem[]) {
   return items.filter((item) => (cart[item.id] ?? 0) > 0);
 }
@@ -35,34 +46,40 @@ function getCartItems(cart: MenuCart, items: MenuItem[]) {
 function buildOrderPayload(
   cart: MenuCart,
   selectedItems: MenuItem[],
-  context: { tableCode: string; qrToken: string; sessionId: string; sessionToken: string },
+  paymentMethod: PaymentMethod,
+  context: ReturnType<typeof getInitialOrderContext>,
+  promotionCode: string | null,
+  customerPhoneNumber: string | null,
 ): CreateOrderRequest {
   return {
     orderType: "DineIn",
     tableCode: context.tableCode!,
     qrToken: context.qrToken!,
     tableSessionId: context.sessionId!,
+    paymentMethod,
     items: selectedItems.map((item) => ({
       menuItemId: item.id,
       quantity: cart[item.id] ?? 0,
     })),
-    promotionCode: null,
-    customerPhoneNumber: null,
+    promotionCode,
+    customerPhoneNumber,
   };
 }
 
 export function CustomerCartPage() {
-  const { formatMoney, locale, t } = useI18n();
-  const navigate = useNavigate();
-  const { context: orderContext, refresh } = useOrderingSession();
   const [customerMenu, setCustomerMenu] = useState(initialMenu);
   const [cart, setCart] = useState<MenuCart>(getInitialCart);
+  const [orderContext] = useState(getInitialOrderContext);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isSubmittingRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [invoice, setInvoice] = useState<TableInvoice | null>(null);
-  const [invoiceError, setInvoiceError] = useState("");
-  const [isInvoiceLoading, setIsInvoiceLoading] = useState(true);
+  const [successOrder, setSuccessOrder] = useState<CreateOrderResponse | null>(null);
+  const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<ValidatePromotionResponse | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,83 +92,33 @@ export function CustomerCartPage() {
       })
       .catch(() => {
         if (isMounted) {
-          setErrorMessage(t("Không tải được thực đơn từ hệ thống."));
+          setErrorMessage("Không tải được thực đơn từ hệ thống.");
         }
       });
 
     return () => {
       isMounted = false;
-    };
-  }, [t]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    void reconcileCartOnLoad()
-      .then((nextCart) => {
-        if (isMounted) {
-          setCart(nextCart);
-        }
-      })
-      .catch(() => undefined);
-
-    const handleCartUpdated = () => {
-      setCart(loadMenuCart());
-    };
-
-    window.addEventListener(CART_UPDATED_EVENT, handleCartUpdated);
-    return () => {
-      isMounted = false;
-      window.removeEventListener(CART_UPDATED_EVENT, handleCartUpdated);
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    setIsInvoiceLoading(true);
-    setInvoiceError("");
-
-    getTableInvoice(orderContext.sessionId, orderContext.sessionToken)
-      .then((nextInvoice) => {
-        if (isMounted) {
-          setInvoice(nextInvoice);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setInvoice(null);
-          setInvoiceError(t("Chưa tải được tổng các món đã gọi trong phiên."));
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsInvoiceLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [orderContext.sessionId, orderContext.sessionToken, t]);
-
   const selectedItems = useMemo(
-    () => getCartItems(cart, customerMenu.items).map((item) => localizeMenuItem(item, locale)),
-    [cart, customerMenu.items, locale],
+    () => getCartItems(cart, customerMenu.items),
+    [cart, customerMenu.items],
   );
   const unavailableItems = selectedItems.filter((item) => !item.isAvailable);
-  const summary = useMemo(
-    () => buildCartSessionSummary(
-      invoice,
-      selectedItems.map((item) => ({
-        quantity: cart[item.id] ?? 0,
-        unitPrice: item.price,
-      })),
-    ),
-    [cart, invoice, selectedItems],
+  const totalPrice = selectedItems.reduce(
+    (total, item) => total + (cart[item.id] ?? 0) * item.price,
+    0,
   );
-  const hasActiveSession = true;
-  const tableMenuPath = `/table-session/${orderContext.sessionId}/menu`;
-  const tableOrdersPath = `/table-session/${orderContext.sessionId}/orders`;
+  const discountAmount = appliedPromo?.discountAmount ?? 0;
+  const finalTotal = Math.max(0, totalPrice - discountAmount);
+  const hasActiveSession = Boolean(
+    orderContext.tableCode && orderContext.qrToken && orderContext.sessionId,
+  );
+  const tableMenuPath =
+    orderContext.tableCode && orderContext.qrToken
+      ? `/table/${orderContext.tableCode}?qr=${encodeURIComponent(orderContext.qrToken)}`
+      : "/";
   const canSubmit =
     hasActiveSession &&
     selectedItems.length > 0 &&
@@ -159,68 +126,91 @@ export function CustomerCartPage() {
     !isSubmitting;
 
   function updateQuantity(itemId: string, nextQuantity: number) {
-    const delta = nextQuantity - (cart[itemId] ?? 0);
-    if (delta === 0) {
-      return;
+    const nextCart = { ...cart };
+    if (nextQuantity <= 0) {
+      delete nextCart[itemId];
+    } else {
+      nextCart[itemId] = nextQuantity;
     }
 
-    void applyCartDelta(itemId, delta)
-      .then((nextCart) => setCart(nextCart))
-      .catch(() => setErrorMessage(t("Không cập nhật được giỏ hàng. Vui lòng thử lại.")));
+    setCart(nextCart);
+    saveMenuCart(nextCart);
+    setSuccessOrder(null);
+    setVietQrPayment(null);
+    // Cart total changed, so any applied promotion must be re-validated.
+    setAppliedPromo(null);
+    setPromoError("");
+  }
+
+  async function applyPromo() {
+    const code = promoInput.trim();
+    if (!code) {
+      setPromoError("Vui lòng nhập mã khuyến mãi.");
+      return;
+    }
+    if (totalPrice <= 0) {
+      setPromoError("Giỏ hàng trống, không thể áp dụng mã.");
+      return;
+    }
+    setIsApplyingPromo(true);
+    setPromoError("");
+    try {
+      const result = await validatePromotion(code, totalPrice);
+      setAppliedPromo(result);
+    } catch (error) {
+      setAppliedPromo(null);
+      setPromoError(error instanceof Error ? error.message : "Mã khuyến mãi không hợp lệ.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }
+
+  function removePromo() {
+    setAppliedPromo(null);
+    setPromoInput("");
+    setPromoError("");
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmittingRef.current) return;
     setErrorMessage("");
+    setSuccessOrder(null);
+    setVietQrPayment(null);
 
     if (!hasActiveSession) {
-      setErrorMessage(t("Phiên bàn không hợp lệ. Vui lòng quét lại QR tại bàn để gọi món."));
+      setErrorMessage("Phiên bàn không hợp lệ. Vui lòng quét lại QR tại bàn để gọi món.");
       return;
     }
 
     if (!canSubmit) {
-      setErrorMessage(t("Vui lòng kiểm tra giỏ hàng trước khi gửi đơn."));
+      setErrorMessage("Vui lòng kiểm tra giỏ hàng trước khi gửi đơn.");
       return;
     }
 
     const payload = buildOrderPayload(
       cart,
       selectedItems,
+      paymentMethod,
       orderContext,
+      appliedPromo?.code ?? null,
+      phoneInput.trim() || null,
     );
-    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
-      const validation = await validateDineInSession(
-        orderContext.sessionId!,
-        orderContext.sessionToken!,
-        orderContext.tableCode!,
-      );
-      if (validation.status !== "open") {
-        if (validation.status === "error") {
-          setErrorMessage(t("Chưa kiểm tra được phiên bàn. Vui lòng thử gửi món lại."));
-          return;
-        }
-        await refresh();
-        setErrorMessage(t(
-          validation.status === "expired"
-            ? "Phiên bàn đã hết hạn. Vui lòng quét lại QR tại bàn."
-            : "Phiên bàn không còn hợp lệ. Vui lòng quét lại QR tại bàn.",
-        ));
-        return;
-      }
-
       const response = await createOrder(payload);
+      setSuccessOrder(response);
+      if (payload.paymentMethod === "VietQR") {
+        setVietQrPayment(await generateVietQrPayment(response.orderCode));
+      }
       setCart({});
       clearMenuCart();
-
-      navigate(`/table-session/${orderContext.sessionId}/orders/${response.orderCode}`, { replace: true });
+      setAppliedPromo(null);
+      setPromoInput("");
+      setPhoneInput("");
     } catch (error) {
-      setErrorMessage(t(error instanceof Error ? error.message : "Không thể gửi đơn lúc này."));
+      setErrorMessage(error instanceof Error ? error.message : "Không thể gửi đơn lúc này.");
     } finally {
-      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -229,19 +219,19 @@ export function CustomerCartPage() {
     <section className="cmc-customer-page cmc-cart-page">
       <header className="cmc-hero cmc-checkout-hero">
         <div>
-          <p className="cmc-kicker">{t("Giỏ hàng tại bàn")}</p>
+          <p className="cmc-kicker">Giỏ hàng tại bàn</p>
           <h2>
-            {t("Rà soát món mới,")} <span>{t("nắm trọn tổng phiên")}</span>
+            Kiểm tra món và <span>gửi đơn cho bếp</span>
           </h2>
           <p>
-            {t("Món đã gọi và món đang chọn được tách riêng, giúp bạn kiểm tra đúng số tiền trước mỗi lần gửi bếp.")}
+            Đơn chỉ được tạo từ phiên QR đang mở tại bàn. Bếp và nhân viên sẽ nhận đúng mã bàn sau khi khách xác nhận.
           </p>
           <div className="cmc-hero-actions">
             <Link className="cmc-secondary-link" to={tableMenuPath}>
-              {t("Thêm món khác")}
+              Thêm món khác
             </Link>
             {orderContext.tableCode ? (
-              <span className="cmc-table-badge">{t("Bàn {table}", { table: orderContext.tableCode })}</span>
+              <span className="cmc-table-badge">Bàn {orderContext.tableCode}</span>
             ) : null}
           </div>
         </div>
@@ -249,22 +239,19 @@ export function CustomerCartPage() {
 
       {!hasActiveSession ? (
         <div className="cmc-empty-state" role="alert">
-          {t("Vui lòng quét QR tại bàn để mở phiên trước khi gửi món.")}
+          Vui lòng quét QR tại bàn để mở phiên gọi món trước khi thanh toán.
         </div>
       ) : null}
 
       <div className="cmc-checkout-layout">
-        <div className="cmc-cart-panel" aria-label={t("Chi tiết giỏ hàng")}>
+        <div className="cmc-cart-panel" aria-label="Chi tiết giỏ hàng">
           <div className="cmc-section-title">
-            <div>
-              <small>{t("Lần gọi món tiếp theo")}</small>
-              <h3>{t("Món đang chọn")}</h3>
-            </div>
-            <span>{t("{count} phần", { count: summary.selectedQuantity })}</span>
+            <h3>Món đã chọn</h3>
+            <span>{selectedItems.length} món</span>
           </div>
 
           {selectedItems.length === 0 ? (
-            <div className="cmc-empty-state">{t("Giỏ hàng đang trống.")}</div>
+            <div className="cmc-empty-state">Giỏ hàng đang trống.</div>
           ) : (
             <div className="cmc-cart-list">
               {selectedItems.map((item) => (
@@ -273,13 +260,10 @@ export function CustomerCartPage() {
                   <div className="cmc-cart-item-copy">
                     <strong>{item.name}</strong>
                     <span>
-                      {formatMoney(item.price)} / {item.categoryName}
+                      {formatVnd(item.price)} / {item.categoryName}
                     </span>
-                    {!item.isAvailable ? <em>{t("Tạm hết, không thể đặt món này")}</em> : null}
+                    {!item.isAvailable ? <em>Tạm hết, không thể đặt món này</em> : null}
                   </div>
-                  <strong className="cmc-cart-line-total">
-                    {formatMoney((cart[item.id] ?? 0) * item.price)}
-                  </strong>
                   <div className="cmc-stepper">
                     <button
                       onClick={() => updateQuantity(item.id, (cart[item.id] ?? 0) - 1)}
@@ -302,77 +286,148 @@ export function CustomerCartPage() {
           )}
 
           <div className="cmc-cart-total">
-            <span>{t("Tạm tính món đang chọn")}</span>
-            <strong data-money>{formatMoney(summary.cartSubtotal)}</strong>
+            <span>Tạm tính</span>
+            <strong>{formatVnd(totalPrice)}</strong>
           </div>
+
+          {appliedPromo ? (
+            <>
+              <div className="cmc-cart-total cmc-cart-total--discount">
+                <span>Giảm giá ({appliedPromo.code})</span>
+                <strong>-{formatVnd(discountAmount)}</strong>
+              </div>
+              <div className="cmc-cart-total">
+                <span>Thành tiền</span>
+                <strong>{formatVnd(finalTotal)}</strong>
+              </div>
+            </>
+          ) : null}
 
           {unavailableItems.length > 0 ? (
             <p className="cmc-inline-error">
-              {t("Có {count} món tạm hết. Vui lòng bỏ món đó khỏi giỏ trước khi đặt.", { count: unavailableItems.length })}
+              Có {unavailableItems.length} món tạm hết. Vui lòng bỏ món đó khỏi giỏ trước khi đặt.
             </p>
           ) : null}
         </div>
 
         <form className="cmc-checkout-panel" onSubmit={submitOrder}>
-          <div className="cmc-bill-heading">
-            <span className="cmc-bill-icon" aria-hidden="true">
-              <ReceiptText size={22} />
-            </span>
-            <div>
-              <small>{t("Phiếu bàn {table}", { table: orderContext.tableCode ?? "--" })}</small>
-              <h3>{t("Tổng quan phiên")}</h3>
+          <div className="cmc-section-title">
+            <h3>Xác nhận gọi món</h3>
+            <span>Ăn tại bàn</span>
+          </div>
+
+          <div className="cmc-checkout-note">
+            <strong>Bàn {orderContext.tableCode ?? "--"}</strong>
+            <span>Phiên QR: {orderContext.sessionId ? "đang hoạt động" : "chưa có"}</span>
+          </div>
+
+          <div className="cmc-checkout-note">
+            <strong>Phương thức thanh toán</strong>
+            <div className="cmc-order-type-tabs" role="tablist" aria-label="Phương thức thanh toán">
+              {(["COD", "VietQR"] as PaymentMethod[]).map((method) => (
+                <button
+                  aria-selected={paymentMethod === method}
+                  className={paymentMethod === method ? "active" : ""}
+                  key={method}
+                  onClick={() => setPaymentMethod(method)}
+                  type="button"
+                >
+                  {method === "COD" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <rect x="2" y="6" width="20" height="12" rx="2" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M6 12h.01M18 12h.01" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM18 18h3v3h-3z" />
+                    </svg>
+                  )}
+                  {method === "COD" ? "Tiền mặt" : "Chuyển khoản QR"}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="cmc-session-bill" aria-live="polite">
-            <div className="cmc-bill-row">
-              <span>
-                {t("Đã gọi trong phiên")}
-                <small>{t("{count} lần gọi món", { count: summary.orderRoundCount })}</small>
+          <div className="cmc-checkout-note">
+            <strong>Mã khuyến mãi</strong>
+            <div className="cmc-promo-row">
+              <input
+                aria-label="Mã khuyến mãi"
+                className="cmc-text-input"
+                disabled={Boolean(appliedPromo)}
+                onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
+                placeholder="VD: GIAM10"
+                value={promoInput}
+              />
+              {appliedPromo ? (
+                <button className="cmc-promo-btn" onClick={removePromo} type="button">
+                  Bỏ mã
+                </button>
+              ) : (
+                <button
+                  className="cmc-promo-btn"
+                  disabled={isApplyingPromo}
+                  onClick={applyPromo}
+                  type="button"
+                >
+                  {isApplyingPromo ? "Đang kiểm tra..." : "Áp dụng"}
+                </button>
+              )}
+            </div>
+            {promoError ? <span className="cmc-inline-error">{promoError}</span> : null}
+            {appliedPromo ? (
+              <span className="cmc-promo-success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                Đã áp dụng {appliedPromo.name}
               </span>
-              <strong data-money>{isInvoiceLoading ? t("Đang tải…") : invoiceError ? "--" : formatMoney(summary.orderedSubtotal)}</strong>
-            </div>
-            <div className="cmc-bill-row cmc-bill-row--cart">
-              <span>
-                {t("Đang chọn thêm")}
-                <small>{t("{count} phần chưa gửi bếp", { count: summary.selectedQuantity })}</small>
-              </span>
-              <strong data-money>{formatMoney(summary.cartSubtotal)}</strong>
-            </div>
-            <div className="cmc-bill-divider" aria-hidden="true" />
-            <div className="cmc-bill-total">
-              <span>{t("Tổng sau khi gửi")}</span>
-              <strong data-money>{isInvoiceLoading ? t("Đang tải…") : invoiceError ? "--" : formatMoney(summary.projectedTotal)}</strong>
-            </div>
+            ) : null}
           </div>
 
-          {invoiceError ? (
-            <p className="cmc-inline-warning" role="status">
-              {invoiceError} {t("Bạn vẫn có thể gửi món đang chọn.")}
-            </p>
-          ) : null}
-
-          <Link className="cmc-session-orders-link" to={tableOrdersPath}>
-            <ShoppingBasket aria-hidden="true" size={18} />
-            {t("Xem món đã gọi")}
-            <ArrowRight aria-hidden="true" size={17} />
-          </Link>
-
-          <p className="cmc-checkout-footnote">
-            {t("Ưu đãi, tích điểm và thanh toán chỉ áp dụng khi bạn yêu cầu thanh toán toàn bộ phiên bàn.")}
-          </p>
+          <div className="cmc-checkout-note">
+            <strong>Số điện thoại tích điểm (tùy chọn)</strong>
+            <input
+              aria-label="Số điện thoại tích điểm"
+              className="cmc-text-input"
+              inputMode="tel"
+              onChange={(event) => setPhoneInput(event.target.value)}
+              placeholder="VD: 0909xxxxxx"
+              value={phoneInput}
+            />
+          </div>
 
           {errorMessage ? <p className="cmc-inline-error">{errorMessage}</p> : null}
 
+          {successOrder ? (
+            <div className="cmc-success-state" role="status">
+              <strong>Đã tạo đơn {successOrder.orderCode}</strong>
+              <span>
+                Trạng thái: {successOrder.status} / Thanh toán: {successOrder.paymentStatus}
+              </span>
+              <Link to={`/orders/${successOrder.orderCode}`}>Theo dõi đơn</Link>
+            </div>
+          ) : null}
+
+          {vietQrPayment ? (
+            <div className="cmc-success-state" role="status">
+              <strong>VietQR đã sẵn sàng</strong>
+              <span>
+                {formatVnd(vietQrPayment.amount)} - Nội dung: {vietQrPayment.transferContent}
+              </span>
+              <img alt={`VietQR ${vietQrPayment.orderCode}`} src={vietQrPayment.qrImageDataUri} />
+              <a href={vietQrPayment.quickLink} target="_blank" rel="noreferrer">
+                Mở link thanh toán
+              </a>
+            </div>
+          ) : null}
+
           <button className="cmc-submit-order" disabled={!canSubmit} type="submit">
-            {isSubmitting ? (
-              t("Đang gửi món...")
-            ) : (
-              <>
-                <span>{t("Gửi món tới bếp")}</span>
-                <small>{t("{count} phần trong lần gọi này", { count: summary.selectedQuantity })}</small>
-              </>
-            )}
+            {isSubmitting ? "Đang gửi đơn..." : "Gửi đơn cho bếp"}
           </button>
         </form>
       </div>

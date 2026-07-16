@@ -1,13 +1,9 @@
-using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using RestaurantQrAiOrdering.Api.Auth;
 using RestaurantQrAiOrdering.Api.Categories;
 using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
-using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -17,11 +13,10 @@ namespace RestaurantQrAiOrdering.Api.Tables;
 public static partial class TableEndpoints
 {
     private static readonly TimeSpan DefaultSessionLifetime = TimeSpan.FromHours(4);
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SessionOpenGates = new();
 
     public static IEndpointRouteBuilder MapTableEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/admin/tables", async (
+        app.MapGet("/api/tables", async (
             RestaurantDbContext db,
             CancellationToken cancellationToken) =>
         {
@@ -31,14 +26,13 @@ public static partial class TableEndpoints
                 .ToListAsync(cancellationToken);
 
             var items = tables
-                .Select(ToAdminTableResponse)
+                .Select(ToTableResponse)
                 .ToList();
 
             return Results.Ok(new TableListResponse(items, items.Count));
         })
-        .RequireAuthorization("AdminOnly")
-        .WithName("AdminListTables")
-        .WithTags("Admin Tables");
+        .WithName("ListTables")
+        .WithTags("Tables");
 
         app.MapGet("/api/admin/table-sessions", async (
             string? status,
@@ -111,7 +105,7 @@ public static partial class TableEndpoints
 
             return table is null
                 ? ApiResults.NotFound("TABLE_NOT_FOUND", "Active table was not found.")
-                : Results.Ok(ToPublicTableResponse(table));
+                : Results.Ok(ToTableResponse(table));
         })
         .WithName("GetTable")
         .WithTags("Tables");
@@ -135,7 +129,9 @@ public static partial class TableEndpoints
                 ? ApiResults.NotFound("QR_NOT_FOUND", "QR token does not match an active table.")
                 : Results.Ok(new TableQrResponse(
                     table.TableCode,
-                    table.DisplayName));
+                    table.DisplayName,
+                    normalizedQrToken,
+                    BuildCustomerPath(table.TableCode, normalizedQrToken)));
         })
         .WithName("ResolveTableQr")
         .WithTags("Tables");
@@ -143,9 +139,6 @@ public static partial class TableEndpoints
         app.MapPost("/api/table-sessions", async (
             OpenTableSessionRequest? request,
             RestaurantDbContext db,
-            IChatStore chatStore,
-            IOptions<JwtOptions> jwtOptions,
-            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             if (request is null)
@@ -153,30 +146,17 @@ public static partial class TableEndpoints
                 return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
             }
 
-            return await OpenDineInSessionAsync(
-                request,
-                db,
-                chatStore,
-                jwtOptions.Value.SigningKey,
-                loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Tables.TableSession"),
-                cancellationToken);
+            return await OpenDineInSessionAsync(request, db, cancellationToken);
         })
         .WithName("OpenTableSession")
         .WithTags("Tables");
 
         app.MapGet("/api/table-sessions/{sessionId}", async (
             string sessionId,
-            HttpRequest request,
             RestaurantDbContext db,
             IChatStore chatStore,
-            IOptions<JwtOptions> jwtOptions,
             CancellationToken cancellationToken) =>
         {
-            if (!TableSessionCapability.TryRead(request, out var suppliedToken))
-            {
-                return TableSessionCapability.Unauthorized();
-            }
-
             var session = await db.TableSessions
                 .Include(s => s.RestaurantTable)
                 .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
@@ -184,11 +164,6 @@ public static partial class TableEndpoints
             if (session is null)
             {
                 return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
-            }
-
-            if (!TableSessionCapability.IsValid(session, suppliedToken, jwtOptions.Value.SigningKey))
-            {
-                return TableSessionCapability.Unauthorized();
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -205,60 +180,6 @@ public static partial class TableEndpoints
         })
         .WithName("GetTableSession")
         .WithTags("Tables");
-
-        app.MapGet("/api/table-sessions/{sessionId}/orders", async (
-            string sessionId,
-            HttpRequest request,
-            RestaurantDbContext db,
-            IOptions<JwtOptions> jwtOptions,
-            CancellationToken cancellationToken) =>
-        {
-            if (!TableSessionCapability.TryRead(request, out var suppliedToken))
-            {
-                return TableSessionCapability.Unauthorized();
-            }
-
-            var tableSession = await db.TableSessions
-                .FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
-            if (tableSession is null)
-            {
-                return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
-            }
-
-            if (!TableSessionCapability.IsValid(tableSession, suppliedToken, jwtOptions.Value.SigningKey))
-            {
-                return TableSessionCapability.Unauthorized();
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            if (!tableSession.IsActiveAt(now))
-            {
-                if (tableSession.ExpireIfPast(now))
-                {
-                    await db.SaveChangesAsync(cancellationToken);
-                }
-
-                return ApiErrorFactory.Result(
-                    StatusCodes.Status410Gone,
-                    "TABLE_SESSION_INACTIVE",
-                    "Table session is closed or expired. Please scan QR again.");
-            }
-
-            var orders = await db.Orders
-                .AsNoTracking()
-                .Where(order => order.TableSessionId == tableSession.Id)
-                .Include(order => order.OrderItems)
-                .Include(order => order.Payment)
-                .Include(order => order.StatusHistory)
-                .OrderByDescending(order => order.CreatedAt)
-                .ToListAsync(cancellationToken);
-
-            return Results.Ok(new OrderListResponse(
-                orders.Select(OrderEndpoints.ToResponse).ToList(),
-                orders.Count));
-        })
-        .WithName("GetTableSessionOrders")
-        .WithTags("Tables", "Orders");
 
         app.MapPost("/api/table-sessions/{sessionId}/close", async (
             string sessionId,
@@ -284,11 +205,10 @@ public static partial class TableEndpoints
                 await db.SaveChangesAsync(cancellationToken);
             }
 
-            chatStore.DeleteSessionsByTableSession(session.Id);
+            await chatStore.DeleteSessionsByTableSessionAsync(session.Id, cancellationToken);
 
             return Results.Ok(ToSessionResponse(session, now));
         })
-        .RequireAuthorization("StaffOrAdmin")
         .WithName("CloseTableSession")
         .WithTags("Tables");
 
@@ -298,9 +218,6 @@ public static partial class TableEndpoints
     private static async Task<IResult> OpenDineInSessionAsync(
         OpenTableSessionRequest request,
         RestaurantDbContext db,
-        IChatStore chatStore,
-        string signingKey,
-        ILogger logger,
         CancellationToken cancellationToken)
     {
         var normalizedQrToken = NormalizeQrToken(request.QrToken);
@@ -329,114 +246,38 @@ public static partial class TableEndpoints
             return ApiResults.BadRequest("QR_TABLE_MISMATCH", "QR token does not belong to the requested table.");
         }
 
-        var openGate = SessionOpenGates.GetOrAdd(table.Id, _ => new SemaphoreSlim(1, 1));
-        await openGate.WaitAsync(cancellationToken);
-        try
-        {
-            var now = DateTimeOffset.UtcNow;
-            var expiredSessions = await db.TableSessions
-                .Where(s =>
-                    s.RestaurantTableId == table.Id &&
-                    s.Status == TableSessionStatus.Open &&
-                    s.ExpiresAt <= now)
-                .ToListAsync(cancellationToken);
-
-            foreach (var expiredSession in expiredSessions)
-            {
-                await MarkExpiredAsync(expiredSession, db, chatStore, now, cancellationToken);
-            }
-
-            var session = await FindActiveSessionAsync(db, table.Id, now, cancellationToken);
-            var reusedSession = session is not null;
-
-            if (session is null)
-            {
-                var newSession = new TableSession
-                {
-                    Id = $"ts_{Guid.NewGuid():N}",
-                    RestaurantTableId = table.Id,
-                    RestaurantTable = table,
-                    TableCode = table.TableCode,
-                    QrToken = normalizedQrToken,
-                    OrderType = OrderType.DineIn,
-                    Status = TableSessionStatus.Open,
-                    OpenedAt = now,
-                    ExpiresAt = now.Add(DefaultSessionLifetime),
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-                db.TableSessions.Add(newSession);
-                try
-                {
-                    await db.SaveChangesAsync(cancellationToken);
-                    session = newSession;
-                }
-                catch (DbUpdateException)
-                {
-                    db.Entry(newSession).State = EntityState.Detached;
-                    session = await FindActiveSessionAsync(db, table.Id, now, cancellationToken);
-                    if (session is null)
-                    {
-                        throw;
-                    }
-                }
-            }
-
-            var resumeState = await ResolveResumeStateAsync(db, session!.Id, cancellationToken);
-            logger.LogInformation(
-                "Resolved table session {SessionId} for table {TableCode}; reused={ReusedSession}; resumeState={ResumeState}.",
-                session.Id,
-                table.TableCode,
-                reusedSession,
-                resumeState);
-
-            return Results.Ok(ToOpenSessionResponse(session, now, signingKey, resumeState));
-        }
-        finally
-        {
-            openGate.Release();
-        }
-    }
-
-    private static async Task<TableSessionResumeState> ResolveResumeStateAsync(
-        RestaurantDbContext db,
-        string tableSessionId,
-        CancellationToken cancellationToken)
-    {
-        var cartItemCount = await db.TableSessionCartItems
-            .AsNoTracking()
-            .CountAsync(
-                item => item.TableSessionId == tableSessionId && item.Quantity > 0,
-                cancellationToken);
-        var orderStatuses = await db.Orders
-            .AsNoTracking()
-            .Where(order => order.TableSessionId == tableSessionId)
-            .Select(order => order.Status)
-            .ToListAsync(cancellationToken);
-        var invoiceStatus = await db.TableInvoices
-            .AsNoTracking()
-            .Where(invoice => invoice.TableSessionId == tableSessionId)
-            .Select(invoice => (PaymentStatus?)invoice.Status)
+        var now = DateTimeOffset.UtcNow;
+        var session = await db.TableSessions
+            .Include(s => s.RestaurantTable)
+            .Where(s =>
+                s.RestaurantTableId == table.Id &&
+                s.Status == TableSessionStatus.Open &&
+                s.ClosedAt == null &&
+                s.ExpiresAt > now)
+            .OrderByDescending(s => s.OpenedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return TableSessionResumeStateResolver.Resolve(cartItemCount, orderStatuses, invoiceStatus);
-    }
+        if (session is null)
+        {
+            session = new TableSession
+            {
+                Id = $"ts_{Guid.NewGuid():N}",
+                RestaurantTableId = table.Id,
+                RestaurantTable = table,
+                TableCode = table.TableCode,
+                QrToken = normalizedQrToken,
+                OrderType = OrderType.DineIn,
+                Status = TableSessionStatus.Open,
+                OpenedAt = now,
+                ExpiresAt = now.Add(DefaultSessionLifetime),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            db.TableSessions.Add(session);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
-    private static Task<TableSession?> FindActiveSessionAsync(
-        RestaurantDbContext db,
-        string tableId,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-    {
-        return db.TableSessions
-            .Include(session => session.RestaurantTable)
-            .Where(session =>
-                session.RestaurantTableId == tableId &&
-                session.Status == TableSessionStatus.Open &&
-                session.ClosedAt == null &&
-                session.ExpiresAt > now)
-            .OrderByDescending(session => session.OpenedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        return Results.Ok(ToSessionResponse(session, now));
     }
 
     private static async Task MarkExpiredAsync(
@@ -446,27 +287,21 @@ public static partial class TableEndpoints
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        if (!session.ExpireIfPast(now))
+        if (session.Status == TableSessionStatus.Expired)
         {
-            chatStore.DeleteSessionsByTableSession(session.Id);
             return;
         }
 
+        session.Status = TableSessionStatus.Expired;
+        session.ClosedAt ??= now;
+        session.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
-        chatStore.DeleteSessionsByTableSession(session.Id);
+        await chatStore.DeleteSessionsByTableSessionAsync(session.Id, cancellationToken);
     }
 
-    private static TableResponse ToPublicTableResponse(RestaurantTable table)
+    private static TableResponse ToTableResponse(RestaurantTable table)
     {
         return new TableResponse(
-            table.TableCode,
-            table.DisplayName,
-            table.IsActive);
-    }
-
-    private static AdminTableResponse ToAdminTableResponse(RestaurantTable table)
-    {
-        return new AdminTableResponse(
             table.TableCode,
             table.DisplayName,
             table.IsActive,
@@ -482,30 +317,12 @@ public static partial class TableEndpoints
             session.Status.ToString(),
             session.TableCode,
             session.RestaurantTable?.DisplayName,
+            session.QrToken,
+            BuildCustomerPath(session.TableCode, session.QrToken),
             session.OpenedAt,
             session.ExpiresAt,
             session.ClosedAt,
             IsExpired(session, now));
-    }
-
-    private static OpenTableSessionResponse ToOpenSessionResponse(
-        TableSession session,
-        DateTimeOffset now,
-        string signingKey,
-        TableSessionResumeState resumeState)
-    {
-        return new OpenTableSessionResponse(
-            session.Id,
-            session.OrderType.ToString(),
-            session.Status.ToString(),
-            session.TableCode,
-            session.RestaurantTable?.DisplayName,
-            session.OpenedAt,
-            session.ExpiresAt,
-            session.ClosedAt,
-            IsExpired(session, now),
-            TableSessionCapability.CreateToken(session, signingKey),
-            resumeState.ToString());
     }
 
     private static bool IsExpired(TableSession session, DateTimeOffset now)

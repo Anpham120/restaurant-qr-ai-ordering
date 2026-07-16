@@ -1,9 +1,7 @@
-import { useI18n } from "@cmc/i18n";
 import type { ChatMessage } from "../../types";
 
 type ChatMessageBubbleProps = {
   message: ChatMessage;
-  onFeedback?: (rating: "up" | "down") => void;
 };
 
 function renderMarkdown(text: string) {
@@ -91,44 +89,23 @@ function renderMarkdown(text: string) {
   return elements;
 }
 
-export function ChatMessageBubble({ message, onFeedback }: ChatMessageBubbleProps) {
-  const { formatTime, t } = useI18n();
+export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   const isCustomer = message.role === "user";
   const createdAt = new Date(message.createdAt);
 
   return (
     <article className={`cmc-chat-message ${isCustomer ? "customer" : "assistant"}`}>
       <div className="cmc-chat-message-meta">
-        <span>{isCustomer ? t("Bạn") : "CMC AI"}</span>
+        <span>{isCustomer ? "Bạn" : "CMC AI"}</span>
         <time dateTime={message.createdAt}>
           {Number.isNaN(createdAt.getTime())
-            ? t("vừa xong")
-            : formatTime(createdAt)}
+            ? "vừa xong"
+            : createdAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
         </time>
       </div>
       <div className="cmc-chat-message-body">
         {isCustomer ? <p>{message.content}</p> : renderMarkdown(message.content)}
       </div>
-      {!isCustomer && onFeedback ? (
-        <div className="cmc-chat-feedback" aria-label={t("Đánh giá phản hồi")}>
-          <button
-            aria-label={t("Hữu ích")}
-            className="cmc-chat-feedback-button"
-            onClick={() => onFeedback("up")}
-            type="button"
-          >
-            👍
-          </button>
-          <button
-            aria-label={t("Chưa hữu ích")}
-            className="cmc-chat-feedback-button"
-            onClick={() => onFeedback("down")}
-            type="button"
-          >
-            👎
-          </button>
-        </div>
-      ) : null}
     </article>
   );
 }

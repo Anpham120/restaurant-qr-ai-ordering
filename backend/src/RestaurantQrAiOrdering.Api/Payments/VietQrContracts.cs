@@ -34,12 +34,6 @@ public sealed record VietQrResponse(
     string QrImageDataUri,
     string PaymentStatus);
 
-public sealed record PaymentRequest(string? Method);
-
-public sealed record PaymentRequestResponse(
-    PaymentResponse Payment,
-    VietQrResponse? VietQr);
-
 public sealed record ConfirmPaymentRequest(string? ProviderTransactionId, string? Note);
 
 public sealed record FailPaymentRequest(string? Note);

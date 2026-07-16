@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Timeline, type TimelineItem } from "@cmc/shared-ui";
-import { useI18n, type TranslationParams } from "@cmc/i18n";
-import { localizeMenuItemName } from "@cmc/i18n/menu";
-import { PaymentRequestModal } from "../../../components/customer/PaymentRequestModal";
 import { VietQrPaymentModal } from "../../../components/customer/VietQrPaymentModal";
 import "../../../components/customer/customer-order-tracking.css";
 import {
@@ -14,24 +11,14 @@ import {
   watchOrderRealtime,
   type RealtimeConnectionStatus,
 } from "../../../services/realtimeOrderService";
-import {
-  getCustomerOrderToken,
-  getOrderTracking,
-  getStoredVietQrPayment,
-  hasCustomerOrderToken,
-  requestOrderPayment,
-} from "../../../services/orderService";
+import { getOrderTracking } from "../../../services/orderService";
 import type {
   OrderItemStatus,
   OrderRealtimeEvent,
   OrderStatusEvent,
   OrderTrackingItem,
   OrderTrackingOrder,
-  RequestedPaymentMethod,
-  VietQrPaymentResponse,
 } from "../../../types";
-import { orderingPath } from "../../../ordering/orderingRoutes";
-import { ArrowLeft, Banknote, CreditCard, QrCode } from "lucide-react";
 
 /* ========================================================================
    Labels & Helpers
@@ -70,12 +57,23 @@ const eventStatusLabels: Record<string, string> = {
   Completed: "Hoàn tất",
   Cancelled: "Đã hủy",
   Unpaid: "Chưa thanh toán",
-  NotRequested: "Chưa yêu cầu thanh toán",
   Pending: "Chờ thanh toán",
   Paid: "Đã thanh toán",
   Failed: "Thanh toán lỗi",
   Refunded: "Đã hoàn tiền",
 };
+
+const eventTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatEventTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : eventTimeFormatter.format(date);
+}
 
 function eventTone(event: OrderStatusEvent): TimelineItem["tone"] {
   switch (event.status) {
@@ -95,15 +93,11 @@ function eventTone(event: OrderStatusEvent): TimelineItem["tone"] {
   }
 }
 
-function toTimelineItems(
-  events: OrderStatusEvent[],
-  t: (source: string, params?: TranslationParams) => string,
-  formatDateTime: (value: string | number | Date) => string,
-): TimelineItem[] {
+function toTimelineItems(events: OrderStatusEvent[]): TimelineItem[] {
   return events.map((event) => ({
-    label: t(eventStatusLabels[event.status] ?? event.status),
-    sublabel: event.source === "Payment" ? t("Thanh toán") : t("Trạng thái đơn"),
-    timestamp: formatDateTime(event.createdAt),
+    label: eventStatusLabels[event.status] ?? event.status,
+    sublabel: event.source === "Payment" ? "Thanh toán" : "Trạng thái đơn",
+    timestamp: formatEventTime(event.createdAt),
     tone: eventTone(event),
     note: event.note ?? undefined,
   }));
@@ -140,15 +134,6 @@ function applyRealtimeEvent(
     return {
       ...order,
       status: event.payload.status,
-      updatedAt: event.payload.updatedAt,
-    };
-  }
-
-  if (event.event === "payment.requested") {
-    return {
-      ...order,
-      paymentMethod: event.payload.method,
-      paymentStatus: event.payload.status,
       updatedAt: event.payload.updatedAt,
     };
   }
@@ -192,90 +177,35 @@ function calculateOrderStatus(items: OrderTrackingItem[]) {
    ======================================================================== */
 
 export function OrderTrackingPage() {
-  const { formatDateTime, locale, t } = useI18n();
-  const { orderCode = "ORD-1001", sessionId = "" } = useParams();
+  const { orderCode = "ORD-1001" } = useParams();
   const [order, setOrder] = useState<OrderTrackingOrder | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<RealtimeConnectionStatus>("connected");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const [showVietQr, setShowVietQr] = useState(false);
-  const [vietQrPayment, setVietQrPayment] = useState<VietQrPaymentResponse | null>(
-    () => getStoredVietQrPayment(orderCode),
-  );
-  const [paymentNotice, setPaymentNotice] = useState("");
-  const hasOrderAccess = hasCustomerOrderToken(orderCode);
-
-  const refreshOrder = useCallback(async () => {
-    if (!hasOrderAccess) {
-      setOrder(null);
-      setErrorMessage(t("Không còn quyền truy cập đơn này."));
-      return;
-    }
-
-    try {
-      const nextOrder = await getOrderTracking(orderCode);
-      setOrder(nextOrder);
-      setErrorMessage("");
-    } catch {
-      setErrorMessage(t("Không tải được trạng thái đơn hàng."));
-    }
-  }, [hasOrderAccess, orderCode, t]);
 
   const handlePaymentConfirmed = useCallback(() => {
-    void refreshOrder();
-  }, [refreshOrder]);
-
-  const handlePaymentRequest = useCallback(async (method: RequestedPaymentMethod) => {
-    const result = await requestOrderPayment(orderCode, method);
-    setOrder((current) => current ? {
-      ...current,
-      paymentMethod: result.payment.method,
-      paymentStatus: result.payment.status,
-      updatedAt: result.payment.updatedAt,
-    } : current);
-    setShowPaymentRequest(false);
-    setPaymentNotice(
-      method === "COD"
-        ? ""
-        : t("Đã tạo yêu cầu thanh toán VietQR."),
-    );
-    if (result.vietQr) {
-      setVietQrPayment(result.vietQr);
-      setShowVietQr(true);
-    }
-  }, [orderCode, t]);
+    getOrderTracking(orderCode).then(setOrder).catch(() => {});
+  }, [orderCode]);
 
   useEffect(() => {
-    void refreshOrder();
-  }, [refreshOrder]);
+    getOrderTracking(orderCode)
+      .then(setOrder)
+      .catch(() => setErrorMessage("Không tải được trạng thái đơn hàng."));
+  }, [orderCode]);
 
   useEffect(() => {
-    if (!hasOrderAccess) return;
-    const interval = window.setInterval(() => void refreshOrder(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [hasOrderAccess, refreshOrder]);
-
-  useEffect(() => {
-    if (!hasOrderAccess) return;
-
     const unsubscribeConnection = subscribeRealtimeConnection(setConnectionStatus);
     const unsubscribeRealtime = subscribeOrderRealtime((event) => {
-      if (!("orderCode" in event.payload) || event.payload.orderCode !== orderCode) {
+      if (event.payload.orderCode !== orderCode) {
         return;
       }
 
       setOrder((current) => (current ? applyRealtimeEvent(current, event) : current));
     });
 
-    const orderToken = getCustomerOrderToken(orderCode);
-    if (!orderToken) {
-      unsubscribeConnection();
-      unsubscribeRealtime();
-      return;
-    }
     void connectOrderRealtime()
-      .then(() => watchOrderRealtime(orderCode, orderToken))
+      .then(() => watchOrderRealtime(orderCode, order?.tableCode))
       .catch(() => setConnectionStatus("error"));
 
     return () => {
@@ -283,24 +213,24 @@ export function OrderTrackingPage() {
       unsubscribeRealtime();
       void disconnectOrderRealtime();
     };
-  }, [hasOrderAccess, orderCode]);
+  }, [orderCode, order?.tableCode]);
 
   const stats = useMemo(() => {
     const items = order?.items ?? [];
 
     return {
-      statusLabel: t(eventStatusLabels[order?.status ?? ""] ?? "Đang tải"),
+      statusLabel: eventStatusLabels[order?.status ?? ""] ?? "Đang tải",
       preparing: items.filter((item) => item.status === "Preparing").length,
       ready: items.filter((item) => item.status === "Ready").length,
     };
-  }, [order, t]);
+  }, [order]);
 
   const connectionLabel =
     connectionStatus === "connected"
-      ? t("Đã kết nối")
+      ? "Đã kết nối"
       : connectionStatus === "reconnecting"
-        ? t("Đang kết nối lại...")
-        : t("Lỗi kết nối");
+        ? "Đang kết nối lại…"
+        : "Lỗi kết nối";
 
   return (
     <section className="cmc-order-tracking">
@@ -308,24 +238,25 @@ export function OrderTrackingPage() {
       <header className="cmc-ot-hero">
         <p className="cmc-ot-kicker">CMC Restaurant</p>
         <h2>
-          {t("Theo dõi đơn")} <span>{orderCode}</span>
+          Theo dõi đơn <span>{orderCode}</span>
         </h2>
         <p>
-          {t("Trạng thái từng món được cập nhật theo thời gian thực, không cần tải lại trang.")}
+          Trạng thái từng món được cập nhật theo thời gian thực — không cần tải
+          lại trang.
         </p>
 
         <div className="cmc-ot-hero-stats">
           <article className="cmc-ot-stat">
             <strong>{stats.statusLabel}</strong>
-            <span>{t("Trạng thái đơn")}</span>
+            <span>Trạng thái đơn</span>
           </article>
           <article className="cmc-ot-stat">
             <strong>{stats.preparing}</strong>
-            <span>{t("Đang chế biến")}</span>
+            <span>Đang chế biến</span>
           </article>
           <article className="cmc-ot-stat">
             <strong>{stats.ready}</strong>
-            <span>{t("Sẵn sàng")}</span>
+            <span>Sẵn sàng</span>
           </article>
         </div>
       </header>
@@ -333,8 +264,8 @@ export function OrderTrackingPage() {
       {/* Connection bar */}
       <div className="cmc-ot-connection-bar">
         <div>
-          <strong>{t("Theo dõi món theo thời gian thực")}</strong>
-          <p>{t("Đang cập nhật trạng thái cho {code}.", { code: orderCode })}</p>
+          <strong>Theo dõi món theo thời gian thực</strong>
+          <p>Đang cập nhật trạng thái cho {orderCode}.</p>
         </div>
         <span className={`cmc-ot-pill cmc-ot-pill-${connectionStatus}`}>
           {connectionLabel}
@@ -342,42 +273,19 @@ export function OrderTrackingPage() {
       </div>
 
       {errorMessage ? (
-        <div className="cmc-ot-error" role="alert">
-          <p>{errorMessage}</p>
-          {hasOrderAccess ? (
-            <button className="cmc-secondary-link" onClick={() => void refreshOrder()} type="button">
-              {t("Thử tải lại")}
-            </button>
-          ) : (
-            <Link className="cmc-secondary-link" to="/">
-              {t("Quét lại QR tại bàn")}
-            </Link>
-          )}
-        </div>
+        <p className="cmc-ot-error">{errorMessage}</p>
       ) : null}
 
       {order ? (
         <div className="cmc-ot-content">
           <OrderTrackingPanel
-            invoicePath={orderingPath(sessionId, "orders")}
             order={order}
-            onRequestPayment={() => setShowPaymentRequest(true)}
             onShowVietQr={() => setShowVietQr(true)}
-            paymentNotice={paymentNotice}
-            vietQrAvailable={Boolean(vietQrPayment)}
           />
 
-          {showPaymentRequest ? (
-            <PaymentRequestModal
-              onClose={() => setShowPaymentRequest(false)}
-              onRequest={handlePaymentRequest}
-            />
-          ) : null}
-
-          {showVietQr && vietQrPayment ? (
+          {showVietQr ? (
             <VietQrPaymentModal
               orderCode={order.orderCode}
-              qrData={vietQrPayment}
               onClose={() => setShowVietQr(false)}
               onPaymentConfirmed={handlePaymentConfirmed}
             />
@@ -385,13 +293,22 @@ export function OrderTrackingPage() {
 
           {/* Back link */}
           <Link className="cmc-ot-back" to="/">
-            <ArrowLeft aria-hidden="true" size={16} />
-            {t("Về trang chủ")}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              width="16"
+              height="16"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Về trang chủ
           </Link>
         </div>
-      ) : !errorMessage ? (
-        <p className="cmc-ot-loading">{t("Đang tải đơn hàng...")}</p>
-      ) : null}
+      ) : (
+        <p className="cmc-ot-loading">Đang tải đơn hàng…</p>
+      )}
     </section>
   );
 }
@@ -401,53 +318,40 @@ export function OrderTrackingPage() {
    ======================================================================== */
 
 function OrderTrackingPanel({
-  invoicePath,
   order,
-  onRequestPayment,
   onShowVietQr,
-  paymentNotice,
-  vietQrAvailable,
 }: {
-  invoicePath: string;
   order: OrderTrackingOrder;
-  onRequestPayment: () => void;
   onShowVietQr: () => void;
-  paymentNotice: string;
-  vietQrAvailable: boolean;
 }) {
-  const { formatDateTime, locale, t } = useI18n();
   const readyCount = order.items.filter((item) => item.status === "Ready").length;
-  const canRequestPayment =
-    order.status !== "Cancelled" &&
-    (order.paymentStatus === "NotRequested" ||
-      order.paymentStatus === "Unpaid" ||
-      order.paymentStatus === "Failed");
-  const isPendingCash = order.paymentMethod === "COD" && order.paymentStatus === "Pending";
-  const isPendingVietQr = order.paymentMethod === "VietQR" && order.paymentStatus === "Pending";
-  const isPaid = order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid";
+  const canPayVietQr =
+    order.paymentMethod === "VietQR" &&
+    (order.paymentStatus === "Unpaid" || order.paymentStatus === "Pending");
 
   return (
     <>
       {/* Summary card */}
       <div className="cmc-ot-summary">
         <div>
-          <p className="cmc-ot-kicker">{t("Theo dõi đơn")}</p>
+          <p className="cmc-ot-kicker">Theo dõi đơn</p>
           <h3>{order.orderCode}</h3>
           <span>
-            {order.tableCode ? t("Bàn {table}", { table: order.tableCode }) : t("Chưa có bàn")} -{" "}
-            {t(eventStatusLabels[order.status] ?? order.status)}
+            {order.tableCode ? `Bàn ${order.tableCode}` : "Chưa có bàn"} —{" "}
+            {eventStatusLabels[order.status] ?? order.status}
           </span>
         </div>
         <strong>
           {readyCount}/{order.items.length}
-          <small>{t("món sẵn sàng")}</small>
+          <small>món sẵn sàng</small>
         </strong>
       </div>
 
       {/* Refund notice */}
       {order.paymentStatus === "Refunded" ? (
         <p className="cmc-ot-refunded" role="status">
-          {t("Đơn này đã được hoàn tiền. Vui lòng liên hệ nhân viên nếu cần hỗ trợ thêm.")}
+          Đơn này đã được hoàn tiền. Vui lòng liên hệ nhân viên nếu cần hỗ trợ
+          thêm.
         </p>
       ) : null}
 
@@ -458,8 +362,8 @@ function OrderTrackingPanel({
             <div className={getTimelineClass(order.status, status)} key={status}>
               <span>{index + 1}</span>
               <div>
-                <h3>{t(timelineLabels[status])}</h3>
-                <p>{t(getTimelineCopy(status))}</p>
+                <h3>{timelineLabels[status]}</h3>
+                <p>{getTimelineCopy(status)}</p>
               </div>
             </div>
           ),
@@ -469,92 +373,40 @@ function OrderTrackingPanel({
       {/* Event history */}
       {order.events && order.events.length > 0 ? (
         <div className="cmc-ot-history">
-          <p className="cmc-ot-kicker">{t("Lịch sử xử lý")}</p>
-          <Timeline items={toTimelineItems(order.events, t, formatDateTime)} />
+          <p className="cmc-ot-kicker">Lịch sử xử lý</p>
+          <Timeline items={toTimelineItems(order.events)} />
         </div>
       ) : null}
 
       {/* Item list */}
       <div className="cmc-ot-item-list">
-        <p className="cmc-ot-kicker">{t("Chi tiết món")}</p>
+        <p className="cmc-ot-kicker">Chi tiết món</p>
         {order.items.map((item) => (
           <article className="cmc-ot-item" key={item.orderItemId}>
             <div>
-              <strong>{localizeMenuItemName(item.menuItemId, item.name, locale)}</strong>
+              <strong>{item.name}</strong>
               <p>
-                x{item.quantity} - {t(itemStatusDescriptions[item.status])}
+                x{item.quantity} — {itemStatusDescriptions[item.status]}
               </p>
             </div>
             <span
               className={`cmc-ot-item-pill cmc-ot-item-${item.status.toLowerCase()}`}
             >
-              {t(itemStatusLabels[item.status] ?? item.status)}
+              {itemStatusLabels[item.status] ?? item.status}
             </span>
           </article>
         ))}
       </div>
 
-      {order.tableSessionId ? (
-        <section className="cmc-ot-payment-card" aria-labelledby="cmc-payment-title">
-          <div className="cmc-ot-payment-heading">
-            <CreditCard aria-hidden="true" size={22} />
-            <div>
-              <h3 id="cmc-payment-title">{t("Thanh toán theo phiên bàn")}</h3>
-              <p>{t("Ưu đãi, tích điểm và thanh toán được tính trên toàn bộ các lần gọi món.")}</p>
-            </div>
-          </div>
-          <Link className="cmc-ot-payment-primary" to={invoicePath}>
-            {t("Xem hóa đơn phiên bàn")}
-          </Link>
-        </section>
-      ) : (
-      <section className="cmc-ot-payment-card" aria-labelledby="cmc-payment-title">
-        <div className="cmc-ot-payment-heading">
-          <CreditCard aria-hidden="true" size={22} />
-          <div>
-            <h3 id="cmc-payment-title">{t("Thanh toán")}</h3>
-            <p>{t("Gửi yêu cầu riêng sau khi đã gửi món cho bếp.")}</p>
-          </div>
-        </div>
-
-        {paymentNotice ? <p className="cmc-ot-payment-notice" role="status">{paymentNotice}</p> : null}
-
-        {canRequestPayment ? (
-          <button className="cmc-ot-payment-primary" onClick={onRequestPayment} type="button">
-            {t("Yêu cầu thanh toán")}
+      {/* VietQR action */}
+      {canPayVietQr ? (
+        <div className="cmc-ot-vietqr-action">
+          <button type="button" onClick={onShowVietQr}>
+            💳 Thanh toán VietQR
           </button>
-        ) : null}
-
-        {isPendingCash ? (
-          <div className="cmc-ot-payment-state" role="status">
-            <Banknote aria-hidden="true" size={20} />
-            <div>
-              <strong>{t("Đã gửi yêu cầu thanh toán tiền mặt.")}</strong>
-              <span>{t("Nhân viên sẽ đến bàn để xác nhận thanh toán.")}</span>
-            </div>
-          </div>
-        ) : null}
-
-        {isPendingVietQr ? (
-          <div className="cmc-ot-payment-state" role="status">
-            <QrCode aria-hidden="true" size={20} />
-            <div>
-              <strong>{t("Đang chờ thanh toán VietQR.")}</strong>
-              <span>{t("Chuyển đúng số tiền và nội dung hiển thị trên mã QR.")}</span>
-            </div>
-            {vietQrAvailable ? (
-              <button className="cmc-secondary-link" onClick={onShowVietQr} type="button">
-                {t("Xem mã VietQR")}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-
-        {isPaid ? (
-          <p className="cmc-ot-payment-notice" role="status">{t("Thanh toán đã được xác nhận.")}</p>
-        ) : null}
-      </section>
-      )}
+          <p>Quét mã QR để chuyển khoản nhanh</p>
+        </div>
+      ) : null}
     </>
   );
 }

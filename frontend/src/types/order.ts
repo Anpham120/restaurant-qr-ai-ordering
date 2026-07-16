@@ -2,9 +2,8 @@ import type { OrderStatus, TableCode } from "./api";
 
 export type CustomerOrderType = "DineIn";
 
-export type PaymentMethod = "Unselected" | "COD" | "VietQR";
-export type RequestedPaymentMethod = Exclude<PaymentMethod, "Unselected">;
-export type PaymentStatus = "NotRequested" | "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
+export type PaymentMethod = "COD" | "VietQR";
+export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Confirmed" | "Failed" | "Cancelled" | "Refunded";
 
 export type OrderItemStatus =
   | "Pending"
@@ -23,6 +22,7 @@ export type CreateOrderRequest = {
   tableCode?: TableCode | null;
   qrToken?: string | null;
   tableSessionId?: string | null;
+  paymentMethod: PaymentMethod;
   items: CreateOrderItem[];
   promotionCode?: string | null;
   customerPhoneNumber?: string | null;
@@ -143,62 +143,6 @@ export type VietQrPaymentResponse = {
   paymentStatus: PaymentStatus;
 };
 
-export type PaymentRequestResponse = {
-  payment: PaymentResponse;
-  vietQr: VietQrPaymentResponse | null;
-};
-
-export type TableInvoiceLine = {
-  menuItemId: string;
-  name: string;
-  unitPrice: number;
-  quantity: number;
-  lineTotal: number;
-};
-
-export type TableInvoiceOrderRound = {
-  orderCode: string;
-  status: OrderStatus;
-  subtotalAmount: number;
-  createdAt: string;
-};
-
-export type TableInvoice = {
-  tableSessionId: string;
-  invoiceCode: string | null;
-  tableCode: TableCode | null;
-  status: PaymentStatus;
-  subtotalAmount: number;
-  discountAmount: number;
-  totalAmount: number;
-  promotionCode: string | null;
-  customerPhoneNumber: string | null;
-  method: PaymentMethod;
-  orderRounds: TableInvoiceOrderRound[];
-  items: TableInvoiceLine[];
-  vietQr: TableInvoiceVietQr | null;
-};
-
-export type TableInvoiceVietQr = {
-  invoiceCode: string;
-  amount: number;
-  transferContent: string;
-  quickLink: string;
-  qrImageDataUri: string;
-};
-
-export type TableInvoicePaymentRequest = {
-  method: RequestedPaymentMethod;
-  promotionCode?: string | null;
-  customerPhoneNumber?: string | null;
-};
-
-export type TableInvoicePaymentRequestResponse = {
-  invoice: TableInvoice;
-  payment: { paymentId: string; status: PaymentStatus; method: PaymentMethod; amount: number };
-  vietQr: TableInvoiceVietQr | null;
-};
-
 export type OrderCreatedRealtimeEvent = {
   event: "order.created";
   payload: {
@@ -233,53 +177,7 @@ export type OrderItemStatusChangedRealtimeEvent = {
   };
 };
 
-export type PaymentRequestedRealtimeEvent = {
-  event: "payment.requested";
-  payload: {
-    orderId: string;
-    orderCode: string;
-    method: RequestedPaymentMethod;
-    status: PaymentStatus;
-    updatedAt: string;
-  };
-};
-
-export type CartUpdatedRealtimeEvent = {
-  event: "cart.updated";
-  payload: {
-    tableSessionId: string;
-    tableCode: string | null;
-    itemCount: number;
-    subtotal: number;
-    updatedAt: string;
-  };
-};
-
-export type AssistanceRequestedRealtimeEvent = {
-  event: "assistance.requested";
-  payload: {
-    tableCode: string;
-    tableSessionId: string | null;
-    note: string | null;
-    requestedAt: string;
-  };
-};
-
-/** Backend event name: menu.availabilityChanged (not yet emitted by all deployments). */
-export type MenuAvailabilityChangedRealtimeEvent = {
-  event: "menu.availabilityChanged";
-  payload: {
-    menuItemId: string;
-    isAvailable: boolean;
-    updatedAt: string;
-  };
-};
-
 export type OrderRealtimeEvent =
   | OrderCreatedRealtimeEvent
   | OrderStatusChangedRealtimeEvent
-  | OrderItemStatusChangedRealtimeEvent
-  | PaymentRequestedRealtimeEvent
-  | CartUpdatedRealtimeEvent
-  | AssistanceRequestedRealtimeEvent
-  | MenuAvailabilityChangedRealtimeEvent;
+  | OrderItemStatusChangedRealtimeEvent;

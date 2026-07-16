@@ -237,10 +237,6 @@ Loi chinh: `CATEGORY_REQUIRED`, `CATEGORY_INVALID`, `MENU_ITEM_NAME_REQUIRED`, `
 
 ## 6. Table Va Table Session Contract
 
-### GET `/api/admin/tables`
-
-Auth: `AdminOnly`. Tra danh sach ban kem `qrToken` va `customerPath` de quan ly/in QR. Staff, Kitchen va anonymous khong duoc doc token.
-
 ### GET `/api/tables/{tableCode}`
 
 Auth: public.
@@ -257,7 +253,7 @@ Response:
 
 ### GET `/api/tables/qr/{qrToken}`
 
-Auth: public. Resolve QR token sang table active. Response chi tra `tableCode`, `displayName`; khong echo token/path.
+Auth: public. Resolve QR token sang table active.
 
 ### POST `/api/table-sessions`
 
@@ -268,9 +264,11 @@ Request:
 ```json
 {
   "tableCode": "T05",
-  "qrToken": "opaque-physical-qr-token"
+  "orderType": "DineIn"
 }
 ```
+
+`orderType` khac `DineIn` tra `400 ORDER_TYPE_INVALID`.
 
 Response:
 
@@ -281,20 +279,17 @@ Response:
   "orderType": "DineIn",
   "status": "Open",
   "openedAt": "2026-06-14T04:00:00Z",
-  "closedAt": null,
-  "tableSessionToken": "opaque-session-capability"
+  "closedAt": null
 }
 ```
 
-`tableSessionToken` chi tra khi mo session. Client luu theo session, khong dung chung giua cac ban.
-
 ### GET `/api/table-sessions/{sessionId}`
 
-Auth: public co capability. Bat buoc header `X-Table-Session-Token`.
+Auth: public. Lay session hien tai.
 
 ### POST `/api/table-sessions/{sessionId}/close`
 
-Auth: role `Staff` hoac `Admin`.
+Auth: public trong backend hien tai; UI van nen chi goi khi user ket thuc flow.
 
 Loi chinh: `TABLE_CODE_INVALID`, `TABLE_NOT_FOUND`, `ORDER_TYPE_INVALID`, `TABLE_SESSION_NOT_FOUND`, `TABLE_SESSION_CLOSED`.
 
@@ -304,16 +299,13 @@ Loi chinh: `TABLE_CODE_INVALID`, `TABLE_NOT_FOUND`, `ORDER_TYPE_INVALID`, `TABLE
 
 Auth: public. Tao don tu customer cart.
 
-Header bat buoc: `Idempotency-Key`. Retry cung key + cung payload tra lai don cu; doi payload tra `409 IDEMPOTENCY_KEY_REUSED`.
-
 Request:
 
 ```json
 {
   "orderType": "DineIn",
   "tableCode": "T05",
-  "qrToken": "opaque-physical-qr-token",
-  "tableSessionId": "ts_abc123",
+  "paymentMethod": "COD",
   "items": [
     { "menuItemId": "m_001", "quantity": 2 }
   ]
@@ -330,8 +322,7 @@ Response `201 Created`:
   "tableCode": "T05",
   "tableSessionId": "ts_abc123",
   "status": "Placed",
-  "paymentStatus": "NotRequested",
-  "paymentMethod": "Unselected",
+  "paymentStatus": "Unpaid",
   "items": [
     {
       "orderItemId": "oi_001",
@@ -347,7 +338,7 @@ Response `201 Created`:
 
 `customerAccessToken` chi tra ve tren response tao don. Client phai luu token va gui lai qua header `X-Order-Token` khi doc order/payment cua khach (xem muc 7-8). Mat token = khong con doc lai duoc don do.
 
-Loi chinh: `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_REUSED`, `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `ORDER_TYPE_INVALID`, `DINE_IN_TABLE_REQUIRED`, `TABLE_SESSION_EXPIRED`, `MENU_ITEM_NOT_FOUND`, `MENU_ITEM_UNAVAILABLE`.
+Loi chinh: `ORDER_ITEMS_REQUIRED`, `ORDER_ITEM_QUANTITY_INVALID`, `ORDER_TYPE_INVALID`, `PAYMENT_METHOD_INVALID`, `DINE_IN_TABLE_REQUIRED`, `MENU_ITEM_NOT_FOUND`, `MENU_ITEM_UNAVAILABLE`.
 
 ### GET `/api/orders/{orderCode}`
 
@@ -426,12 +417,6 @@ Request:
 { "status": "Ready" }
 ```
 
-Kitchen chi cap nhat trang thai tung mon, khong cap nhat truc tiep trang thai toan don. Backend tu dong tong hop trang thai order sau moi thay doi item:
-
-- Order `Confirmed` chuyen sang `Preparing` khi co mon bat dau `Preparing`, `Ready` hoac `Served`.
-- Order `Confirmed`/`Preparing` chuyen sang `Ready` khi tat ca mon khong bi huy da `Ready` hoac `Served`.
-- Moi thay doi tong hop duoc ghi vao `order_status_history` va phat realtime `order.statusChanged`.
-
 Loi chinh: `ORDER_NOT_FOUND`, `ORDER_STATUS_INVALID`, `ORDER_ITEM_NOT_FOUND`, `ORDER_ITEM_STATUS_INVALID`, `ORDER_CANCEL_NOT_ALLOWED`, `ORDER_COMPLETE_REQUIRES_PAYMENT`, `CONFLICT_STALE`.
 
 ## 8. Payment Contract
@@ -457,22 +442,25 @@ Response:
 }
 ```
 
-### POST `/api/orders/{orderCode}/payment/request`
+### POST `/api/orders/{orderCode}/payment/vietqr`
 
-Auth: customer capability `X-Order-Token`. Bat buoc `Idempotency-Key`.
-
-Request:
-
-```json
-{ "method": "COD" }
-```
-
-`method` la `COD` hoac `VietQR`. Payment chuyen `NotRequested` sang `Pending`. COD tra `vietQr: null`; VietQR tra QR payload.
+Auth: public co dieu kien (header `X-Order-Token` hoac role van hanh). Chi dung khi order payment method la `VietQR`.
 
 Response:
 
 ```json
-{ "payment": { "orderCode": "ORD-1001", "method": "COD", "status": "Pending" }, "vietQr": null }
+{
+  "orderCode": "ORD-1001",
+  "amount": 130000,
+  "transferContent": "CMC ORD-1001",
+  "bankId": "970436",
+  "accountNumber": "123456789",
+  "accountName": "CMC Restaurant",
+  "quickLink": "https://img.vietqr.io/...",
+  "qrPayload": "000201...",
+  "qrImageDataUri": "data:image/png;base64,...",
+  "paymentStatus": "Pending"
+}
 ```
 
 ### POST `/api/orders/{orderCode}/payment/confirm`
@@ -543,9 +531,6 @@ Event names:
 - `order.created`
 - `order.statusChanged`
 - `order.itemStatusChanged`
-- `payment.requested`
-
-Customer goi `WatchOrder(orderCode, orderToken)`. `WatchTable` chi cho Staff/Kitchen/Admin. JWT WebSocket chi doc query `access_token` tren `/hubs/orders`.
 
 ## 10. AI Chat Contract
 
@@ -564,7 +549,7 @@ Response `201 Created`:
 
 ### POST `/api/chat/sessions/{chatSessionId}/messages`
 
-Auth: public. Backend goi AI provider qua service rieng; frontend khong goi Google Gemini API truc tiep.
+Auth: public. Backend goi AI provider qua service rieng; frontend khong goi 9router/provider truc tiep.
 
 Request:
 
@@ -623,15 +608,11 @@ Loi chinh: `REQUEST_INVALID`, `CHAT_MESSAGE_EMPTY`, `CHAT_SESSION_NOT_FOUND`.
 CORS origins mac dinh:
 
 - `https://cmcrestaurant.app`
-- `https://order.cmcrestaurant.app`
 - `https://customer.cmcrestaurant.app`
 - `https://admin.cmcrestaurant.app`
 - `https://staging.cmcrestaurant.app`
-- `https://order-staging.cmcrestaurant.app`
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
-- `http://localhost:5177`
-- `http://127.0.0.1:5177`
 
 Production co the override bang `CORS_ALLOWED_ORIGINS`, ngan cach bang dau `;`.
 
@@ -640,18 +621,18 @@ Production co the override bang `CORS_ALLOWED_ORIGINS`, ngan cach bang dau `;`.
 ### Khuyen mai (Promotions)
 
 - `POST /api/promotions/validate` — cong khai. Body `{ code, subtotalAmount }`. Tra `{ code, name, type, subtotalAmount, discountAmount, totalAmount, isFlashSale }`. Ma khong hop le tra 400 (`PROMOTION_NOT_FOUND`, `PROMOTION_INACTIVE`, `PROMOTION_NOT_STARTED`, `PROMOTION_EXPIRED`, `PROMOTION_MIN_ORDER_NOT_MET`).
-- `GET/POST/PUT/DELETE /api/admin/promotions[/{id}]` — `AdminOnly`. `type` = `Percentage` | `FixedAmount`. Percentage lam tron va gioi han boi `maxDiscountAmount`; discount luon <= subtotal.
+- `GET/POST/PUT/DELETE /api/admin/promotions[/{id}]` — `StaffOrAdmin`. `type` = `Percentage` | `FixedAmount`. Percentage lam tron va gioi han boi `maxDiscountAmount`; discount luon <= subtotal.
 - `POST /api/orders` da nhan them `promotionCode?` va `customerPhoneNumber?`. Backend ap dung khuyen mai truoc khi tao don; ma sai lam ca request that bai (400). `OrderResponse` bo sung `discountAmount`, `promotionCode`; `totalAmount = subtotalAmount - discountAmount`.
 
 ### Tich diem (Loyalty)
 
 - `GET /api/loyalty/lookup?phone=` — cong khai. Tra `{ phoneNumber, points, lifetimeSpend, availableRewards[] }` (rewards dang active va du diem). SDT chuan hoa ve chi so.
-- `GET/POST/PUT/DELETE /api/admin/loyalty/members[/{id}]` va `.../rewards[/{id}]` — `AdminOnly`.
+- `GET/POST/PUT/DELETE /api/admin/loyalty/members[/{id}]` va `.../rewards[/{id}]` — `StaffOrAdmin`.
 - Khi xac nhan thanh toan (`payment/confirm`), he thong cong diem theo `1 diem / 10.000d` cho SDT cua don (`customerPhoneNumber` uu tien, sau do `pickupCustomerPhoneNumber`).
 
 ### Bao cao (Reports)
 
-- `GET /api/admin/reports/summary?from=&to=` — `AdminOnly`. Mac dinh 30 ngay gan nhat. Tra `{ from, to, totalOrders, paidOrders, grossRevenue, totalDiscount, netRevenue, topItems[], dailyRevenue[] }` tren cac don da `Paid`/`Confirmed`.
+- `GET /api/admin/reports/summary?from=&to=` — `StaffOrAdmin`. Mac dinh 30 ngay gan nhat. Tra `{ from, to, totalOrders, paidOrders, grossRevenue, totalDiscount, netRevenue, topItems[], dailyRevenue[] }` tren cac don da `Paid`/`Confirmed`.
 
 ## 12. Ma Loi Chinh
 

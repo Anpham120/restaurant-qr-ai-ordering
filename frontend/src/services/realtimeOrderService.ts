@@ -9,35 +9,20 @@ const realtimeListeners = new Set<RealtimeListener>();
 const connectionListeners = new Set<ConnectionListener>();
 let connectionStatus: RealtimeConnectionStatus = "disconnected";
 
-/**
- * SignalR event names supported by the order hub:
- * - order.created
- * - order.statusChanged
- * - order.itemStatusChanged
- * - payment.requested
- * - cart.updated
- * - assistance.requested
- * - menu.availabilityChanged (reserved; may not be emitted on all deployments)
- */
 const client = createOrderHubClient({
   accessTokenFactory: authStorage.token,
   handlers: {
     onOrderCreated: payload => notifyRealtimeListeners({ event: "order.created", payload }),
     onOrderStatusChanged: payload => notifyRealtimeListeners({ event: "order.statusChanged", payload }),
     onOrderItemStatusChanged: payload => notifyRealtimeListeners({ event: "order.itemStatusChanged", payload }),
-    onPaymentRequested: payload => notifyRealtimeListeners({ event: "payment.requested", payload }),
-    onCartUpdated: payload => notifyRealtimeListeners({ event: "cart.updated", payload }),
-    onAssistanceRequested: payload => notifyRealtimeListeners({ event: "assistance.requested", payload }),
-    onMenuAvailabilityChanged: payload => notifyRealtimeListeners({ event: "menu.availabilityChanged", payload }),
     onStatusChanged: setConnectionStatus,
   },
 });
 
 export async function connectOrderRealtime() { await client.connect(); }
 export async function disconnectOrderRealtime() { await client.disconnect(); }
-export async function watchOrderRealtime(orderCode: string, orderToken: string) { await client.watchOrder(orderCode, orderToken); }
+export async function watchOrderRealtime(orderCode: string, tableCode?: string | null) { await client.watchOrder(orderCode, tableCode); }
 export async function watchTableRealtime(tableCode: string) { await client.watchTable(tableCode); }
-export async function watchTableSessionRealtime(tableSessionId: string, sessionToken: string) { await client.watchTableSession(tableSessionId, sessionToken); }
 export function subscribeOrderRealtime(listener: RealtimeListener) { realtimeListeners.add(listener); return () => realtimeListeners.delete(listener); }
 export function subscribeRealtimeConnection(listener: ConnectionListener) { connectionListeners.add(listener); listener(connectionStatus); return () => connectionListeners.delete(listener); }
 

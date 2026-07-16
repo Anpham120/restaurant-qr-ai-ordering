@@ -17,13 +17,10 @@ required_vars=(
   API_SERVER_NAME
   PUBLIC_API_BASE_URL
   JWT_SIGNING_KEY
-  CORS_ALLOWED_ORIGINS
-  PAYMENTS__VIETQR__BANKID
-  PAYMENTS__VIETQR__ACCOUNTNUMBER
-  PAYMENTS__VIETQR__ACCOUNTNAME
   AI_SERVICE_URL
+  AI_BASE_URL
   AI_MODEL
-  GEMINI_API_KEY
+  AI_API_KEY
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -85,25 +82,23 @@ POSTGRES_PASSWORD=$(env_quote "$POSTGRES_PASSWORD")
 DB_MIN_POOL_SIZE=$(env_quote "${DB_MIN_POOL_SIZE:-2}")
 DB_MAX_POOL_SIZE=$(env_quote "${DB_MAX_POOL_SIZE:-50}")
 FRONTEND_SERVER_NAMES=$(env_quote "$FRONTEND_SERVER_NAMES")
-  API_SERVER_NAME=$(env_quote "$API_SERVER_NAME")
-  PUBLIC_API_BASE_URL=$(env_quote "$PUBLIC_API_BASE_URL")
-  PUBLIC_ORDER_HUB_URL=$(env_quote "${PUBLIC_ORDER_HUB_URL:-${PUBLIC_API_BASE_URL%/api}/hubs/orders}")
-  CORS_ALLOWED_ORIGINS=$(env_quote "$CORS_ALLOWED_ORIGINS")
-  ASPNETCORE_ENVIRONMENT=$(env_quote "${ASPNETCORE_ENVIRONMENT:-Production}")
-  JWT_SIGNING_KEY=$(env_quote "$JWT_SIGNING_KEY")
-  PAYMENTS__VIETQR__BANKID=$(env_quote "$PAYMENTS__VIETQR__BANKID")
-  PAYMENTS__VIETQR__ACCOUNTNUMBER=$(env_quote "$PAYMENTS__VIETQR__ACCOUNTNUMBER")
-  PAYMENTS__VIETQR__ACCOUNTNAME=$(env_quote "$PAYMENTS__VIETQR__ACCOUNTNAME")
-  PAYMENTS__VIETQR__TEMPLATE=$(env_quote "${PAYMENTS__VIETQR__TEMPLATE:-compact2}")
-RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-false}")
-AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
+API_SERVER_NAME=$(env_quote "$API_SERVER_NAME")
+PUBLIC_API_BASE_URL=$(env_quote "$PUBLIC_API_BASE_URL")
+PUBLIC_ORDER_HUB_URL=$(env_quote "${PUBLIC_ORDER_HUB_URL:-${PUBLIC_API_BASE_URL%/api}/hubs/orders}")
+ASPNETCORE_ENVIRONMENT=$(env_quote "${ASPNETCORE_ENVIRONMENT:-Production}")
+JWT_SIGNING_KEY=$(env_quote "$JWT_SIGNING_KEY")
+RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-true}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
-AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-gemini}")
-GEMINI_API_KEY=$(env_quote "$GEMINI_API_KEY")
+AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-9router}")
+AI_BASE_URL=$(env_quote "$AI_BASE_URL")
+AI_API_KEY=$(env_quote "$AI_API_KEY")
 AI_MODEL=$(env_quote "$AI_MODEL")
-AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
-AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
+AI_BACKEND_TIMEOUT_SECONDS=$(env_quote "${AI_BACKEND_TIMEOUT_SECONDS:-8}")
+AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-7}")
+AI_MAX_OUTPUT_TOKENS=$(env_quote "${AI_MAX_OUTPUT_TOKENS:-220}")
+AI_POLICIES_PATH=$(env_quote "${AI_POLICIES_PATH:-data/policies.json}")
+RAG_PRODUCTION_CONFIG_PATH=$(env_quote "${RAG_PRODUCTION_CONFIG_PATH:-research/artifacts/production_config.json}")
 RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")
 VITE_USE_MOCK_CHAT=$(env_quote "${VITE_USE_MOCK_CHAT:-false}")
 VITE_USE_MOCK_ORDER=$(env_quote "${VITE_USE_MOCK_ORDER:-false}")
@@ -124,8 +119,6 @@ EOF
   tar -xzf release.tgz -C repo && \
   rm -f release.tgz && \
   set -a && . ./.env && set +a && \
-  docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' up -d --build postgres && \
-  docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' --profile migrate run --rm --build migrate && \
   docker compose --env-file .env -f repo/deploy/docker-compose.yml -p '${COMPOSE_PROJECT_NAME}' up -d --build --remove-orphans && \
   bash repo/deploy/scripts/backup-postgres.sh pre-health-check && \
   bash repo/deploy/scripts/write-nginx-config.sh && \

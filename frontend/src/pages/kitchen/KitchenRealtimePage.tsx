@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Order, RealtimeConnectionStatus } from "@cmc/shared-types";
+import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
-import {
-  getKitchenBoardColumn,
-  isKitchenActiveOrderStatus,
-} from "../../components/kitchen/kitchenOrderPipeline";
 import {
   connectOrderRealtime,
   disconnectOrderRealtime,
@@ -14,10 +10,11 @@ import {
 } from "../../services/realtimeOrderService";
 import { getKitchenOrders } from "../../services/orderService";
 import { fetchKitchenMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
-import { ChefHat, RefreshCw, UtensilsCrossed } from "lucide-react";
 import "../../components/operations/operations.css";
 
 type MenuItemSummary = { id: string; name: string; isAvailable: boolean };
+
+const KITCHEN_STATUSES: OrderStatus[] = ["Confirmed", "Preparing", "Ready"];
 
 export function KitchenRealtimePage() {
   const [searchParams] = useSearchParams();
@@ -31,17 +28,14 @@ export function KitchenRealtimePage() {
 
   // Filter orders relevant to kitchen
   const kitchenOrders = useMemo(
-    () => orders.filter((o) => isKitchenActiveOrderStatus(o.status)),
+    () => orders.filter((o) => KITCHEN_STATUSES.includes(o.status)),
     [orders],
   );
 
   const stats = useMemo(() => {
-    const confirmed = kitchenOrders.filter(
-      (o) => getKitchenBoardColumn(o.status) === "confirmed",
-    ).length;
+    const confirmed = kitchenOrders.filter((o) => o.status === "Confirmed").length;
     const preparing = kitchenOrders.filter((o) => o.status === "Preparing").length;
     const ready = kitchenOrders.filter((o) => o.status === "Ready").length;
-    const served = kitchenOrders.filter((o) => o.status === "Served").length;
     const totalItems = kitchenOrders.reduce(
       (sum, o) => sum + o.items.filter((i) => i.status !== "Cancelled").length,
       0,
@@ -49,8 +43,7 @@ export function KitchenRealtimePage() {
     return [
       { label: "Đơn chờ nấu", value: String(confirmed), detail: "Confirmed" },
       { label: "Đang nấu", value: String(preparing), detail: "Preparing" },
-      { label: "Sẵn sàng", value: String(ready), detail: "Chờ mang ra" },
-      { label: "Đã phục vụ", value: String(served), detail: "Đã giao tại bàn" },
+      { label: "Sẵn sàng", value: String(ready), detail: "Chờ Staff mang ra" },
       { label: "Tổng món", value: String(totalItems), detail: "Trong pipeline" },
     ];
   }, [kitchenOrders]);
@@ -95,7 +88,7 @@ export function KitchenRealtimePage() {
   useEffect(() => {
     const unsubConnection = subscribeRealtimeConnection(setConnectionStatus);
     const unsubRealtime = subscribeOrderRealtime(() => {
-      // Any order event refreshes the entire list.
+      // Any order event → refresh entire list
       loadOrders();
     });
 
@@ -107,12 +100,6 @@ export function KitchenRealtimePage() {
       void disconnectOrderRealtime();
     };
   }, [loadOrders]);
-
-  useEffect(() => {
-    if (connectionStatus === "connected") return;
-    const interval = window.setInterval(() => void loadOrders(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [connectionStatus, loadOrders]);
 
   // Toggle dish availability
   async function handleToggleAvailability(itemId: string, currentlyAvailable: boolean) {
@@ -132,7 +119,7 @@ export function KitchenRealtimePage() {
   if (isLoading) {
     return (
       <div className="ops-empty">
-        <div className="ops-empty-icon"><ChefHat aria-hidden="true" /></div>
+        <div className="ops-empty-icon">🍳</div>
         Đang tải bảng bếp...
       </div>
     );
@@ -155,14 +142,14 @@ export function KitchenRealtimePage() {
                   connectionStatus === "reconnecting" ? "Đang kết nối lại..." : "Mất kết nối"}
             </span>
             <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">
-              <RefreshCw aria-hidden="true" size={14} /> Làm mới
+              🔄 Làm mới
             </button>
             <button
               className="ops-btn ops-btn--ghost ops-btn--sm"
               onClick={() => { setShowMenuPanel(!showMenuPanel); if (!showMenuPanel) loadMenu(); }}
               type="button"
             >
-              <UtensilsCrossed aria-hidden="true" size={14} /> Tắt/Mở món {unavailableCount > 0 ? `(${unavailableCount} hết)` : ""}
+              🍽 Tắt/Mở món {unavailableCount > 0 ? `(${unavailableCount} hết)` : ""}
             </button>
           </div>
         </div>

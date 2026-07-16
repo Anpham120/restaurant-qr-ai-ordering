@@ -1,11 +1,7 @@
-import { useI18n } from "@cmc/i18n";
-
-export type MenuCategoryOption = { id: string; label: string };
-
 type MenuCategoryTabsProps = {
-  categories: MenuCategoryOption[];
+  categories: string[];
   selectedCategory: string;
-  onSelectCategory: (categoryId: string) => void;
+  onSelectCategory: (categoryName: string) => void;
 };
 
 export function MenuCategoryTabs({
@@ -13,17 +9,16 @@ export function MenuCategoryTabs({
   selectedCategory,
   onSelectCategory,
 }: MenuCategoryTabsProps) {
-  const { t } = useI18n();
   return (
-    <div className="cmc-category-tabs" aria-label={t("Danh mục thực đơn")}>
+    <div className="cmc-category-tabs" aria-label="Danh mục thực đơn">
       {categories.map((category) => (
         <button
-          className={category.id === selectedCategory ? "cmc-chip active" : "cmc-chip"}
-          key={category.id}
-          onClick={() => onSelectCategory(category.id)}
+          className={category === selectedCategory ? "cmc-chip active" : "cmc-chip"}
+          key={category}
+          onClick={() => onSelectCategory(category)}
           type="button"
         >
-          {category.label}
+          {category}
         </button>
       ))}
     </div>
