@@ -85,6 +85,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 - V60: ∀ Kitchen card → one explicit action advances exactly one lane `confirmed→preparing→ready→served`; legacy aggregate/item drift repaired before use so zero-item no-op cannot strand card in an earlier lane.
 - V61: Kitchen desktop card supports drag/drop only to its immediate next lane; invalid/backward/skip drops never mutate state; Served remains read-only; visible button + keyboard detail flow remain available.
 
+- V62: ∀ AI guardrail config fixture → current `AiServiceConfig` constructor fields; timeout alias read-only.
+
 ## §T
 
 id|status|task|cites
@@ -212,3 +214,4 @@ B77|2026-07-15|`Placed` omitted from item-status aggregation + board `auto-fit m
 B78|2026-07-15|legacy order remained `Placed` while every item was `Ready`; confirmed action selected 0 Pending items and preparing cards had no bulk Ready action|V60
 B79|2026-07-15|EF migration-script verification omitted required design-time `EF_CONNECTION_STRING`|V57
 B80|2026-07-15|desktop shell PATH omitted required `rtk` wrapper while context runtime provided it|V57
+B81|2026-07-17|AI guardrail fixtures passed removed `timeout_seconds` constructor keyword|V62
