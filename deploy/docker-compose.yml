@@ -19,8 +19,8 @@ x-api-environment: &api-environment
   Payments__VietQr__Template: ${PAYMENTS__VIETQR__TEMPLATE:-compact2}
   AI_PROVIDER: ${AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
-  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-15}
-  AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
+  BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-12}
+  AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
 
 services:
   postgres:
@@ -52,7 +52,7 @@ services:
       postgres:
         condition: service_healthy
       ai-service:
-        condition: service_started
+        condition: service_healthy
     network_mode: host
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${BACKEND_PORT:-5000}/api/health >/dev/null || exit 1"]
@@ -87,16 +87,21 @@ services:
       AI_PROVIDER: ${AI_LLM_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gemini-3.5-flash}
-      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
-      AI_MAX_RETRY: ${AI_MAX_RETRY:-1}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-8}
+      AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-10}
+      AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-700}
+      AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-low}
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
       RAG_KNOWLEDGE_BASE_PATH: ${RAG_KNOWLEDGE_BASE_PATH:-knowledge-base}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_RETRIEVAL_METHOD: ${RAG_RETRIEVAL_METHOD:-hybrid}
       AI_SERVICE_HOST: ${AI_SERVICE_HOST:-127.0.0.1}
       AI_SERVICE_PORT: ${AI_SERVICE_PORT:-8001}
+    mem_limit: 3g
     network_mode: host
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:${AI_SERVICE_PORT:-8001}/health', timeout=3)\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:${AI_SERVICE_PORT:-8001}/ready', timeout=3); exit(0 if b'ready' in r.read() else 1)\""]
       interval: 30s
       timeout: 10s
       retries: 5

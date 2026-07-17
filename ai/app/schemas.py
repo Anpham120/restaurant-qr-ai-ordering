@@ -77,3 +77,4 @@ class ChatResponse(BaseModel):
     suggested_cart_actions: list[SuggestedCartAction] = Field(default_factory=list)
     follow_up: FollowUp = Field(default_factory=FollowUp)
     suggest_staff_handoff: bool = False
+    latency_ms: dict[str, float | str] = Field(default_factory=dict)

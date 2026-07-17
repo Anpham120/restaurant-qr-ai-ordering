@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -47,8 +49,12 @@ class GeminiClient:
         api_key: str,
         model: str,
         timeout_seconds: float,
-        max_retry: int = 1,
+        max_retry: int = 0,
         retry_delay_seconds: float = 0.5,
+        *,
+        http_client: httpx.AsyncClient | None = None,
+        max_tokens: int = 700,
+        reasoning_effort: str = "low",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
@@ -57,14 +63,25 @@ class GeminiClient:
         self._timeout_seconds = timeout_seconds
         self._max_retry = max(0, max_retry)
         self._retry_delay_seconds = max(0, retry_delay_seconds)
-        self._transport = transport
+        self._max_tokens = max(64, max_tokens)
+        self._reasoning_effort = reasoning_effort.strip() or "low"
+        if http_client is not None:
+            self._http_client = http_client
+            self._owns_client = False
+        elif transport is not None:
+            self._http_client = httpx.AsyncClient(timeout=timeout_seconds, transport=transport)
+            self._owns_client = True
+        else:
+            self._http_client = None
+            self._owns_client = False
 
-    async def complete(self, messages: list[dict[str, str]]) -> str | None:
-        payload = {
+    def _build_payload(self, messages: list[dict[str, str]], *, stream: bool) -> dict:
+        return {
             "model": self._model,
-            "stream": False,
+            "stream": stream,
             "temperature": 0.2,
-            "reasoning_effort": "low",
+            "max_tokens": self._max_tokens,
+            "reasoning_effort": self._reasoning_effort,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -75,22 +92,39 @@ class GeminiClient:
             },
             "messages": messages,
         }
+
+    async def _request_client(self) -> tuple[httpx.AsyncClient, bool]:
+        if self._http_client is not None:
+            return self._http_client, self._owns_client
+        client = httpx.AsyncClient(timeout=self._timeout_seconds)
+        return client, True
+
+    async def complete(self, messages: list[dict[str, str]]) -> str | None:
+        payload = self._build_payload(messages, stream=False)
         headers = {"Authorization": f"Bearer {self._api_key}"}
-        async with httpx.AsyncClient(
-            timeout=self._timeout_seconds,
-            transport=self._transport,
-        ) as client:
+        client, owns_client = await self._request_client()
+        try:
             for attempt in range(self._max_retry + 1):
-                response = await client.post(
-                    f"{self._base_url}/chat/completions",
-                    json=payload,
-                    headers=headers,
-                )
+                try:
+                    response = await client.post(
+                        f"{self._base_url}/chat/completions",
+                        json=payload,
+                        headers=headers,
+                    )
+                except (httpx.TimeoutException, httpx.ConnectError):
+                    if attempt == self._max_retry:
+                        raise
+                    await asyncio.sleep(self._retry_delay_seconds * (2**attempt))
+                    continue
+
                 if response.status_code not in RETRYABLE_STATUS_CODES or attempt == self._max_retry:
                     response.raise_for_status()
                     data = response.json()
                     break
                 await asyncio.sleep(self._retry_delay_seconds * (2**attempt))
+        finally:
+            if owns_client:
+                await client.aclose()
 
         choices = data.get("choices") or []
         if not choices:
@@ -104,34 +138,13 @@ class GeminiClient:
     async def complete_stream(
         self,
         messages: list[dict[str, str]],
-    ) -> "AsyncIterator[str]":
-        """Stream completion tokens via SSE.
+    ) -> AsyncIterator[str]:
+        """Stream completion token deltas via SSE."""
 
-        Yields content delta strings as they arrive.
-        Useful for reducing perceived latency on the frontend.
-        Note: When using json_schema response_format, some providers
-        may not support streaming; falls back to single-shot in that case.
-        """
-        payload = {
-            "model": self._model,
-            "stream": True,
-            "temperature": 0.2,
-            "reasoning_effort": "low",
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "restaurant_chat_response",
-                    "strict": True,
-                    "schema": RESTAURANT_CHAT_SCHEMA,
-                },
-            },
-            "messages": messages,
-        }
+        payload = self._build_payload(messages, stream=True)
         headers = {"Authorization": f"Bearer {self._api_key}"}
-        async with httpx.AsyncClient(
-            timeout=self._timeout_seconds,
-            transport=self._transport,
-        ) as client:
+        client, owns_client = await self._request_client()
+        try:
             async with client.stream(
                 "POST",
                 f"{self._base_url}/chat/completions",
@@ -146,9 +159,7 @@ class GeminiClient:
                     if data_str == "[DONE]":
                         break
                     try:
-                        import json as _json
-
-                        chunk = _json.loads(data_str)
+                        chunk = json.loads(data_str)
                         delta = (
                             chunk.get("choices", [{}])[0]
                             .get("delta", {})
@@ -158,3 +169,6 @@ class GeminiClient:
                             yield delta
                     except (ValueError, IndexError, KeyError):
                         continue
+        finally:
+            if owns_client:
+                await client.aclose()
