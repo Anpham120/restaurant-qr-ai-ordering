@@ -13,6 +13,7 @@ from app.config import AiServiceConfig
 from app.rag.budget_solver import solve_budget
 from app.rag.confidence import compute_retrieval_confidence
 from app.rag.constraint_extractor import extract_constraints, has_soft_criteria
+from app.rag.content_grounding import ground_response_content
 from app.rag.conversation_policy import (
     build_conversation_policy,
     enforce_suggestion_policy,
@@ -183,27 +184,7 @@ class AiAssistantService:
             yield {"type": "done", "data": {"ok": True}}
             return
 
-        messages = build_messages(
-            message,
-            context["chunks"],
-            context["candidate_menu_items"],
-            context["history"],
-            table_code=payload.get("table_code"),
-            session_memory=context["session_memory"],
-            max_suggestions=context["max_suggestions"],
-            requested_count=context["requested_count"],
-            excluded_menu_item_ids=context["excluded_ids"],
-            facts=context["facts"],
-            cart_items=context["cart_items"],
-            orders=context["orders"],
-            promotions=context["promotions"],
-            local_time=context["local_time"],
-            meal_period=context["meal_period"],
-            budget_picks=context["budget_picks"],
-            language=str(context["constraints"].get("language") or "vi"),
-            rolling_summary=context["rolling_summary"],
-            rag_top_k=context["rag_top_k"],
-        )
+        messages = _build_llm_messages(message, context, payload)
 
         accumulated = ""
         last_content = ""
@@ -274,58 +255,18 @@ class AiAssistantService:
             llm_started = time.perf_counter()
             try:
                 async with asyncio.timeout(self._config.llm_timeout_seconds):
-                    raw_answer = await self._client.complete(
-                        build_messages(
-                            message,
-                            context["chunks"],
-                            context["candidate_menu_items"],
-                            context["history"],
-                            table_code=payload.get("table_code"),
-                            session_memory=context["session_memory"],
-                            max_suggestions=context["max_suggestions"],
-                            requested_count=context["requested_count"],
-                            excluded_menu_item_ids=context["excluded_ids"],
-                            facts=context["facts"],
-                            cart_items=context["cart_items"],
-                            orders=context["orders"],
-                            promotions=context["promotions"],
-                            local_time=context["local_time"],
-                            meal_period=context["meal_period"],
-                            budget_picks=context["budget_picks"],
-                            language=str(context["constraints"].get("language") or "vi"),
-                            rolling_summary=context["rolling_summary"],
-                            rag_top_k=context["rag_top_k"],
-                        )
-                    )
+                    raw_answer = await self._client.complete(_build_llm_messages(message, context, payload))
                 stages["llm"] = round((time.perf_counter() - llm_started) * 1000, 1)
                 parsed = parse_model_response(
                     raw_answer,
-                    context["candidate_menu_items"],
+                    context["available_menu_items"],
                     excluded_menu_item_ids=context["excluded_ids"],
                     max_actions=context["max_suggestions"],
                 )
                 if parsed is None:
                     flags = _dedupe([*flags, "AI_OUTPUT_SCHEMA_INVALID"])
                 else:
-                    answer = parsed.content
-                    suggested_actions = enforce_suggestion_policy(
-                        parsed.suggested_cart_actions,
-                        context["candidate_menu_items"],
-                        context["policy"],
-                    )
-                    if (
-                        context["budget_picks"]
-                        and context["constraints"].get("budget_vnd")
-                        and not suggested_actions
-                    ):
-                        suggested_actions = enforce_suggestion_policy(
-                            context["budget_picks"],
-                            context["candidate_menu_items"],
-                            context["policy"],
-                        )
-                    flags = _dedupe([*flags, *parsed.guardrail_flags])
-                    if suggested_actions:
-                        flags = _dedupe([*flags, "CUSTOMER_CONFIRMATION_REQUIRED"])
+                    answer, suggested_actions, flags = _apply_parsed_response(parsed, context, flags)
                     provider_available = True
             except TimeoutError:
                 stages["llm"] = round((time.perf_counter() - llm_started) * 1000, 1)
@@ -401,6 +342,13 @@ class AiAssistantService:
         )
         excluded_ids = policy.excluded_menu_item_ids | payload_excluded
         exclusion_list = sorted(excluded_ids)
+        available_menu_items = [
+            item
+            for item in menu_items
+            if bool(item.get("is_available", True))
+            and _item_id(item)
+            and _item_id(item) not in excluded_ids
+        ]
 
         menu_started = time.perf_counter()
         candidate_menu_items = self._menu_retriever.select(
@@ -477,8 +425,10 @@ class AiAssistantService:
             "menu_version": menu_version,
             "constraints": constraints,
             "policy": policy,
+            "wants_recommendations": policy.wants_recommendations,
             "excluded_ids": excluded_ids,
             "exclusion_list": exclusion_list,
+            "available_menu_items": available_menu_items,
             "candidate_menu_items": candidate_menu_items,
             "retrieved": retrieved,
             "chunks": chunks,
@@ -517,28 +467,14 @@ def _finalize_llm_response(
     if raw_answer:
         parsed = parse_model_response(
             raw_answer,
-            context["candidate_menu_items"],
+            context["available_menu_items"],
             excluded_menu_item_ids=context["excluded_ids"],
             max_actions=context["max_suggestions"],
         )
         if parsed is None:
             flags = _dedupe([*flags, "AI_OUTPUT_SCHEMA_INVALID"])
         else:
-            answer = parsed.content
-            suggested_actions = enforce_suggestion_policy(
-                parsed.suggested_cart_actions,
-                context["candidate_menu_items"],
-                context["policy"],
-            )
-            if context["budget_picks"] and context["constraints"].get("budget_vnd") and not suggested_actions:
-                suggested_actions = enforce_suggestion_policy(
-                    context["budget_picks"],
-                    context["candidate_menu_items"],
-                    context["policy"],
-                )
-            flags = _dedupe([*flags, *parsed.guardrail_flags])
-            if suggested_actions:
-                flags = _dedupe([*flags, "CUSTOMER_CONFIRMATION_REQUIRED"])
+            answer, suggested_actions, flags = _apply_parsed_response(parsed, context, flags)
             provider_available = True
 
     if not answer:
@@ -574,6 +510,70 @@ def _finalize_llm_response(
             cacheable=context["cacheable"],
         )
     return response
+
+
+def _build_llm_messages(message: str, context: dict[str, Any], payload: dict) -> list[dict[str, str]]:
+    return build_messages(
+        message,
+        context["chunks"],
+        context["candidate_menu_items"],
+        context["history"],
+        table_code=payload.get("table_code"),
+        session_memory=context["session_memory"],
+        max_suggestions=context["max_suggestions"],
+        requested_count=context["requested_count"],
+        excluded_menu_item_ids=context["excluded_ids"],
+        catalog_menu_items=context["available_menu_items"],
+        facts=context["facts"],
+        cart_items=context["cart_items"],
+        orders=context["orders"],
+        promotions=context["promotions"],
+        local_time=context["local_time"],
+        meal_period=context["meal_period"],
+        budget_picks=context["budget_picks"],
+        language=str(context["constraints"].get("language") or "vi"),
+        rolling_summary=context["rolling_summary"],
+        rag_top_k=context["rag_top_k"],
+    )
+
+
+def _apply_parsed_response(
+    parsed,
+    context: dict[str, Any],
+    flags: list[str],
+) -> tuple[str, list[dict], list[str]]:
+    suggested_actions = enforce_suggestion_policy(
+        parsed.suggested_cart_actions,
+        context["candidate_menu_items"],
+        context["policy"],
+    )
+    if (
+        context["budget_picks"]
+        and context["constraints"].get("budget_vnd")
+        and not suggested_actions
+    ):
+        suggested_actions = enforce_suggestion_policy(
+            context["budget_picks"],
+            context["candidate_menu_items"],
+            context["policy"],
+        )
+    if context["policy"].wants_recommendations and not suggested_actions:
+        suggested_actions = enforce_suggestion_policy(
+            [],
+            context["candidate_menu_items"],
+            context["policy"],
+        )
+
+    content, grounding_flags, suggested_actions = ground_response_content(
+        parsed.content,
+        suggested_actions,
+        context["available_menu_items"],
+        wants_recommendations=context["policy"].wants_recommendations,
+    )
+    merged_flags = _dedupe([*flags, *parsed.guardrail_flags, *grounding_flags])
+    if suggested_actions:
+        merged_flags = _dedupe([*merged_flags, "CUSTOMER_CONFIRMATION_REQUIRED"])
+    return content, suggested_actions, merged_flags
 
 
 def _build_response_from_parts(

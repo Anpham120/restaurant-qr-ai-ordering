@@ -87,6 +87,8 @@ Refactor repo: cấu trúc rõ, code live, logic state đúng, build/test/deploy
 
 - V62: ∀ AI guardrail config fixture → current `AiServiceConfig` constructor fields; timeout alias read-only.
 
+- V63: ∀ AI service import used by guardrail tests → tracked repository module exists in CI checkout.
+
 ## §T
 
 id|status|task|cites
@@ -215,3 +217,4 @@ B78|2026-07-15|legacy order remained `Placed` while every item was `Ready`; conf
 B79|2026-07-15|EF migration-script verification omitted required design-time `EF_CONNECTION_STRING`|V57
 B80|2026-07-15|desktop shell PATH omitted required `rtk` wrapper while context runtime provided it|V57
 B81|2026-07-17|AI guardrail fixtures passed removed `timeout_seconds` constructor keyword|V62
+B82|2026-07-17|AI response files imported untracked `content_grounding` module, absent in CI checkout|V63
