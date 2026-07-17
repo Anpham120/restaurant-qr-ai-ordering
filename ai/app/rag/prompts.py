@@ -62,10 +62,11 @@ def build_messages(
     budget_picks: list[dict[str, Any]] | None = None,
     language: str = "vi",
     rolling_summary: str = "",
+    rag_top_k: int = 5,
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
-        for index, chunk in enumerate(context_chunks, start=1)
+        for index, chunk in enumerate(context_chunks[: max(1, rag_top_k)], start=1)
     )
     menu_text = "\n".join(_format_menu_item(item) for item in menu_items[:8])
     recent_history = [

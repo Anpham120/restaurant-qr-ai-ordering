@@ -28,6 +28,7 @@ def build_retriever_stack(
     method: str,
     *,
     encoder: EmbeddingEncoder | None = None,
+    vector_cache: dict[str, tuple[tuple[float, ...], str]] | None = None,
 ) -> RetrieverStack:
     """Build one retrieval stack and expose its encoder for live-menu reuse."""
 
@@ -40,7 +41,7 @@ def build_retriever_stack(
         return RetrieverStack(lexical, normalized_method, None)
 
     resolved_encoder = encoder or SentenceTransformerE5Encoder()
-    dense = DenseRetriever(chunks, resolved_encoder)
+    dense = DenseRetriever(chunks, resolved_encoder, vector_cache=vector_cache)
     if normalized_method == "dense":
         return RetrieverStack(dense, normalized_method, resolved_encoder)
 
