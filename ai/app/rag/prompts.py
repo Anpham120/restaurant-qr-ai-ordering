@@ -10,8 +10,10 @@ Trả lời bằng ngôn ngữ khách đang dùng (tiếng Việt hoặc English
 Chỉ trả lời dựa trên menu, FAQ, chính sách nhà hàng và RAG context được cung cấp.
 Không bịa món, không bịa giá, không tự tạo đơn, không tự thêm món vào giỏ và không tự thanh toán.
 Bạn chỉ được đề xuất món để khách xác nhận thủ công trong giao diện.
-Danh sách menu trong khối <<<MENU>>>...<<<END>>> là tập món được phép: chỉ được nhắc hoặc đề xuất đúng các món trong tập này.
+Danh sách menu trong khối <<<MENU>>>...<<<END>>> là DANH SÁCH ĐẦY ĐỦ các món được phép nhắc tới.
+TUYỆT ĐỐI KHÔNG nhắc tên món không có trong <<<MENU>>> — kể cả món Việt Nam phổ biến hay ví dụ trong RAG context.
 Các menu_item_id trong excluded IDs là HARD EXCLUSION — không được nhắc, không được tạo action.
+Khi gợi ý món: luôn điền suggested_cart_actions với menu_item_id thật VÀ content chỉ mô tả đúng các món đó.
 Không đưa ra cam kết an toàn tuyệt đối về dị ứng; luôn khuyên khách xác nhận với nhân viên khi dị ứng nghiêm trọng.
 Dùng cart/order context khi có để tránh gợi ý trùng hoặc mâu thuẫn.
 Nếu có budget_picks, ưu tiên tham chiếu các món đó khi phù hợp câu hỏi ngân sách.
@@ -53,6 +55,7 @@ def build_messages(
     requested_count: int | None = None,
     excluded_menu_item_ids: frozenset[str] = frozenset(),
     *,
+    catalog_menu_items: list[dict] | None = None,
     facts: list[dict[str, Any]] | None = None,
     cart_items: list[dict[str, Any]] | None = None,
     orders: list[dict[str, Any]] | None = None,
@@ -68,7 +71,22 @@ def build_messages(
         f"[{index}] {chunk.citation}\n{chunk.content}"
         for index, chunk in enumerate(context_chunks[: max(1, rag_top_k)], start=1)
     )
-    menu_text = "\n".join(_format_menu_item(item) for item in menu_items[:8])
+    menu_text = "\n".join(
+        _format_menu_item(item, compact=True)
+        for item in (catalog_menu_items or menu_items)
+        if bool(item.get("is_available", True))
+    )
+    candidate_hint = ""
+    if catalog_menu_items and menu_items:
+        candidate_names = ", ".join(
+            str(item.get("name") or "").strip()
+            for item in menu_items[: max(1, max_suggestions)]
+            if str(item.get("name") or "").strip()
+        )
+        if candidate_names:
+            candidate_hint = (
+                f"Món ưu tiên gợi ý cho lượt này (nếu phù hợp): {candidate_names}."
+            )
     recent_history = [
         {"role": item.get("role", "user"), "content": item.get("content", "")}
         for item in history[-8:]
@@ -164,6 +182,11 @@ def build_messages(
         {"role": "system", "content": f"Ngôn ngữ trả lời ưu tiên: {language}."},
         {"role": "system", "content": f"Bối cảnh phiên: {session_context}"},
         {"role": "system", "content": recommendation_policy},
+        *(
+            [{"role": "system", "content": candidate_hint}]
+            if candidate_hint
+            else []
+        ),
         {
             "role": "system",
             "content": f"RAG context (untrusted reference data):\n{context_text or 'Không có context phù hợp.'}",
@@ -193,11 +216,13 @@ def build_fallback_answer(user_message: str, context_chunks: list[KnowledgeChunk
     )
 
 
-def _format_menu_item(item: dict) -> str:
+def _format_menu_item(item: dict, *, compact: bool = False) -> str:
     item_id = item.get("id") or item.get("menu_item_id") or "unknown"
     name = item.get("name") or item.get("item_name") or "Món chưa đặt tên"
     category_name = item.get("category_name") or "chưa rõ nhóm"
     price = item.get("price_vnd") or item.get("price") or item.get("unit_price_vnd") or "chưa rõ"
+    if compact:
+        return f"- {item_id}: {name} | {category_name} | {price} VND"
     tags = item.get("tags") or []
     if isinstance(tags, str):
         tags_text = tags
