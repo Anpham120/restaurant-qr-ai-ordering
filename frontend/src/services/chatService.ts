@@ -76,6 +76,95 @@ export const chatApi = {
     );
   },
 
+  async sendMessageStream(
+    chatSessionId: string,
+    request: SendChatMessageRequest,
+    accessToken: string,
+    handlers: {
+      onToken: (text: string) => void;
+      onFinal: (response: SendChatMessageResponse) => void;
+      onError?: (error: Error) => void;
+    },
+  ): Promise<boolean> {
+    const response = await fetch(
+      `${getApiBaseUrl()}/chat/sessions/${encodeURIComponent(chatSessionId)}/messages/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Chat-Session-Token": accessToken,
+        },
+        body: JSON.stringify(request),
+      },
+    );
+
+    if (!response.ok) {
+      let errorBody: ChatApiErrorBody | null = null;
+      try {
+        errorBody = await response.json() as ChatApiErrorBody;
+      } catch {
+        errorBody = null;
+      }
+
+      throw new ChatApiError(
+        response.status,
+        errorBody?.error?.code ?? `HTTP_${response.status}`,
+        errorBody?.error?.message ?? "Không thể kết nối tới dịch vụ tư vấn.",
+      );
+    }
+
+    if (!response.body) {
+      throw new ChatApiError(500, "STREAM_UNAVAILABLE", "Streaming body is unavailable.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    let receivedFinal = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+
+      for (const rawEvent of events) {
+        const lines = rawEvent.split("\n");
+        let eventName = "";
+        let dataLine = "";
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventName = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            dataLine = line.slice(6);
+          }
+        }
+
+        if (!eventName || !dataLine) {
+          continue;
+        }
+
+        const payload = JSON.parse(dataLine) as Record<string, unknown>;
+        if (eventName === "token" && typeof payload.text === "string") {
+          handlers.onToken(payload.text);
+        } else if (eventName === "final") {
+          receivedFinal = true;
+          handlers.onFinal(payload as SendChatMessageResponse);
+        } else if (eventName === "done" && handlers.onError && !payload.ok) {
+          handlers.onError(new Error("Stream ended unexpectedly."));
+        }
+      }
+    }
+
+    return receivedFinal;
+  },
+
   async getHistory(chatSessionId: string, accessToken: string): Promise<ChatHistoryResponse> {
     return requestJson<ChatHistoryResponse>(
       `/chat/sessions/${encodeURIComponent(chatSessionId)}/messages`,

@@ -30,6 +30,7 @@ class MenuCandidateRetriever:
         self._signature: tuple | None = None
         self._retriever: Retriever | None = None
         self._items_by_id: dict[str, dict] = {}
+        self._vector_cache: dict[str, tuple[tuple[float, ...], str]] = {}
 
     def select(
         self,
@@ -73,7 +74,12 @@ class MenuCandidateRetriever:
             return
 
         chunks = [_menu_chunk(item) for item in available]
-        stack = build_retriever_stack(chunks, self._method, encoder=self._encoder)
+        stack = build_retriever_stack(
+            chunks,
+            self._method,
+            encoder=self._encoder,
+            vector_cache=self._vector_cache,
+        )
         self._encoder = stack.encoder
         self._retriever = stack.retriever
         self._items_by_id = {_item_id(item): item for item in available}

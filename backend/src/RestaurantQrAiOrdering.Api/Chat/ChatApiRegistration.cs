@@ -4,6 +4,7 @@ public static class ChatApiRegistration
 {
     public static IServiceCollection AddRestaurantChatApis(this IServiceCollection services)
     {
+        services.AddMemoryCache();
         services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
         services.AddSingleton<IChatRateLimiter, ChatRateLimiter>();

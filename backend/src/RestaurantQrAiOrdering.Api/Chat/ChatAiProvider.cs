@@ -1,7 +1,11 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
 
@@ -40,7 +44,13 @@ public sealed record ChatFactToPersist(string Kind, string Value, double Confide
 public interface IChatAiProvider
 {
     Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken);
+
+    IAsyncEnumerable<ChatStreamEvent> GenerateStreamAsync(
+        ChatAiRequest request,
+        CancellationToken cancellationToken);
 }
+
+public sealed record ChatStreamEvent(string EventType, JsonElement? Data);
 
 public interface IChatAssistantService
 {
@@ -53,6 +63,19 @@ public interface IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        CancellationToken cancellationToken);
+
+    Task StreamReplyAsync(
+        string userMessage,
+        IReadOnlyList<ChatMessageSnapshot> history,
+        string? tableCode,
+        string chatSessionId,
+        string? tableSessionId,
+        string? rollingSummary,
+        IReadOnlySet<string> excludedMenuItemIds,
+        IReadOnlyList<ChatSessionFactSnapshot> facts,
+        Func<ChatAssistantReply, CancellationToken, Task> onCompleteAsync,
+        Func<string, CancellationToken, Task> onTokenAsync,
         CancellationToken cancellationToken);
 }
 
@@ -84,8 +107,86 @@ public sealed class GeminiChatProvider : IChatAiProvider
 
     public async Task<ChatAiResult> GenerateAsync(ChatAiRequest request, CancellationToken cancellationToken)
     {
-        // Production path is always Python RAG. Direct Gemini is removed to avoid prompt drift.
         return await GenerateWithPythonRagAsync(request, cancellationToken);
+    }
+
+    public async IAsyncEnumerable<ChatStreamEvent> GenerateStreamAsync(
+        ChatAiRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var serviceUrl = configuration["AI_SERVICE_URL"] ?? configuration["Ai:ServiceUrl"];
+        if (string.IsNullOrWhiteSpace(serviceUrl))
+        {
+            yield return new ChatStreamEvent("final", JsonDocument.Parse("""
+                {"content":"Hiện tại trợ lý AI chưa sẵn sàng. Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống.","provider_available":false,"suggest_staff_handoff":true}
+                """).RootElement);
+            yield return new ChatStreamEvent("done", JsonDocument.Parse("{\"ok\":true}").RootElement);
+            yield break;
+        }
+
+        var timeoutSeconds = ReadPositiveInt("BACKEND_AI_TIMEOUT_SECONDS", fallbackKey: "AI_TIMEOUT_SECONDS", defaultValue: 12);
+        var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat/stream";
+        var payload = BuildPayload(request);
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        using var response = await httpClient.SendAsync(
+            httpRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            timeoutCts.Token);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("Python AI stream returned HTTP {StatusCode}.", (int)response.StatusCode);
+            yield return new ChatStreamEvent("final", JsonDocument.Parse("""
+                {"content":"Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.","provider_available":false,"suggest_staff_handoff":true,"guardrail_flags":["AI_PROVIDER_UNAVAILABLE"]}
+                """).RootElement);
+            yield return new ChatStreamEvent("done", JsonDocument.Parse("{\"ok\":true}").RootElement);
+            yield break;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(timeoutCts.Token);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        string? eventName = null;
+        while (!reader.EndOfStream && !timeoutCts.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(timeoutCts.Token);
+            if (line is null)
+            {
+                break;
+            }
+
+            if (line.StartsWith("event: ", StringComparison.Ordinal))
+            {
+                eventName = line["event: ".Length..].Trim();
+                continue;
+            }
+
+            if (!line.StartsWith("data: ", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(eventName))
+            {
+                continue;
+            }
+
+            var dataJson = line["data: ".Length..];
+            using var document = JsonDocument.Parse(dataJson);
+            var cloned = document.RootElement.Clone();
+            yield return new ChatStreamEvent(eventName, cloned);
+            eventName = null;
+
+            if (cloned.ValueKind == JsonValueKind.Object
+                && cloned.TryGetProperty("ok", out var okElement)
+                && okElement.ValueKind == JsonValueKind.True)
+            {
+                break;
+            }
+        }
     }
 
     private async Task<ChatAiResult> GenerateWithPythonRagAsync(ChatAiRequest request, CancellationToken cancellationToken)
@@ -96,15 +197,71 @@ public sealed class GeminiChatProvider : IChatAiProvider
             return Unavailable();
         }
 
-        var timeoutSeconds = ReadPositiveInt("AI_TIMEOUT_SECONDS", defaultValue: 15);
-        var maxRetry = ReadPositiveInt("AI_MAX_RETRY", defaultValue: 1);
+        var timeoutSeconds = ReadPositiveInt("BACKEND_AI_TIMEOUT_SECONDS", fallbackKey: "AI_TIMEOUT_SECONDS", defaultValue: 12);
         var endpoint = $"{serviceUrl.TrimEnd('/')}/v1/chat";
+        var stopwatch = Stopwatch.StartNew();
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
+        var payload = BuildPayload(request);
+
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync(endpoint, payload, timeoutCts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
+                return SlowFallback();
+            }
+
+            using var json = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(timeoutCts.Token),
+                cancellationToken: timeoutCts.Token);
+
+            var content = ExtractPythonRagContent(json.RootElement);
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return SlowFallback();
+            }
+
+            var excluded = request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var actions = ExtractPythonSuggestedActions(json.RootElement, request.AvailableMenuItems, excluded);
+            var flags = ExtractPythonGuardrailFlags(json.RootElement);
+            var handoff = json.RootElement.TryGetProperty("suggest_staff_handoff", out var h)
+                          && h.ValueKind == JsonValueKind.True;
+            var followUp = ExtractFollowUp(json.RootElement);
+            var facts = ExtractFacts(json.RootElement);
+            var rejected = ExtractStringArray(json.RootElement, "rejected_menu_item_ids");
+            var summary = json.RootElement.TryGetProperty("updated_rolling_summary", out var s)
+                          && s.ValueKind == JsonValueKind.String
+                ? s.GetString()
+                : null;
+
+            logger.LogInformation("Python AI chat completed in {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
+
+            return new ChatAiResult(
+                content.Trim(),
+                ProviderAvailable: ExtractProviderAvailable(json.RootElement),
+                actions,
+                flags,
+                handoff,
+                followUp,
+                facts,
+                rejected,
+                summary);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            logger.LogWarning(exception, "Python AI service request failed after {ElapsedMs}ms.", stopwatch.ElapsedMilliseconds);
+            return SlowFallback();
+        }
+    }
+
+    private static object BuildPayload(ChatAiRequest request)
+    {
         var excluded = request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var payload = new
+        return new
         {
             message = request.UserMessage,
             table_code = request.TableCode,
@@ -143,61 +300,13 @@ public sealed class GeminiChatProvider : IChatAiProvider
                 is_available = item.IsAvailable
             })
         };
-
-        for (var attempt = 0; attempt <= maxRetry; attempt++)
-        {
-            try
-            {
-                using var response = await httpClient.PostAsJsonAsync(endpoint, payload, timeoutCts.Token);
-                if (!response.IsSuccessStatusCode)
-                {
-                    logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
-                    continue;
-                }
-
-                using var json = await JsonDocument.ParseAsync(
-                    await response.Content.ReadAsStreamAsync(timeoutCts.Token),
-                    cancellationToken: timeoutCts.Token);
-
-                var content = ExtractPythonRagContent(json.RootElement);
-                if (!string.IsNullOrWhiteSpace(content))
-                {
-                    var actions = ExtractPythonSuggestedActions(json.RootElement, request.AvailableMenuItems, excluded);
-                    var flags = ExtractPythonGuardrailFlags(json.RootElement);
-                    var handoff = json.RootElement.TryGetProperty("suggest_staff_handoff", out var h)
-                                  && h.ValueKind == JsonValueKind.True;
-                    var followUp = ExtractFollowUp(json.RootElement);
-                    var facts = ExtractFacts(json.RootElement);
-                    var rejected = ExtractStringArray(json.RootElement, "rejected_menu_item_ids");
-                    var summary = json.RootElement.TryGetProperty("updated_rolling_summary", out var s)
-                                  && s.ValueKind == JsonValueKind.String
-                        ? s.GetString()
-                        : null;
-
-                    return new ChatAiResult(
-                        content.Trim(),
-                        ProviderAvailable: ExtractProviderAvailable(json.RootElement),
-                        actions,
-                        flags,
-                        handoff,
-                        followUp,
-                        facts,
-                        rejected,
-                        summary);
-                }
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
-            {
-                logger.LogWarning(exception, "Python AI service request failed.");
-            }
-        }
-
-        return Unavailable();
     }
 
-    private int ReadPositiveInt(string key, int defaultValue)
+    private int ReadPositiveInt(string key, string fallbackKey, int defaultValue)
     {
-        var rawValue = configuration[key] ?? configuration[$"Ai:{key[3..]}"];
+        var rawValue = configuration[key]
+            ?? configuration[fallbackKey]
+            ?? configuration[$"Ai:{key[3..]}"];
         return int.TryParse(rawValue, out var value) && value > 0 ? value : defaultValue;
     }
 
@@ -317,6 +426,15 @@ public sealed class GeminiChatProvider : IChatAiProvider
             ProviderAvailable: false,
             SuggestStaffHandoff: true);
     }
+
+    private static ChatAiResult SlowFallback()
+    {
+        return new ChatAiResult(
+            "Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.",
+            ProviderAvailable: false,
+            GuardrailFlags: ["AI_PROVIDER_UNAVAILABLE"],
+            SuggestStaffHandoff: true);
+    }
 }
 
 /// <summary>
@@ -327,11 +445,19 @@ public sealed class ChatAssistantService : IChatAssistantService
 {
     private readonly RestaurantDbContext db;
     private readonly IChatAiProvider aiProvider;
+    private readonly IMemoryCache cache;
+    private readonly ILogger<ChatAssistantService> logger;
 
-    public ChatAssistantService(RestaurantDbContext db, IChatAiProvider aiProvider)
+    public ChatAssistantService(
+        RestaurantDbContext db,
+        IChatAiProvider aiProvider,
+        IMemoryCache cache,
+        ILogger<ChatAssistantService> logger)
     {
         this.db = db;
         this.aiProvider = aiProvider;
+        this.cache = cache;
+        this.logger = logger;
     }
 
     public async Task<ChatAssistantReply> GenerateReplyAsync(
@@ -345,22 +471,124 @@ public sealed class ChatAssistantService : IChatAssistantService
         IReadOnlyList<ChatSessionFactSnapshot> facts,
         CancellationToken cancellationToken)
     {
-        var categories = await db.Categories
-            .AsNoTracking()
-            .Where(category => category.IsActive)
-            .ToListAsync(cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
+        var prepared = await PrepareContextAsync(
+            userMessage,
+            history,
+            tableCode,
+            chatSessionId,
+            tableSessionId,
+            rollingSummary,
+            excludedMenuItemIds,
+            facts,
+            cancellationToken);
+
+        if (prepared.CatalogReply is not null)
+        {
+            LogStop(stopwatch, "catalog-fastpath");
+            return prepared.CatalogReply;
+        }
+
+        var providerResult = await aiProvider.GenerateAsync(prepared.Request, cancellationToken);
+        var reply = BuildAssistantReply(providerResult, prepared.AvailableMenuItems, excludedMenuItemIds);
+        LogStop(stopwatch, "python-chat");
+        return reply;
+    }
+
+    public async Task StreamReplyAsync(
+        string userMessage,
+        IReadOnlyList<ChatMessageSnapshot> history,
+        string? tableCode,
+        string chatSessionId,
+        string? tableSessionId,
+        string? rollingSummary,
+        IReadOnlySet<string> excludedMenuItemIds,
+        IReadOnlyList<ChatSessionFactSnapshot> facts,
+        Func<ChatAssistantReply, CancellationToken, Task> onCompleteAsync,
+        Func<string, CancellationToken, Task> onTokenAsync,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var prepared = await PrepareContextAsync(
+            userMessage,
+            history,
+            tableCode,
+            chatSessionId,
+            tableSessionId,
+            rollingSummary,
+            excludedMenuItemIds,
+            facts,
+            cancellationToken);
+
+        if (prepared.CatalogReply is not null)
+        {
+            await onTokenAsync(prepared.CatalogReply.Content, cancellationToken);
+            await onCompleteAsync(prepared.CatalogReply, cancellationToken);
+            LogStop(stopwatch, "catalog-fastpath-stream");
+            return;
+        }
+
+        JsonElement? finalPayload = null;
+        await foreach (var streamEvent in aiProvider.GenerateStreamAsync(prepared.Request, cancellationToken))
+        {
+            if (streamEvent.EventType == "token"
+                && streamEvent.Data is { ValueKind: JsonValueKind.Object } tokenData
+                && tokenData.TryGetProperty("text", out var textElement)
+                && textElement.ValueKind == JsonValueKind.String)
+            {
+                var text = textElement.GetString();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    await onTokenAsync(text, cancellationToken);
+                }
+            }
+            else if (streamEvent.EventType == "final" && streamEvent.Data is not null)
+            {
+                finalPayload = streamEvent.Data.Value;
+            }
+        }
+
+        if (finalPayload is null)
+        {
+            var fallback = new ChatAssistantReply(
+                "Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.",
+                [],
+                ["AI_PROVIDER_UNAVAILABLE"],
+                SuggestStaffHandoff: true);
+            await onCompleteAsync(fallback, cancellationToken);
+            LogStop(stopwatch, "stream-fallback");
+            return;
+        }
+
+        var providerResult = ParseStreamFinal(finalPayload.Value, prepared.AvailableMenuItems, prepared.Request.ExcludedMenuItemIds ?? excludedMenuItemIds);
+        var reply = BuildAssistantReply(providerResult, prepared.AvailableMenuItems, excludedMenuItemIds);
+        await onCompleteAsync(reply, cancellationToken);
+        LogStop(stopwatch, "python-stream");
+    }
+
+    private sealed record PreparedChatContext(
+        ChatAiRequest Request,
+        IReadOnlyList<ChatMenuItemContext> AvailableMenuItems,
+        ChatAssistantReply? CatalogReply);
+
+    private async Task<PreparedChatContext> PrepareContextAsync(
+        string userMessage,
+        IReadOnlyList<ChatMessageSnapshot> history,
+        string? tableCode,
+        string chatSessionId,
+        string? tableSessionId,
+        string? rollingSummary,
+        IReadOnlySet<string> excludedMenuItemIds,
+        IReadOnlyList<ChatSessionFactSnapshot> facts,
+        CancellationToken cancellationToken)
+    {
+        var (categories, menuItems) = await LoadMenuCatalogCachedAsync(cancellationToken);
         var categoryNames = categories.ToDictionary(
             category => category.Id,
             category => category.Name,
             StringComparer.OrdinalIgnoreCase);
         var activeCategoryIds = categories.Select(category => category.Id).ToList();
 
-        var menuItems = await db.MenuItems
-            .AsNoTracking()
-            .Where(item => activeCategoryIds.Contains(item.CategoryId))
-            .ToListAsync(cancellationToken);
-
-        // Soft signal: unavailable items mentioned become context, not hard block of whole reply.
         var unavailableNames = menuItems
             .Where(item => !item.IsAvailable)
             .Select(item => item.Name)
@@ -379,55 +607,96 @@ public sealed class ChatAssistantService : IChatAssistantService
                 item.IsAvailable))
             .ToList();
 
-        // Narrow catalog fast-path only: exact category browse with no soft criteria.
         var grounding = ChatMenuGrounding.SelectWithConstraints(userMessage, availableMenuItems, null);
         if (grounding.HasExplicitConstraint
             && IsPureCatalogRequest(userMessage)
             && grounding.MatchedCategoryNames.Count > 0)
         {
-            return BuildGroundedCatalog(grounding, availableMenuItems.Count - grounding.Candidates.Count);
+            return new PreparedChatContext(
+                new ChatAiRequest(userMessage, [], availableMenuItems),
+                availableMenuItems,
+                BuildGroundedCatalog(grounding, availableMenuItems.Count - grounding.Candidates.Count));
         }
 
         var cartItems = await LoadCartAsync(tableSessionId, cancellationToken);
         var orders = await LoadOrdersAsync(tableSessionId, cancellationToken);
-        var promotions = await LoadPromotionsAsync(cancellationToken);
+        var promotions = await LoadPromotionsCachedAsync(cancellationToken);
         var localTime = DateTimeOffset.Now;
         var mealPeriod = ResolveMealPeriod(localTime);
-
         var sessionMemory = BuildSessionMemory(rollingSummary, excludedMenuItemIds, facts, unavailableNames);
         var priorHistory = history.Take(Math.Max(0, history.Count - 1)).ToList();
 
-        var providerResult = await aiProvider.GenerateAsync(
-            new ChatAiRequest(
-                userMessage,
-                priorHistory,
-                availableMenuItems,
-                tableCode,
-                sessionMemory,
-                chatSessionId,
-                tableSessionId,
-                rollingSummary,
-                excludedMenuItemIds,
-                facts,
-                cartItems,
-                orders,
-                promotions,
-                localTime.ToString("O"),
-                mealPeriod),
-            cancellationToken);
+        var request = new ChatAiRequest(
+            userMessage,
+            priorHistory,
+            availableMenuItems,
+            tableCode,
+            sessionMemory,
+            chatSessionId,
+            tableSessionId,
+            rollingSummary,
+            excludedMenuItemIds,
+            facts,
+            cartItems,
+            orders,
+            promotions,
+            localTime.ToString("O"),
+            mealPeriod);
 
+        return new PreparedChatContext(request, availableMenuItems, null);
+    }
+
+    private async Task<(List<Category> Categories, List<MenuItem> Items)> LoadMenuCatalogCachedAsync(CancellationToken ct)
+    {
+        var cached = await cache.GetOrCreateAsync<(List<Category>, List<MenuItem>)>(
+            "chat-menu-catalog",
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+                var categories = await db.Categories
+                    .AsNoTracking()
+                    .Where(category => category.IsActive)
+                    .ToListAsync(ct);
+                var activeCategoryIds = categories.Select(category => category.Id).ToList();
+                var menuItems = await db.MenuItems
+                    .AsNoTracking()
+                    .Where(item => activeCategoryIds.Contains(item.CategoryId))
+                    .ToListAsync(ct);
+                return (categories, menuItems);
+            });
+
+        return cached;
+    }
+
+    private async Task<IReadOnlyList<object>> LoadPromotionsCachedAsync(CancellationToken ct)
+    {
+        var cached = await cache.GetOrCreateAsync(
+            "chat-promotions",
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await LoadPromotionsAsync(ct);
+            });
+
+        return cached ?? [];
+    }
+
+    private ChatAssistantReply BuildAssistantReply(
+        ChatAiResult providerResult,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems,
+        IReadOnlySet<string> excludedMenuItemIds)
+    {
         if (!providerResult.ProviderAvailable)
         {
             return new ChatAssistantReply(
                 providerResult.Content,
                 [],
-                ["AI_PROVIDER_UNAVAILABLE"],
-                SuggestStaffHandoff: true,
+                providerResult.GuardrailFlags ?? ["AI_PROVIDER_UNAVAILABLE"],
+                SuggestStaffHandoff: providerResult.SuggestStaffHandoff,
                 FactsToPersist: providerResult.Facts ?? [],
                 RejectedMenuItemIds: providerResult.RejectedMenuItemIds ?? []);
         }
 
-        // Hard validate: drop any action that intersects exclusion or unavailable.
         var safeActions = (providerResult.SuggestedCartActions ?? [])
             .Where(a => !excludedMenuItemIds.Contains(a.MenuItemId)
                         && availableMenuItems.Any(m => m.Id.Equals(a.MenuItemId, StringComparison.OrdinalIgnoreCase)))
@@ -455,6 +724,74 @@ public sealed class ChatAssistantService : IChatAssistantService
             providerResult.UpdatedRollingSummary);
     }
 
+    private static ChatAiResult ParseStreamFinal(
+        JsonElement root,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems,
+        IReadOnlySet<string> excluded)
+    {
+        var content = root.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String
+            ? contentElement.GetString() ?? ""
+            : "";
+        var providerAvailable = root.TryGetProperty("provider_available", out var providerElement)
+            && providerElement.ValueKind == JsonValueKind.True;
+        var handoff = root.TryGetProperty("suggest_staff_handoff", out var h) && h.ValueKind == JsonValueKind.True;
+        var followUp = root.TryGetProperty("follow_up", out var followUpElement) && followUpElement.ValueKind == JsonValueKind.Object
+            ? new FollowUpHint(
+                followUpElement.TryGetProperty("can_show_more", out var c) && c.ValueKind == JsonValueKind.True,
+                followUpElement.TryGetProperty("remaining_count", out var r) && r.TryGetInt32(out var rv) ? rv : 0)
+            : null;
+
+        var actions = new List<SuggestedCartActionResponse>();
+        if (root.TryGetProperty("suggested_cart_actions", out var actionsElement) && actionsElement.ValueKind == JsonValueKind.Array)
+        {
+            var menuLookup = availableMenuItems.ToDictionary(m => m.Id, StringComparer.OrdinalIgnoreCase);
+            foreach (var action in actionsElement.EnumerateArray())
+            {
+                var menuItemId = action.TryGetProperty("menu_item_id", out var mid) ? mid.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(menuItemId) || excluded.Contains(menuItemId)) continue;
+                if (!menuLookup.TryGetValue(menuItemId, out var menuItem) || !menuItem.IsAvailable) continue;
+                var name = action.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
+                    ? n.GetString() ?? menuItem.Name
+                    : menuItem.Name;
+                var quantity = action.TryGetProperty("quantity", out var q) && q.TryGetInt32(out var qv)
+                    ? Math.Clamp(qv, 1, 20)
+                    : 1;
+                var reason = action.TryGetProperty("reason", out var rsn) && rsn.ValueKind == JsonValueKind.String
+                    ? rsn.GetString() ?? ""
+                    : "";
+                actions.Add(new SuggestedCartActionResponse(
+                    menuItemId,
+                    name,
+                    menuItem.Price,
+                    quantity,
+                    reason,
+                    RequiresCustomerConfirmation: true,
+                    Status: "pending"));
+            }
+        }
+
+        var flags = new List<string>();
+        if (root.TryGetProperty("guardrail_flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var flag in flagsElement.EnumerateArray())
+            {
+                if (flag.ValueKind == JsonValueKind.String)
+                {
+                    var value = flag.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(value)) flags.Add(value);
+                }
+            }
+        }
+
+        return new ChatAiResult(content, providerAvailable, actions, flags, handoff, followUp);
+    }
+
+    private void LogStop(Stopwatch stopwatch, string path)
+    {
+        stopwatch.Stop();
+        logger.LogInformation("Chat assistant {Path} completed in {ElapsedMs}ms", path, stopwatch.ElapsedMilliseconds);
+    }
+
     private async Task<IReadOnlyList<object>> LoadCartAsync(string? tableSessionId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(tableSessionId)) return [];
@@ -473,6 +810,20 @@ public sealed class ChatAssistantService : IChatAssistantService
             .ToListAsync(ct);
 
         return items.Cast<object>().ToList();
+    }
+
+    private async Task<IReadOnlyList<object>> LoadPromotionsAsync(CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var promos = await db.Promotions
+            .AsNoTracking()
+            .Where(p => p.IsActive
+                        && (p.StartsAt == null || p.StartsAt <= now)
+                        && (p.EndsAt == null || p.EndsAt >= now))
+            .Take(10)
+            .Select(p => new { id = p.Id, title = p.Name, description = p.Description })
+            .ToListAsync(ct);
+        return promos.Cast<object>().ToList();
     }
 
     private async Task<IReadOnlyList<object>> LoadOrdersAsync(string? tableSessionId, CancellationToken ct)
@@ -501,20 +852,6 @@ public sealed class ChatAssistantService : IChatAssistantService
         }).ToList();
     }
 
-    private async Task<IReadOnlyList<object>> LoadPromotionsAsync(CancellationToken ct)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var promos = await db.Promotions
-            .AsNoTracking()
-            .Where(p => p.IsActive
-                        && (p.StartsAt == null || p.StartsAt <= now)
-                        && (p.EndsAt == null || p.EndsAt >= now))
-            .Take(10)
-            .Select(p => new { id = p.Id, title = p.Name, description = p.Description })
-            .ToListAsync(ct);
-        return promos.Cast<object>().ToList();
-    }
-
     private static string ResolveMealPeriod(DateTimeOffset local)
     {
         var hour = local.Hour;
@@ -527,7 +864,6 @@ public sealed class ChatAssistantService : IChatAssistantService
     private static bool IsPureCatalogRequest(string message)
     {
         var lower = message.Trim().ToLowerInvariant();
-        // Soft criteria → must go to LLM
         var soft = new[]
         {
             "dị ứng", "di ung", "chay", "cay", "ngọt", "ngot", "ít", "it ",

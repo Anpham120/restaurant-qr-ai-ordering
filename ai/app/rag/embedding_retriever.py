@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from collections.abc import Sequence
 from typing import Any, Protocol
@@ -89,7 +90,13 @@ class SentenceTransformerE5Encoder:
 class DenseRetriever:
     """Cosine-similarity retriever over precomputed document embeddings."""
 
-    def __init__(self, chunks: Sequence[KnowledgeChunk], encoder: EmbeddingEncoder) -> None:
+    def __init__(
+        self,
+        chunks: Sequence[KnowledgeChunk],
+        encoder: EmbeddingEncoder,
+        *,
+        vector_cache: dict[str, tuple[tuple[float, ...], str]] | None = None,
+    ) -> None:
         self._chunks = list(chunks)
         self._encoder = encoder
         self._dimension = encoder.dimension
@@ -97,10 +104,12 @@ class DenseRetriever:
             raise ValueError("encoder.dimension must be positive")
 
         document_texts = [_document_text(chunk) for chunk in self._chunks]
-        raw_vectors = encoder.encode_documents(document_texts) if document_texts else []
-        if len(raw_vectors) != len(self._chunks):
-            raise ValueError("Encoder returned a different number of document embeddings")
-        self._document_vectors = [self._normalize(vector) for vector in raw_vectors]
+        self._document_vectors = build_document_vectors_cached(
+            self._chunks,
+            document_texts,
+            encoder,
+            vector_cache,
+        )
 
     @property
     def model_name(self) -> str:
@@ -135,17 +144,64 @@ class DenseRetriever:
         return sorted(scored, key=lambda item: (-item.score, item.chunk.source))[:top_k]
 
     def _normalize(self, vector: Sequence[float]) -> tuple[float, ...]:
-        if len(vector) != self._dimension:
-            raise ValueError(
-                f"Expected embedding dimension {self._dimension}, received {len(vector)}"
-            )
-        values = tuple(float(value) for value in vector)
-        if not all(math.isfinite(value) for value in values):
-            raise ValueError("Embedding vectors must contain only finite values")
-        norm = math.sqrt(sum(value * value for value in values))
-        if norm == 0:
-            raise ValueError("Embedding vectors must not be all zeros")
-        return tuple(value / norm for value in values)
+        return _normalize_vector(vector, self._dimension)
+
+
+def build_document_vectors_cached(
+    chunks: Sequence[KnowledgeChunk],
+    document_texts: Sequence[str],
+    encoder: EmbeddingEncoder,
+    vector_cache: dict[str, tuple[tuple[float, ...], str]] | None,
+) -> list[tuple[float, ...]]:
+    if len(document_texts) != len(chunks):
+        raise ValueError("document_texts must align with chunks")
+
+    if not document_texts:
+        return []
+
+    cache = vector_cache if vector_cache is not None else {}
+    vectors: list[tuple[float, ...] | None] = [None] * len(chunks)
+    texts_to_encode: list[str] = []
+    encode_indices: list[int] = []
+
+    for index, (chunk, text) in enumerate(zip(chunks, document_texts, strict=True)):
+        content_hash = _content_hash(text)
+        cached = cache.get(chunk.source)
+        if cached is not None and cached[1] == content_hash:
+            vectors[index] = cached[0]
+            continue
+        texts_to_encode.append(text)
+        encode_indices.append(index)
+
+    if texts_to_encode:
+        encoded = encoder.encode_documents(texts_to_encode)
+        if len(encoded) != len(texts_to_encode):
+            raise ValueError("Encoder returned a different number of document embeddings")
+        for index, vector in zip(encode_indices, encoded, strict=True):
+            normalized = _normalize_vector(vector, encoder.dimension)
+            vectors[index] = normalized
+            content_hash = _content_hash(document_texts[index])
+            cache[chunks[index].source] = (normalized, content_hash)
+
+    if any(vector is None for vector in vectors):
+        raise ValueError("Failed to build embeddings for all chunks")
+    return vectors  # type: ignore[return-value]
+
+
+def _content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _normalize_vector(vector: Sequence[float], dimension: int) -> tuple[float, ...]:
+    if len(vector) != dimension:
+        raise ValueError(f"Expected embedding dimension {dimension}, received {len(vector)}")
+    values = tuple(float(value) for value in vector)
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("Embedding vectors must contain only finite values")
+    norm = math.sqrt(sum(value * value for value in values))
+    if norm == 0:
+        raise ValueError("Embedding vectors must not be all zeros")
+    return tuple(value / norm for value in values)
 
 
 def _document_text(chunk: KnowledgeChunk) -> str:

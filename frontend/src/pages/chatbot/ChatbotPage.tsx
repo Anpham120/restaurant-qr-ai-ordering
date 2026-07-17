@@ -119,6 +119,7 @@ export function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcomeMessage(t(WELCOME_COPY))]);
   const [composerValue, setComposerValue] = useState("");
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
+  const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<ChatMessage | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
   const [chatAccessToken, setChatAccessToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -225,24 +226,75 @@ export function ChatbotPage() {
     setPendingUserMessage(userMessage);
     setComposerValue("");
     setIsAssistantThinking(true);
+    setStreamingAssistantMessage(null);
     setErrorMessage("");
     setCartNotice("");
     setStaffHandoffBanner(false);
 
     try {
-      const response = await chatApi.sendMessage(chatSessionId, {
-        content,
-      }, chatAccessToken);
+      let streamSucceeded = false;
+      const streamMessageId = `assistant_stream_${Date.now().toString(36)}`;
 
-      setMessages((current) => appendCommittedExchange(current, response));
-      setActionStatuses((current) =>
-        response.suggestedCartActions.reduce<Record<string, ActionStatus>>((result, action) => {
-          result[getActionKey(action)] = action.status ?? "pending";
-          return result;
-        }, { ...current }),
-      );
-      if (response.suggestStaffHandoff) {
-        setStaffHandoffBanner(true);
+      try {
+        streamSucceeded = await chatApi.sendMessageStream(
+          chatSessionId,
+          { content },
+          chatAccessToken,
+          {
+            onToken: (tokenText) => {
+              setStreamingAssistantMessage((current) => {
+                if (!current) {
+                  return {
+                    id: streamMessageId,
+                    role: "assistant",
+                    content: tokenText,
+                    createdAt: new Date().toISOString(),
+                    suggestedCartActions: [],
+                  };
+                }
+
+                return {
+                  ...current,
+                  content: `${current.content}${tokenText}`,
+                };
+              });
+            },
+            onFinal: (response) => {
+              streamSucceeded = true;
+              setStreamingAssistantMessage(null);
+              setMessages((current) => appendCommittedExchange(current, response));
+              setActionStatuses((current) =>
+                response.suggestedCartActions.reduce<Record<string, ActionStatus>>((result, action) => {
+                  result[getActionKey(action)] = action.status ?? "pending";
+                  return result;
+                }, { ...current }),
+              );
+              if (response.suggestStaffHandoff) {
+                setStaffHandoffBanner(true);
+              }
+            },
+          },
+        );
+      } catch {
+        streamSucceeded = false;
+      }
+
+      if (!streamSucceeded) {
+        setStreamingAssistantMessage(null);
+        const response = await chatApi.sendMessage(chatSessionId, {
+          content,
+        }, chatAccessToken);
+
+        setMessages((current) => appendCommittedExchange(current, response));
+        setActionStatuses((current) =>
+          response.suggestedCartActions.reduce<Record<string, ActionStatus>>((result, action) => {
+            result[getActionKey(action)] = action.status ?? "pending";
+            return result;
+          }, { ...current }),
+        );
+        if (response.suggestStaffHandoff) {
+          setStaffHandoffBanner(true);
+        }
       }
     } catch (error) {
       try {
@@ -261,6 +313,7 @@ export function ChatbotPage() {
       );
     } finally {
       setPendingUserMessage(null);
+      setStreamingAssistantMessage(null);
       setIsAssistantThinking(false);
     }
   }
@@ -442,6 +495,9 @@ export function ChatbotPage() {
                 <small>{t("Đang lưu…")}</small>
               </div>
             ) : null}
+            {streamingAssistantMessage ? (
+              <ChatMessageBubble message={streamingAssistantMessage} />
+            ) : null}
             {messages.length <= 1 ? (
               <div className="cmc-chat-quick-prompts cmc-chat-quick-prompts-inline" aria-label={t("Gợi ý nhanh")}>
                 {quickPrompts.map((prompt) => (
@@ -451,7 +507,7 @@ export function ChatbotPage() {
                 ))}
               </div>
             ) : null}
-            {isAssistantThinking ? (
+            {isAssistantThinking && !streamingAssistantMessage ? (
               <div className="cmc-chat-typing" aria-label={t("Đang phản hồi")}>
                 <span />
                 <span />
