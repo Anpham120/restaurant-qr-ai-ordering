@@ -79,69 +79,109 @@ public static class ChatStreamEndpoints
             var excludedIds = chatStore.GetExcludedMenuItemIds(chatSessionId);
             var facts = chatStore.GetFacts(chatSessionId);
 
-            var assistantReply = await assistant.GenerateReplyAsync(
-                userMessage.Content,
-                history,
-                tableCode,
-                chatSessionId,
-                chatSession.TableSessionId,
-                chatSession.RollingSummary,
-                excludedIds,
-                facts,
-                cancellationToken);
+            var streamingMessageId = $"assistant_stream_{Guid.NewGuid():N}";
+            var streamedContent = new StringBuilder();
 
-            var assistantMessage = chatStore.AddMessage(
-                chatSessionId,
-                "assistant",
-                assistantReply.Content,
-                assistantReply.SuggestedCartActions);
+            ChatAssistantReply? assistantReply = null;
+            ChatMessageSnapshot? assistantMessage = null;
 
-            if (assistantReply.FactsToPersist is { Count: > 0 } factsToPersist && assistantMessage is not null)
+            try
             {
-                chatStore.UpsertFacts(
+                await assistant.StreamReplyAsync(
+                    userMessage.Content,
+                    history,
+                    tableCode,
                     chatSessionId,
-                    factsToPersist.Select(f => (f.Kind, f.Value, f.Confidence, (string?)assistantMessage.Id)));
-            }
+                    chatSession.TableSessionId,
+                    chatSession.RollingSummary,
+                    excludedIds,
+                    facts,
+                    async (reply, ct) =>
+                    {
+                        assistantReply = reply;
+                        assistantMessage = chatStore.AddMessage(
+                            chatSessionId,
+                            "assistant",
+                            reply.Content,
+                            reply.SuggestedCartActions);
 
-            if (!string.IsNullOrWhiteSpace(assistantReply.UpdatedRollingSummary))
-            {
-                chatStore.UpdateRollingSummary(chatSessionId, assistantReply.UpdatedRollingSummary!);
-            }
+                        if (reply.FactsToPersist is { Count: > 0 } factsToPersist && assistantMessage is not null)
+                        {
+                            chatStore.UpsertFacts(
+                                chatSessionId,
+                                factsToPersist.Select(f => (f.Kind, f.Value, f.Confidence, (string?)assistantMessage.Id)));
+                        }
 
-            // Emit token-like chunks for progressive UI, then final payload.
-            var content = assistantReply.Content;
-            const int chunkSize = 48;
-            for (var i = 0; i < content.Length; i += chunkSize)
-            {
-                var slice = content.Substring(i, Math.Min(chunkSize, content.Length - i));
-                await WriteSseAsync(httpResponse, "token", new { text = slice }, cancellationToken);
-            }
+                        if (!string.IsNullOrWhiteSpace(reply.UpdatedRollingSummary))
+                        {
+                            chatStore.UpdateRollingSummary(chatSessionId, reply.UpdatedRollingSummary!);
+                        }
 
-            var finalPayload = new
+                        var finalPayload = new
+                        {
+                            userMessage = new
+                            {
+                                id = userMessage.Id,
+                                role = userMessage.Role,
+                                content = userMessage.Content,
+                                createdAt = userMessage.CreatedAt
+                            },
+                            message = assistantMessage is null ? null : new
+                            {
+                                id = assistantMessage.Id,
+                                role = assistantMessage.Role,
+                                content = assistantMessage.Content,
+                                createdAt = assistantMessage.CreatedAt,
+                                suggestedCartActions = assistantMessage.SuggestedCartActions
+                            },
+                            suggestedCartActions = reply.SuggestedCartActions,
+                            guardrailFlags = reply.GuardrailFlags,
+                            suggestStaffHandoff = reply.SuggestStaffHandoff,
+                            followUp = reply.FollowUp
+                        };
+
+                        await WriteSseAsync(httpResponse, "final", finalPayload, ct);
+                        await WriteSseAsync(httpResponse, "done", new { ok = true }, ct);
+                    },
+                    async (tokenText, ct) =>
+                    {
+                        streamedContent.Append(tokenText);
+                        await WriteSseAsync(httpResponse, "token", new { text = tokenText }, ct);
+                    },
+                    cancellationToken);
+            }
+            catch (Exception)
             {
-                userMessage = new
+                if (assistantReply is null)
                 {
-                    id = userMessage.Id,
-                    role = userMessage.Role,
-                    content = userMessage.Content,
-                    createdAt = userMessage.CreatedAt
-                },
-                message = assistantMessage is null ? null : new
-                {
-                    id = assistantMessage.Id,
-                    role = assistantMessage.Role,
-                    content = assistantMessage.Content,
-                    createdAt = assistantMessage.CreatedAt,
-                    suggestedCartActions = assistantMessage.SuggestedCartActions
-                },
-                suggestedCartActions = assistantReply.SuggestedCartActions,
-                guardrailFlags = assistantReply.GuardrailFlags,
-                suggestStaffHandoff = assistantReply.SuggestStaffHandoff,
-                followUp = assistantReply.FollowUp
-            };
+                    var fallback = "Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.";
+                    await WriteSseAsync(httpResponse, "token", new { text = fallback }, cancellationToken);
+                    assistantMessage = chatStore.AddMessage(chatSessionId, "assistant", fallback, []);
+                    await WriteSseAsync(
+                        httpResponse,
+                        "final",
+                        new
+                        {
+                            userMessage = new { id = userMessage.Id, role = userMessage.Role, content = userMessage.Content, createdAt = userMessage.CreatedAt },
+                            message = assistantMessage is null ? null : new
+                            {
+                                id = assistantMessage.Id,
+                                role = assistantMessage.Role,
+                                content = assistantMessage.Content,
+                                createdAt = assistantMessage.CreatedAt,
+                                suggestedCartActions = assistantMessage.SuggestedCartActions
+                            },
+                            suggestedCartActions = Array.Empty<SuggestedCartActionResponse>(),
+                            guardrailFlags = new[] { "AI_PROVIDER_UNAVAILABLE" },
+                            suggestStaffHandoff = true,
+                            followUp = new FollowUpHint(false, 0)
+                        },
+                        cancellationToken);
+                    await WriteSseAsync(httpResponse, "done", new { ok = true }, cancellationToken);
+                }
+            }
 
-            await WriteSseAsync(httpResponse, "final", finalPayload, cancellationToken);
-            await WriteSseAsync(httpResponse, "done", new { ok = true }, cancellationToken);
+            _ = streamingMessageId;
             return Results.Empty;
         })
         .WithName("SendChatMessageStream")
