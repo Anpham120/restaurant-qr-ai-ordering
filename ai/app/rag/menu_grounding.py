@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import re
-import unicodedata
 from collections.abc import Sequence
 
 from app.rag.embedding_retriever import EmbeddingEncoder
 from app.rag.knowledge_base import KnowledgeChunk
+from app.rag.menu_item_kind import ItemKind, detect_requested_item_kind
+from app.rag.menu_query_filters import infer_allowed_menu_item_ids, infer_excluded_menu_item_ids
 from app.rag.retrieval_factory import build_retriever_stack
 from app.rag.retriever import RetrievalFilters, Retriever
+from app.rag.vietnamese_normalizer import normalize_query_text
 
 
 MAX_MENU_CANDIDATES = 8
-CATEGORY_QUERY_ALIASES = {
-    "bia ruou": ("do uong co con", "co con", "bia", "ruou", "cocktail"),
-}
 
 
 class MenuCandidateRetriever:
@@ -39,17 +37,37 @@ class MenuCandidateRetriever:
         *,
         excluded_ids: frozenset[str] = frozenset(),
         limit: int = MAX_MENU_CANDIDATES,
+        requested_item_kind: ItemKind | None = None,
+        excluded_category_ids: frozenset[str] = frozenset(),
     ) -> list[dict]:
+        if excluded_category_ids:
+            menu_items = [
+                item
+                for item in menu_items
+                if str(item.get("category_id") or "").strip() not in excluded_category_ids
+            ]
+
         available = _available_items(menu_items)
         if not available or limit <= 0:
             return []
 
+        if requested_item_kind is None:
+            requested_item_kind = detect_requested_item_kind(message)
+
         self._refresh_if_needed(available)
-        query = _normalize(message)
-        allowed_ids = _allowed_ids(query, available)
+        query = normalize_query_text(message)
+        allowed = infer_allowed_menu_item_ids(
+            message,
+            available,
+            requested_item_kind=requested_item_kind,
+        )
+        rejected = infer_excluded_menu_item_ids(message, available)
+        allowed_ids = allowed if allowed is not None else {_item_id(item) for item in available}
+        allowed_ids -= rejected
+        blocked_ids = excluded_ids | rejected
         filters = RetrievalFilters(
-            allowed_source_ids=frozenset(allowed_ids),
-            excluded_source_ids=excluded_ids,
+            allowed_source_ids=frozenset(allowed_ids) if allowed is not None else None,
+            excluded_source_ids=blocked_ids,
         )
         if not query:
             return [
@@ -64,7 +82,7 @@ class MenuCandidateRetriever:
         selected_ids.extend(
             item_id
             for item_id in sorted(allowed_ids)
-            if item_id not in selected_ids and item_id not in excluded_ids
+            if item_id not in selected_ids and item_id not in blocked_ids
         )
         return [self._items_by_id[item_id] for item_id in selected_ids[: min(limit, MAX_MENU_CANDIDATES)]]
 
@@ -103,42 +121,6 @@ def _available_items(menu_items: list[dict]) -> list[dict]:
         if item_id and bool(item.get("is_available", True)):
             unique[item_id] = item
     return [unique[item_id] for item_id in sorted(unique)]
-
-
-def _allowed_ids(query: str, available: list[dict]) -> set[str]:
-    category_matches = {
-        _normalize(str(item.get("category_name") or ""))
-        for item in available
-        if _is_meaningful(item.get("category_name"))
-        and _contains_phrase(query, _normalize(str(item.get("category_name") or "")))
-    }
-    available_categories = {
-        _normalize(str(item.get("category_name") or "")) for item in available
-    }
-    category_matches.update(
-        category
-        for category, aliases in CATEGORY_QUERY_ALIASES.items()
-        if category in available_categories and any(_contains_phrase(query, alias) for alias in aliases)
-    )
-    tag_matches = {
-        _normalize(str(tag))
-        for item in available
-        for tag in _tags(item)
-        if _is_meaningful(tag) and _contains_phrase(query, _normalize(str(tag)))
-    }
-    if category_matches:
-        return {
-            _item_id(item)
-            for item in available
-            if _normalize(str(item.get("category_name") or "")) in category_matches
-        }
-    if tag_matches:
-        return {
-            _item_id(item)
-            for item in available
-            if any(_normalize(str(tag)) in tag_matches for tag in _tags(item))
-        }
-    return {_item_id(item) for item in available}
 
 
 def _menu_chunk(item: dict) -> KnowledgeChunk:
@@ -181,17 +163,3 @@ def _item_id(item: dict) -> str:
 def _tags(item: dict) -> list[object]:
     tags = item.get("tags") or []
     return [tags] if isinstance(tags, str) else list(tags)
-
-
-def _is_meaningful(value: object) -> bool:
-    return len(_normalize(str(value or ""))) >= 3
-
-
-def _contains_phrase(query: str, phrase: str) -> bool:
-    return bool(phrase) and f" {phrase} " in f" {query} "
-
-
-def _normalize(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold())
-    without_marks = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
-    return " ".join(re.findall(r"[a-z0-9]+", without_marks))

@@ -1,8 +1,12 @@
 # Repository Guidelines
 
+## Agent Coordination
+
+- Spawn subagents when needed.
+
 ## Project Structure & Module Organization
 
-- `frontend/` is a React 19/TypeScript workspace. Deployable Vite apps live in `apps/{customer,admin,kitchen,staff}-web`; reusable code lives in `packages/`; shared pages, components, services, types, and styles are under `src/`.
+- `frontend/` is a React 19/TypeScript workspace. Deployable Vite apps: `customer-web`, `ordering-web`, `admin-web` (package `@cmc/ops-web`), plus legacy redirect stubs `staff-web` / `kitchen-web`. Shared pages live under `src/`.
 - `backend/` contains the ASP.NET Core solution. API code is in `src/RestaurantQrAiOrdering.Api`; shared entities and enums are at the backend root.
 - `ai/` contains the FastAPI/RAG service, knowledge base, evaluation data, and notebooks.
 - `deploy/` and `.github/workflows/` hold deployment and CI configuration; architecture and operational guidance belongs in `docs/`.
@@ -13,7 +17,8 @@ Run commands from the indicated directory:
 
 ```bash
 cd frontend && npm ci && npm run dev       # customer app locally
-npm run dev:admin                          # alternate portal
+npm run dev:ops                            # operations app (admin/counter/kitchen)
+npm run dev:ordering                       # table ordering app
 npm run build                              # type-check and build all Vite apps
 dotnet build backend/RestaurantQrAiOrdering.sln --configuration Release
 python -m pip install -r ai/requirements.txt

@@ -1,30 +1,30 @@
 # ADR: Retriever Selection for CMC Restaurant RAG
 
-**Status:** Accepted (provisional)
+**Status:** Accepted (confirmed on frozen test, 2026-07-17)
 
-**Date:** 2026-07-14
+**Date:** 2026-07-14 (updated 2026-07-17)
 
 **Decision owners:** AI/RAG engineering
 **Related plan:** `docs/AI_LLM_RAG_REFACTOR_PLAN.md` §5.5
 
 ## Context
 
-Phase 3 evaluation requires a registered, reproducible retriever choice before the
-frozen test split is opened. Dev experiments on 110 selector-backed cases showed
-hybrid BM25 + sparse-vector RRF outperforming BM25 alone on MRR@5 and nDCG@5 with
-Holm-corrected significance versus BM25 (`docs/AI_RETRIEVAL_DEV_RESULTS.md`).
+Phase 3 evaluation required a registered, reproducible retriever choice before the
+frozen test split was opened. Dev experiments on the selector-backed golden set
+(`ai/evaluation/golden/cases.jsonl`) compared 7 methods (BM25, 3 dense encoders,
+3 hybrid RRF variants) with paired statistical tests
+(`docs/AI_RETRIEVAL_DEV_RESULTS.md`).
 
-The full 17-section notebook protocol (`ai/notebooks/llm_rag_retrieval_study.ipynb`)
-has not yet been executed end-to-end in a clean environment with the new Phase 3 golden
-set (`ai/evaluation/golden/cases.jsonl`, ≥300 cases).
+The original 17-section notebook protocol (`llm_rag_retrieval_study.ipynb`) was
+superseded by `ai/notebooks/rag_retrieval_research.ipynb`, which has been executed
+end-to-end against the v3 artifacts.
 
 ## Decision
 
-**Production retrieval method remains `hybrid` (BM25 + dense RRF)** as implemented in
-`app.rag.retrieval_factory.build_retriever_stack`, pending confirmation from the full
-notebook run on dev and a single frozen-test evaluation.
-
-This is a **provisional winner**, not a final test-certified claim.
+**Production retrieval method is `hybrid` (BM25 + dense `e5_small` via RRF)** as
+implemented in `app.rag.retrieval_factory.build_retriever_stack`, confirmed by a
+single frozen-test run with production menu filters applied
+(`ai/evaluation/results/test_hybrid_e5_small_filtered.json`).
 
 ## Decision rule (Plan §5.5)
 
@@ -36,31 +36,31 @@ This is a **provisional winner**, not a final test-certified claim.
 5. Ship to production only if test confirms hard gates and no significant regression vs
    BM25 baseline.
 
-The rule explicitly allows BM25 to remain the production choice if hybrid/dense gains
-are not statistically or operationally justified.
-
 ## Current state
 
 | Item | Value |
 | --- | --- |
-| Production method | `hybrid` (BM25 + multilingual E5 dense via RRF) |
-| Dev provisional winner | Hybrid RRF |
-| Frozen test opened | No |
+| Production method | `hybrid` (BM25 + multilingual E5 small via RRF) |
+| Encoder env | `AI_EMBEDDING_MODEL=e5_small` |
+| Frozen test opened | Yes — one run, forbidden@10 = 0 |
 | Phase 3 golden set | `ai/evaluation/golden/cases.jsonl` |
 | Split manifest | `ai/evaluation/split_manifest.json` |
-| Benchmark entrypoint | `ai/evaluation/run_retrieval_benchmark.py` |
+| Experiment entrypoint | `ai/evaluation/run_retrieval_experiment.py` |
+| E2E behavior eval | `ai/evaluation/run_golden_chat_eval.py` |
+| Legacy smoke eval | `ai/evaluation/run_evaluation.py` (hybrid default) |
+| Research notebook | `ai/notebooks/rag_retrieval_research.ipynb` |
 
 ## Consequences
 
-- Integration and assistant code continue to default to hybrid retrieval.
-- Marketing or thesis claims about embedding superiority require notebook artifacts:
-  `ai/evaluation/results/retrieval_metrics.json`, statistical tests, and frozen-test row.
-- If notebook dev results reverse the ranking or fail gates, revert production default
+- Integration and assistant code default to hybrid retrieval with `e5_small`.
+- Claims about retrieval quality reference the v3 artifacts:
+  `ai/evaluation/results/dev_retrieval_summary.v3.json` and
+  `ai/evaluation/results/test_hybrid_e5_small_filtered.json`.
+- If future dev results reverse the ranking or fail gates, revert production default
   to BM25 per §5.5 step 5.
 
 ## Revisit triggers
 
-- Completion of `llm_rag_retrieval_study.ipynb` with conflicting dev metrics.
-- Frozen test regression vs BM25 on Hit@5, MRR@5, or nDCG@5.
+- Frozen test regression vs BM25 on Hit@5, MRR@5, or nDCG@5 after corpus changes.
 - Corpus hash change without re-benchmark (`split_manifest.json` SHA mismatch).
 - New hard safety gate failure on adversarial set (`adversarial_injection_cases.jsonl`).

@@ -1,14 +1,53 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Any
+
+from app.rag.vietnamese_normalizer import normalize_query_text
 
 
 _DISH_LINE_PATTERN = re.compile(
     r"^(\d+[\.\)]\s*|-+\s*|\*\s*|\•\s*)?.+$",
     re.MULTILINE,
 )
+
+_MENU_ID_TOKEN = re.compile(
+    r"\(\s*menu_item_id:\s*m_\d+\s*\)|\bm_\d{2,4}\b",
+    re.IGNORECASE,
+)
+
+# Patterns indicating the response is listing items to AVOID (allergy/dietary),
+# not recommending them. In this context, mentioning dish names is informational
+# warning, not fabrication.
+_AVOIDANCE_MARKERS = (
+    "tranh", "khong nen", "khong an", "can tranh", "khong goi",
+    "nen bo qua", "khong phu hop", "can luu y", "chua",
+    "di ung", "allerg", "avoid", "khong duoc an",
+)
+
+
+def _is_avoidance_context(content: str) -> bool:
+    """Return True if the content is listing dishes to AVOID (allergy/dietary).
+
+    When the AI warns about allergens or lists dishes the customer should not
+    order, mentioning dish names is informational — not fabrication.
+    """
+    normalized = normalize_query_text(content)
+    # Need at least 2 avoidance markers to be confident this is avoidance context
+    marker_count = sum(1 for m in _AVOIDANCE_MARKERS if m in normalized)
+    return marker_count >= 2
+
+
+def strip_menu_ids(content: str) -> str:
+    """Remove internal menu item ids (m_xxx) from customer-facing prose."""
+
+    if not content or "m_" not in content.casefold():
+        return content
+    cleaned = _MENU_ID_TOKEN.sub("", content)
+    cleaned = re.sub(r"\(\s*\)", "", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r" +([,.;:)\]])", r"\1", cleaned)
+    return cleaned.strip()
 
 
 def ground_response_content(
@@ -27,7 +66,11 @@ def ground_response_content(
     if wants_recommendations and not actions:
         flags.append("MENU_FABRICATION_BLOCKED")
 
-    if _content_has_ungrounded_dishes(content, menu_names):
+    # When the response is an allergy/dietary avoidance context (listing dishes
+    # to AVOID), dish names are informational warnings, not fabricated recommendations.
+    if _is_avoidance_context(content):
+        pass  # skip ungrounded dish check entirely
+    elif _content_has_ungrounded_dishes(content, menu_names):
         flags.append("MENU_FABRICATION_BLOCKED")
         if actions:
             content = format_grounded_recommendation_content(actions)
@@ -41,11 +84,15 @@ def ground_response_content(
                 "Mình chỉ có thể tư vấn dựa trên thực đơn hiện có của nhà hàng. "
                 "Bạn vui lòng hỏi lại theo món hoặc nhóm món trong menu nhé."
             )
+    elif wants_recommendations and _content_has_fabricated_dish_names(content, menu_names):
+        flags.append("MENU_FABRICATION_BLOCKED")
+        if actions:
+            content = format_grounded_recommendation_content(actions)
 
     if wants_recommendations and actions and not _content_mentions_any_action(content, actions):
         content = format_grounded_recommendation_content(actions, intro=_short_intro(content))
 
-    return content.strip(), _dedupe_flags(flags), actions
+    return strip_menu_ids(content.strip()), _dedupe_flags(flags), actions
 
 
 def format_grounded_recommendation_content(
@@ -94,6 +141,123 @@ def _content_has_ungrounded_dishes(content: str, menu_names: dict[str, str]) -> 
         return False
 
     return len(content) > 120 and bool(re.search(r"\d+[\.\)]\s+", content))
+
+
+def _content_has_fabricated_dish_names(content: str, menu_names: dict[str, str]) -> bool:
+    if _content_mentions_known_menu_name(content, menu_names):
+        return False
+
+    phrases = _extract_dish_phrases(content) + _extract_prose_dish_phrases(content)
+    if not phrases:
+        return False
+
+    fabricated = [
+        phrase
+        for phrase in phrases
+        if not _fuzzy_matches_menu(phrase, menu_names)
+    ]
+    return len(fabricated) >= max(1, len(phrases) // 2)
+
+
+# Segments containing these markers are advisory/meta prose, not dish names.
+_PROSE_META_MARKERS = (
+    "nhan vien",
+    "di ung",
+    "menu",
+    "thuc don",
+    "he thong",
+    "du lieu",
+    "xac nhan",
+    "vui long",
+    "giao dien",
+    "chua co",
+    "khong the",
+    "an toan",
+    "lan cheo",
+    "nhiem cheo",
+    "truoc khi",
+    "ban nen",
+    "nguy co",
+    # Allergy/dietary avoidance markers
+    "tranh",
+    "khong nen",
+    "khong an",
+    "can tranh",
+    "khong goi",
+    "nen bo qua",
+    "can luu y",
+    "allerg",
+    "avoid",
+    "khong phu hop",
+    "hai san",
+    "tom cua",
+    "dau phong",
+    "gluten",
+)
+
+
+def _extract_prose_dish_phrases(content: str) -> list[str]:
+    normalized = _normalize(content)
+    if "," not in normalized and " hoac " not in normalized:
+        return []
+    phrases: list[str] = []
+    for segment in re.split(r"[,;]| hoac ", normalized):
+        cleaned = segment.strip(" .")
+        cleaned = re.sub(r"^(nhu|mon|cac mon|goi y)\s+", "", cleaned)
+        token_count = len(cleaned.split())
+        # Dish names are short noun phrases; long segments are prose sentences.
+        if token_count < 2 or token_count > 5:
+            continue
+        if any(marker in cleaned for marker in _PROSE_META_MARKERS):
+            continue
+        phrases.append(cleaned)
+    return phrases
+
+
+def _extract_dish_phrases(content: str) -> list[str]:
+    phrases: list[str] = []
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.match(r"^\d+[\.\)]\s+", line):
+            line = re.sub(r"^\d+[\.\)]\s+", "", line)
+        elif line.startswith(("- ", "• ", "* ")):
+            line = line[2:].strip()
+        else:
+            continue
+        line = re.split(r"\s*[—\-–]\s*", line, maxsplit=1)[0]
+        line = re.sub(r"\([^)]*\)", "", line)
+        line = re.sub(r"\d[\d\.,]*\s*(?:đ|vnd|k)?$", "", line, flags=re.IGNORECASE).strip(" .")
+        normalized = _normalize(line)
+        if len(normalized.split()) >= 2:
+            phrases.append(normalized)
+    return phrases
+
+
+def _fuzzy_matches_menu(phrase: str, menu_names: dict[str, str], threshold: float = 0.55) -> bool:
+    if not phrase:
+        return True
+    if phrase in menu_names:
+        return True
+
+    phrase_tokens = set(phrase.split())
+    if not phrase_tokens:
+        return True
+
+    for name in menu_names:
+        if phrase in name or name in phrase:
+            return True
+        name_tokens = set(name.split())
+        if not name_tokens:
+            continue
+        overlap = len(phrase_tokens & name_tokens)
+        if overlap >= 2:
+            return True
+        jaccard = overlap / len(phrase_tokens | name_tokens)
+        if jaccard >= threshold:
+            return True
+    return False
 
 
 def _content_mentions_known_menu_name(content: str, menu_names: dict[str, str]) -> bool:
@@ -160,9 +324,7 @@ def _short_intro(content: str) -> str | None:
 
 
 def _normalize(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold())
-    without_marks = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
-    return " ".join(re.findall(r"[a-z0-9]+", without_marks))
+    return normalize_query_text(value)
 
 
 def _dedupe_flags(flags: list[str]) -> list[str]:

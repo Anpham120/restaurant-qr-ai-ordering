@@ -218,3 +218,9 @@ Commit:
 ```text
 docs: professionalize GitHub presentation
 ```
+# Freshness correction
+
+- [x] Remove README references to June issue #20 screenshots.
+- [x] Capture current customer, menu, QR entry, and operations views from production.
+- [x] Separate maintained documentation entry points from historical plans and reports.
+- [x] Verify every promoted screenshot exists, is visually current, and contains no private data before push.

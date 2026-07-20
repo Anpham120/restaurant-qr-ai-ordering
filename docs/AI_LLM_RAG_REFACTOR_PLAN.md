@@ -205,7 +205,8 @@ Luật này cho phép kết quả cuối cùng vẫn là BM25 nếu embedding/hy
 
 ## 6. Notebook học thuật bắt buộc
 
-Notebook đích: `ai/notebooks/llm_rag_retrieval_study.ipynb`.
+Notebook đích: `ai/notebooks/rag_retrieval_research.ipynb` (thay thế
+`llm_rag_retrieval_study.ipynb` cũ, đã xóa).
 
 Thứ tự cell:
 
@@ -508,7 +509,7 @@ Exit gate: CI/security/deploy xanh, canary không vi phạm hard gate, tài li�
 - `docs/ai/AI_PRODUCTION_OPERATIONS.md`
 - `docs/ai/AI_EVALUATION_REPORT.md`
 - `docs/ai/ADR_RETRIEVER_SELECTION.md`
-- `ai/notebooks/llm_rag_retrieval_study.ipynb`
+- `ai/notebooks/rag_retrieval_research.ipynb`
 
 Mỗi tài liệu phải ghi owner, last reviewed, version compatibility và liên kết tới test/artifact chứng minh.
 

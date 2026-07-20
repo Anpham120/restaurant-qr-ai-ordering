@@ -22,7 +22,7 @@ class ResearchBaselineTests(unittest.TestCase):
         self.assertEqual("bm25", result["method"])
         self.assertEqual("dev", result["split"])
         self.assertEqual(125, result["dataset"]["case_count"])
-        self.assertEqual(299, result["corpus"]["document_count"])
+        self.assertEqual(296, result["corpus"]["document_count"])
         self.assertFalse(result["frozen_test_opened"])
         self.assertEqual(110, result["per_query_count"])
         self.assertEqual(110, result["latency_ms"]["samples"])

@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from app.rag.embedding_retriever import (
     DenseRetriever,
     EmbeddingEncoder,
-    SentenceTransformerE5Encoder,
+    create_encoder,
+    resolve_encoder_key,
 )
 from app.rag.hybrid_retriever import HybridRrfRetriever
 from app.rag.knowledge_base import KnowledgeChunk
@@ -40,7 +41,7 @@ def build_retriever_stack(
     if normalized_method == "bm25":
         return RetrieverStack(lexical, normalized_method, None)
 
-    resolved_encoder = encoder or SentenceTransformerE5Encoder()
+    resolved_encoder = encoder or create_encoder(resolve_encoder_key())
     dense = DenseRetriever(chunks, resolved_encoder, vector_cache=vector_cache)
     if normalized_method == "dense":
         return RetrieverStack(dense, normalized_method, resolved_encoder)

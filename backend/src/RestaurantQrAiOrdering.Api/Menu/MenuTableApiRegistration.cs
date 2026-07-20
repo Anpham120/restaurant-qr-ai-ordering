@@ -1,5 +1,6 @@
 using RestaurantQrAiOrdering.Api.Cart;
 using RestaurantQrAiOrdering.Api.Categories;
+using RestaurantQrAiOrdering.Api.Counter;
 using RestaurantQrAiOrdering.Api.Menu;
 using RestaurantQrAiOrdering.Api.Tables;
 
@@ -16,6 +17,7 @@ public static class MenuTableApiRegistration
         app.MapCategoryEndpoints();
         app.MapTableEndpoints();
         app.MapTableInvoiceEndpoints();
+        app.MapCounterShiftEndpoints();
         app.MapRestaurantCartApis();
 
         return app;

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   clearCustomerSession,
   loadOrderContext,
@@ -6,6 +7,11 @@ import {
 } from "../components/customer/customerMenuStorage";
 import { validateDineInSession } from "../services/tableSessionService";
 import { matchSessionCapability } from "./sessionCapabilityStore";
+import {
+  appendQrToSessionPath,
+  recoverTableSession,
+  replaceSessionInPath,
+} from "./sessionRecovery";
 
 export type OrderingSessionState = "loading" | "ready" | "missing" | "invalid" | "expired" | "error";
 
@@ -21,49 +27,131 @@ type ActiveOrderingSessionValue = Omit<OrderingSessionValue, "context"> & {
 
 const OrderingSessionContext = createContext<OrderingSessionValue | null>(null);
 
+function buildSessionRedirectPath(
+  pathname: string,
+  search: string,
+  nextSessionId: string,
+  qrToken: string,
+): string {
+  let path = appendQrToSessionPath(replaceSessionInPath(pathname, nextSessionId), qrToken);
+  const focus = new URLSearchParams(search).get("focus");
+  if (!focus) {
+    return path;
+  }
+
+  const url = new URL(path, "http://local");
+  url.searchParams.set("focus", focus);
+  return `${url.pathname}${url.search}`;
+}
+
+async function validateCapability(
+  capability: Required<CustomerOrderContext>,
+): Promise<OrderingSessionState> {
+  const validation = await validateDineInSession(
+    capability.sessionId,
+    capability.sessionToken,
+    capability.tableCode,
+  );
+
+  if (validation.status === "open") {
+    return "ready";
+  }
+  if (validation.status === "expired") {
+    return "expired";
+  }
+  return validation.status === "error" ? "error" : "invalid";
+}
+
 export function OrderingSessionProvider({ children, sessionId }: { children: ReactNode; sessionId: string }) {
   const [context, setContext] = useState<Required<CustomerOrderContext> | null>(null);
   const [state, setState] = useState<OrderingSessionState>("loading");
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const refresh = useCallback(async () => {
+    setState("loading");
+
     const stored = loadOrderContext();
     const capabilityMatch = matchSessionCapability(stored, sessionId);
-    if (capabilityMatch === "missing") {
+    let activeCapability = capabilityMatch === "matching"
+      ? stored as Required<CustomerOrderContext>
+      : null;
+
+    if (!activeCapability) {
+      const qrToken = searchParams.get("qr") ?? stored.qrToken ?? null;
+      if (qrToken) {
+        const recovery = await recoverTableSession(qrToken, stored.tableCode);
+        if (recovery.status === "open") {
+          activeCapability = recovery.capability;
+        } else {
+          setContext(null);
+          setState(recovery.status === "expired" ? "expired" : recovery.status === "error" ? "error" : "invalid");
+          return;
+        }
+      }
+    }
+
+    if (!activeCapability) {
       setContext(null);
-      setState("missing");
+      setState(capabilityMatch === "mismatch" ? "invalid" : "missing");
       return;
     }
-    if (capabilityMatch === "mismatch") {
-      setContext(null);
-      setState("invalid");
+
+    if (activeCapability.sessionId !== sessionId) {
+      navigate(
+        buildSessionRedirectPath(
+          location.pathname,
+          location.search,
+          activeCapability.sessionId,
+          activeCapability.qrToken,
+        ),
+        { replace: true },
+      );
       return;
     }
 
-    const activeCapability = stored as Required<CustomerOrderContext>;
+    let nextState = await validateCapability(activeCapability);
+    if (nextState !== "ready") {
+      const qrToken = searchParams.get("qr") ?? activeCapability.qrToken ?? null;
+      if (qrToken) {
+        const recovery = await recoverTableSession(qrToken, activeCapability.tableCode);
+        if (recovery.status === "open") {
+          activeCapability = recovery.capability;
+          if (activeCapability.sessionId !== sessionId) {
+            navigate(
+              buildSessionRedirectPath(
+                location.pathname,
+                location.search,
+                activeCapability.sessionId,
+                activeCapability.qrToken,
+              ),
+              { replace: true },
+            );
+            return;
+          }
+          nextState = await validateCapability(activeCapability);
+        } else if (recovery.status === "expired") {
+          clearCustomerSession();
+          setContext(null);
+          setState("expired");
+          return;
+        }
+      }
+    }
 
-    setState("loading");
-    const validation = await validateDineInSession(
-      activeCapability.sessionId,
-      activeCapability.sessionToken,
-      activeCapability.tableCode,
-    );
-
-    if (validation.status === "open") {
+    if (nextState === "ready") {
       setContext(activeCapability);
       setState("ready");
       return;
     }
 
-    if (validation.status === "expired") {
+    if (nextState === "expired") {
       clearCustomerSession();
-      setContext(null);
-      setState("expired");
-      return;
     }
-
     setContext(null);
-    setState(validation.status === "error" ? "error" : "invalid");
-  }, [sessionId]);
+    setState(nextState);
+  }, [location.pathname, location.search, navigate, searchParams, sessionId]);
 
   useEffect(() => {
     void refresh();

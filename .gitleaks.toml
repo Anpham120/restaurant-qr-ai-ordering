@@ -1,0 +1,7 @@
+title = "CMC Restaurant gitleaks config"
+
+[allowlist]
+description = "Example env files use placeholder keys only"
+paths = [
+  '''(?:^|/)\.env\.example$''',
+]

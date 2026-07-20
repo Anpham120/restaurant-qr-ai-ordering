@@ -17,12 +17,14 @@ safety_level: medium
 
 | Mức | Mô tả | Ví dụ menu_item_id |
 | --- | --- | --- |
-| 0 | Không cay | m_004, m_009, m_057 |
-| 1 | Cay nhẹ | m_005, m_001 |
-| 2 | Cay vừa | m_010, m_039 |
-| 3 | Cay đậm | m_013, m_026 |
-| 4 | Rất cay | m_033 (tùy topping) |
-| 5 | Cay cực đo | m_040 |
+| 0 | Không cay | m_004 (bánh cuốn), m_009 (phở gà), m_057 (cà phê sữa đá) |
+| 1 | Cay nhẹ | m_005 (nem hải sản), m_001 (gỏi cuốn) |
+| 2 | Cay vừa | m_010 (bún chả), m_039 (gà xào sả ớt) |
+| 3 | Cay đậm | m_013 (bún bò Huế), m_026 (tôm rang muối ớt) |
+| 4 | Rất cay | m_033 (lẩu thái, tùy topping) |
+| 5 | Cay cực đo | m_040 (gà nướng ớt hiểm) |
+
+Ví dụ trả lời: "Bún bò Huế (m_013) cay mức 3/5 — cay đậm vị sả và ruốc Huế."
 
 ## Trục Hương Vị Khác
 

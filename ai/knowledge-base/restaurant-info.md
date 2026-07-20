@@ -14,10 +14,12 @@ safety_level: medium
 # Thông Tin Nhà Hàng CMC Restaurant
 
 ## Tổng Quan
+<!-- question_variants: nhà hàng là gì, giới thiệu nhà hàng, restaurant info, about -->
 
 CMC Restaurant là nhà hàng ẩm thực Việt Nam đa vùng miền, sử dụng hệ thống đặt món thông minh qua QR code kết hợp trợ lý AI. Nhà hàng phục vụ hơn 90 món thuộc 13 nhóm, từ khai vị truyền thống đến hải sản cao cấp, món chay và đồ uống đa dạng.
 
 ## Địa Chỉ & Liên Hệ
+<!-- question_variants: ở đâu, địa chỉ, chỗ nào, location, address, gần đâu, đường nào, hotline, số điện thoại, liên hệ -->
 
 - Địa chỉ: 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh.
 - Hotline: 0901-234-567
@@ -25,6 +27,7 @@ CMC Restaurant là nhà hàng ẩm thực Việt Nam đa vùng miền, sử dụ
 - Mốc nhận diện: đối diện Phố đi bộ Nguyễn Huệ, cách Nhà thờ Đức Bà ~500m, cách Chợ Bến Thành ~800m.
 
 ## Giờ Hoạt Động
+<!-- question_variants: giờ mở cửa, mấy giờ mở, mấy giờ đóng, opening hours, bao giờ mở, khi nào mở, mấy giờ hết, order cuối lúc nào, nghỉ ngày nào -->
 
 | Ngày | Giờ mở cửa | Giờ đóng cửa | Order cuối |
 |---|---|---|---|
@@ -36,6 +39,7 @@ CMC Restaurant là nhà hàng ẩm thực Việt Nam đa vùng miền, sử dụ
 Giờ cao điểm: 11:30–13:00 (trưa), 18:30–20:00 (tối). Thời gian chờ có thể lâu hơn bình thường.
 
 ## Không Gian & Sức Chứa
+<!-- question_variants: bao nhiêu bàn, bao nhiêu người, sức chứa, chỗ ngồi, ngồi đâu, khu vực nào, seating, capacity -->
 
 ### Tầng trệt (trong nhà, máy lạnh)
 - 10 bàn 2 người: phù hợp cặp đôi, ăn một mình.
@@ -43,12 +47,14 @@ Giờ cao điểm: 11:30–13:00 (trưa), 18:30–20:00 (tối). Thời gian ch�
 - 5 bàn 6 người: phù hợp nhóm lớn, đồng nghiệp.
 
 ### Phòng VIP (2 phòng, máy lạnh)
+<!-- question_variants: phòng riêng, phòng vip, private room, giá phòng vip, thuê phòng, đặt phòng -->
 - Sức chứa: 8–12 người/phòng.
 - Không phụ phí phòng, yêu cầu order tối thiểu 500.000đ.
 - Đặt trước qua hotline.
 - Có TV, hệ thống âm thanh riêng.
 
 ### Sân thượng (8 bàn, ngoài trời)
+<!-- question_variants: sân thượng, ngoài trời, rooftop, terrace, ngồi ngoài, view đẹp -->
 - Mở 17:00–21:30.
 - Có quạt công nghiệp và phun sương.
 - View thành phố, phù hợp buổi tối, hẹn hò.
@@ -58,6 +64,7 @@ Giờ cao điểm: 11:30–13:00 (trưa), 18:30–20:00 (tối). Thời gian ch�
 Tổng sức chứa: khoảng 120 khách.
 
 ## Giao Thông & Đỗ Xe
+<!-- question_variants: đậu xe, gửi xe, chỗ để xe, parking, bãi xe, đỗ ô tô, grab taxi, metro -->
 
 - **Xe máy**: bãi giữ miễn phí trước cửa, ~30 chỗ.
 - **Ô tô**: bãi xe công cộng cách 50m, phí 20.000đ/lượt.
@@ -66,6 +73,7 @@ Tổng sức chứa: khoảng 120 khách.
 - Lối đi xe lăn ở cửa chính. Tầng trệt có nhà vệ sinh cho người khuyết tật. Sân thượng chưa có thang máy.
 
 ## Tiện Nghi
+<!-- question_variants: wifi, mật khẩu wifi, pass wifi, internet, máy lạnh, ghế trẻ em, highchair, khăn lạnh, ổ cắm sạc, nhà vệ sinh, toilet, camera -->
 
 | Tiện nghi | Chi tiết |
 |---|---|
@@ -78,6 +86,7 @@ Tổng sức chứa: khoảng 120 khách.
 | Ổ cắm sạc | Có ở quầy bar và 5 bàn gần tường |
 
 ## Chính Sách
+<!-- question_variants: trang phục, dress code, tip, tiền boa, hóa đơn VAT, voucher, phụ thu, đồ thất lạc, quên đồ, hủy đơn -->
 
 - **Trang phục**: không yêu cầu đặc biệt, từ chối khách không phù hợp.
 - **Tip**: không bắt buộc, không tính vào hóa đơn.
@@ -88,6 +97,7 @@ Tổng sức chứa: khoảng 120 khách.
 - **Hủy đơn**: đơn gửi bếp không thể hủy qua hệ thống, gọi nhân viên.
 
 ## Chương Trình Khách Hàng Thân Thiết
+<!-- question_variants: tích điểm, loyalty, member, thành viên, thẻ thành viên, khách VIP, ưu đãi -->
 
 - Tích điểm: 1.000đ chi tiêu = 1 điểm.
 - 500 điểm = giảm 10% lần tiếp theo.

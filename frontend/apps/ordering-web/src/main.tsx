@@ -14,6 +14,7 @@ import { ChatPage } from "../../../src/pages/ChatPage";
 import { OrderingLayout } from "../../../src/ordering/OrderingLayout";
 import { OrderingMenuPage } from "../../../src/ordering/OrderingMenuPage";
 import { SessionOrdersPage } from "../../../src/ordering/SessionOrdersPage";
+import { SessionSmartIndexRedirect } from "../../../src/ordering/SessionSmartIndexRedirect";
 import { TableScanPage } from "../../../src/ordering/TableScanPage";
 
 document.documentElement.classList.add("brand-theme");
@@ -58,7 +59,7 @@ const router = createBrowserRouter([
     element: <OrderingLayout />,
     errorElement: <NotFoundPage />,
     children: [
-      { index: true, element: <Navigate replace to="menu" /> },
+      { index: true, element: <SessionSmartIndexRedirect /> },
       { path: "menu", element: <OrderingMenuPage /> },
       { path: "ai", element: <ChatPage /> },
       { path: "cart", element: <CartPage /> },

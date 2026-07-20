@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
+using RestaurantQrAiOrdering.Entities;
 
 namespace RestaurantQrAiOrdering.Api.Data;
 
@@ -22,11 +23,18 @@ public static class TableQrTokenRotator
 
         foreach (var table in tables)
         {
-            table.QrToken = GenerateToken();
-            table.UpdatedAt = DateTimeOffset.UtcNow;
+            RotateTableQrToken(table);
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public static string RotateTableQrToken(RestaurantTable table)
+    {
+        var token = GenerateToken();
+        table.QrToken = token;
+        table.UpdatedAt = DateTimeOffset.UtcNow;
+        return token;
     }
 
     private static string GenerateToken()

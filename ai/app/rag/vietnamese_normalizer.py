@@ -182,3 +182,27 @@ def _strip_diacritics(text: str) -> str:
     """Remove Vietnamese diacritics (NFD decomposition)."""
     nfkd = unicodedata.normalize("NFKD", text.replace("đ", "d").replace("Đ", "D"))
     return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+_TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+
+
+def normalize_query_text(value: str) -> str:
+    """Normalize user/menu text for matching: lowercase, strip diacritics, tokenize."""
+    if not value:
+        return ""
+    decomposed = unicodedata.normalize("NFD", value.casefold().replace("đ", "d"))
+    without_marks = "".join(
+        char for char in decomposed if unicodedata.category(char) != "Mn"
+    )
+    return " ".join(_TOKEN_PATTERN.findall(without_marks))
+
+
+def tokenize_ascii(text: str) -> list[str]:
+    """Tokenize text into lowercase ASCII tokens (preserving duplicates for TF)."""
+    return _TOKEN_PATTERN.findall(normalize_query_text(text))
+
+
+def tokenize_ascii_set(text: str) -> set[str]:
+    """Tokenize text into a unique set of lowercase ASCII tokens."""
+    return set(tokenize_ascii(text))

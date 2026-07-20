@@ -70,11 +70,29 @@ public sealed class OrderStore : IOrderStore
         var tableCode = NormalizeOptional(command.TableCode)?.ToUpperInvariant();
         var qrToken = NormalizeOptional(command.QrToken);
         var tableSessionId = NormalizeOptional(command.TableSessionId);
-        // Resolve the table from the scanned QR token, not the client-supplied table code:
-        // endpoint validation already proved this token maps to this active table.
-        var table = qrToken is not null
-            ? db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive)
-            : null;
+        RestaurantTable? table = null;
+        TableSession? tableSession = null;
+
+        if (orderType == OrderType.DineIn && !string.IsNullOrWhiteSpace(tableSessionId))
+        {
+            tableSession = db.TableSessions
+                .Include(session => session.RestaurantTable)
+                .FirstOrDefault(session =>
+                    session.Id == tableSessionId
+                    && session.Status == TableSessionStatus.Open
+                    && session.ExpiresAt > now);
+
+            if (tableSession?.RestaurantTable is { IsActive: true } sessionTable)
+            {
+                table = sessionTable;
+            }
+        }
+
+        if (table is null && qrToken is not null)
+        {
+            table = db.RestaurantTables.FirstOrDefault(t => t.QrToken == qrToken && t.IsActive);
+        }
+
         if (orderType == OrderType.DineIn && table is null)
         {
             throw new TableSessionUnavailableException(
@@ -84,7 +102,7 @@ public sealed class OrderStore : IOrderStore
         }
 
         var menuItems = LoadMenuItems(command);
-        var tableSession = ResolveTableSession(tableSessionId, table, now);
+        tableSession ??= ResolveTableSession(tableSessionId, table, now);
         if (orderType == OrderType.DineIn && tableSession is null)
         {
             throw new TableSessionUnavailableException(
@@ -159,6 +177,18 @@ public sealed class OrderStore : IOrderStore
         AppendStatusHistory(order, fromStatus: null, order.Status, OrderStatusChangeSource.Status, actor, note: null, now);
 
         db.Orders.Add(order);
+
+        if (tableSession is not null)
+        {
+            var cartLines = db.TableSessionCartItems
+                .Where(item => item.TableSessionId == tableSession.Id)
+                .ToList();
+            if (cartLines.Count > 0)
+            {
+                db.TableSessionCartItems.RemoveRange(cartLines);
+            }
+        }
+
         db.SaveChanges();
         transaction?.Commit();
 
@@ -502,7 +532,7 @@ public sealed class OrderStore : IOrderStore
             OrderStatus.Placed => next is OrderStatus.Confirmed or OrderStatus.Preparing,
             OrderStatus.Confirmed => next is OrderStatus.Preparing,
             OrderStatus.Preparing => next is OrderStatus.Ready,
-            OrderStatus.Ready => next is OrderStatus.Served or OrderStatus.Completed,
+            OrderStatus.Ready => next is OrderStatus.Served,
             OrderStatus.Served => next is OrderStatus.Completed,
             _ => false
         };
