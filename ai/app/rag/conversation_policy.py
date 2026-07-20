@@ -308,7 +308,11 @@ def build_conversation_policy(
         )
     if recommendation_thread and _is_recommendation_refinement(normalized_message):
         wants_recommendations = True
-    if recommendation_thread and is_suggestion_adequacy_follow_up(normalized_message):
+    if (
+        recommendation_thread
+        and is_suggestion_adequacy_follow_up(normalized_message)
+        and not _is_prior_dish_context_question(normalized_message)
+    ):
         wants_recommendations = True
     if recommendation_thread and is_ingredient_presence_follow_up(normalized_message):
         wants_recommendations = True
