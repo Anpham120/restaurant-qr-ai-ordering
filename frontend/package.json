@@ -35,7 +35,7 @@
     "@fontsource/playfair-display": "^5.2.8",
     "@fortawesome/free-brands-svg-icons": "^7.3.0",
     "@fortawesome/react-fontawesome": "^3.4.0",
-    "@microsoft/signalr": "^9.0.6",
+    "@microsoft/signalr": "^10.0.0",
     "lucide-react": "^1.23.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
