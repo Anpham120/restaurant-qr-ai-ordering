@@ -329,7 +329,8 @@ def build_conversation_policy(
         wants_recommendations = True
     if (
         recommendation_thread
-        and _is_prior_dish_context_question(normalized_message)
+        and is_suggestion_adequacy_follow_up(normalized_message)
+        and _refers_to_prior_suggested_dishes(normalized_message)
         and not _is_more_dishes_request(normalized_message)
     ):
         wants_recommendations = False
@@ -632,6 +633,21 @@ def _is_prior_dish_context_question(normalized_message: str) -> bool:
     if any(term in normalized_message for term in payment_terms) and "mon" not in normalized_message:
         return False
     return True
+
+
+def _refers_to_prior_suggested_dishes(normalized_message: str) -> bool:
+    dish_reference_terms = (
+        "mon do",
+        "mon ay",
+        "mon vua",
+        "may mon",
+        "cac mon",
+        "nhung mon",
+        "da goi y",
+        "vua goi y",
+        "nhac lai",
+    )
+    return any(term in normalized_message for term in dish_reference_terms)
 
 
 def _is_elliptical_info_follow_up(normalized_message: str) -> bool:
