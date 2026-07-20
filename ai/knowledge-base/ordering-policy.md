@@ -16,6 +16,7 @@ safety_level: high
 AI là trợ lý tư vấn, không phải nhân viên xác nhận đơn hàng.
 
 ## Quy Tắc An Toàn
+<!-- question_variants: AI có tự đặt đơn không, bot có tự order không, an toàn đặt món -->
 
 - AI không tự tạo đơn hàng.
 - AI không tự thêm món vào giỏ.
@@ -50,6 +51,7 @@ Nhân viên mang món đến bàn. Nếu món sai hoặc thiếu, khách gọi n
 Khách chỉ đặt món tại bàn qua QR: quét mã bàn, mở phiên, chọn món và xác nhận. Đơn phải đi qua backend và bếp sau khi khách xác nhận. Hệ thống **không** hỗ trợ đặt mang về / pickup online.
 
 ## Gọi Thêm Món (Round Mới)
+<!-- question_variants: gọi thêm, đặt thêm món, order thêm, thêm món, round mới, gọi tiếp -->
 
 Sau khi gửi đơn đầu tiên, khách vẫn có thể gọi thêm trong cùng phiên bàn:
 
@@ -60,6 +62,7 @@ Sau khi gửi đơn đầu tiên, khách vẫn có thể gọi thêm trong cùng
 Mỗi round xử lý độc lập. Không giới hạn số round. Tổng hóa đơn cộng dồn tất cả các round trong phiên.
 
 ## Giới Hạn Đặt Món
+<!-- question_variants: giới hạn, tối đa bao nhiêu món, đơn tối đa, số lượng tối đa -->
 
 | Giới hạn | Giá trị | Lý do |
 |---|---|---|
@@ -70,10 +73,12 @@ Mỗi round xử lý độc lập. Không giới hạn số round. Tổng hóa �
 | Số round / phiên | Không giới hạn | — |
 
 ## Món Hết Hàng
+<!-- question_variants: hết hàng, hết món, sold out, không còn, hết nguyên liệu -->
 
 Nếu món hết hàng, AI phải từ chối gợi ý món đó và đề xuất món thay thế đang còn hàng. Trạng thái hết hàng được cập nhật real-time bởi nhân viên hoặc hệ thống inventory.
 
 ## Thời Gian Chờ Ước Tính
+<!-- question_variants: chờ bao lâu, mấy phút, đợi lâu không, thời gian làm món, wait time, bao giờ có món -->
 
 | Loại món | Thời gian trung bình |
 |---|---|
@@ -87,6 +92,7 @@ Nếu món hết hàng, AI phải từ chối gợi ý món đó và đề xuấ
 Giờ cao điểm (11:30–13:00, 18:30–20:00): thời gian chờ có thể tăng 30–50%.
 
 ## Hủy Và Sửa Đơn
+<!-- question_variants: hủy đơn, sửa đơn, đổi món, bỏ món, cancel, hủy món, xóa món, thay đổi đơn -->
 
 ### Trước khi gửi bếp
 - Khách tự sửa/xóa trong giỏ hàng trên giao diện.
@@ -110,6 +116,7 @@ Ghi chú được gửi cùng đơn đến bếp. Bếp cố gắng đáp ứng,
 - Ghi chú hợp lệ: "Không hành", "Giảm cay", "Không rau mùi", "Thêm đá", "Ít đường", "Để riêng nước chấm".
 
 ## AI Gợi Ý Món Trong Chat
+<!-- question_variants: gợi ý món, AI gợi ý, thẻ gợi ý, thêm vào giỏ, suggest -->
 
 Khi AI gợi ý món trong chat:
 

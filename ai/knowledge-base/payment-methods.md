@@ -14,10 +14,12 @@ safety_level: high
 # Phương Thức Thanh Toán
 
 ## Tổng Quan
+<!-- question_variants: thanh toán bằng gì, trả tiền thế nào, tính tiền, trả bằng gì, payment methods, hình thức thanh toán -->
 
 CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn hàng được tính tổng tự động trên hệ thống, bao gồm mọi round gọi món trong cùng phiên bàn.
 
 ## VietQR (Khuyến Khích)
+<!-- question_variants: chuyển khoản, quét mã, qr code, vietqr, banking app, chuyển tiền -->
 
 ### Quy Trình VietQR
 
@@ -45,6 +47,7 @@ CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn
 - Hỗ trợ tất cả ngân hàng liên kết VietQR (40+ ngân hàng).
 
 ## Tiền Mặt
+<!-- question_variants: trả tiền mặt, cash, tiền mặt được không, trả bằng tiền mặt -->
 
 ### Quy Trình Tiền Mặt
 
@@ -61,6 +64,7 @@ CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn
 - Hóa đơn in bao gồm chi tiết từng món, từng round.
 
 ## Thẻ Ngân Hàng (Visa / MasterCard / JCB)
+<!-- question_variants: quẹt thẻ, visa, mastercard, thẻ tín dụng, credit card, thẻ ATM, napas -->
 
 ### Quy Trình Thẻ
 
@@ -78,12 +82,14 @@ CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn
 - Không hỗ trợ trả góp.
 
 ## Chia Bill
+<!-- question_variants: chia tiền, split bill, chia đôi, mỗi người trả riêng, tách hóa đơn -->
 
 - Hệ thống **không** hỗ trợ chia bill tự động.
 - Nếu cần chia: gọi nhân viên, nhân viên sẽ tách hóa đơn thủ công.
 - Có thể kết hợp nhiều phương thức (ví dụ: một phần VietQR, một phần tiền mặt).
 
 ## Hóa Đơn VAT
+<!-- question_variants: xuất hóa đơn, VAT, hóa đơn đỏ, invoice, hóa đơn công ty, mã số thuế -->
 
 - Xuất hóa đơn VAT theo yêu cầu.
 - Cung cấp: tên công ty, mã số thuế, địa chỉ, email nhận hóa đơn.
@@ -91,6 +97,7 @@ CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn
 - Yêu cầu xuất VAT trước khi thanh toán hoặc trong ngày.
 
 ## Voucher Và Mã Giảm Giá
+<!-- question_variants: voucher, mã giảm giá, coupon, ưu đãi, khuyến mãi, discount -->
 
 | Loại | Cách dùng |
 |---|---|
@@ -107,6 +114,7 @@ CMC Restaurant hỗ trợ 3 phương thức thanh toán chính. Tất cả đơn
 - Voucher giảm giá cố định (ví dụ: 50.000đ) trừ trực tiếp vào tổng đơn.
 
 ## Xử Lý Sự Cố Thanh Toán
+<!-- question_variants: lỗi thanh toán, không thanh toán được, chuyển tiền lỗi, hoàn tiền, refund -->
 
 | Sự cố | Cách xử lý |
 |---|---|

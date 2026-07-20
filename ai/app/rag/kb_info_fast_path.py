@@ -1,0 +1,399 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from app.rag.conversation_policy import (
+    _is_context_only_follow_up,
+    _is_more_dishes_request,
+    _party_size_from_history,
+    _was_recommendation_thread,
+)
+from app.rag.policy_faq_fast_path import try_wifi_policy_fast_path
+from app.rag.retriever import RetrievalFilters, Retriever
+from app.rag.vietnamese_normalizer import normalize_query_text
+
+
+INFO_INTENTS = frozenset(
+    {
+        "restaurant_info",
+        "payment",
+        "service",
+        "promotion",
+        "general",
+        "ask_price",
+        "dietary",
+        "occasion",
+    }
+)
+
+JUNK_INFO_SOURCES = frozenset({"data-mining-insights.md", "combo-pairing.md"})
+
+INTENT_PREFERRED_SOURCES: dict[str, tuple[str, ...]] = {
+    "restaurant_info": ("faq.md", "restaurant-info.md", "service-guide.md"),
+    "payment": ("payment-methods.md", "faq.md", "ordering-policy.md"),
+    "service": ("service-guide.md", "faq.md", "restaurant-info.md"),
+    "promotion": ("promotions.md", "faq.md", "ordering-policy.md"),
+    "general": ("faq.md", "restaurant-info.md", "service-guide.md"),
+    "ask_price": ("menu.md", "faq.md"),
+    "dietary": ("allergy-dietary.md", "vegan-halal-keto.md", "ingredient-nutrition.md", "faq.md", "menu.md"),
+    "occasion": ("faq.md", "occasion-dining.md", "combo-pairing.md"),
+}
+
+_QUERY_STOPWORDS = frozenset(
+    {
+        "la",
+        "gi",
+        "co",
+        "khong",
+        "nao",
+        "the",
+        "nhu",
+        "toi",
+        "minh",
+        "ban",
+        "nha",
+        "hang",
+        "duoc",
+        "hay",
+        "giup",
+        "voi",
+        "tai",
+        "con",
+    }
+)
+
+# Vietnamese domain tokens are often 2 chars (xe, mo, com) but carry FAQ intent.
+_SHORT_DOMAIN_TOKENS = frozenset({"xe", "mo", "an", "com", "bo", "ga", "nuoc", "bia"})
+
+# Map normalized query phrases -> substring expected in faq.md section title.
+_FAQ_TOPIC_ROUTES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("gio mo cua", "mo cua", "dong cua", "gio hoat dong"), "gio mo cua"),
+    (("gui xe", "dau xe", "do xe", "bai xe", "cho dau", "cho gui", "gui oto"), "dau xe"),
+    (("thanh toan", "vietqr", "tien mat", "chuyen khoan"), "thanh toan"),
+    (("dat ban", "dat truoc"), "dat ban"),
+    (("phong vip", "phong rieng"), "phong rieng"),
+    (("san thuong", "ngoai troi"), "san thuong"),
+    (("tre em", "tre con", "highchair"), "tre em"),
+    (("sinh nhat", "tiec sinh nhat"), "sinh nhat"),
+    (("dia chi", "o dau", "nam o dau"), "o dau"),
+    (("mang ve", "takeaway", "giao hang"), "mang ve"),
+    (("huy don", "huy mon"), "huy don"),
+    (("cho mon", "thoi gian cho"), "thoi gian cho"),
+    (("khuyen tat", "xe lan"), "khuyet tat"),
+    (("nuoc mien phi", "nuoc loc"), "nuoc uong"),
+)
+
+
+def _normalize(text: str) -> str:
+    return normalize_query_text(text)
+
+
+# Tokens that indicate the query is about food/menu items, not policy/FAQ.
+_FOOD_CONTEXT_TOKENS = frozenset({
+    "pho", "bun", "com", "lau", "banh", "che", "goi", "cha",
+    "ga", "bo", "heo", "tom", "ca", "muc", "oc", "cua",
+    "nuoc", "tra", "bia", "cafe", "sinh", "mon", "an",
+    "suon", "hai", "san", "trang", "mieng", "khai",
+})
+
+# Sources that should NOT be used for food-specific queries.
+_POLICY_ONLY_SOURCES = frozenset({
+    "ordering-policy.md", "payment-methods.md", "service-guide.md",
+    "staff-escalation.md", "out-of-domain-redirect.md", "negative-examples.md",
+    "brand-voice.md",
+})
+
+
+def _query_tokens(normalized_query: str) -> list[str]:
+    tokens: list[str] = []
+    for token in normalized_query.split():
+        if token in _QUERY_STOPWORDS:
+            continue
+        if len(token) > 2 or token in _SHORT_DOMAIN_TOKENS:
+            tokens.append(token)
+    return tokens
+
+
+def _expand_query_tokens(tokens: list[str]) -> set[str]:
+    expanded = set(tokens)
+    if "gui" in expanded:
+        expanded.update({"dau", "xe"})
+    if "gui" in expanded and "xe" in expanded:
+        expanded.add("dau")
+    if "dau" in expanded and "xe" in expanded:
+        expanded.add("gui")
+    if "mo" in expanded and "cua" in expanded:
+        expanded.update({"mo", "cua", "gio"})
+    return expanded
+
+
+def _topic_needle_for_query(normalized_query: str) -> str | None:
+    for query_terms, title_needle in _FAQ_TOPIC_ROUTES:
+        if any(term in normalized_query for term in query_terms):
+            return title_needle
+    return None
+
+
+def _find_faq_by_topic(normalized_query: str, candidates: list[Any]) -> Any | None:
+    title_needle = _topic_needle_for_query(normalized_query)
+    if title_needle is None:
+        return None
+    hits = [
+        item
+        for item in candidates
+        if item.chunk.source == "faq.md" and title_needle in _normalize(item.chunk.title)
+    ]
+    if hits:
+        return max(hits, key=lambda item: float(item.score))
+    return None
+
+
+def _title_overlap(normalized_query: str, title: str) -> int:
+    title_norm = _normalize(title)
+    tokens = _expand_query_tokens(_query_tokens(normalized_query))
+    if not tokens:
+        return 0
+    return sum(1 for token in tokens if token in title_norm)
+
+
+def _is_food_query(tokens: list[str]) -> bool:
+    """Return True when the query is primarily about food items, not policy/info."""
+    return bool(set(tokens) & _FOOD_CONTEXT_TOKENS)
+
+
+def _chunk_matches_query_context(normalized_query: str, item: Any, tokens: list[str]) -> bool:
+    """Check if the chunk's domain is compatible with the query's actual intent.
+
+    This prevents policy/FAQ chunks from answering food-specific questions
+    and vice versa.  The check is intentionally conservative: when uncertain,
+    it returns True (allowing the chunk through) so the LLM can decide.
+    """
+    if not tokens:
+        return True
+
+    # Food-specific query should not be answered by pure policy chunks
+    if _is_food_query(tokens) and item.chunk.source in _POLICY_ONLY_SOURCES:
+        # Exception: queries that also contain policy terms (e.g. "mon nao dat nhat")
+        policy_terms = {"thanh", "toan", "hoa", "don", "huy", "gui", "qr"}
+        if not (set(tokens) & policy_terms):
+            return False
+
+    return True
+
+
+def _relevance_score(normalized_query: str, item: Any, preferred_sources: tuple[str, ...]) -> float:
+    content = _normalize(item.chunk.content)
+    title = _normalize(item.chunk.title)
+    tokens = list(_expand_query_tokens(_query_tokens(normalized_query)))
+    if not tokens:
+        return 0.0
+
+    # Context mismatch penalty: if chunk domain doesn't match query intent
+    if not _chunk_matches_query_context(normalized_query, item, tokens):
+        return 0.0
+
+    overlap = sum(1 for token in tokens if token in content or token in title)
+    # Require minimum token coverage — at least 40% of query tokens must appear
+    coverage = overlap / len(tokens) if tokens else 0.0
+    if coverage < 0.4:
+        return overlap * 0.5  # Heavily penalise low-coverage matches
+
+    source_bonus = 3.0 if item.chunk.source in preferred_sources else 0.0
+    title_overlap = _title_overlap(normalized_query, item.chunk.title)
+    title_bonus = 4.0 if title_overlap >= 2 else 0.0
+    faq_title_bonus = 8.0 if item.chunk.source == "faq.md" and title_overlap >= 2 else 0.0
+    retrieval_bonus = float(item.score) * 10.0
+    return overlap + source_bonus + title_bonus + faq_title_bonus + retrieval_bonus
+
+
+def _format_chunk_answer(content: str) -> str:
+    text = re.sub(r"^#+\s*", "", content.strip(), flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    paragraphs = [part.strip() for part in text.split("\n\n") if part.strip()]
+    if not paragraphs:
+        return content.strip()
+
+    body = paragraphs[0]
+    if len(body) > 420 and ". " in body:
+        sentences = body.split(". ")
+        body = ". ".join(sentences[:2]).strip()
+        if not body.endswith("."):
+            body += "."
+    return body
+
+
+def _apply_session_context_prefix(content: str, history: list[dict[str, Any]]) -> str:
+    party_size = _party_size_from_history(history)
+    stripped = content.strip()
+    if not party_size or party_size < 2 or not stripped:
+        return content
+    lead = stripped[0].lower() + stripped[1:]
+    return f"Với nhóm {party_size} người như anh/chị đang đặt bàn, {lead}"
+
+
+def _build_fast_path_response(
+    item: Any,
+    content: str,
+    *,
+    model: str,
+    history: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if history:
+        content = _apply_session_context_prefix(content, history)
+    return {
+        "content": content,
+        "provider_available": False,
+        "model": model,
+        "retrieved_sources": [
+            {
+                "source": item.chunk.source,
+                "title": item.chunk.title,
+                "score": float(item.score),
+            }
+        ],
+        "guardrail_flags": [],
+        "suggested_cart_actions": [],
+        "follow_up": {"can_show_more": False, "remaining_count": 0},
+        "suggest_staff_handoff": False,
+    }
+
+
+def try_kb_info_fast_path(
+    message: str,
+    retrieved: list[Any],
+    *,
+    intent: str,
+    wants_recommendations: bool,
+    retriever: Retriever | None = None,
+    history: list[dict[str, Any]] | None = None,
+    is_solo_dining: bool = False,
+) -> dict[str, Any] | None:
+    """Deterministic KB answers for restaurant policy/FAQ (non-recommendation) queries."""
+
+    if wants_recommendations or is_solo_dining:
+        return None
+    if intent not in INFO_INTENTS:
+        return None
+
+    history = history or []
+    normalized = _normalize(message)
+    if (
+        _was_recommendation_thread(history, "")
+        and _is_more_dishes_request(normalized)
+        and not _is_context_only_follow_up(normalized)
+    ):
+        return None
+
+    wifi_answer = try_wifi_policy_fast_path(message, retrieved)
+    if wifi_answer is not None:
+        return wifi_answer
+
+    if any(
+        term in normalized
+        for term in (
+            "co mon",
+            "mon nao",
+            "co gi an",
+            "co nhung mon",
+            "mon khac",
+            "mon phu hop",
+            "goi y",
+            "tu van",
+            "de xuat",
+            "nhom",
+            "nhieu nguoi",
+            "dong nguoi",
+            "gia dinh",
+            "an chung",
+            "mot minh",
+            "di mot minh",
+            "an mot minh",
+            "minh toi",
+        )
+    ):
+        return None
+
+    # Bare "general" queries without info markers must not dump restaurant-info.
+    if intent == "general" and not any(
+        term in normalized
+        for term in (
+            "dia chi",
+            "o dau",
+            "hotline",
+            "lien he",
+            "wifi",
+            "mo cua",
+            "gio",
+            "gui xe",
+            "vip",
+            "thanh toan",
+            "hoa don",
+            "khuyen mai",
+            "faq",
+        )
+    ):
+        return None
+
+    preferred = INTENT_PREFERRED_SOURCES.get(intent, ("faq.md", "restaurant-info.md"))
+
+    topic_faq = _find_faq_by_topic(normalized, retrieved)
+    if topic_faq is None and retriever is not None and _topic_needle_for_query(normalized):
+        faq_candidates = retriever.search(
+            message,
+            top_k=30,
+            filters=RetrievalFilters(allowed_source_ids=frozenset({"faq.md"})),
+        )
+        topic_faq = _find_faq_by_topic(normalized, faq_candidates)
+    if topic_faq is not None:
+        content = _format_chunk_answer(topic_faq.chunk.content)
+        if content:
+            return _build_fast_path_response(
+                topic_faq, content, model="deterministic-kb-info", history=history
+            )
+
+    faq_title_hits = [
+        item
+        for item in retrieved
+        if item.chunk.source == "faq.md" and _title_overlap(normalized, item.chunk.title) >= 2
+    ]
+    if faq_title_hits:
+        best_faq = max(
+            faq_title_hits,
+            key=lambda item: (_title_overlap(normalized, item.chunk.title), float(item.score)),
+        )
+        content = _format_chunk_answer(best_faq.chunk.content)
+        if content:
+            return _build_fast_path_response(
+                best_faq, content, model="deterministic-kb-info", history=history
+            )
+
+    # Short queries (≤ 2 meaningful tokens) are too ambiguous for deterministic
+    # answers — let the LLM interpret context instead of guessing from keywords.
+    query_tokens = _query_tokens(normalized)
+    if len(query_tokens) <= 2:
+        return None
+
+    scored: list[tuple[float, Any]] = []
+
+    for item in retrieved:
+        if item.chunk.source in JUNK_INFO_SOURCES:
+            continue
+        score = _relevance_score(normalized, item, preferred)
+        # Raised threshold from 3.0 → 6.0: only fast-path when we are
+        # confident the chunk truly answers the question.  score < 6.0
+        # means the match is based on weak signals (e.g. source_bonus
+        # alone) and should go through LLM for contextual interpretation.
+        if score >= 6.0:
+            scored.append((score, item))
+
+    if not scored:
+        return None
+
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    best = scored[0][1]
+    content = _format_chunk_answer(best.chunk.content)
+    if not content:
+        return None
+
+    return _build_fast_path_response(best, content, model="deterministic-kb-info", history=history)

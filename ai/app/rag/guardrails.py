@@ -1,18 +1,29 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Iterable
+
+from app.rag.vietnamese_normalizer import normalize_query_text
 
 
 ORDER_CREATION_PATTERNS = [
     r"\bdat\s+luon\b",
-    r"\bdat\s+mon\b",
+    # "đặt món" as a command, not the question "nên đặt món gì/nào?"
+    r"\bdat\s+mon\b(?!\s+(?:gi|nao)\b)",
     r"\bthem\s+vao\s+gio\b",
+    # "thêm <tên món> vào giỏ (hàng)"
+    r"\bthem\b[\w\s]{0,40}\bvao\s+gio\b",
     r"\bthanh\s+toan\b",
     r"\bchot\s+don\b",
     r"\bgui\s+don\b",
     r"\bmua\s+luon\b",
+    r"\btinh\s+tien\b",
+    r"\bgui\s+be\b",
+    r"\bban\s+dat\b",
+    r"\bplace\s+(?:my\s+|the\s+|an\s+)?order\b",
+    r"\bsubmit\b.*\bcart\b",
+    r"\bcheckout\b",
+    r"\border\b.*\bfor\s+me\b",
 ]
 
 OFF_TOPIC_PATTERNS = [
@@ -133,5 +144,4 @@ def validate_suggested_item_ids(suggested_ids: Iterable[str], menu_items: Iterab
 
 
 def _normalize(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text.lower().replace("đ", "d"))
-    return "".join(char for char in normalized if not unicodedata.combining(char))
+    return normalize_query_text(text)

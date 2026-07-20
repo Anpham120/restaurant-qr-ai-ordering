@@ -4,13 +4,14 @@ import hashlib
 import json
 import math
 import re
-import unicodedata
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Sequence
 
 from app.rag.knowledge_base import load_markdown_knowledge_base
+
+from app.rag.vietnamese_normalizer import normalize_query_text
 
 from evaluation.research_dataset import (
     DatasetValidationError,
@@ -91,7 +92,7 @@ def resolve_selectors(
             ) from error
 
         value = raw_value.strip()
-        normalized_value = _normalize(value)
+        normalized_value = normalize_query_text(value)
         if kind is SelectorKind.DOCUMENT:
             matches = [document for document in documents if document.document_id == value]
         elif kind is SelectorKind.MENU_CATEGORY:
@@ -99,21 +100,21 @@ def resolve_selectors(
                 document
                 for document in documents
                 if isinstance(document.metadata, MenuDocumentMetadata)
-                and _normalize(document.metadata.category_name) == normalized_value
+                and normalize_query_text(document.metadata.category_name) == normalized_value
             ]
         elif kind is SelectorKind.MENU_TAG:
             matches = [
                 document
                 for document in documents
                 if isinstance(document.metadata, MenuDocumentMetadata)
-                and normalized_value in {_normalize(tag) for tag in document.metadata.tags}
+                and normalized_value in {normalize_query_text(tag) for tag in document.metadata.tags}
             ]
         else:
             matches = [
                 document
                 for document in documents
                 if isinstance(document.metadata, KnowledgeDocumentMetadata)
-                and _normalize(document.metadata.source) == normalized_value
+                and normalize_query_text(document.metadata.source) == normalized_value
             ]
         selected.update(document.document_id for document in matches)
     return frozenset(selected)
@@ -288,7 +289,7 @@ def _load_menu_documents(menu_path: Path) -> list[ResearchDocument]:
 def _load_knowledge_documents(knowledge_base_path: Path) -> list[ResearchDocument]:
     documents: list[ResearchDocument] = []
     for chunk in load_markdown_knowledge_base(knowledge_base_path):
-        slug = re.sub(r"[^a-z0-9]+", "-", _normalize(chunk.title)).strip("-")
+        slug = re.sub(r"[^a-z0-9]+", "-", normalize_query_text(chunk.title)).strip("-")
         documents.append(
             ResearchDocument(
                 document_id=f"kb:{chunk.source}:{slug}",
@@ -302,14 +303,6 @@ def _load_knowledge_documents(knowledge_base_path: Path) -> list[ResearchDocumen
             )
         )
     return documents
-
-
-def _normalize(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.strip().lower())
-    without_marks = "".join(
-        character for character in decomposed if unicodedata.category(character) != "Mn"
-    )
-    return " ".join(without_marks.replace("đ", "d").split())
 
 
 def _required_menu_string(item: dict, key: str, index: int) -> str:

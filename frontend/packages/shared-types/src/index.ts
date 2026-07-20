@@ -1,4 +1,4 @@
-export type UserRole = "Customer" | "Staff" | "Kitchen" | "Admin";
+export type UserRole = "Customer" | "Staff" | "CounterStaff" | "Kitchen" | "Admin";
 export type OrderType = "DineIn";
 export type OrderStatus = "Draft" | "Placed" | "Confirmed" | "Preparing" | "Ready" | "Served" | "Completed" | "Cancelled";
 export type OrderItemStatus = "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";

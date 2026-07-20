@@ -5,7 +5,7 @@ import { clearMenuCart, loadOrderContext, saveOrderContext } from "../components
 import { openDineInSession, resolveTableQr } from "../services/tableSessionService";
 import { getSessionResumeDestination } from "./sessionResumeState";
 
-type ScanState = "loading" | "invalid" | "expired" | "error";
+type ScanState = "loading" | "invalid" | "expired" | "already_used" | "error";
 
 export function TableScanPage({ tableCode }: { tableCode?: string }) {
   const { t } = useI18n();
@@ -30,7 +30,15 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
         if (!active) return;
 
         if (result.status !== "open") {
-          setState(result.status === "expired" ? "expired" : result.status === "error" ? "error" : "invalid");
+          setState(
+            result.status === "expired"
+              ? "expired"
+              : result.status === "already_used"
+                ? "already_used"
+                : result.status === "error"
+                  ? "error"
+                  : "invalid",
+          );
           return;
         }
 
@@ -45,7 +53,11 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
           sessionToken: result.session.tableSessionToken,
         });
         navigate(
-          getSessionResumeDestination(result.session.sessionId, result.session.resumeState),
+          getSessionResumeDestination(
+            result.session.sessionId,
+            result.session.resumeState,
+            token,
+          ),
           { replace: true },
         );
       } catch {
@@ -59,6 +71,8 @@ export function TableScanPage({ tableCode }: { tableCode?: string }) {
 
   const copy = state === "expired"
     ? "Phiên bàn này đã hết hạn. Vui lòng quét lại QR tại bàn."
+    : state === "already_used"
+      ? "Mã QR này đã được quét rồi. Tiếp tục trên thiết bị đã mở phiên, hoặc nhờ nhân viên cấp mã QR mới."
     : state === "error"
       ? "Không thể kết nối phiên bàn. Vui lòng thử lại hoặc nhờ nhân viên hỗ trợ."
       : "Mã QR không hợp lệ hoặc không còn hoạt động.";

@@ -30,12 +30,12 @@ class DeterministicFakeEncoder:
 class RetrievalExperimentTests(unittest.TestCase):
     def test_dense_method_uses_same_dev_dataset_and_records_model_provenance(self) -> None:
         result = run_method(
-            RetrievalMethod.DENSE_E5,
+            RetrievalMethod.DENSE_E5_SMALL,
             top_k=5,
             encoder=DeterministicFakeEncoder(),
         )
 
-        self.assertEqual("dense_e5", result["method"])
+        self.assertEqual("dense_e5_small", result["method"])
         self.assertEqual("dev", result["split"])
         self.assertEqual(110, result["per_query_count"])
         retriever = result["provenance"]["retriever"]
@@ -44,27 +44,27 @@ class RetrievalExperimentTests(unittest.TestCase):
 
     def test_hybrid_method_records_both_retrieval_components(self) -> None:
         result = run_method(
-            RetrievalMethod.HYBRID_RRF,
+            RetrievalMethod.HYBRID_E5_SMALL,
             top_k=5,
             encoder=DeterministicFakeEncoder(),
         )
 
         retriever = result["provenance"]["retriever"]
-        self.assertEqual("hybrid_rrf", result["method"])
+        self.assertEqual("hybrid_e5_small", result["method"])
         self.assertIn("lexical", retriever["parameters"])
         self.assertIn("dense", retriever["parameters"])
 
     def test_comparison_preserves_method_names(self) -> None:
         result = run_comparison(
-            [RetrievalMethod.BM25, RetrievalMethod.DENSE_E5],
+            [RetrievalMethod.BM25, RetrievalMethod.DENSE_E5_SMALL],
             top_k=3,
             encoder=DeterministicFakeEncoder(),
         )
 
-        self.assertEqual({"bm25", "dense_e5"}, set(result["methods"]))
+        self.assertEqual({"bm25", "dense_e5_small"}, set(result["methods"]))
         comparison = result["pairwise_statistics"]
         self.assertEqual(1, comparison["comparison_count"])
-        self.assertIn("dense_e5_vs_bm25", comparison["comparisons"])
+        self.assertIn("dense_e5_small_vs_bm25", comparison["comparisons"])
         self.assertEqual(5, comparison["adjusted_test_count"])
         self.assertEqual(
             "within each test family across method pairs",
@@ -73,7 +73,7 @@ class RetrievalExperimentTests(unittest.TestCase):
 
     def test_comparison_uses_largest_evaluated_cutoff(self) -> None:
         result = run_comparison(
-            [RetrievalMethod.BM25, RetrievalMethod.DENSE_E5],
+            [RetrievalMethod.BM25, RetrievalMethod.DENSE_E5_SMALL],
             top_k=2,
             encoder=DeterministicFakeEncoder(),
         )
@@ -94,10 +94,10 @@ class RetrievalExperimentTests(unittest.TestCase):
 
     def test_frozen_test_guard_applies_to_every_method(self) -> None:
         with patch(
-            "evaluation.run_retrieval_experiment.SentenceTransformerE5Encoder"
+            "evaluation.run_retrieval_experiment.create_encoder"
         ) as encoder_constructor:
             with self.assertRaises(PermissionError):
-                run_method(RetrievalMethod.DENSE_E5, DatasetSplit.TEST)
+                run_method(RetrievalMethod.DENSE_E5_SMALL, DatasetSplit.TEST)
 
         encoder_constructor.assert_not_called()
 

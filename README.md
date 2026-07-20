@@ -61,32 +61,30 @@ flowchart LR
 
 ## Giao diện sản phẩm
 
-Các ảnh dưới đây là giao diện thật được lưu cùng bằng chứng triển khai của dự án.
+Ảnh chụp trực tiếp từ các ứng dụng production ngày **17/07/2026**. Gallery này phản ánh giao diện hiện hành, không dùng lại ảnh từ các báo cáo issue cũ.
 
 <table>
   <tr>
     <td width="50%" align="center">
-      <img src="docs/reports/issue-20/admin-dashboard.png" alt="Dashboard quản trị CMC Restaurant" />
-      <br /><strong>Dashboard quản trị</strong>
+      <img src="docs/assets/readme/customer-home-2026-07-17.png" alt="Trang giới thiệu CMC Restaurant trên production" />
+      <br /><strong>Website nhà hàng</strong>
     </td>
     <td width="50%" align="center">
-      <img src="docs/reports/issue-20/admin-menu.png" alt="Màn hình quản lý menu CMC Restaurant" />
-      <br /><strong>Quản lý menu</strong>
+      <img src="docs/assets/readme/customer-menu-2026-07-17.png" alt="Menu CMC Restaurant trên production" />
+      <br /><strong>Menu ẩm thực hiện hành</strong>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <img src="docs/reports/issue-20/kitchen-board.png" alt="Bảng điều phối món tại bếp" />
-      <br /><strong>Kitchen board</strong>
+      <img src="docs/assets/readme/order-scan-2026-07-17.png" alt="Trang quét QR để gọi món tại bàn" />
+      <br /><strong>Điểm vào gọi món bằng QR</strong>
     </td>
     <td width="50%" align="center">
-      <img src="docs/reports/issue-20/staff-orders.png" alt="Màn hình đơn hàng dành cho nhân viên" />
-      <br /><strong>Staff order board</strong>
+      <img src="docs/assets/readme/operations-login-2026-07-17.png" alt="Cổng đăng nhập vận hành CMC Restaurant" />
+      <br /><strong>Cổng vận hành</strong>
     </td>
   </tr>
 </table>
-
-Xem thêm ảnh desktop/mobile và bằng chứng smoke test tại [báo cáo issue #20](docs/reports/issue-20/evidence.md).
 
 ## Kiến trúc
 
@@ -226,15 +224,15 @@ docker compose -f deploy/docker-compose.yml config
 
 ## Tài liệu
 
-Điểm bắt đầu đầy đủ: **[Documentation Hub](docs/README.md)**.
+Điểm bắt đầu đầy đủ: **[Documentation Hub](docs/README.md)**. Hub chỉ quảng bá các tài liệu đang được dùng làm điểm vào hiện hành; kế hoạch và bằng chứng lịch sử vẫn được giữ trong repository để truy vết nhưng không được xem là mô tả trạng thái mới nhất.
 
 | Chủ đề | Tài liệu chính |
 | --- | --- |
-| Product & system design | [Project Context](docs/PROJECT_CONTEXT.md) · [System Analysis & Design](docs/SYSTEM_ANALYSIS_DESIGN.md) |
+| Product & system design | [BA/SA System Design](docs/BA_SA_SYSTEM_DESIGN.md) · [SPEC](SPEC.md) |
 | API & architecture | [API Contract](docs/API_CONTRACT.md) · [Backend Architecture](docs/BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md) |
-| AI & RAG | [AI/RAG Architecture](docs/AI_RAG_ARCHITECTURE.md) · [Quality Protocol](docs/AI_RAG_QUALITY_PROTOCOL.md) |
-| Testing | [Test Plan](docs/TEST_PLAN.md) · [E2E Checklist](docs/E2E_MULTI_DEVICE_CHECKLIST.md) |
-| DevOps | [CI/CD Pipeline](docs/CICD_PIPELINE.md) · [Deployment](docs/DEPLOYMENT.md) · [Operations](docs/PRODUCTION_OPERATIONS.md) |
+| AI & RAG | [AI/RAG Architecture](docs/AI_RAG_ARCHITECTURE.md) · [Evaluation Runbook](docs/AI_EVALUATION_RUNBOOK.md) · [Retriever ADR](docs/ai/ADR_RETRIEVER_SELECTION.md) |
+| Verification | [E2E Multi-device Checklist](docs/E2E_MULTI_DEVICE_CHECKLIST.md) |
+| Delivery & operations | [Deployment](docs/DEPLOYMENT.md) · [Production Operations](docs/PRODUCTION_OPERATIONS.md) |
 
 ## Trạng thái và định hướng
 

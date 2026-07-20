@@ -15,8 +15,8 @@ import re
 import unicodedata
 from typing import Any
 
-from app.rag.intent_classifier import IntentResult, classify_intent
-from app.rag.vietnamese_normalizer import normalize_vietnamese
+from app.rag.intent_classifier import IntentResult, classify_intent_with_history
+from app.rag.vietnamese_normalizer import normalize_vietnamese, normalize_query_text
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ def rewrite_query(
     normalized = normalize_vietnamese(original)
 
     # Step 2: Intent classification (on original to preserve diacritics for matching)
-    intent = classify_intent(original)
+    intent = classify_intent_with_history(original, history)
 
     parts: list[str] = [original]  # Keep original first
 
@@ -160,10 +160,49 @@ def _extract_category_query(text: str) -> str | None:
     return None
 
 
+RECOMMENDATION_CONTEXT_TERMS = (
+    "goi y",
+    "de xuat",
+    "tu van",
+    "nhom",
+    "nguoi",
+    "mon khac",
+    "dong nguoi",
+    "nhieu nguoi",
+    "an chung",
+    "combo",
+)
+
+
 def _extract_history_context(history: list[dict[str, Any]], max_turns: int = 3) -> str:
     """Extract relevant context from recent conversation history."""
     context_terms: list[str] = []
     recent = history[-max_turns * 2:]
+    user_turns = [
+        turn
+        for turn in recent
+        if str(turn.get("role") or "").casefold() == "user" and str(turn.get("content") or "").strip()
+    ][-2:]
+
+    for turn in user_turns:
+        content = str(turn.get("content") or "").strip()
+        normalized = normalize_query_text(content)
+        snippet = normalized[:80].strip()
+        if snippet:
+            context_terms.append(snippet)
+
+        party_match = re.search(r"\b(\d{1,2})\s+nguoi\b", normalized)
+        if party_match:
+            party_size = int(party_match.group(1))
+            context_terms.append(f"{party_match.group(1)} nguoi")
+            if party_size >= 4:
+                context_terms.extend(
+                    ["lau an chung", "mon chia se", "met thap cam", "hai san nguyen"]
+                )
+
+        for term in RECOMMENDATION_CONTEXT_TERMS:
+            if term in normalized:
+                context_terms.append(term)
 
     for turn in recent:
         role = str(turn.get("role") or "").casefold()
@@ -174,4 +213,12 @@ def _extract_history_context(history: list[dict[str, Any]], max_turns: int = 3) 
                 if trigger in text_lower:
                     context_terms.append(trigger)
 
-    return " ".join(context_terms[:5]) if context_terms else ""
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for term in context_terms:
+        if term in seen:
+            continue
+        seen.add(term)
+        deduped.append(term)
+
+    return " ".join(deduped[:8]) if deduped else ""

@@ -144,9 +144,11 @@ public sealed class OrderUpdatesHub : Hub
     private bool IsOperationsRole()
     {
         return Context.User?.IsInRole(UserRole.Staff) == true
+            || Context.User?.IsInRole(UserRole.CounterStaff) == true
             || Context.User?.IsInRole(UserRole.Kitchen) == true
             || Context.User?.IsInRole(UserRole.Admin) == true
             || HasRoleClaim(UserRole.Staff)
+            || HasRoleClaim(UserRole.CounterStaff)
             || HasRoleClaim(UserRole.Kitchen)
             || HasRoleClaim(UserRole.Admin);
     }

@@ -6,10 +6,20 @@ extraction later.
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Any
 
-from app.rag.intent_classifier import classify_intent
+from app.rag.conversation_policy import (
+    _is_context_only_follow_up,
+    _is_more_dishes_request,
+    _was_recommendation_thread,
+)
+from app.rag.intent_classifier import classify_intent_with_history
+from app.rag.party_size_parser import (
+    extract_party_size_from_text,
+    is_solo_dining_text,
+    is_solo_seating_question,
+)
+from app.rag.vietnamese_normalizer import normalize_query_text
 
 
 CONSTRAINT_SCHEMA: dict[str, Any] = {
@@ -89,6 +99,11 @@ CATALOG_TERMS = (
     "show menu",
     "browse",
     "catalog",
+    "cac mon",
+    "nhung mon",
+    "lien quan",
+    "thuoc nhom",
+    "mon nao thuoc",
 )
 
 RECOMMENDATION_TERMS = (
@@ -138,18 +153,22 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
     """Extract structured constraints using fast rule-based heuristics."""
     history = history or []
     normalized = _normalize(message)
-    combined_text = " ".join(
-        [_normalize(str(turn.get("content") or "")) for turn in history[-6:]]
-        + [normalized]
-    )
+    # Only user turns: assistant replies mention dish names/pronouns ("cua" in
+    # "của", "oc" in "duoc") that falsely trigger allergen/diet keywords.
+    user_turn_texts = [
+        _normalize(str(turn.get("content") or ""))
+        for turn in history[-6:]
+        if str(turn.get("role") or "").casefold() == "user"
+    ]
+    combined_text = " ".join(user_turn_texts + [normalized])
 
-    intent_result = classify_intent(message)
+    intent_result = classify_intent_with_history(message, history)
     language = _detect_language(message)
     allergens = _match_terms(combined_text, ALLERGEN_KEYWORDS)
     diet = _match_terms(combined_text, DIET_KEYWORDS)
     spice = _detect_spice(combined_text)
     budget_vnd = _extract_budget(normalized)
-    party_size = _extract_party_size(normalized)
+    party_size = _extract_party_size(combined_text)
     requested_count = _extract_requested_count(normalized)
     rejection_signal = _has_any(normalized, REJECTION_TERMS) or any(
         _has_any(_normalize(str(turn.get("content") or "")), REJECTION_TERMS)
@@ -157,11 +176,21 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         if str(turn.get("role") or "").casefold() == "user"
     )
     category = _detect_category(normalized)
+    recommendation_thread = _was_recommendation_thread(history, "")
+    wants_more_dishes = _is_more_dishes_request(normalized) and not _is_context_only_follow_up(normalized)
     is_recommendation = (
         requested_count is not None
         or _has_any(normalized, RECOMMENDATION_TERMS)
+        or (recommendation_thread and wants_more_dishes)
         or intent_result.intent in {"recommend", "order"}
         and _has_any(normalized, ("goi y", "de xuat", "tu van", "nen"))
+    )
+    # Party size remembered from earlier turns must not block a clear category
+    # browse on the current message (e.g. "cac mon lien quan den lau").
+    party_size_in_message = _extract_party_size(normalized)
+    catalog_browse = category is not None and (
+        _has_any(normalized, CATALOG_TERMS)
+        or intent_result.intent in {"browse_menu", "ask_price"}
     )
     is_catalog_only = (
         not is_recommendation
@@ -169,12 +198,13 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         and not diet
         and not allergens
         and spice == "unknown"
-        and party_size is None
-        and (
-            _has_any(normalized, CATALOG_TERMS)
-            or intent_result.intent in {"browse_menu", "ask_price"}
-            and category is not None
-        )
+        and party_size_in_message is None
+        and catalog_browse
+    )
+
+    is_solo_dining = not is_solo_seating_question(normalized) and (
+        is_solo_dining_text(combined_text)
+        or (party_size == 1 and is_solo_dining_text(normalized))
     )
 
     return {
@@ -189,8 +219,19 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         "rejection_signal": rejection_signal,
         "is_catalog_only": is_catalog_only,
         "is_recommendation": is_recommendation,
+        "is_solo_dining": is_solo_dining,
         "category": category,
     }
+
+
+def has_hard_dietary_constraints(constraints: dict[str, Any]) -> bool:
+    allergens = constraints.get("allergens") or []
+    if allergens:
+        return True
+    diet = constraints.get("diet")
+    if isinstance(diet, list):
+        return bool(diet)
+    return bool(diet and diet not in ("unknown",))
 
 
 def has_soft_criteria(constraints: dict[str, Any]) -> bool:
@@ -223,9 +264,15 @@ def _detect_language(message: str) -> str:
 def _match_terms(text: str, mapping: dict[str, tuple[str, ...]]) -> list[str]:
     matched: list[str] = []
     for label, terms in mapping.items():
-        if any(term in text for term in terms):
+        if any(_term_matches(text, term) for term in terms):
             matched.append(label)
     return matched
+
+
+def _term_matches(text: str, term: str) -> bool:
+    # Word-boundary match: bare substrings misfire on normalized Vietnamese
+    # ("cua" in "chua"/"cua(của)", "oc" in "duoc", "lac" in "lau").
+    return re.search(rf"\b{re.escape(term)}\b", text) is not None
 
 
 def _detect_spice(text: str) -> str:
@@ -261,16 +308,7 @@ def _extract_budget(normalized: str) -> int | None:
 
 
 def _extract_party_size(normalized: str) -> int | None:
-    patterns = (
-        r"\b(\d{1,2})\s*(?:nguoi|person|people|pax|khach)\b",
-        r"\bcho\s*(\d{1,2})\s*(?:nguoi|person|people|pax)\b",
-        r"\bparty\s*of\s*(\d{1,2})\b",
-    )
-    for pattern in patterns:
-        match = re.search(pattern, normalized)
-        if match:
-            return min(max(int(match.group(1)), 1), 20)
-    return None
+    return extract_party_size_from_text(normalized)
 
 
 def _extract_requested_count(normalized: str) -> int | None:
@@ -306,6 +344,4 @@ def _has_any(text: str, terms: tuple[str, ...]) -> bool:
 
 
 def _normalize(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold().replace("đ", "d"))
-    without_marks = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
-    return " ".join(re.findall(r"[a-z0-9]+", without_marks))
+    return normalize_query_text(value)

@@ -91,3 +91,8 @@ README sử dụng cách kể chuyện product-first tương tự `k4spi4n/runny
 - Chụp lại giao diện production bằng tài khoản hoặc dữ liệu nhạy cảm.
 - Thiết kế lại thương hiệu đầy đủ.
 - Thay đổi workflow CI/CD chỉ để tạo badge đẹp hơn.
+# Freshness addendum
+
+- Product screenshots must come from the currently deployed applications, include the capture date in their filename or surrounding copy, and pass visual inspection before commit.
+- Issue evidence and historical plans may remain in the repository for traceability, but must not be presented as current product state without revalidation against the live application and current code.
+- The documentation hub promotes only maintained entry points; historical material is explicitly separated.

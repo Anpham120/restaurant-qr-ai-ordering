@@ -12,11 +12,21 @@ const IN_PROGRESS_ORDER_STATUSES = new Set<OrderStatus>([
 export function getSessionResumeDestination(
   sessionId: string,
   resumeState: TableSessionResumeState,
+  qrToken?: string,
 ): string {
-  if (resumeState === "New") return orderingPath(sessionId, "menu");
-  if (resumeState === "CartPending") return orderingPath(sessionId, "cart");
-  if (resumeState === "OrderInProgress") return orderingPath(sessionId, "orders");
-  return `${orderingPath(sessionId, "orders")}?focus=invoice`;
+  let path: string;
+  if (resumeState === "New") path = orderingPath(sessionId, "menu");
+  else if (resumeState === "CartPending") path = orderingPath(sessionId, "cart");
+  else if (resumeState === "OrderInProgress") path = orderingPath(sessionId, "orders");
+  else path = `${orderingPath(sessionId, "orders")}?focus=invoice`;
+
+  if (!qrToken) {
+    return path;
+  }
+
+  const url = new URL(path, "http://local");
+  url.searchParams.set("qr", qrToken);
+  return `${url.pathname}${url.search}`;
 }
 
 export function deriveSessionHubState(

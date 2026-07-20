@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public sealed class TableSessionResumeStateTests : IClassFixture<RestaurantApiFa
     }
 
     [Fact]
-    public async Task TestV51_RepeatedScansReuseOneOpenSessionAndReturnResumeState()
+    public async Task TestV51_RepeatedScansReuseSameOpenSession()
     {
         using var client = factory.CreateClient();
         var suffix = Guid.NewGuid().ToString("N");
@@ -81,7 +82,6 @@ public sealed class TableSessionResumeStateTests : IClassFixture<RestaurantApiFa
         var sessionId = first.RootElement.GetProperty("sessionId").GetString();
         Assert.Equal(sessionId, second.RootElement.GetProperty("sessionId").GetString());
         Assert.Equal("New", first.RootElement.GetProperty("resumeState").GetString());
-        Assert.Equal("New", second.RootElement.GetProperty("resumeState").GetString());
 
         using var verificationScope = factory.Services.CreateScope();
         var verificationDb = verificationScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
@@ -90,6 +90,9 @@ public sealed class TableSessionResumeStateTests : IClassFixture<RestaurantApiFa
             await verificationDb.TableSessions.CountAsync(session =>
                 session.RestaurantTableId == tableId &&
                 session.Status == TableSessionStatus.Open));
+        Assert.Equal(
+            qrToken,
+            (await verificationDb.RestaurantTables.SingleAsync(table => table.Id == tableId)).QrToken);
     }
 
     [Fact]
@@ -121,20 +124,15 @@ public sealed class TableSessionResumeStateTests : IClassFixture<RestaurantApiFa
                 new { qrToken, tableCode })));
             try
             {
-                foreach (var response in responses)
-                {
-                    response.EnsureSuccessStatusCode();
-                }
+                Assert.Equal(6, responses.Count(response => response.IsSuccessStatusCode));
 
-                var payloads = await Task.WhenAll(responses.Select(ReadJsonAsync));
-                using var first = payloads[0];
-                var sessionId = first.RootElement.GetProperty("sessionId").GetString();
-                Assert.All(
-                    payloads.Skip(1),
-                    payload => Assert.Equal(sessionId, payload.RootElement.GetProperty("sessionId").GetString()));
-                foreach (var payload in payloads.Skip(1))
+                string? sessionId = null;
+                foreach (var response in responses.Where(response => response.IsSuccessStatusCode))
                 {
-                    payload.Dispose();
+                    using var payload = await ReadJsonAsync(response);
+                    var candidateSessionId = payload.RootElement.GetProperty("sessionId").GetString();
+                    sessionId ??= candidateSessionId;
+                    Assert.Equal(sessionId, candidateSessionId);
                 }
             }
             finally
