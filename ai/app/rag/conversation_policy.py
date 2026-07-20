@@ -327,6 +327,12 @@ def build_conversation_policy(
         and not _is_context_only_follow_up(normalized_message, recommendation_thread)
     ):
         wants_recommendations = True
+    if (
+        recommendation_thread
+        and _is_prior_dish_context_question(normalized_message)
+        and not _is_more_dishes_request(normalized_message)
+    ):
+        wants_recommendations = False
     surface_prior_suggestion_cards = (
         recommendation_thread
         and not wants_recommendations
