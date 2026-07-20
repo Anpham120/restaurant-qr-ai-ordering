@@ -3,11 +3,18 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+GEMINI_API_HOST = "generativelanguage.googleapis.com"
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
 LLM_PROVIDERS = frozenset({"gemini", "openai", "router"})
+
+
+def is_gemini_api_base_url(base_url: str) -> bool:
+    parsed = urlparse(base_url.strip())
+    return parsed.hostname == GEMINI_API_HOST
 
 
 @dataclass(frozen=True)
@@ -45,7 +52,7 @@ class AiServiceConfig:
 
     @property
     def uses_gemini_native_features(self) -> bool:
-        return "generativelanguage.googleapis.com" in self.base_url
+        return is_gemini_api_base_url(self.base_url)
 
 
 def _resolve_api_key(provider: str) -> str:

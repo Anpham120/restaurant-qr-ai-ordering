@@ -7,6 +7,8 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from app.config import is_gemini_api_base_url
+
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 RESTAURANT_CHAT_SCHEMA = {
@@ -70,7 +72,7 @@ class GeminiClient:
         self._use_gemini_features = (
             use_gemini_features
             if use_gemini_features is not None
-            else "generativelanguage.googleapis.com" in self._base_url
+            else is_gemini_api_base_url(self._base_url)
         )
         if http_client is not None:
             self._http_client = http_client
