@@ -33,7 +33,7 @@
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
     "@fontsource/playfair-display": "^5.2.8",
-    "@fortawesome/free-brands-svg-icons": "^7.3.0",
+    "@fortawesome/free-brands-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.4.0",
     "@microsoft/signalr": "^9.0.6",
     "lucide-react": "^1.23.0",
