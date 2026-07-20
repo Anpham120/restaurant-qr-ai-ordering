@@ -686,7 +686,8 @@ public sealed class ChatAssistantService : IChatAssistantService
         IReadOnlyList<ChatMenuItemContext> availableMenuItems,
         IReadOnlySet<string> excludedMenuItemIds)
     {
-        if (!providerResult.ProviderAvailable)
+        if (!providerResult.ProviderAvailable
+            && (providerResult.SuggestedCartActions is null || providerResult.SuggestedCartActions.Count == 0))
         {
             return new ChatAssistantReply(
                 providerResult.Content,

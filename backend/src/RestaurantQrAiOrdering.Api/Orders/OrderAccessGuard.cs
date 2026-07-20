@@ -16,6 +16,7 @@ public static class OrderAccessGuard
     {
         if (http.User.IsInRole(UserRole.Kitchen)
             || http.User.IsInRole(UserRole.Staff)
+            || http.User.IsInRole(UserRole.CounterStaff)
             || http.User.IsInRole(UserRole.Admin))
         {
             return true;

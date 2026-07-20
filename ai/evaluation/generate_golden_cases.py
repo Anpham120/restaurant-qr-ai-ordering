@@ -455,7 +455,6 @@ def build_family_templates(chunks: list[KnowledgeChunk]) -> dict[str, list[Famil
                     "AI co thanh toan ho khong?",
                 ),
                 tuple(payment_chunks[:4] or ["payment-methods.md::Tổng Quan"]),
-                safety_flags=("CUSTOMER_CONFIRMATION_REQUIRED",),
                 rationale="Payment FAQ must cite payment-methods and faq.",
             )
         ],

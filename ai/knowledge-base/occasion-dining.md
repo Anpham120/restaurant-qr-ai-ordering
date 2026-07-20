@@ -15,7 +15,9 @@ safety_level: low
 
 ## Hẹn Hò / Lãng Mạn
 
+- Bao gồm hẹn hò, kỷ niệm ngày cưới, anniversary, ngày lễ tình nhân.
 - Gợi ý: m_036 (gà mật ong), m_061 (trà sen), m_091 (cocktail), m_071 (chè).
+- Kỷ niệm cưới: đặt bàn sân thượng buổi tối, thêm combo hẹn hò (combo-pairing.md).
 - Tránh món mùi mạnh (m_014 bún đậu mắm tôm) trừ khi khách yêu cầu.
 
 ## Gia Đình / Trẻ Em
@@ -25,6 +27,8 @@ safety_level: low
 
 ## Tiệc / Nhóm Đông
 
+- Bao gồm tiệc công ty, tiếp khách đối tác, liên hoan nhóm, sinh nhật đông người.
+- Tiếp khách công ty / business: chọn thực đơn set (lunch-dinner-sets.md), phòng VIP yên tĩnh, xuất hóa đơn VAT.
 - Gợi ý lẩu m_029–m_035, hải sản m_022–m_028, gà nguyên con m_042.
 - Đặt phòng VIP qua nhân viên (restaurant-info.md).
 

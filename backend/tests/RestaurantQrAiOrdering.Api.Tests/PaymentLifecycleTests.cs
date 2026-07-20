@@ -66,21 +66,7 @@ public sealed class PaymentLifecycleTests : IClassFixture<RestaurantApiFactory>
         HttpClient client,
         int tableIndex)
     {
-        using var tablesResponse = await client.GetAsync("/api/admin/tables");
-        tablesResponse.EnsureSuccessStatusCode();
-        using var tables = await ReadJsonAsync(tablesResponse);
-        var table = tables.RootElement.GetProperty("items").EnumerateArray().ElementAt(tableIndex);
-        var tableCode = table.GetProperty("tableCode").GetString()!;
-        var qrToken = table.GetProperty("qrToken").GetString()!;
-
-        using var sessionResponse = await client.PostAsJsonAsync("/api/table-sessions", new
-        {
-            qrToken,
-            tableCode
-        });
-        sessionResponse.EnsureSuccessStatusCode();
-        using var session = await ReadJsonAsync(sessionResponse);
-        var tableSessionId = session.RootElement.GetProperty("sessionId").GetString()!;
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client, tableIndex);
 
         using var menuResponse = await client.GetAsync("/api/menu");
         menuResponse.EnsureSuccessStatusCode();
@@ -94,9 +80,9 @@ public sealed class PaymentLifecycleTests : IClassFixture<RestaurantApiFactory>
             Content = JsonContent.Create(new
             {
                 orderType = "DineIn",
-                tableCode,
-                qrToken,
-                tableSessionId,
+                tableCode = tableSession.TableCode,
+                qrToken = tableSession.QrToken,
+                tableSessionId = tableSession.Id,
                 customerPhoneNumber = "0900000000",
                 items = new[]
                 {

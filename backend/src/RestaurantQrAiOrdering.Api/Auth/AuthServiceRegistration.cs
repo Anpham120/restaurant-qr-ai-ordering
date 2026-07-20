@@ -30,10 +30,11 @@ public static class AuthServiceRegistration
         services.AddAuthorization(options =>
         {
             options.AddPolicy("CustomerOnly", policy => policy.RequireRole(UserRole.Customer));
-            options.AddPolicy("StaffOnly", policy => policy.RequireRole(UserRole.Staff));
+            options.AddPolicy("StaffOnly", policy => policy.RequireRole(UserRole.Staff, UserRole.CounterStaff));
             options.AddPolicy("KitchenOnly", policy => policy.RequireRole(UserRole.Kitchen));
             options.AddPolicy("AdminOnly", policy => policy.RequireRole(UserRole.Admin));
-            options.AddPolicy("StaffOrAdmin", policy => policy.RequireRole(UserRole.Staff, UserRole.Admin));
+            options.AddPolicy("StaffOrAdmin", policy => policy.RequireRole(UserRole.Staff, UserRole.CounterStaff, UserRole.Admin));
+            options.AddPolicy("CounterOrAdmin", policy => policy.RequireRole(UserRole.CounterStaff, UserRole.Admin));
             options.AddPolicy("KitchenOrAdmin", policy => policy.RequireRole(UserRole.Kitchen, UserRole.Admin));
         });
 

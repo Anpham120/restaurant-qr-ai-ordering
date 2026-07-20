@@ -21,7 +21,7 @@ function SessionState({
       ? "Không thể xác minh phiên bàn lúc này. Hãy kiểm tra kết nối và thử lại."
       : state === "missing"
         ? "Liên kết này chưa có quyền truy cập phiên. Vui lòng mở lại bằng mã QR trên bàn."
-        : "Phiên trên thiết bị không khớp với liên kết. Vui lòng quét lại mã QR trên bàn.";
+        : "Liên kết này chưa có quyền truy cập phiên. Hãy quét mã QR trên bàn hoặc mở lại liên kết có kèm mã QR.";
   const marketingBaseUrl = import.meta.env.VITE_MARKETING_BASE_URL ?? "https://cmcrestaurant.app";
 
   return (

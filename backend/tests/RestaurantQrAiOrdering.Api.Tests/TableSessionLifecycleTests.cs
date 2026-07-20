@@ -28,7 +28,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var tableSession = await OpenTableSessionAsync(client);
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         using var createChatResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
         {
             tableSessionId = tableSession.Id,
@@ -57,7 +57,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var tableSession = await OpenTableSessionAsync(client);
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         using var createChatResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
         {
             tableSessionId = tableSession.Id,
@@ -91,7 +91,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var tableSession = await OpenTableSessionAsync(client);
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         using var closeResponse = await client.PostAsync($"/api/table-sessions/{tableSession.Id}/close", null);
         closeResponse.EnsureSuccessStatusCode();
 
@@ -112,7 +112,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var tableSession = await OpenTableSessionAsync(client);
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         using var firstResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
         {
             tableSessionId = tableSession.Id,
@@ -146,7 +146,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var expiredSession = await OpenTableSessionAsync(client);
+        var expiredSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         using var createChatResponse = await client.PostAsJsonAsync("/api/chat/sessions", new
         {
             tableSessionId = expiredSession.Id,
@@ -164,7 +164,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             await db.SaveChangesAsync();
         }
 
-        var reopenedSession = await OpenTableSessionAsync(client);
+        var reopenedSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
 
         Assert.NotEqual(expiredSession.Id, reopenedSession.Id);
         using var verificationScope = factory.Services.CreateScope();
@@ -198,7 +198,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
             "Bearer",
             await SignInAsAdminAsync(client));
 
-        var tableSession = await OpenTableSessionAsync(client);
+        var tableSession = await TableSessionTestHelpers.OpenFreshTableSessionAsync(client);
         var initialTotal = await GetTableSessionOrderTotalAsync(client, tableSession);
         await CreateDineInOrderAsync(client, tableSession);
         await CreateDineInOrderAsync(client, tableSession);
@@ -229,30 +229,13 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         return body.RootElement.GetProperty("accessToken").GetString()!;
     }
 
-    private static async Task<TableSession> OpenTableSessionAsync(HttpClient client)
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
-        using var tablesResponse = await client.GetAsync("/api/admin/tables");
-        tablesResponse.EnsureSuccessStatusCode();
-        using var tables = await ReadJsonAsync(tablesResponse);
-        var table = tables.RootElement.GetProperty("items")[0];
-        var tableCode = table.GetProperty("tableCode").GetString()!;
-        var qrToken = table.GetProperty("qrToken").GetString()!;
-
-        using var sessionResponse = await client.PostAsJsonAsync("/api/table-sessions", new
-        {
-            qrToken,
-            tableCode
-        });
-        sessionResponse.EnsureSuccessStatusCode();
-        using var session = await ReadJsonAsync(sessionResponse);
-        return new TableSession(
-            session.RootElement.GetProperty("sessionId").GetString()!,
-            session.RootElement.GetProperty("tableCode").GetString()!,
-            qrToken,
-            session.RootElement.GetProperty("tableSessionToken").GetString()!);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        return await JsonDocument.ParseAsync(stream);
     }
 
-    private static async Task CreateDineInOrderAsync(HttpClient client, TableSession tableSession)
+    private static async Task CreateDineInOrderAsync(HttpClient client, TableSessionTestHelpers.OpenTableSession tableSession)
     {
         using var menuResponse = await client.GetAsync("/api/menu");
         menuResponse.EnsureSuccessStatusCode();
@@ -277,7 +260,7 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         response.EnsureSuccessStatusCode();
     }
 
-    private static async Task<int> GetTableSessionOrderTotalAsync(HttpClient client, TableSession tableSession)
+    private static async Task<int> GetTableSessionOrderTotalAsync(HttpClient client, TableSessionTestHelpers.OpenTableSession tableSession)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/table-sessions/{tableSession.Id}/orders");
         request.Headers.Add("X-Table-Session-Token", tableSession.Token);
@@ -286,12 +269,4 @@ public sealed class TableSessionLifecycleTests : IClassFixture<RestaurantApiFact
         using var payload = await ReadJsonAsync(response);
         return payload.RootElement.GetProperty("total").GetInt32();
     }
-
-    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
-    {
-        await using var stream = await response.Content.ReadAsStreamAsync();
-        return await JsonDocument.ParseAsync(stream);
-    }
-
-    private sealed record TableSession(string Id, string TableCode, string QrToken, string Token);
 }

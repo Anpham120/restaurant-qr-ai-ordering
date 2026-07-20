@@ -40,7 +40,30 @@ class ContentGroundingTests(unittest.TestCase):
         self.assertNotIn("Sụn gà rang muối", content)
         self.assertEqual(actions, kept_actions)
 
-    def test_format_grounded_recommendation_content_lists_only_real_items(self) -> None:
+    def test_comma_separated_hallucination_is_replaced_when_cards_exist(self) -> None:
+        hallucinated = (
+            "Dạ, bên em có các món ăn nhẹ như khoai tây chiên, gỏi cuốn, súp, salad hoặc các món bánh ngọt ạ."
+        )
+        actions = [
+            {
+                "menu_item_id": "m_015",
+                "name": "Cơm tấm sườn bì chả",
+                "price_vnd": 65000,
+                "reason": "Món no, hợp nhậu nhẹ.",
+            }
+        ]
+
+        content, flags, kept_actions = ground_response_content(
+            hallucinated,
+            actions,
+            MENU,
+            wants_recommendations=True,
+        )
+
+        self.assertIn("MENU_FABRICATION_BLOCKED", flags)
+        self.assertIn("Cơm tấm sườn bì chả", content)
+        self.assertNotIn("khoai tây chiên", content)
+        self.assertEqual(actions, kept_actions)
         content = format_grounded_recommendation_content(
             [
                 {

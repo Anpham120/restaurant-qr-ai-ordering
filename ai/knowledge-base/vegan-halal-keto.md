@@ -13,9 +13,10 @@ safety_level: high
 
 # Vegan, Halal-Like Và Keto
 
-## Vegan / Thuần Chay
+## Vegan / Thuần Chay (Vegetarian & Vegan Dishes)
 
 - Nhóm món chay: m_050–m_056, m_031 (lẩu nấm chay).
+- English: we have a vegetarian section with 7 vegetarian dishes plus vegan mushroom hotpot; ask staff for strict vegan options.
 - Cảnh báo: m_071, m_072 có thể chứa sữa/trứng — hỏi strict vegan.
 - Không tuyên bố chứng nhận vegan chính thức.
 

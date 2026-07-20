@@ -16,7 +16,8 @@ safety_level: high
 ## Khi Nào Escalate
 
 - Dị ứng nghiêm trọng hoặc yêu cầu bếp riêng.
-- Khiếu nại dịch vụ, hoàn tiền, sự cố an toàn thực phẩm.
+- Khiếu nại dịch vụ, đồ ăn có vấn đề, hoàn tiền, sự cố an toàn thực phẩm.
+- Khách muốn gặp quản lý hoặc gọi nhân viên phục vụ trực tiếp.
 - Yêu cầu phòng VIP, đặt tiệc, invoice công ty.
 - AI không chắc chắn sau 2 lượt hỏi lại.
 - Món đặc biệt không có trên menu (chef's special).

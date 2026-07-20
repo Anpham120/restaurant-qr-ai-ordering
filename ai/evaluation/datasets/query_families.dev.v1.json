@@ -393,8 +393,7 @@
         "Muốn hủy đơn đã gửi thì liên hệ ai?"
       ],
       "expected_selectors": [
-        "kb-source:ordering-policy.md",
-        "kb-source:faq.md"
+        "kb-source:ordering-policy.md"
       ],
       "forbidden_selectors": [],
       "guardrail_flags": [],

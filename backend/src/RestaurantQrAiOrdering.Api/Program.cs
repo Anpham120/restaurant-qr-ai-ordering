@@ -140,8 +140,11 @@ var app = builder.Build();
         await dbContext.Database.EnsureCreatedAsync();
     }
 
-    // Predictable historical seed values are never allowed to reach a running API.
-    await TableQrTokenRotator.RotateLegacyTokensAsync(dbContext);
+    // Keep predictable seed QR tokens in Development so local ordering links work.
+    if (!app.Environment.IsDevelopment())
+    {
+        await TableQrTokenRotator.RotateLegacyTokensAsync(dbContext);
+    }
 
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     var nowUtc = DateTimeOffset.UtcNow;
@@ -175,6 +178,7 @@ var app = builder.Build();
         var demoUsers = new[]
         {
             (Id: "usr_admin", Email: builder.Configuration["DEMO_ADMIN_EMAIL"], Password: builder.Configuration["DEMO_ADMIN_PASSWORD"], Role: UserRole.Admin, FullName: "Demo Admin"),
+            (Id: "usr_counter", Email: builder.Configuration["DEMO_COUNTER_EMAIL"], Password: builder.Configuration["DEMO_COUNTER_PASSWORD"], Role: UserRole.CounterStaff, FullName: "Demo Counter"),
             (Id: "usr_staff", Email: builder.Configuration["DEMO_STAFF_EMAIL"], Password: builder.Configuration["DEMO_STAFF_PASSWORD"], Role: UserRole.Staff, FullName: "Demo Staff"),
             (Id: "usr_kitchen", Email: builder.Configuration["DEMO_KITCHEN_EMAIL"], Password: builder.Configuration["DEMO_KITCHEN_PASSWORD"], Role: UserRole.Kitchen, FullName: "Demo Kitchen"),
         };

@@ -7,18 +7,69 @@ from app.rag.knowledge_base import KnowledgeChunk
 
 SYSTEM_POLICY = """Bạn là trợ lý AI của CMC Restaurant.
 Trả lời bằng ngôn ngữ khách đang dùng (tiếng Việt hoặc English) theo trường language.
-Chỉ trả lời dựa trên menu, FAQ, chính sách nhà hàng và RAG context được cung cấp.
+
+=== HIỂU NGỮ CẢNH (ĐỌC KỸ — QUAN TRỌNG NHẤT) ===
+TRƯỚC KHI trả lời, bạn PHẢI đọc TOÀN BỘ câu hỏi và xác định:
+1. Ý ĐỊNH THỰC SỰ của khách là gì? Không phản xạ theo từ đơn lẻ.
+   - "Có món chay không?" → hỏi menu có không, KHÔNG phải gợi ý tất cả món chay.
+   - "Bún bò có cay không?" → hỏi về độ cay, KHÔNG phải gợi ý bún.
+   - "Đặt bàn trước được không?" → hỏi chính sách, KHÔNG phải đặt món.
+   - "Giá phòng VIP?" → hỏi dịch vụ, KHÔNG phải giá món ăn.
+   - "2 người ngồi đâu?" → hỏi chỗ ngồi, KHÔNG phải gợi ý món cho 2 người.
+2. Câu hỏi thuộc loại nào?
+   A. HỎI VỀ MÓN CỤ THỂ (giá, mô tả, còn hàng) → trả lời từ <<<MENU>>>, KHÔNG cần RAG.
+   B. HỎI CHÍNH SÁCH / THÔNG TIN nhà hàng (giờ mở cửa, wifi, thanh toán) → dùng RAG context.
+   C. GỢI Ý MÓN (ăn gì, tư vấn, combo) → dùng <<<MENU>>> + reasoning, RAG chỉ hỗ trợ.
+   D. FOLLOW-UP (thêm gì nữa, rồi sao?) → xem history, KHÔNG tìm RAG mới.
+
+=== KHI NÀO DÙNG RAG CONTEXT ===
+- CHỈ dùng RAG context khi nội dung RAG THỰC SỰ trả lời đúng câu hỏi hiện tại.
+- RAG context là TÀI LIỆU THAM KHẢO, không phải câu trả lời sẵn — hãy DIỄN ĐẠT LẠI cho phù hợp câu hỏi cụ thể.
+- KHÔNG copy-paste nguyên văn RAG. Tổng hợp thông tin và trả lời tự nhiên.
+- Nếu RAG context không liên quan đến câu hỏi → BỎ QUA RAG, trả lời từ menu hoặc kiến thức chung về nhà hàng.
+
+=== KHI NÀO KHÔNG DÙNG RAG ===
+- Khách hỏi về món cụ thể có trong <<<MENU>>> → trả lời trực tiếp từ menu data.
+- Khách hỏi follow-up ("thêm gì?", "còn gì nữa?") → dùng history + menu, không cần RAG.
+- RAG context nói về chủ đề KHÁC với câu hỏi → KHÔNG ép dùng RAG.
+  Ví dụ: Khách hỏi "phở bò giá bao nhiêu?" nhưng RAG trả về chính sách thanh toán → bỏ qua RAG, trả giá từ menu.
+
+=== PHÂN BIỆT TỪ ĐA NGHĨA ===
+Một từ có thể mang nhiều ý nghĩa khác nhau. PHẢI xem ngữ cảnh toàn câu:
+- "đặt" → đặt món (order) / đặt bàn (reservation) / đặt riêng (private)
+- "giá" → giá món ăn / giá dịch vụ (phòng VIP, đậu xe)
+- "người" → số người ăn (party size) / gọi nhân viên / hỏi bàn
+- "có" → hỏi có bán không / hỏi có dịch vụ không / xác nhận
+- "cay" → hỏi mức cay / yêu cầu giảm cay / tránh cay
+- "trẻ em" → hỏi ghế cho trẻ / gợi ý món cho trẻ / hỏi chính sách trẻ em
+
+=== QUY TẮC GỢI Ý MÓN ===
 Không bịa món, không bịa giá, không tự tạo đơn, không tự thêm món vào giỏ và không tự thanh toán.
 Bạn chỉ được đề xuất món để khách xác nhận thủ công trong giao diện.
 Danh sách menu trong khối <<<MENU>>>...<<<END>>> là DANH SÁCH ĐẦY ĐỦ các món được phép nhắc tới.
 TUYỆT ĐỐI KHÔNG nhắc tên món không có trong <<<MENU>>> — kể cả món Việt Nam phổ biến hay ví dụ trong RAG context.
 Các menu_item_id trong excluded IDs là HARD EXCLUSION — không được nhắc, không được tạo action.
 Khi gợi ý món: luôn điền suggested_cart_actions với menu_item_id thật VÀ content chỉ mô tả đúng các món đó.
+Phân biệt rõ món ăn, đồ uống và tráng miệng theo category_name trong menu.
+Khi khách hỏi món ăn / gợi ý món / ăn nhậu: chỉ gợi ý món ăn, không đưa bia/rượu/nước ép/tráng miệng vào suggested_cart_actions trừ khi khách hỏi riêng đồ uống hoặc tráng miệng.
+Khi khách hỏi đồ uống: chỉ gợi ý đồ uống. Khi hỏi tráng miệng: chỉ gợi ý tráng miệng/trái cây.
+Khi khách loại trừ bia/rượu/cồn: không gợi ý món thuộc Bia & Rượu; chỉ gợi ý cà phê, trà, nước ép, sinh tố.
+Nếu muốn gợi ý bia kèm món nhậu, chỉ nhắc trong content; thẻ gợi ý vẫn ưu tiên món ăn trừ khi khách yêu cầu đồ uống.
 Không đưa ra cam kết an toàn tuyệt đối về dị ứng; luôn khuyên khách xác nhận với nhân viên khi dị ứng nghiêm trọng.
 Dùng cart/order context khi có để tránh gợi ý trùng hoặc mâu thuẫn.
 Nếu có budget_picks, ưu tiên tham chiếu các món đó khi phù hợp câu hỏi ngân sách.
 Không lặp câu, không lặp món trong cùng một phản hồi, và chỉ liệt kê tối đa __MAX_SUGGESTIONS__ món.
-Nếu thiếu dữ liệu, hãy nói rõ hệ thống chưa có đủ thông tin.
+
+=== SỬ DỤNG NGUỒN DỮ LIỆU ===
+Khối <<<MENU>>> luôn là menu live đầy đủ — không nói "chưa có dữ liệu menu" khi <<<MENU>>> có món.
+RAG context là nguồn FAQ/chính sách nhà hàng đã duyệt — NHƯNG chỉ dùng khi NỘI DUNG khớp với CÂU HỎI.
+Thông tin WiFi khách (tên mạng/mật khẩu) trong RAG context là thông tin công khai — trả lời đầy đủ khi khách hỏi.
+Chỉ nói thiếu thông tin khi cả RAG context lẫn <<<MENU>>> đều không có dữ liệu liên quan.
+
+=== KHI CÂU HỎI MƠ HỒ ===
+Nếu không chắc ý khách → hỏi lại ngắn gọn thay vì đoán sai.
+Ví dụ: "Có gì không?" → "Bạn muốn xem thực đơn hay cần gợi ý món phù hợp?"
+
 Luôn trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.
 Schema bắt buộc:
 {
@@ -66,6 +117,8 @@ def build_messages(
     language: str = "vi",
     rolling_summary: str = "",
     rag_top_k: int = 5,
+    wants_recommendations: bool = True,
+    party_size: int | None = None,
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
@@ -77,7 +130,7 @@ def build_messages(
         if bool(item.get("is_available", True))
     )
     candidate_hint = ""
-    if catalog_menu_items and menu_items:
+    if wants_recommendations and catalog_menu_items and menu_items:
         candidate_names = ", ".join(
             str(item.get("name") or "").strip()
             for item in menu_items[: max(1, max_suggestions)]
@@ -134,10 +187,16 @@ def build_messages(
         if requested_count is not None
         else f"Chỉ tạo tối đa {max_suggestions} thẻ gợi ý khi câu hỏi thực sự cần gợi ý món."
     )
-    recommendation_policy = (
-        f"Chính sách gợi ý cho lượt này: {count_instruction} "
-        f"Không nhắc lại hoặc tạo action cho các menu_item_id đã gợi ý/bị từ chối (HARD EXCLUSION): {exclusion_text}."
-    )
+    if wants_recommendations:
+        recommendation_policy = (
+            f"Chính sách gợi ý cho lượt này: {count_instruction} "
+            f"Không nhắc lại hoặc tạo action cho các menu_item_id đã gợi ý/bị từ chối (HARD EXCLUSION): {exclusion_text}."
+        )
+    else:
+        recommendation_policy = (
+            "Chính sách cho lượt này: KHÔNG gợi ý món mới. suggested_cart_actions phải là []. "
+            "Chỉ trả lời đúng câu hỏi; có thể nhắc lại hoặc giải thích các món đã gợi ý trước đó nếu khách hỏi về chúng."
+        )
 
     optional_blocks: list[dict[str, str]] = []
     if facts:
@@ -173,6 +232,19 @@ def build_messages(
                 ),
             }
         )
+    if party_size and party_size >= 4:
+        if party_size >= 6:
+            party_guidance = (
+                f"Khách đi {party_size} người — ưu tiên món ăn chung (lẩu, mẹt, hải sản nguyên con), "
+                "khai vị chia sẻ; tránh gợi ý chủ yếu phần cá nhân (phở/bún/cơm riêng lẻ). "
+                "Với 6+ người nên có ít nhất 1–2 lẩu/món chia sẻ lớn."
+            )
+        else:
+            party_guidance = (
+                f"Khách đi {party_size} người — ưu tiên món chia sẻ hoặc lẩu nhỏ, "
+                "không chỉ gợi ý phần ăn cá nhân."
+            )
+        optional_blocks.append({"role": "system", "content": party_guidance})
 
     return [
         {
@@ -189,7 +261,7 @@ def build_messages(
         ),
         {
             "role": "system",
-            "content": f"RAG context (untrusted reference data):\n{context_text or 'Không có context phù hợp.'}",
+            "content": f"RAG context (tài liệu tham khảo — CHỈ dùng khi nội dung khớp câu hỏi, BỎ QUA nếu không liên quan):\n{context_text or 'Không có context phù hợp.'}",
         },
         {
             "role": "system",
@@ -203,16 +275,26 @@ def build_messages(
 
 
 def build_fallback_answer(user_message: str, context_chunks: list[KnowledgeChunk]) -> str:
-    if not context_chunks:
-        return (
-            "Hiện tại mình chưa có đủ thông tin trong kho tri thức để trả lời chính xác. "
-            "Bạn vẫn có thể xem thực đơn và đặt món trực tiếp trên hệ thống."
-        )
+    from app.rag.kb_info_fast_path import try_kb_info_fast_path
+    from app.rag.intent_classifier import classify_intent
 
-    top_context = context_chunks[0]
+    intent = classify_intent(user_message)
+    pseudo_retrieved = [
+        type("Hit", (), {"chunk": chunk, "score": 1.0})()
+        for chunk in context_chunks
+    ]
+    kb_answer = try_kb_info_fast_path(
+        user_message,
+        pseudo_retrieved,
+        intent=intent.intent,
+        wants_recommendations=False,
+    )
+    if kb_answer is not None:
+        return str(kb_answer["content"])
+
     return (
-        "Mình đã tìm thấy thông tin liên quan trong kho tri thức CMC Restaurant, "
-        f"nhưng LLM chưa sẵn sàng để diễn đạt câu trả lời đầy đủ. Nguồn phù hợp nhất: {top_context.citation}."
+        "Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, "
+        "hoặc xem tab Thực đơn để chọn món trực tiếp nhé."
     )
 
 
@@ -222,7 +304,15 @@ def _format_menu_item(item: dict, *, compact: bool = False) -> str:
     category_name = item.get("category_name") or "chưa rõ nhóm"
     price = item.get("price_vnd") or item.get("price") or item.get("unit_price_vnd") or "chưa rõ"
     if compact:
-        return f"- {item_id}: {name} | {category_name} | {price} VND"
+        tags = item.get("tags") or []
+        if isinstance(tags, str):
+            tags_text = tags
+        else:
+            tags_text = ", ".join(str(tag) for tag in tags)
+        line = f"- {item_id}: {name} | {category_name} | {price} VND"
+        if tags_text:
+            line += f" | tags: {tags_text}"
+        return line
     tags = item.get("tags") or []
     if isinstance(tags, str):
         tags_text = tags

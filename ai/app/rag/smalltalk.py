@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 
+from app.rag.vietnamese_normalizer import normalize_query_text
 from app.schemas import ChatResponse, FollowUp
 
 
@@ -37,7 +37,11 @@ _FOOD_KEYWORDS = frozenset(
 )
 
 _GREETING = re.compile(
-    r"^(xin\s+chao|chao(\s+ban|\s+anh|\s+chi|\s+em)?|hello|hi|hey|good\s+(morning|afternoon|evening))[\s!.?]*$",
+    r"^(a\s*lo+|alo+|xin\s+chao|chao(\s+ban|\s+anh|\s+chi|\s+em)?|hello|hi|hey|good\s+(morning|afternoon|evening))[\s!.?]*$",
+    re.IGNORECASE,
+)
+_CLARIFY = re.compile(
+    r"^(gi\s+vay|gi\s+the|gi\s+day|cai\s+gi(\s+vay)?|sao\s+vay|la\s+sao|what|huh)[\s!.?]*$",
     re.IGNORECASE,
 )
 _THANKS = re.compile(
@@ -93,6 +97,8 @@ def _classify(normalized: str) -> str | None:
         return "goodbye"
     if _ACK.match(normalized):
         return "ack"
+    if _CLARIFY.match(normalized):
+        return "clarify"
     return None
 
 
@@ -106,6 +112,10 @@ def _template(kind: str, language: str) -> str:
             "thanks": "You're welcome! Let me know if you'd like more menu suggestions.",
             "goodbye": "Goodbye! Hope you enjoy your meal at CMC Restaurant.",
             "ack": "Got it. Tell me what you'd like to eat or drink and I'll suggest options.",
+            "clarify": (
+                "I'm the CMC Restaurant ordering assistant. "
+                "You can ask about the menu, get dish suggestions for your group, or payment info."
+            ),
         }
     else:
         templates = {
@@ -116,6 +126,10 @@ def _template(kind: str, language: str) -> str:
             "thanks": "Không có gì! Bạn cần gợi ý thêm món nào cứ nói nhé.",
             "goodbye": "Tạm biệt bạn! Chúc bạn ngon miệng tại CMC Restaurant.",
             "ack": "Dạ vâng. Bạn muốn ăn/uống gì, mình sẽ gợi ý món phù hợp.",
+            "clarify": (
+                "Mình là trợ lý gọi món của CMC Restaurant. "
+                "Bạn có thể hỏi về thực đơn, nhờ gợi ý món cho nhóm, hoặc hỏi về thanh toán nhé."
+            ),
         }
     return templates[kind]
 
@@ -126,6 +140,4 @@ def _looks_english(normalized: str) -> bool:
 
 
 def _normalize(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold())
-    without_marks = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
-    return " ".join(re.findall(r"[a-z0-9]+", without_marks))
+    return normalize_query_text(value)
