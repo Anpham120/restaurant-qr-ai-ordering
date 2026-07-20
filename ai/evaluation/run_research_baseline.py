@@ -31,6 +31,10 @@ from app.rag.retriever import (  # noqa: E402
     BM25Retriever,
     Retriever,
 )
+from app.rag.menu_query_filters import (  # noqa: E402
+    filter_menu_retrieval_results,
+    menu_document_to_item,
+)
 from evaluation.research_corpus import (  # noqa: E402
     KnowledgeDocumentMetadata,
     MenuDocumentMetadata,
@@ -150,6 +154,13 @@ def run_retrieval_experiment(
         )
         for target, target_documents in documents_by_target.items()
     }
+    menu_items = [
+        menu_document_to_item(document, document_id=document.document_id)
+        for document in documents
+        if document.target is RetrievalTarget.MENU
+        and isinstance(document.metadata, MenuDocumentMetadata)
+        and document.metadata.is_available
+    ]
 
     evaluated_cases = [
         case
@@ -187,6 +198,12 @@ def run_retrieval_experiment(
             latency_samples_ms.append((time.perf_counter() - started) * 1000)
             if repetition == 0:
                 results = current_results
+                if case.target is RetrievalTarget.MENU:
+                    results = filter_menu_retrieval_results(
+                        case.query,
+                        results,
+                        menu_items,
+                    )
         latency_ms = statistics.median(latency_samples_ms)
         latencies_ms.append(latency_ms)
         rankings[case.case_id] = [result.chunk.source for result in results]

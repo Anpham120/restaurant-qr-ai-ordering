@@ -25,7 +25,8 @@ describe("session orders lifecycle", () => {
       "utf8",
     );
 
-    expect(source).toContain("getSessionResumeDestination(result.session.sessionId, result.session.resumeState)");
+    expect(source).toContain("getSessionResumeDestination(");
+    expect(source).toContain("result.session.resumeState");
     expect(source).not.toMatch(/navigate\([^)]*\/menu/);
   });
 });

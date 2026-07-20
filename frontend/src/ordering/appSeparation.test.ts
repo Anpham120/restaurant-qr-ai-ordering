@@ -49,10 +49,10 @@ describe("marketing and ordering app separation", () => {
     expect(nginxConfig).toContain("order-staging.cmcrestaurant.app /usr/share/nginx/html/ordering;");
     expect(nginxConfig).toContain("admin.cmcrestaurant.app /usr/share/nginx/html/admin;");
     expect(nginxConfig).toContain("admin-staging.cmcrestaurant.app /usr/share/nginx/html/admin;");
-    expect(nginxConfig).toContain("staff.cmcrestaurant.app /usr/share/nginx/html/staff;");
-    expect(nginxConfig).toContain("staff-staging.cmcrestaurant.app /usr/share/nginx/html/staff;");
-    expect(nginxConfig).toContain("kitchen.cmcrestaurant.app /usr/share/nginx/html/kitchen;");
-    expect(nginxConfig).toContain("kitchen-staging.cmcrestaurant.app /usr/share/nginx/html/kitchen;");
+    expect(nginxConfig).toContain("staff.cmcrestaurant.app /usr/share/nginx/html/admin;");
+    expect(nginxConfig).toContain("staff-staging.cmcrestaurant.app /usr/share/nginx/html/admin;");
+    expect(nginxConfig).toContain("kitchen.cmcrestaurant.app /usr/share/nginx/html/admin;");
+    expect(nginxConfig).toContain("kitchen-staging.cmcrestaurant.app /usr/share/nginx/html/admin;");
     expect(nginxConfig).not.toContain("customer.cmcrestaurant.app");
     expect(nginxConfig).toContain("root $cmc_app_root;");
     expect(nginxConfig).toContain("try_files $uri $uri/ /index.html;");

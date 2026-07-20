@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.rag.knowledge_base import KnowledgeChunk
+from app.rag.vietnamese_normalizer import tokenize_ascii, tokenize_ascii_set
 
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -153,11 +154,9 @@ LexicalRetriever = BM25Retriever
 
 def _tokenize_list(text: str) -> list[str]:
     """Tokenise *text* into a list of lowercase ASCII tokens (preserving duplicates for TF)."""
-    normalized = unicodedata.normalize("NFKD", text.lower()).replace("đ", "d")
-    ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
-    return TOKEN_PATTERN.findall(ascii_text)
+    return tokenize_ascii(text)
 
 
 def _tokenize_set(text: str) -> set[str]:
     """Tokenise *text* into a unique set of lowercase ASCII tokens."""
-    return set(_tokenize_list(text))
+    return tokenize_ascii_set(text)

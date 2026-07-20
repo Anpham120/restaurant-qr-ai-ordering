@@ -98,6 +98,7 @@ export const EN_COPY: Record<string, string> = {
   "Đang kiểm tra": "Checking",
   "Đang lưu…": "Saving…",
   "Đang mở phiên gọi món…": "Opening your ordering session…",
+  "Đang mở đúng bước theo trạng thái bàn…": "Opening the right step for your table status…",
   "Đang mở trang nhà hàng…": "Opening the restaurant website…",
   "Đang mở ứng dụng gọi món…": "Opening the ordering app…",
   "Đang phản hồi": "Responding",

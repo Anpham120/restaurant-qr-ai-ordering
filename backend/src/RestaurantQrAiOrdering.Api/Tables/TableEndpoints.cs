@@ -18,6 +18,8 @@ public static partial class TableEndpoints
 {
     private static readonly TimeSpan DefaultSessionLifetime = TimeSpan.FromHours(4);
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SessionOpenGates = new();
+    // Multi-device dine-in requires a stable table QR. Single-use rotation is disabled.
+    private static readonly bool SingleUseQrEnabled = false;
 
     public static IEndpointRouteBuilder MapTableEndpoints(this IEndpointRouteBuilder app)
     {
@@ -281,6 +283,11 @@ public static partial class TableEndpoints
                 session.Status = TableSessionStatus.Closed;
                 session.ClosedAt = now;
                 session.UpdatedAt = now;
+                if (SingleUseQrEnabled && session.RestaurantTable is not null)
+                {
+                    TableQrTokenRotator.RotateTableQrToken(session.RestaurantTable);
+                }
+
                 await db.SaveChangesAsync(cancellationToken);
             }
 
@@ -309,11 +316,33 @@ public static partial class TableEndpoints
             return ApiResults.BadRequest("QR_TOKEN_INVALID", "Dine-in sessions require a QR token.");
         }
 
+        var now = DateTimeOffset.UtcNow;
         var table = await db.RestaurantTables
             .FirstOrDefaultAsync(t => t.QrToken == normalizedQrToken && t.IsActive, cancellationToken);
 
         if (table is null)
         {
+            if (SingleUseQrEnabled)
+            {
+                var consumedSession = await db.TableSessions
+                    .AsNoTracking()
+                    .Include(session => session.RestaurantTable)
+                    .FirstOrDefaultAsync(
+                        session =>
+                            session.QrToken == normalizedQrToken &&
+                            session.RestaurantTable != null &&
+                            session.RestaurantTable.IsActive &&
+                            session.Status == TableSessionStatus.Open &&
+                            session.ClosedAt == null &&
+                            session.ExpiresAt > now,
+                        cancellationToken);
+
+                if (consumedSession is not null)
+                {
+                    return QrAlreadyUsedResult();
+                }
+            }
+
             return ApiResults.NotFound("QR_NOT_FOUND", "QR token does not match an active table.");
         }
 
@@ -333,7 +362,6 @@ public static partial class TableEndpoints
         await openGate.WaitAsync(cancellationToken);
         try
         {
-            var now = DateTimeOffset.UtcNow;
             var expiredSessions = await db.TableSessions
                 .Where(s =>
                     s.RestaurantTableId == table.Id &&
@@ -348,6 +376,11 @@ public static partial class TableEndpoints
 
             var session = await FindActiveSessionAsync(db, table.Id, now, cancellationToken);
             var reusedSession = session is not null;
+
+            if (reusedSession && SingleUseQrEnabled)
+            {
+                return QrAlreadyUsedResult();
+            }
 
             if (session is null)
             {
@@ -370,6 +403,11 @@ public static partial class TableEndpoints
                 {
                     await db.SaveChangesAsync(cancellationToken);
                     session = newSession;
+                    if (SingleUseQrEnabled)
+                    {
+                        TableQrTokenRotator.RotateTableQrToken(table);
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
                 }
                 catch (DbUpdateException)
                 {
@@ -378,6 +416,11 @@ public static partial class TableEndpoints
                     if (session is null)
                     {
                         throw;
+                    }
+
+                    if (SingleUseQrEnabled)
+                    {
+                        return QrAlreadyUsedResult();
                     }
                 }
             }
@@ -539,6 +582,12 @@ public static partial class TableEndpoints
 
         return $"/table/{Uri.EscapeDataString(tableCode)}?qr={Uri.EscapeDataString(qrToken)}";
     }
+
+    private static IResult QrAlreadyUsedResult() =>
+        ApiErrorFactory.Result(
+            StatusCodes.Status410Gone,
+            "QR_ALREADY_USED",
+            "This table QR code has already been scanned. Continue on the device that opened the session, or ask staff for a new QR code.");
 
     [GeneratedRegex("^T(0[1-9]|[1-9][0-9])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TableCodeRegex();

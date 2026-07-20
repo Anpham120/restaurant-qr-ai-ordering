@@ -59,6 +59,6 @@
     "unavailable_item"
   ],
   "golden_cases_path": "ai/evaluation/golden/cases.jsonl",
-  "golden_cases_sha256": "8a894b1979e22bfe1c883a235c6e0cdb77efdf25340758e7868375b85c3637d9",
+  "golden_cases_sha256": "21eda54a1848f696be04f7011aa8de20ec0225a69bf712fc4774d6fb95454240",
   "notes": "Family-level split: all template variants in a family share the same split."
 }

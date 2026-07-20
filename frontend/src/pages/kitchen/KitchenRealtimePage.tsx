@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Order, RealtimeConnectionStatus } from "@cmc/shared-types";
+import type { OrderRealtimeEvent } from "../../types";
+import {
+  mergeOrderItemStatusChanged,
+  mergeOrderStatusChanged,
+} from "../../components/operations/opsRealtimeMerge";
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
 import {
   getKitchenBoardColumn,
@@ -94,9 +99,16 @@ export function KitchenRealtimePage() {
   // Realtime
   useEffect(() => {
     const unsubConnection = subscribeRealtimeConnection(setConnectionStatus);
-    const unsubRealtime = subscribeOrderRealtime(() => {
-      // Any order event refreshes the entire list.
-      loadOrders();
+    const unsubRealtime = subscribeOrderRealtime((event: OrderRealtimeEvent) => {
+      if (event.event === "order.statusChanged") {
+        setOrders((current) => mergeOrderStatusChanged(current, event.payload));
+        return;
+      }
+      if (event.event === "order.itemStatusChanged") {
+        setOrders((current) => mergeOrderItemStatusChanged(current, event.payload));
+        return;
+      }
+      void loadOrders();
     });
 
     void connectOrderRealtime().catch(() => setConnectionStatus("error"));

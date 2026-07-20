@@ -11,6 +11,7 @@ using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Loyalty;
 using RestaurantQrAiOrdering.Api.Orders;
 using RestaurantQrAiOrdering.Api.Payments;
+using RestaurantQrAiOrdering.Api.Counter;
 using RestaurantQrAiOrdering.Api.Promotions;
 using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
@@ -323,7 +324,7 @@ public static class TableInvoiceEndpoints
                 orderRounds.Where(order => order.TableSessionId == invoice.TableSessionId).ToArray(),
                 CreateVietQrPayload(invoice, vietQrProvider))).ToArray());
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.CounterStaff, UserRole.Staff, UserRole.Admin))
         .WithName("ListTableInvoices")
         .WithTags("Table Invoices");
 
@@ -384,6 +385,16 @@ public static class TableInvoiceEndpoints
                 return ApiResults.Conflict("CONFLICT_STALE", "Payment was modified by another request. Reload and try again.");
             }
             chatStore.DeleteSessionsByTableSession(sessionId);
+            if (invoice.Method == PaymentMethod.COD)
+            {
+                await CounterShiftEndpoints.RecordCashPaymentAsync(
+                    db,
+                    invoice.TotalAmount,
+                    sessionId,
+                    invoice.InvoiceCode,
+                    user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+                    cancellationToken);
+            }
             foreach (var order in completedOrders)
             {
                 await realtime.OrderStatusChangedAsync(
@@ -395,7 +406,7 @@ public static class TableInvoiceEndpoints
             var orderRounds = await LoadOrderRoundsAsync(db, sessionId, cancellationToken);
             return Results.Ok(CreateInvoiceResponse(invoice.TableSession, invoice, orderRounds, CreateVietQrPayload(invoice, vietQrProvider)));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.CounterStaff, UserRole.Staff, UserRole.Admin))
         .WithName("ConfirmTableInvoicePayment")
         .WithTags("Table Invoices");
 
@@ -446,7 +457,7 @@ public static class TableInvoiceEndpoints
             var orderRounds = await LoadOrderRoundsAsync(db, sessionId, cancellationToken);
             return Results.Ok(CreateInvoiceResponse(invoice.TableSession, invoice, orderRounds, CreateVietQrPayload(invoice, vietQrProvider)));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.CounterStaff, UserRole.Staff, UserRole.Admin))
         .WithName("CancelTableInvoicePayment")
         .WithTags("Table Invoices");
 

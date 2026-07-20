@@ -11,6 +11,7 @@ type ResolvedTableQr = {
 export type OpenDineInSessionResult =
   | { status: "open"; session: TableSession }
   | { status: "expired" }
+  | { status: "already_used" }
   | { status: "invalid" }
   | { status: "error" };
 
@@ -29,6 +30,10 @@ export async function openDineInSession(
     return { status: "open", session };
   } catch (error) {
     if (error instanceof ApiError) {
+      if (error.code === "QR_ALREADY_USED") {
+        return { status: "already_used" };
+      }
+
       if (error.status === 410 || error.code === "TABLE_SESSION_EXPIRED") {
         return { status: "expired" };
       }

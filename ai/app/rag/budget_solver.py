@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.rag.party_menu_ranking import rank_candidates_for_party
+
 
 def solve_budget(
     menu_items: list[dict[str, Any]],
@@ -29,7 +31,9 @@ def solve_budget(
             continue
         candidates.append(item)
 
-    candidates.sort(key=lambda item: (_price(item) or 0, str(item.get("name") or "")))
+    candidates = rank_candidates_for_party(candidates, party_size)
+    if not party_size or party_size < 4:
+        candidates.sort(key=lambda item: (_price(item) or 0, str(item.get("name") or "")))
 
     selected: list[dict[str, Any]] = []
     used_categories: set[str] = set()

@@ -47,6 +47,8 @@ public class RestaurantDbContext : DbContext
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<LoyaltyMember> LoyaltyMembers => Set<LoyaltyMember>();
     public DbSet<LoyaltyReward> LoyaltyRewards => Set<LoyaltyReward>();
+    public DbSet<CounterShift> CounterShifts => Set<CounterShift>();
+    public DbSet<CounterShiftTransaction> CounterShiftTransactions => Set<CounterShiftTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +76,8 @@ public class RestaurantDbContext : DbContext
         ConfigurePromotion(modelBuilder);
         ConfigureLoyaltyMember(modelBuilder);
         ConfigureLoyaltyReward(modelBuilder);
+        ConfigureCounterShift(modelBuilder);
+        ConfigureCounterShiftTransaction(modelBuilder);
 
         // Postgres sequence backing the human-facing order code (ORD-1001, 1002, ...).
         // Atomic nextval removes the Count()+1 race that could mint duplicate codes.
@@ -1208,6 +1212,53 @@ public class RestaurantDbContext : DbContext
 
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.PointsRequired);
+        });
+    }
+
+    private static void ConfigureCounterShift(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CounterShift>(entity =>
+        {
+            entity.ToTable("counter_shifts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.OpenedByUserId).HasColumnName("opened_by_user_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ClosedByUserId).HasColumnName("closed_by_user_id").HasMaxLength(50);
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.OpeningCashBalance).HasColumnName("opening_cash_balance").HasPrecision(18, 2);
+            entity.Property(e => e.ExpectedCashTotal).HasColumnName("expected_cash_total").HasPrecision(18, 2);
+            entity.Property(e => e.ActualCashTotal).HasColumnName("actual_cash_total").HasPrecision(18, 2);
+            entity.Property(e => e.CashVariance).HasColumnName("cash_variance").HasPrecision(18, 2);
+            entity.Property(e => e.CloseNote).HasColumnName("close_note").HasMaxLength(500);
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").IsRequired();
+            entity.Property(e => e.ClosedAt).HasColumnName("closed_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasOne(e => e.OpenedByUser).WithMany().HasForeignKey(e => e.OpenedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ClosedByUser).WithMany().HasForeignKey(e => e.ClosedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.Status);
+        });
+    }
+
+    private static void ConfigureCounterShiftTransaction(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CounterShiftTransaction>(entity =>
+        {
+            entity.ToTable("counter_shift_transactions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(50);
+            entity.Property(e => e.CounterShiftId).HasColumnName("counter_shift_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2);
+            entity.Property(e => e.TableSessionId).HasColumnName("table_session_id").HasMaxLength(50);
+            entity.Property(e => e.InvoiceCode).HasColumnName("invoice_code").HasMaxLength(30);
+            entity.Property(e => e.ReasonCode).HasColumnName("reason_code").HasMaxLength(50);
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.HasOne(e => e.CounterShift).WithMany(shift => shift.Transactions).HasForeignKey(e => e.CounterShiftId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.CounterShiftId);
+            entity.HasIndex(e => e.TableSessionId);
         });
     }
 }
