@@ -75,6 +75,15 @@ class CatalogListingPathTests(unittest.TestCase):
         self.assertNotIn("Với 2 người", content)
         self.assertNotIn("Bun bo Hue", content)
 
+    def test_order_request_skips_catalog_fast_path(self) -> None:
+        for message in ("Ban dat com suon nhe", "Order pho bo for me"):
+            with self.subTest(message=message):
+                constraints = extract_constraints(message, self.history)
+                self.assertFalse(constraints["is_catalog_only"])
+                self.assertIsNone(
+                    _try_catalog_fast_path(message, constraints, self.menu, frozenset()),
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

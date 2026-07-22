@@ -1,49 +1,71 @@
-import { useEffect } from "react";
-import { Navigate, useParams, useSearchParams } from "react-router-dom";
-import { useI18n } from "@cmc/i18n";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { loadOrderContext } from "../components/customer/customerMenuStorage";
 import { openDineInSession } from "../services/tableSessionService";
 import { getSessionResumeDestination } from "./sessionResumeState";
 
 export function SessionSmartIndexRedirect() {
-  const { t } = useI18n();
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [resolving, setResolving] = useState(true);
+  const [fallbackPath, setFallbackPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setResolving(false);
+      return;
+    }
+
     const stored = loadOrderContext();
     const qrToken = searchParams.get("qr") ?? stored.qrToken;
     if (!qrToken || stored.sessionId !== sessionId || !stored.tableCode) {
+      setFallbackPath(`menu${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
+      setResolving(false);
       return;
     }
 
     let active = true;
-    void openDineInSession(qrToken, stored.tableCode).then((result) => {
-      if (!active || result.status !== "open") return;
-      const destination = getSessionResumeDestination(sessionId, result.session.resumeState, qrToken);
-      if (destination !== `/table-session/${sessionId}/menu`) {
-        window.location.replace(destination);
-      }
-    });
+    void openDineInSession(qrToken, stored.tableCode)
+      .then((result) => {
+        if (!active) return;
+        if (result.status === "open") {
+          navigate(getSessionResumeDestination(sessionId, result.session.resumeState, qrToken), { replace: true });
+          return;
+        }
+        setFallbackPath(`menu${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
+        setResolving(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFallbackPath(`menu${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
+        setResolving(false);
+      });
+
     return () => {
       active = false;
     };
-  }, [searchParams, sessionId]);
+  }, [navigate, searchParams, sessionId]);
 
   if (!sessionId) {
     return <Navigate replace to="/" />;
   }
 
-  const stored = loadOrderContext();
-  const qrToken = searchParams.get("qr") ?? stored.qrToken;
-  if (qrToken && stored.sessionId === sessionId && stored.sessionToken) {
+  if (resolving) {
     return (
-      <main className="ordering-state" aria-live="polite">
-        <p>{t("Đang mở đúng bước theo trạng thái bàn…")}</p>
+      <main className="cmc-redirect-page" role="status">
+        <h1>Đang mở phiên bàn...</h1>
       </main>
     );
   }
 
-  return <Navigate replace to={`menu${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} relative="path" />;
+  if (fallbackPath) {
+    return <Navigate replace to={fallbackPath} relative="path" />;
+  }
+
+  return (
+    <main className="cmc-redirect-page" role="status">
+      <h1>Đang chuyển hướng...</h1>
+    </main>
+  );
 }

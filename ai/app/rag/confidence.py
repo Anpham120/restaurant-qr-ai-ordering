@@ -50,9 +50,47 @@ class ConfidenceResult:
             )
 
 
+FAQ_POLICY_INTENTS_FOR_CONFIDENCE = frozenset(
+    {
+        "restaurant_info",
+        "payment",
+        "service",
+        "promotion",
+        "general",
+        "hours",
+        "ordering_policy",
+    }
+)
+
+MENU_LLM_INTENTS = frozenset(
+    {
+        "menu_recommendation",
+        "budget_constraint",
+        "party_size_planning",
+        "combo_pairing",
+        "dietary_restriction",
+        "allergy_avoidance",
+        "nutrition_info",
+        "beverage_pairing",
+        "menu_category",
+        "follow_up_more",
+        "spice_level",
+        "occasion_dining",
+        "kids_elderly",
+        "browse_menu",
+        "ask_price",
+        "order",
+        "typo_no_diacritic",
+        "policy_rejection",
+    }
+)
+
+
 def compute_retrieval_confidence(
     results: Sequence[dict[str, Any] | Any],
     top_n: int = 3,
+    *,
+    intent: str | None = None,
 ) -> ConfidenceResult:
     """Compute confidence from retrieval results.
 
@@ -80,8 +118,17 @@ def compute_retrieval_confidence(
     top1 = top_scores[0]
 
     # Factor 1: Top-1 absolute score (0-1 range)
-    # BM25 scores can be >1, normalize
-    score_weight = min(top1 / 10.0, 1.0) if top1 > 1.0 else top1
+    # RRF scores are ~0.01-0.05 (reciprocal rank fusion), BM25 can be >1,
+    # dense cosine is 0-1. Normalize each to comparable 0-1 range.
+    if top1 > 1.0:
+        # BM25 raw scores (typically 2-15)
+        score_weight = min(top1 / 10.0, 1.0)
+    elif top1 < 0.1:
+        # RRF scores (~0.01-0.05) — scale so 0.03 → 0.6, 0.05 → 1.0
+        score_weight = min(top1 / 0.05, 1.0)
+    else:
+        # Dense cosine similarity (0-1) — use as-is
+        score_weight = top1
 
     # Factor 2: Score gap (top-1 vs rest) — higher gap = clearer winner
     if len(top_scores) >= 2:
@@ -112,7 +159,24 @@ def compute_retrieval_confidence(
         f"top1_score={top1:.3f}, gap={gap_factor:.2f}, "
         f"diversity={unique_sources}/{top_n}, count={len(scores)}"
     )
-    return ConfidenceResult.from_score(confidence, reason)
+    result = ConfidenceResult.from_score(confidence, reason)
+    if intent in FAQ_POLICY_INTENTS_FOR_CONFIDENCE and result.level in {"medium", "low", "very_low"}:
+        return ConfidenceResult(
+            score=result.score,
+            level=result.level,
+            reason=f"{result.reason}; faq_intent_prefers_fast_path",
+            should_call_llm=False,
+            guardrail_flag=result.guardrail_flag or "LOW_RETRIEVAL_CONFIDENCE",
+        )
+    if intent in MENU_LLM_INTENTS and result.level == "very_low":
+        return ConfidenceResult(
+            score=result.score,
+            level=result.level,
+            reason=f"{result.reason}; menu_intent_keeps_llm",
+            should_call_llm=True,
+            guardrail_flag=result.guardrail_flag,
+        )
+    return result
 
 
 def _extract_scores(results: Sequence[Any]) -> list[float]:

@@ -13,7 +13,7 @@
 | Hạng mục | Hiện trạng đã kiểm tra | Kết luận |
 | --- | --- | --- |
 | AI unit test | 14 test, 14 pass | Có regression cơ bản nhưng độ phủ còn mỏng |
-| Notebook | 10 cell, 4 code cell, 0 cell đã chạy, 0 output | Mới là khung giao thức, chưa phải bằng chứng nghiên cứu |
+| Notebook | `ai/notebooks/rag_retrieval_research.ipynb` — materialized via `scripts/build_research_notebook.py`; dev retrieval benchmarks executed (`dev_retrieval_summary.v3.json`, hybrid_e5_small hit@5 ≈ 0.93) | Research protocol complete; notebook is reproducible export, not sole source of truth |
 | Golden questions | 15 câu, 14 câu có nhãn retrieval để benchmark | Không đủ lớn để kết luận học thuật |
 | Kho tri thức | 7 file Markdown, 182 dòng, khoảng 1.382 từ | Chưa đủ sâu/rộng cho dị ứng, khẩu vị, chế độ ăn và hội thoại đa lượt |
 | BM25 | Hit@5 0,857; MRR@5 0,729; p95 0,301 ms trên 14 ca | Baseline hợp lệ nhưng tập đo quá nhỏ |
@@ -379,7 +379,7 @@ flowchart TD
 Deliverables:
 
 - Chốt request/response schema, domain terms và source-of-truth.
-- Ghi baseline tự động, không lấy số liệu từ notebook chưa chạy.
+- Ghi baseline tự động qua `evaluation/run_retrieval_experiment.py` và `run_retrieval_ablation.py` (kết quả trong `evaluation/results/`).
 - Tạo fixture menu production-like và test invariant hiện có.
 - Review stash cũ theo từng file; không apply toàn bộ.
 
@@ -428,7 +428,7 @@ Deliverables:
 - CI/statistical comparison + error analysis.
 - ADR ghi retriever được chọn theo luật 5.5.
 
-Exit gate: người khác clone repo có thể tái lập kết quả; không còn cell chưa chạy hoặc nhận xét thiếu số liệu.
+Exit gate: người khác clone repo có thể tái lập kết quả qua scripts CLI (`run_retrieval_experiment`, `run_golden_llm_eval`, `ci_golden_gates`); notebook là snapshot, không còn phụ thuộc cell chưa chạy.
 
 ### Lát F — Production RAG pipeline
 

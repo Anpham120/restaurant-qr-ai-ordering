@@ -292,6 +292,7 @@ export function OrderTrackingPage() {
       statusLabel: t(eventStatusLabels[order?.status ?? ""] ?? "Đang tải"),
       preparing: items.filter((item) => item.status === "Preparing").length,
       ready: items.filter((item) => item.status === "Ready").length,
+      allServed: items.length > 0 && items.every((item) => item.status === "Served" || item.status === "Cancelled"),
     };
   }, [order, t]);
 
@@ -383,10 +384,19 @@ export function OrderTrackingPage() {
             />
           ) : null}
 
+          {stats.allServed && sessionId ? (
+            <div className="cmc-ot-payment-nudge" role="status">
+              <p>{t("Món trong đơn này đã phục vụ xong. Thanh toán theo toàn bộ phiên bàn.")}</p>
+              <Link to={`${orderingPath(sessionId, "orders")}?focus=invoice`}>
+                {t("Thanh toán hóa đơn phiên")}
+              </Link>
+            </div>
+          ) : null}
+
           {/* Back link */}
-          <Link className="cmc-ot-back" to="/">
+          <Link className="cmc-ot-back" to={sessionId ? orderingPath(sessionId, "orders") : "/"}>
             <ArrowLeft aria-hidden="true" size={16} />
-            {t("Về trang chủ")}
+            {sessionId ? t("Về phiên bàn") : t("Về trang chủ")}
           </Link>
         </div>
       ) : !errorMessage ? (

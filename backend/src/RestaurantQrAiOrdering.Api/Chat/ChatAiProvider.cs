@@ -267,7 +267,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
             table_code = request.TableCode,
             session_id = request.ChatSessionId,
             table_session_id = request.TableSessionId,
-            rolling_summary = request.RollingSummary ?? request.SessionMemory,
+            rolling_summary = request.RollingSummary ?? "",
             excluded_menu_item_ids = excluded.ToList(),
             facts = (request.Facts ?? []).Select(f => new { kind = f.Kind, value = f.Value, confidence = f.Confidence }),
             cart_items = request.CartItems ?? [],

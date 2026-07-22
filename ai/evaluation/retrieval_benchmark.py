@@ -7,7 +7,6 @@ embedding experiment until an encoder, version, and frozen corpus are recorded.
 
 from __future__ import annotations
 
-import csv
 import math
 import statistics
 import time
@@ -19,8 +18,10 @@ from app.rag.knowledge_base import KnowledgeChunk, load_markdown_knowledge_base
 from app.rag.retriever import BM25Retriever, RetrievedChunk, _tokenize_list
 
 
+from evaluation.golden_smoke import load_smoke_retrieval_cases, smoke_case_to_retrieval_row
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-GOLDEN_CSV = PROJECT_ROOT / "ai" / "evaluation" / "golden_questions.csv"
 KB_PATH = PROJECT_ROOT / "ai" / "knowledge-base"
 TOP_K = 5
 RRF_K = 60
@@ -131,8 +132,7 @@ def _evaluate(method: str, retriever: object, cases: list[dict[str, str]], top_k
 
 
 def _load_cases() -> list[dict[str, str]]:
-    with GOLDEN_CSV.open(encoding="utf-8-sig", newline="") as file:
-        return list(csv.DictReader(file))
+    return [smoke_case_to_retrieval_row(case) for case in load_smoke_retrieval_cases()]
 
 
 if __name__ == "__main__":

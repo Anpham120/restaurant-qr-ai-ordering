@@ -4,6 +4,7 @@ import { localizeMenuItem } from "@cmc/i18n/menu";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ReceiptText, ShoppingBasket } from "lucide-react";
 import { clearMenuCart, applyCartDelta, CART_UPDATED_EVENT, loadMenuCart, reconcileCartOnLoad } from "../../components/customer/customerMenuStorage";
+import { formatCartErrorMessage } from "../../services/cartService";
 import "../../components/customer/customer-menu.css";
 import "../../components/customer/customer-cart.css";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../../services/menuService";
@@ -166,7 +167,7 @@ export function CustomerCartPage() {
 
     void applyCartDelta(itemId, delta)
       .then((nextCart) => setCart(nextCart))
-      .catch(() => setErrorMessage(t("Không cập nhật được giỏ hàng. Vui lòng thử lại.")));
+      .catch((error) => setErrorMessage(formatCartErrorMessage(error, t("Không cập nhật được giỏ hàng. Vui lòng thử lại."))));
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
@@ -216,7 +217,7 @@ export function CustomerCartPage() {
       setCart({});
       clearMenuCart();
 
-      navigate(`/table-session/${orderContext.sessionId}/orders/${response.orderCode}`, { replace: true });
+      navigate(`/table-session/${orderContext.sessionId}/orders?highlight=${encodeURIComponent(response.orderCode)}`, { replace: true });
     } catch (error) {
       setErrorMessage(t(error instanceof Error ? error.message : "Không thể gửi đơn lúc này."));
     } finally {

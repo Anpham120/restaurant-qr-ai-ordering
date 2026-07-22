@@ -54,7 +54,8 @@ public sealed record PaymentRequestedEvent(
     string Method,
     string Status,
     decimal Amount,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? TableCode);
 
 public sealed record CartUpdatedEvent(
     string TableSessionId,

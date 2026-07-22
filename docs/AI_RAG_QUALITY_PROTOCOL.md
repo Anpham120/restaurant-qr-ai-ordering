@@ -20,7 +20,7 @@ flowchart LR
   KB["RAG: FAQ, policy, pairing"] --> R["Retriever"]
   R --> P
   H["History + compact memory"] --> P
-  P --> L["Gemini LLM"]
+  P --> L["LLM via 9router"]
   L --> V["Parser/validator: action ID thuộc candidate set"]
   V --> A["Phản hồi ngắn, không lặp"]
 ```
@@ -34,7 +34,9 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 ### Dữ liệu
 
 - Knowledge base markdown: FAQ, policy, pairing, menu mẫu; ghi version/hash trước mỗi lần benchmark.
-- `ai/evaluation/golden_questions.csv`: câu hỏi có nguồn kỳ vọng và guardrail kỳ vọng.
+- `ai/evaluation/golden/cases.jsonl`: canonical golden (dev/test split, SHA-256 locked).
+- `ai/evaluation/golden/smoke_retrieval.jsonl`: CI retrieval smoke (~36 case).
+- Legacy `golden_questions.csv`: archived reference only.
 - Menu live: kiểm thử riêng category/tag bằng purity, coverage và action validity; không đưa snapshot lỗi thời vào RAG để thay dữ liệu DB.
 - Tách tập dev/frozen-test trước khi chọn production retriever. Không dùng frozen test để tuning `k`, boost hoặc RRF weight.
 
@@ -56,21 +58,13 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 - Latency: retrieval local, backend orchestration, provider TTFT/end-to-end riêng biệt. Không suy luận P95 production từ benchmark local.
 - Chọn retrieval trên dev theo MRR@5, sau đó Hit@5, sau đó P95. Chạy frozen test một lần sau khi khóa cấu hình.
 
-`ai/evaluation/retrieval_benchmark.py` chạy ba retriever cùng golden set. Ở snapshot hiện tại (14 câu có nguồn kỳ vọng), kết quả chẩn đoán là:
-
-| Method | Hit@5 | MRR@5 | P50 local | P95 local |
-| --- | ---: | ---: | ---: | ---: |
-| BM25 | 0.857 | 0.729 | 0.249 ms | 0.552 ms |
-| TF-IDF vector baseline | 0.929 | 0.782 | 0.078 ms | 0.118 ms |
-| Hybrid RRF | 0.857 | 0.720 | 0.351 ms | 0.539 ms |
-
-Các số trên không tự động đổi production retriever vì golden set hiện chưa được tách dev/frozen test. Chúng là baseline được lưu để làm research checkpoint, không phải marketing claim về semantic embedding.
+`ai/evaluation/retrieval_benchmark.py` chạy smoke subset (`smoke_retrieval.jsonl`) trên dev split. Kết quả được lưu làm research checkpoint; không tự động đổi production retriever.
 
 ## Tối ưu tốc độ nhưng không hy sinh độ đúng
 
 - Candidate menu ≤8 (trước đây prompt có thể nhận danh sách menu không liên quan); câu trả lời ≤4 món.
 - Lịch sử gần nhất ≤6 và compact memory cũ có giới hạn; câu hỏi hiện tại chỉ xuất hiện một lần.
-- Gemini dùng structured response, `temperature=0.2`, `reasoning_effort=low`; đây là cấu hình phù hợp tư vấn menu ngắn và được Gemini OpenAI-compatibility hỗ trợ.
+- LLM qua 9router (OpenAI-compatible): `AI_MODEL=cx/gpt-5.5` (quality gate) hoặc `oc/deepseek-v4-flash-free` (cheap sweep); `temperature=0.2`, structured response.
 - Prompt cấm lặp câu/món; parser Python loại câu lặp y hệt, direct provider loại dòng lặp y hệt.
 - Không stream JSON trực tiếp vào UI ở giai đoạn này vì client cần JSON hợp lệ để validate action. Khi muốn giảm perceived latency hơn nữa, thêm server-side streaming với incremental JSON parser và test hủy request riêng.
 
@@ -81,7 +75,7 @@ Các số trên không tự động đổi production retriever vì golden set h
 3. Menu item hết hàng hoặc thuộc category inactive không vào candidate set.
 4. Action ngoài candidate set bị chặn, kể cả khi LLM nêu đúng tên/giá cũ.
 5. Câu hoặc dòng response lặp y hệt bị khử trước khi trả UI.
-6. Full Python/backend test và benchmark phải chạy trong CI; staging đo P95 provider thật trước release.
+6. CI smoke: `python ai/evaluation/ci_golden_gates.py --run-smoke-eval`; quality gate E2E+LLM chạy manual trước release.
 
 ## Artefact nghiên cứu
 

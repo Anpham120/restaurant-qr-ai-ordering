@@ -7,12 +7,23 @@ from app.rag.vietnamese_normalizer import normalize_query_text
 
 _MENU_PRESENCE_TERMS = ("co mon", "mon nao", "co gi an", "co nhung mon", "ban co mon")
 
+_ALLERGY_OR_AVOID_TERMS = (
+    "di ung",
+    "allerg",
+    "bo qua",
+    "tranh",
+    "khong an",
+    "avoid",
+    "nen bo qua",
+)
+
 
 def _normalize(text: str) -> str:
     return normalize_query_text(text)
 
 
 def _menu_keywords(normalized_query: str) -> list[str]:
+    tokens = set(normalized_query.split())
     keywords: list[str] = []
     for keyword in (
         "goi",
@@ -24,15 +35,18 @@ def _menu_keywords(normalized_query: str) -> list[str]:
         "banh",
         "che",
         "ga",
-        "bo",
         "tom",
         "cua",
+        "muc",
         "dessert",
         "tra",
         "bia",
     ):
-        if keyword in normalized_query:
+        if keyword in tokens:
             keywords.append(keyword)
+    # Avoid matching "bo" inside "bo qua" (skip/avoid), not beef dishes.
+    if "bo" in tokens and "qua" not in tokens:
+        keywords.append("bo")
     return keywords
 
 
@@ -48,6 +62,8 @@ def try_menu_presence_fast_path(
         return None
 
     normalized = _normalize(message)
+    if any(term in normalized for term in _ALLERGY_OR_AVOID_TERMS):
+        return None
     if not any(term in normalized for term in _MENU_PRESENCE_TERMS):
         return None
 

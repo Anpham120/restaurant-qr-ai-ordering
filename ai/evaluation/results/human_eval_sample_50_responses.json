@@ -1,0 +1,744 @@
+{
+  "source_golden_eval": "ai\\evaluation\\results\\golden_llm_eval_cx_gpt55_v3_full_v3b.json",
+  "sample_csv": "ai\\evaluation\\templates\\human_eval_sample_50_scored.csv",
+  "cases": 50,
+  "auto_pass_rate": 1.0,
+  "responses": [
+    {
+      "case_id": "q001",
+      "family": "allergy",
+      "query": "Tránh món có tôm cua mực giúp tôi",
+      "model": "cx/gpt-5.5",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Sinh tố xoài Hòa Lộc (45.000đ) — Sinh tố xoài Hòa Lộc ngọt tự nhiên, dễ uống cả nhà.\n2. Nước rau má (30.000đ) — Nước rau má ngọt tự nhiên, dễ uống cả nhà.\n3. Sinh tố dâu tây Đà Lạt (50.000đ) — Sinh tố dâu tây Đà Lạt ngọt tự nhiên, dễ uống cả nhà.\n4. Bia Hà Nội (18.000đ) — Bia Hà Nội dễ uống khi ăn cùng bạn bè.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5789,
+      "suggested_menu_ids": [
+        "m_067",
+        "m_068",
+        "m_069",
+        "m_086"
+      ]
+    },
+    {
+      "case_id": "q002",
+      "family": "allergy",
+      "query": "Allergic to shellfish, what to avoid?",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, bạn có thể tham khảo các món sau:\n\n1. Sinh tố bơ Đắk Lắk (50.000đ) — Sinh tố bơ Đắk Lắk mát lạnh, hợp ngày nóng.\n2. Sinh tố xoài Hòa Lộc (45.000đ) — Sinh tố xoài Hòa Lộc mát lạnh, hợp ngày nóng.\n3. Chè trôi nước (35.000đ) — Chè trôi nước đang có sẵn trong nhóm cà phê & trà.\n4. Lẩu nấm chay (250.000đ) — Lẩu nấm chay là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7451,
+      "suggested_menu_ids": [
+        "m_065",
+        "m_067",
+        "m_075",
+        "m_031"
+      ]
+    },
+    {
+      "case_id": "q003",
+      "family": "allergy",
+      "query": "Tôi không ăn được tôm, gợi ý món khác",
+      "model": "cx/gpt-5.5",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Gà xào sả ớt (95.000đ) — Gà xào sả ớt đang có sẵn trong thực đơn.\n2. Đậu hũ sốt cà chua (45.000đ) — Đậu hũ sốt cà chua đang có sẵn trong thực đơn.\n3. Gà nướng mật ong (185.000đ) — Gà nướng mật ong đang có sẵn trong thực đơn.\n4. Cơm cá kho tộ (65.000đ) — Cơm cá kho tộ đang có sẵn trong thực đơn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7647,
+      "suggested_menu_ids": [
+        "m_039",
+        "m_054",
+        "m_036",
+        "m_018"
+      ]
+    },
+    {
+      "case_id": "q004",
+      "family": "allergy",
+      "query": "Dị ứng mực nên bỏ qua món nào?",
+      "model": "cx/gpt-5.5",
+      "content": "Nếu bạn dị ứng mực, nên tránh các món có mực hoặc nghi ngờ có hải sản/mực trong thành phần. Hiện mình cần xem thực đơn cụ thể để chỉ đúng từng món cần bỏ qua. Với dị ứng nghiêm trọng, bạn nên báo trực tiếp nhân viên để bếp kiểm tra nguyên liệu và nguy cơ lẫn chéo.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6429,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q005",
+      "family": "allergy",
+      "query": "Dị ứng hải sản nặng, menu nào an toàn?",
+      "model": "cx/gpt-5.5",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Cá lóc nướng trui (195.000đ) — Cá lóc nướng trui là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5862,
+      "suggested_menu_ids": [
+        "m_023"
+      ]
+    },
+    {
+      "case_id": "q006",
+      "family": "allergy",
+      "query": "Co mon nao khong co hai san khong?",
+      "model": "cx/gpt-5.5",
+      "content": "Có. Nhà hàng có các món không hải sản. Bạn muốn mình gợi ý theo món thịt, món chay hay món nhẹ/dễ ăn?\n\n1. Cá lóc nướng trui (195.000đ) — Cá lóc nướng trui đang có sẵn trong thực đơn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5484,
+      "suggested_menu_ids": [
+        "m_023"
+      ]
+    },
+    {
+      "case_id": "q007",
+      "family": "allergy",
+      "query": "Khach di ung tom, goi y mon an toan",
+      "model": "cx/gpt-5.5",
+      "content": "Khách dị ứng tôm thì nên tránh các món có tôm/hải sản và cần báo nhân viên để kiểm tra nguyên liệu, nước dùng, nước chấm cũng như nguy cơ lẫn chéo trong bếp. Bạn gửi giúp mình thực đơn hiện có hoặc món khách đang định gọi để mình lọc món phù hợp hơn nhé.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7045,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q040",
+      "family": "budget",
+      "query": "Combo trua 1 nguoi budget 80k",
+      "model": "cx/gpt-5.5",
+      "content": "Bạn đi một mình thì mình gợi ý vài món phần cá nhân vừa ăn:\n\n1. Bánh cuốn Thanh Trì (55.000đ) — Bánh cuốn Thanh Trì dễ thử trước món chính.\n2. Bánh mì pate Sài Gòn (35.000đ) — Bánh mì pate Sài Gòn dễ thử trước món chính.\n3. Bánh xèo miền Tây (85.000đ) — Bánh xèo miền Tây dễ thử trước món chính.\n4. Gỏi cuốn tôm thịt (65.000đ) — Gỏi cuốn tôm thịt dễ thử trước món chính.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4412,
+      "suggested_menu_ids": [
+        "m_004",
+        "m_006",
+        "m_003",
+        "m_001"
+      ]
+    },
+    {
+      "case_id": "q041",
+      "family": "budget",
+      "query": "Budget 200k cho 2 nguoi",
+      "model": "cx/gpt-5.5",
+      "content": "Với 2 người, mình gợi ý vài món vừa khẩu phần:\n\n1. Bánh cuốn Thanh Trì (55.000đ) — Bánh cuốn Thanh Trì hợp mở đầu bữa ăn.\n2. Bánh mì pate Sài Gòn (35.000đ) — Bánh mì pate Sài Gòn hợp mở đầu bữa ăn.\n3. Bánh xèo miền Tây (85.000đ) — Bánh xèo miền Tây hợp mở đầu bữa ăn.\n4. Gỏi cuốn tôm thịt (65.000đ) — Gỏi cuốn tôm thịt hợp mở đầu bữa ăn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5294,
+      "suggested_menu_ids": [
+        "m_004",
+        "m_006",
+        "m_003",
+        "m_001"
+      ]
+    },
+    {
+      "case_id": "q042",
+      "family": "budget",
+      "query": "Cheap lunch under 70k",
+      "model": "cx/gpt-5.5",
+      "content": "Dưới ngân sách khoảng 70,000 VND, mình gợi ý:\n\n1. Bia hơi Hà Nội (12.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n2. Nước mía Sài Gòn (25.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n3. Bánh chuối nướng (30.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n4. Đu đủ chín mật ong (40.000đ) — Đu đủ chín mật ong nhẹ nhàng, dễ uống trước hoặc sau bữa.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4884,
+      "suggested_menu_ids": [
+        "m_088",
+        "m_070",
+        "m_076",
+        "m_084"
+      ]
+    },
+    {
+      "case_id": "q043",
+      "family": "budget",
+      "query": "Mon re ma ngon",
+      "model": "cx/gpt-5.5",
+      "content": "Em chọn giúp bạn vài món ăn đang có sẵn:\n\n1. Bánh mì pate Sài Gòn (35.000đ) — Bánh mì pate Sài Gòn dễ thử trước món chính.\n2. Gà nướng mật ong (185.000đ) — Gà nướng mật ong phù hợp với yêu cầu hiện tại.\n3. Cao lầu Hội An (80.000đ) — Cao lầu Hội An phù hợp với yêu cầu hiện tại.\n4. Nem rán Hà Nội (75.000đ) — Nem rán Hà Nội dễ thử trước món chính.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7143,
+      "suggested_menu_ids": [
+        "m_006",
+        "m_036",
+        "m_044",
+        "m_002"
+      ]
+    },
+    {
+      "case_id": "q044",
+      "family": "budget",
+      "query": "Mon nao gia thap nhat?",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài món ăn bạn có thể thử:\n\n1. Gà rô ti kiểu Việt (320.000đ) — Gà rô ti kiểu Việt là lựa chọn an toàn từ menu hiện có.\n2. Gà hấp lá chanh (280.000đ) — Gà hấp lá chanh là lựa chọn an toàn từ menu hiện có.\n3. Gà nướng mật ong (185.000đ) — Gà nướng mật ong là lựa chọn an toàn từ menu hiện có.\n4. Canh khổ qua nhồi nấm (55.000đ) — Canh khổ qua nhồi nấm là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7073,
+      "suggested_menu_ids": [
+        "m_042",
+        "m_037",
+        "m_036",
+        "m_053"
+      ]
+    },
+    {
+      "case_id": "q045",
+      "family": "budget",
+      "query": "Tiet kiem tien an trua",
+      "model": "cx/gpt-5.5",
+      "content": "| Hạng | Điều kiện | Ưu đãi |\n|---|---|---|\n| Thường | Mới đăng ký | 1.000đ = 1 điểm |\n| Bạc | 200 điểm | Giảm 5% đồ uống |\n| Vàng | 500 điểm | Giảm 10% tổng hóa đơn |\n| VIP | 5.000 điểm tích lũy | Ưu tiên phòng VIP, giảm 15%, tặng món sinh nhật |",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q046",
+      "family": "budget",
+      "query": "Goi y mon duoi 150000",
+      "model": "cx/gpt-5.5",
+      "content": "Dưới ngân sách khoảng 150,000 VND, mình gợi ý:\n\n1. Bia hơi Hà Nội (12.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n2. Nước mía Sài Gòn (25.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n3. Bánh chuối nướng (30.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n4. Bánh mì pate Sài Gòn (35.000đ) — Phù hợp ngân sách và đa dạng nhóm món.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4571,
+      "suggested_menu_ids": [
+        "m_088",
+        "m_070",
+        "m_076",
+        "m_006"
+      ]
+    },
+    {
+      "case_id": "q144",
+      "family": "payment_faq",
+      "query": "AI co thanh toan ho khong?",
+      "model": "cx/gpt-5.5",
+      "content": "<!-- question_variants: thanh toán bằng gì, trả tiền thế nào, tính tiền, trả bằng gì, payment methods, hình thức thanh toán -->",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q145",
+      "family": "payment_faq",
+      "query": "Chia bill duoc khong?",
+      "model": "cx/gpt-5.5",
+      "content": "<!-- question_variants: chia tiền, split bill, chia đôi, mỗi người trả riêng, tách hóa đơn -->",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q146",
+      "family": "payment_faq",
+      "query": "Quy trinh VietQR",
+      "model": "cx/gpt-5.5",
+      "content": "Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực tiếp nhé.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4545,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q147",
+      "family": "payment_faq",
+      "query": "Tra tien mat duoc khong?",
+      "model": "cx/gpt-5.5",
+      "content": "Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn:\n\n1. Trà đào cam sả (45.000đ) — Trà đào cam sả nhẹ nhàng, dễ uống trước hoặc sau bữa.\n2. Trà sữa trân châu (45.000đ) — Trà sữa trân châu nhẹ nhàng, dễ uống trước hoặc sau bữa.\n3. Cà phê sữa đá (35.000đ) — Cà phê sữa đá nhẹ nhàng, dễ uống trước hoặc sau bữa.\n4. Nước rau má (30.000đ) — Nước rau má tươi mát, hợp làm đồ uống giải khát.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7949,
+      "suggested_menu_ids": [
+        "m_060",
+        "m_062",
+        "m_057",
+        "m_068"
+      ]
+    },
+    {
+      "case_id": "q148",
+      "family": "payment_faq",
+      "query": "Thanh toan bang cach nao?",
+      "model": "cx/gpt-5.5",
+      "content": "<!-- question_variants: thanh toán bằng gì, trả tiền thế nào, tính tiền, trả bằng gì, payment methods, hình thức thanh toán -->",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q149",
+      "family": "payment_faq",
+      "query": "Xuat hoa don VAT?",
+      "model": "cx/gpt-5.5",
+      "content": "<!-- question_variants: xuất hóa đơn, VAT, hóa đơn đỏ, invoice, hóa đơn công ty, mã số thuế -->",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q150",
+      "family": "payment_faq",
+      "query": "Loi thanh toan thi lam gi?",
+      "model": "cx/gpt-5.5",
+      "content": "1. Khi muốn thanh toán, nhấn \"Tính tiền\" trên giao diện.\n2. Hệ thống hiển thị mã VietQR với số tiền cần thanh toán.\n3. Mở app ngân hàng, quét mã QR, xác nhận chuyển khoản.\n4. Hệ thống tự cập nhật trạng thái khi nhận được thanh toán.\n5. Nếu thanh toán tiền mặt, gọi nhân viên đến bàn.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 1.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q079",
+      "family": "recommend",
+      "query": "Mon ban chay nhat?",
+      "model": "cx/gpt-5.5",
+      "content": "Em chọn giúp bạn vài món ăn đang có sẵn:\n\n1. Phở chay nấm đông cô (60.000đ) — Phở chay nấm đông cô phù hợp với yêu cầu hiện tại.\n2. Mì Quảng chay (55.000đ) — Mì Quảng chay phù hợp với yêu cầu hiện tại.\n3. Bún chay Huế (55.000đ) — Bún chay Huế phù hợp với yêu cầu hiện tại.\n4. Lẩu nấm chay (250.000đ) — Lẩu nấm chay phù hợp với yêu cầu hiện tại.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5588,
+      "suggested_menu_ids": [
+        "m_050",
+        "m_055",
+        "m_056",
+        "m_031"
+      ]
+    },
+    {
+      "case_id": "q080",
+      "family": "recommend",
+      "query": "Best seller la gi?",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, bạn có thể tham khảo các món sau:\n\n1. Gà hấp lá chanh (280.000đ) — Gà hấp lá chanh là lựa chọn an toàn từ menu hiện có.\n2. Lẩu gà lá é Đà Lạt (280.000đ) — Lẩu gà lá é Đà Lạt là lựa chọn an toàn từ menu hiện có.\n3. Gà xào sả ớt (95.000đ) — Gà xào sả ớt là lựa chọn an toàn từ menu hiện có.\n4. Sương sa hạt lựu (35.000đ) — Sương sa hạt lựu đang có sẵn trong nhóm cà phê & trà.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7619,
+      "suggested_menu_ids": [
+        "m_037",
+        "m_032",
+        "m_039",
+        "m_074"
+      ]
+    },
+    {
+      "case_id": "q081",
+      "family": "recommend",
+      "query": "Goi y mon mien trung",
+      "model": "cx/gpt-5.5",
+      "content": "Bạn có thể xem thực đơn hoặc cho mình biết ngân sách/sở thích để gợi ý món miền Trung phù hợp hơn nhé.\n\n1. Cao lầu Hội An (80.000đ) — Cao lầu Hội An đang có sẵn trong thực đơn.\n2. Ốc hương rang bơ tỏi (165.000đ) — Ốc hương rang bơ tỏi đang có sẵn trong thực đơn.\n3. Bê thui Cầu Mống (350.000đ) — Bê thui Cầu Mống đang có sẵn trong thực đơn.\n4. Mì Quảng chay (55.000đ) — Mì Quảng chay đang có sẵn trong thực đơn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.7045,
+      "suggested_menu_ids": [
+        "m_044",
+        "m_028",
+        "m_045",
+        "m_055"
+      ]
+    },
+    {
+      "case_id": "q082",
+      "family": "recommend",
+      "query": "Mon nao khach order nhieu?",
+      "model": "cx/gpt-5.5",
+      "content": "Em chọn giúp bạn vài món ăn đang có sẵn:\n\n1. Cao lầu Hội An (80.000đ) — Cao lầu Hội An phù hợp với yêu cầu hiện tại.\n2. Lẩu bò nhúng giấm (350.000đ) — Lẩu bò nhúng giấm phù hợp với yêu cầu hiện tại.\n3. Gà hấp lá chanh (280.000đ) — Gà hấp lá chanh phù hợp với yêu cầu hiện tại.\n4. Gà rô ti kiểu Việt (320.000đ) — Gà rô ti kiểu Việt phù hợp với yêu cầu hiện tại.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5946,
+      "suggested_menu_ids": [
+        "m_044",
+        "m_030",
+        "m_037",
+        "m_042"
+      ]
+    },
+    {
+      "case_id": "q083",
+      "family": "recommend",
+      "query": "Suggest dinner for tonight",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài món ăn bạn có thể thử:\n\n1. Gà nướng mật ong (185.000đ) — Gà nướng mật ong là lựa chọn an toàn từ menu hiện có.\n2. Cơm sườn nướng (60.000đ) — Cơm sườn nướng là lựa chọn an toàn từ menu hiện có.\n3. Cá lóc nướng trui (195.000đ) — Cá lóc nướng trui là lựa chọn an toàn từ menu hiện có.\n4. Lẩu hải sản chua cay (450.000đ) — Lẩu hải sản chua cay là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5366,
+      "suggested_menu_ids": [
+        "m_036",
+        "m_017",
+        "m_023",
+        "m_033"
+      ]
+    },
+    {
+      "case_id": "q084",
+      "family": "recommend",
+      "query": "Mon noi bat nhat",
+      "model": "cx/gpt-5.5",
+      "content": "Dạ, em gợi ý vài món ăn phù hợp từ thực đơn:\n\n1. Nem rán Hà Nội (75.000đ) — Nem rán Hà Nội nhẹ, dễ ăn đầu bữa.\n2. Xôi gà Hà Nội (50.000đ) — Xôi gà Hà Nội đang có sẵn trong thực đơn.\n3. Phở bò tái nạm (75.000đ) — Phở bò tái nạm đang có sẵn trong thực đơn.\n4. Gà rô ti kiểu Việt (320.000đ) — Gà rô ti kiểu Việt đang có sẵn trong thực đơn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6765,
+      "suggested_menu_ids": [
+        "m_002",
+        "m_049",
+        "m_008",
+        "m_042"
+      ]
+    },
+    {
+      "case_id": "q085",
+      "family": "recommend",
+      "query": "Top revenue dishes?",
+      "model": "cx/gpt-5.5",
+      "content": "Bạn muốn hỏi các món bán chạy/doanh thu cao của nhà hàng, hay muốn xem gợi ý món nên gọi? Hiện mình không có dữ liệu doanh thu thực tế trong menu/FAQ để xếp hạng theo doanh thu.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6154,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q183",
+      "family": "beverage",
+      "query": "Trang mieng uong gi?",
+      "model": "cx/gpt-5.5",
+      "content": "Đây là các món thuộc nhóm Đặc sản vùng miền đang còn phục vụ:\n- Bánh tráng cuốn thịt heo (Đặc sản vùng miền)\n- Bạc xỉu Sài Gòn (Cà phê & Trà)\n- Trà sen Tây Hồ (Cà phê & Trà)\n- Trà sữa trân châu (Cà phê & Trà)\n- Trà đào cam sả (Cà phê & Trà)\n- Bánh chuối nướng (Tráng miệng)\n- Bánh flan caramel (Tráng miệng)\n- Chè bưởi (Tráng miệng)\n- Chè khúc bạch (Tráng miệng)\n- Chè trôi nước (Tráng miệng)\n- Sương sa hạt lựu (Tráng miệng)\n- Xôi xoài (Tráng miệng)",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q184",
+      "family": "beverage",
+      "query": "Nuoc ep nao co?",
+      "model": "cx/gpt-5.5",
+      "content": "Đây là các món thuộc nhóm Nước ép & Sinh tố đang còn phục vụ:\n- Nước mía Sài Gòn (Nước ép & Sinh tố)\n- Nước rau má (Nước ép & Sinh tố)\n- Nước ép cam tươi (Nước ép & Sinh tố)\n- Nước ép dưa hấu (Nước ép & Sinh tố)",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q185",
+      "family": "beverage",
+      "query": "Do uong manh cho nhan",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử:\n\n1. Trà sữa trân châu (45.000đ) — Trà sữa trân châu đang có sẵn trong nhóm cà phê & trà.\n2. Nước rau má (30.000đ) — Nước rau má mát lạnh, hợp ngày nóng.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5385,
+      "suggested_menu_ids": [
+        "m_062",
+        "m_068"
+      ]
+    },
+    {
+      "case_id": "q186",
+      "family": "beverage",
+      "query": "Do uong mon chay",
+      "model": "cx/gpt-5.5",
+      "content": "Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn:\n\n1. Cà phê sữa đá (35.000đ) — Cà phê sữa đá nhẹ nhàng, dễ uống trước hoặc sau bữa.\n2. Trà sữa trân châu (45.000đ) — Trà sữa trân châu nhẹ nhàng, dễ uống trước hoặc sau bữa.\n3. Nước mía Sài Gòn (25.000đ) — Nước mía Sài Gòn tươi mát, hợp làm đồ uống giải khát.\n4. Rượu mơ Hà Nội (40.000đ) — Rượu mơ Hà Nội hợp để nhâm nhi cùng món ăn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5682,
+      "suggested_menu_ids": [
+        "m_057",
+        "m_062",
+        "m_070",
+        "m_090"
+      ]
+    },
+    {
+      "case_id": "q187",
+      "family": "beverage",
+      "query": "Sinh to nao ngot?",
+      "model": "cx/gpt-5.5",
+      "content": "Em chọn giúp bạn vài đồ uống đang có sẵn:\n\n1. Sinh tố xoài Hòa Lộc (45.000đ) — Sinh tố xoài Hòa Lộc ngọt tự nhiên, dễ uống cả nhà.\n2. Sinh tố bơ Đắk Lắk (50.000đ) — Sinh tố bơ Đắk Lắk ngọt tự nhiên, dễ uống cả nhà.\n3. Sinh tố dâu tây Đà Lạt (50.000đ) — Sinh tố dâu tây Đà Lạt ngọt tự nhiên, dễ uống cả nhà.\n4. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự nhiên, dễ uống cả nhà.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5882,
+      "suggested_menu_ids": [
+        "m_067",
+        "m_065",
+        "m_069",
+        "m_064"
+      ]
+    },
+    {
+      "case_id": "q188",
+      "family": "beverage",
+      "query": "Mon cay uong gi?",
+      "model": "cx/gpt-5.5",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Trà đào cam sả (45.000đ) — Trà đào cam sả đang có sẵn trong nhóm cà phê & trà.\n2. Nước rau má (30.000đ) — Nước rau má mát lạnh, hợp ngày nóng.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5,
+      "suggested_menu_ids": [
+        "m_060",
+        "m_068"
+      ]
+    },
+    {
+      "case_id": "q189",
+      "family": "beverage",
+      "query": "Ca phe trung la gi?",
+      "model": "cx/gpt-5.5",
+      "content": "Cà phê trứng là đồ uống pha từ cà phê kết hợp lớp kem trứng béo mịn, thường có vị đắng nhẹ của cà phê hòa cùng độ ngọt và thơm ngậy của trứng. Bạn muốn mình kiểm tra trong menu nhà hàng có món này không?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.3548,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q190",
+      "family": "beverage",
+      "query": "Goi y do uong kem pho",
+      "model": "cx/gpt-5.5",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Trà đào cam sả (45.000đ) — Trà đào cam sả thơm dịu, hợp khi muốn uống nhẹ.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5333,
+      "suggested_menu_ids": [
+        "m_060"
+      ]
+    },
+    {
+      "case_id": "q191",
+      "family": "beverage",
+      "query": "Drink pairing for seafood",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử:\n\n1. Bia Sài Gòn Special (20.000đ) — Bia Sài Gòn Special đang có sẵn nếu bạn muốn thêm đồ uống có cồn.\n2. Bia Tiger Crystal (22.000đ) — Bia Tiger Crystal đang có sẵn nếu bạn muốn thêm đồ uống có cồn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4848,
+      "suggested_menu_ids": [
+        "m_085",
+        "m_087"
+      ]
+    },
+    {
+      "case_id": "q192",
+      "family": "beverage",
+      "query": "Bia co nhung loai nao?",
+      "model": "cx/gpt-5.5",
+      "content": "Đây là các món thuộc nhóm Bia & Rượu đang còn phục vụ:\n- Bia Sài Gòn Special (Bia & Rượu)\n- Bia Hà Nội (Bia & Rượu)\n- Bia Tiger Crystal (Bia & Rượu)\n- Bia hơi Hà Nội (Bia & Rượu)",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q193",
+      "family": "beverage",
+      "query": "Hai san uong gi cho hop?",
+      "model": "cx/gpt-5.5",
+      "content": "Hải sản thường hợp với đồ uống thanh nhẹ như bia lạnh, nước chanh/nước ép hoặc trà đá để cân bằng vị. Bạn muốn mình gợi ý đồ uống có cồn hay không cồn theo menu không?\n\n1. Nước mía Sài Gòn (25.000đ) — Nước mía Sài Gòn ngọt tự nhiên, dễ uống cả nhà.\n2. Cà phê sữa đá (35.000đ) — Cà phê sữa đá thơm dịu, hợp khi muốn uống nhẹ.\n3. Trà đào cam sả (45.000đ) — Trà đào cam sả thơm dịu, hợp khi muốn uống nhẹ.\n4. Nước rau má (30.000đ) — Nước rau má ngọt tự nhiên, dễ uống cả nhà.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6042,
+      "suggested_menu_ids": [
+        "m_070",
+        "m_057",
+        "m_060",
+        "m_068"
+      ]
+    },
+    {
+      "case_id": "q194",
+      "family": "beverage",
+      "query": "Round 2 drinks",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử:\n\n1. Bia Sài Gòn Special (20.000đ) — Bia Sài Gòn Special đang có sẵn nếu bạn muốn thêm đồ uống có cồn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5484,
+      "suggested_menu_ids": [
+        "m_085"
+      ]
+    },
+    {
+      "case_id": "q195",
+      "family": "beverage",
+      "query": "Tra sen co khong?",
+      "model": "cx/gpt-5.5",
+      "content": "Đây là các món thuộc nhóm Đặc sản vùng miền đang còn phục vụ:\n- Bánh tráng cuốn thịt heo (Đặc sản vùng miền)\n- Bạc xỉu Sài Gòn (Cà phê & Trà)\n- Trà sen Tây Hồ (Cà phê & Trà)\n- Trà sữa trân châu (Cà phê & Trà)\n- Trà đào cam sả (Cà phê & Trà)\n- Bánh chuối nướng (Tráng miệng)\n- Bánh flan caramel (Tráng miệng)\n- Chè bưởi (Tráng miệng)\n- Chè khúc bạch (Tráng miệng)\n- Chè trôi nước (Tráng miệng)\n- Sương sa hạt lựu (Tráng miệng)\n- Xôi xoài (Tráng miệng)",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q066",
+      "family": "category_browse",
+      "query": "Trang mieng menu",
+      "model": "cx/gpt-5.5",
+      "content": "Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn:\n\n1. Nước mía Sài Gòn (25.000đ) — Nước mía Sài Gòn tươi mát, hợp làm đồ uống giải khát.\n2. Bia Sài Gòn Special (20.000đ) — Bia Sài Gòn Special hợp để nhâm nhi cùng món ăn.\n3. Sinh tố bơ Đắk Lắk (50.000đ) — Sinh tố bơ Đắk Lắk tươi mát, hợp làm đồ uống giải khát.\n4. Bia Hà Nội (18.000đ) — Bia Hà Nội hợp để nhâm nhi cùng món ăn.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6486,
+      "suggested_menu_ids": [
+        "m_070",
+        "m_085",
+        "m_065",
+        "m_086"
+      ]
+    },
+    {
+      "case_id": "q067",
+      "family": "category_browse",
+      "query": "Nhom do uong",
+      "model": "cx/gpt-5.5",
+      "content": "Em chọn giúp bạn vài đồ uống đang có sẵn:\n\n1. Cà phê sữa đá (35.000đ) — Cà phê sữa đá thơm dịu, hợp khi muốn uống nhẹ.\n2. Trà sữa trân châu (45.000đ) — Trà sữa trân châu thơm dịu, hợp khi muốn uống nhẹ.\n3. Trà đào cam sả (45.000đ) — Trà đào cam sả thơm dịu, hợp khi muốn uống nhẹ.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5484,
+      "suggested_menu_ids": [
+        "m_057",
+        "m_062",
+        "m_060"
+      ]
+    },
+    {
+      "case_id": "q068",
+      "family": "category_browse",
+      "query": "Lau mon nao?",
+      "model": "cx/gpt-5.5",
+      "content": "Bạn muốn hỏi món lẩu nào đang có hay muốn mình gợi ý lẩu phù hợp? Mình cần xem thực đơn lẩu hiện có để tư vấn đúng món.\n\n1. Lẩu bò nhúng giấm (350.000đ) — Lẩu bò nhúng giấm là lựa chọn an toàn từ menu hiện có.\n2. Lẩu nấm chay (250.000đ) — Lẩu nấm chay là lựa chọn an toàn từ menu hiện có.\n3. Lẩu mắm miền Tây (320.000đ) — Lẩu mắm miền Tây là lựa chọn an toàn từ menu hiện có.\n4. Lẩu hải sản chua cay (450.000đ) — Lẩu hải sản chua cay là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6279,
+      "suggested_menu_ids": [
+        "m_030",
+        "m_031",
+        "m_035",
+        "m_033"
+      ]
+    },
+    {
+      "case_id": "q069",
+      "family": "category_browse",
+      "query": "Mon man category",
+      "model": "cx/gpt-5.5",
+      "content": "Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực tiếp nhé.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.3182,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q070",
+      "family": "category_browse",
+      "query": "Com viet options",
+      "model": "cx/gpt-5.5",
+      "content": "Đây là các món thuộc nhóm Cơm Việt đang còn phục vụ:\n- Cơm bò lúc lắc (Cơm Việt)\n- Cơm chiên Sài Gòn (Cơm Việt)\n- Cơm cá kho tộ (Cơm Việt)\n- Cơm gà Hội An (Cơm Việt)\n- Cơm hến Huế (Cơm Việt)\n- Cơm sườn nướng (Cơm Việt)\n- Cơm tấm sườn bì chả (Cơm Việt)\n- Cơm chiên chay ngũ sắc (Món chay)",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.0,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q071",
+      "family": "category_browse",
+      "query": "List mon chay",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài món ăn bạn có thể thử:\n\n1. Phở chay nấm đông cô (60.000đ) — Phở chay nấm đông cô là lựa chọn an toàn từ menu hiện có.\n2. Cơm chiên chay ngũ sắc (50.000đ) — Cơm chiên chay ngũ sắc là lựa chọn an toàn từ menu hiện có.\n3. Bún chay Huế (55.000đ) — Bún chay Huế là lựa chọn an toàn từ menu hiện có.\n4. Mì Quảng chay (55.000đ) — Mì Quảng chay là lựa chọn an toàn từ menu hiện có.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.4865,
+      "suggested_menu_ids": [
+        "m_050",
+        "m_051",
+        "m_056",
+        "m_055"
+      ]
+    },
+    {
+      "case_id": "q072",
+      "family": "category_browse",
+      "query": "Cho xem menu hai san",
+      "model": "cx/gpt-5.5",
+      "content": "Nhà hàng có các món hải sản sau: Tôm hấp, Mực chiên giòn, Cá mú hấp xì dầu và Nghêu hấp sả. Bạn muốn xem giá từng món hay cần gợi ý món phù hợp khẩu vị?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.44,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q073",
+      "family": "category_browse",
+      "query": "Browse seafood menu",
+      "model": "cx/gpt-5.5",
+      "content": "Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực tiếp nhé.",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.5,
+      "suggested_menu_ids": []
+    },
+    {
+      "case_id": "q074",
+      "family": "category_browse",
+      "query": "Do uong co nhung gi?",
+      "model": "cx/gpt-5.5",
+      "content": "Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử:\n\n1. Nước rau má (30.000đ) — Nước rau má mát lạnh, hợp ngày nóng.\n2. Trà đào cam sả (45.000đ) — Trà đào cam sả đang có sẵn trong nhóm cà phê & trà.\n3. Cà phê sữa đá (35.000đ) — Cà phê sữa đá đang có sẵn trong nhóm cà phê & trà.\n4. Trà sữa trân châu (45.000đ) — Trà sữa trân châu đang có sẵn trong nhóm cà phê & trà.\n\nBạn muốn mình gợi ý thêm món khác hay xem chi tiết món nào?",
+      "grounding_pass": true,
+      "safety_pass": true,
+      "composite_pass": true,
+      "faithfulness_score": 0.6585,
+      "suggested_menu_ids": [
+        "m_068",
+        "m_060",
+        "m_057",
+        "m_062"
+      ]
+    }
+  ]
+}

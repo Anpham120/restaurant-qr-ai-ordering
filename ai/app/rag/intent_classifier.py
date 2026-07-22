@@ -159,9 +159,21 @@ INTENT_RULES: list[tuple[str, list[str], list[str], list[str]]] = [
             "ky niem", "ngay cuoi", "anniversary", "hen ho",
             "tiep khach", "cong ty", "doi tac", "lien hoan",
             "sinh nhat", "tiec",
+            "office lunch", "quick lunch", "business lunch",
+            "an trua nhanh", "lunch nhanh", "trua van phong",
         ],
         ["occasion-dining.md", "combo-pairing.md"],
         ["dịp", "kỷ niệm", "tiệc", "combo"],
+    ),
+    # Kids / elderly audience
+    (
+        "kids_elderly",
+        [
+            "tre em", "tre con", "be", "children", "child portion",
+            "kids menu", "kid friendly", "nguoi cao tuoi", "elderly", "senior",
+        ],
+        ["kids-elderly.md", "faq.md"],
+        ["trẻ em", "mềm", "dễ nhai"],
     ),
 ]
 

@@ -51,15 +51,26 @@ class GeminiConfigTests(unittest.TestCase):
 
         self.assertFalse(config.llm_enabled)
 
-    def test_v31_defaults_to_current_verified_gemini_model(self) -> None:
+    def test_defaults_to_9router_openai_profile(self) -> None:
+        config = self._load_config({})
+
+        self.assertEqual(config.provider, "openai")
+        self.assertEqual(config.base_url, "http://localhost:20128/v1")
+        self.assertEqual(config.model, "cx/gpt-5.5")
+        self.assertFalse(config.llm_enabled)
+
+    def test_gemini_provider_still_supported_when_explicit(self) -> None:
         config = self._load_config(
             {
                 "AI_PROVIDER": "gemini",
                 "GEMINI_API_KEY": "test-gemini-key",
+                "AI_MODEL": "gemini-3.5-flash",
             }
         )
 
+        self.assertEqual(config.base_url, GEMINI_OPENAI_BASE_URL)
         self.assertEqual(config.model, "gemini-3.5-flash")
+        self.assertTrue(config.uses_gemini_native_features)
 
     def test_intent_classification_config_defaults(self) -> None:
         config = self._load_config(
