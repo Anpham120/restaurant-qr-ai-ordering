@@ -1,7 +1,8 @@
-"""End-to-end golden chat evaluation with a live LLM (Gemini).
+"""End-to-end golden chat evaluation with a live LLM via 9router.
 
-Runs golden/cases.jsonl through the full AiAssistantService including Gemini,
-then scores pipeline safety/grounding plus LLM-specific quality metrics.
+Runs golden/cases.jsonl through the full AiAssistantService (GPT-5.5 / DeepSeek
+through OpenAI-compatible gateway), then scores pipeline safety/grounding plus
+LLM-specific quality metrics.
 
 Usage:
     py -m evaluation.run_golden_llm_eval --split dev --limit 30
@@ -39,7 +40,7 @@ from evaluation.llm_eval_judge import judge_response  # noqa: E402
 from evaluation.llm_eval_metrics import score_llm_case, summarize_llm_metrics  # noqa: E402
 
 RESULTS_DIR = _AI_ROOT / "evaluation" / "results"
-DEFAULT_OUTPUT = RESULTS_DIR / "golden_llm_eval.json"
+DEFAULT_OUTPUT = RESULTS_DIR / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"
 
 
 async def evaluate_cases(
@@ -79,6 +80,7 @@ async def evaluate_cases(
                 "menu_items": menu_items,
                 "table_code": "T01",
                 "session_id": f"golden-llm-{case['id']}",
+                "language": case.get("language") or "vi",
             }
         )
         latencies.append((time.perf_counter() - started) * 1000)
@@ -90,9 +92,15 @@ async def evaluate_cases(
             kb_chunks=kb_chunks,
             menu_items=menu_items,
         )
+        latency = response.get("latency_ms") or {}
+        llm_called = isinstance(latency.get("llm"), (int, float)) or bool(response.get("provider_available"))
         row.update(
             {
                 "content": response.get("content") or "",
+                "family": case.get("family"),
+                "intent": case.get("intent"),
+                "llm_called": llm_called,
+                "response_path": latency.get("path"),
                 "llm_success": llm_metrics.llm_success,
                 "schema_valid": llm_metrics.schema_valid,
                 "grounding_pass": llm_metrics.grounding_pass,
@@ -132,6 +140,18 @@ async def evaluate_cases(
             await asyncio.sleep(extra / 1000)
 
     summary = summarize_llm_metrics(rows)
+    faq_intents = frozenset({"payment_faq", "payment", "restaurant_info", "service", "hours", "ordering_policy"})
+    faq_rows = [row for row in rows if str(row.get("intent") or "") in faq_intents]
+    if faq_rows:
+        summary["llm_call_rate_faq"] = sum(1 for row in faq_rows if row.get("llm_called")) / len(faq_rows)
+    summary["llm_call_rate"] = sum(1 for row in rows if row.get("llm_called")) / len(rows) if rows else None
+    by_intent: dict[str, list[bool]] = {}
+    for row in rows:
+        intent = str(row.get("intent") or "unknown")
+        by_intent.setdefault(intent, []).append(bool(row.get("llm_called")))
+    summary["llm_call_rate_by_intent"] = {
+        intent: sum(calls) / len(calls) for intent, calls in sorted(by_intent.items())
+    }
     llm_rows = [row for row in rows if row.get("llm_success")]
     if llm_rows:
         summary["llm_only"] = summarize_llm_metrics(llm_rows)

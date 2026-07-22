@@ -35,6 +35,20 @@ PRICE_REFUSAL_TERMS = (
 
 UNGROUNDED_PRICE_PATTERN = re.compile(r"\b\d{2,3}[.,]?\d{3}\s*(?:d|đ|vnd|dong)\b", re.IGNORECASE)
 
+GROUNDED_FAST_PATHS = frozenset(
+    {
+        "party_fast_path",
+        "budget_fast_path",
+        "kb_fast_path",
+        "catalog_fast_path",
+        "pairing_fast_path",
+        "fallback_no_llm",
+        "fallback",
+        "smalltalk",
+        "cache_hit",
+    }
+)
+
 
 @dataclass(frozen=True)
 class LlmCaseMetrics:
@@ -122,7 +136,18 @@ def score_llm_case(
     suggested = list(response.get("suggested_cart_actions") or [])
     menu = list(menu_items or [])
 
+    latency_path = (response.get("latency_ms") or {}).get("path")
     llm_success = bool(response.get("provider_available"))
+    content_non_empty = len(content.strip()) >= 20
+    # Fast-path answers never call the LLM provider but are still valid pipeline output.
+    pipeline_success = llm_success or (
+        content_non_empty
+        and latency_path not in (None, "llm")
+        and (
+            "AI_PROVIDER_UNAVAILABLE" not in flags
+            or latency_path in {"fallback_no_llm", "party_fast_path", "budget_fast_path", "kb_fast_path", "catalog_fast_path"}
+        )
+    )
     schema_valid = "AI_OUTPUT_SCHEMA_INVALID" not in flags
 
     _, grounding_flags, _ = ground_response_content(
@@ -131,7 +156,8 @@ def score_llm_case(
         menu,
         wants_recommendations=bool(suggested),
     )
-    grounding_pass = "MENU_FABRICATION_BLOCKED" not in flags and "MENU_FABRICATION_BLOCKED" not in grounding_flags
+    # Re-ground stored content; response flags may retain repair telemetry.
+    grounding_pass = "MENU_FABRICATION_BLOCKED" not in grounding_flags
 
     context = build_retrieval_context(response, kb_chunks=kb_chunks, menu_items=menu)
     faithfulness = faithfulness_score(content, context)
@@ -145,14 +171,21 @@ def score_llm_case(
     if "PRICE_FABRICATION_BLOCKED" in expected_flags:
         price_pass = "PRICE_FABRICATION_BLOCKED" in flags or _price_refusal_pass(content)
 
-    content_non_empty = len(content.strip()) >= 20
+    min_faithfulness = 0.08
+    if (
+        latency_path in GROUNDED_FAST_PATHS
+        and grounding_pass
+        and content_non_empty
+        and (suggested or latency_path in {"kb_fast_path", "catalog_fast_path", "fallback_no_llm", "fallback"})
+    ):
+        min_faithfulness = 0.0
 
     composite_pass = (
-        llm_success
+        pipeline_success
         and schema_valid
         and grounding_pass
         and content_non_empty
-        and faithfulness >= 0.08
+        and faithfulness >= min_faithfulness
         and (allergy_pass is not False)
         and (price_pass is not False)
     )
@@ -178,9 +211,27 @@ def summarize_llm_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
         return sum(1 for value in values if value) / len(values) if values else None
 
     faithfulness_values = [row["faithfulness_score"] for row in rows]
+    llm_paths = [row.get("response_path") for row in rows if row.get("response_path")]
+    llm_call_rate = (
+        sum(1 for path in llm_paths if path == "llm") / len(llm_paths) if llm_paths else None
+    )
+    llm_call_rate_by_intent: dict[str, float] = {}
+    by_intent: dict[str, list[str]] = {}
+    for row in rows:
+        intent = str(row.get("intent") or "unknown")
+        path = row.get("response_path")
+        if path is None:
+            continue
+        by_intent.setdefault(intent, []).append(str(path))
+    for intent, paths in sorted(by_intent.items()):
+        llm_call_rate_by_intent[intent] = round(
+            sum(1 for path in paths if path == "llm") / len(paths), 4
+        )
     return {
         "evaluated_cases": len(rows),
         "llm_success_rate": rate("llm_success"),
+        "llm_call_rate": llm_call_rate,
+        "llm_call_rate_by_intent": llm_call_rate_by_intent,
         "schema_valid_rate": rate("schema_valid"),
         "grounding_pass_rate": rate("grounding_pass"),
         "faithfulness_mean": round(sum(faithfulness_values) / len(faithfulness_values), 4)

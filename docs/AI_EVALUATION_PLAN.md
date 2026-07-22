@@ -1,57 +1,34 @@
 # Kế Hoạch Đánh Giá AI/RAG
 
-## Mục Tiêu
+## Bộ dữ liệu canonical
 
-Đánh giá AI không chỉ bằng cảm giác "trả lời hay", mà bằng tiêu chí có thể kiểm tra:
+- **Quality gate:** `ai/evaluation/golden/cases.jsonl` (325 case, dev/test split)
+- **CI smoke retrieval:** `ai/evaluation/golden/smoke_retrieval.jsonl`
+- **Legacy archived:** `golden_questions.csv` (see `golden_questions.ARCHIVED.md`)
 
-- câu hỏi có truy xuất đúng tài liệu không;
-- câu trả lời có bám context không;
-- AI có tránh bịa món, bịa giá, tự tạo đơn không;
-- câu trả lời có hữu ích cho khách không.
+## Thước đo theo lớp
 
-## Bộ Dữ Liệu Đánh Giá
+| Lớp | Script | KPI chính? |
+| --- | --- | --- |
+| E2E+LLM (9router) | `run_golden_llm_eval.py` | **Có** — composite_pass, grounding, faithfulness |
+| Retrieval research | `run_retrieval_experiment.py` | Có (ADR retriever) |
+| Pipeline no-LLM | `run_golden_chat_eval.py` | Không — CI smoke safety/forbidden |
 
-File chính:
-
-```text
-ai/evaluation/golden_questions.csv
-```
-
-Mỗi dòng gồm:
-
-- `case_id`;
-- câu hỏi khách;
-- nguồn RAG kỳ vọng;
-- guardrail flag kỳ vọng;
-- ghi chú nghiệp vụ.
-
-## Chỉ Số
+## Chỉ số E2E+LLM
 
 | Chỉ số | Ý nghĩa |
 | --- | --- |
-| Retrieval hit rate@5 | Top 5 context có chứa nguồn đúng không. |
-| Faithfulness | Câu trả lời có bám context không. |
-| Hallucination rate | Tỷ lệ câu trả lời bịa món, giá, chính sách. |
-| Guardrail precision | Khi có rủi ro, flag có bật đúng không. |
-| Human acceptance rate | Người review có chấp nhận câu trả lời không. |
+| composite_pass_rate | Tổng hợp safety + grounding + nội dung |
+| grounding_pass_rate | Không bịa món |
+| faithfulness_mean | Overlap câu trả lời ↔ context |
+| llm_call_rate / by_intent | Tỷ lệ gọi LLM (FAQ nên giảm nhờ fast-path) |
 
-## Quy Trình Review
+## Quy trình
 
-1. Chạy Python AI service.
-2. Gửi các câu trong `golden_questions.csv`.
-3. Lưu response, retrieved sources và guardrail flags.
-4. So sánh với expected sources/flags.
-5. Ghi lỗi vào báo cáo tuần.
-6. Cập nhật knowledge base hoặc prompt.
+1. Unit tests: `py -m unittest discover -s ai/tests`
+2. CI smoke: `py ai/evaluation/ci_golden_gates.py --run-smoke-eval`
+3. Quality gate (manual): `py -m evaluation.run_dual_llm_eval --split dev --limit 234`
+4. Failure taxonomy: `py ai/evaluation/export_llm_error_analysis.py`
+5. Human sample: `py ai/evaluation/generate_human_eval_sample.py`
 
-## Liên Hệ Với Học Máy Và Khai Phá Dữ Liệu
-
-Notebook `coursework/ai-ml-data-mining/CMC_Restaurant_AI_ML_Data_Mining.ipynb` chứng minh:
-
-- dataset schema;
-- association rule mining;
-- content-based recommendation;
-- baseline;
-- evaluation.
-
-Python AI service dùng kết quả đó như tri thức hỗ trợ trong RAG. Đây là cách kết nối phần học thuật với sản phẩm thật mà không tuyên bố sai rằng nhóm đã huấn luyện lại Gemini.
+Chi tiết protocol: [`docs/ai/AI_RAG_RESEARCH_PROTOCOL.md`](ai/AI_RAG_RESEARCH_PROTOCOL.md)

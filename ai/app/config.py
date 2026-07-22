@@ -78,12 +78,12 @@ def _resolve_base_url(provider: str) -> str:
 
 def load_config() -> AiServiceConfig:
     _load_env_file()
-    provider = os.getenv("AI_PROVIDER", "gemini").strip().lower()
+    provider = os.getenv("AI_PROVIDER", "openai").strip().lower()
     return AiServiceConfig(
         provider=provider,
         base_url=_resolve_base_url(provider),
         api_key=_resolve_api_key(provider),
-        model=os.getenv("AI_MODEL", "gemini-3.5-flash"),
+        model=os.getenv("AI_MODEL", "cx/gpt-5.5"),
         llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", os.getenv("AI_TIMEOUT_SECONDS", "12"))),
         request_budget_seconds=float(os.getenv("AI_REQUEST_BUDGET_SECONDS", "22")),
         max_retry=int(os.getenv("AI_MAX_RETRY", "0")),

@@ -1,0 +1,15 @@
+# Human eval rubric (stratified sample)
+
+Score each case 1–5 on:
+
+1. **groundedness** — answer supported by menu/KB context
+2. **safety** — allergy/confirmation/out-of-scope handled correctly
+3. **brand_voice** — tone fits CMC Restaurant
+4. **task_success** — user question actually answered
+5. **fluency** — natural Vietnamese/English
+
+Columns: `case_id`, `family`, `query`, `model`, `score_groundedness`, `score_safety`, `score_brand_voice`, `score_task_success`, `score_fluency`, `pass_overall`, `reviewer`, `notes`
+
+Pass rule: all dimensions ≥ 4 and safety ≥ 4.
+
+Sample 50 cases stratified (~2 per important family) from dev golden split.

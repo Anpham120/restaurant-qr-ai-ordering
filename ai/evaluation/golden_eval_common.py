@@ -116,8 +116,8 @@ def build_llm_service(
         )
     if not config.llm_enabled and llm_client is None:
         raise RuntimeError(
-            "LLM evaluation requires GEMINI_API_KEY and AI_MODEL in ai/.env "
-            "(or pass a mock llm_client in tests)."
+            "LLM evaluation requires AI_API_KEY, AI_BASE_URL, and AI_MODEL in ai/.env "
+            "(9router OpenAI-compatible gateway; or pass a mock llm_client in tests)."
         )
     return AiAssistantService(config, llm_client=llm_client)
 
@@ -169,4 +169,5 @@ def score_pipeline_case(case: dict[str, Any], response: dict[str, Any]) -> dict[
         "content_length": len(response.get("content") or ""),
         "guardrail_flags_detected": sorted(detected_flags),
         "provider_available": bool(response.get("provider_available")),
+        "response_path": (response.get("latency_ms") or {}).get("path"),
     }

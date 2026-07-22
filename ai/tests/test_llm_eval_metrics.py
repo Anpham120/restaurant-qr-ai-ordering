@@ -60,6 +60,28 @@ class LlmEvalMetricsTests(unittest.TestCase):
         self.assertTrue(good.allergy_disclaimer_pass)
         self.assertFalse(bad.allergy_disclaimer_pass)
 
+    def test_fast_path_with_menu_actions_passes_without_llm_provider(self) -> None:
+        case = {"id": "q040", "safety_flags": [], "forbidden_menu_ids": []}
+        metrics = score_llm_case(
+            case,
+            {
+                "content": "Với nhóm 4 người mình gợi ý phở bò tái và gỏi cuốn tôm thịt.",
+                "guardrail_flags": ["CUSTOMER_CONFIRMATION_REQUIRED"],
+                "suggested_cart_actions": [
+                    {"menu_item_id": "m_001", "name": "Phở bò tái"},
+                    {"menu_item_id": "m_002", "name": "Gỏi cuốn tôm thịt"},
+                ],
+                "retrieved_sources": [],
+                "provider_available": False,
+                "latency_ms": {"path": "party_fast_path"},
+            },
+            menu_items=[
+                {"id": "m_001", "name": "Phở bò tái", "description": "phở", "category_name": "Phở"},
+                {"id": "m_002", "name": "Gỏi cuốn tôm thịt", "description": "gỏi", "category_name": "Khai vị"},
+            ],
+        )
+        self.assertTrue(metrics.composite_pass)
+
     def test_summarize_llm_metrics(self) -> None:
         summary = summarize_llm_metrics(
             [

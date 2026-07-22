@@ -2,12 +2,16 @@
 
 ## Feature flag
 
-- `AI_PROVIDER=python-rag` (required)
+- `AI_PROVIDER=python-rag` (required on .NET backend)
 - `AI_PIPELINE=v2` documents the LLM-first path (prompt lives only in Python)
-- `AI_TIMEOUT_SECONDS=15` (lowered from 60)
-- `AI_MAX_RETRY=1`
-- `AI_MODEL=gemini-3.5-flash`
-- Optional fallback: `AI_FALLBACK_MODEL=gemini-2.0-flash-lite`
+- Python AI service LLM via **9router** (OpenAI-compatible):
+  - `AI_PROVIDER=openai`
+  - `AI_BASE_URL=http://localhost:20128/v1` (or deployed gateway URL)
+  - `AI_API_KEY=<9router gateway key>`
+  - `AI_MODEL=cx/gpt-5.5` (production quality gate)
+  - Cheap regression sweep: `AI_MODEL=oc/deepseek-v4-flash-free`
+- `LLM_TIMEOUT_SECONDS=12` (or `AI_TIMEOUT_SECONDS=15` on backend)
+- `AI_MAX_RETRY=0`–`1`
 
 ## Hard gates before canary
 
@@ -41,7 +45,7 @@ Log (no raw PII / message body):
 - validator rejection reason
 - duplicate-blocked count
 - fallback reason
-- approximate token usage if provided by Gemini
+- approximate token usage if provided by the LLM gateway
 
 ## Knowledge ownership
 
