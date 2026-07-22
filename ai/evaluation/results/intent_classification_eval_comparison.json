@@ -301,9 +301,9 @@
         "llm_call_rate": 0.2359,
         "llm_gate_accuracy": 0.674,
         "latency": {
-          "p50_ms": 2505.8,
-          "p95_ms": 2512.4,
-          "mean_ms": 2502.5
+          "p50_ms": 2482.1,
+          "p95_ms": 2511.0,
+          "mean_ms": 2484.6
         },
         "by_category": {
           "allergy_recommend": {
@@ -1345,7 +1345,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2472.518000000491,
+          "intent_llm_ms": 2506.576300000006,
           "keyword_routing_correct": true
         },
         {
@@ -1368,7 +1368,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.4740999999485,
+          "intent_llm_ms": 2474.695600000018,
           "keyword_routing_correct": true
         },
         {
@@ -1437,7 +1437,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2490.5115000001388,
+          "intent_llm_ms": 2470.6327999999758,
           "keyword_routing_correct": true
         },
         {
@@ -1460,7 +1460,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.128900000069,
+          "intent_llm_ms": 2476.623600000039,
           "keyword_routing_correct": true
         },
         {
@@ -1939,7 +1939,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.321899999828,
+          "intent_llm_ms": 2474.6752999999444,
           "keyword_routing_correct": true
         },
         {
@@ -2054,7 +2054,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.774399999813,
+          "intent_llm_ms": 2489.53199999994,
           "keyword_routing_correct": true
         },
         {
@@ -2123,7 +2123,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2511.005899999873,
+          "intent_llm_ms": 2502.9637000000093,
           "keyword_routing_correct": true
         },
         {
@@ -2238,7 +2238,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.8132000001715,
+          "intent_llm_ms": 2480.976000000055,
           "keyword_routing_correct": true
         },
         {
@@ -2491,7 +2491,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2509.672899999714,
+          "intent_llm_ms": 2483.8571999999886,
           "keyword_routing_correct": true
         },
         {
@@ -2537,7 +2537,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.303800000249,
+          "intent_llm_ms": 2476.7561000001024,
           "keyword_routing_correct": true
         },
         {
@@ -2560,7 +2560,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.0876999996253,
+          "intent_llm_ms": 2471.87509999992,
           "keyword_routing_correct": true
         },
         {
@@ -2583,7 +2583,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2512.3023999994984,
+          "intent_llm_ms": 2507.9415000000154,
           "keyword_routing_correct": true
         },
         {
@@ -2606,7 +2606,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.370600000082,
+          "intent_llm_ms": 2484.8428999999896,
           "keyword_routing_correct": true
         },
         {
@@ -2629,7 +2629,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.167300000314,
+          "intent_llm_ms": 2461.4628999999013,
           "keyword_routing_correct": true
         },
         {
@@ -2652,7 +2652,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2507.150399999773,
+          "intent_llm_ms": 2484.6657000000505,
           "keyword_routing_correct": true
         },
         {
@@ -2675,7 +2675,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.766399999833,
+          "intent_llm_ms": 2475.837100000035,
           "keyword_routing_correct": true
         },
         {
@@ -2698,7 +2698,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.5735999999815,
+          "intent_llm_ms": 2483.8842999999997,
           "keyword_routing_correct": true
         },
         {
@@ -2767,7 +2767,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.605200000602,
+          "intent_llm_ms": 2504.741500000023,
           "keyword_routing_correct": true
         },
         {
@@ -2790,7 +2790,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.91049999962,
+          "intent_llm_ms": 2477.188100000035,
           "keyword_routing_correct": true
         },
         {
@@ -2813,7 +2813,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2505.9190000001763,
+          "intent_llm_ms": 2490.0392000000693,
           "keyword_routing_correct": true
         },
         {
@@ -2859,7 +2859,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.5869000004095,
+          "intent_llm_ms": 2464.1471999999567,
           "keyword_routing_correct": true
         },
         {
@@ -2951,7 +2951,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.344300000317,
+          "intent_llm_ms": 2455.9953000000405,
           "keyword_routing_correct": true
         },
         {
@@ -2974,7 +2974,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2512.4346000002333,
+          "intent_llm_ms": 2462.283999999954,
           "keyword_routing_correct": true
         },
         {
@@ -3020,7 +3020,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2509.0137000006507,
+          "intent_llm_ms": 2473.83590000004,
           "keyword_routing_correct": true
         },
         {
@@ -3043,7 +3043,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2512.1306000000914,
+          "intent_llm_ms": 2457.9774000000043,
           "keyword_routing_correct": true
         },
         {
@@ -3145,7 +3145,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2505.8208999998897,
+          "intent_llm_ms": 2457.9793999999993,
           "keyword_routing_correct": true
         },
         {
@@ -3211,7 +3211,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2505.3257999998095,
+          "intent_llm_ms": 2472.6215000000593,
           "keyword_routing_correct": true
         },
         {
@@ -3636,7 +3636,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2507.732500000202,
+          "intent_llm_ms": 2477.7484999999615,
           "keyword_routing_correct": true
         },
         {
@@ -3705,7 +3705,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2490.7803000005515,
+          "intent_llm_ms": 2482.0537000000513,
           "keyword_routing_correct": true
         },
         {
@@ -5441,7 +5441,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2509.079500000553,
+          "intent_llm_ms": 2477.891100000079,
           "keyword_routing_correct": true
         },
         {
@@ -5464,7 +5464,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2511.099700000159,
+          "intent_llm_ms": 2483.010899999954,
           "keyword_routing_correct": true
         },
         {
@@ -5487,7 +5487,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2511.1725000006118,
+          "intent_llm_ms": 2462.907199999904,
           "keyword_routing_correct": true
         },
         {
@@ -5510,7 +5510,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.566600000544,
+          "intent_llm_ms": 2496.3295999999673,
           "keyword_routing_correct": true
         },
         {
@@ -5533,7 +5533,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.184300000612,
+          "intent_llm_ms": 2463.121699999988,
           "keyword_routing_correct": true
         },
         {
@@ -5556,7 +5556,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2501.9728999996005,
+          "intent_llm_ms": 2468.691300000046,
           "keyword_routing_correct": true
         },
         {
@@ -5579,7 +5579,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2463.653599999816,
+          "intent_llm_ms": 2479.411500000083,
           "keyword_routing_correct": true
         },
         {
@@ -5602,7 +5602,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.573800000704,
+          "intent_llm_ms": 2474.123899999995,
           "keyword_routing_correct": true
         },
         {
@@ -5625,7 +5625,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2487.8724000000147,
+          "intent_llm_ms": 2503.41990000004,
           "keyword_routing_correct": true
         },
         {
@@ -5671,7 +5671,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2485.6547000008504,
+          "intent_llm_ms": 2491.7427000000316,
           "keyword_routing_correct": true
         },
         {
@@ -5694,7 +5694,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2483.1686999996236,
+          "intent_llm_ms": 2510.959699999944,
           "keyword_routing_correct": true
         },
         {
@@ -5740,7 +5740,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2497.81399999938,
+          "intent_llm_ms": 2493.3066999999483,
           "keyword_routing_correct": true
         },
         {
@@ -5786,7 +5786,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2511.023600000044,
+          "intent_llm_ms": 2502.481899999907,
           "keyword_routing_correct": true
         },
         {
@@ -5878,7 +5878,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.2204000005295,
+          "intent_llm_ms": 2502.508599999942,
           "keyword_routing_correct": true
         },
         {
@@ -5970,7 +5970,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.251699999666,
+          "intent_llm_ms": 2471.8847000000324,
           "keyword_routing_correct": true
         },
         {
@@ -5993,7 +5993,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2514.8465000002034,
+          "intent_llm_ms": 2496.3635000000295,
           "keyword_routing_correct": true
         },
         {
@@ -6016,7 +6016,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2517.5208999999086,
+          "intent_llm_ms": 2512.765300000069,
           "keyword_routing_correct": true
         },
         {
@@ -6039,7 +6039,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.941400000258,
+          "intent_llm_ms": 2513.2012999999915,
           "keyword_routing_correct": true
         },
         {
@@ -6062,7 +6062,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.7395000001416,
+          "intent_llm_ms": 2503.7859000000253,
           "keyword_routing_correct": true
         },
         {
@@ -6085,7 +6085,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.0372999996616,
+          "intent_llm_ms": 2507.8965000000153,
           "keyword_routing_correct": true
         },
         {
@@ -6131,7 +6131,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2506.48209999963,
+          "intent_llm_ms": 2505.0844999999526,
           "keyword_routing_correct": true
         },
         {
@@ -6154,7 +6154,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.5947999997225,
+          "intent_llm_ms": 2492.790300000024,
           "keyword_routing_correct": true
         },
         {
@@ -6177,7 +6177,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2510.1481000001513,
+          "intent_llm_ms": 2468.6694999998053,
           "keyword_routing_correct": true
         },
         {
@@ -6200,7 +6200,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.7201999996105,
+          "intent_llm_ms": 2495.182300000124,
           "keyword_routing_correct": true
         },
         {
@@ -6246,7 +6246,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2468.037099999492,
+          "intent_llm_ms": 2489.423400000078,
           "keyword_routing_correct": true
         },
         {
@@ -6269,7 +6269,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2505.6494000000384,
+          "intent_llm_ms": 2510.1133000000573,
           "keyword_routing_correct": true
         },
         {
@@ -6292,7 +6292,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.5625999998956,
+          "intent_llm_ms": 2504.040199999963,
           "keyword_routing_correct": true
         },
         {
@@ -6361,7 +6361,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2520.3349000003072,
+          "intent_llm_ms": 2500.58950000016,
           "keyword_routing_correct": true
         },
         {
@@ -6407,7 +6407,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.6245999999664,
+          "intent_llm_ms": 2509.1299000000618,
           "keyword_routing_correct": true
         },
         {
@@ -6430,7 +6430,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2505.9463999996296,
+          "intent_llm_ms": 2488.523299999997,
           "keyword_routing_correct": true
         },
         {
@@ -6499,7 +6499,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2502.912099999776,
+          "intent_llm_ms": 2480.043399999886,
           "keyword_routing_correct": true
         },
         {
@@ -6568,7 +6568,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2502.5723999997354,
+          "intent_llm_ms": 2473.960799999986,
           "keyword_routing_correct": true
         },
         {
@@ -6591,7 +6591,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2510.5203999992227,
+          "intent_llm_ms": 2477.1705999999085,
           "keyword_routing_correct": true
         },
         {
@@ -6637,7 +6637,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2495.5785000001924,
+          "intent_llm_ms": 2511.090299999978,
           "keyword_routing_correct": true
         },
         {
@@ -6775,7 +6775,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2501.9657000002553,
+          "intent_llm_ms": 2495.4022000001714,
           "keyword_routing_correct": true
         },
         {
@@ -6821,7 +6821,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2509.027899999637,
+          "intent_llm_ms": 2470.7538000000113,
           "keyword_routing_correct": true
         },
         {
@@ -6844,7 +6844,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.6514999994542,
+          "intent_llm_ms": 2467.408699999851,
           "keyword_routing_correct": true
         },
         {
@@ -6890,7 +6890,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2472.8218999998717,
+          "intent_llm_ms": 2461.9992000000366,
           "keyword_routing_correct": true
         },
         {
@@ -6959,7 +6959,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2504.9555000005057,
+          "intent_llm_ms": 2472.682599999871,
           "keyword_routing_correct": true
         },
         {
@@ -7477,7 +7477,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2479.337100000521,
+          "intent_llm_ms": 2484.2277999998714,
           "keyword_routing_correct": true
         },
         {
@@ -7523,7 +7523,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2467.109899999741,
+          "intent_llm_ms": 2469.152600000143,
           "keyword_routing_correct": true
         },
         {
@@ -7661,7 +7661,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2508.478300000206,
+          "intent_llm_ms": 2475.7009999998445,
           "keyword_routing_correct": true
         },
         {
@@ -7743,9 +7743,9 @@
         "llm_call_rate": 0.2359,
         "llm_gate_accuracy": 0.674,
         "latency": {
-          "p50_ms": 2469.3,
-          "p95_ms": 2491.3,
-          "mean_ms": 2471.6
+          "p50_ms": 2505.3,
+          "p95_ms": 2516.1,
+          "mean_ms": 2501.6
         },
         "by_category": {
           "allergy_recommend": {
@@ -8787,7 +8787,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2457.686400000057,
+          "intent_llm_ms": 2477.043399999957,
           "keyword_routing_correct": true
         },
         {
@@ -8810,7 +8810,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2475.6024999996953,
+          "intent_llm_ms": 2455.033299999968,
           "keyword_routing_correct": true
         },
         {
@@ -8879,7 +8879,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2491.3308999994115,
+          "intent_llm_ms": 2500.2721000000747,
           "keyword_routing_correct": true
         },
         {
@@ -8902,7 +8902,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2488.6357000004864,
+          "intent_llm_ms": 2515.1522000001023,
           "keyword_routing_correct": true
         },
         {
@@ -9381,7 +9381,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2484.640199999376,
+          "intent_llm_ms": 2518.713400000024,
           "keyword_routing_correct": true
         },
         {
@@ -9496,7 +9496,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2461.719699999776,
+          "intent_llm_ms": 2459.731099999999,
           "keyword_routing_correct": true
         },
         {
@@ -9565,7 +9565,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2463.601899999958,
+          "intent_llm_ms": 2507.7641000000312,
           "keyword_routing_correct": true
         },
         {
@@ -9680,7 +9680,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2503.758800000469,
+          "intent_llm_ms": 2507.4529999999413,
           "keyword_routing_correct": true
         },
         {
@@ -9933,7 +9933,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2460.271300000386,
+          "intent_llm_ms": 2466.4589000001342,
           "keyword_routing_correct": true
         },
         {
@@ -9979,7 +9979,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2468.7975999995615,
+          "intent_llm_ms": 2484.7773999999845,
           "keyword_routing_correct": true
         },
         {
@@ -10002,7 +10002,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2483.995700000378,
+          "intent_llm_ms": 2508.171199999879,
           "keyword_routing_correct": true
         },
         {
@@ -10025,7 +10025,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2465.4921000001195,
+          "intent_llm_ms": 2504.891999999927,
           "keyword_routing_correct": true
         },
         {
@@ -10048,7 +10048,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2469.1021999997247,
+          "intent_llm_ms": 2505.4079000001366,
           "keyword_routing_correct": true
         },
         {
@@ -10071,7 +10071,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2476.465400000052,
+          "intent_llm_ms": 2507.945300000074,
           "keyword_routing_correct": true
         },
         {
@@ -10094,7 +10094,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2475.088500000311,
+          "intent_llm_ms": 2480.6123000000753,
           "keyword_routing_correct": true
         },
         {
@@ -10117,7 +10117,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2463.793899999473,
+          "intent_llm_ms": 2512.529699999959,
           "keyword_routing_correct": true
         },
         {
@@ -10140,7 +10140,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2462.6318999999057,
+          "intent_llm_ms": 2495.970300000181,
           "keyword_routing_correct": true
         },
         {
@@ -10209,7 +10209,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2495.6411000002845,
+          "intent_llm_ms": 2505.490100000088,
           "keyword_routing_correct": true
         },
         {
@@ -10232,7 +10232,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2460.6497999993735,
+          "intent_llm_ms": 2469.287099999974,
           "keyword_routing_correct": true
         },
         {
@@ -10255,7 +10255,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2455.817600000046,
+          "intent_llm_ms": 2508.956299999909,
           "keyword_routing_correct": true
         },
         {
@@ -10301,7 +10301,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2473.931300000004,
+          "intent_llm_ms": 2503.6129000000074,
           "keyword_routing_correct": true
         },
         {
@@ -10393,7 +10393,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2482.406600000104,
+          "intent_llm_ms": 2514.161999999942,
           "keyword_routing_correct": true
         },
         {
@@ -10416,7 +10416,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2463.9852000000246,
+          "intent_llm_ms": 2507.9485999999633,
           "keyword_routing_correct": true
         },
         {
@@ -10462,7 +10462,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2490.651899999648,
+          "intent_llm_ms": 2514.417900000126,
           "keyword_routing_correct": true
         },
         {
@@ -10485,7 +10485,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2482.52390000016,
+          "intent_llm_ms": 2511.565699999892,
           "keyword_routing_correct": true
         },
         {
@@ -10587,7 +10587,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2476.998999999523,
+          "intent_llm_ms": 2514.172099999996,
           "keyword_routing_correct": true
         },
         {
@@ -10653,7 +10653,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2457.4159999992844,
+          "intent_llm_ms": 2505.007199999909,
           "keyword_routing_correct": true
         },
         {
@@ -11078,7 +11078,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2469.8386999998547,
+          "intent_llm_ms": 2518.8439999999446,
           "keyword_routing_correct": true
         },
         {
@@ -11147,7 +11147,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2483.0085000003237,
+          "intent_llm_ms": 2504.1746000001694,
           "keyword_routing_correct": true
         },
         {
@@ -12883,7 +12883,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2475.8383999997022,
+          "intent_llm_ms": 2512.8965999999764,
           "keyword_routing_correct": true
         },
         {
@@ -12906,7 +12906,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2468.010900000081,
+          "intent_llm_ms": 2497.8844999998273,
           "keyword_routing_correct": true
         },
         {
@@ -12929,7 +12929,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2471.0488999999143,
+          "intent_llm_ms": 2504.7638000000916,
           "keyword_routing_correct": true
         },
         {
@@ -12952,7 +12952,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2469.2884000005506,
+          "intent_llm_ms": 2514.601399999947,
           "keyword_routing_correct": true
         },
         {
@@ -12975,7 +12975,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2477.4610999993456,
+          "intent_llm_ms": 2516.117099999974,
           "keyword_routing_correct": true
         },
         {
@@ -12998,7 +12998,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2469.3090999999185,
+          "intent_llm_ms": 2516.9169000000693,
           "keyword_routing_correct": true
         },
         {
@@ -13021,7 +13021,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2455.1120999994964,
+          "intent_llm_ms": 2506.8913000000066,
           "keyword_routing_correct": true
         },
         {
@@ -13044,7 +13044,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2468.342900000607,
+          "intent_llm_ms": 2504.163599999856,
           "keyword_routing_correct": true
         },
         {
@@ -13067,7 +13067,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2457.1737999995094,
+          "intent_llm_ms": 2503.9491999998518,
           "keyword_routing_correct": true
         },
         {
@@ -13113,7 +13113,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2479.2518999993263,
+          "intent_llm_ms": 2505.319499999814,
           "keyword_routing_correct": true
         },
         {
@@ -13136,7 +13136,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2478.6834999995335,
+          "intent_llm_ms": 2504.3981000001168,
           "keyword_routing_correct": true
         },
         {
@@ -13182,7 +13182,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2480.4407000001447,
+          "intent_llm_ms": 2469.6747000000414,
           "keyword_routing_correct": true
         },
         {
@@ -13228,7 +13228,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2480.4665999999997,
+          "intent_llm_ms": 2510.35069999989,
           "keyword_routing_correct": true
         },
         {
@@ -13320,7 +13320,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2455.5082999995648,
+          "intent_llm_ms": 2503.65950000014,
           "keyword_routing_correct": true
         },
         {
@@ -13412,7 +13412,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2462.424000000283,
+          "intent_llm_ms": 2504.8971000001075,
           "keyword_routing_correct": true
         },
         {
@@ -13435,7 +13435,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2475.89650000009,
+          "intent_llm_ms": 2504.7825999999986,
           "keyword_routing_correct": true
         },
         {
@@ -13458,7 +13458,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2461.417800000163,
+          "intent_llm_ms": 2508.9550000000145,
           "keyword_routing_correct": true
         },
         {
@@ -13481,7 +13481,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2476.112899999862,
+          "intent_llm_ms": 2476.016800000025,
           "keyword_routing_correct": true
         },
         {
@@ -13504,7 +13504,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2476.1341000003085,
+          "intent_llm_ms": 2503.098800000089,
           "keyword_routing_correct": true
         },
         {
@@ -13527,7 +13527,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2467.6728000004005,
+          "intent_llm_ms": 2508.365200000071,
           "keyword_routing_correct": true
         },
         {
@@ -13573,7 +13573,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2461.29160000055,
+          "intent_llm_ms": 2467.5700999998753,
           "keyword_routing_correct": true
         },
         {
@@ -13596,7 +13596,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2464.9735000002693,
+          "intent_llm_ms": 2507.0877000000564,
           "keyword_routing_correct": true
         },
         {
@@ -13619,7 +13619,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2469.1548000000694,
+          "intent_llm_ms": 2477.7354000000287,
           "keyword_routing_correct": true
         },
         {
@@ -13642,7 +13642,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2477.0048999998835,
+          "intent_llm_ms": 2477.072800000087,
           "keyword_routing_correct": true
         },
         {
@@ -13688,7 +13688,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2465.7027000002927,
+          "intent_llm_ms": 2503.7505000000237,
           "keyword_routing_correct": true
         },
         {
@@ -13711,7 +13711,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2490.053800000169,
+          "intent_llm_ms": 2507.267400000046,
           "keyword_routing_correct": true
         },
         {
@@ -13734,7 +13734,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2474.327500000072,
+          "intent_llm_ms": 2504.6310000000176,
           "keyword_routing_correct": true
         },
         {
@@ -13803,7 +13803,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2502.989200000229,
+          "intent_llm_ms": 2511.0829000000194,
           "keyword_routing_correct": true
         },
         {
@@ -13849,7 +13849,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2463.207199999488,
+          "intent_llm_ms": 2510.3701000000456,
           "keyword_routing_correct": true
         },
         {
@@ -13872,7 +13872,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2461.7016999991392,
+          "intent_llm_ms": 2502.137599999969,
           "keyword_routing_correct": true
         },
         {
@@ -13941,7 +13941,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2470.717700000023,
+          "intent_llm_ms": 2504.0627999999288,
           "keyword_routing_correct": true
         },
         {
@@ -14010,7 +14010,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2481.764000000112,
+          "intent_llm_ms": 2507.3758000000907,
           "keyword_routing_correct": true
         },
         {
@@ -14033,7 +14033,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2464.162500000384,
+          "intent_llm_ms": 2510.9195,
           "keyword_routing_correct": true
         },
         {
@@ -14079,7 +14079,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2466.205999999147,
+          "intent_llm_ms": 2503.5276999999496,
           "keyword_routing_correct": true
         },
         {
@@ -14217,7 +14217,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2461.182699999881,
+          "intent_llm_ms": 2503.9873999999145,
           "keyword_routing_correct": true
         },
         {
@@ -14263,7 +14263,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2460.494499999186,
+          "intent_llm_ms": 2508.6630999999215,
           "keyword_routing_correct": true
         },
         {
@@ -14286,7 +14286,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2455.1625000003696,
+          "intent_llm_ms": 2505.2908999998635,
           "keyword_routing_correct": true
         },
         {
@@ -14332,7 +14332,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2474.1578000002846,
+          "intent_llm_ms": 2508.172800000011,
           "keyword_routing_correct": true
         },
         {
@@ -14401,7 +14401,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2465.6402000000526,
+          "intent_llm_ms": 2515.022300000055,
           "keyword_routing_correct": true
         },
         {
@@ -14919,7 +14919,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2465.4835000001185,
+          "intent_llm_ms": 2505.670900000041,
           "keyword_routing_correct": true
         },
         {
@@ -14965,7 +14965,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2468.283000000156,
+          "intent_llm_ms": 2508.569899999884,
           "keyword_routing_correct": true
         },
         {
@@ -15103,7 +15103,7 @@
           "hybrid_solo_correct": true,
           "hybrid_full_correct": true,
           "used_llm": true,
-          "intent_llm_ms": 2470.0604000008752,
+          "intent_llm_ms": 2503.259099999923,
           "keyword_routing_correct": true
         },
         {

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import json
 import sys
 from pathlib import Path
 from typing import Protocol
@@ -29,8 +30,8 @@ from app.rag.intent_classifier import classify_intent  # noqa: E402
 from app.rag.knowledge_base import KnowledgeChunk, load_markdown_knowledge_base  # noqa: E402
 from app.rag.retrieval_factory import build_retriever_stack  # noqa: E402
 from app.rag.retriever import BM25Retriever  # noqa: E402
+from evaluation.golden_smoke import load_smoke_retrieval_cases, smoke_case_to_retrieval_row  # noqa: E402
 
-GOLDEN_CSV = Path(__file__).resolve().parent / "golden_questions.csv"
 KB_PATH = AI_ROOT / "knowledge-base"
 TOP_K = 5
 
@@ -40,8 +41,7 @@ class Searchable(Protocol):
 
 
 def _load_golden_cases() -> list[dict]:
-    with GOLDEN_CSV.open(encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
+    return [smoke_case_to_retrieval_row(case) for case in load_smoke_retrieval_cases()]
 
 
 def _build_retriever(method: str, chunks: list[KnowledgeChunk]) -> tuple[Searchable, str]:

@@ -1,50 +1,47 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { AdminTableSessionSummary, Table } from "@cmc/shared-types";
 import { ApiError } from "@cmc/api-client";
 import { api } from "../../services/apiClient";
+import { listTableInvoices } from "../../services/orderService";
+import { useOpsRealtime } from "../../hooks/useOpsRealtime";
+import { FloorMapGrid } from "./FloorMapGrid";
+import { TableDetailDrawer } from "./TableDetailDrawer";
+import { buildTableFloorRows, type FloorMapFilter, type TableFloorRow } from "./floorMapUtils";
+import { OpsConnectionBadge } from "../operations/OpsConnectionBadge";
+import { OpsAssistancePanel } from "../operations/OpsAssistancePanel";
+import { useOpsAssistance } from "../operations/OpsAssistanceProvider";
 import { Armchair } from "lucide-react";
 import "../operations/operations.css";
-import "./admin-table-sessions.css";
+import "./floor-map.css";
 
-const REFRESH_INTERVAL_MS = 15000;
-
-type TableFilter = "all" | "serving" | "free";
-
-type TableWithSession = {
-  table: Table;
-  session: AdminTableSessionSummary | null;
-};
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatRelativeMinutes(value: string) {
-  const diffMs = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(0, Math.round(diffMs / 60000));
-  if (minutes < 60) return `${minutes} phút trước`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours} giờ ${minutes % 60} phút trước`;
-}
-
-export function AdminTableSessionMonitor() {
+export function AdminTableSessionMonitor({ embedded = false }: { embedded?: boolean }) {
+  const [searchParams] = useSearchParams();
+  const { recentAssistance } = useOpsAssistance();
   const [tables, setTables] = useState<Table[]>([]);
   const [sessions, setSessions] = useState<AdminTableSessionSummary[]>([]);
+  const [pendingTableCodes, setPendingTableCodes] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [filter, setFilter] = useState<TableFilter>("all");
+  const [filter, setFilter] = useState<FloorMapFilter>("all");
+  const [selectedRow, setSelectedRow] = useState<TableFloorRow | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [tableList, sessionList] = await Promise.all([
+      const [tableList, sessionList, invoices] = await Promise.all([
         api.tables.listAdmin(),
         api.tables.listAdminSessions(),
+        listTableInvoices().catch(() => []),
       ]);
       setTables(tableList.items);
       setSessions(sessionList.items);
+      setPendingTableCodes(new Set(
+        invoices.filter((invoice) => invoice.status === "Pending" && invoice.tableCode)
+          .map((invoice) => invoice.tableCode as string),
+      ));
       setError("");
       setLastUpdatedAt(new Date());
     } catch (err) {
@@ -58,46 +55,37 @@ export function AdminTableSessionMonitor() {
     }
   }, []);
 
+  const { connectionStatus } = useOpsRealtime({ refresh: load, pollIntervalMs: 15_000 });
+
   useEffect(() => {
-    load();
-    const timer = window.setInterval(load, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    void load();
   }, [load]);
 
-  // Với mỗi bàn, lấy phiên Open mới nhất (chưa hết hạn) nếu có.
-  const rows: TableWithSession[] = useMemo(() => {
-    const openByTable = new Map<string, AdminTableSessionSummary>();
-    for (const session of sessions) {
-      if (session.status !== "Open" || session.isExpired) continue;
-      const existing = openByTable.get(session.tableCode);
-      if (!existing || new Date(session.openedAt) > new Date(existing.openedAt)) {
-        openByTable.set(session.tableCode, session);
-      }
-    }
-    return tables.map((table) => ({
-      table,
-      session: openByTable.get(table.tableCode) ?? null,
-    }));
-  }, [tables, sessions]);
+  const rows = useMemo(
+    () => buildTableFloorRows(tables, sessions, pendingTableCodes),
+    [tables, sessions, pendingTableCodes],
+  );
 
-  const servingCount = rows.filter((r) => r.session).length;
-  const activeOrderTotal = rows.reduce((sum, r) => sum + (r.session?.activeOrderCount ?? 0), 0);
+  const servingCount = rows.filter((row) => row.state === "serving" || row.state === "payment").length;
+  const activeOrderTotal = rows.reduce((sum, row) => sum + (row.session?.activeOrderCount ?? 0), 0);
 
-  const visibleRows = rows.filter((row) => {
-    if (filter === "serving") return row.session !== null;
-    if (filter === "free") return row.session === null;
-    return true;
-  });
+  useEffect(() => {
+    const tableCode = searchParams.get("table");
+    if (!tableCode) return;
+    const match = rows.find((row) => row.table.tableCode === tableCode);
+    if (match) setSelectedRow(match);
+  }, [rows, searchParams]);
 
-  async function handleCloseSession(session: AdminTableSessionSummary) {
-    if (!confirm(`Đóng phiên bàn ${session.tableCode}? Khách sẽ phải quét QR lại để đặt món.`)) return;
-    setClosingId(session.sessionId);
+  async function handleCloseSession(sessionId: string, tableCode: string) {
+    if (!confirm(`Đóng phiên bàn ${tableCode}? Khách sẽ phải quét QR lại để đặt món.`)) return;
+    setClosingId(sessionId);
     try {
-      await api.tables.closeSession(session.sessionId);
-      setNotice(`Đã đóng phiên bàn ${session.tableCode}.`);
+      await api.tables.closeSession(sessionId);
+      setNotice(`Đã đóng phiên bàn ${tableCode}.`);
+      setSelectedRow(null);
       await load();
     } catch {
-      setNotice(`Không đóng được phiên bàn ${session.tableCode}. Vui lòng thử lại.`);
+      setNotice(`Không đóng được phiên bàn ${tableCode}. Vui lòng thử lại.`);
     } finally {
       setClosingId(null);
     }
@@ -109,13 +97,22 @@ export function AdminTableSessionMonitor() {
 
   return (
     <div>
-      <div className="ops-page-header">
-        <h1>Phiên bàn</h1>
-        <p>Theo dõi {tables.length} bàn theo thời gian thực, gồm bàn đang phục vụ và bàn trống.</p>
-      </div>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <div className="ops-page-header-row">
+            <div>
+              <h1>Phiên bàn</h1>
+              <p>Theo dõi {tables.length} bàn theo thời gian thực trên sơ đồ phòng ăn.</p>
+            </div>
+            <OpsConnectionBadge status={connectionStatus} />
+          </div>
+        </div>
+      ) : null}
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
+
+      {embedded ? <OpsAssistancePanel items={recentAssistance} /> : null}
 
       <div className="ops-stats">
         <div className="ops-stat-card">
@@ -128,7 +125,7 @@ export function AdminTableSessionMonitor() {
         </div>
         <div className="ops-stat-card">
           <div className="ops-stat-label">Bàn trống</div>
-          <div className="ops-stat-value">{tables.length - servingCount}</div>
+          <div className="ops-stat-value">{rows.filter((row) => row.state === "free").length}</div>
         </div>
         <div className="ops-stat-card">
           <div className="ops-stat-label">Đơn đang xử lý</div>
@@ -136,86 +133,27 @@ export function AdminTableSessionMonitor() {
         </div>
       </div>
 
-      <div className="ops-toolbar">
-        <div className="ts-filter-chips" role="tablist" aria-label="Lọc bàn">
-          {([
-            ["all", `Tất cả (${rows.length})`],
-            ["serving", `Đang phục vụ (${servingCount})`],
-            ["free", `Trống (${rows.length - servingCount})`],
-          ] as Array<[TableFilter, string]>).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={`ts-chip${filter === value ? " active" : ""}`}
-              onClick={() => setFilter(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {lastUpdatedAt ? (
-          <span className="ts-last-updated">
-            Cập nhật lúc {lastUpdatedAt.toLocaleTimeString("vi-VN")} · tự làm mới mỗi 15 giây
-          </span>
-        ) : null}
-      </div>
+      {lastUpdatedAt ? (
+        <p className="ts-last-updated">
+          Cập nhật lúc {lastUpdatedAt.toLocaleTimeString("vi-VN")}
+          {connectionStatus === "connected" ? " · realtime" : " · tự làm mới khi mất kết nối"}
+        </p>
+      ) : null}
 
-      <div className="ts-grid">
-        {visibleRows.map(({ table, session }) => (
-          <article
-            key={table.tableCode}
-            className={`ts-card${session ? " ts-card--serving" : ""}${!table.isActive ? " ts-card--inactive" : ""}`}
-          >
-            <header className="ts-card-head">
-              <div className="ts-table-plate">
-                <span>Bàn</span>
-                <strong>{table.tableCode}</strong>
-              </div>
-              <span className={`ts-status${session ? " is-serving" : " is-free"}`}>
-                {!table.isActive ? "Tạm ngưng" : session ? "Đang phục vụ" : "Trống"}
-              </span>
-            </header>
+      <FloorMapGrid
+        rows={rows}
+        filter={filter}
+        onFilterChange={setFilter}
+        onSelect={setSelectedRow}
+        selectedTableCode={selectedRow?.table.tableCode ?? null}
+      />
 
-            {session ? (
-              <div className="ts-card-body">
-                <dl className="ts-meta">
-                  <div>
-                    <dt>Mở phiên</dt>
-                    <dd>{formatTime(session.openedAt)} · {formatRelativeMinutes(session.openedAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Hết hạn</dt>
-                    <dd>{formatTime(session.expiresAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Đơn đang xử lý</dt>
-                    <dd>
-                      <strong className={session.activeOrderCount > 0 ? "ts-order-count" : ""}>
-                        {session.activeOrderCount}
-                      </strong>
-                    </dd>
-                  </div>
-                </dl>
-                <button
-                  type="button"
-                  className="ops-btn ops-btn--danger ops-btn--sm"
-                  disabled={closingId === session.sessionId}
-                  onClick={() => handleCloseSession(session)}
-                >
-                  {closingId === session.sessionId ? "Đang đóng..." : "Đóng phiên"}
-                </button>
-              </div>
-            ) : (
-              <div className="ts-card-body ts-card-body--free">
-                <p>Chưa có khách. Khách quét QR trên bàn để mở phiên và đặt món.</p>
-              </div>
-            )}
-          </article>
-        ))}
-        {visibleRows.length === 0 ? (
-          <div className="ops-empty" style={{ gridColumn: "1 / -1" }}>Không có bàn nào khớp bộ lọc</div>
-        ) : null}
-      </div>
+      <TableDetailDrawer
+        row={selectedRow}
+        onClose={() => setSelectedRow(null)}
+        onCloseSession={handleCloseSession}
+        closingSessionId={closingId}
+      />
     </div>
   );
 }

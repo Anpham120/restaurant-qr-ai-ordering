@@ -9,7 +9,7 @@ import "../../components/operations/operations.css";
 
 const formatVnd = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
-export function CounterShiftPanel() {
+export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) {
   const [shift, setShift] = useState<CounterShiftSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState("0");
@@ -63,10 +63,12 @@ export function CounterShiftPanel() {
 
   return (
     <section className="counter-shift-panel" style={{ marginBottom: 20 }}>
-      <div className="ops-page-header">
-        <h2 style={{ margin: 0 }}>Ca quầy</h2>
-        <p style={{ margin: "4px 0 0" }}>Mở ca trước khi thu tiền, chốt ca cuối phiên</p>
-      </div>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <h2 style={{ margin: 0 }}>Ca quầy</h2>
+          <p style={{ margin: "4px 0 0" }}>Mở ca trước khi thu tiền, chốt ca cuối phiên</p>
+        </div>
+      ) : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
       {shift?.status === "Open" ? (
         <div className="ops-stats">

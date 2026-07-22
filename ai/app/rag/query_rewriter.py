@@ -67,6 +67,8 @@ MENU_QUERY_PATTERN = re.compile(
 def rewrite_query(
     message: str,
     history: list[dict[str, Any]] | None = None,
+    *,
+    intent: IntentResult | None = None,
 ) -> str:
     """Rewrite a user query for better RAG retrieval.
 
@@ -87,8 +89,9 @@ def rewrite_query(
     # Step 1: Normalize Vietnamese
     normalized = normalize_vietnamese(original)
 
-    # Step 2: Intent classification (on original to preserve diacritics for matching)
-    intent = classify_intent_with_history(original, history)
+    # Step 2: Intent classification (reuse when caller already classified)
+    if intent is None:
+        intent = classify_intent_with_history(original, history)
 
     parts: list[str] = [original]  # Keep original first
 
@@ -126,12 +129,6 @@ def rewrite_query(
         return normalized if normalized != original else original
 
     return " | ".join(parts)
-
-
-@property
-def _intent(self) -> IntentResult:
-    """Expose intent for external use (e.g., retrieval filtering)."""
-    return self._last_intent
 
 
 def _expand_synonyms(text: str) -> list[str]:

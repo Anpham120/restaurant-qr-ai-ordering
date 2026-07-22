@@ -7,6 +7,8 @@ import { cartApi, cartResponseToMenuCart } from "../../services/cartService";
 
 const CART_KEY = "cmc-restaurant-menu-cart";
 const CART_MIGRATION_KEY = "cmc-cart-server-synced";
+/** Bumps on each cart mutation so stale server syncs cannot overwrite in-flight adds. */
+let cartSyncGeneration = 0;
 
 /** Custom event bắn ra mỗi khi giỏ hàng/phiên bàn đổi trong cùng tab,
  * để widget giỏ hàng nổi (mounted ở layout) đồng bộ ngay lập tức. */
@@ -88,7 +90,10 @@ export function clearMenuCart() {
   }
 }
 
-export async function syncCartFromServer(): Promise<MenuCart> {
+export async function syncCartFromServer(options?: {
+  expectedGeneration?: number;
+  force?: boolean;
+}): Promise<MenuCart> {
   const context = loadOrderContext();
   if (!context.sessionId || !context.sessionToken) {
     return {};
@@ -96,6 +101,14 @@ export async function syncCartFromServer(): Promise<MenuCart> {
 
   const cart = await cartApi.getCart(context.sessionId);
   const menuCart = cartResponseToMenuCart(cart);
+  if (
+    !options?.force
+    && options?.expectedGeneration !== undefined
+    && options.expectedGeneration !== cartSyncGeneration
+  ) {
+    return loadMenuCart();
+  }
+
   writeStoredCart(context.sessionId, menuCart);
   return menuCart;
 }
@@ -142,9 +155,11 @@ export async function reconcileCartOnLoad(): Promise<MenuCart> {
     return {};
   }
 
+  const generationAtStart = cartSyncGeneration;
+
   try {
     await migrateLocalCartToServerIfNeeded();
-    return await syncCartFromServer();
+    return await syncCartFromServer({ expectedGeneration: generationAtStart });
   } catch {
     return loadMenuCart();
   }
@@ -155,6 +170,7 @@ export async function applyCartDelta(
   delta: number,
   note?: string,
 ): Promise<MenuCart> {
+  const mutationGeneration = ++cartSyncGeneration;
   const context = loadOrderContext();
   if (!context.sessionId || !context.sessionToken) {
     throw new Error("Phiên bàn chưa sẵn sàng.");
@@ -173,10 +189,20 @@ export async function applyCartDelta(
   try {
     const cart = await cartApi.updateItem(context.sessionId, { menuItemId, delta, note });
     const menuCart = cartResponseToMenuCart(cart);
+    if (mutationGeneration !== cartSyncGeneration) {
+      return loadMenuCart();
+    }
     writeStoredCart(context.sessionId, menuCart);
     return menuCart;
-  } catch {
-    return syncCartFromServer();
+  } catch (error) {
+    try {
+      await syncCartFromServer({ force: true });
+    } catch {
+      if (mutationGeneration === cartSyncGeneration) {
+        writeStoredCart(context.sessionId, current);
+      }
+    }
+    throw error;
   }
 }
 

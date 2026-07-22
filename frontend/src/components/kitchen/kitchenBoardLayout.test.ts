@@ -17,8 +17,10 @@ describe("V59 Kitchen board layout", () => {
     }
 
     expect(board).toMatch(
-      /column === "preparing"[\s\S]*?<FinishCookingButton[\s\S]*?onMoveNext=/,
+      /SmartKitchenActionButton[\s\S]*?getKitchenPrimaryAction/,
     );
+    expect(board).toContain("getItemTapAdvanceStatus");
+    expect(board).toContain("sortKitchenOrdersByPriority");
   });
 
   it("keeps four desktop lanes and responsive tablet/mobile fallbacks", () => {

@@ -13,6 +13,7 @@ from app.rag.conversation_policy import (
     _is_more_dishes_request,
     _was_recommendation_thread,
 )
+from app.rag.guardrails import detect_guardrail_flags
 from app.rag.intent_classifier import classify_intent_with_history
 from app.rag.party_size_parser import (
     extract_party_size_from_text,
@@ -116,6 +117,11 @@ RECOMMENDATION_TERMS = (
     "an gi",
     "mon nao",
     "combo",
+    "other dishes",
+    "different items",
+    "more options",
+    "more dishes",
+    "not mentioned",
 )
 
 REJECTION_TERMS = (
@@ -192,6 +198,7 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         _has_any(normalized, CATALOG_TERMS)
         or intent_result.intent in {"browse_menu", "ask_price"}
     )
+    blocks_catalog = "CUSTOMER_CONFIRMATION_REQUIRED" in detect_guardrail_flags(message)
     is_catalog_only = (
         not is_recommendation
         and not budget_vnd
@@ -200,6 +207,7 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         and spice == "unknown"
         and party_size_in_message is None
         and catalog_browse
+        and not blocks_catalog
     )
 
     is_solo_dining = not is_solo_seating_question(normalized) and (

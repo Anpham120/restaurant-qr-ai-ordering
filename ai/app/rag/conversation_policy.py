@@ -54,6 +54,9 @@ RECOMMENDATION_TERMS = (
     "more dishes",
     "more options",
     "options please",
+    "other dishes",
+    "different items",
+    "not mentioned",
     "food suggestions",
     "nao ngon",
     "best seller",
@@ -83,6 +86,13 @@ MORE_DISHES_TERMS = (
     "nao khac",
     "khac di",
     "mon nua",
+    "other dishes",
+    "different items",
+    "more options",
+    "more dishes",
+    "not mentioned",
+    "suggest 2 more",
+    "2 more dishes",
 )
 CONTEXT_ONLY_FOLLOW_UP_TERMS = (
     "du khong",
@@ -325,6 +335,12 @@ def build_conversation_policy(
         recommendation_thread
         and _is_more_dishes_request(normalized_message)
         and not _is_context_only_follow_up(normalized_message, recommendation_thread)
+    ):
+        wants_recommendations = True
+    if (
+        _is_more_dishes_request(normalized_message)
+        and not _is_context_only_follow_up(normalized_message, recommendation_thread)
+        and not _is_rejection(message)
     ):
         wants_recommendations = True
     if (

@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 AI_ROOT = Path(__file__).resolve().parents[1]
-RESULTS = AI_ROOT / "evaluation" / "results" / "golden_llm_eval.json"
+RESULTS = AI_ROOT / "evaluation" / "results" / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"
 
 
 def main() -> None:

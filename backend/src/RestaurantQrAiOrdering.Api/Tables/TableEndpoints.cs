@@ -38,8 +38,154 @@ public static partial class TableEndpoints
 
             return Results.Ok(new TableListResponse(items, items.Count));
         })
-        .RequireAuthorization("AdminOnly")
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.CounterStaff, UserRole.Admin))
         .WithName("AdminListTables")
+        .WithTags("Admin Tables");
+
+        app.MapPost("/api/admin/tables", async (
+            CreateTableRequest? request,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            if (request is null || string.IsNullOrWhiteSpace(request.DisplayName))
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "displayName is required.");
+            }
+
+            string? tableCode;
+            if (string.IsNullOrWhiteSpace(request.TableCode))
+            {
+                tableCode = await AllocateNextTableCodeAsync(db, cancellationToken);
+                if (tableCode is null)
+                {
+                    return ApiResults.Conflict("TABLE_CAPACITY_REACHED", "No available table codes remain.");
+                }
+            }
+            else
+            {
+                tableCode = NormalizeTableCode(request.TableCode);
+                if (tableCode is null)
+                {
+                    return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
+                }
+            }
+
+            var exists = await db.RestaurantTables
+                .AnyAsync(table => table.TableCode == tableCode, cancellationToken);
+            if (exists)
+            {
+                return ApiResults.Conflict("TABLE_CODE_EXISTS", "Table code is already in use.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var table = new RestaurantTable
+            {
+                Id = $"tbl_{Guid.NewGuid():N}",
+                TableCode = tableCode,
+                DisplayName = request.DisplayName.Trim(),
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            TableQrTokenRotator.RotateTableQrToken(table);
+            db.RestaurantTables.Add(table);
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Created($"/api/admin/tables/{tableCode}", ToAdminTableResponse(table));
+        })
+        .RequireAuthorization("AdminOnly")
+        .WithName("AdminCreateTable")
+        .WithTags("Admin Tables");
+
+        app.MapPatch("/api/admin/tables/{tableCode}", async (
+            string tableCode,
+            UpdateTableRequest? request,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            if (request is null)
+            {
+                return ApiResults.BadRequest("REQUEST_INVALID", "Request body is required.");
+            }
+
+            var normalizedTableCode = NormalizeTableCode(tableCode);
+            if (normalizedTableCode is null)
+            {
+                return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
+            }
+
+            var table = await db.RestaurantTables
+                .FirstOrDefaultAsync(item => item.TableCode == normalizedTableCode, cancellationToken);
+            if (table is null)
+            {
+                return ApiResults.NotFound("TABLE_NOT_FOUND", "Table was not found.");
+            }
+
+            if (request.IsActive == false && table.IsActive)
+            {
+                var blockReason = await GetTableMutationBlockReasonAsync(db, table.Id, cancellationToken);
+                if (blockReason is not null)
+                {
+                    return blockReason;
+                }
+            }
+
+            if (request.DisplayName is not null)
+            {
+                var trimmedName = request.DisplayName.Trim();
+                if (trimmedName.Length == 0)
+                {
+                    return ApiResults.BadRequest("DISPLAY_NAME_INVALID", "displayName must not be empty.");
+                }
+
+                table.DisplayName = trimmedName;
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                table.IsActive = request.IsActive.Value;
+            }
+
+            table.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ToAdminTableResponse(table));
+        })
+        .RequireAuthorization("AdminOnly")
+        .WithName("AdminUpdateTable")
+        .WithTags("Admin Tables");
+
+        app.MapPost("/api/admin/tables/{tableCode}/qr/rotate", async (
+            string tableCode,
+            RestaurantDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var normalizedTableCode = NormalizeTableCode(tableCode);
+            if (normalizedTableCode is null)
+            {
+                return ApiResults.BadRequest("TABLE_CODE_INVALID", "Table code must match format T01.");
+            }
+
+            var table = await db.RestaurantTables
+                .FirstOrDefaultAsync(item => item.TableCode == normalizedTableCode, cancellationToken);
+            if (table is null)
+            {
+                return ApiResults.NotFound("TABLE_NOT_FOUND", "Table was not found.");
+            }
+
+            var blockReason = await GetTableMutationBlockReasonAsync(db, table.Id, cancellationToken);
+            if (blockReason is not null)
+            {
+                return blockReason;
+            }
+
+            TableQrTokenRotator.RotateTableQrToken(table);
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ToAdminTableResponse(table));
+        })
+        .RequireAuthorization("AdminOnly")
+        .WithName("AdminRotateTableQr")
         .WithTags("Admin Tables");
 
         app.MapGet("/api/admin/table-sessions", async (
@@ -92,7 +238,7 @@ public static partial class TableEndpoints
 
             return Results.Ok(new AdminTableSessionListResponse(items, items.Count));
         })
-        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.Admin))
+        .RequireAuthorization(policy => policy.RequireRole(UserRole.Staff, UserRole.CounterStaff, UserRole.Admin))
         .WithName("AdminListTableSessions")
         .WithTags("Tables");
 
@@ -497,6 +643,64 @@ public static partial class TableEndpoints
 
         await db.SaveChangesAsync(cancellationToken);
         chatStore.DeleteSessionsByTableSession(session.Id);
+    }
+
+    private static async Task<string?> AllocateNextTableCodeAsync(
+        RestaurantDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var existingCodes = await db.RestaurantTables
+            .AsNoTracking()
+            .Select(table => table.TableCode)
+            .ToListAsync(cancellationToken);
+
+        for (var index = 1; index <= 99; index++)
+        {
+            var candidate = RestaurantTableSeed.FormatTableCode(index);
+            if (!existingCodes.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<IResult?> GetTableMutationBlockReasonAsync(
+        RestaurantDbContext db,
+        string tableId,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var hasOpenSession = await db.TableSessions
+            .AsNoTracking()
+            .AnyAsync(
+                session =>
+                    session.RestaurantTableId == tableId &&
+                    session.Status == TableSessionStatus.Open &&
+                    session.ClosedAt == null &&
+                    session.ExpiresAt > now,
+                cancellationToken);
+        if (hasOpenSession)
+        {
+            return ApiResults.Conflict(
+                "TABLE_SESSION_OPEN",
+                "Close the open table session before deactivating the table or rotating its QR code.");
+        }
+
+        var hasPendingInvoice = await (
+            from invoice in db.TableInvoices.AsNoTracking()
+            join session in db.TableSessions.AsNoTracking() on invoice.TableSessionId equals session.Id
+            where invoice.Status == PaymentStatus.Pending && session.RestaurantTableId == tableId
+            select invoice.Id).AnyAsync(cancellationToken);
+        if (hasPendingInvoice)
+        {
+            return ApiResults.Conflict(
+                "TABLE_INVOICE_PAYMENT_PENDING",
+                "Complete or cancel the pending table invoice before deactivating the table or rotating its QR code.");
+        }
+
+        return null;
     }
 
     private static TableResponse ToPublicTableResponse(RestaurantTable table)

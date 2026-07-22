@@ -20,6 +20,11 @@ Chứng minh hệ thống chạy qua backend/database thật giữa nhiều thi�
 6. Staff xác nhận thanh toán bằng endpoint/hành động vận hành; customer tracking thấy `Confirmed`.
 7. Customer dùng AI chat để hỏi gợi ý món. AI chỉ trả về đề xuất hoặc fallback, mọi `SuggestedCartAction` phải yêu cầu khách xác nhận.
 
+## Ops deep-link smoke (manual)
+
+1. **Payment toast → counter filter:** Khách yêu cầu thanh toán → staff thấy toast → click mở `/counter?tab=payments&table=…` → danh sách lọc đúng bàn.
+2. **Floor drawer → kanban:** Từ sơ đồ bàn, mở link kanban `?table=` → đơn của bàn được highlight trên board.
+
 ## Script/test tự động trong repo
 
 Chạy test tích hợp nhiều client:
