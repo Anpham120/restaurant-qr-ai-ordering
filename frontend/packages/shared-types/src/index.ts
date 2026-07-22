@@ -43,7 +43,7 @@ export type TableInvoicePaymentRequestResponse = { invoice: TableInvoice; paymen
 export type OrderCreatedEvent = { orderId: string; orderCode: string; orderType: OrderType; tableCode: string | null; status: OrderStatus; createdAt: string };
 export type OrderStatusChangedEvent = { orderId: string; orderCode: string; status: OrderStatus; updatedAt: string };
 export type OrderItemStatusChangedEvent = { orderId: string; orderCode: string; orderItemId: string; menuItemName: string; status: OrderItemStatus; updatedAt: string };
-export type PaymentRequestedEvent = { orderId: string; orderCode: string; method: "COD" | "VietQR"; status: PaymentStatus; updatedAt: string };
+export type PaymentRequestedEvent = { orderId: string; orderCode: string; method: "COD" | "VietQR"; status: PaymentStatus; amount: number; updatedAt: string; tableCode: string | null };
 export type RealtimeConnectionStatus = "connecting" | "connected" | "reconnecting" | "disconnected" | "error";
 
 export type AdminCategory = { categoryId: string; name: string; displayOrder: number; isActive: boolean; createdAt: string; updatedAt: string };

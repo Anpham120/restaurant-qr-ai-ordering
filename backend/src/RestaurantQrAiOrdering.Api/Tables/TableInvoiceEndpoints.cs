@@ -69,6 +69,7 @@ public static class TableInvoiceEndpoints
             HttpRequest request,
             IOptions<JwtOptions> jwtOptions,
             IVietQrProvider vietQrProvider,
+            IOrderRealtimeNotifier realtime,
             CancellationToken cancellationToken) =>
         {
             var executionStrategy = db.Database.CreateExecutionStrategy();
@@ -277,6 +278,19 @@ public static class TableInvoiceEndpoints
                 var persistedVietQr = CreateVietQrPayload(persistedInvoice, vietQrProvider);
                 return Results.Ok(CreatePaymentResponse(session, persistedInvoice!, orderRounds, persistedVietQr));
             }
+
+            await realtime.PaymentRequestedAsync(
+                new PaymentRequestedEvent(
+                    invoice!.Id,
+                    invoice.InvoiceCode,
+                    payment.Method.ToString(),
+                    payment.Status.ToString(),
+                    payment.Amount,
+                    payment.UpdatedAt,
+                    session.TableCode),
+                session.TableCode,
+                cancellationToken);
+
                 return Results.Ok(CreatePaymentResponse(session, invoice!, orderRounds, vietQrPayload));
             });
         })

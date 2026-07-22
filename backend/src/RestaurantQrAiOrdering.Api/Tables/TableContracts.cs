@@ -62,3 +62,11 @@ public sealed record AdminTableSessionSummaryResponse(
 public sealed record AdminTableSessionListResponse(
     IReadOnlyList<AdminTableSessionSummaryResponse> Items,
     int Total);
+
+public sealed record CreateTableRequest(
+    string? TableCode,
+    string? DisplayName);
+
+public sealed record UpdateTableRequest(
+    string? DisplayName,
+    bool? IsActive);

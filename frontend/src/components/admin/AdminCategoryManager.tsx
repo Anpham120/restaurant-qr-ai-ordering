@@ -6,7 +6,7 @@ import "../operations/operations.css";
 
 const EMPTY: AdminCategoryRequest = { name: "", displayOrder: 0, isActive: true };
 
-export function AdminCategoryManager() {
+export function AdminCategoryManager({ embedded = false }: { embedded?: boolean }) {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,10 +77,12 @@ export function AdminCategoryManager() {
 
   return (
     <div>
-      <div className="ops-page-header">
-        <h1>Danh mục</h1>
-        <p>Quản lý danh mục thực đơn</p>
-      </div>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <h1>Danh mục</h1>
+          <p>Quản lý danh mục thực đơn</p>
+        </div>
+      ) : null}
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}

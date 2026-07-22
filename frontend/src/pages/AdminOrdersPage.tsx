@@ -1,5 +1,5 @@
-import { AdminOrderManagementPage } from "./admin/AdminOrderManagementPage";
+import { OrdersHubPage } from "./admin/OrdersHubPage";
 
 export function AdminOrdersPage() {
-  return <AdminOrderManagementPage />;
+  return <OrdersHubPage />;
 }

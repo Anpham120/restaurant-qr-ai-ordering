@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Order, RealtimeConnectionStatus } from "@cmc/shared-types";
+import type { Order } from "@cmc/shared-types";
 import type { OrderRealtimeEvent } from "../../types";
 import {
   mergeOrderItemStatusChanged,
@@ -9,14 +9,11 @@ import {
 import { KitchenBoard } from "../../components/kitchen/KitchenBoard";
 import {
   getKitchenBoardColumn,
+  getKitchenPriority,
   isKitchenActiveOrderStatus,
 } from "../../components/kitchen/kitchenOrderPipeline";
-import {
-  connectOrderRealtime,
-  disconnectOrderRealtime,
-  subscribeOrderRealtime,
-  subscribeRealtimeConnection,
-} from "../../services/realtimeOrderService";
+import { OpsConnectionBadge } from "../../components/operations/OpsConnectionBadge";
+import { useOpsRealtime } from "../../hooks/useOpsRealtime";
 import { getKitchenOrders } from "../../services/orderService";
 import { fetchKitchenMenuItems, toggleMenuItemAvailability } from "../../services/adminMenuService";
 import { ChefHat, RefreshCw, UtensilsCrossed } from "lucide-react";
@@ -30,7 +27,6 @@ export function KitchenRealtimePage() {
   const [menuItems, setMenuItems] = useState<MenuItemSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
   const [showMenuPanel, setShowMenuPanel] = useState(searchParams.get("menu") === "1");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -47,6 +43,7 @@ export function KitchenRealtimePage() {
     const preparing = kitchenOrders.filter((o) => o.status === "Preparing").length;
     const ready = kitchenOrders.filter((o) => o.status === "Ready").length;
     const served = kitchenOrders.filter((o) => o.status === "Served").length;
+    const urgent = kitchenOrders.filter((o) => getKitchenPriority(o) === "urgent").length;
     const totalItems = kitchenOrders.reduce(
       (sum, o) => sum + o.items.filter((i) => i.status !== "Cancelled").length,
       0,
@@ -56,6 +53,7 @@ export function KitchenRealtimePage() {
       { label: "Đang nấu", value: String(preparing), detail: "Preparing" },
       { label: "Sẵn sàng", value: String(ready), detail: "Chờ mang ra" },
       { label: "Đã phục vụ", value: String(served), detail: "Đã giao tại bàn" },
+      { label: "Cần gấp", value: String(urgent), detail: "Chờ > 20 phút" },
       { label: "Tổng món", value: String(totalItems), detail: "Trong pipeline" },
     ];
   }, [kitchenOrders]);
@@ -96,35 +94,19 @@ export function KitchenRealtimePage() {
     Promise.all([loadOrders(), loadMenu()]).finally(() => setIsLoading(false));
   }, [loadOrders, loadMenu]);
 
-  // Realtime
-  useEffect(() => {
-    const unsubConnection = subscribeRealtimeConnection(setConnectionStatus);
-    const unsubRealtime = subscribeOrderRealtime((event: OrderRealtimeEvent) => {
+  const { connectionStatus } = useOpsRealtime({
+    refresh: loadOrders,
+    pollIntervalMs: 5_000,
+    onEvent: (event: OrderRealtimeEvent) => {
       if (event.event === "order.statusChanged") {
         setOrders((current) => mergeOrderStatusChanged(current, event.payload));
         return;
       }
       if (event.event === "order.itemStatusChanged") {
         setOrders((current) => mergeOrderItemStatusChanged(current, event.payload));
-        return;
       }
-      void loadOrders();
-    });
-
-    void connectOrderRealtime().catch(() => setConnectionStatus("error"));
-
-    return () => {
-      unsubConnection();
-      unsubRealtime();
-      void disconnectOrderRealtime();
-    };
-  }, [loadOrders]);
-
-  useEffect(() => {
-    if (connectionStatus === "connected") return;
-    const interval = window.setInterval(() => void loadOrders(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [connectionStatus, loadOrders]);
+    },
+  });
 
   // Toggle dish availability
   async function handleToggleAvailability(itemId: string, currentlyAvailable: boolean) {
@@ -160,12 +142,7 @@ export function KitchenRealtimePage() {
             <p>Theo dõi và cập nhật trạng thái đơn hàng realtime</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className={`ops-connection ops-connection--${connectionStatus}`}>
-              <span className="ops-connection-dot" />
-              {connectionStatus === "connected" ? "Đã kết nối" :
-                connectionStatus === "connecting" ? "Đang kết nối..." :
-                  connectionStatus === "reconnecting" ? "Đang kết nối lại..." : "Mất kết nối"}
-            </span>
+            <OpsConnectionBadge status={connectionStatus} />
             <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button">
               <RefreshCw aria-hidden="true" size={14} /> Làm mới
             </button>

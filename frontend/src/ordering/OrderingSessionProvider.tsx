@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   clearCustomerSession,
   loadOrderContext,
+  saveOrderContext,
   type CustomerOrderContext,
 } from "../components/customer/customerMenuStorage";
 import { validateDineInSession } from "../services/tableSessionService";
@@ -141,6 +142,7 @@ export function OrderingSessionProvider({ children, sessionId }: { children: Rea
     }
 
     if (nextState === "ready") {
+      saveOrderContext(activeCapability);
       setContext(activeCapability);
       setState("ready");
       return;

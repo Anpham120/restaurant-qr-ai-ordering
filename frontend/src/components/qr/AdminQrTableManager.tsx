@@ -42,7 +42,7 @@ function buildOrderingLink(table: BackendTable) {
   return new URL(customerPath, baseUrl).toString();
 }
 
-export function AdminQrTableManager() {
+export function AdminQrTableManager({ embedded = false }: { embedded?: boolean }) {
   const [tables, setTables] = useState<BackendTable[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,37 +88,41 @@ export function AdminQrTableManager() {
 
   return (
     <div className="admin-table-qr-workspace">
-      <section className="table-qr-command">
-        <div className="table-qr-command-copy">
-          <span className="table-qr-kicker">QR table control</span>
-          <h3>Bàn và mã QR từ backend</h3>
-          <p>
-            Mỗi link bàn luôn trỏ về ứng dụng đặt món. Admin chỉ quản lý và sao chép
-            link, khách phải mở phiên bàn bằng QR trước khi đặt món.
-          </p>
-          {error ? (
-            <p className="table-copy-feedback is-error" role="alert">
-              {error}
+      {!embedded ? (
+        <section className="table-qr-command">
+          <div className="table-qr-command-copy">
+            <span className="table-qr-kicker">QR table control</span>
+            <h3>Bàn và mã QR từ backend</h3>
+            <p>
+              Mỗi link bàn luôn trỏ về ứng dụng đặt món. Admin chỉ quản lý và sao chép
+              link, khách phải mở phiên bàn bằng QR trước khi đặt món.
             </p>
-          ) : null}
-        </div>
-        <dl className="table-qr-command-stats">
-          <div>
-            <dt>Bàn hoạt động</dt>
-            <dd>{activeCount}</dd>
+            {error ? (
+              <p className="table-copy-feedback is-error" role="alert">
+                {error}
+              </p>
+            ) : null}
           </div>
-          <div>
-            <dt>QR hợp lệ</dt>
-            <dd>
-              {qrCount}/{tables.length}
-            </dd>
-          </div>
-          <div>
-            <dt>Nguồn dữ liệu</dt>
-            <dd>API</dd>
-          </div>
-        </dl>
-      </section>
+          <dl className="table-qr-command-stats">
+            <div>
+              <dt>Bàn hoạt động</dt>
+              <dd>{activeCount}</dd>
+            </div>
+            <div>
+              <dt>QR hợp lệ</dt>
+              <dd>
+                {qrCount}/{tables.length}
+              </dd>
+            </div>
+            <div>
+              <dt>Nguồn dữ liệu</dt>
+              <dd>API</dd>
+            </div>
+          </dl>
+        </section>
+      ) : error ? (
+        <div className="ops-notice ops-notice--danger">{error}</div>
+      ) : null}
 
       {isLoading ? (
         <p className="table-copy-feedback" role="status">

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent as ReactDragEvent,
   type ReactNode,
@@ -11,8 +12,13 @@ import { CheckCircle2, Circle, Clock3, Flame, GripVertical, X } from "lucide-rea
 import { updateOrderItemStatus, updateOrderStatus } from "../../services/orderService";
 import {
   canDropKitchenOrder,
+  getItemTapAdvanceStatus,
   getKitchenBoardAdvancePlan,
   getKitchenBoardColumn,
+  getKitchenPrimaryAction,
+  getKitchenPriority,
+  getKitchenProgress,
+  sortKitchenOrdersByPriority,
   type KitchenBoardColumn,
 } from "./kitchenOrderPipeline";
 import "../operations/operations.css";
@@ -33,15 +39,10 @@ function statusBadgeClass(status: string): string {
   return `ops-badge ops-badge--${status.toLowerCase()}`;
 }
 
-function itemNextStatus(current: OrderItemStatus): OrderItemStatus | null {
-  if (current === "Pending") return "Preparing";
-  if (current === "Preparing") return "Ready";
-  return null;
-}
-
 function itemActionLabel(current: OrderItemStatus): string {
-  if (current === "Pending") return "Bắt đầu nấu";
-  if (current === "Preparing") return "Xong món";
+  const next = getItemTapAdvanceStatus(current);
+  if (next === "Preparing") return "Bắt đầu nấu";
+  if (next === "Ready") return "Xong món";
   return "";
 }
 
@@ -51,7 +52,7 @@ interface KitchenBoardProps {
   onRefresh: () => void | Promise<void>;
 }
 
-function StartCookingButton({
+function SmartKitchenActionButton({
   order,
   isPending,
   onMoveNext,
@@ -62,63 +63,20 @@ function StartCookingButton({
   onMoveNext: (order: Order) => void;
   compact?: boolean;
 }) {
-  return (
-    <button
-      className={`ops-btn ops-btn--warning${compact ? " ops-btn--sm" : ""}`}
-      disabled={isPending}
-      onClick={() => onMoveNext(order)}
-      type="button"
-    >
-      <Flame aria-hidden="true" size={compact ? 14 : 16} />
-      {compact ? "Bắt đầu nấu" : "Bắt đầu nấu đơn"}
-    </button>
-  );
-}
+  const action = getKitchenPrimaryAction(order);
+  const column = getKitchenBoardColumn(order.status);
 
-function FinishCookingButton({
-  order,
-  isPending,
-  onMoveNext,
-  compact = false,
-}: {
-  order: Order;
-  isPending: boolean;
-  onMoveNext: (order: Order) => void;
-  compact?: boolean;
-}) {
   return (
     <button
-      className={`ops-btn ops-btn--primary${compact ? " ops-btn--sm" : ""}`}
-      disabled={isPending}
+      className={`ops-btn${column === "confirmed" ? " ops-btn--warning" : " ops-btn--primary"}${compact ? " ops-btn--sm" : ""}`}
+      disabled={isPending || action.disabled}
       onClick={() => onMoveNext(order)}
+      title={action.detail}
       type="button"
     >
-      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
-      {compact ? "Nấu xong" : "Đánh dấu tất cả đã sẵn sàng"}
-    </button>
-  );
-}
-
-function MarkServedButton({
-  order,
-  isPending,
-  onMoveNext,
-  compact = false,
-}: {
-  order: Order;
-  isPending: boolean;
-  onMoveNext: (order: Order) => void;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      className="ops-btn ops-btn--primary"
-      disabled={isPending}
-      onClick={() => onMoveNext(order)}
-      type="button"
-    >
-      <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} />
-      {compact ? "Đã phục vụ" : "Xác nhận đã phục vụ"}
+      {column === "confirmed" ? <Flame aria-hidden="true" size={compact ? 14 : 16} /> : null}
+      {column === "preparing" || column === "ready" ? <CheckCircle2 aria-hidden="true" size={compact ? 14 : 16} /> : null}
+      {action.label}
     </button>
   );
 }
@@ -129,43 +87,68 @@ function OrderCard({
   column,
   onOpenDetail,
   onMoveNext,
+  onItemTap,
   onDragStart,
   onDragEnd,
   isPending,
   isDragging,
+  pendingItemId,
 }: {
   order: Order;
   column: KitchenBoardColumn;
   onOpenDetail: (order: Order) => void;
   onMoveNext: (order: Order) => void;
+  onItemTap: (order: Order, itemId: string, nextStatus: OrderItemStatus) => void;
   onDragStart: (order: Order, event: ReactDragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
   isPending: boolean;
   isDragging: boolean;
+  pendingItemId: string | null;
 }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.createdAt));
+  const touchStartX = useRef(0);
+  const progress = getKitchenProgress(order);
+  const priority = getKitchenPriority(order);
+  const primaryAction = getKitchenPrimaryAction(order);
 
   useEffect(() => {
     const timer = setInterval(() => setElapsed(timeAgo(order.createdAt)), 10_000);
     return () => clearInterval(timer);
   }, [order.createdAt]);
 
-  const isUrgent = Date.now() - new Date(order.createdAt).getTime() > 15 * 60_000;
-  const readyCount = order.items.filter((i) => i.status === "Ready" || i.status === "Served").length;
-  const totalCount = order.items.filter((i) => i.status !== "Cancelled").length;
   const isDraggable = column !== "served" && !isPending;
+
+  function handleTouchStart(event: React.TouchEvent<HTMLElement>) {
+    touchStartX.current = event.touches[0]?.clientX ?? 0;
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
+    if (!isDraggable || primaryAction.disabled) return;
+    const endX = event.changedTouches[0]?.clientX ?? 0;
+    if (endX - touchStartX.current >= 72) {
+      onMoveNext(order);
+    }
+  }
 
   return (
     <article
-      className={`ops-card ops-card--${order.status.toLowerCase()}${isDragging ? " ops-card--dragging" : ""}`}
+      className={`ops-card ops-card--${order.status.toLowerCase()} ops-card--priority-${priority}${isDragging ? " ops-card--dragging" : ""}`}
       draggable={isDraggable}
       onClick={() => onOpenDetail(order)}
       onDragEnd={onDragEnd}
       onDragStart={isDraggable ? (event) => onDragStart(order, event) : undefined}
+      onTouchEnd={handleTouchEnd}
+      onTouchStart={handleTouchStart}
       role="button"
       tabIndex={0}
-      title={isDraggable ? "Kéo sang cột trạng thái tiếp theo" : undefined}
-      onKeyDown={(e) => e.key === "Enter" && onOpenDetail(order)}
+      title={isDraggable ? "Chạm món để cập nhật · Vuốt phải hoặc kéo sang cột kế tiếp" : undefined}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpenDetail(order);
+        if (e.key === " " && !primaryAction.disabled) {
+          e.preventDefault();
+          onMoveNext(order);
+        }
+      }}
     >
       <div className="ops-card-header">
         <span className="ops-card-code">
@@ -178,43 +161,51 @@ function OrderCard({
       </div>
 
       <div className="ops-card-meta">
-        <span className={isUrgent ? "ops-timer ops-timer--urgent" : "ops-timer ops-timer--normal"}>
+        <span className={priority !== "normal" ? "ops-timer ops-timer--urgent" : "ops-timer ops-timer--normal"}>
           <Clock3 aria-hidden="true" size={14} /> {elapsed}
         </span>
-        <span>{readyCount}/{totalCount} món xong</span>
+        <span>{progress.ready}/{progress.total} món xong</span>
         <span>{formatVnd(order.totalAmount)}</span>
       </div>
 
+      <div className="kitchen-progress" aria-hidden="true">
+        <div className="kitchen-progress-bar" style={{ width: `${progress.percent}%` }} />
+      </div>
+      <p className="kitchen-progress-label">{primaryAction.detail}</p>
+
       <div className="ops-card-items">
-        {order.items.map((item) => (
-          <span
-            key={item.orderItemId}
-            className={
-              item.status === "Ready" || item.status === "Served" || item.status === "Cancelled"
-                ? "ops-card-item-chip ops-card-item-chip--done"
-                : item.status === "Preparing"
-                  ? "ops-card-item-chip ops-card-item-chip--active"
-                  : "ops-card-item-chip"
-            }
-          >
-            {item.quantity}× {item.name}
-          </span>
-        ))}
+        {order.items.map((item) => {
+          if (item.status === "Cancelled") return null;
+          const next = getItemTapAdvanceStatus(item.status);
+          const isDone = item.status === "Ready" || item.status === "Served";
+          const isItemPending = pendingItemId === item.orderItemId;
+          return (
+            <button
+              key={item.orderItemId}
+              type="button"
+              className={
+                isDone
+                  ? "ops-card-item-chip ops-card-item-chip--done kitchen-item-chip"
+                  : item.status === "Preparing"
+                    ? "ops-card-item-chip ops-card-item-chip--active kitchen-item-chip"
+                    : "ops-card-item-chip kitchen-item-chip"
+              }
+              disabled={!next || isPending || isItemPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (next) onItemTap(order, item.orderItemId, next);
+              }}
+              title={next ? (next === "Preparing" ? "Chạm để bắt đầu nấu" : "Chạm để xong món") : undefined}
+            >
+              {isItemPending ? "..." : `${item.quantity}× ${item.name}`}
+            </button>
+          );
+        })}
       </div>
 
-      {column === "confirmed" ? (
+      {column !== "served" ? (
         <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
-          <StartCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
-        </div>
-      ) : null}
-      {column === "preparing" ? (
-        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
-          <FinishCookingButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
-        </div>
-      ) : null}
-      {column === "ready" ? (
-        <div className="ops-card-actions" onClick={(e) => e.stopPropagation()}>
-          <MarkServedButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
+          <SmartKitchenActionButton compact isPending={isPending} onMoveNext={onMoveNext} order={order} />
         </div>
       ) : null}
     </article>
@@ -261,7 +252,7 @@ function OrderDetailModal({
         <div className="ops-modal-body">
           <div className="ops-item-list">
             {order.items.map((item) => {
-              const next = itemNextStatus(item.status);
+              const next = getItemTapAdvanceStatus(item.status);
               return (
                 <div className="ops-item-row" key={item.orderItemId}>
                   <div className="ops-item-info">
@@ -299,19 +290,9 @@ function OrderDetailModal({
           </div>
         </div>
 
-        {column === "confirmed" ? (
+        {column !== "served" ? (
           <div className="ops-modal-footer">
-            <StartCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
-          </div>
-        ) : null}
-        {column === "preparing" ? (
-          <div className="ops-modal-footer">
-            <FinishCookingButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
-          </div>
-        ) : null}
-        {column === "ready" ? (
-          <div className="ops-modal-footer">
-            <MarkServedButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
+            <SmartKitchenActionButton isPending={isPending} onMoveNext={onMoveNext} order={order} />
           </div>
         ) : null}
       </div>
@@ -327,12 +308,14 @@ function KitchenColumn({
   orders,
   onOpenDetail,
   onMoveNext,
+  onItemTap,
   onCardDragStart,
   onCardDragEnd,
   onColumnDragOver,
   onColumnDragLeave,
   onColumnDrop,
   pendingCode,
+  pendingItemId,
   draggedOrderCode,
   isDropTarget,
 }: {
@@ -342,12 +325,14 @@ function KitchenColumn({
   orders: Order[];
   onOpenDetail: (o: Order) => void;
   onMoveNext: (o: Order) => void;
+  onItemTap: (order: Order, itemId: string, nextStatus: OrderItemStatus) => void;
   onCardDragStart: (order: Order, event: ReactDragEvent<HTMLElement>) => void;
   onCardDragEnd: () => void;
   onColumnDragOver: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
   onColumnDragLeave: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
   onColumnDrop: (column: KitchenBoardColumn, event: ReactDragEvent<HTMLDivElement>) => void;
   pendingCode: string | null;
+  pendingItemId: string | null;
   draggedOrderCode: string | null;
   isDropTarget: boolean;
 }) {
@@ -374,10 +359,12 @@ function KitchenColumn({
               column={column}
               onOpenDetail={onOpenDetail}
               onMoveNext={onMoveNext}
+              onItemTap={onItemTap}
               onDragStart={onCardDragStart}
               onDragEnd={onCardDragEnd}
               isPending={pendingCode === order.orderCode}
               isDragging={draggedOrderCode === order.orderCode}
+              pendingItemId={pendingItemId}
             />
           ))
         )}
@@ -390,24 +377,25 @@ function KitchenColumn({
 export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [draggedOrderCode, setDraggedOrderCode] = useState<string | null>(null);
   const [dropTargetColumn, setDropTargetColumn] = useState<KitchenBoardColumn | null>(null);
 
   const confirmed = useMemo(
-    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "confirmed"),
+    () => sortKitchenOrdersByPriority(orders.filter((o) => getKitchenBoardColumn(o.status) === "confirmed")),
     [orders],
   );
   const preparing = useMemo(
-    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "preparing"),
+    () => sortKitchenOrdersByPriority(orders.filter((o) => getKitchenBoardColumn(o.status) === "preparing")),
     [orders],
   );
   const ready = useMemo(
-    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "ready"),
+    () => sortKitchenOrdersByPriority(orders.filter((o) => getKitchenBoardColumn(o.status) === "ready")),
     [orders],
   );
   const served = useMemo(
-    () => orders.filter((o) => getKitchenBoardColumn(o.status) === "served"),
+    () => sortKitchenOrdersByPriority(orders.filter((o) => getKitchenBoardColumn(o.status) === "served")),
     [orders],
   );
 
@@ -517,14 +505,18 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
   }, [draggedOrderCode, handleMoveNext, orders, pendingCode]);
 
   const handleItemAction = useCallback(async (order: Order, itemId: string, nextStatus: OrderItemStatus) => {
+    setPendingItemId(itemId);
     setPendingCode(order.orderCode);
     setNotice("");
     try {
       await updateOrderItemStatus(order.orderCode, itemId, nextStatus);
+      const label = nextStatus === "Preparing" ? "đang nấu" : nextStatus === "Ready" ? "đã xong" : nextStatus;
+      setNotice(`${order.orderCode}: 1 món ${label}`);
     } catch {
       setNotice("Cập nhật món thất bại.");
     } finally {
       await onRefresh();
+      setPendingItemId(null);
       setPendingCode(null);
     }
   }, [onRefresh]);
@@ -550,8 +542,10 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={confirmed}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          onItemTap={handleItemAction}
           {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          pendingItemId={pendingItemId}
           isDropTarget={dropTargetColumn === "confirmed"}
         />
         <KitchenColumn
@@ -561,8 +555,10 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={preparing}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          onItemTap={handleItemAction}
           {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          pendingItemId={pendingItemId}
           isDropTarget={dropTargetColumn === "preparing"}
         />
         <KitchenColumn
@@ -572,8 +568,10 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={ready}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          onItemTap={handleItemAction}
           {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          pendingItemId={pendingItemId}
           isDropTarget={dropTargetColumn === "ready"}
         />
         <KitchenColumn
@@ -583,8 +581,10 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           orders={served}
           onOpenDetail={setSelectedOrder}
           onMoveNext={handleMoveNext}
+          onItemTap={handleItemAction}
           {...kitchenDragHandlers}
           pendingCode={pendingCode}
+          pendingItemId={pendingItemId}
           isDropTarget={dropTargetColumn === "served"}
         />
       </div>
@@ -595,7 +595,7 @@ export function KitchenBoard({ orders, onRefresh }: KitchenBoardProps) {
           onClose={() => setSelectedOrder(null)}
           onItemAction={handleItemAction}
           onMoveNext={handleMoveNext}
-          isPending={pendingCode === selectedOrder.orderCode}
+          isPending={pendingCode === selectedOrder.orderCode || pendingItemId !== null}
         />
       ) : null}
     </>

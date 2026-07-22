@@ -12,8 +12,14 @@ import "../components/customer/customer-menu.css";
 import { MenuCategoryTabs } from "../components/menu/MenuCategoryTabs";
 import { MenuItemCard } from "../components/menu/MenuItemCard";
 import { fetchCustomerMenu, type CustomerMenuResponse } from "../services/menuService";
+import { formatCartErrorMessage } from "../services/cartService";
+import { getTableInvoice, getTableSessionOrders } from "../services/orderService";
 import type { MenuCart } from "../types";
+import type { TableSessionResumeState } from "@cmc/shared-types";
 import { useOrderingSession } from "./OrderingSessionProvider";
+import { deriveSessionHubState } from "./sessionResumeState";
+
+type SessionHubState = Exclude<TableSessionResumeState, "CartPending">;
 
 const ALL_CATEGORY = "__all";
 const initialMenu: CustomerMenuResponse = { categories: [], items: [] };
@@ -31,6 +37,23 @@ export function OrderingMenuPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hubState, setHubState] = useState<SessionHubState>("New");
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      getTableSessionOrders(context.sessionId, context.sessionToken),
+      getTableInvoice(context.sessionId, context.sessionToken),
+    ])
+      .then(([orders, invoice]) => {
+        if (!active) return;
+        setHubState(deriveSessionHubState(orders.map((order) => order.status), invoice?.status ?? null));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [context.sessionId, context.sessionToken]);
 
   useEffect(() => {
     let active = true;
@@ -93,14 +116,25 @@ export function OrderingMenuPage() {
 
   function updateQuantity(itemId: string, delta: number) {
     void applyCartDelta(itemId, delta)
-      .then((next) => setCart(next))
-      .catch(() => setError(t("Không cập nhật được giỏ hàng. Vui lòng thử lại.")));
+      .then((next) => {
+        setError("");
+        setCart(next);
+      })
+      .catch((error) => {
+        setError(formatCartErrorMessage(error, t("Không cập nhật được giỏ hàng. Vui lòng thử lại.")));
+      });
   }
 
   return (
     <section className="cmc-customer-page ordering-menu-page">
       <section className="cmc-menu-toolbar" aria-label={t("Chọn món")}>
         <span className="cmc-table-badge">{t("Bàn {table}", { table: context.tableCode })}</span>
+        {hubState === "ReadyForPayment" || hubState === "PaymentPending" ? (
+          <p className="cmc-inline-notice" role="status">
+            {t("Bàn sẵn sàng thanh toán. Bạn vẫn có thể gọi thêm món trước khi thanh toán.")}{" "}
+            <Link to="../orders?focus=invoice">{t("Thanh toán hóa đơn")}</Link>
+          </p>
+        ) : null}
         {error ? <p className="cmc-inline-error" role="alert">{error}</p> : null}
         <div className="cmc-search-row">
           <input

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Order, OrderStatus, RealtimeConnectionStatus } from "@cmc/shared-types";
-import { Check, CircleCheck, ClipboardList, Clock3, Inbox, RefreshCw, Utensils } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import type { Order, OrderStatus } from "@cmc/shared-types";
+import { Check, CircleCheck, ClipboardList, Clock3, Flame, Inbox, RefreshCw, Utensils } from "lucide-react";
 import { getKitchenOrders, updateOrderStatus } from "../../services/orderService";
-import {
-  connectOrderRealtime,
-  disconnectOrderRealtime,
-  subscribeOrderRealtime,
-  subscribeRealtimeConnection,
-} from "../../services/realtimeOrderService";
+import { useOpsRealtime } from "../../hooks/useOpsRealtime";
+import { matchesTableFilter, normalizeTableCode } from "../operations/opsDeepLinkUtils";
+import { OpsConnectionBadge } from "../operations/OpsConnectionBadge";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -27,10 +25,12 @@ function StaffCard({
   order,
   onAction,
   isPending,
+  highlighted = false,
 }: {
   order: Order;
   onAction: (code: string, status: OrderStatus) => void;
   isPending: boolean;
+  highlighted?: boolean;
 }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.createdAt));
 
@@ -47,7 +47,7 @@ function StaffCard({
         : "ops-badge ops-badge--unpaid";
 
   return (
-    <article className={`ops-card ops-card--${order.status.toLowerCase()}`}>
+    <article className={`ops-card ops-card--${order.status.toLowerCase()}${highlighted ? " ops-card--highlight" : ""}`}>
       <div className="ops-card-header">
         <span className="ops-card-code">{order.orderCode}</span>
         {order.tableCode ? <span className="ops-card-table">Bàn {order.tableCode}</span> : null}
@@ -119,6 +119,7 @@ function StaffColumn({
   orders,
   onAction,
   pendingCode,
+  tableFilter,
 }: {
   title: string;
   icon: ReactNode;
@@ -126,6 +127,7 @@ function StaffColumn({
   orders: Order[];
   onAction: (code: string, status: OrderStatus) => void;
   pendingCode: string | null;
+  tableFilter: string;
 }) {
   return (
     <div className={`ops-column ops-column--${variant}`}>
@@ -138,7 +140,13 @@ function StaffColumn({
           <div className="ops-column-empty">Không có đơn</div>
         ) : (
           orders.map((o) => (
-            <StaffCard key={o.orderId} order={o} onAction={onAction} isPending={pendingCode === o.orderCode} />
+            <StaffCard
+              key={o.orderId}
+              order={o}
+              onAction={onAction}
+              isPending={pendingCode === o.orderCode}
+              highlighted={Boolean(tableFilter && matchesTableFilter(o.tableCode, tableFilter))}
+            />
           ))
         )}
       </div>
@@ -147,13 +155,14 @@ function StaffColumn({
 }
 
 /* ---------- Main Board ---------- */
-export function StaffOrderBoard() {
+export function StaffOrderBoard({ embedded = false }: { embedded?: boolean }) {
+  const [searchParams] = useSearchParams();
+  const tableFilter = normalizeTableCode(searchParams.get("table"));
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pendingCode, setPendingCode] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
 
   const loadOrders = useCallback(async () => {
     try {
@@ -169,34 +178,27 @@ export function StaffOrderBoard() {
     loadOrders().finally(() => setIsLoading(false));
   }, [loadOrders]);
 
-  // Realtime
-  useEffect(() => {
-    const unC = subscribeRealtimeConnection(setConnectionStatus);
-    const unR = subscribeOrderRealtime(() => loadOrders());
-    void connectOrderRealtime().catch(() => setConnectionStatus("error"));
-    return () => { unC(); unR(); void disconnectOrderRealtime(); };
-  }, [loadOrders]);
+  const { connectionStatus } = useOpsRealtime({ refresh: loadOrders, pollIntervalMs: 5_000 });
 
-  useEffect(() => {
-    if (connectionStatus === "connected") return;
-    const interval = window.setInterval(() => void loadOrders(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [connectionStatus, loadOrders]);
+  const visibleOrders = useMemo(() => {
+    if (!tableFilter) return orders;
+    return orders.filter((order) => matchesTableFilter(order.tableCode, tableFilter));
+  }, [orders, tableFilter]);
 
-  const placed = useMemo(() => orders.filter((o) => o.status === "Placed"), [orders]);
-  const ready = useMemo(() => orders.filter((o) => o.status === "Ready"), [orders]);
-  const served = useMemo(() => orders.filter((o) => o.status === "Served"), [orders]);
-  const active = useMemo(
-    () => orders.filter((o) => ["Confirmed", "Preparing"].includes(o.status)),
-    [orders],
+  const placed = useMemo(() => visibleOrders.filter((o) => o.status === "Placed"), [visibleOrders]);
+  const preparing = useMemo(
+    () => visibleOrders.filter((o) => o.status === "Confirmed" || o.status === "Preparing"),
+    [visibleOrders],
   );
+  const ready = useMemo(() => visibleOrders.filter((o) => o.status === "Ready"), [visibleOrders]);
+  const served = useMemo(() => visibleOrders.filter((o) => o.status === "Served"), [visibleOrders]);
 
   const stats = useMemo(() => [
     { label: "Đơn mới", value: String(placed.length), detail: "Chờ xác nhận" },
-    { label: "Đang bếp", value: String(active.length), detail: "Confirmed + Preparing" },
+    { label: "Đang bếp", value: String(preparing.length), detail: "Đã xác nhận, chờ món" },
     { label: "Sẵn sàng", value: String(ready.length), detail: "Chờ mang ra bàn" },
     { label: "Đã phục vụ", value: String(served.length), detail: "Chờ thu tiền / hoàn tất" },
-  ], [placed, active, ready, served]);
+  ], [placed, preparing, ready, served]);
 
   const handleAction = useCallback(async (orderCode: string, status: OrderStatus) => {
     setPendingCode(orderCode);
@@ -218,24 +220,34 @@ export function StaffOrderBoard() {
 
   return (
     <div>
-      <div className="ops-page-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1>Đơn cần phục vụ</h1>
-            <p>Xác nhận, mang món, hoàn tất đơn tại bàn</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className={`ops-connection ops-connection--${connectionStatus}`}>
-              <span className="ops-connection-dot" />
-              {connectionStatus === "connected" ? "Đã kết nối" : connectionStatus === "connecting" ? "Đang kết nối..." : "Mất kết nối"}
-            </span>
-            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <div className="ops-page-header-row">
+            <div>
+              <h1>Đơn cần phục vụ</h1>
+              <p>Xác nhận, mang món, hoàn tất đơn tại bàn</p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <OpsConnectionBadge status={connectionStatus} />
+              <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="ops-toolbar">
+          <OpsConnectionBadge status={connectionStatus} />
+          <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={loadOrders} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
+        </div>
+      )}
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
+
+      {tableFilter ? (
+        <div className="ops-notice ops-notice--info">
+          Đang lọc bàn <strong>{tableFilter}</strong>
+        </div>
+      ) : null}
 
       <div className="ops-stats">
         {stats.map((s) => (
@@ -247,10 +259,11 @@ export function StaffOrderBoard() {
         ))}
       </div>
 
-      <div className="ops-board">
-        <StaffColumn title="Đơn mới" icon={<Inbox aria-hidden="true" size={16} />} variant="placed" orders={placed} onAction={handleAction} pendingCode={pendingCode} />
-        <StaffColumn title="Sẵn sàng" icon={<Utensils aria-hidden="true" size={16} />} variant="ready" orders={ready} onAction={handleAction} pendingCode={pendingCode} />
-        <StaffColumn title="Đã phục vụ" icon={<CircleCheck aria-hidden="true" size={16} />} variant="served" orders={served} onAction={handleAction} pendingCode={pendingCode} />
+      <div className="ops-board ops-board--staff">
+        <StaffColumn title="Đơn mới" icon={<Inbox aria-hidden="true" size={16} />} variant="placed" orders={placed} onAction={handleAction} pendingCode={pendingCode} tableFilter={tableFilter} />
+        <StaffColumn title="Đang bếp" icon={<Flame aria-hidden="true" size={16} />} variant="preparing" orders={preparing} onAction={handleAction} pendingCode={pendingCode} tableFilter={tableFilter} />
+        <StaffColumn title="Sẵn sàng" icon={<Utensils aria-hidden="true" size={16} />} variant="ready" orders={ready} onAction={handleAction} pendingCode={pendingCode} tableFilter={tableFilter} />
+        <StaffColumn title="Đã phục vụ" icon={<CircleCheck aria-hidden="true" size={16} />} variant="served" orders={served} onAction={handleAction} pendingCode={pendingCode} tableFilter={tableFilter} />
       </div>
     </div>
   );

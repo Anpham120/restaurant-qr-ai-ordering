@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Navigate,
@@ -13,28 +13,38 @@ import {
   NotFoundPage,
   OperationsLayout,
   UnauthorizedPage,
+  type PortalLink,
 } from "@cmc/shared-ui";
 import "@cmc/shared-ui/styles.css";
 import "../../../src/styles.css";
-import { AdminDashboardPage } from "../../../src/pages/AdminDashboardPage";
-import { AdminMenuPage } from "../../../src/pages/AdminMenuPage";
-import { AdminOrdersPage } from "../../../src/pages/AdminOrdersPage";
-import { AdminTablesPage } from "../../../src/pages/AdminTablesPage";
-import { AdminTableSessionsPage } from "../../../src/pages/admin/AdminTableSessionsPage";
-import { AdminCategoriesPage } from "../../../src/pages/admin/AdminCategoriesPage";
+import "../../../src/components/operations/operations.css";
+import { MenuHubPage } from "../../../src/pages/admin/MenuHubPage";
+import { OrdersHubPage } from "../../../src/pages/admin/OrdersHubPage";
+import { RoleLandingPage } from "../../../src/pages/admin/RoleLandingPage";
+import { TableHubPage } from "../../../src/pages/admin/TableHubPage";
 import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManagementPage";
 import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
 import { AdminLoyaltyPage } from "../../../src/pages/admin/AdminLoyaltyPage";
 import { AdminReportsPage } from "../../../src/pages/admin/AdminReportsPage";
-import { RoleAccessPage } from "../../../src/pages/admin/RoleAccessPage";
 import { KitchenPage } from "../../../src/pages/KitchenPage";
-import { StaffOrdersPage } from "../../../src/pages/StaffOrdersPage";
-import { AdminInvoicesPage } from "../../../src/pages/AdminInvoicesPage";
-import { CounterWorkspacePage } from "../../../src/pages/counter/CounterWorkspacePage";
+import { CounterHubPage } from "../../../src/pages/counter/CounterHubPage";
+import { OpsNavBadgesProvider, useOpsNavBadges } from "../../../src/components/operations/OpsNavBadgesProvider";
+import { OpsToastProvider } from "../../../src/components/operations/OpsToastProvider";
+import { OpsRealtimeProvider } from "../../../src/components/operations/OpsRealtimeProvider";
+import { OpsAssistanceProvider } from "../../../src/components/operations/OpsAssistanceProvider";
+import { CounterMobileShell } from "../../../src/components/operations/CounterMobileShell";
 import {
-  LayoutDashboard, BookOpen, Tag, ShoppingBag, Receipt,
-  QrCode, Users, ClipboardList, ChefHat,
-  BadgePercent, Star, BarChart3, Armchair, ShieldCheck,
+  Activity,
+  BookOpen,
+  ShoppingBag,
+  Receipt,
+  Users,
+  ClipboardList,
+  ChefHat,
+  BadgePercent,
+  Star,
+  BarChart3,
+  Armchair,
 } from "lucide-react";
 
 const roleRedirects = {
@@ -44,30 +54,26 @@ const roleRedirects = {
   Kitchen: "/kitchen/board",
 } as const;
 
-const adminLinks = [
-  { to: "/", label: "Tổng quan", icon: <LayoutDashboard size={18} /> },
+const BASE_ADMIN_LINKS: PortalLink[] = [
+  { to: "/", label: "Trung tâm", icon: <Activity size={18} />, section: "Vận hành" },
   { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} />, section: "Vận hành" },
-  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} />, section: "Vận hành" },
-  { to: "/invoices", label: "Hóa đơn", icon: <Receipt size={18} />, section: "Vận hành" },
+  { to: "/tables", label: "Bàn", icon: <Armchair size={18} />, section: "Vận hành" },
   { to: "/counter", label: "Quầy thu ngân", icon: <Receipt size={18} />, section: "Vận hành" },
   { to: "/kitchen/board", label: "Bảng bếp", icon: <ChefHat size={18} />, section: "Vận hành" },
   { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} />, section: "Danh mục" },
-  { to: "/categories", label: "Danh mục", icon: <Tag size={18} />, section: "Danh mục" },
   { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} />, section: "Khách hàng" },
   { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} />, section: "Khách hàng" },
   { to: "/reports", label: "Báo cáo", icon: <BarChart3 size={18} />, section: "Hệ thống" },
-  { to: "/access", label: "Phân quyền", icon: <ShieldCheck size={18} />, section: "Hệ thống" },
-  { to: "/tables", label: "Bàn & QR", icon: <QrCode size={18} />, section: "Hệ thống" },
   { to: "/users", label: "Người dùng", icon: <Users size={18} />, section: "Hệ thống" },
 ];
 
-const counterLinks = [
-  { to: "/counter", label: "Quầy thu ngân", icon: <Receipt size={18} /> },
+const BASE_COUNTER_LINKS: PortalLink[] = [
+  { to: "/counter?tab=payments", label: "Quầy thu ngân", icon: <Receipt size={18} /> },
   { to: "/orders", label: "Đơn hàng", icon: <ClipboardList size={18} /> },
-  { to: "/sessions", label: "Phiên bàn", icon: <Armchair size={18} /> },
+  { to: "/tables", label: "Bàn", icon: <Armchair size={18} /> },
 ];
 
-const kitchenLinks = [
+const kitchenLinks: PortalLink[] = [
   { to: "/kitchen/board", label: "Bảng bếp", icon: <ChefHat size={18} /> },
 ];
 
@@ -94,34 +100,46 @@ function CustomerTableRedirect() {
   return <main className="cmc-redirect-page"><h1>Đang mở ứng dụng gọi món</h1></main>;
 }
 
-function RoleLandingRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="cmc-state" role="status">Đang xác minh phiên đăng nhập...</div>;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role === "Kitchen") return <Navigate to="/kitchen/board" replace />;
-  if (user.role === "CounterStaff" || user.role === "Staff") return <Navigate to="/counter" replace />;
-  if (user.role === "Admin") return <AdminDashboardPage />;
-  return <Navigate to="/login" replace />;
-}
-
 function RoleAwareOpsShell() {
   const { user, loading } = useAuth();
+  const { badges } = useOpsNavBadges();
+
+  const adminLinks = useMemo(() => BASE_ADMIN_LINKS.map((link) => ({
+    ...link,
+    badge: link.to === "/orders" ? badges.orders
+      : link.to === "/counter" ? badges.counter
+        : link.to === "/tables" ? badges.tables
+          : link.to === "/kitchen/board" ? badges.kitchen
+            : undefined,
+  })), [badges]);
+
+  const counterLinks = useMemo(() => BASE_COUNTER_LINKS.map((link) => ({
+    ...link,
+    badge: link.to === "/orders" ? badges.orders
+      : link.to === "/counter" ? badges.counter
+        : link.to === "/tables" ? badges.tables
+          : undefined,
+  })), [badges]);
+
   if (loading) return <div className="cmc-state" role="status">Đang xác minh phiên đăng nhập...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === "Kitchen") {
-    return <OpsShell title="Bảng bếp" subtitle="Theo dõi thời gian thực" links={kitchenLinks} />;
+    return <OperationsLayout title="Bảng bếp" subtitle="Theo dõi thời gian thực" links={kitchenLinks} />;
   }
   if (user.role === "CounterStaff" || user.role === "Staff") {
-    return <OpsShell title="Quầy vận hành" subtitle="Thu ngân & phiên bàn" links={counterLinks} />;
+    return (
+      <OperationsLayout
+        title="Quầy vận hành"
+        subtitle="Thu ngân & phiên bàn"
+        links={counterLinks}
+        bottomNav={<CounterMobileShell />}
+      />
+    );
   }
   if (user.role === "Admin") {
-    return <OpsShell title="CMC Operations" subtitle="Vận hành nhà hàng" links={adminLinks} />;
+    return <OperationsLayout title="CMC Operations" subtitle="Vận hành nhà hàng" links={adminLinks} />;
   }
   return <Navigate to="/login" replace />;
-}
-
-function OpsShell({ title, subtitle, links }: { title: string; subtitle: string; links: typeof adminLinks }) {
-  return <OperationsLayout title={title} subtitle={subtitle} links={links} />;
 }
 
 const router = createBrowserRouter([
@@ -145,21 +163,21 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <RoleLandingRedirect /> },
-      { path: "menu", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminMenuPage /></ProtectedRoute> },
-      { path: "categories", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminCategoriesPage /></ProtectedRoute> },
-      { path: "orders", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><AdminOrdersPage /></ProtectedRoute> },
-      { path: "invoices", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><AdminInvoicesPage /></ProtectedRoute> },
+      { index: true, element: <RoleLandingPage /> },
+      { path: "menu", element: <ProtectedRoute allowedRoles={["Admin"]}><MenuHubPage /></ProtectedRoute> },
+      { path: "categories", element: <Navigate to="/menu?tab=categories" replace /> },
+      { path: "orders", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><OrdersHubPage /></ProtectedRoute> },
+      { path: "invoices", element: <Navigate to="/counter?tab=invoices" replace /> },
       { path: "promotions", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminPromotionsPage /></ProtectedRoute> },
       { path: "loyalty", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminLoyaltyPage /></ProtectedRoute> },
       { path: "reports", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminReportsPage /></ProtectedRoute> },
-      { path: "access", element: <ProtectedRoute allowedRoles={["Admin"]}><RoleAccessPage /></ProtectedRoute> },
-      { path: "sessions", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><AdminTableSessionsPage /></ProtectedRoute> },
-      { path: "tables", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminTablesPage /></ProtectedRoute> },
+      { path: "access", element: <Navigate to="/users" replace /> },
+      { path: "sessions", element: <Navigate to="/tables?tab=sessions" replace /> },
+      { path: "tables", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><TableHubPage /></ProtectedRoute> },
       { path: "users", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminUserManagementPage /></ProtectedRoute> },
-      { path: "counter", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><CounterWorkspacePage /></ProtectedRoute> },
+      { path: "counter", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><CounterHubPage /></ProtectedRoute> },
       { path: "staff/orders", element: <Navigate to="/orders" replace /> },
-      { path: "staff/payments", element: <Navigate to="/counter" replace /> },
+      { path: "staff/payments", element: <Navigate to="/counter?tab=payments" replace /> },
       { path: "staff", element: <Navigate to="/counter" replace /> },
       { path: "kitchen", element: <Navigate to="/kitchen/board" replace /> },
       { path: "kitchen/board", element: <ProtectedRoute allowedRoles={["Admin", "Kitchen"]}><KitchenPage /></ProtectedRoute> },
@@ -171,7 +189,15 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
-      <RouterProvider router={router} />
+      <OpsRealtimeProvider>
+        <OpsAssistanceProvider>
+          <OpsNavBadgesProvider>
+            <OpsToastProvider>
+              <RouterProvider router={router} />
+            </OpsToastProvider>
+          </OpsNavBadgesProvider>
+        </OpsAssistanceProvider>
+      </OpsRealtimeProvider>
     </AuthProvider>
   </StrictMode>,
 );
