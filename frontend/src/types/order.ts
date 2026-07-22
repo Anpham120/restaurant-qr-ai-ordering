@@ -240,7 +240,9 @@ export type PaymentRequestedRealtimeEvent = {
     orderCode: string;
     method: RequestedPaymentMethod;
     status: PaymentStatus;
+    amount: number;
     updatedAt: string;
+    tableCode: string | null;
   };
 };
 

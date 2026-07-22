@@ -6,10 +6,11 @@ import { api } from "../../services/apiClient";
 import { Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import "../operations/operations.css";
 
-const ROLES: UserRole[] = ["Customer", "Staff", "Kitchen", "Admin"];
+const ROLES: UserRole[] = ["Customer", "Staff", "CounterStaff", "Kitchen", "Admin"];
 
 const ROLE_LABELS: Record<string, string> = {
   Staff: "Nhân viên phục vụ",
+  CounterStaff: "Nhân viên quầy",
   Kitchen: "Nhân viên bếp",
   Admin: "Quản trị viên",
   Customer: "Khách hàng",
@@ -167,6 +168,10 @@ export function AdminUserManager() {
       <div className="ops-page-header">
         <h1>Người dùng</h1>
         <p>Thêm, sửa, xóa tài khoản, phân quyền và đặt lại mật khẩu</p>
+      </div>
+
+      <div className="ops-notice ops-notice--info" style={{ marginBottom: "1rem" }}>
+        <strong>Phạm vi vai trò:</strong> Quản trị viên — toàn bộ cấu hình và báo cáo. Nhân viên quầy — thu ngân, đơn hàng, bàn (xem). Nhân viên bếp — bảng bếp và đơn. Phân quyền chi tiết theo vai trò được gán khi tạo hoặc sửa tài khoản.
       </div>
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}

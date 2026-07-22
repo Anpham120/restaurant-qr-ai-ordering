@@ -73,6 +73,8 @@ def run_method(
     top_k: int = 10,
     allow_frozen_test: bool = False,
     encoder: EmbeddingEncoder | None = None,
+    apply_menu_filters: bool = True,
+    with_rerank: bool = False,
 ) -> dict[str, object]:
     validate_experiment_request(
         method=method.value,
@@ -88,6 +90,8 @@ def run_method(
         split=split,
         top_k=top_k,
         allow_frozen_test=allow_frozen_test,
+        apply_menu_filters=apply_menu_filters,
+        with_rerank=with_rerank,
     )
     if encoder is not None and method is not RetrievalMethod.BM25:
         result["resource_profile"] = {
@@ -104,6 +108,8 @@ def run_comparison(
     top_k: int = 10,
     allow_frozen_test: bool = False,
     encoder: EmbeddingEncoder | None = None,
+    apply_menu_filters: bool = True,
+    with_rerank: bool = False,
 ) -> dict[str, object]:
     if not methods:
         raise ValueError("At least one retrieval method is required")
@@ -133,6 +139,8 @@ def run_comparison(
             top_k=top_k,
             allow_frozen_test=allow_frozen_test,
             encoder=method_encoder,
+            apply_menu_filters=apply_menu_filters,
+            with_rerank=with_rerank,
         )
 
     results = {name: executed_results[name] for name in sorted(executed_results)}
@@ -281,6 +289,16 @@ def _parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Required before opening the frozen test split.",
     )
+    parser.add_argument(
+        "--no-menu-filters",
+        action="store_true",
+        help="Ablation: skip production menu filters on menu retrieval cases.",
+    )
+    parser.add_argument(
+        "--with-rerank",
+        action="store_true",
+        help="Apply optional cross-encoder rerank on knowledge retrieval cases.",
+    )
     return parser.parse_args(arguments)
 
 
@@ -297,6 +315,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             DatasetSplit(args.split),
             top_k=args.top_k,
             allow_frozen_test=args.allow_frozen_test,
+            apply_menu_filters=not args.no_menu_filters,
+            with_rerank=args.with_rerank,
         )
     except (PermissionError, RuntimeError) as error:
         print(str(error), file=sys.stderr)

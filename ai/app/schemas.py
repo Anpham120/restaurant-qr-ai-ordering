@@ -78,3 +78,4 @@ class ChatResponse(BaseModel):
     follow_up: FollowUp = Field(default_factory=FollowUp)
     suggest_staff_handoff: bool = False
     latency_ms: dict[str, float | str] = Field(default_factory=dict)
+    updated_rolling_summary: str | None = None

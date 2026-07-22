@@ -49,6 +49,26 @@ export class CartApiError extends Error {
   }
 }
 
+const CART_ERROR_MESSAGES: Record<string, string> = {
+  TABLE_INVOICE_PAYMENT_PENDING: "Bàn đang chờ thanh toán. Không thể thêm món mới.",
+  TABLE_SESSION_SETTLED: "Bàn đã thanh toán xong. Vui lòng quét QR để mở phiên mới.",
+  MENU_ITEM_UNAVAILABLE: "Món này tạm hết.",
+  MENU_ITEM_NOT_FOUND: "Không tìm thấy món trong thực đơn.",
+  TABLE_SESSION_TOKEN_MISSING: "Phiên bàn chưa sẵn sàng. Vui lòng quét lại QR trên bàn.",
+  TABLE_SESSION_EXPIRED: "Phiên bàn đã hết hạn. Vui lòng quét lại QR trên bàn.",
+  TABLE_SESSION_CLOSED: "Phiên bàn đã đóng. Vui lòng quét lại QR trên bàn.",
+};
+
+export function formatCartErrorMessage(error: unknown, fallback = "Không cập nhật được giỏ hàng. Vui lòng thử lại."): string {
+  if (error instanceof CartApiError) {
+    return CART_ERROR_MESSAGES[error.code] ?? error.message ?? fallback;
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
 function getSessionAuth(tableSessionId: string) {
   const capability = browserSessionCapabilityStore.read();
   if (capability.sessionId !== tableSessionId || !capability.sessionToken) {

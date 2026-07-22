@@ -108,13 +108,14 @@ export function SessionOrdersPage() {
   }, [connectionStatus, loadOrders]);
 
   useEffect(() => {
-    if (!loading && searchParams.get("focus") === "invoice") {
+    if (!loading && (searchParams.get("focus") === "invoice" || searchParams.get("highlight"))) {
       invoiceRef.current?.scrollIntoView({ block: "start" });
     }
   }, [loading, searchParams]);
 
+  const highlightCode = searchParams.get("highlight");
   const hubState = deriveSessionHubState(
-    orders.map(order => order.status),
+    orders.map((order) => order.status),
     invoice?.status ?? null,
   );
   const itemProgress = useMemo(() => {
@@ -179,7 +180,17 @@ export function SessionOrdersPage() {
           <p>{stateDescription}</p>
         </div>
         <div className="ordering-state-actions">
-          {hubState === "New" || hubState === "OrderInProgress" ? <Link to="../menu">{t(hubState === "New" ? "Gọi món" : "Gọi thêm món")}</Link> : null}
+          {hubState === "New" || hubState === "OrderInProgress" ? (
+            <Link to="../menu">{t(hubState === "New" ? "Gọi món" : "Gọi thêm món")}</Link>
+          ) : null}
+          {hubState === "ReadyForPayment" || hubState === "PaymentPending" ? (
+            <>
+              <Link to="../menu">{t("Gọi thêm trước khi thanh toán")}</Link>
+              <button type="button" onClick={() => invoiceRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })}>
+                {t("Thanh toán hóa đơn")}
+              </button>
+            </>
+          ) : null}
           <button type="button" onClick={() => void loadOrders(false)}>{t("Làm mới")}</button>
         </div>
         <ol className="ordering-journey" aria-label={t("Tiến trình phiên bàn")}>
@@ -226,7 +237,7 @@ export function SessionOrdersPage() {
       {orders.length > 0 ? <h2 className="ordering-orders-title">{t("Món đã gọi")}</h2> : null}
       <div className="ordering-orders-list">
         {orders.map((order) => (
-          <article className="ordering-order-card" key={order.orderId}>
+          <article className={`ordering-order-card${order.orderCode === highlightCode ? " is-highlight" : ""}`} key={order.orderId}>
             <header>
               <div><strong>{order.orderCode}</strong><span>{formatDateTime(order.createdAt)}</span></div>
               <Link to={order.orderCode}>{t("Chi tiết")}</Link>

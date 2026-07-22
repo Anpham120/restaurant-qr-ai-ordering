@@ -38,6 +38,15 @@ def _is_avoidance_context(content: str) -> bool:
     return marker_count >= 2
 
 
+def _is_allergy_advisory_response(content: str) -> bool:
+    """Allergy-safe guidance that intentionally avoids naming specific menu picks."""
+    normalized = normalize_query_text(content)
+    return (
+        any(term in normalized for term in ("di ung", "allerg", "an toan", "lan cheo", "nhiem cheo"))
+        and any(term in normalized for term in ("nhan vien", "xac nhan", "khong the cam ket", "bao truoc"))
+    )
+
+
 def strip_menu_ids(content: str) -> str:
     """Remove internal menu item ids (m_xxx) from customer-facing prose."""
 
@@ -64,12 +73,15 @@ def ground_response_content(
     menu_names = _menu_name_index(menu_items)
 
     if wants_recommendations and not actions:
-        flags.append("MENU_FABRICATION_BLOCKED")
+        if not _is_avoidance_context(content) and not _is_allergy_advisory_response(content):
+            flags.append("MENU_FABRICATION_BLOCKED")
 
     # When the response is an allergy/dietary avoidance context (listing dishes
     # to AVOID), dish names are informational warnings, not fabricated recommendations.
     if _is_avoidance_context(content):
         pass  # skip ungrounded dish check entirely
+    elif not wants_recommendations:
+        pass  # FAQ/KB/policy answers are not menu recommendation lists
     elif _content_has_ungrounded_dishes(content, menu_names):
         flags.append("MENU_FABRICATION_BLOCKED")
         if actions:
@@ -131,11 +143,7 @@ def _content_has_ungrounded_dishes(content: str, menu_names: dict[str, str]) -> 
     candidate_lines = _candidate_dish_lines(content)
     if candidate_lines:
         ungrounded = [line for line in candidate_lines if not _line_matches_menu(line, menu_names)]
-        if not ungrounded:
-            return False
-        if len(ungrounded) == len(candidate_lines):
-            return True
-        return len(ungrounded) >= max(1, len(candidate_lines) // 2)
+        return bool(ungrounded)
 
     if _content_mentions_known_menu_name(content, menu_names):
         return False
@@ -144,9 +152,6 @@ def _content_has_ungrounded_dishes(content: str, menu_names: dict[str, str]) -> 
 
 
 def _content_has_fabricated_dish_names(content: str, menu_names: dict[str, str]) -> bool:
-    if _content_mentions_known_menu_name(content, menu_names):
-        return False
-
     phrases = _extract_dish_phrases(content) + _extract_prose_dish_phrases(content)
     if not phrases:
         return False
@@ -156,7 +161,7 @@ def _content_has_fabricated_dish_names(content: str, menu_names: dict[str, str])
         for phrase in phrases
         if not _fuzzy_matches_menu(phrase, menu_names)
     ]
-    return len(fabricated) >= max(1, len(phrases) // 2)
+    return bool(fabricated)
 
 
 # Segments containing these markers are advisory/meta prose, not dish names.

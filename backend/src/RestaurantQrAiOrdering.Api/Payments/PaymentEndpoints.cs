@@ -195,7 +195,8 @@ public static class PaymentEndpoints
                     payment.Method.ToString(),
                     payment.Status.ToString(),
                     payment.Amount,
-                    payment.UpdatedAt),
+                    payment.UpdatedAt,
+                    payment.Order.TableCode),
                 payment.Order.TableCode,
                 cancellationToken);
 

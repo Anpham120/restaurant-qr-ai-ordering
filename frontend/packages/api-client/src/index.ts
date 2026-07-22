@@ -2,6 +2,7 @@ import type {
   AdminCategory,
   AdminCategoryRequest,
   AdminTableListResponse,
+  AdminTable,
   ApiErrorBody,
   AuthUser,
   ChangePasswordRequest,
@@ -90,6 +91,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
     tables: {
       get: (code: string) => request<Table>(`/tables/${encodeURIComponent(code)}`),
       listAdmin: () => request<AdminTableListResponse>("/admin/tables"),
+      createAdmin: (payload: { tableCode?: string | null; displayName: string }) =>
+        request<AdminTable>("/admin/tables", { method: "POST", body: JSON.stringify(payload) }),
+      updateAdmin: (tableCode: string, payload: { displayName?: string; isActive?: boolean }) =>
+        request<AdminTable>(`/admin/tables/${encodeURIComponent(tableCode)}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }),
+      rotateQr: (tableCode: string) =>
+        request<AdminTable>(`/admin/tables/${encodeURIComponent(tableCode)}/qr/rotate`, { method: "POST" }),
       listAdminSessions: (status?: string) => {
         const query = status ? `?status=${encodeURIComponent(status)}` : "";
         return request<AdminTableSessionListResponse>(`/admin/table-sessions${query}`);

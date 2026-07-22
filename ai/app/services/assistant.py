@@ -22,16 +22,18 @@ from app.rag.conversation_policy import (
     enforce_suggestion_policy,
     infer_suggested_actions_from_content,
 )
+from app.rag.rolling_summary import update_rolling_summary
 from app.rag.embedding_retriever import EmbeddingEncoder, create_encoder
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
-from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
+from app.rag.pairing_recommendation_fast_path import try_pairing_recommendation_fast_path
 from app.rag.menu_exclusions import (
     detect_excluded_category_ids,
     filter_items_by_excluded_categories,
     recommendation_intro,
 )
 from app.rag.menu_grounding import MenuCandidateRetriever
+from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import filter_items_by_kind
 from app.rag.menu_query_filters import (
     has_allergy_avoidance_context,
@@ -184,19 +186,20 @@ class AiAssistantService:
                 context,
                 early.get("suggested_cart_actions") or [],
             )
+            early = _finalize_response_payload(early, context)
             yield {"type": "token", "data": {"text": early["content"]}}
             yield {"type": "final", "data": early}
             yield {"type": "done", "data": {"ok": True}}
             return
 
         if context.get("cached_response") is not None:
-            cached = context["cached_response"]
+            cached = _finalize_response_payload(dict(context["cached_response"]), context)
             yield {"type": "token", "data": {"text": cached["content"]}}
             yield {"type": "final", "data": cached}
             yield {"type": "done", "data": {"ok": True}}
             return
 
-        if self._client is None:
+        if self._client is None or not context.get("should_call_llm", True):
             menu_fallback = _build_menu_based_fallback(context)
             if menu_fallback is not None:
                 answer, suggested_actions, flags = menu_fallback
@@ -221,6 +224,7 @@ class AiAssistantService:
                 follow_up=follow_up,
                 suggest_staff_handoff=context["suggest_staff_handoff"],
                 stages=context["stages"],
+                context=context,
             )
             yield {"type": "token", "data": {"text": fallback["content"]}}
             yield {"type": "final", "data": fallback}
@@ -283,23 +287,29 @@ class AiAssistantService:
         if context.get("early_response") is not None:
             stages["total"] = round((time.perf_counter() - started) * 1000, 1)
             early = context["early_response"]
+            early_path = (early.get("latency_ms") or {}).get("path")
+            if early_path:
+                stages["path"] = early_path
             early["suggested_cart_actions"] = _finalize_suggested_actions(
                 context,
                 early.get("suggested_cart_actions") or [],
             )
-            early["latency_ms"] = stages
+            early["latency_ms"] = {**stages}
+            early = _finalize_response_payload(early, context)
             return early, stages
         if context.get("cached_response") is not None:
             stages["total"] = round((time.perf_counter() - started) * 1000, 1)
-            context["cached_response"]["latency_ms"] = stages
-            return context["cached_response"], stages
+            stages["path"] = "cache_hit"
+            cached = _finalize_response_payload(dict(context["cached_response"]), context)
+            cached["latency_ms"] = {**stages}
+            return cached, stages
 
         provider_available = False
         answer: str | None = None
         suggested_actions: list[dict] = []
         flags = list(context["flags"])
 
-        if self._client is not None:
+        if self._client is not None and context.get("should_call_llm", True):
             llm_started = time.perf_counter()
             try:
                 async with asyncio.timeout(self._config.llm_timeout_seconds):
@@ -332,7 +342,8 @@ class AiAssistantService:
         if not answer:
             menu_fallback = _build_menu_based_fallback(context)
             if menu_fallback is not None:
-                answer, suggested_actions, flags = menu_fallback
+                answer, suggested_actions, fallback_flags = menu_fallback
+                flags = _dedupe([*flags, *fallback_flags])
             else:
                 answer = build_fallback_answer(message, context["chunks"])
 
@@ -346,6 +357,7 @@ class AiAssistantService:
             follow_up=context["follow_up"],
             suggest_staff_handoff=context["suggest_staff_handoff"],
             stages=stages,
+            context=context,
         )
 
         if provider_available:
@@ -360,6 +372,12 @@ class AiAssistantService:
             )
 
         stages["total"] = round((time.perf_counter() - started) * 1000, 1)
+        if provider_available:
+            stages["path"] = "llm"
+        elif not context.get("should_call_llm", True):
+            stages["path"] = "fallback_no_llm"
+        else:
+            stages["path"] = "fallback"
         response["latency_ms"] = stages
         logger.info("chat latency_ms=%s", stages)
         return response, stages
@@ -384,6 +402,9 @@ class AiAssistantService:
 
         extract_started = time.perf_counter()
         constraints = extract_constraints(message, history)
+        payload_language = str(payload.get("language") or "").strip()
+        if payload_language in {"vi", "en"}:
+            constraints = {**constraints, "language": payload_language}
         excluded_category_ids = detect_excluded_category_ids(message, history)
         policy = build_conversation_policy(
             message,
@@ -468,7 +489,7 @@ class AiAssistantService:
 
         catalog_response = _try_catalog_fast_path(message, constraints, menu_items, excluded_ids)
         if catalog_response is not None:
-            catalog_response["latency_ms"] = stages
+            catalog_response["latency_ms"] = {**stages, "path": "catalog_fast_path"}
             return _early_context_response(catalog_response, stages, policy, available_menu_items)
 
         party_fast_path = try_party_recommendation_fast_path(
@@ -482,14 +503,22 @@ class AiAssistantService:
             party_fast_path["latency_ms"] = {**stages, "path": "party_fast_path"}
             return _early_context_response(party_fast_path, stages, policy, available_menu_items)
 
+        pairing_fast_path = try_pairing_recommendation_fast_path(
+            message,
+            intent=intent_result.intent,
+            policy=policy,
+            menu_items=available_menu_items,
+        )
+        if pairing_fast_path is not None:
+            pairing_fast_path["latency_ms"] = {**stages, "path": "pairing_fast_path"}
+            return _early_context_response(pairing_fast_path, stages, policy, available_menu_items)
+
         rewrite_started = time.perf_counter()
-        rewritten = rewrite_query(message, history)
+        rewritten = rewrite_query(message, history, intent=intent_result)
         search_query = rewritten if rewritten != message else message
         stages["rewrite"] = round((time.perf_counter() - rewrite_started) * 1000, 1)
 
-        from app.rag.intent_classifier import classify_intent_with_history
-
-        intent = classify_intent_with_history(message, history)
+        intent = intent_result
         rag_top_k = 5 if intent.intent in RECOMMEND_INTENTS or intent.intent in FAQ_POLICY_INTENTS else 3
 
         retrieval_started = time.perf_counter()
@@ -502,7 +531,7 @@ class AiAssistantService:
         flags = _dedupe([*detect_guardrail_flags(message), *intent_flags])
         if allergen_context:
             flags = _dedupe([*flags, "ALLERGY_DISCLAIMER"])
-        confidence = compute_retrieval_confidence(retrieved)
+        confidence = compute_retrieval_confidence(retrieved, intent=intent.intent)
         if confidence.guardrail_flag:
             flags = _dedupe([*flags, confidence.guardrail_flag])
 
@@ -543,7 +572,7 @@ class AiAssistantService:
                     is_solo_dining=bool(constraints.get("is_solo_dining")),
                 )
         if kb_fast_path is not None:
-            kb_fast_path["latency_ms"] = stages
+            kb_fast_path["latency_ms"] = {**stages, "path": "kb_fast_path"}
             return _early_context_response(kb_fast_path, stages, policy, available_menu_items)
 
         budget_picks: list[dict[str, Any]] = []
@@ -620,6 +649,9 @@ class AiAssistantService:
             "follow_up": follow_up,
             "suggest_staff_handoff": suggest_staff_handoff,
             "confidence_score": confidence.score,
+            "should_call_llm": confidence.should_call_llm,
+            "confidence_level": confidence.level,
+            "intent": intent,
         }
 
 
@@ -674,6 +706,7 @@ def _finalize_llm_response(
         follow_up=follow_up,
         suggest_staff_handoff=context["suggest_staff_handoff"],
         stages=context["stages"],
+        context=context,
     )
 
     if provider_available:
@@ -716,7 +749,7 @@ def _build_menu_based_fallback(
             seed=context.get("session_id") or context["message"],
         ),
     )
-    flags = _dedupe([*context["flags"], "AI_PROVIDER_UNAVAILABLE", "CUSTOMER_CONFIRMATION_REQUIRED"])
+    flags = _dedupe([*context["flags"], "CUSTOMER_CONFIRMATION_REQUIRED"])
     return content, actions, flags
 
 
@@ -744,6 +777,7 @@ def _build_llm_messages(message: str, context: dict[str, Any], payload: dict) ->
         rag_top_k=context["rag_top_k"],
         wants_recommendations=context["policy"].wants_recommendations,
         party_size=context["policy"].party_size or context["constraints"].get("party_size"),
+        intent=str(getattr(context.get("intent"), "intent", None) or ""),
     )
 
 
@@ -828,6 +862,38 @@ def _apply_parsed_response(
     return content, suggested_actions, merged_flags
 
 
+def _attach_rolling_summary(
+    response: dict[str, Any],
+    context: dict[str, Any],
+    *,
+    content: str,
+    suggested_actions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    updated = update_rolling_summary(
+        str(context.get("rolling_summary") or ""),
+        user_message=str(context.get("message") or ""),
+        assistant_content=content,
+        suggested_actions=suggested_actions,
+        constraints=context.get("constraints") or {},
+        facts=context.get("facts") or [],
+    )
+    if updated:
+        response["updated_rolling_summary"] = updated
+    return response
+
+
+def _finalize_response_payload(
+    response: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    return _attach_rolling_summary(
+        response,
+        context,
+        content=str(response.get("content") or ""),
+        suggested_actions=list(response.get("suggested_cart_actions") or []),
+    )
+
+
 def _build_response_from_parts(
     content: str,
     *,
@@ -839,10 +905,11 @@ def _build_response_from_parts(
     follow_up: FollowUp,
     suggest_staff_handoff: bool,
     stages: dict[str, float],
+    context: dict[str, Any] | None = None,
 ) -> dict:
     from app.rag.content_grounding import strip_menu_ids
 
-    return ChatResponse(
+    result = ChatResponse(
         content=strip_menu_ids(content),
         provider_available=provider_available,
         model=model,
@@ -860,6 +927,9 @@ def _build_response_from_parts(
         suggest_staff_handoff=suggest_staff_handoff,
         latency_ms=stages,
     ).model_dump()
+    if context is not None:
+        return _finalize_response_payload(result, context)
+    return result
 
 
 def _is_cacheable(constraints: dict[str, Any]) -> bool:
@@ -913,6 +983,8 @@ def _try_catalog_fast_path(
     menu_items: list[dict[str, Any]],
     excluded_ids: frozenset[str],
 ) -> dict[str, Any] | None:
+    if "CUSTOMER_CONFIRMATION_REQUIRED" in detect_guardrail_flags(message):
+        return None
     if not constraints.get("is_catalog_only"):
         return None
     if not constraints.get("category"):

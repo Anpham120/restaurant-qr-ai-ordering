@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -198,16 +199,18 @@ function ChangePasswordControl() {
   );
 }
 
-export type PortalLink = { to: string; label: string; icon?: React.ReactNode; section?: string };
+export type PortalLink = { to: string; label: string; icon?: React.ReactNode; section?: string; badge?: number };
 
 export function OperationsLayout({
   title,
   subtitle,
   links,
+  bottomNav,
 }: {
   title: string;
   subtitle: string;
   links: PortalLink[];
+  bottomNav?: React.ReactNode;
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -239,12 +242,23 @@ export function OperationsLayout({
     };
   }, [drawerOpen]);
 
+  const mobileTitle = useMemo(() => {
+    const pathname = location.pathname;
+    if (pathname === "/" || pathname === "") {
+      return links.find((link) => link.to === "/")?.label ?? title;
+    }
+    const match = links.find(
+      (link) => pathname === link.to || (link.to !== "/" && pathname.startsWith(`${link.to}/`)),
+    );
+    return match?.label ?? title;
+  }, [links, location.pathname, title]);
+
   return (
     <div className="cmc-operations-shell">
       <header className="cmc-mobile-topbar">
         <div className="cmc-brand cmc-brand--compact">
           <span className="cmc-brand-mark">CMC</span>
-          <strong>{title}</strong>
+          <strong>{mobileTitle}</strong>
         </div>
         <button
           type="button"
@@ -289,7 +303,10 @@ export function OperationsLayout({
                   onClick={() => setDrawerOpen(false)}
                 >
                   {link.icon ? <span className="cmc-nav-icon">{link.icon}</span> : null}
-                  {link.label}
+                  <span className="cmc-nav-link-label">{link.label}</span>
+                  {link.badge && link.badge > 0 ? (
+                    <span className="cmc-nav-badge">{link.badge > 99 ? "99+" : link.badge}</span>
+                  ) : null}
                 </NavLink>
               </div>
             );
@@ -318,9 +335,10 @@ export function OperationsLayout({
           </button>
         </div>
       </aside>
-      <main className="cmc-portal-content">
+      <main className={`cmc-portal-content${bottomNav ? " cmc-portal-content--with-bottom-nav" : ""}`}>
         <Outlet />
       </main>
+      {bottomNav}
     </div>
   );
 }

@@ -20,7 +20,7 @@ function matchesFilter(invoice: TableInvoice, filter: FilterTab) {
   return true;
 }
 
-export function AdminInvoicesPage() {
+export function AdminInvoicesPanel({ embedded = false }: { embedded?: boolean }) {
   const [invoices, setInvoices] = useState<TableInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,7 +57,9 @@ export function AdminInvoicesPage() {
 
   return (
     <div>
-      <div className="ops-page-header"><h1>Hóa đơn phiên bàn</h1><p>Mỗi phiên bàn có một hóa đơn tổng, gồm nhiều lần gọi món</p></div>
+      {!embedded ? (
+        <div className="ops-page-header"><h1>Hóa đơn phiên bàn</h1><p>Mỗi phiên bàn có một hóa đơn tổng, gồm nhiều lần gọi món</p></div>
+      ) : null}
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       <div className="ops-stats">
         {stats.map((stat) => <div className="ops-stat-card" key={stat.label}><div className="ops-stat-label">{stat.label}</div><div className="ops-stat-value">{stat.value}</div><div className="ops-stat-detail">{stat.detail}</div></div>)}
@@ -68,7 +70,22 @@ export function AdminInvoicesPage() {
         ))}
         <input className="ops-form-input" onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã hóa đơn, bàn..." style={{ width: 220 }} value={search} />
       </div>
-      <table className="ops-table">
+      <div className="ops-card-list">
+        {filtered.map((invoice) => (
+          <article className="ops-card" key={`card-${invoice.tableSessionId}`}>
+            <div className="ops-card-header">
+              <span className="ops-card-code">{invoice.invoiceCode ?? "Chưa yêu cầu"}</span>
+              <span className="ops-card-table">Bàn {invoice.tableCode ?? "-"}</span>
+            </div>
+            <div className="ops-card-meta">
+              <span className={`ops-badge ops-badge--${invoice.status.toLowerCase()}`}>{invoice.status}</span>
+              <strong>{formatVnd(invoice.totalAmount)}</strong>
+            </div>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => setDetail(invoice)} type="button">Chi tiết</button>
+          </article>
+        ))}
+      </div>
+      <table className="ops-table ops-table-responsive">
         <thead><tr><th>Mã hóa đơn</th><th>Bàn</th><th>Lượt gọi</th><th>Phương thức</th><th>Trạng thái</th><th>Tổng tiền</th><th>Thao tác</th></tr></thead>
         <tbody>
           {filtered.map((invoice) => (
@@ -109,4 +126,8 @@ export function AdminInvoicesPage() {
       ) : null}
     </div>
   );
+}
+
+export function AdminInvoicesPage() {
+  return <AdminInvoicesPanel />;
 }

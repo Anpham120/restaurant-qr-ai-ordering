@@ -3,13 +3,14 @@ import type { Order, OrderListResponse, OrderStatus } from "@cmc/shared-types";
 import { confirmOrderPayment, refundOrderPayment } from "../../services/orderService";
 import { failOrderPayment } from "../../services/adminOrderService";
 import { api } from "../../services/apiClient";
+import { useOpsRealtime } from "../../hooks/useOpsRealtime";
 import { Package, RefreshCw, X } from "lucide-react";
 import "../operations/operations.css";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 const ALL_STATUSES: OrderStatus[] = ["Placed", "Confirmed", "Preparing", "Ready", "Served", "Completed", "Cancelled"];
 
-export function AdminOrderManager() {
+export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,6 +35,8 @@ export function AdminOrderManager() {
   }, [filterStatus, filterTable]);
 
   useEffect(() => { setIsLoading(true); load(); }, [load]);
+
+  useOpsRealtime({ refresh: load });
 
   const stats = useMemo(() => {
     const active = orders.filter((o) => !["Completed", "Cancelled"].includes(o.status)).length;
@@ -78,10 +81,12 @@ export function AdminOrderManager() {
 
   return (
     <div>
-      <div className="ops-page-header">
-        <h1>Quản lý đơn hàng</h1>
-        <p>Xem, lọc, cập nhật trạng thái và thanh toán cho tất cả đơn</p>
-      </div>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <h1>Quản lý đơn hàng</h1>
+          <p>Xem, lọc, cập nhật trạng thái và thanh toán cho tất cả đơn</p>
+        </div>
+      ) : null}
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}

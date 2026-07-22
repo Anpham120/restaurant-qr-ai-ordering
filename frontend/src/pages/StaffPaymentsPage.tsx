@@ -1,16 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { TableInvoice } from "@cmc/shared-types";
 import {
   cancelTableInvoicePayment,
   confirmTableInvoicePayment,
   listTableInvoices,
 } from "../services/orderService";
+import { useOpsRealtime } from "../hooks/useOpsRealtime";
+import { matchesTableFilter, normalizeTableCode } from "../components/operations/opsDeepLinkUtils";
 import { Banknote, Check, CreditCard, QrCode, RefreshCw, X } from "lucide-react";
 import "../components/operations/operations.css";
 
 const formatVnd = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 
-export function StaffPaymentsPage() {
+export function StaffPaymentsPage({ embedded = false }: { embedded?: boolean }) {
+  const [searchParams] = useSearchParams();
+  const tableFilter = normalizeTableCode(searchParams.get("table"));
+  const highlightRef = useRef<HTMLElement | null>(null);
   const [invoices, setInvoices] = useState<TableInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,24 +36,30 @@ export function StaffPaymentsPage() {
     loadInvoices().finally(() => setIsLoading(false));
   }, [loadInvoices]);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => void loadInvoices(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [loadInvoices]);
+  useOpsRealtime({ refresh: loadInvoices, pollIntervalMs: 5_000 });
 
   const awaiting = useMemo(
-    () => invoices.filter((invoice) => invoice.status === "Pending"),
-    [invoices],
+    () => {
+      const pending = invoices.filter((invoice) => invoice.status === "Pending");
+      if (!tableFilter) return pending;
+      return pending.filter((invoice) => matchesTableFilter(invoice.tableCode, tableFilter));
+    },
+    [invoices, tableFilter],
   );
   const collected = useMemo(
     () => invoices.filter((invoice) => invoice.status === "Confirmed" || invoice.status === "Paid"),
     [invoices],
   );
   const stats = useMemo(() => [
-    { label: "Bàn chờ thu", value: String(awaiting.length), detail: "Hóa đơn toàn phiên" },
+    { label: "Bàn chờ thu", value: String(awaiting.length), detail: tableFilter ? `Lọc bàn ${tableFilter}` : "Hóa đơn toàn phiên" },
     { label: "Tổng cần thu", value: formatVnd(awaiting.reduce((sum, invoice) => sum + invoice.totalAmount, 0)), detail: "Sau ưu đãi" },
     { label: "Đã xác nhận", value: String(collected.length), detail: "Phiên đã đóng" },
-  ], [awaiting, collected]);
+  ], [awaiting, collected, tableFilter]);
+
+  useEffect(() => {
+    if (!tableFilter || awaiting.length === 0) return;
+    highlightRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [awaiting.length, tableFilter]);
 
   async function runAction(sessionId: string, action: () => Promise<unknown>, successMessage: string) {
     setPendingSessionId(sessionId);
@@ -69,12 +81,18 @@ export function StaffPaymentsPage() {
 
   return (
     <div>
-      <div className="ops-page-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div><h1>Thu ngân</h1><p>Xác nhận thanh toán cho toàn bộ hóa đơn của phiên bàn</p></div>
+      {!embedded ? (
+        <div className="ops-page-header">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div><h1>Thu ngân</h1><p>Xác nhận thanh toán cho toàn bộ hóa đơn của phiên bàn</p></div>
+            <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => void loadInvoices()} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
+          </div>
+        </div>
+      ) : (
+        <div className="ops-toolbar">
           <button className="ops-btn ops-btn--ghost ops-btn--sm" onClick={() => void loadInvoices()} type="button"><RefreshCw aria-hidden="true" size={14} /> Làm mới</button>
         </div>
-      </div>
+      )}
 
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
@@ -89,12 +107,22 @@ export function StaffPaymentsPage() {
         ))}
       </div>
 
+      {tableFilter ? (
+        <div className="ops-notice ops-notice--info">
+          Đang ưu tiên hóa đơn bàn <strong>{tableFilter}</strong>
+        </div>
+      ) : null}
+
       {awaiting.length > 0 ? (
         <section style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Hóa đơn chờ thu ({awaiting.length})</h3>
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-            {awaiting.map((invoice) => (
-              <article className="ops-card" key={invoice.tableSessionId}>
+            {awaiting.map((invoice, index) => (
+              <article
+                className={`ops-card${tableFilter && matchesTableFilter(invoice.tableCode, tableFilter) ? " ops-card--highlight" : ""}`}
+                key={invoice.tableSessionId}
+                ref={index === 0 && tableFilter ? highlightRef : undefined}
+              >
                 <div className="ops-card-header">
                   <span className="ops-card-code">Phiên {invoice.orderRounds.length} lượt gọi</span>
                   <span className="ops-card-table">Bàn {invoice.tableCode}</span>

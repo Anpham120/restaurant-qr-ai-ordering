@@ -7,8 +7,10 @@ Regenerate + execute:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -18,8 +20,10 @@ NOTEBOOK_PATH = AI_ROOT / "notebooks" / "rag_retrieval_research.ipynb"
 RESULTS_DIR = AI_ROOT / "evaluation" / "results"
 GPT55_MODEL = "cx/gpt-5.5"
 DEEPSEEK_MODEL = "oc/deepseek-v4-flash-free"
-GPT55_LLM_ARTIFACT = RESULTS_DIR / "golden_llm_eval_cx_gpt55_v3_full.json"
-DEEPSEEK_LLM_ARTIFACT = RESULTS_DIR / "golden_llm_eval_deepseek_v4_flash_v3_full.json"
+GPT55_LLM_ARTIFACT = RESULTS_DIR / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"
+DEEPSEEK_LLM_ARTIFACT = RESULTS_DIR / "golden_llm_eval_deepseek_v4_full.json"
+GPT55_LLM_ARTIFACT_NAME = GPT55_LLM_ARTIFACT.name
+DEEPSEEK_LLM_ARTIFACT_NAME = DEEPSEEK_LLM_ARTIFACT.name
 # Use a variable for markdown fences so ``` never terminates Python triple-quoted strings.
 _FENCE = "```"
 
@@ -94,6 +98,73 @@ def load_e2e_summary() -> dict:
     return data.get("summary") or {}
 
 
+def _git_short_hash() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=AI_ROOT.parent,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return result.stdout.strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+
+def _requirements_fingerprint() -> str:
+    req_path = AI_ROOT / "requirements.txt"
+    if not req_path.is_file():
+        return "unknown"
+    digest = hashlib.sha256(req_path.read_bytes()).hexdigest()
+    return digest[:12]
+
+
+def build_research_questions_md() -> str:
+    return """## Câu hỏi nghiên cứu (Research Questions)
+
+| RQ | Câu hỏi | Giả thuyết / tiêu chí thắng |
+| --- | --- | --- |
+| **RQ1** | Phương pháp truy xuất nào cân bằng tốt nhất giữa MRR@5 và an toàn trên corpus nhỏ tiếng Việt? | Hybrid RRF ≥ BM25 về nDCG@5 dev, forbidden@10 = 0 |
+| **RQ2** | Rule-based guardrails + menu grounding có đủ cho chatbot nhà hàng không cần ML safety riêng? | safety recall = 100%, forbidden suggestion = 0% trên golden dev |
+| **RQ3** | LLM serving model nào tốt hơn trên cùng rubric composite (grounding + faithfulness proxy)? | So sánh head-to-head trên 234 case, không claim ngoại suy production |"""
+
+
+def build_reproducibility_md() -> str:
+    split_path = AI_ROOT / "evaluation" / "split_manifest.json"
+    split_hash = "unknown"
+    if split_path.is_file():
+        split_hash = hashlib.sha256(split_path.read_bytes()).hexdigest()[:12]
+    return f"""- Toàn bộ số liệu load từ artifact trong repo (`ai/evaluation/results/`) hoặc chạy lại trực tiếp.
+- Dataset split khóa bằng SHA-256 trong `ai/evaluation/split_manifest.json` (fingerprint `{split_hash}`); frozen test chỉ mở một lần.
+- Seed thống kê: 20260713 (bootstrap 10.000 lần).
+- Git commit (repo root): `{_git_short_hash()}`; `requirements.txt` fingerprint: `{_requirements_fingerprint()}`.
+- Môi trường: Python 3.13, `sentence-transformers`, không cần GPU.
+- Kernel cwd kỳ vọng: thư mục `ai/` hoặc `ai/notebooks/` (cell setup tự resolve `AI_ROOT`)."""
+
+
+def build_ablation_md() -> str:
+    dev = _load_json(RESULTS_DIR / "dev_retrieval_summary.v3.json") or {}
+    methods = dev.get("methods") or {}
+    bm25 = methods.get("bm25") or {}
+    hybrid = methods.get("hybrid_e5_small") or {}
+    if not bm25 or not hybrid:
+        return "*Chưa có `dev_retrieval_summary.v3.json` — chạy `run_retrieval_experiment` trước.*"
+    delta_mrr = (hybrid.get("mrr_at_5") or 0) - (bm25.get("mrr_at_5") or 0)
+    delta_ndcg = (hybrid.get("ndcg_at_5") or 0) - (bm25.get("ndcg_at_5") or 0)
+    return f"""## 13c. Ablation retrieval (BM25-only vs hybrid production)
+
+| Method | MRR@5 dev | nDCG@5 dev | forbidden@10 |
+| --- | --- | --- | --- |
+| `bm25` | {_ir(bm25.get('mrr_at_5'))} | {_ir(bm25.get('ndcg_at_5'))} | {_pct(bm25.get('forbidden_at_10'))} |
+| **`hybrid_e5_small`** | **{_ir(hybrid.get('mrr_at_5'))}** | **{_ir(hybrid.get('ndcg_at_5'))}** | **{_pct(hybrid.get('forbidden_at_10'))}** |
+| Δ (hybrid − BM25) | {_ir_delta(delta_mrr)} | {_ir_delta(delta_ndcg)} | — |
+
+Hybrid chỉ cải thiện **{_ir_delta(delta_mrr)}** MRR tuyệt đối — phù hợp với corpus nhỏ, keyword-rich (§13).
+Ablation intent-rerank / query-rewrite chưa có artifact riêng; cần thêm eval flag trong `run_retrieval_experiment`."""
+
+
 def build_abstract_metrics_md() -> str:
     dev = load_dev_hybrid_metrics()
     test = load_test_hybrid_metrics()
@@ -108,7 +179,8 @@ def build_abstract_metrics_md() -> str:
   p95 latency ≈ 28ms, encoder chỉ ~120MB RAM.
 - Đánh giá hành vi end-to-end (không gồm LLM): safety flag recall = **{safety}**,
   forbidden suggestion rate = **{forbidden_e2e}** trên 234 golden case.
-- Bộ smoke test 100 câu hỏi vàng: retrieval hit@5 = **100.00%**, guardrail accuracy = **100.00%**."""
+- Bộ smoke test 36 câu (`golden/smoke_retrieval.jsonl`, CI regression): hit@5 = **100.00%**, guardrail = **100.00%**
+  — *không ngoại suy sang traffic tự do; chỉ smoke regression nội bộ.*"""
 
 
 def build_llm_commentary_md() -> str:
@@ -298,6 +370,9 @@ def build_notebook() -> dict:
     llm_abstract = build_llm_abstract_line()
     llm_commentary = build_llm_commentary_md()
     abstract_metrics = build_abstract_metrics_md()
+    research_questions = build_research_questions_md()
+    reproducibility = build_reproducibility_md()
+    ablation_md = build_ablation_md()
     dev_hybrid = load_dev_hybrid_metrics()
     test_hybrid = load_test_hybrid_metrics()
     e2e_summary = load_e2e_summary()
@@ -319,62 +394,48 @@ def build_notebook() -> dict:
     cells = [
         # ------------------------------------------------------------------ #
         md(
-            f"""# Hệ Thống RAG Cho Chatbot Đặt Món — Nghiên Cứu Xây Dựng, Đánh Giá Và Lựa Chọn Phương Pháp Truy Xuất
+            f"""# Chatbot Đặt Món An Toàn Với FAQ-RAG — Nghiên Cứu Xây Dựng, Đánh Giá Và Lựa Chọn Phương Pháp Truy Xuất
 
 **CMC Restaurant QR AI Ordering — AI/RAG Engineering, 2026-07**
 
 ## Tóm tắt (Abstract)
 
-Notebook này trình bày đầy đủ quá trình xây dựng và đánh giá hệ thống **Retrieval-Augmented
-Generation (RAG)** cho chatbot đặt món nhà hàng tiếng Việt: từ thiết kế dữ liệu tri thức
-(knowledge base), chuẩn hóa tiếng Việt, các phương pháp truy xuất (BM25, dense bi-encoder,
-hybrid RRF), lớp an toàn (guardrails, menu filters), đến giao thức đánh giá có kiểm định
-thống kê trên dev split và frozen test split.
+Notebook này trình bày đầy đủ quá trình xây dựng và đánh giá **chatbot đặt món an toàn**
+cho nhà hàng tiếng Việt, sử dụng kiến trúc **hybrid conversational agent** với
+FAQ-RAG (Retrieval-Augmented Generation) làm backend truy xuất tri thức. Hệ thống ưu tiên
+**policy fast-path** + **menu grounding** cho phần lớn queries; RAG (BM25 + dense bi-encoder
++ hybrid RRF) phục vụ FAQ/chính sách. Đánh giá gồm kiểm định thống kê trên dev + frozen test split.
+
+> **Lưu ý metric:** `faithfulness` trong eval này là **token-overlap proxy** (tỷ lệ từ trong
+> câu trả lời xuất hiện trong context), không phải citation faithfulness dựa trên NLI.
+> `grounding_pass_rate` trong E2E eval (§11) được đo trên pipeline **không có LLM** (fallback deterministic).
 
 Kết quả chính:
 
 {abstract_metrics}
 {llm_abstract}
 
+{research_questions}
+
 ## Mục lục
 
-**Part I — Knowledge Engineering & Data Preparation**
-1. Bài toán & kiến trúc hệ thống
-2. Dữ liệu: knowledge base và menu runtime
-3. Chuẩn hóa tiếng Việt
-4. Thiết kế Knowledge Base — nguyên tắc single source of truth
-5. Làm giàu index — biến thể câu hỏi cho BM25
+*Số mục § khớp thân notebook (một số phần KB đặt cuối như phụ lục).*
 
-**Part II — Retrieval System Design**
-6. RAG hoạt động như thế nào (BM25 → dense → hybrid)
-7. Kết quả dev: so sánh 7 phương pháp
-8. Kiểm định thống kê
-9. Frozen test — kết quả cuối
+**Part I — Bài toán & Dữ liệu:** §1, §2, §3
 
-**Part III — LLM Orchestration & Safety**
-10. Guardrails — lớp an toàn
-11. Menu grounding & bộ lọc ràng buộc
-12. Smart Routing — khi nào cần RAG
-13. Thử nghiệm giới hạn keyword routing
-14. Hybrid intent classification
+**Part II — Truy xuất:** §4, §8, §9, §10
 
-**Part IV — Evaluation & Benchmarking**
-15. Bộ dữ liệu đánh giá & metrics
-16. Đánh giá hành vi end-to-end
-17. Đánh giá LLM thật (so sánh đa model)
-18-19. Intent classification eval
+**Part III — An toàn & Điều phối:** §5, §6, §19, §19a
 
-**Part V — Analysis & Conclusion**
-20. Lý do chọn phương pháp production
-21. Nhận xét khách quan
-22. Kết luận & hướng phát triển
+**Part IV — Đánh giá:** §7, §11, §13b, §13c, §14–§18
+
+**Part V — Phân tích & Kết luận:** §12, §13, §22
+
+**Phụ lục KB engineering:** §20, §21
 
 ## Reproducibility
 
-- Toàn bộ số liệu load từ artifact trong repo (`ai/evaluation/results/`) hoặc chạy lại trực tiếp.
-- Dataset split khóa bằng SHA-256 trong `ai/evaluation/split_manifest.json`; frozen test chỉ mở một lần.
-- Seed thống kê: 20260713 (bootstrap 10.000 lần).
-- Môi trường: Python 3.13, `sentence-transformers`, không cần GPU."""
+{reproducibility}"""
         ),
         # ------------------------------------------------------------------ #
         md(
@@ -411,14 +472,16 @@ Yêu cầu phi chức năng: tiếng Việt tự nhiên, độ trễ < 3s trên 
 User message
   → .NET backend (menu runtime, giỏ hàng, lịch sử)
   → Python AI service
-      1. Smalltalk fast-path (chào hỏi, cảm ơn — không cần RAG)
+      0. Early-exit fast-paths (catalog / party / budget / KB-info / menu-presence) → trả lời deterministic, **bỏ qua LLM**
+      1. Smalltalk fast-path (chào hỏi, cảm ơn)
       2. Guardrail detection (xác nhận đặt món, bịa giá, injection, PII…)
       3. Constraint extraction (ngân sách, dị ứng, số người, category)
-      4. Intent classification (rule-based, 12 intent + LLM fallback)
-      5. Menu grounding — BM25 trên ~91 món từ payload runtime + bộ lọc ràng buộc
-      6. Knowledge retrieval — hybrid BM25+dense trên knowledge base (205 chunk)
-      7. LLM sinh câu trả lời từ context đã ground (9Router gateway)
-      8. Post-check (parse JSON card, dedupe, chặn món/giá không có thật)
+      4. Intent classification (rule-based + LLM fallback khi ambiguous)
+      5. Menu candidate retrieval — ~91 món runtime + bộ lọc ràng buộc
+      6. Knowledge retrieval — hybrid BM25+dense (205 chunk)
+      6b. Confidence gate — `should_call_llm=False` khi retrieval very_low → fallback an toàn
+      7. LLM sinh câu trả lời (9Router) — chỉ khi không bị gate chặn
+      8. Post-check (parse JSON, menu name grounding, dedupe)
   → Frontend hiển thị text + menu cards
 {_FENCE}
 
@@ -484,6 +547,21 @@ E2E_RATE_COLS = [
     "chunk_hit_rate", "menu_hit_rate", "source_hit", "menu_hit", "safety_pass",
 ]
 
+_required = [RESULTS, KB_PATH]
+_missing = [p for p in _required if not p.is_dir()]
+if _missing:
+    raise FileNotFoundError("Missing paths: " + ", ".join(str(p) for p in _missing))
+if not MENU_PATH.is_file():
+    print("WARN: menu dataset not found at", MENU_PATH)
+
+_split_manifest = AI_ROOT / "evaluation" / "split_manifest.json"
+if _split_manifest.is_file():
+    import hashlib as _hl
+    _sm = _hl.sha256(_split_manifest.read_bytes()).hexdigest()[:12]
+    print("split_manifest fingerprint:", _sm)
+else:
+    print("WARN: split_manifest.json not found")
+
 print("AI_ROOT =", AI_ROOT.resolve())"""
         ),
         code(
@@ -494,20 +572,20 @@ fig, ax = plt.subplots(figsize=(14, 8))
 ax.set_xlim(0, 14)
 ax.set_ylim(0, 10)
 ax.axis("off")
-ax.set_title("Kiến trúc hệ thống RAG — Luồng xử lý từ User đến Response", fontsize=13, fontweight="bold", pad=15)
+ax.set_title("Hybrid Agent + FAQ-RAG — Luồng xử lý (có fast-path & confidence gate)", fontsize=13, fontweight="bold", pad=15)
 
 boxes = [
     (1, 8.5, 3, 0.8, "User message", "#E8E8E8"),
     (1, 7.2, 3, 0.8, ".NET Backend (menu, cart)", "#B5D8F7"),
-    (5.5, 8.5, 3.5, 0.8, "1. Smalltalk fast-path", "#CAFFBF"),
+    (5.5, 8.8, 3.5, 0.6, "0. Fast-path (catalog/party/KB)", "#90EE90"),
     (5.5, 7.2, 3.5, 0.8, "2. Guardrails (6 flags)", "#FFD6A5"),
     (5.5, 5.9, 3.5, 0.8, "3. Constraints (allergy, budget)", "#CAFFBF"),
-    (5.5, 4.6, 3.5, 0.8, "4. Intent (12 rule + LLM)", "#A0C4FF"),
-    (1, 3.3, 4.5, 0.8, "5. Menu grounding (91 items)", "#FFD6A5"),
-    (6, 3.3, 4.5, 0.8, "6. KB retrieval (205 chunks)", "#A0C4FF"),
-    (3, 1.8, 5, 0.8, "7. LLM response (9Router)", "#DDB4F0"),
-    (3, 0.5, 5, 0.8, "8. Post-check (grounding)", "#FFD6A5"),
-    (10.5, 6.3, 3, 1.0, "Knowledge Base (26 MD files)", "#BDE0FE"),
+    (5.5, 4.6, 3.5, 0.8, "4. Intent (rule + LLM)", "#A0C4FF"),
+    (1, 3.3, 4.5, 0.8, "5. Menu candidates (91 items)", "#FFD6A5"),
+    (6, 3.3, 4.5, 0.8, "6. KB hybrid retrieval", "#A0C4FF"),
+    (1.5, 2.0, 3.2, 0.7, "6b. Confidence gate", "#FFB347"),
+    (3, 0.5, 5, 0.8, "7. LLM (9Router) or fallback", "#DDB4F0"),
+    (10.5, 6.3, 3, 1.0, "Knowledge Base (26 MD)", "#BDE0FE"),
     (10.5, 3.5, 3, 1.0, "Menu Runtime (JSON API)", "#FFDDD2"),
 ]
 
@@ -522,14 +600,14 @@ arrowstyle = "Simple,tail_width=1.5,head_width=6,head_length=4"
 arrows = [
     (2.5, 8.5, 2.5, 8.0),   # user -> backend
     (4, 7.6, 5.5, 7.6),     # backend -> guardrails
-    (7.25, 8.5, 7.25, 8.0), # smalltalk
+    (7.25, 8.8, 7.25, 8.0), # fast-path branch
     (7.25, 7.2, 7.25, 6.7), # guardrails -> constraints
     (7.25, 5.9, 7.25, 5.4), # constraints -> intent
     (5.5, 4.6, 3.25, 4.1),  # intent -> menu
     (9, 4.6, 8.25, 4.1),    # intent -> KB
-    (3.25, 3.3, 5.5, 2.6),  # menu -> LLM
-    (8.25, 3.3, 5.5, 2.6),  # KB -> LLM
-    (5.5, 1.8, 5.5, 1.3),   # LLM -> post-check
+    (3.25, 3.3, 3.1, 2.7),  # menu -> confidence
+    (8.25, 3.3, 3.1, 2.7),  # KB -> confidence
+    (3.1, 2.0, 5.5, 1.3),   # confidence -> LLM/fallback
 ]
 for x1, y1, x2, y2 in arrows:
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
@@ -867,7 +945,7 @@ Ba lớp đánh giá bổ trợ nhau:
 | --- | --- | --- |
 | `golden/cases.jsonl` (dev/test) | 325 case, 25 family | So sánh retrieval có thống kê; test split đóng băng SHA-256 |
 | `golden_chat_e2e` (dev) | 234 case | Hành vi end-to-end: safety flags, forbidden suggestions |
-| `golden_questions.csv` | 100 câu | Smoke test nhanh: hit@5 theo file nguồn + guardrail |
+| `golden/smoke_retrieval.jsonl` | ~36 câu | CI smoke retrieval + guardrail |
 
 **Metrics** (với \\(rank_i\\) là hạng của document đúng đầu tiên cho query \\(i\\)):
 
@@ -885,14 +963,15 @@ loại bất kể chất lượng xếp hạng.
 test chỉ mở đúng một lần sau khi chốt cấu hình trên dev."""
         ),
         code(
-            """import csv
-
-# golden_questions.csv — smoke set 100 câu
-with (AI_ROOT / "evaluation" / "golden_questions.csv").open(encoding="utf-8") as fh:
-    smoke_cases = list(csv.DictReader(fh))
-n_retrieval = sum(1 for c in smoke_cases if c["expected_sources"].strip())
-n_guard = sum(1 for c in smoke_cases if c["expected_guardrail_flags"].strip())
-print(f"golden_questions.csv: {len(smoke_cases)} câu ({n_retrieval} chấm retrieval, {n_guard} chấm guardrail)")
+            """# golden/smoke_retrieval.jsonl — CI smoke subset
+smoke_cases = [
+    json.loads(line)
+    for line in (AI_ROOT / "evaluation" / "golden" / "smoke_retrieval.jsonl").read_text(encoding="utf-8").splitlines()
+    if line.strip()
+]
+n_retrieval = sum(1 for c in smoke_cases if c.get("expected_chunk_ids"))
+n_guard = sum(1 for c in smoke_cases if c.get("safety_flags"))
+print(f"smoke_retrieval.jsonl: {len(smoke_cases)} câu ({n_retrieval} chấm retrieval, {n_guard} chấm guardrail)")
 
 # golden/cases.jsonl — 325 case sinh từ template, chia dev/test theo family
 golden_cases = [json.loads(line) for line in
@@ -1105,7 +1184,7 @@ cùng nội dung đúng*) — vì vậy `source_hit_rate` mới là chỉ số p
 grounding ở mức tài liệu."""
         ),
         code(
-            """# Smoke test 100 câu hỏi vàng — chạy trực tiếp trong notebook với đúng stack production
+            """# Smoke test 36 câu (`smoke_retrieval.jsonl`) — chạy trực tiếp trong notebook với đúng stack production
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.intent_classifier import classify_intent
 
@@ -1192,16 +1271,93 @@ vọng hợp lý, *không* đảm bảo recall 100% với ngôn ngữ tự do ng
 
 **Hạn chế (threats to validity):**
 
-- Golden cases sinh từ **template** — đa dạng cú pháp thấp hơn người dùng thật; nhãn kỳ vọng
-  do chính nhóm phát triển gán (labeling bias). Một số nhãn đã phải sửa trong quá trình làm
-  (corpus drift) — rủi ro này giảm nhờ script `generate_golden_cases.py` tái sinh đồng bộ.
-- **Đánh giá LLM** (mục 14) dùng rule-based + optional judge trên pilot subset — chưa thay
-  human eval quy mô lớn cho fluency/brand voice.
-- Corpus nhỏ → kết luận "hybrid chỉ hơn nhẹ BM25" **không ngoại suy** được sang corpus lớn
-  hoặc noisy hơn.
-- Latency đo trên máy dev, chưa phải VPS production dưới tải đồng thời."""
+| # | Threat | Hệ quả | Mitigation |
+|---|---|---|---|
+| 1 | Golden cases sinh từ **template** — đa dạng thấp, labeling bias (nhóm tự gán nhãn) | Kết quả eval có thể lạc quan hơn thực tế | `generate_golden_cases.py` tái sinh đồng bộ; cần online query log thay dần |
+| 2 | **Keyword policy overlap**: intent rules chứa nhiều keyword giống test queries | Intent classification accuracy có thể inflate | Cần adversarial test set với paraphrase/ngữ cảnh mới |
+| 3 | `faithfulness` metric là **token overlap**, không phải citation NLI | Không đo thực sự "LLM có trung thành với context không" | Cần LLM-as-judge hoặc NLI-based faithfulness |
+| 4 | **Confidence miscalibration**: RRF scores ~0.01-0.05, threshold HIGH=0.7 | Gate `should_call_llm` gần như không bao giờ trigger "high" | Đã fix: normalize score theo method type (v2) |
+| 5 | `grounding_pass_rate` trong E2E eval đo trên pipeline **không LLM** (fallback) | Không đo chính xác "LLM có bịa không" | §17 bổ sung eval có LLM thật |
+| 6 | Corpus nhỏ (205 chunks) → "hybrid chỉ hơn nhẹ BM25" | **Không ngoại suy** sang corpus lớn/noisy | Chỉ claim cho domain restaurant nhỏ |
+| 7 | Latency đo trên máy dev, chưa phải VPS dưới tải đồng thời | p95 thực tế có thể cao hơn 27.8ms | Cần load test trên staging |
+| 8 | Đánh giá LLM dùng rule-based + judge subset, chưa human eval | Fluency/brand voice chưa được đánh giá | Cần human eval rubric song song |
+
+### Confidence Miscalibration (chi tiết)
+
+Module `confidence.py` tính confidence từ retrieval scores. Trước khi fix:
+- RRF scores ~0.01-0.03, nhưng threshold `HIGH_CONFIDENCE = 0.7` → **luôn "very_low"**
+- `should_call_llm=False` chỉ khi `score < 0.1` → RRF 0.03 thỏa → gần như luôn call LLM
+- Gate `should_call_llm` **không được enforce** trong orchestration (assistant.py)
+
+Sau khi fix (v2):
+- RRF scores được normalize: `score / 0.05` → RRF 0.03 → 0.6 (medium)
+- Gate `should_call_llm` được enforce: skip LLM khi very_low, dùng safe fallback
+- Unit tests verify: RRF 0.033 → not very_low, BM25 8.0 → medium+, empty → very_low"""
         ),
         # ------------------------------------------------------------------ #
+        md(
+            """## 13b. Failure Analysis — Top miss cases
+
+### Tại sao cần phân tích failures?
+
+Số liệu tổng (MRR, Hit@5) chỉ cho biết hệ thống tốt *trung bình*. Để cải thiện,
+cần tìm **pattern sai** cụ thể — câu nào miss, vì sao miss, lỗi ở layer nào.
+
+### Phương pháp
+
+- `dev_retrieval_comparison.v3.json` → case `hybrid_e5_small` có Hit@5 = 0
+- `golden_chat_e2e.json` → safety/forbidden fail
+- `golden_llm_eval_*_full.json` → `composite_pass = false`"""
+        ),
+        code(
+            """# Failure Analysis: retrieval misses + E2E + LLM composite fails
+fail_path = RESULTS / "dev_retrieval_comparison.v3.json"
+if fail_path.exists():
+    fail_data = json.loads(fail_path.read_text(encoding="utf-8"))
+    method_data = fail_data.get("methods", {}).get("hybrid_e5_small", {})
+    misses = []
+    for case in method_data.get("cases", []):
+        m5 = (case.get("metrics") or {}).get("by_k", {}).get("5", {})
+        if m5.get("hit", 1) == 0:
+            ranking = case.get("ranking") or []
+            top1 = ranking[0] if ranking else {}
+            misses.append({
+                "query": case.get("query", "N/A"),
+                "expected": case.get("expected_document_ids", []),
+                "top1": top1.get("document_id", "N/A"),
+                "score": top1.get("score", 0),
+            })
+    print(f"Retrieval MISS @5 (hybrid_e5_small): {len(misses)}")
+    print("=" * 60)
+    for m in misses[:5]:
+        print(f"Query: {m['query']}")
+        print(f"  Expected docs: {m['expected'][:3]}")
+        print(f"  Got top-1: {m['top1']} (score={float(m['score'] or 0):.3f})")
+        print()
+else:
+    print("WARN: dev_retrieval_comparison.v3.json not found")
+
+e2e_path = RESULTS / "golden_chat_e2e.json"
+if e2e_path.exists():
+    e2e_data = json.loads(e2e_path.read_text(encoding="utf-8"))
+    fails = [
+        c for c in e2e_data.get("cases", [])
+        if not c.get("safety_pass", True) or not c.get("forbidden_pass", True)
+    ]
+    print(f"E2E safety/forbidden FAIL: {len(fails)} / {len(e2e_data.get('cases', []))}")
+    for f in fails[:5]:
+        print(f"  {f.get('id')}: {f.get('query', '')[:70]}")
+
+llm_fail_path = RESULTS / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"
+if llm_fail_path.exists():
+    llm_data = json.loads(llm_fail_path.read_text(encoding="utf-8"))
+    llm_fails = [c for c in llm_data.get("cases", []) if not c.get("composite_pass", True)]
+    print()
+    print(f"LLM composite FAIL (cx/gpt-5.5): {len(llm_fails)}")
+    for c in llm_fails[:5]:
+        print(f"  {c.get('case_id', c.get('id', '?'))}: {c.get('query', '')[:70]}")"""
+        ),
+        md(ablation_md),
         md(
             f"""## 14. Đánh giá end-to-end với LLM thật (9Router — so sánh đa model)
 
@@ -1213,8 +1369,8 @@ golden case dev** (`run_golden_llm_eval.py`).
 
 | Artifact | Model |
 | --- | --- |
-| `golden_llm_eval_cx_gpt55_v3_full.json` | `{GPT55_MODEL}` |
-| `golden_llm_eval_deepseek_v4_flash_v3_full.json` | `{DEEPSEEK_MODEL}` |
+| `{GPT55_LLM_ARTIFACT_NAME}` | `{GPT55_MODEL}` |
+| `{DEEPSEEK_LLM_ARTIFACT_NAME}` | `{DEEPSEEK_MODEL}` |
 
 | Metric | Ý nghĩa | Thang đo |
 | --- | --- | --- |
@@ -1233,8 +1389,8 @@ Tái tạo:
 
 {_FENCE}bash
 cd ai
-py -m evaluation.run_golden_llm_eval --split dev --limit 250 --output evaluation/results/golden_llm_eval_cx_gpt55_v3_full.json
-$env:AI_MODEL='{DEEPSEEK_MODEL}'; py -m evaluation.run_golden_llm_eval --split dev --limit 250 --output evaluation/results/golden_llm_eval_deepseek_v4_flash_v3_full.json
+py -m evaluation.run_dual_llm_eval --profiles gpt55 --split dev --limit 234 --sleep-ms 800 --output evaluation/results/{GPT55_LLM_ARTIFACT_NAME}
+py -m evaluation.run_dual_llm_eval --profiles deepseek --split dev --limit 234 --sleep-ms 1500 --output evaluation/results/{DEEPSEEK_LLM_ARTIFACT_NAME}
 {_FENCE}"""
         ),
         code(
@@ -1243,8 +1399,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 LLM_RUNS = [
-    ("cx/gpt-5.5", RESULTS / "golden_llm_eval_cx_gpt55_v3_full.json"),
-    ("oc/deepseek-v4-flash-free", RESULTS / "golden_llm_eval_deepseek_v4_flash_v3_full.json"),
+    ("cx/gpt-5.5", RESULTS / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"),
+    ("oc/deepseek-v4-flash-free", RESULTS / "golden_llm_eval_deepseek_v4_full.json"),
 ]
 
 COMPARE_KEYS = [
@@ -1452,8 +1608,8 @@ else:
         code(
             """# Phân tích failure còn lại — cả hai model
 LLM_FAIL_RUNS = [
-    ("cx/gpt-5.5", RESULTS / "golden_llm_eval_cx_gpt55_v3_full.json"),
-    ("oc/deepseek-v4-flash-free", RESULTS / "golden_llm_eval_deepseek_v4_flash_v3_full.json"),
+    ("cx/gpt-5.5", RESULTS / "golden_llm_eval_cx_gpt55_v3_full_v3b.json"),
+    ("oc/deepseek-v4-flash-free", RESULTS / "golden_llm_eval_deepseek_v4_full.json"),
 ]
 
 for label, fail_path in LLM_FAIL_RUNS:
@@ -1783,6 +1939,69 @@ print("-" * 85)
 for query, expected in test_queries:
     result = classify_intent(normalize_query_text(query))
     print("{:<35} {:<25} {}".format(query, result.intent, expected))'''
+        ),
+        md(
+            """## 19a. Rolling summary — bộ nhớ phiên dài hạn
+
+### Vấn đề
+
+Prompt LLM chỉ giữ **8 lượt chat gần nhất** (`history[-8:]`). Khi khách chat >8 câu,
+phần đầu phiên rơi khỏi context → follow-up kiểu *\"món đó có tôm không\"* dễ mất ngữ cảnh.
+
+### Giải pháp
+
+Sau **mỗi lượt** (LLM, fast-path, fallback), Python sinh `updated_rolling_summary`
+deterministic từ:
+- ràng buộc phiên (số khách, tránh/dị ứng, ngân sách, độ cay)
+- món đã gợi ý
+- 4 lượt gần nhất (Khách → Bot)
+
+Backend (.NET) lưu vào `ChatSession.RollingSummary` (tối đa 8KB) và gửi lại lượt sau
+như block `system` trong prompt — **không cần thêm LLM call**.
+
+### Luồng dữ liệu
+
+```
+User turn → Python assistant → updated_rolling_summary
+         → ChatEndpoints lưu DB → lượt sau gửi rolling_summary + history
+```
+
+> Trước đây field response đã có trong contract nhưng Python chưa populate;
+> giờ mọi path trả lời đều gắn summary mới."""
+        ),
+        code(
+            """from app.rag.rolling_summary import update_rolling_summary
+
+demo_summary = ""
+turns = [
+    ("2 người ạ", "Mình ghi nhận 2 người.", [], {"party_size": 2}),
+    (
+        "Tránh tôm cua giúp mình",
+        "Mình sẽ tránh các món có tôm, cua.",
+        [{"name": "Phở bò", "menu_item_id": "m_001"}],
+        {"allergens": ["tôm", "cua"], "party_size": 2},
+    ),
+    (
+        "Ở đây có những món phở gì?",
+        "Nhà hàng có phở bò, phở gà, phở tái.",
+        [],
+        {"party_size": 2, "allergens": ["tôm", "cua"]},
+    ),
+]
+
+for user_msg, bot_msg, actions, constraints in turns:
+    demo_summary = update_rolling_summary(
+        demo_summary,
+        user_message=user_msg,
+        assistant_content=bot_msg,
+        suggested_actions=actions,
+        constraints=constraints,
+    )
+
+print("=== Rolling summary sau 3 lượt ===")
+print(demo_summary)
+print()
+print("Chars:", len(demo_summary), "/ max ~3800 trước khi backend truncate 8000")"""
         ),
         # ================================================================== #
         # §21 – FAQ Deduplication

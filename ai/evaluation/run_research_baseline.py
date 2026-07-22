@@ -123,6 +123,8 @@ def run_retrieval_experiment(
     split: DatasetSplit = DatasetSplit.DEV,
     top_k: int = 10,
     allow_frozen_test: bool = False,
+    apply_menu_filters: bool = True,
+    with_rerank: bool = False,
 ) -> dict[str, object]:
     validate_experiment_request(
         method=method,
@@ -198,12 +200,16 @@ def run_retrieval_experiment(
             latency_samples_ms.append((time.perf_counter() - started) * 1000)
             if repetition == 0:
                 results = current_results
-                if case.target is RetrievalTarget.MENU:
+                if case.target is RetrievalTarget.MENU and apply_menu_filters:
                     results = filter_menu_retrieval_results(
                         case.query,
                         results,
                         menu_items,
                     )
+                if with_rerank and case.target is not RetrievalTarget.MENU and results:
+                    from evaluation.rerank_cross_encoder import rerank_with_cross_encoder
+
+                    results = rerank_with_cross_encoder(case.query, results, top_k=top_k)
         latency_ms = statistics.median(latency_samples_ms)
         latencies_ms.append(latency_ms)
         rankings[case.case_id] = [result.chunk.source for result in results]
@@ -243,6 +249,8 @@ def run_retrieval_experiment(
         "method": method,
         "split": split.value,
         "top_k": top_k,
+        "apply_menu_filters": apply_menu_filters,
+        "with_rerank": with_rerank,
         "provenance": _runtime_provenance(retriever_provenance),
         "dataset": build_dataset_manifest(
             dataset,

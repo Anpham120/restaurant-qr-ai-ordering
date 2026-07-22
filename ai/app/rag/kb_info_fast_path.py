@@ -10,6 +10,7 @@ from app.rag.conversation_policy import (
     _was_recommendation_thread,
 )
 from app.rag.policy_faq_fast_path import try_wifi_policy_fast_path
+from app.rag.guardrails import detect_guardrail_flags
 from app.rag.retriever import RetrievalFilters, Retriever
 from app.rag.vietnamese_normalizer import normalize_query_text
 
@@ -24,6 +25,7 @@ INFO_INTENTS = frozenset(
         "ask_price",
         "dietary",
         "occasion",
+        "kids_elderly",
     }
 )
 
@@ -33,11 +35,12 @@ INTENT_PREFERRED_SOURCES: dict[str, tuple[str, ...]] = {
     "restaurant_info": ("faq.md", "restaurant-info.md", "service-guide.md"),
     "payment": ("payment-methods.md", "faq.md", "ordering-policy.md"),
     "service": ("service-guide.md", "faq.md", "restaurant-info.md"),
-    "promotion": ("promotions.md", "faq.md", "ordering-policy.md"),
+    "promotion": ("seasonal-promotion.md", "faq.md", "ordering-policy.md"),
     "general": ("faq.md", "restaurant-info.md", "service-guide.md"),
     "ask_price": ("menu.md", "faq.md"),
     "dietary": ("allergy-dietary.md", "vegan-halal-keto.md", "ingredient-nutrition.md", "faq.md", "menu.md"),
     "occasion": ("faq.md", "occasion-dining.md", "combo-pairing.md"),
+    "kids_elderly": ("kids-elderly.md", "faq.md"),
 }
 
 _QUERY_STOPWORDS = frozenset(
@@ -75,6 +78,8 @@ _FAQ_TOPIC_ROUTES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("phong vip", "phong rieng"), "phong rieng"),
     (("san thuong", "ngoai troi"), "san thuong"),
     (("tre em", "tre con", "highchair"), "tre em"),
+    (("children portion", "child portion", "kids portion", "kid friendly"), "tre em"),
+    (("office lunch", "quick lunch", "business lunch", "an trua nhanh"), "an trua nhanh"),
     (("sinh nhat", "tiec sinh nhat"), "sinh nhat"),
     (("dia chi", "o dau", "nam o dau"), "o dau"),
     (("mang ve", "takeaway", "giao hang"), "mang ve"),
@@ -82,6 +87,8 @@ _FAQ_TOPIC_ROUTES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("cho mon", "thoi gian cho"), "thoi gian cho"),
     (("khuyen tat", "xe lan"), "khuyet tat"),
     (("nuoc mien phi", "nuoc loc"), "nuoc uong"),
+    (("khuyen mai", "uu dai", "giam gia", "happy hour"), "happy hour"),
+    (("loi thanh toan", "thanh toan loi", "khong thanh toan duoc"), "thanh toan"),
 )
 
 
@@ -241,6 +248,14 @@ def _build_fast_path_response(
 ) -> dict[str, Any]:
     if history:
         content = _apply_session_context_prefix(content, history)
+    flags: list[str] = []
+    if item.chunk.source == "allergy-dietary.md":
+        flags.append("ALLERGY_DISCLAIMER")
+        if "nhan vien" not in normalize_query_text(content):
+            content = (
+                f"{content}\n\n"
+                "Bạn nên xác nhận thêm với nhân viên về dị ứng trước khi đặt món."
+            )
     return {
         "content": content,
         "provider_available": False,
@@ -252,7 +267,7 @@ def _build_fast_path_response(
                 "score": float(item.score),
             }
         ],
-        "guardrail_flags": [],
+        "guardrail_flags": flags,
         "suggested_cart_actions": [],
         "follow_up": {"can_show_more": False, "remaining_count": 0},
         "suggest_staff_handoff": False,
@@ -271,6 +286,10 @@ def try_kb_info_fast_path(
 ) -> dict[str, Any] | None:
     """Deterministic KB answers for restaurant policy/FAQ (non-recommendation) queries."""
 
+    if "CUSTOMER_CONFIRMATION_REQUIRED" in detect_guardrail_flags(message):
+        return None
+    if intent in {"combo_pairing", "menu_recommendation", "beverage_pairing", "nutrition_info"}:
+        return None
     if wants_recommendations or is_solo_dining:
         return None
     if intent not in INFO_INTENTS:
@@ -336,6 +355,7 @@ def try_kb_info_fast_path(
         return None
 
     preferred = INTENT_PREFERRED_SOURCES.get(intent, ("faq.md", "restaurant-info.md"))
+    min_score = 5.0 if intent in {"payment", "restaurant_info", "service", "promotion"} else 6.0
 
     topic_faq = _find_faq_by_topic(normalized, retrieved)
     if topic_faq is None and retriever is not None and _topic_needle_for_query(normalized):
@@ -371,7 +391,7 @@ def try_kb_info_fast_path(
     # Short queries (≤ 2 meaningful tokens) are too ambiguous for deterministic
     # answers — let the LLM interpret context instead of guessing from keywords.
     query_tokens = _query_tokens(normalized)
-    if len(query_tokens) <= 2:
+    if len(query_tokens) <= 2 and intent not in {"kids_elderly", "occasion", "payment", "restaurant_info"}:
         return None
 
     scored: list[tuple[float, Any]] = []
@@ -380,11 +400,8 @@ def try_kb_info_fast_path(
         if item.chunk.source in JUNK_INFO_SOURCES:
             continue
         score = _relevance_score(normalized, item, preferred)
-        # Raised threshold from 3.0 → 6.0: only fast-path when we are
-        # confident the chunk truly answers the question.  score < 6.0
-        # means the match is based on weak signals (e.g. source_bonus
-        # alone) and should go through LLM for contextual interpretation.
-        if score >= 6.0:
+        # Threshold tuned per intent; FAQ/policy intents allow slightly weaker lexical overlap.
+        if score >= min_score:
             scored.append((score, item))
 
     if not scored:

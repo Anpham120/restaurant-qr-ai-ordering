@@ -114,6 +114,11 @@ jobs:
           PYTHONPATH: ai
         run: python ai/evaluation/retrieval_benchmark.py
 
+      - name: Run golden CI gates
+        env:
+          PYTHONPATH: ai
+        run: python ai/evaluation/ci_golden_gates.py --run-smoke-eval
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest

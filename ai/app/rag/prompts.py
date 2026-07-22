@@ -6,7 +6,7 @@ from app.rag.knowledge_base import KnowledgeChunk
 
 
 SYSTEM_POLICY = """Bạn là trợ lý AI của CMC Restaurant.
-Trả lời bằng ngôn ngữ khách đang dùng (tiếng Việt hoặc English) theo trường language.
+Trả lời bằng tiếng Việt khi language=vi (kể cả câu hỏi English). Chỉ dùng English khi language=en.
 
 === HIỂU NGỮ CẢNH (ĐỌC KỸ — QUAN TRỌNG NHẤT) ===
 TRƯỚC KHI trả lời, bạn PHẢI đọc TOÀN BỘ câu hỏi và xác định:
@@ -119,16 +119,31 @@ def build_messages(
     rag_top_k: int = 5,
     wants_recommendations: bool = True,
     party_size: int | None = None,
+    intent: str | None = None,
 ) -> list[dict[str, str]]:
     context_text = "\n\n".join(
         f"[{index}] {chunk.citation}\n{chunk.content}"
         for index, chunk in enumerate(context_chunks[: max(1, rag_top_k)], start=1)
     )
-    menu_text = "\n".join(
-        _format_menu_item(item, compact=True)
-        for item in (catalog_menu_items or menu_items)
-        if bool(item.get("is_available", True))
+    catalog = catalog_menu_items or menu_items
+    faq_intents = frozenset(
+        {"restaurant_info", "payment", "service", "promotion", "general", "hours", "ordering_policy"}
     )
+    use_compact_catalog = (
+        len(catalog) > 24
+        and (
+            not wants_recommendations
+            or (intent is not None and intent in faq_intents)
+        )
+    )
+    if use_compact_catalog:
+        menu_text = _format_compact_catalog(catalog, menu_items)
+    else:
+        menu_text = "\n".join(
+            _format_menu_item(item, compact=True)
+            for item in catalog
+            if bool(item.get("is_available", True))
+        )
     candidate_hint = ""
     if wants_recommendations and catalog_menu_items and menu_items:
         candidate_names = ", ".join(
@@ -251,7 +266,11 @@ def build_messages(
             "role": "system",
             "content": SYSTEM_POLICY.replace("__MAX_SUGGESTIONS__", str(max_suggestions)),
         },
-        {"role": "system", "content": f"Ngôn ngữ trả lời ưu tiên: {language}."},
+        {"role": "system", "content": (
+            "BẮT BUỘC trả lời hoàn toàn bằng tiếng Việt. Không dùng English trừ tên món/thuật ngữ trên menu."
+            if language == "vi"
+            else f"Ngôn ngữ trả lời ưu tiên: {language}."
+        )},
         {"role": "system", "content": f"Bối cảnh phiên: {session_context}"},
         {"role": "system", "content": recommendation_policy},
         *(
@@ -324,3 +343,29 @@ def _format_menu_item(item: dict, *, compact: bool = False) -> str:
 
 def _format_json_lines(items: list[dict[str, Any]]) -> str:
     return "\n".join(str(item) for item in items)
+
+
+def _format_compact_catalog(
+    full_catalog: list[dict],
+    candidates: list[dict],
+) -> str:
+    """Candidate-first menu block with category summary instead of full catalog."""
+    lines = ["=== Món ưu tiên (candidate set) ==="]
+    for item in candidates[:8]:
+        if bool(item.get("is_available", True)):
+            lines.append(_format_menu_item(item, compact=True))
+    lines.append("=== Tóm tắt thực đơn theo nhóm ===")
+    by_category: dict[str, list[str]] = {}
+    for item in full_catalog:
+        if not bool(item.get("is_available", True)):
+            continue
+        category = str(item.get("category_name") or "khác")
+        name = str(item.get("name") or "").strip()
+        if name:
+            by_category.setdefault(category, []).append(name)
+    for category, names in sorted(by_category.items()):
+        sample = ", ".join(names[:4])
+        extra = len(names) - 4
+        suffix = f" (+{extra} món)" if extra > 0 else ""
+        lines.append(f"- {category} ({len(names)} món): {sample}{suffix}")
+    return "\n".join(lines)

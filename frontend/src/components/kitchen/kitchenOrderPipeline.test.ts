@@ -1,11 +1,52 @@
 import { describe, expect, it } from "vitest";
+import type { Order } from "@cmc/shared-types";
 import {
   canDropKitchenOrder,
+  getItemTapAdvanceStatus,
   getKitchenBoardAdvancePlan,
   getKitchenBoardColumn,
+  getKitchenPrimaryAction,
+  getKitchenPriority,
+  getKitchenProgress,
   getNextKitchenBoardColumn,
   isKitchenActiveOrderStatus,
+  sortKitchenOrdersByPriority,
 } from "./kitchenOrderPipeline";
+
+const sampleOrder = (code: string, createdAt: string, status: Order["status"]): Order => ({
+  orderId: code,
+  orderCode: code,
+  tableCode: "T01",
+  tableSessionId: null,
+  status,
+  paymentStatus: "Unpaid",
+  paymentMethod: "COD",
+  totalAmount: 100000,
+  createdAt,
+  updatedAt: createdAt,
+  items: [
+    {
+      orderItemId: "i1",
+      menuItemId: "m1",
+      name: "Pho",
+      quantity: 1,
+      unitPrice: 50000,
+      lineTotal: 50000,
+      status: "Pending",
+      updatedAt: createdAt,
+    },
+    {
+      orderItemId: "i2",
+      menuItemId: "m2",
+      name: "Nuoc",
+      quantity: 1,
+      unitPrice: 50000,
+      lineTotal: 50000,
+      status: "Preparing",
+      updatedAt: createdAt,
+    },
+  ],
+});
 
 describe("kitchen order pipeline", () => {
   it("shows newly placed orders in the new-order column", () => {
@@ -53,5 +94,29 @@ describe("kitchen order pipeline", () => {
     expect(canDropKitchenOrder("Placed", "ready")).toBe(false);
     expect(canDropKitchenOrder("Preparing", "confirmed")).toBe(false);
     expect(canDropKitchenOrder("Served", "ready")).toBe(false);
+  });
+
+  it("prioritizes urgent and older orders first", () => {
+    const now = Date.parse("2026-01-01T12:00:00.000Z");
+    const sorted = sortKitchenOrdersByPriority([
+      sampleOrder("NEW", "2026-01-01T11:50:00.000Z", "Placed"),
+      sampleOrder("OLD", "2026-01-01T11:20:00.000Z", "Placed"),
+      sampleOrder("MID", "2026-01-01T11:35:00.000Z", "Placed"),
+    ], now);
+    expect(sorted.map((order) => order.orderCode)).toEqual(["OLD", "MID", "NEW"]);
+    expect(getKitchenPriority(sampleOrder("OLD", "2026-01-01T11:20:00.000Z", "Placed"), now)).toBe("urgent");
+  });
+
+  it("derives progress and smart action labels", () => {
+    const order = sampleOrder("O1", "2026-01-01T12:00:00.000Z", "Placed");
+    expect(getKitchenProgress(order)).toEqual({
+      ready: 0,
+      total: 2,
+      percent: 0,
+      cooking: 1,
+      pending: 1,
+    });
+    expect(getItemTapAdvanceStatus("Pending")).toBe("Preparing");
+    expect(getKitchenPrimaryAction(order).label).toContain("Nấu 1 món");
   });
 });
