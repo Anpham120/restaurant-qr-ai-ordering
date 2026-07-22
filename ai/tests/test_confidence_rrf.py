@@ -1,7 +1,7 @@
 """Tests for retrieval confidence scoring — specifically RRF normalization."""
 from __future__ import annotations
 
-import pytest
+import unittest
 
 from app.rag.confidence import (
     HIGH_CONFIDENCE,
@@ -12,35 +12,35 @@ from app.rag.confidence import (
 )
 
 
-class TestConfidenceResultFromScore:
+class TestConfidenceResultFromScore(unittest.TestCase):
     """Unit tests for ConfidenceResult.from_score thresholds."""
 
     def test_high_confidence(self):
         result = ConfidenceResult.from_score(0.8, "test")
-        assert result.level == "high"
-        assert result.should_call_llm is True
-        assert result.guardrail_flag is None
+        self.assertEqual(result.level, "high")
+        self.assertTrue(result.should_call_llm)
+        self.assertIsNone(result.guardrail_flag)
 
     def test_medium_confidence(self):
         result = ConfidenceResult.from_score(0.5, "test")
-        assert result.level == "medium"
-        assert result.should_call_llm is True
-        assert result.guardrail_flag == "LOW_RETRIEVAL_CONFIDENCE"
+        self.assertEqual(result.level, "medium")
+        self.assertTrue(result.should_call_llm)
+        self.assertEqual(result.guardrail_flag, "LOW_RETRIEVAL_CONFIDENCE")
 
     def test_low_confidence(self):
         result = ConfidenceResult.from_score(0.15, "test")
-        assert result.level == "low"
-        assert result.should_call_llm is True
-        assert result.guardrail_flag == "LOW_RETRIEVAL_CONFIDENCE"
+        self.assertEqual(result.level, "low")
+        self.assertTrue(result.should_call_llm)
+        self.assertEqual(result.guardrail_flag, "LOW_RETRIEVAL_CONFIDENCE")
 
     def test_very_low_confidence(self):
         result = ConfidenceResult.from_score(0.05, "test")
-        assert result.level == "very_low"
-        assert result.should_call_llm is False
-        assert result.guardrail_flag == "RETRIEVAL_FAILED"
+        self.assertEqual(result.level, "very_low")
+        self.assertFalse(result.should_call_llm)
+        self.assertEqual(result.guardrail_flag, "RETRIEVAL_FAILED")
 
 
-class TestRRFScoreNormalization:
+class TestRRFScoreNormalization(unittest.TestCase):
     """Verify RRF scores (0.01-0.05) are normalized properly, not treated as near-zero."""
 
     def test_rrf_typical_score_not_very_low(self):
@@ -51,11 +51,12 @@ class TestRRFScoreNormalization:
             {"score": 0.030, "source": "service-guide.md"},
         ]
         conf = compute_retrieval_confidence(results)
-        # RRF 0.033 normalized → 0.033/0.05 = 0.66 → score_weight 0.66
-        assert conf.level != "very_low", (
-            f"RRF 0.033 should not be very_low, got score={conf.score:.3f} level={conf.level}"
+        self.assertNotEqual(
+            conf.level,
+            "very_low",
+            f"RRF 0.033 should not be very_low, got score={conf.score:.3f} level={conf.level}",
         )
-        assert conf.should_call_llm is True
+        self.assertTrue(conf.should_call_llm)
 
     def test_rrf_strong_score_medium_or_higher(self):
         """RRF score 0.05 (max typical) should yield medium or high confidence."""
@@ -65,16 +66,20 @@ class TestRRFScoreNormalization:
             {"score": 0.010, "source": "allergy-dietary.md"},
         ]
         conf = compute_retrieval_confidence(results)
-        assert conf.level in ("medium", "high"), (
-            f"RRF 0.050 should be medium+, got score={conf.score:.3f} level={conf.level}"
+        self.assertIn(
+            conf.level,
+            ("medium", "high"),
+            f"RRF 0.050 should be medium+, got score={conf.score:.3f} level={conf.level}",
         )
 
     def test_rrf_very_weak_is_low(self):
         """RRF score 0.005 (barely any match) should be low or very_low."""
         results = [{"score": 0.005, "source": "faq.md"}]
         conf = compute_retrieval_confidence(results)
-        assert conf.level in ("low", "very_low"), (
-            f"RRF 0.005 should be low/very_low, got score={conf.score:.3f} level={conf.level}"
+        self.assertIn(
+            conf.level,
+            ("low", "very_low"),
+            f"RRF 0.005 should be low/very_low, got score={conf.score:.3f} level={conf.level}",
         )
 
     def test_bm25_high_score_normalized(self):
@@ -85,8 +90,10 @@ class TestRRFScoreNormalization:
             {"score": 3.0, "source": "service-guide.md"},
         ]
         conf = compute_retrieval_confidence(results)
-        assert conf.level in ("medium", "high"), (
-            f"BM25 8.0 should be medium+, got score={conf.score:.3f} level={conf.level}"
+        self.assertIn(
+            conf.level,
+            ("medium", "high"),
+            f"BM25 8.0 should be medium+, got score={conf.score:.3f} level={conf.level}",
         )
 
     def test_dense_cosine_passthrough(self):
@@ -97,21 +104,27 @@ class TestRRFScoreNormalization:
             {"score": 0.40, "source": "ordering-policy.md"},
         ]
         conf = compute_retrieval_confidence(results)
-        assert conf.level in ("medium", "high"), (
-            f"Dense 0.85 should be medium+, got score={conf.score:.3f} level={conf.level}"
+        self.assertIn(
+            conf.level,
+            ("medium", "high"),
+            f"Dense 0.85 should be medium+, got score={conf.score:.3f} level={conf.level}",
         )
 
 
-class TestEmptyResults:
+class TestEmptyResults(unittest.TestCase):
     """Edge cases with no results."""
 
     def test_no_results(self):
         conf = compute_retrieval_confidence([])
-        assert conf.score == 0.0
-        assert conf.level == "very_low"
-        assert conf.should_call_llm is False
+        self.assertEqual(conf.score, 0.0)
+        self.assertEqual(conf.level, "very_low")
+        self.assertFalse(conf.should_call_llm)
 
     def test_single_result(self):
         results = [{"score": 0.04, "source": "faq.md"}]
         conf = compute_retrieval_confidence(results)
-        assert conf.should_call_llm is True
+        self.assertTrue(conf.should_call_llm)
+
+
+if __name__ == "__main__":
+    unittest.main()

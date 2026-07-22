@@ -13,7 +13,9 @@ ORDER_CREATION_PATTERNS = [
     r"\bthem\s+vao\s+gio\b",
     # "thêm <tên món> vào giỏ (hàng)"
     r"\bthem\b[\w\s]{0,40}\bvao\s+gio\b",
-    r"\bthanh\s+toan\b",
+    # "thanh toan" as a payment command; exclude information questions
+    # ("thanh toan bang gi", "ve thanh toan thi sao", "thanh toan nhu the nao")
+    r"\bthanh\s+toan\b(?!\s+(?:bang|nhu|nao|thi|sao|kieu|cach|duoc)\b)",
     r"\bchot\s+don\b",
     r"\bgui\s+don\b",
     r"\bmua\s+luon\b",
