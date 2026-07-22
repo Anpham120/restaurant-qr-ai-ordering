@@ -13,8 +13,7 @@ Last updated: 2026-07-22 (branch `fix/ai-response-followup`).
 
 ### Secondary model (DeepSeek)
 
-- `golden_llm_eval_deepseek_v4_full.json`: **98.72%** composite (231/234); 3 grounding fails (q001 allergy, q086 recommend, q095 follow_up_more).
-- Partial menu fabrication fix applied in `content_grounding.py`; re-run DeepSeek eval when 9router is up.
+- `golden_llm_eval_deepseek_v4_full.json`: **100%** composite (234/234), grounding 100% — re-run 2026-07-22 after `content_grounding.py` partial-menu fabrication fix (was 98.72%, 3 grounding fails: q001, q086, q095).
 
 ## Staging load test
 
