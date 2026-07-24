@@ -139,7 +139,7 @@ export function AdminCommandCenter() {
           <div className="ops-stat-card">
             <div className="ops-stat-label">Đang nấu</div>
             <div className="ops-stat-value">{summary.badges.kitchen}</div>
-            <div className="ops-stat-detail">Đơn Preparing</div>
+            <div className="ops-stat-detail">Đơn đang chế biến</div>
           </div>
         </section>
 

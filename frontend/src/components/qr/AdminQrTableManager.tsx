@@ -8,8 +8,7 @@ import { useEffect, useState } from "react";
 import { TableQrCode } from "./TableQrCode";
 import { api } from "../../services/apiClient";
 import type { AdminTable } from "@cmc/shared-types";
-
-type BackendTable = AdminTable;
+import { buildOrderingLink } from "../../utils/tableOrderingLink";
 
 type CopyState = {
   tableCode: string;
@@ -18,32 +17,8 @@ type CopyState = {
 
 // QR-bearing table data is loaded from the Admin-only GET /api/admin/tables endpoint.
 
-function getOrderingBaseUrl() {
-  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
-  if (configured) {
-    return configured.replace(/\/$/, "");
-  }
-
-  if (typeof window === "undefined") {
-    return "https://order.cmcrestaurant.app";
-  }
-
-  const { origin, hostname, protocol, port } = window.location;
-  if (hostname.startsWith("admin.")) {
-    return `${protocol}//${hostname.replace(/^admin\./, "order.")}${port ? `:${port}` : ""}`;
-  }
-
-  return origin;
-}
-
-function buildOrderingLink(table: BackendTable) {
-  const baseUrl = getOrderingBaseUrl();
-  const customerPath = table.customerPath || `/table/${encodeURIComponent(table.tableCode)}`;
-  return new URL(customerPath, baseUrl).toString();
-}
-
 export function AdminQrTableManager({ embedded = false }: { embedded?: boolean }) {
-  const [tables, setTables] = useState<BackendTable[]>([]);
+  const [tables, setTables] = useState<AdminTable[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>(null);
@@ -74,7 +49,7 @@ export function AdminQrTableManager({ embedded = false }: { embedded?: boolean }
     };
   }, []);
 
-  async function copyTableLink(table: BackendTable) {
+  async function copyTableLink(table: AdminTable) {
     try {
       await navigator.clipboard.writeText(buildOrderingLink(table));
       setCopyState({ tableCode: table.tableCode, status: "success" });
