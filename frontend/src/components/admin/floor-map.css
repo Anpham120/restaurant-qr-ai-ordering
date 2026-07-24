@@ -221,12 +221,17 @@
 .floor-drawer-body--qr {
   flex: 1;
   justify-content: center;
+  align-items: center;
 }
 
 .floor-drawer-qr-glass {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: min(100%, 380px);
+  margin-inline: auto;
+  align-items: center;
+  text-align: center;
   padding: 18px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.65);
@@ -248,15 +253,22 @@
 .floor-drawer-qr-frame {
   display: flex;
   justify-content: center;
+  align-items: center;
+  width: 100%;
   padding: 12px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
+.floor-drawer-qr-frame .table-qr-image {
+  margin-inline: auto;
+}
+
 .floor-drawer-qr-frame .table-qr-image img {
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
 }
 
 .floor-drawer-qr-link {

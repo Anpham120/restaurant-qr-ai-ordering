@@ -1,5 +1,5 @@
 import type { MenuItem } from "../types";
-import { resolveMenuImage } from "../utils/menuImages";
+import { resolveMenuImage, toPublicMenuImageUrl } from "../utils/menuImages";
 import { api } from "./apiClient";
 
 export type CustomerMenuCategory = {
@@ -15,11 +15,14 @@ export type CustomerMenuResponse = {
 function mapBackendMenu(menu: CustomerMenuResponse): CustomerMenuResponse {
   return {
     categories: menu.categories,
-    items: menu.items.map((item, index) => ({
+    items: menu.items.map((item, index) => {
+      const resolved = resolveMenuImage(item.name, item.imageUrl, index);
+      return {
       ...item,
-      imageUrl: resolveMenuImage(item.name, item.imageUrl, index),
+      imageUrl: toPublicMenuImageUrl(resolved) ?? resolved,
       tags: item.tags ?? [],
-    })),
+    };
+    }),
   };
 }
 

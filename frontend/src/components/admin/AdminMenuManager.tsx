@@ -10,7 +10,7 @@ import {
 } from "../../services/adminMenuService";
 import { ApiError } from "@cmc/api-client";
 import type { AdminCategory } from "@cmc/shared-types";
-import { resolveMenuImage } from "../../utils/menuImages";
+import { resolveMenuImage, toPublicMenuImageUrl } from "../../utils/menuImages";
 import { tagLabel } from "../menu/MenuItemCard";
 import { api } from "../../services/apiClient";
 import { ClipboardList, Utensils, X } from "lucide-react";
@@ -19,35 +19,8 @@ import "./admin-menu-cards.css";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 
-// Ảnh bộ menu (/menu-images/*.png) được host trên customer portal,
-// nên khi hiển thị trong admin phải đổi sang URL tuyệt đối của customer.
-function getCustomerBaseUrl() {
-  const configured = import.meta.env.VITE_CUSTOMER_BASE_URL;
-  if (configured) return configured.replace(/\/$/, "");
-  if (typeof window === "undefined") return "https://customer.cmcrestaurant.app";
-  const { origin, hostname, protocol, port } = window.location;
-  if (hostname.startsWith("admin.")) {
-    return `${protocol}//${hostname.replace(/^admin\./, "customer.")}${port ? `:${port}` : ""}`;
-  }
-  return origin;
-}
-
 function toDisplayImageUrl(imageUrl: string | null | undefined): string | null {
-  if (!imageUrl) return null;
-  const trimmed = imageUrl.trim();
-  const relativeMatch = trimmed.match(/^\/menu-images\/([a-zA-Z0-9._-]+\.(?:png|jpe?g|webp))$/i);
-  if (relativeMatch) {
-    return `${getCustomerBaseUrl()}/menu-images/${relativeMatch[1]}`;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return parsed.href;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+  return toPublicMenuImageUrl(imageUrl);
 }
 
 const SAVE_ERROR_MESSAGES: Record<string, string> = {

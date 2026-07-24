@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { menuItems } from "../mocks/menuItems";
-import { resolveMenuImage } from "./menuImages";
+import { resolveMenuImage, toPublicMenuImageUrl } from "./menuImages";
 
 describe("resolveMenuImage", () => {
   const firstItem = menuItems[0]!;
@@ -17,5 +17,14 @@ describe("resolveMenuImage", () => {
 
   it("uses a deterministic catalog fallback when no mapping exists", () => {
     expect(resolveMenuImage("__unmapped_menu_item__", null, 1)).toBe(menuItems[1]!.imageUrl);
+  });
+});
+
+describe("toPublicMenuImageUrl", () => {
+  it("maps relative menu image paths to the ordering portal base URL", () => {
+    vi.stubEnv("VITE_ORDERING_BASE_URL", "https://order.cmcrestaurant.app");
+    expect(toPublicMenuImageUrl("/menu-images/86-bia-ha-noi.png")).toBe(
+      "https://order.cmcrestaurant.app/menu-images/86-bia-ha-noi.png",
+    );
   });
 });
