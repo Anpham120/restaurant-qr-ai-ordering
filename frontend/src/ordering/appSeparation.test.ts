@@ -63,9 +63,12 @@ describe("marketing and ordering app separation", () => {
 
   it("generates table QR links on the ordering domain", () => {
     const qrManager = read("src/components/qr/AdminQrTableManager.tsx");
+    const orderingLink = read("src/utils/tableOrderingLink.ts");
 
-    expect(qrManager).toContain("VITE_ORDERING_BASE_URL");
-    expect(qrManager).toContain("https://order.cmcrestaurant.app");
+    expect(qrManager).toContain("buildOrderingLink");
+    expect(qrManager).toContain("tableOrderingLink");
+    expect(orderingLink).toContain("VITE_ORDERING_BASE_URL");
+    expect(orderingLink).toContain("https://order.cmcrestaurant.app");
     expect(qrManager).not.toContain("VITE_CUSTOMER_BASE_URL");
     expect(qrManager).not.toContain("https://customer.cmcrestaurant.app");
   });
