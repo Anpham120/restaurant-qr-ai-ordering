@@ -8,6 +8,7 @@ import { useOpsHubTab } from "../../components/operations/OpsHubTabs";
 import { useOpsConnectionStatus } from "../../components/operations/OpsRealtimeProvider";
 import { hasPendingCounterPayments } from "../../services/opsSummaryService";
 import "../../components/operations/operations.css";
+import "./counter-hub.css";
 
 const COUNTER_TABS = [
   { id: "shift", label: "Ca làm việc" },
@@ -36,6 +37,7 @@ export function CounterHubPage() {
 
   return (
     <OpsHubShell
+      className="ops-hub-shell--counter"
       title="Quầy thu ngân"
       description="Mở ca, thu tiền và tra cứu hóa đơn phiên bàn."
       tabs={COUNTER_TABS}

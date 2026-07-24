@@ -33,6 +33,7 @@ import { OpsToastProvider } from "../../../src/components/operations/OpsToastPro
 import { OpsRealtimeProvider } from "../../../src/components/operations/OpsRealtimeProvider";
 import { OpsAssistanceProvider } from "../../../src/components/operations/OpsAssistanceProvider";
 import { CounterMobileShell } from "../../../src/components/operations/CounterMobileShell";
+import { getOrderingBaseUrl } from "../../../src/utils/tableOrderingLink";
 import {
   Activity,
   BookOpen,
@@ -76,18 +77,6 @@ const BASE_COUNTER_LINKS: PortalLink[] = [
 const kitchenLinks: PortalLink[] = [
   { to: "/kitchen/board", label: "Bảng bếp", icon: <ChefHat size={18} /> },
 ];
-
-function getOrderingBaseUrl() {
-  const configured = import.meta.env.VITE_ORDERING_BASE_URL;
-  if (configured) return configured.replace(/\/$/, "");
-  if (typeof window === "undefined") return "https://order.cmcrestaurant.app";
-  const { origin, hostname, protocol, port } = window.location;
-  if (["localhost", "127.0.0.1"].includes(hostname)) return `${protocol}//${hostname}:5177`;
-  if (hostname.startsWith("admin.") || hostname.startsWith("ops.")) {
-    return `${protocol}//${hostname.replace(/^(admin|ops)\./, "order.")}${port ? `:${port}` : ""}`;
-  }
-  return origin;
-}
 
 function CustomerTableRedirect() {
   const { tableCode } = useParams();

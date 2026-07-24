@@ -369,6 +369,7 @@ export const EN_COPY: Record<string, string> = {
   "Không thể kết nối phiên bàn. Vui lòng thử lại hoặc nhờ nhân viên hỗ trợ.": "The table session could not be connected. Try again or ask a staff member for help.",
   "Mã QR không hợp lệ hoặc không còn hoạt động.": "This QR code is invalid or no longer active.",
   "Chờ xác nhận": "Awaiting confirmation",
+  "Chờ chế biến": "Waiting for kitchen",
   "Đang chuẩn bị": "Preparing",
   "Sẵn sàng phục vụ": "Ready to serve",
   "Đã phục vụ": "Served",

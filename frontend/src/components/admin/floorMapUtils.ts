@@ -1,11 +1,11 @@
-import type { AdminTableSessionSummary, Table } from "@cmc/shared-types";
+import type { AdminTable, AdminTableSessionSummary, Table } from "@cmc/shared-types";
 
 export type FloorMapFilter = "all" | "serving" | "free" | "payment";
 
 export type TableFloorState = "inactive" | "free" | "serving" | "payment";
 
 export type TableFloorRow = {
-  table: Table;
+  table: AdminTable;
   session: AdminTableSessionSummary | null;
   state: TableFloorState;
 };
@@ -22,7 +22,7 @@ export function getTableFloorState(
 }
 
 export function buildTableFloorRows(
-  tables: Table[],
+  tables: AdminTable[],
   sessions: AdminTableSessionSummary[],
   pendingTableCodes: Set<string>,
 ): TableFloorRow[] {
