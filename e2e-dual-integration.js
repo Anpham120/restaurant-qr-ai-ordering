@@ -28,6 +28,13 @@ let orderId = null;
 let sessionId = null;
 let qrLink = "";
 
+function escapeMdTableCell(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, " ");
+}
+
 function row(name, ok, note = "") {
   results.push({ name, ok, note });
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${note ? " - " + note : ""}`);
@@ -309,7 +316,7 @@ function writeReport() {
   md += `| PASS | ${pass} |\n| FAIL | ${fail} |\n\n`;
   md += "## B\u1ea3ng k\u1ebft qu\u1ea3\n\n| B\u01b0\u1edbc ki\u1ec3m th\u1eed | K\u1ebft qu\u1ea3 | Ghi ch\u00fa |\n|---|---|---|\n";
   for (const r of results) {
-    md += `| ${r.name} | **${r.ok ? "PASS" : "FAIL"}** | ${(r.note || "").replace(/\|/g, "\\|")} |\n`;
+    md += `| ${escapeMdTableCell(r.name)} | **${r.ok ? "PASS" : "FAIL"}** | ${escapeMdTableCell(r.note)} |\n`;
   }
   fs.writeFileSync(REPORT_PATH, md, "utf8");
   console.log(`Report: ${REPORT_PATH}`);
