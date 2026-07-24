@@ -1,4 +1,5 @@
-import type { OrderStatus, PaymentMethod, PaymentStatus } from "../types/order";
+import type { OrderStatus } from "../types";
+import type { PaymentMethod, PaymentStatus } from "../types/order";
 
 const ORDER_STATUS_VI: Record<string, string> = {
   Draft: "Bản nháp",

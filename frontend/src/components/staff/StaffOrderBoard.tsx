@@ -168,7 +168,7 @@ export function StaffOrderBoard({ embedded = false }: { embedded?: boolean }) {
   const loadOrders = useCallback(async () => {
     try {
       const list = await getKitchenOrders();
-      const nextOrders = Array.isArray(list) ? list : [];
+      const nextOrders = (Array.isArray(list) ? list : []) as Order[];
       setOrders(nextOrders);
       setError("");
     } catch {
