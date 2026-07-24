@@ -1,10 +1,14 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using RestaurantQrAiOrdering.Api.Data;
 
 #nullable disable
 
 namespace RestaurantQrAiOrdering.Api.Data.Migrations
 {
+    [DbContext(typeof(RestaurantDbContext))]
+    [Migration("20260719220000_AddsCounterShifts")]
     public partial class AddsCounterShifts : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

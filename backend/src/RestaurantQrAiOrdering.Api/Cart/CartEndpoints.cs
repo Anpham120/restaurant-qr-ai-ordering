@@ -71,9 +71,13 @@ public static class CartEndpoints
                 return sessionResult.Error;
             }
 
-            await using var transaction = db.Database.IsRelational()
-                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-                : null;
+            var executionStrategy = db.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync<IResult>(async () =>
+            {
+                db.ChangeTracker.Clear();
+                await using var transaction = db.Database.IsRelational()
+                    ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                    : null;
 
             if (request.Delta > 0)
             {
@@ -172,6 +176,7 @@ public static class CartEndpoints
                 cancellationToken);
 
             return Results.Ok(cart);
+            });
         })
         .WithName("UpdateTableSessionCartItem")
         .WithTags("Cart");
@@ -195,9 +200,13 @@ public static class CartEndpoints
                 return sessionResult.Error;
             }
 
-            await using var transaction = db.Database.IsRelational()
-                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-                : null;
+            var executionStrategy = db.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync<IResult>(async () =>
+            {
+                db.ChangeTracker.Clear();
+                await using var transaction = db.Database.IsRelational()
+                    ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                    : null;
 
             var cartItems = await db.TableSessionCartItems
                 .Where(item => item.TableSessionId == tableSessionId)
@@ -219,6 +228,7 @@ public static class CartEndpoints
                 cancellationToken);
 
             return Results.Ok(cart);
+            });
         })
         .WithName("ClearTableSessionCart")
         .WithTags("Cart");
