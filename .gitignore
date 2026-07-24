@@ -34,6 +34,10 @@ site-demo/
 coursework/
 tools/
 
+# Playwright E2E local artifacts (scripts e2e-*.js are tracked)
+e2e-screenshots/
+e2e-*-report.md
+
 # Local scratch files created while preparing GitHub evidence
 commit_msg.txt
 issue_comment.txt

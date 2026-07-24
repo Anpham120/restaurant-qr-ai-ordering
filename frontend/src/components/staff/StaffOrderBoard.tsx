@@ -6,6 +6,7 @@ import { getKitchenOrders, updateOrderStatus } from "../../services/orderService
 import { useOpsRealtime } from "../../hooks/useOpsRealtime";
 import { matchesTableFilter, normalizeTableCode } from "../operations/opsDeepLinkUtils";
 import { OpsConnectionBadge } from "../operations/OpsConnectionBadge";
+import { labelOrderStatus, labelPaymentChip } from "../../utils/opsStatusLabels";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -58,8 +59,8 @@ function StaffCard({
         <span>{formatVnd(order.totalAmount)}</span>
       </div>
       <div className="ops-card-meta" style={{ marginTop: 6 }}>
-        <span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span>
-        <span className={payBadge}>{order.paymentMethod} · {order.paymentStatus}</span>
+        <span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{labelOrderStatus(order.status)}</span>
+        <span className={payBadge}>{labelPaymentChip(order.paymentMethod, order.paymentStatus)}</span>
       </div>
 
       <div className="ops-card-items">
@@ -166,13 +167,14 @@ export function StaffOrderBoard({ embedded = false }: { embedded?: boolean }) {
 
   const loadOrders = useCallback(async () => {
     try {
-      const data = await getKitchenOrders();
-      const list = (data as { orders?: Order[] }).orders ?? (data as unknown as Order[]);
-      setOrders(Array.isArray(list) ? list : []);
+      const list = await getKitchenOrders();
+      const nextOrders = (Array.isArray(list) ? list : []) as Order[];
+      setOrders(nextOrders);
+      setError("");
     } catch {
       setError("Không tải được đơn hàng.");
     }
-  }, []);
+  }, [tableFilter]);
 
   useEffect(() => {
     loadOrders().finally(() => setIsLoading(false));

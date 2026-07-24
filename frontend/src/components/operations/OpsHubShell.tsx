@@ -10,6 +10,7 @@ type OpsHubShellProps = {
   tabs: OpsHubTab[];
   isAdmin?: boolean;
   connectionStatus?: RealtimeConnectionStatus;
+  className?: string;
   children: ReactNode;
 };
 
@@ -19,10 +20,11 @@ export function OpsHubShell({
   tabs,
   isAdmin = true,
   connectionStatus,
+  className,
   children,
 }: OpsHubShellProps) {
   return (
-    <div className="ops-hub-shell">
+    <div className={className ? `ops-hub-shell ${className}` : "ops-hub-shell"}>
       <div className="ops-page-header ops-page-header--compact">
         <div className="ops-page-header-row">
           <div>

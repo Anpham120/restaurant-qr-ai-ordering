@@ -70,7 +70,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
       try { body = await response.json() as ApiErrorBody; } catch { body = undefined; }
       throw new ApiError(response.status, body?.error.code ?? `HTTP_${response.status}`, body?.error.message ?? response.statusText, body?.error.details);
     }
-    return response.status === 204 ? undefined as T : response.json() as Promise<T>;
+    if (response.status === 204) return undefined as T;
+    const raw = await response.text();
+    if (!raw) return null as T;
+    return JSON.parse(raw) as T;
   }
   return {
     request,

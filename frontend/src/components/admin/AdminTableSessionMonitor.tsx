@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { AdminTableSessionSummary, Table } from "@cmc/shared-types";
+import type { AdminTable, AdminTableSessionSummary } from "@cmc/shared-types";
 import { ApiError } from "@cmc/api-client";
 import { api } from "../../services/apiClient";
 import { listTableInvoices } from "../../services/orderService";
@@ -18,7 +18,7 @@ import "./floor-map.css";
 export function AdminTableSessionMonitor({ embedded = false }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
   const { recentAssistance } = useOpsAssistance();
-  const [tables, setTables] = useState<Table[]>([]);
+  const [tables, setTables] = useState<AdminTable[]>([]);
   const [sessions, setSessions] = useState<AdminTableSessionSummary[]>([]);
   const [pendingTableCodes, setPendingTableCodes] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +58,14 @@ export function AdminTableSessionMonitor({ embedded = false }: { embedded?: bool
   const { connectionStatus } = useOpsRealtime({ refresh: load, pollIntervalMs: 15_000 });
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    void (async () => {
+      await load();
+      if (cancelled) return;
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      if (!cancelled) await load();
+    })();
+    return () => { cancelled = true; };
   }, [load]);
 
   const rows = useMemo(
