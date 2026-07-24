@@ -1,4 +1,24 @@
 import { menuItems } from "../mocks/menuItems";
+import { getOrderingBaseUrl } from "./tableOrderingLink";
+
+/** Turn /menu-images/* paths into absolute URLs on the ordering portal (CSP-safe for admin). */
+export function toPublicMenuImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  const trimmed = imageUrl.trim();
+  const relativeMatch = trimmed.match(/^\/menu-images\/([a-zA-Z0-9._-]+\.(?:png|jpe?g|webp))$/i);
+  if (relativeMatch) {
+    return `${getOrderingBaseUrl()}/menu-images/${relativeMatch[1]}`;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch {
+    return null;
+  }
+  return trimmed.startsWith("/") ? `${getOrderingBaseUrl()}${trimmed}` : null;
+}
 
 function normalizeVN(text: string) {
   return text

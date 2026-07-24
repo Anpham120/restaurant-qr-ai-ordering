@@ -27,13 +27,25 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
     setLoading(true);
     setLoadError("");
     try {
-      setShift(await getCurrentCounterShift());
+      const current = await getCurrentCounterShift();
+      setShift(current);
+      // #region agent log
+      fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-SHIFT',location:'CounterShiftPanel.tsx:refresh',message:'counter shift loaded',data:{hasOpenShift:Boolean(current?.status==='Open')},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     } catch (error) {
       const status = error instanceof ApiError ? error.status : 0;
+      const apiMessage = error instanceof ApiError ? error.message : "";
+      // #region agent log
+      fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-SHIFT',location:'CounterShiftPanel.tsx:refresh',message:'counter shift load failed',data:{status,apiMessage},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (status === 403) {
         setLoadError("Tài khoản không có quyền quản lý ca quầy. Liên hệ admin để cấp quyền CounterStaff hoặc Staff.");
       } else if (status === 401) {
         setLoadError("Phiên đăng nhập hết hạn. Tải lại trang và đăng nhập lại.");
+      } else if (status >= 500) {
+        setLoadError("Máy chủ không đọc được ca quầy (có thể thiếu migration DB). Thử lại hoặc báo DevOps.");
+      } else if (apiMessage) {
+        setLoadError(`Không tải được thông tin ca quầy: ${apiMessage}`);
       } else {
         setLoadError("Không tải được thông tin ca quầy. Bạn vẫn có thể thử mở ca mới.");
       }
