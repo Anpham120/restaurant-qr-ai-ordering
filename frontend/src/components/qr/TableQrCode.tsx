@@ -46,7 +46,7 @@ export function TableQrCode({ value, label, downloadName }: TableQrCodeProps) {
 
   return (
     <div className="table-qr-image">
-      <img alt={label} height={96} src={dataUrl} width={96} />
+      <img alt={label} src={dataUrl} />
       <a className="table-qr-download" download={downloadName} href={dataUrl}>
         Tải QR
       </a>
