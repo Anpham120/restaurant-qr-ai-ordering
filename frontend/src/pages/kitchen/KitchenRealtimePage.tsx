@@ -50,7 +50,7 @@ export function KitchenRealtimePage() {
     );
     return [
       { label: "Đơn chờ nấu", value: String(confirmed), detail: "Confirmed" },
-      { label: "Đang nấu", value: String(preparing), detail: "Preparing" },
+      { label: "Đang nấu", value: String(preparing), detail: "Đơn đang chế biến" },
       { label: "Sẵn sàng", value: String(ready), detail: "Chờ mang ra" },
       { label: "Đã phục vụ", value: String(served), detail: "Đã giao tại bàn" },
       { label: "Cần gấp", value: String(urgent), detail: "Chờ > 20 phút" },

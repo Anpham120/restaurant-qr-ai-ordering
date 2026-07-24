@@ -25,7 +25,7 @@ public static class CounterShiftEndpoints
                 .FirstOrDefaultAsync(cancellationToken);
 
             return shift is null
-                ? Results.Ok(null as CounterShiftSummaryResponse)
+                ? Results.Content("null", "application/json")
                 : Results.Ok(ToSummary(shift));
         })
         .RequireAuthorization("CounterOrAdmin")

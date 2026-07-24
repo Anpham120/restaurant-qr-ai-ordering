@@ -25,25 +25,7 @@ import {
 import { useOrderingSession } from "./OrderingSessionProvider";
 import { deriveSessionHubState } from "./sessionResumeState";
 import { TableInvoicePaymentModal } from "./TableInvoicePaymentModal";
-
-const itemStatusLabel: Record<string, string> = {
-  Pending: "Chờ xác nhận",
-  Preparing: "Đang chuẩn bị",
-  Ready: "Sẵn sàng phục vụ",
-  Served: "Đã phục vụ",
-  Cancelled: "Đã hủy",
-};
-
-const orderStatusLabel: Record<string, string> = {
-  Draft: "Bản nháp",
-  Placed: "Đã gửi",
-  Confirmed: "Đã xác nhận",
-  Preparing: "Đang chuẩn bị",
-  Ready: "Sẵn sàng phục vụ",
-  Served: "Đã phục vụ",
-  Completed: "Hoàn tất",
-  Cancelled: "Đã hủy",
-};
+import { labelGuestItemStatus, labelOrderStatus } from "../utils/opsStatusLabels";
 
 const journeySteps = ["Gọi món", "Chế biến", "Phục vụ", "Thanh toán"] as const;
 
@@ -75,7 +57,7 @@ export function SessionOrdersPage() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [context.sessionId, context.sessionToken]);
+  }, [context.sessionId, context.sessionToken, locale]);
 
   useEffect(() => {
     void loadOrders();
@@ -244,10 +226,10 @@ export function SessionOrdersPage() {
             </header>
             <ul>
               {order.items.map((item) => (
-                <li key={item.orderItemId}><span>{item.quantity}× {localizeMenuItemName(item.menuItemId, item.name, locale)}</span><em>{t(itemStatusLabel[item.status] ?? item.status)}</em></li>
+                <li key={item.orderItemId}><span>{item.quantity}× {localizeMenuItemName(item.menuItemId, item.name, locale)}</span><em>{t(labelGuestItemStatus(item.status, order.status))}</em></li>
               ))}
             </ul>
-            <footer><span>{t("Trạng thái: {status}", { status: t(orderStatusLabel[order.status] ?? order.status) })}</span><strong data-money>{formatMoney(order.subtotalAmount)}</strong></footer>
+            <footer><span>{t("Trạng thái: {status}", { status: t(labelOrderStatus(order.status)) })}</span><strong data-money>{formatMoney(order.subtotalAmount)}</strong></footer>
           </article>
         ))}
       </div>
