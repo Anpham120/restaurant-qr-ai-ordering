@@ -4,10 +4,17 @@ from __future__ import annotations
 import asyncio
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
 
 from app.config import AiServiceConfig
 from app.services.assistant import AiAssistantService
+
+
+class _StubLlmClient:
+    async def complete(self, _messages: list[dict[str, str]]) -> str:
+        return (
+            '{"content":"Goi y pho bo.","suggested_cart_actions":[],"'
+            '"guardrail_flags":[],"claims":[]}'
+        )
 
 
 class _EmptyRetriever:
@@ -15,6 +22,9 @@ class _EmptyRetriever:
         return [
             type("Hit", (), {
                 "chunk": type("Chunk", (), {
+                    "chunk_id": "faq-hours",
+                    "document_id": "faq.md",
+                    "section_path": ["FAQ"],
                     "source": "faq.md",
                     "title": "FAQ",
                     "content": "Gio mo cua 10h-22h",
@@ -32,7 +42,7 @@ class AssistantRollingSummaryResponseTests(unittest.TestCase):
             provider="9router",
             base_url="https://example.com/v1",
             api_key="test-key",
-            model="cx/gpt-5.5",
+            model="oc/deepseek-v4-flash-free",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,
@@ -42,7 +52,7 @@ class AssistantRollingSummaryResponseTests(unittest.TestCase):
             top_k=3,
             retrieval_method="bm25",
         )
-        service = AiAssistantService(config, llm_client=None)
+        service = AiAssistantService(config, llm_client=_StubLlmClient())
         service._retriever = _EmptyRetriever()  # noqa: SLF001
 
         response = asyncio.run(

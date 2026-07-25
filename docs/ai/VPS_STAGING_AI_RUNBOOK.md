@@ -23,7 +23,7 @@ Secrets / vars tối thiểu (xem `deploy/scripts/deploy-vps.sh`):
 | `NINE_ROUTER_BASE_URL` | Variable (optional) |
 | VietQR `PAYMENTS__VIETQR__*` | Secrets |
 
-Workflow đã set: `CHAT_AI_PROVIDER=python-rag`, `RAG_RETRIEVAL_METHOD=hybrid`, `LLM_MODEL=oc/deepseek-v4-flash-free` (override bằng `vars.LLM_MODEL`), `VITE_USE_MOCK_CHAT=false`.
+Workflow đã set: `CHAT_AI_PROVIDER=python-rag`, `RAG_RETRIEVAL_METHOD=hybrid`, `LLM_MODEL=oc/deepseek-v4-flash-free` (override bằng `vars.LLM_MODEL`), **`AI_LLM_FIRST=true`**, `VITE_USE_MOCK_CHAT=false`.
 
 ### 3. DNS
 
@@ -47,8 +47,12 @@ Báo cáo: `/opt/cmc-restaurant/staging/reports/last-deployment.md`
 
 1. `curl -fsS https://api-staging.cmcrestaurant.app/api/health`
 2. Đăng nhập demo (`SEED_DEMO_USERS=true` trên staging) → **order-staging** → mở chat.
-3. Câu KB: *"nhà hàng có wifi không?"* (fast-path / KB).
-4. Câu menu: *"gợi ý món"* — có thể **abstain** nếu Claim Verifier chưa LiveContext (đúng thiết kế; xem notebook §16).
+3. Smoke chat (DeepSeek qua 9router — kiểm tra log gateway có request `oc/deepseek-v4-flash-free`):
+   - *"Gợi ý món nhẹ cho 2 người"* — `provider_status: available`, gợi ý **món ăn** (không chỉ đồ uống).
+   - *"Món dễ ăn nhậu với bia"* — thẻ giỏ ưu tiên món ăn; có thể nhắc bia trong text.
+   - *"Món không phải đồ uống"* — không list trà/cà phê/rượu thay món ăn.
+4. Câu KB vẫn có thể qua LLM (không còn KB fast-path khi `AI_LLM_FIRST=true`): *"nhà hàng có wifi không?"*
+5. Câu menu / abstain: *"gợi ý món"* — có thể **abstain** nếu Claim Verifier chưa LiveContext (đúng thiết kế; xem notebook §16).
 
 Release quality vẫn **NOT READY** — xem [`AI_STAGING_READINESS.md`](AI_STAGING_READINESS.md).
 

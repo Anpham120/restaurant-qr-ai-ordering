@@ -91,6 +91,32 @@ PAYMENT_CONTEXT_PHRASES = (
     "tien mat",
 )
 
+DRINK_ONLY_QUERY_PHRASES = (
+    "uong gi",
+    "uong bia",
+    "do uong",
+    "thuc uong",
+    "co bia gi",
+    "nhung bia gi",
+    "bia gi",
+    "goi y do uong",
+    "de xuat do uong",
+    "tu van do uong",
+)
+
+FOOD_CONTEXT_PHRASES = (
+    "mon nhau",
+    "an nhau",
+    "mon de an",
+    "mon an",
+    " goi y mon",
+    "de xuat mon",
+    "tu van mon",
+    "mon de nhat",
+    "mon nhat",
+    "moi ",
+)
+
 
 def classify_menu_item_kind(item: dict) -> ItemKind:
     category_id = str(item.get("category_id") or "").strip().casefold()
@@ -123,11 +149,20 @@ def detect_requested_item_kind(
     drink_scan_text = normalized
     for phrase in PAYMENT_CONTEXT_PHRASES:
         drink_scan_text = drink_scan_text.replace(phrase, " ")
+
     wants_drink = _contains_phrase(drink_scan_text, DRINK_QUERY_PHRASES)
     wants_dessert = _contains_phrase(normalized, DESSERT_QUERY_PHRASES)
 
     if wants_dessert and not wants_drink:
         return "dessert"
+
+    if (
+        _has_food_context(normalized)
+        and not _is_drink_only_query(normalized)
+        and not _is_drink_listing_with_food_pairing(normalized)
+    ):
+        return "food"
+
     if wants_drink:
         return "drink"
 
@@ -155,6 +190,45 @@ def filter_items_by_kind(
 def _contains_phrase(normalized: str, phrases: tuple[str, ...]) -> bool:
     padded = f" {normalized} "
     return any(phrase in padded for phrase in phrases)
+
+
+def _has_food_context(normalized: str) -> bool:
+    if _contains_phrase(normalized, FOOD_CONTEXT_PHRASES):
+        return True
+    if _contains_phrase(normalized, FOOD_QUERY_PHRASES):
+        return True
+    if _contains_phrase(normalized, DESSERT_QUERY_PHRASES):
+        return False
+    return bool(re.search(r"\bmon\b", normalized))
+
+
+def _is_drink_listing_with_food_pairing(normalized: str) -> bool:
+    """Beer/drink listing even when food or nhậu appears as pairing context."""
+
+    padded = f" {normalized} "
+    if _contains_phrase(
+        normalized,
+        (
+            " co bia",
+            "bia nao",
+            "nhung bia",
+            "goi y bia",
+            "uong bia",
+        ),
+    ):
+        return True
+    if " bia " in padded and any(token in padded for token in (" nao ", " gi ", " co ")):
+        return True
+    return False
+
+
+def _is_drink_only_query(normalized: str) -> bool:
+    padded = f" {normalized} "
+    if _contains_phrase(normalized, DRINK_ONLY_QUERY_PHRASES):
+        return True
+    if " uong " in padded and " mon " not in padded and " an " not in padded:
+        return True
+    return False
 
 
 def _normalize(value: str) -> str:
