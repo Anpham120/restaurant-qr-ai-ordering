@@ -21,6 +21,8 @@ describe("ordering experience", () => {
     const chat = read("../pages/chatbot/ChatbotPage.tsx");
 
     expect(chat).toContain("cmc-chat-quick-prompts-inline");
+    expect(chat).toContain("handleComposerKeyDown");
+    expect(chat).toContain('event.key !== "Enter"');
     expect(chat).not.toContain("cmc-chat-side-panel");
     expect(chat).toContain("tableSessionId: orderContext.sessionId");
     expect(chat).not.toContain("tableCode: orderContext.tableCode");
