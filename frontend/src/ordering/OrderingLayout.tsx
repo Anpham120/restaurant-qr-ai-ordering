@@ -46,21 +46,23 @@ function OrderingShell() {
 
   return (
     <div className="ordering-shell">
-      <header className="ordering-header">
-        <a className="ordering-brand" href={base}><BrandWordmark /></a>
-        <LanguageSwitcher variant="toggle" />
-        <div className="ordering-table" aria-label={t("Phiên bàn {table}", { table: context.tableCode })}>
-          <span>{t("Phiên đang mở")}</span>
-          <strong>{context.tableCode}</strong>
-        </div>
-      </header>
-      <nav className="ordering-nav" aria-label={t("Điều hướng gọi món")}>
-        {orderingNavigation.map(({ path, label }) => (
-          <NavLink key={path} to={path} className={({ isActive }) => isActive ? "active" : undefined}>
-            <span>{t(label)}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <div className="ordering-chrome">
+        <header className="ordering-header">
+          <a className="ordering-brand" href={base}><BrandWordmark /></a>
+          <LanguageSwitcher variant="toggle" />
+          <div className="ordering-table" aria-label={t("Phiên bàn {table}", { table: context.tableCode })}>
+            <span>{t("Phiên đang mở")}</span>
+            <strong>{context.tableCode}</strong>
+          </div>
+        </header>
+        <nav className="ordering-nav" aria-label={t("Điều hướng gọi món")}>
+          {orderingNavigation.map(({ path, label }) => (
+            <NavLink key={path} to={path} className={({ isActive }) => isActive ? "active" : undefined}>
+              <span>{t(label)}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
       <main className="ordering-main"><Outlet /></main>
     </div>
   );
