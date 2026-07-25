@@ -11,6 +11,7 @@ type OpsHubShellProps = {
   isAdmin?: boolean;
   connectionStatus?: RealtimeConnectionStatus;
   className?: string;
+  /** @deprecated Hub tabs must not stick independently — causes scroll gap under tabs. */
   stickyTabs?: boolean;
   defaultTabId?: string;
   children: ReactNode;
@@ -23,10 +24,10 @@ export function OpsHubShell({
   isAdmin = true,
   connectionStatus,
   className,
-  stickyTabs = true,
   defaultTabId,
   children,
 }: OpsHubShellProps) {
+  const stickyTabs = false;
   return (
     <div className={className ? `ops-hub-shell ${className}` : "ops-hub-shell"}>
       <div className="ops-page-header ops-page-header--compact">

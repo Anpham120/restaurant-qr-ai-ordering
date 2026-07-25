@@ -7,6 +7,7 @@ import {
   openCounterShift,
   type CounterShiftSummary,
 } from "../../services/counterShiftService";
+import { formatVndDigitsInput, parseVndDigitsInput } from "../../utils/vndInputFormat";
 import "../../components/operations/operations.css";
 import "./counter-hub.css";
 
@@ -24,7 +25,7 @@ export function CounterShiftPanel({
 }) {
   const [shift, setShift] = useState<CounterShiftSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openingCash, setOpeningCash] = useState("0");
+  const [openingCash, setOpeningCash] = useState("");
   const [closingCash, setClosingCash] = useState("");
   const [notice, setNotice] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -59,7 +60,7 @@ export function CounterShiftPanel({
   }, [refresh]);
 
   async function handleOpenShift() {
-    const balance = Number.parseFloat(openingCash.replace(/[^\d.-]/g, "")) || 0;
+    const balance = parseVndDigitsInput(openingCash);
     try {
       setShift(await openCounterShift(balance));
       setNotice("Đã mở ca quầy.");
@@ -71,8 +72,8 @@ export function CounterShiftPanel({
 
   async function handleCloseShift() {
     if (!shift) return;
-    const actual = Number.parseFloat(closingCash.replace(/[^\d.-]/g, ""));
-    if (Number.isNaN(actual)) {
+    const actual = parseVndDigitsInput(closingCash);
+    if (closingCash.trim() === "") {
       setNotice("Nhập số tiền thực tế trong két.");
       return;
     }
@@ -175,7 +176,7 @@ export function CounterShiftPanel({
                 <input
                   id="counter-closing-cash"
                   inputMode="numeric"
-                  onChange={(event) => setClosingCash(event.target.value)}
+                  onChange={(event) => setClosingCash(formatVndDigitsInput(event.target.value))}
                   placeholder="2.500.000"
                   value={closingCash}
                 />
@@ -214,8 +215,8 @@ export function CounterShiftPanel({
                 <input
                   id="counter-opening-cash"
                   inputMode="numeric"
-                  onChange={(event) => setOpeningCash(event.target.value)}
-                  placeholder="0"
+                  onChange={(event) => setOpeningCash(formatVndDigitsInput(event.target.value))}
+                  placeholder="100.000"
                   value={openingCash}
                 />
               </div>
