@@ -29,6 +29,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("Authorization: Bearer ${AI_INTERNAL_TOKEN}", script)
         self.assertIn('"message":"Xin chào"', script)
         self.assertIn("/v1/chat", script)
+        self.assertIn('{"ok", "not_called"}', script)
+        self.assertNotIn('payload.get("provider_available") is True', script)
 
     def test_staging_deploy_waits_for_ci_and_receives_ai_secrets(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "deploy-staging.yml").read_text(

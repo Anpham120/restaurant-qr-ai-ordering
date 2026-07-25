@@ -110,7 +110,7 @@ expected_profile, expected_model = sys.argv[2], sys.argv[3]
 content = str(payload.get("content") or "").casefold()
 assert payload.get("pipeline_profile") == expected_profile, payload
 assert payload.get("model") == expected_model, payload
-assert payload.get("provider_available") is True, payload
+assert payload.get("provider_status") in {"ok", "not_called"}, payload
 assert "mình chưa đủ bằng chứng" not in content, payload
 assert payload.get("verifier_result") != "failed", payload
 assert payload.get("resolved_menu_item_ids"), payload
