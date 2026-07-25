@@ -6,6 +6,8 @@ export type OpsHubTab = {
   id: string;
   label: string;
   adminOnly?: boolean;
+  /** Ẩn với Admin — dành cho nhân viên quầy/bếp thao tác trực tiếp */
+  counterOnly?: boolean;
 };
 
 type OpsHubTabsProps = {
@@ -13,12 +15,21 @@ type OpsHubTabsProps = {
   param?: string;
   isAdmin?: boolean;
   sticky?: boolean;
+  defaultTabId?: string;
 };
 
-export function OpsHubTabs({ tabs, param = "tab", isAdmin = true, sticky = false }: OpsHubTabsProps) {
+export function OpsHubTabs({ tabs, param = "tab", isAdmin = true, sticky = false, defaultTabId }: OpsHubTabsProps) {
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.adminOnly && !isAdmin) return false;
+    if (tab.counterOnly && isAdmin) return false;
+    return true;
+  });
+  const fallbackTab = visibleTabs.some((tab) => tab.id === defaultTabId)
+    ? defaultTabId!
+    : visibleTabs[0]?.id ?? "";
   const [searchParams, setSearchParams] = useSearchParams();
-  const visibleTabs = tabs.filter((tab) => isAdmin || !tab.adminOnly);
-  const activeTab = searchParams.get(param) ?? visibleTabs[0]?.id ?? "";
+  const requested = searchParams.get(param);
+  const activeTab = visibleTabs.some((tab) => tab.id === requested) ? requested! : fallbackTab;
 
   const selectTab = useCallback((id: string) => {
     const next = new URLSearchParams(searchParams);
@@ -61,12 +72,24 @@ export function OpsHubTabs({ tabs, param = "tab", isAdmin = true, sticky = false
   );
 }
 
-export function useOpsHubTab(tabs: OpsHubTab[], param = "tab", isAdmin = true) {
+export function useOpsHubTab(
+  tabs: OpsHubTab[],
+  param = "tab",
+  isAdmin = true,
+  defaultTabId?: string,
+) {
   const [searchParams] = useSearchParams();
-  const visibleTabs = tabs.filter((tab) => isAdmin || !tab.adminOnly);
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.adminOnly && !isAdmin) return false;
+    if (tab.counterOnly && isAdmin) return false;
+    return true;
+  });
   const requested = searchParams.get(param);
+  const fallbackTab = visibleTabs.some((tab) => tab.id === defaultTabId)
+    ? defaultTabId!
+    : visibleTabs[0]?.id ?? "";
   const activeTab = visibleTabs.some((tab) => tab.id === requested)
     ? requested!
-    : visibleTabs[0]?.id ?? "";
+    : fallbackTab;
   return { activeTab, visibleTabs };
 }

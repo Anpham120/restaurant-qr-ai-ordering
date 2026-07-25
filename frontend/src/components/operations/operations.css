@@ -277,6 +277,18 @@
   color: var(--color-muted);
 }
 
+.ops-card-meta--badges {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  align-items: flex-start;
+}
+
+.ops-card-meta--badges .ops-badge {
+  white-space: normal;
+  line-height: 1.35;
+  max-width: 100%;
+}
+
 .ops-card-meta svg,
 .ops-card-meta i {
   font-size: 11px;

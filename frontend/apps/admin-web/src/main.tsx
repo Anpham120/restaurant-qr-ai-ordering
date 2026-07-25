@@ -57,10 +57,9 @@ const roleRedirects = {
 
 const BASE_ADMIN_LINKS: PortalLink[] = [
   { to: "/", label: "Trung tâm", icon: <Activity size={18} />, section: "Vận hành" },
-  { to: "/orders", label: "Đơn hàng", icon: <ShoppingBag size={18} />, section: "Vận hành" },
+  { to: "/orders?tab=table", label: "Đơn hàng", icon: <ShoppingBag size={18} />, section: "Vận hành" },
   { to: "/tables", label: "Bàn", icon: <Armchair size={18} />, section: "Vận hành" },
-  { to: "/counter", label: "Quầy thu ngân", icon: <Receipt size={18} />, section: "Vận hành" },
-  { to: "/kitchen/board", label: "Bảng bếp", icon: <ChefHat size={18} />, section: "Vận hành" },
+  { to: "/counter?tab=shift", label: "Giám sát ca", icon: <Receipt size={18} />, section: "Vận hành" },
   { to: "/menu", label: "Thực đơn", icon: <BookOpen size={18} />, section: "Danh mục" },
   { to: "/promotions", label: "Khuyến mãi", icon: <BadgePercent size={18} />, section: "Khách hàng" },
   { to: "/loyalty", label: "Tích điểm", icon: <Star size={18} />, section: "Khách hàng" },
@@ -169,7 +168,7 @@ const router = createBrowserRouter([
       { path: "staff/payments", element: <Navigate to="/counter?tab=payments" replace /> },
       { path: "staff", element: <Navigate to="/counter" replace /> },
       { path: "kitchen", element: <Navigate to="/kitchen/board" replace /> },
-      { path: "kitchen/board", element: <ProtectedRoute allowedRoles={["Admin", "Kitchen"]}><KitchenPage /></ProtectedRoute> },
+      { path: "kitchen/board", element: <ProtectedRoute allowedRoles={["Kitchen"]}><KitchenPage /></ProtectedRoute> },
     ],
   },
   { path: "*", element: <NotFoundPage /> },

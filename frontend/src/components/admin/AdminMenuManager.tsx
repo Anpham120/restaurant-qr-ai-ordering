@@ -193,6 +193,7 @@ export function AdminMenuManager({ embedded = false }: { embedded?: boolean }) {
       {error ? <div className="ops-notice ops-notice--danger">{error}</div> : null}
       {notice ? <div className="ops-notice ops-notice--info">{notice}</div> : null}
 
+      <div className={embedded ? "amm-menu-controls" : undefined}>
       <div className="ops-toolbar">
         <div className="ops-toolbar-search">
           <input
@@ -233,6 +234,7 @@ export function AdminMenuManager({ embedded = false }: { embedded?: boolean }) {
             {c.name} ({countByCategory[c.categoryId] ?? 0})
           </button>
         ))}
+      </div>
       </div>
 
       {/* Form modal */}
