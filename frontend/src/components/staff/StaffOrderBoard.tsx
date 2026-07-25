@@ -6,7 +6,7 @@ import { getKitchenOrders, updateOrderStatus } from "../../services/orderService
 import { useOpsRealtime } from "../../hooks/useOpsRealtime";
 import { matchesTableFilter, normalizeTableCode } from "../operations/opsDeepLinkUtils";
 import { OpsConnectionBadge } from "../operations/OpsConnectionBadge";
-import { labelOrderStatus, labelPaymentChip } from "../../utils/opsStatusLabels";
+import { labelOrderStatus, labelPaymentMethod, labelPaymentStatus } from "../../utils/opsStatusLabels";
 import "../operations/operations.css";
 
 /* ---------- helpers ---------- */
@@ -58,9 +58,10 @@ function StaffCard({
         <span>{order.items.length} món</span>
         <span>{formatVnd(order.totalAmount)}</span>
       </div>
-      <div className="ops-card-meta" style={{ marginTop: 6 }}>
+      <div className="ops-card-meta ops-card-meta--badges" style={{ marginTop: 6 }}>
         <span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{labelOrderStatus(order.status)}</span>
-        <span className={payBadge}>{labelPaymentChip(order.paymentMethod, order.paymentStatus)}</span>
+        <span className={payBadge}>{labelPaymentMethod(order.paymentMethod)}</span>
+        <span className={payBadge}>{labelPaymentStatus(order.paymentStatus)}</span>
       </div>
 
       <div className="ops-card-items">

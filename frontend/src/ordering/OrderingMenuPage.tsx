@@ -119,15 +119,9 @@ export function OrderingMenuPage() {
       .then((next) => {
         setError("");
         setCart(next);
-        // #region agent log
-        fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-CART',location:'OrderingMenuPage.tsx:updateQuantity',message:'cart updated',data:{itemId,delta,itemCount:Object.values(next).reduce((s,q)=>s+q,0),sessionId:context.sessionId},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       })
       .catch((error) => {
         const msg = formatCartErrorMessage(error, t("Không cập nhật được giỏ hàng. Vui lòng thử lại."));
-        // #region agent log
-        fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-CART',location:'OrderingMenuPage.tsx:updateQuantity',message:'cart update failed',data:{itemId,delta,error:msg,sessionId:context.sessionId},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         setError(msg);
       });
   }

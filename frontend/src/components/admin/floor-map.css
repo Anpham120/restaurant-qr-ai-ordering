@@ -255,25 +255,40 @@
   justify-content: center;
   align-items: center;
   width: 100%;
-  padding: 12px;
+  padding: 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .floor-drawer-qr-frame .table-qr-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 260px);
+  max-width: 260px;
   margin-inline: auto;
+  gap: 10px;
 }
 
 .floor-drawer-qr-frame .table-qr-image img {
-  width: 220px;
-  height: 220px;
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
+  aspect-ratio: 1;
   object-fit: contain;
+  margin-inline: auto;
+}
+
+.floor-drawer-qr-frame .table-qr-download {
+  text-align: center;
 }
 
 .floor-drawer-qr-link {
   display: grid;
   gap: 6px;
+  width: 100%;
 }
 
 .floor-drawer-qr-link span {

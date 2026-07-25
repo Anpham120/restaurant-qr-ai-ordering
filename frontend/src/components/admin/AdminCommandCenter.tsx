@@ -64,7 +64,7 @@ export function AdminCommandCenter() {
         <section className="ops-command-widget">
           <div className="ops-command-widget-head">
             <h2><ShoppingBag size={18} /> Cần xử lý ngay</h2>
-            <Link className="ops-btn ops-btn--ghost ops-btn--sm" to="/orders?tab=kanban">Xem tất cả</Link>
+            <Link className="ops-btn ops-btn--ghost ops-btn--sm" to="/orders?tab=table">Xem tất cả</Link>
           </div>
           {summary.urgentItems.length > 0 ? (
             <ul className="ops-command-list">
@@ -108,15 +108,15 @@ export function AdminCommandCenter() {
         <section className="ops-command-widget">
           <div className="ops-command-widget-head">
             <h2><Receipt size={18} /> Quầy thu ngân</h2>
-            <Link className="ops-btn ops-btn--ghost ops-btn--sm" to="/counter?tab=payments">Mở quầy</Link>
+            <Link className="ops-btn ops-btn--ghost ops-btn--sm" to="/counter?tab=shift">Giám sát ca</Link>
           </div>
           <div className="ops-stat-card">
             <div className="ops-stat-label">Ca quầy</div>
             <div className="ops-stat-value">{summary.shiftOpen ? "Đang mở" : "Chưa mở"}</div>
             <div className="ops-stat-detail">{summary.badges.counter} hóa đơn chờ thu</div>
           </div>
-          <Link className="ops-btn ops-btn--primary" to={summary.badges.counter > 0 ? "/counter?tab=payments" : "/counter?tab=shift"}>
-            {summary.badges.counter > 0 ? "Thu tiền ngay" : "Quản lý ca"}
+          <Link className="ops-btn ops-btn--primary" to={summary.badges.counter > 0 ? "/reports" : "/counter?tab=shift"}>
+            {summary.badges.counter > 0 ? "Xem báo cáo thu" : "Xem ca quầy"}
           </Link>
         </section>
 
@@ -134,7 +134,7 @@ export function AdminCommandCenter() {
         <section className="ops-command-widget">
           <div className="ops-command-widget-head">
             <h2><ChefHat size={18} /> Bếp</h2>
-            <Link className="ops-btn ops-btn--ghost ops-btn--sm" to="/kitchen/board">Bảng bếp</Link>
+            <span className="ops-stat-detail">Nhân viên bếp dùng bảng bếp riêng</span>
           </div>
           <div className="ops-stat-card">
             <div className="ops-stat-label">Đang nấu</div>
