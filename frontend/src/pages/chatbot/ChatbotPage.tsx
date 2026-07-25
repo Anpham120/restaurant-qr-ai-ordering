@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useEffect, useState } from "react";
+import { FormEvent, Fragment, type KeyboardEvent, useEffect, useState } from "react";
 import { useI18n } from "@cmc/i18n";
 import { localizeMenuItemName } from "@cmc/i18n/menu";
 import { Link } from "react-router-dom";
@@ -418,6 +418,14 @@ export function ChatbotPage() {
     return menuData.items.find((item) => item.id === action.menuItemId)?.isAvailable ?? true;
   }
 
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    void sendMessage(undefined);
+  }
+
   return (
     <div className="page-shell page-shell-chat">
       <div className="cmc-chat-layout">
@@ -529,6 +537,7 @@ export function ChatbotPage() {
               placeholder={t("Hỏi về thực đơn, gợi ý món...")}
               value={composerValue}
               onChange={(event) => setComposerValue(event.target.value)}
+              onKeyDown={handleComposerKeyDown}
             />
             <div className="cmc-chat-composer-actions">
               <button className="cmc-chat-button primary" disabled={isAssistantThinking} type="submit">

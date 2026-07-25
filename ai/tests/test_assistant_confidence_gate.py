@@ -40,6 +40,7 @@ class AssistantConfidenceGateTests(unittest.TestCase):
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=3,
             retrieval_method="bm25",
+            llm_first=False,
         )
         service = AiAssistantService(config, llm_client=client)
         service._retriever = _EmptyRetriever()  # noqa: SLF001 — test seam
@@ -67,6 +68,50 @@ class AssistantConfidenceGateTests(unittest.TestCase):
         self.assertEqual(0, client.calls)
         self.assertIn("RETRIEVAL_FAILED", response.get("guardrail_flags", []))
         self.assertTrue(response.get("content"))
+
+    def test_very_low_retrieval_still_calls_llm_when_llm_first(self) -> None:
+        client = _CountingClient()
+        config = AiServiceConfig(
+            provider="9router",
+            base_url="https://example.com/v1",
+            api_key="test-key",
+            model="oc/deepseek-v4-flash-free",
+            llm_timeout_seconds=1,
+            request_budget_seconds=2,
+            max_retry=0,
+            max_tokens=700,
+            reasoning_effort="low",
+            knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
+            top_k=3,
+            retrieval_method="bm25",
+            llm_first=True,
+        )
+        service = AiAssistantService(config, llm_client=client)
+        service._retriever = _EmptyRetriever()  # noqa: SLF001 — test seam
+
+        response = asyncio.run(
+            service.chat(
+                {
+                    "message": "zzqwx nonsense retrieval probe",
+                    "history": [],
+                    "menu_items": [
+                        {
+                            "id": "m_001",
+                            "name": "Phở bò",
+                            "description": "Phở",
+                            "category_name": "Phở",
+                            "price_vnd": 85000,
+                            "is_available": True,
+                        }
+                    ],
+                    "table_code": "T01",
+                }
+            )
+        )
+
+        self.assertEqual(1, client.calls)
+        self.assertEqual("llm", response["latency_ms"]["path"])
+        self.assertTrue(response.get("provider_available"))
 
 
 if __name__ == "__main__":
