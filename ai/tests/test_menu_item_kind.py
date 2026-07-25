@@ -109,6 +109,23 @@ class MenuItemKindTests(unittest.TestCase):
         self.assertTrue(actions)
         self.assertTrue(all(action["menu_item_id"] == "food_1" for action in actions))
 
+    def test_food_context_wins_over_beer_in_same_sentence(self) -> None:
+        for message in (
+            "mon de an nhau voi bia",
+            "mon de nhat voi bia",
+            "tu van mon de an nhau",
+            "Gợi ý món dễ ăn nhậu với bia",
+        ):
+            with self.subTest(message=message):
+                self.assertEqual(detect_requested_item_kind(message), "food")
+
+    def test_drink_only_beer_question_stays_drink(self) -> None:
+        self.assertEqual(detect_requested_item_kind("uong bia gi"), "drink")
+
+    def test_drink_listing_with_nhau_pairing_stays_drink(self) -> None:
+        message = "Quán có bia nào để dùng cùng món nhậu?"
+        self.assertEqual(detect_requested_item_kind(message), "drink")
+
 
 if __name__ == "__main__":
     unittest.main()

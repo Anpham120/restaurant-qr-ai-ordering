@@ -77,6 +77,23 @@ FAQ_POLICY_INTENTS = frozenset(
 RECOMMEND_INTENTS = frozenset({"recommend", "dietary", "budget"})
 
 
+def _should_use_deterministic_fast_paths(config: AiServiceConfig) -> bool:
+    """Legacy KB/party/pairing/budget/catalog paths that bypass the LLM."""
+
+    return not config.llm_first
+
+
+def _resolve_should_call_llm(
+    config: AiServiceConfig,
+    context: dict[str, Any],
+    *,
+    client_available: bool,
+) -> bool:
+    if config.llm_first and config.llm_enabled and client_available:
+        return True
+    return bool(context.get("should_call_llm", True))
+
+
 class AiAssistantService:
     def __init__(
         self,
@@ -216,18 +233,19 @@ class AiAssistantService:
             yield {"type": "final", "data": security_response}
             yield {"type": "done", "data": {"ok": True}}
             return
-        smalltalk = try_smalltalk(message)
-        if smalltalk is not None:
-            stages = {"total": 0.0, "path": "smalltalk"}
-            smalltalk["latency_ms"] = stages
-            smalltalk = _finalize_response_payload(
-                smalltalk,
-                _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
-            )
-            yield {"type": "token", "data": {"text": smalltalk["content"]}}
-            yield {"type": "final", "data": smalltalk}
-            yield {"type": "done", "data": {"ok": True}}
-            return
+        if _should_use_deterministic_fast_paths(self._config):
+            smalltalk = try_smalltalk(message)
+            if smalltalk is not None:
+                stages = {"total": 0.0, "path": "smalltalk"}
+                smalltalk["latency_ms"] = stages
+                smalltalk = _finalize_response_payload(
+                    smalltalk,
+                    _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
+                )
+                yield {"type": "token", "data": {"text": smalltalk["content"]}}
+                yield {"type": "final", "data": smalltalk}
+                yield {"type": "done", "data": {"ok": True}}
+                return
 
         context = await self._prepare_context(payload)
         if context.get("early_response") is not None:
@@ -249,7 +267,12 @@ class AiAssistantService:
             yield {"type": "done", "data": {"ok": True}}
             return
 
-        if self._client is None or not context.get("should_call_llm", True):
+        should_call_llm = _resolve_should_call_llm(
+            self._config,
+            context,
+            client_available=self._client is not None,
+        )
+        if self._client is None or not should_call_llm:
             menu_fallback = _build_menu_based_fallback(context)
             if menu_fallback is not None:
                 answer, suggested_actions, flags = menu_fallback
@@ -334,15 +357,19 @@ class AiAssistantService:
             )
             return security_response, stages
 
-        smalltalk = try_smalltalk(message)
-        if smalltalk is not None:
-            stages = {"total": round((time.perf_counter() - started) * 1000, 1), "path": "smalltalk"}
-            smalltalk["latency_ms"] = stages
-            smalltalk = _finalize_response_payload(
-                smalltalk,
-                _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
-            )
-            return smalltalk, stages
+        if _should_use_deterministic_fast_paths(self._config):
+            smalltalk = try_smalltalk(message)
+            if smalltalk is not None:
+                stages = {
+                    "total": round((time.perf_counter() - started) * 1000, 1),
+                    "path": "smalltalk",
+                }
+                smalltalk["latency_ms"] = stages
+                smalltalk = _finalize_response_payload(
+                    smalltalk,
+                    _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
+                )
+                return smalltalk, stages
 
         context = await self._prepare_context(payload)
         stages = context["stages"]
@@ -371,7 +398,12 @@ class AiAssistantService:
         suggested_actions: list[dict] = []
         flags = list(context["flags"])
 
-        if self._client is not None and context.get("should_call_llm", True):
+        should_call_llm = _resolve_should_call_llm(
+            self._config,
+            context,
+            client_available=self._client is not None,
+        )
+        if self._client is not None and should_call_llm:
             messages = _build_llm_messages(message, context, payload)
             context["generation_input_sha256"] = _generation_input_sha256(messages)
             llm_started = time.perf_counter()
@@ -424,7 +456,7 @@ class AiAssistantService:
             context=context,
         )
 
-        if provider_available:
+        if provider_available and _should_use_deterministic_fast_paths(self._config):
             self._cache.put(
                 message,
                 context["source_ids"],
@@ -441,7 +473,7 @@ class AiAssistantService:
         stages["total"] = round((time.perf_counter() - started) * 1000, 1)
         if provider_available:
             stages["path"] = "llm"
-        elif not context.get("should_call_llm", True):
+        elif not should_call_llm:
             stages["path"] = "fallback_no_llm"
         else:
             stages["path"] = "fallback"
@@ -614,49 +646,52 @@ class AiAssistantService:
             available_menu_items = rank_candidates_for_party(available_menu_items, party_size)
         stages["menu_retrieval"] = round((time.perf_counter() - menu_started) * 1000, 1)
 
-        catalog_response = _try_catalog_fast_path(message, constraints, menu_items, excluded_ids)
-        if catalog_response is not None:
-            catalog_response["latency_ms"] = {**stages, "path": "catalog_fast_path"}
-            return _early_context_response(
-                catalog_response,
-                stages,
-                policy,
-                available_menu_items,
-                context=fast_path_context,
-            )
+        use_deterministic_fast_paths = _should_use_deterministic_fast_paths(self._config)
+        if use_deterministic_fast_paths:
+            # legacy deterministic path — skipped when AI_LLM_FIRST=true
+            catalog_response = _try_catalog_fast_path(message, constraints, menu_items, excluded_ids)
+            if catalog_response is not None:
+                catalog_response["latency_ms"] = {**stages, "path": "catalog_fast_path"}
+                return _early_context_response(
+                    catalog_response,
+                    stages,
+                    policy,
+                    available_menu_items,
+                    context=fast_path_context,
+                )
 
-        party_fast_path = try_party_recommendation_fast_path(
-            constraints,
-            policy,
-            # Prefer full menu when party size is known so ranking/policy can work
-            # even if sparse text retrieval returns few/no candidates.
-            available_menu_items if party_size else candidate_menu_items,
-        )
-        if party_fast_path is not None:
-            party_fast_path["latency_ms"] = {**stages, "path": "party_fast_path"}
-            return _early_context_response(
-                party_fast_path,
-                stages,
+            party_fast_path = try_party_recommendation_fast_path(
+                constraints,
                 policy,
-                available_menu_items,
-                context=fast_path_context,
+                # Prefer full menu when party size is known so ranking/policy can work
+                # even if sparse text retrieval returns few/no candidates.
+                available_menu_items if party_size else candidate_menu_items,
             )
+            if party_fast_path is not None:
+                party_fast_path["latency_ms"] = {**stages, "path": "party_fast_path"}
+                return _early_context_response(
+                    party_fast_path,
+                    stages,
+                    policy,
+                    available_menu_items,
+                    context=fast_path_context,
+                )
 
-        pairing_fast_path = try_pairing_recommendation_fast_path(
-            message,
-            intent=intent_result.intent,
-            policy=policy,
-            menu_items=available_menu_items,
-        )
-        if pairing_fast_path is not None:
-            pairing_fast_path["latency_ms"] = {**stages, "path": "pairing_fast_path"}
-            return _early_context_response(
-                pairing_fast_path,
-                stages,
-                policy,
-                available_menu_items,
-                context=fast_path_context,
+            pairing_fast_path = try_pairing_recommendation_fast_path(
+                message,
+                intent=intent_result.intent,
+                policy=policy,
+                menu_items=available_menu_items,
             )
+            if pairing_fast_path is not None:
+                pairing_fast_path["latency_ms"] = {**stages, "path": "pairing_fast_path"}
+                return _early_context_response(
+                    pairing_fast_path,
+                    stages,
+                    policy,
+                    available_menu_items,
+                    context=fast_path_context,
+                )
 
         rewrite_started = time.perf_counter()
         rewritten = rewrite_query(
@@ -706,7 +741,7 @@ class AiAssistantService:
         )
 
         kb_fast_path = None
-        if not _should_skip_kb_fast_path:
+        if use_deterministic_fast_paths and not _should_skip_kb_fast_path:
             kb_fast_path = try_menu_presence_fast_path(
                 message,
                 available_menu_items,
@@ -746,40 +781,43 @@ class AiAssistantService:
                 excluded_ids=excluded_ids,
             )
 
-        budget_fast_path = try_budget_recommendation_fast_path(
-            constraints,
-            policy,
-            candidate_menu_items,
-            budget_picks,
-        )
-        if budget_fast_path is not None:
-            budget_fast_path["latency_ms"] = {**stages, "path": "budget_fast_path"}
-            return _early_context_response(
-                budget_fast_path,
-                stages,
+        if use_deterministic_fast_paths:
+            budget_fast_path = try_budget_recommendation_fast_path(
+                constraints,
                 policy,
-                available_menu_items,
-                context={
-                    **fast_path_context,
-                    "retrieved": retrieved,
-                    "chunks": chunks,
-                    "confidence_score": confidence.score,
-                },
+                candidate_menu_items,
+                budget_picks,
             )
+            if budget_fast_path is not None:
+                budget_fast_path["latency_ms"] = {**stages, "path": "budget_fast_path"}
+                return _early_context_response(
+                    budget_fast_path,
+                    stages,
+                    policy,
+                    available_menu_items,
+                    context={
+                        **fast_path_context,
+                        "retrieved": retrieved,
+                        "chunks": chunks,
+                        "confidence_score": confidence.score,
+                    },
+                )
 
         source_ids = [item.chunk.chunk_id for item in retrieved[:3]]
         cacheable = _is_cacheable(constraints)
-        cached = self._cache.get(
-            message,
-            source_ids,
-            session_id=session_id,
-            exclusion_ids=exclusion_list,
-            menu_version=menu_version,
-            index_version=self._config.rag_config_id,
-            prompt_version=self._config.pipeline_version,
-            model_version=self._config.model,
-            cacheable=cacheable,
-        )
+        cached = None
+        if use_deterministic_fast_paths:
+            cached = self._cache.get(
+                message,
+                source_ids,
+                session_id=session_id,
+                exclusion_ids=exclusion_list,
+                menu_version=menu_version,
+                index_version=self._config.rag_config_id,
+                prompt_version=self._config.pipeline_version,
+                model_version=self._config.model,
+                cacheable=cacheable,
+            )
         if cached is not None:
             stages["total"] = round((time.perf_counter() - started) * 1000, 1)
             cached["latency_ms"] = {**stages, "path": "cache_hit"}
@@ -834,7 +872,11 @@ class AiAssistantService:
             "follow_up": follow_up,
             "suggest_staff_handoff": suggest_staff_handoff,
             "confidence_score": confidence.score,
-            "should_call_llm": confidence.should_call_llm,
+            "should_call_llm": (
+                True
+                if self._config.llm_first and self._config.llm_enabled
+                else confidence.should_call_llm
+            ),
             "confidence_level": confidence.level,
             "intent": intent.intent,
             "session_state": session_state,
@@ -1147,7 +1189,7 @@ def _finalize_response_payload(
     response.setdefault("contract_version", "v2")
     response.setdefault("pipeline_version", str(context.get("pipeline_version") or "v2"))
     if context.get("retriever_runtime") is not None:
-        response.setdefault("retriever_runtime", dict(context["retriever_runtime"]))
+        response["retriever_runtime"] = dict(context["retriever_runtime"])
     if context.get("generation_input_sha256"):
         response.setdefault("generation_input_sha256", str(context["generation_input_sha256"]))
     path = str((response.get("latency_ms") or {}).get("path") or "")

@@ -32,6 +32,7 @@ def _config() -> AiServiceConfig:
         top_k=3,
         retrieval_method="bm25",
         pipeline_version="v3",
+        llm_first=False,
     )
 
 

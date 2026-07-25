@@ -1,6 +1,6 @@
 # Staging & production readiness checklist (Phase 6)
 
-Last updated: 2026-07-23.
+Last updated: 2026-07-25.
 
 **Current release status: NOT READY.** Historical `composite_pass` artifacts are
 retained for provenance only; they do not satisfy the current evidence-first
@@ -33,14 +33,14 @@ release contract.
 | Target | Threshold | Next steps |
 | --- | --- | --- |
 | p95 retrieval | ≤ 150 ms after warm-up | Deploy AI service to staging; replay the locked retrieval cases after warm-up |
-| p95 E2E | ≤ 6 s with 9router DeepSeek | Load-test `/chat` with `LLM_MODEL=oc/deepseek-v4-flash-free`; report TTFT separately from end-to-end p50/p95 |
-| Fast-path catalog p95 | ≤ 100 ms | Replay catalog/tag/category queries from golden dev subset |
+| p95 E2E | ≤ 6 s with 9router DeepSeek | Load-test `/chat` with `LLM_MODEL=oc/deepseek-v4-flash-free`; **sau `AI_LLM_FIRST=true` p95 E2E có thể cao hơn** (mọi lượt gợi ý gọi LLM); report TTFT separately from end-to-end p50/p95 |
+| Fast-path catalog p95 | ≤ 100 ms | Chỉ áp dụng khi `AI_LLM_FIRST=false`; replay catalog/tag/category queries from golden dev subset |
 
 ## Rollout
 
 **Requires staging env** — do not fake results.
 
-1. Deploy staging with 9router env (`LLM_PROVIDER=9router`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=oc/deepseek-v4-flash-free`)
+1. Deploy staging with 9router env (`LLM_PROVIDER=9router`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=oc/deepseek-v4-flash-free`, **`AI_LLM_FIRST=true`**)
 2. Shadow evaluate ≥ 1 week (log queries, compare shadow vs production responses)
 3. Canary 10% tables
 4. Full rollout with rollback image pinned
