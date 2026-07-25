@@ -3,7 +3,8 @@
 import nbformat as nbf
 from pathlib import Path
 
-nb_path = Path(r"d:\01_Projects\Fable\restaurant-qr-ai-ordering\ai\notebooks\rag_retrieval_research.ipynb")
+_AI_ROOT = Path(__file__).resolve().parent.parent
+nb_path = _AI_ROOT / "notebooks" / "rag_retrieval_research.ipynb"
 
 HIT5_SCREENING_VS_RELEASE_MD = (
     "### Hit@5: screening notebook vs release gate\n\n"

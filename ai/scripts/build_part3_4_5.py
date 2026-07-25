@@ -10,7 +10,7 @@ if str(_AI_ROOT) not in sys.path:
     sys.path.insert(0, str(_AI_ROOT))
 from scripts.notebook_metrics import format_deploy_lock_section
 
-nb_path = Path(r"d:\01_Projects\Fable\restaurant-qr-ai-ordering\ai\notebooks\rag_retrieval_research.ipynb")
+nb_path = _AI_ROOT / "notebooks" / "rag_retrieval_research.ipynb"
 nb = nbf.read(str(nb_path), as_version=4)
 
 def md(src): return nbf.v4.new_markdown_cell(src.strip())

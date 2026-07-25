@@ -405,6 +405,7 @@ cells.append(md(
 
 # === WRITE ===
 nb.cells = cells
-out_path = Path(r"d:\01_Projects\Fable\restaurant-qr-ai-ordering\ai\notebooks\rag_retrieval_research.ipynb")
+_AI_ROOT = Path(__file__).resolve().parent.parent
+out_path = _AI_ROOT / "notebooks" / "rag_retrieval_research.ipynb"
 nbf.write(nb, str(out_path))
 print(f"Wrote {out_path} ({len(cells)} cells)")
