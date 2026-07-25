@@ -2,15 +2,15 @@
 
 ## Feature flag
 
-- `AI_PROVIDER=python-rag` (required on .NET backend)
+- `CHAT_AI_PROVIDER=python-rag` (required on .NET backend)
 - `AI_PIPELINE=v2` documents the LLM-first path (prompt lives only in Python)
 - Python AI service LLM via **9router** (OpenAI-compatible):
-  - `AI_PROVIDER=openai`
-  - `AI_BASE_URL=http://localhost:20128/v1` (or deployed gateway URL)
-  - `AI_API_KEY=<9router gateway key>`
-  - `AI_MODEL=cx/gpt-5.5` (production quality gate)
-  - Cheap regression sweep: `AI_MODEL=oc/deepseek-v4-flash-free`
-- `LLM_TIMEOUT_SECONDS=12` (or `AI_TIMEOUT_SECONDS=15` on backend)
+  - `LLM_PROVIDER=9router`
+  - `LLM_BASE_URL=http://localhost:20128/v1` (or deployed gateway URL)
+  - `LLM_API_KEY=<9router gateway key>`
+  - `LLM_MODEL=cx/gpt-5.5` (production quality gate)
+  - Cheap regression sweep: `LLM_MODEL=oc/deepseek-v4-flash-free`
+- `LLM_TIMEOUT_SECONDS=12` (Python-to-9router) and `BACKEND_AI_TIMEOUT_SECONDS=12` (.NET-to-Python)
 - `AI_MAX_RETRY=0`–`1`
 
 ## Hard gates before canary

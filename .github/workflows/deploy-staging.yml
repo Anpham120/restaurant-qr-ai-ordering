@@ -14,9 +14,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality-gate:
+    name: quality-gate
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   deploy:
     name: deploy-staging
     runs-on: ubuntu-latest
+    needs: quality-gate
     environment: staging
     env:
       DEPLOY_ENV: staging
@@ -43,12 +49,14 @@ jobs:
       PAYMENTS__VIETQR__ACCOUNTNAME: ${{ secrets.PAYMENTS__VIETQR__ACCOUNTNAME }}
       PAYMENTS__VIETQR__TEMPLATE: ${{ secrets.PAYMENTS__VIETQR__TEMPLATE }}
       RUN_DB_MIGRATIONS_ON_STARTUP: "false"
-      AI_PROVIDER: python-rag
+      CHAT_AI_PROVIDER: python-rag
       AI_SERVICE_URL: http://127.0.0.1:8001
       AI_SERVICE_PORT: "8001"
-      AI_LLM_PROVIDER: gemini
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      AI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
+      AI_INTERNAL_TOKEN: ${{ secrets.AI_INTERNAL_TOKEN }}
+      LLM_PROVIDER: 9router
+      LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
+      LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
+      LLM_MODEL: ${{ vars.LLM_MODEL || 'oc/deepseek-v4-flash-free' }}
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
@@ -72,5 +80,7 @@ jobs:
             echo "- Staff portal: https://staff-staging.cmcrestaurant.app"
             echo "- Kitchen board: https://kitchen-staging.cmcrestaurant.app"
             echo "- API health: https://api-staging.cmcrestaurant.app/api/health"
+            echo "- AI smoke: included in deploy health-check (/ready + /v1/chat)"
+            echo "- Runbook: docs/ai/VPS_STAGING_AI_RUNBOOK.md"
             echo "- Result: workflow reached post-deploy summary"
           } >> "$GITHUB_STEP_SUMMARY"

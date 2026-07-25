@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
@@ -11,6 +12,31 @@ from app.rag.vietnamese_normalizer import normalize_query_text
 CATEGORY_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
     "bia ruou": ("do uong co con", "co con", "bia", "ruou", "cocktail"),
 }
+
+TAG_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    "binh dan": (
+        "gia tiet kiem",
+        "ngan sach thap",
+        "gia mem",
+        "chi tieu vua phai",
+    ),
+    "2 3 nguoi": (
+        "hai nguoi",
+        "ba khach",
+        "2 den 3 nguoi",
+        "cap doi",
+        "ban ba nguoi",
+    ),
+}
+
+# The menu dataset stores ASCII tags.  These two tags collide with common
+# Vietnamese words after diacritic stripping (tôi -> toi, mức -> muc), so they
+# are only hard-filtered when the user writes the intended accented entity.
+TAG_SURFACE_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    "toi": ("tỏi",),
+    "muc": ("mực",),
+}
+AMBIGUOUS_ASCII_TAGS = frozenset(TAG_SURFACE_QUERY_ALIASES)
 
 ALCOHOL_CATEGORY_IDS = frozenset({"cat_alcohol"})
 SWEET_CATEGORY_IDS = frozenset(
@@ -128,7 +154,7 @@ def infer_allowed_menu_item_ids(
         requested_item_kind = detect_requested_item_kind(query)
 
     category_matches = _matched_categories(normalized_query, available)
-    tag_matches = _matched_tags(normalized_query, available)
+    tag_matches = _matched_tags(query, normalized_query, available)
 
     if category_matches:
         allowed = {
@@ -256,12 +282,53 @@ def _matched_categories(normalized_query: str, available: Sequence[dict[str, Any
     return {match for match in matches if match}
 
 
-def _matched_tags(normalized_query: str, available: Sequence[dict[str, Any]]) -> set[str]:
-    return {
+def _matched_tags(
+    query: str,
+    normalized_query: str,
+    available: Sequence[dict[str, Any]],
+) -> set[str]:
+    available_tags = {
         normalize_query_text(str(tag))
         for item in available
         for tag in _tags(item)
-        if _is_meaningful(tag) and _contains_phrase(normalized_query, normalize_query_text(str(tag)))
+        if _is_meaningful(tag)
+    }
+    alias_matches = [
+        (tag, len(alias.split()))
+        for tag, aliases in TAG_QUERY_ALIASES.items()
+        if tag in available_tags
+        for alias in aliases
+        if _contains_phrase(normalized_query, alias)
+    ]
+    surface_query = _surface_text(query)
+    alias_matches.extend(
+        (tag, len(_surface_text(alias).split()))
+        for tag, aliases in TAG_SURFACE_QUERY_ALIASES.items()
+        if tag in available_tags
+        for alias in aliases
+        if _contains_phrase(surface_query, _surface_text(alias))
+    )
+    if alias_matches:
+        max_specificity = max(specificity for _, specificity in alias_matches)
+        return {
+            tag
+            for tag, specificity in alias_matches
+            if specificity == max_specificity
+        }
+
+    direct_matches = [
+        (tag, len(tag.split()))
+        for tag in available_tags
+        if tag not in AMBIGUOUS_ASCII_TAGS
+        and _contains_phrase(normalized_query, tag)
+    ]
+    if not direct_matches:
+        return set()
+    max_specificity = max(specificity for _, specificity in direct_matches)
+    return {
+        tag
+        for tag, specificity in direct_matches
+        if specificity == max_specificity
     }
 
 
@@ -305,3 +372,8 @@ def _is_meaningful(value: Any) -> bool:
 
 def _contains_phrase(query: str, phrase: str) -> bool:
     return bool(phrase) and f" {phrase} " in f" {query} "
+
+
+def _surface_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFC", str(value or "").casefold())
+    return " ".join(re.findall(r"[^\W_]+", normalized, flags=re.UNICODE))

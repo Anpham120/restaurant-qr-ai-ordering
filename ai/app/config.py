@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
-
-
-GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-GEMINI_API_HOST = "generativelanguage.googleapis.com"
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
-LLM_PROVIDERS = frozenset({"gemini", "openai", "router"})
+DEFAULT_LLM_MODEL = "oc/deepseek-v4-flash-free"
+LLM_PROVIDERS = frozenset({"9router"})
+LEGACY_ROUTER_PROVIDER_NAMES = frozenset({"router", "openai"})
 
 
-def is_gemini_api_base_url(base_url: str) -> bool:
-    parsed = urlparse(base_url.strip())
-    return parsed.hostname == GEMINI_API_HOST
+def is_supported_router_model(model: str) -> bool:
+    normalized = model.strip().casefold()
+    return "gpt-5.5" in normalized or "deepseek" in normalized
 
 
 @dataclass(frozen=True)
@@ -34,6 +32,9 @@ class AiServiceConfig:
     embedding_model: str = "e5_small"
     llm_intent_classification_enabled: bool = True
     intent_classification_timeout_seconds: float = 2.5
+    internal_token: str = ""
+    pipeline_version: str = "v2"
+    rag_config_id: str = "default"
 
     @property
     def timeout_seconds(self) -> float:
@@ -44,46 +45,60 @@ class AiServiceConfig:
     @property
     def llm_enabled(self) -> bool:
         return (
-            self.provider.lower() in LLM_PROVIDERS
+            self.provider.casefold() in LLM_PROVIDERS
             and bool(self.base_url.strip())
             and bool(self.api_key.strip())
-            and bool(self.model.strip())
+            and is_supported_router_model(self.model)
         )
 
-    @property
-    def uses_gemini_native_features(self) -> bool:
-        return is_gemini_api_base_url(self.base_url)
 
-
-def _resolve_api_key(provider: str) -> str:
-    custom_base = os.getenv("AI_BASE_URL", "").strip()
-    if provider.lower() == "gemini" and not custom_base:
-        return os.getenv("GEMINI_API_KEY", "").strip()
-
-    for name in ("AI_API_KEY", "OPENAI_API_KEY", "ROUTER_API_KEY", "GEMINI_API_KEY"):
-        value = os.getenv(name, "").strip()
-        if value:
-            return value
+def _resolve_api_key() -> str:
+    value = _canonical_env(
+        "LLM_API_KEY",
+        "AI_API_KEY",
+        "OPENAI_API_KEY",
+        "ROUTER_API_KEY",
+    )
+    if value:
+        return value.strip()
     return ""
 
 
-def _resolve_base_url(provider: str) -> str:
-    custom = os.getenv("AI_BASE_URL", "").strip().rstrip("/")
+def _resolve_base_url() -> str:
+    custom = _canonical_env("LLM_BASE_URL", "AI_BASE_URL").strip().rstrip("/")
     if custom:
         return custom
-    if provider.lower() == "gemini":
-        return GEMINI_OPENAI_BASE_URL
-    return os.getenv("OPENAI_BASE_URL", DEFAULT_ROUTER_BASE_URL).strip().rstrip("/")
+    return _env("OPENAI_BASE_URL", default=DEFAULT_ROUTER_BASE_URL).strip().rstrip("/")
+
+
+def _resolve_provider() -> str:
+    raw = _canonical_env("LLM_PROVIDER", "AI_PROVIDER", default="9router").strip().casefold()
+    if raw in LEGACY_ROUTER_PROVIDER_NAMES:
+        warnings.warn(
+            f"LLM provider value '{raw}' is deprecated; use '9router'",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return "9router"
+    if raw != "9router":
+        raise ValueError("Only the 9router provider is supported; Gemini has been removed")
+    return raw
 
 
 def load_config() -> AiServiceConfig:
     _load_env_file()
-    provider = os.getenv("AI_PROVIDER", "openai").strip().lower()
+    provider = _resolve_provider()
+    base_url = _resolve_base_url()
+    model = _canonical_env("LLM_MODEL", "AI_MODEL", default=DEFAULT_LLM_MODEL).strip()
+    if "generativelanguage.googleapis.com" in base_url.casefold():
+        raise ValueError("Gemini endpoints are not supported; configure the 9router base URL")
+    if not is_supported_router_model(model):
+        raise ValueError("LLM_MODEL must select GPT-5.5 or DeepSeek through 9router")
     return AiServiceConfig(
         provider=provider,
-        base_url=_resolve_base_url(provider),
-        api_key=_resolve_api_key(provider),
-        model=os.getenv("AI_MODEL", "cx/gpt-5.5"),
+        base_url=base_url,
+        api_key=_resolve_api_key(),
+        model=model,
         llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", os.getenv("AI_TIMEOUT_SECONDS", "12"))),
         request_budget_seconds=float(os.getenv("AI_REQUEST_BUDGET_SECONDS", "22")),
         max_retry=int(os.getenv("AI_MAX_RETRY", "0")),
@@ -100,7 +115,38 @@ def load_config() -> AiServiceConfig:
         intent_classification_timeout_seconds=float(
             os.getenv("AI_INTENT_CLASSIFICATION_TIMEOUT_SECONDS", "2.5")
         ),
+        internal_token=os.getenv("AI_INTERNAL_TOKEN", "").strip(),
+        pipeline_version=os.getenv("AI_PIPELINE", "v2").strip() or "v2",
+        rag_config_id=os.getenv("RAG_CONFIG_ID", "default").strip() or "default",
     )
+
+
+def _env(*names: str, default: str = "") -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value.strip():
+            return value
+    return default
+
+
+def _canonical_env(canonical: str, *aliases: str, default: str = "") -> str:
+    """Read a canonical setting and warn when a one-release alias is used."""
+
+    canonical_value = os.getenv(canonical)
+    if canonical_value is not None and canonical_value.strip():
+        return canonical_value
+
+    for alias in aliases:
+        value = os.getenv(alias)
+        if value is None or not value.strip():
+            continue
+        warnings.warn(
+            f"{alias} is deprecated and will be removed after one release; use {canonical}",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return value
+    return default
 
 
 def _load_env_file() -> None:

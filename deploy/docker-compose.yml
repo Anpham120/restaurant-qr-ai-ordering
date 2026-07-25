@@ -25,8 +25,9 @@ x-api-environment: &api-environment
   Payments__VietQr__AccountNumber: ${PAYMENTS__VIETQR__ACCOUNTNUMBER:?PAYMENTS__VIETQR__ACCOUNTNUMBER is required}
   Payments__VietQr__AccountName: "${PAYMENTS__VIETQR__ACCOUNTNAME:?PAYMENTS__VIETQR__ACCOUNTNAME is required}"
   Payments__VietQr__Template: ${PAYMENTS__VIETQR__TEMPLATE:-compact2}
-  AI_PROVIDER: ${AI_PROVIDER:-python-rag}
+  CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
+  AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
   BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-12}
   AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
 
@@ -92,10 +93,11 @@ services:
       dockerfile: ai/Dockerfile
     restart: unless-stopped
     environment:
-      AI_PROVIDER: ${AI_LLM_PROVIDER:-openai}
-      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:20128/v1}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-cx/gpt-5.5}
+      LLM_PROVIDER: ${LLM_PROVIDER:-9router}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:20128/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-oc/deepseek-v4-flash-free}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-12}
       AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-14}
       AI_MAX_RETRY: ${AI_MAX_RETRY:-0}

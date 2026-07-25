@@ -107,6 +107,8 @@ class BM25Retriever:
         scored: list[RetrievedChunk] = []
 
         for idx, chunk in enumerate(self._chunks):
+            if not chunk.is_current:
+                continue
             if filters is not None and not filters.allows(chunk):
                 continue
 
@@ -145,7 +147,7 @@ class BM25Retriever:
 
             scored.append(RetrievedChunk(chunk=chunk, score=round(score, 4)))
 
-        return sorted(scored, key=lambda item: (-item.score, item.chunk.source))[:top_k]
+        return sorted(scored, key=lambda item: (-item.score, item.chunk.chunk_id))[:top_k]
 
 
 # Keep the old class name as an alias for backward compatibility

@@ -53,12 +53,18 @@ GROUNDED_FAST_PATHS = frozenset(
 @dataclass(frozen=True)
 class LlmCaseMetrics:
     llm_success: bool
+    pipeline_available: bool
     schema_valid: bool
     grounding_pass: bool
     faithfulness_score: float
     allergy_disclaimer_pass: bool | None
     price_refusal_pass: bool | None
     content_non_empty: bool
+    evidence_sufficient: bool
+    expected_source_pass: bool | None
+    expected_menu_pass: bool | None
+    claims_verified: bool
+    answer_adequacy_pass: bool
     composite_pass: bool
 
 
@@ -171,13 +177,63 @@ def score_llm_case(
     if "PRICE_FABRICATION_BLOCKED" in expected_flags:
         price_pass = "PRICE_FABRICATION_BLOCKED" in flags or _price_refusal_pass(content)
 
-    min_faithfulness = 0.08
-    if (
-        latency_path in GROUNDED_FAST_PATHS
-        and grounding_pass
-        and content_non_empty
-        and (suggested or latency_path in {"kb_fast_path", "catalog_fast_path", "fallback_no_llm", "fallback"})
-    ):
+    retrieved_sources = list(response.get("retrieved_sources") or [])
+    retrieved_legacy_ids = {
+        f"{source.get('source')}::{source.get('title')}" for source in retrieved_sources
+    }
+    retrieved_stable_ids = {
+        str(source.get("chunk_id") or "") for source in retrieved_sources if source.get("chunk_id")
+    }
+    expected_chunks = {str(value) for value in (case.get("expected_chunk_ids") or []) if value}
+    expected_source_pass: bool | None = None
+    if expected_chunks:
+        expected_source_pass = bool(
+            expected_chunks & (retrieved_legacy_ids | retrieved_stable_ids)
+        )
+
+    suggested_ids = {
+        str(action.get("menu_item_id") or "") for action in suggested if action.get("menu_item_id")
+    }
+    expected_menu = {str(value) for value in (case.get("expected_menu_ids") or []) if value}
+    expected_menu_pass: bool | None = None
+    if expected_menu:
+        if expected_menu == {"LIVE_MENU"}:
+            live_ids = {str(item.get("id") or "") for item in menu if item.get("id")}
+            expected_menu_pass = bool(suggested_ids & live_ids) if live_ids else bool(suggested_ids)
+        else:
+            expected_menu_pass = bool(suggested_ids & expected_menu)
+
+    claims = list(response.get("claims") or [])
+    decision = response.get("decision") or {}
+    claims_required = (
+        latency_path not in {"smalltalk", "guardrail", "clarify"}
+        and decision.get("evidence_sufficient") is not False
+    )
+    claims_verified = (
+        all(
+            bool(claim.get("verified")) and bool(claim.get("evidence_ids"))
+            for claim in claims
+        )
+        if claims
+        else not claims_required
+    )
+
+    evidence_sufficient = (
+        latency_path == "smalltalk"
+        or (
+            bool(context.strip())
+            and expected_source_pass is not False
+            and expected_menu_pass is not False
+        )
+    )
+    answer_adequacy_pass = (
+        content_non_empty
+        and expected_source_pass is not False
+        and expected_menu_pass is not False
+        and claims_verified
+    )
+    min_faithfulness = 0.2
+    if latency_path == "smalltalk":
         min_faithfulness = 0.0
 
     composite_pass = (
@@ -185,6 +241,8 @@ def score_llm_case(
         and schema_valid
         and grounding_pass
         and content_non_empty
+        and evidence_sufficient
+        and answer_adequacy_pass
         and faithfulness >= min_faithfulness
         and (allergy_pass is not False)
         and (price_pass is not False)
@@ -192,14 +250,98 @@ def score_llm_case(
 
     return LlmCaseMetrics(
         llm_success=llm_success,
+        pipeline_available=pipeline_success,
         schema_valid=schema_valid,
         grounding_pass=grounding_pass,
         faithfulness_score=round(faithfulness, 4),
         allergy_disclaimer_pass=allergy_pass,
         price_refusal_pass=price_pass,
         content_non_empty=content_non_empty,
+        evidence_sufficient=evidence_sufficient,
+        expected_source_pass=expected_source_pass,
+        expected_menu_pass=expected_menu_pass,
+        claims_verified=claims_verified,
+        answer_adequacy_pass=answer_adequacy_pass,
         composite_pass=composite_pass,
     )
+
+
+def brier_score(probabilities: Sequence[float], labels: Sequence[bool]) -> float:
+    _validate_calibration_inputs(probabilities, labels)
+    return sum((float(probability) - float(label)) ** 2 for probability, label in zip(probabilities, labels, strict=True)) / len(labels)
+
+
+def expected_calibration_error(
+    probabilities: Sequence[float],
+    labels: Sequence[bool],
+    *,
+    bins: int = 10,
+) -> dict[str, Any]:
+    _validate_calibration_inputs(probabilities, labels)
+    if bins <= 0:
+        raise ValueError("bins must be positive")
+    buckets: list[dict[str, Any]] = []
+    ece = 0.0
+    total = len(labels)
+    for index in range(bins):
+        lower = index / bins
+        upper = (index + 1) / bins
+        members = [
+            (float(probability), bool(label))
+            for probability, label in zip(probabilities, labels, strict=True)
+            if lower <= float(probability) < upper or (index == bins - 1 and float(probability) == 1.0)
+        ]
+        if members:
+            confidence = sum(item[0] for item in members) / len(members)
+            accuracy = sum(1 for _, label in members if label) / len(members)
+            gap = abs(accuracy - confidence)
+            ece += gap * len(members) / total
+        else:
+            confidence = accuracy = gap = 0.0
+        buckets.append(
+            {
+                "lower": lower,
+                "upper": upper,
+                "count": len(members),
+                "mean_confidence": round(confidence, 6),
+                "accuracy": round(accuracy, 6),
+                "gap": round(gap, 6),
+            }
+        )
+    return {"ece": round(ece, 6), "bins": buckets, "sample_count": total}
+
+
+def risk_coverage_curve(
+    probabilities: Sequence[float], labels: Sequence[bool]
+) -> list[dict[str, float | int]]:
+    _validate_calibration_inputs(probabilities, labels)
+    ranked = sorted(
+        zip((float(value) for value in probabilities), labels, strict=True),
+        key=lambda item: -item[0],
+    )
+    curve: list[dict[str, float | int]] = []
+    failures = 0
+    total = len(ranked)
+    for index, (threshold, label) in enumerate(ranked, start=1):
+        failures += int(not label)
+        curve.append(
+            {
+                "threshold": threshold,
+                "accepted": index,
+                "coverage": round(index / total, 6),
+                "risk": round(failures / index, 6),
+            }
+        )
+    return curve
+
+
+def _validate_calibration_inputs(
+    probabilities: Sequence[float], labels: Sequence[bool]
+) -> None:
+    if not probabilities or len(probabilities) != len(labels):
+        raise ValueError("probabilities and labels must be non-empty and aligned")
+    if any(not 0.0 <= float(value) <= 1.0 for value in probabilities):
+        raise ValueError("probabilities must be between 0 and 1")
 
 
 def summarize_llm_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -207,10 +349,17 @@ def summarize_llm_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
         return {"evaluated_cases": 0}
 
     def rate(key: str) -> float | None:
-        values = [row[key] for row in rows if row.get(key) is not None]
+        values = [row.get(key) for row in rows if row.get(key) is not None]
         return sum(1 for value in values if value) / len(values) if values else None
 
+    def count(key: str, *, subset: Sequence[dict[str, Any]] | None = None) -> dict[str, int]:
+        selected = list(subset if subset is not None else rows)
+        values = [row.get(key) for row in selected if row.get(key) is not None]
+        return {"numerator": sum(1 for value in values if value), "denominator": len(values)}
+
     faithfulness_values = [row["faithfulness_score"] for row in rows]
+    success_rows = [row for row in rows if row.get("llm_success")]
+    faithfulness_on_success = [row["faithfulness_score"] for row in success_rows]
     llm_paths = [row.get("response_path") for row in rows if row.get("response_path")]
     llm_call_rate = (
         sum(1 for path in llm_paths if path == "llm") / len(llm_paths) if llm_paths else None
@@ -230,6 +379,9 @@ def summarize_llm_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     return {
         "evaluated_cases": len(rows),
         "llm_success_rate": rate("llm_success"),
+        "llm_success": count("llm_success"),
+        "pipeline_availability_rate": rate("pipeline_available"),
+        "pipeline_availability": count("pipeline_available"),
         "llm_call_rate": llm_call_rate,
         "llm_call_rate_by_intent": llm_call_rate_by_intent,
         "schema_valid_rate": rate("schema_valid"),
@@ -237,6 +389,18 @@ def summarize_llm_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
         "faithfulness_mean": round(sum(faithfulness_values) / len(faithfulness_values), 4)
         if faithfulness_values
         else None,
+        "faithfulness_mean_on_llm_success": round(
+            sum(faithfulness_on_success) / len(faithfulness_on_success), 4
+        )
+        if faithfulness_on_success
+        else None,
+        "quality_on_llm_success_rate": (
+            sum(1 for row in success_rows if row.get("composite_pass")) / len(success_rows)
+            if success_rows
+            else None
+        ),
+        "quality_on_llm_success": count("composite_pass", subset=success_rows),
+        "evidence_sufficient_rate": rate("evidence_sufficient"),
         "allergy_disclaimer_pass_rate": rate("allergy_disclaimer_pass"),
         "price_refusal_pass_rate": rate("price_refusal_pass"),
         "composite_pass_rate": rate("composite_pass"),

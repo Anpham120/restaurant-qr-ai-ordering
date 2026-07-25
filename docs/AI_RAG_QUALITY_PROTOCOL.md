@@ -25,7 +25,7 @@ flowchart LR
   V --> A["Phản hồi ngắn, không lặp"]
 ```
 
-`ChatMenuGrounding` ở backend lọc category trước tag và chỉ đưa tối đa tám món còn bán cho provider. Cùng quy tắc được áp dụng ở Python RAG để bảo vệ endpoint `/v1/chat` khi gọi trực tiếp. Parser chỉ chấp nhận action ID từ candidate set đó.
+`ChatMenuGrounding` ở backend lọc category trước tag và chỉ đưa tối đa tám món còn bán cho provider. Cùng quy tắc được áp dụng ở Python RAG để bảo vệ endpoint `/v1/chat` trên mọi request nội bộ. Parser chỉ chấp nhận action ID từ candidate set đó.
 
 Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ thực đơn về hải sản”), backend không gọi LLM. Backend dựng danh sách trực tiếp từ candidate set live để chặn cả trường hợp LLM nêu tên món sai trong trường `content` dù action ID đã được validate.
 
@@ -44,10 +44,10 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 
 | Phương pháp | Thực thi | Mục tiêu đánh giá | Lưu ý khoa học |
 | --- | --- | --- | --- |
-| BM25 + title/tag boost | `BM25Retriever` | lexical exact match | baseline hiện hành, nhanh và giải thích được |
+| BM25 + title/tag boost | `BM25Retriever` | lexical exact match | baseline nhanh và giải thích được |
 | TF-IDF cosine vector | `TfidfVectorRetriever` | vector retrieval độc lập | là sparse vector baseline, **không** gọi là neural embedding |
-| Hybrid RRF | `HybridRrfRetriever` | giảm bỏ sót từ một ranker | fusion BM25 + TF-IDF, có thêm chi phí |
-| Neural embedding | chưa chọn encoder | semantic/paraphrase | chỉ chạy khi ghi encoder/version/device/corpus hash/seed |
+| Dense multilingual E5 | `EmbeddingRetriever` | semantic/paraphrase | encoder/revision/device/corpus hash/seed phải nằm trong manifest |
+| Hybrid RRF | `HybridRrfRetriever` | giảm bỏ sót từ một ranker | cấu hình hiện tại fusion BM25 + multilingual E5 |
 | Live category/tag grounding | `ChatMenuGrounding` | menu correctness/safety | hard constraint; không thay retrieval FAQ/policy |
 
 ### Metric và luật chọn
@@ -58,14 +58,14 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 - Latency: retrieval local, backend orchestration, provider TTFT/end-to-end riêng biệt. Không suy luận P95 production từ benchmark local.
 - Chọn retrieval trên dev theo MRR@5, sau đó Hit@5, sau đó P95. Chạy frozen test một lần sau khi khóa cấu hình.
 
-`ai/evaluation/retrieval_benchmark.py` chạy smoke subset (`smoke_retrieval.jsonl`) trên dev split. Kết quả được lưu làm research checkpoint; không tự động đổi production retriever.
+`ai/evaluation/run_retrieval_experiment.py` chạy ma trận BM25/dense/hybrid trên dev split; `retrieval_benchmark.py` chỉ còn là smoke benchmark. Kết quả được lưu làm research checkpoint và không tự động đổi production retriever.
 
 ## Tối ưu tốc độ nhưng không hy sinh độ đúng
 
 - Candidate menu ≤8 (trước đây prompt có thể nhận danh sách menu không liên quan); câu trả lời ≤4 món.
-- Lịch sử gần nhất ≤6 và compact memory cũ có giới hạn; câu hỏi hiện tại chỉ xuất hiện một lần.
-- LLM qua 9router (OpenAI-compatible): `AI_MODEL=cx/gpt-5.5` (quality gate) hoặc `oc/deepseek-v4-flash-free` (cheap sweep); `temperature=0.2`, structured response.
-- Prompt cấm lặp câu/món; parser Python loại câu lặp y hệt, direct provider loại dòng lặp y hệt.
+- Lịch sử gần nhất ≤12 cùng typed session state và rolling summary có version; câu hỏi hiện tại chỉ xuất hiện một lần và Python không cắt lịch sử lần thứ hai.
+- LLM qua 9router (OpenAI-compatible): `LLM_MODEL=oc/deepseek-v4-flash-free` (triển khai) hoặc `LLM_MODEL=cx/gpt-5.5` (quality gate); `temperature=0.2`, structured response.
+- Prompt cấm lặp câu/món; parser/validator Python loại câu hoặc dòng lặp y hệt.
 - Không stream JSON trực tiếp vào UI ở giai đoạn này vì client cần JSON hợp lệ để validate action. Khi muốn giảm perceived latency hơn nữa, thêm server-side streaming với incremental JSON parser và test hủy request riêng.
 
 ## Regression bắt buộc
@@ -79,6 +79,7 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 
 ## Artefact nghiên cứu
 
-- `ai/notebooks/academic_rag_quality_study.ipynb`: notebook tuần tự từ câu hỏi nghiên cứu, audit dữ liệu, ma trận phương pháp, benchmark, grounding đến quyết định.
-- `ai/evaluation/retrieval_benchmark.py`: benchmark có thể chạy lại không cần network/model download.
+- `ai/notebooks/rag_retrieval_research.ipynb`: notebook duy nhất, được sinh từ artifact đã khóa bằng `ai/scripts/build_research_notebook.py`.
+- `output/reports/Bao_cao_do_an_AI_RAG_CMC_Restaurant.docx`: báo cáo Word học thuật có thể chỉnh sửa, dùng chung dữ liệu với notebook và được sinh bằng `ai/scripts/build_academic_report.py`.
+- `ai/evaluation/run_retrieval_experiment.py`: benchmark BM25/dense/hybrid; `retrieval_benchmark.py` chỉ phục vụ smoke offline.
 - `ai/tests/test_menu_grounding.py` và `backend/tests/RestaurantQrAiOrdering.Api.Tests/ChatMenuGroundingTests.cs`: regression V34.

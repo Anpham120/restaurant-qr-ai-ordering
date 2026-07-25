@@ -14,12 +14,14 @@ safety_level: critical
 # Lây Chéo Dị Ứng (Cross-Contamination)
 
 ## Rủi Ro Trong Bếp
+<!-- question_variants: lây nhiễm chéo, cross contamination, chung bếp, dùng chung dầu -->
 
 - Dùng chung khu chiên, nồi nước dùng, thớt nếu không yêu cầu riêng.
 - Món "không tôm" vẫn có thể tiếp xúc dụng cụ đã xử lý hải sản.
 - Nước chấm pha chung — có thể chứa thành phần dị ứng (đậu phộng, tôm).
 
 ## 14 Nhóm Allergen Phổ Biến
+<!-- question_variants: allergen, chất gây dị ứng, 14 nhóm dị ứng, common allergens -->
 
 Sữa, trứng, cá, crustacean, đậu phộng, đậu nành, gluten, hạt, celery, mustard, sesame, sulphites, lupin, mollusc.
 

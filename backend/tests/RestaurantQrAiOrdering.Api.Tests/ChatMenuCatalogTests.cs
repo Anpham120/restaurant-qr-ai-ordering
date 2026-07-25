@@ -29,6 +29,7 @@ public sealed class ChatMenuCatalogTests : IClassFixture<RestaurantApiFactory>
             rollingSummary: null,
             excludedMenuItemIds: excluded ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             facts: [],
+            sessionState: null,
             CancellationToken.None);
 
     [Fact]

@@ -12,6 +12,7 @@ safety_level: medium
 ---
 
 # Khuyến Mãi & Chương Trình Đặc Biệt
+<!-- question_variants: khuyến mãi, promotion, giảm giá, sale, ưu đãi, voucher, coupon -->
 
 ## Happy Hour (Thứ 2 – Thứ 6)
 
@@ -47,6 +48,7 @@ Không cần mã giảm giá, hệ thống tự áp dụng.
 - Mỗi bàn áp dụng 1 lần.
 
 ## Sinh Nhật
+<!-- question_variants: sinh nhật, birthday, tiệc sinh nhật, tổ chức sinh nhật -->
 
 - Nhóm từ 6 người, đặt trước 2 ngày qua hotline.
 - Tặng bánh kem nhỏ (bánh mousse chocolate, 6 inch).

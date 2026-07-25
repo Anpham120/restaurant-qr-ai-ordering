@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.rag.vietnamese_normalizer import normalize_query_text
+from app.rag.knowledge_base import stable_chunk_id
 
 
 _WIFI_TERMS = ("wifi", "internet", "mang khong day", "mang wifi")
@@ -73,8 +74,10 @@ def _format_wifi_answer(chunk_content: str, *, include_password: bool) -> str:
                 "Mật khẩu cũng được dán tại mỗi bàn."
             )
 
-    if "wifi miễn phí" in chunk_content.casefold() or "cung cấp wifi" in chunk_content.casefold():
-        first_sentence = chunk_content.strip().split("\n")[0].strip()
+    # Strip HTML comments (e.g. <!-- question_variants: ... -->) before extracting
+    cleaned = re.sub(r"<!--.*?-->", "", chunk_content, flags=re.DOTALL).strip()
+    if "wifi miễn phí" in cleaned.casefold() or "cung cấp wifi" in cleaned.casefold():
+        first_sentence = cleaned.split("\n")[0].strip()
         if first_sentence:
             return first_sentence
 
@@ -97,6 +100,17 @@ def try_wifi_policy_fast_path(message: str, retrieved: list[Any]) -> dict[str, A
 
     include_password = _wants_wifi_password(normalized)
     content = _format_wifi_answer(wifi_chunk.chunk.content, include_password=include_password)
+    document_id = str(
+        getattr(wifi_chunk.chunk, "document_id", "") or wifi_chunk.chunk.source
+    )
+    section_path = tuple(
+        getattr(wifi_chunk.chunk, "section_path", ()) or (wifi_chunk.chunk.title,)
+    )
+    chunk_id = str(getattr(wifi_chunk.chunk, "chunk_id", "") or "") or stable_chunk_id(
+        document_id=document_id,
+        section_path=section_path,
+        content_hash="",
+    )
     return {
         "content": content,
         "provider_available": False,
@@ -106,6 +120,26 @@ def try_wifi_policy_fast_path(message: str, retrieved: list[Any]) -> dict[str, A
                 "source": wifi_chunk.chunk.source,
                 "title": wifi_chunk.chunk.title,
                 "score": float(wifi_chunk.score),
+                "chunk_id": chunk_id,
+                "document_id": document_id,
+                "section_path": list(section_path),
+            }
+        ],
+        "evidence": [
+            {
+                "source": wifi_chunk.chunk.source,
+                "title": wifi_chunk.chunk.title,
+                "chunk_id": chunk_id,
+                "section": " / ".join(section_path),
+                "score": float(wifi_chunk.score),
+            }
+        ],
+        "claims": [
+            {
+                "text": content,
+                "evidence_ids": [chunk_id],
+                "verified": True,
+                "reason": None,
             }
         ],
         "guardrail_flags": [],

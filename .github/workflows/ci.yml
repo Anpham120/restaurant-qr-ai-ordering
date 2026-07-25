@@ -97,7 +97,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install AI service dependencies
-        run: python -m pip install -r ai/requirements.txt
+        run: python -m pip install -r ai/requirements.txt nbformat
+
+      - name: Validate research notebook build contract
+        env:
+          PYTHONPATH: ai
+        working-directory: ai
+        run: python scripts/build_research_notebook.py
 
       - name: Compile Python service
         env:
@@ -141,12 +147,14 @@ jobs:
       PAYMENTS__VIETQR__BANKID: "970436"
       PAYMENTS__VIETQR__ACCOUNTNUMBER: "ci-placeholder-account"
       PAYMENTS__VIETQR__ACCOUNTNAME: CMC CI
-      AI_PROVIDER: python-rag
+      CHAT_AI_PROVIDER: python-rag
       AI_SERVICE_URL: http://127.0.0.1:8001
       AI_SERVICE_PORT: "8001"
-      AI_LLM_PROVIDER: gemini
-      AI_MODEL: gemini-3.5-flash
-      GEMINI_API_KEY: ci-placeholder
+      AI_INTERNAL_TOKEN: ci-internal-token-placeholder
+      LLM_PROVIDER: 9router
+      LLM_BASE_URL: http://127.0.0.1:20128/v1
+      LLM_API_KEY: ci-provider-key-placeholder
+      LLM_MODEL: cx/gpt-5.5
     steps:
       - name: Checkout
         uses: actions/checkout@v4

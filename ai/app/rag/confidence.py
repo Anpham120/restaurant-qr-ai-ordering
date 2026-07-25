@@ -160,11 +160,13 @@ def compute_retrieval_confidence(
         f"diversity={unique_sources}/{top_n}, count={len(scores)}"
     )
     result = ConfidenceResult.from_score(confidence, reason)
-    if intent in FAQ_POLICY_INTENTS_FOR_CONFIDENCE and result.level in {"medium", "low", "very_low"}:
+    if intent in FAQ_POLICY_INTENTS_FOR_CONFIDENCE and result.level == "very_low":
+        # Only block LLM when retrieval completely failed (very_low).
+        # For medium/low, let LLM try — Claim Verifier will catch hallucinations.
         return ConfidenceResult(
             score=result.score,
             level=result.level,
-            reason=f"{result.reason}; faq_intent_prefers_fast_path",
+            reason=f"{result.reason}; faq_intent_no_evidence",
             should_call_llm=False,
             guardrail_flag=result.guardrail_flag or "LOW_RETRIEVAL_CONFIDENCE",
         )

@@ -11,6 +11,7 @@ class ParsedAiResponse:
     content: str
     suggested_cart_actions: list[dict[str, Any]]
     guardrail_flags: list[str]
+    claims: list[dict[str, Any]]
 
 
 def parse_model_response(
@@ -36,12 +37,42 @@ def parse_model_response(
         max_actions=max_actions,
     )
     flags = _dedupe([*flags, *action_flags])
+    claims, claim_flags = _parse_claims(payload.get("claims"))
+    flags = _dedupe([*flags, *claim_flags])
 
     return ParsedAiResponse(
         content=_dedupe_repeated_sentences(content),
         suggested_cart_actions=actions,
         guardrail_flags=flags,
+        claims=claims,
     )
+
+
+def _parse_claims(value: Any) -> tuple[list[dict[str, Any]], list[str]]:
+    if value is None:
+        return [], []
+    if not isinstance(value, list):
+        return [], ["AI_OUTPUT_SCHEMA_INVALID"]
+    claims: list[dict[str, Any]] = []
+    invalid = False
+    for claim in value:
+        if not isinstance(claim, dict):
+            invalid = True
+            continue
+        text = str(claim.get("text") or "").strip()
+        evidence_ids = claim.get("evidence_ids")
+        if not text or not isinstance(evidence_ids, list):
+            invalid = True
+            continue
+        claims.append(
+            {
+                "text": text,
+                "evidence_ids": [
+                    str(value).strip() for value in evidence_ids if str(value).strip()
+                ],
+            }
+        )
+    return claims, (["AI_OUTPUT_SCHEMA_INVALID"] if invalid else [])
 
 
 def _dedupe_repeated_sentences(content: str) -> str:

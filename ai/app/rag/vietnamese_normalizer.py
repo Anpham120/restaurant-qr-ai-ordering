@@ -14,6 +14,28 @@ import unicodedata
 
 
 # ---------------------------------------------------------------------------
+# Emoji → text mapping (common food/restaurant emojis)
+# ---------------------------------------------------------------------------
+
+EMOJI_MAP: dict[str, str] = {
+    "🌶️": "cay", "🌶": "cay",
+    "🦐": "tôm", "🦞": "tôm",
+    "🍜": "mì", "🍝": "mì ý",
+    "🍚": "cơm", "🍙": "cơm",
+    "🍗": "gà", "🍖": "thịt",
+    "🥩": "bò", "🥢": "súp",
+    "🍓": "trái cây", "🍎": "trái cây",
+    "🍺": "bia", "🍷": "rượu",
+    "☕": "cà phê", "🧃": "nước",
+    "🥛": "sữa", "🍵": "trà",
+    "👍": "được", "👎": "không",
+    "❤️": "thích", "❤": "thích",
+    "😋": "ngon", "🤤": "ngon",
+    "🙂": "", "😄": "", "😃": "",
+}
+
+
+# ---------------------------------------------------------------------------
 # Teencode & abbreviation mappings
 # ---------------------------------------------------------------------------
 
@@ -188,10 +210,17 @@ _TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
 def normalize_query_text(value: str) -> str:
-    """Normalize user/menu text for matching: lowercase, strip diacritics, tokenize."""
+    """Normalize user/menu text for matching: emoji, teencode, lowercase, strip diacritics, tokenize."""
     if not value:
         return ""
-    decomposed = unicodedata.normalize("NFD", value.casefold().replace("đ", "d"))
+    # Step 0: Replace emojis with Vietnamese text
+    text = value
+    for emoji, replacement in EMOJI_MAP.items():
+        text = text.replace(emoji, f" {replacement} ")
+    # Step 1: Apply teencode replacement (before stripping diacritics)
+    text = _replace_teencode(text.lower())
+    # Step 2: Strip diacritics for BM25 matching
+    decomposed = unicodedata.normalize("NFD", text.casefold().replace("đ", "d"))
     without_marks = "".join(
         char for char in decomposed if unicodedata.category(char) != "Mn"
     )

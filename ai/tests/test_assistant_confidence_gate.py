@@ -28,10 +28,10 @@ class AssistantConfidenceGateTests(unittest.TestCase):
     def test_very_low_retrieval_skips_llm_client(self) -> None:
         client = _CountingClient()
         config = AiServiceConfig(
-            provider="gemini",
+            provider="9router",
             base_url="https://example.com/v1",
             api_key="test-key",
-            model="test-model",
+            model="cx/gpt-5.5",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,
@@ -39,7 +39,7 @@ class AssistantConfidenceGateTests(unittest.TestCase):
             reasoning_effort="low",
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=3,
-            retrieval_method="hybrid",
+            retrieval_method="bm25",
         )
         service = AiAssistantService(config, llm_client=client)
         service._retriever = _EmptyRetriever()  # noqa: SLF001 — test seam

@@ -29,10 +29,13 @@ from app.rag.retriever import (  # noqa: E402
     TAG_BOOST,
     TITLE_BOOST,
     BM25Retriever,
+    RetrievalFilters,
+    RetrievedChunk,
     Retriever,
 )
 from app.rag.menu_query_filters import (  # noqa: E402
-    filter_menu_retrieval_results,
+    infer_allowed_menu_item_ids,
+    infer_excluded_menu_item_ids,
     menu_document_to_item,
 )
 from evaluation.research_corpus import (  # noqa: E402
@@ -89,6 +92,29 @@ PROVENANCE_PACKAGES = (
 )
 
 
+def search_retrieval_case(
+    retriever: Retriever,
+    *,
+    query: str,
+    target: RetrievalTarget,
+    top_k: int,
+    menu_items: Sequence[dict[str, object]],
+    apply_menu_filters: bool,
+) -> list[RetrievedChunk]:
+    """Search one case with the same pre-ranking menu constraints as runtime."""
+
+    if target is not RetrievalTarget.MENU or not apply_menu_filters:
+        return retriever.search(query, top_k)
+
+    allowed = infer_allowed_menu_item_ids(query, menu_items)
+    excluded = infer_excluded_menu_item_ids(query, menu_items)
+    filters = RetrievalFilters(
+        allowed_source_ids=frozenset(allowed) if allowed is not None else None,
+        excluded_source_ids=frozenset(excluded),
+    )
+    return retriever.search(query, top_k, filters=filters)
+
+
 def run_baseline(
     split: DatasetSplit = DatasetSplit.DEV,
     *,
@@ -125,7 +151,10 @@ def run_retrieval_experiment(
     allow_frozen_test: bool = False,
     apply_menu_filters: bool = True,
     with_rerank: bool = False,
+    latency_repetitions: int = LATENCY_REPETITIONS,
 ) -> dict[str, object]:
+    if latency_repetitions <= 0:
+        raise ValueError("latency_repetitions must be positive")
     validate_experiment_request(
         method=method,
         split=split,
@@ -175,7 +204,14 @@ def run_retrieval_experiment(
             :LATENCY_WARMUP_QUERIES_PER_TARGET
         ]
         for case in warmup_cases:
-            retriever.search(case.query, top_k)
+            search_retrieval_case(
+                retriever,
+                query=case.query,
+                target=case.target,
+                top_k=top_k,
+                menu_items=menu_items,
+                apply_menu_filters=apply_menu_filters,
+            )
             warmup_searches += 1
 
     measurement_cases = list(evaluated_cases)
@@ -194,18 +230,19 @@ def run_retrieval_experiment(
         )
         latency_samples_ms = []
         results = []
-        for repetition in range(LATENCY_REPETITIONS):
+        for repetition in range(latency_repetitions):
             started = time.perf_counter()
-            current_results = retrievers[case.target].search(case.query, top_k)
+            current_results = search_retrieval_case(
+                retrievers[case.target],
+                query=case.query,
+                target=case.target,
+                top_k=top_k,
+                menu_items=menu_items,
+                apply_menu_filters=apply_menu_filters,
+            )
             latency_samples_ms.append((time.perf_counter() - started) * 1000)
             if repetition == 0:
                 results = current_results
-                if case.target is RetrievalTarget.MENU and apply_menu_filters:
-                    results = filter_menu_retrieval_results(
-                        case.query,
-                        results,
-                        menu_items,
-                    )
                 if with_rerank and case.target is not RetrievalTarget.MENU and results:
                     from evaluation.rerank_cross_encoder import rerank_with_cross_encoder
 
@@ -267,7 +304,7 @@ def run_retrieval_experiment(
             "protocol": {
                 "warmup_queries_per_target": LATENCY_WARMUP_QUERIES_PER_TARGET,
                 "warmup_searches": warmup_searches,
-                "repetitions_per_query": LATENCY_REPETITIONS,
+                "repetitions_per_query": latency_repetitions,
                 "per_query_aggregate": "median",
                 "case_order": "deterministic-shuffle",
                 "case_order_seed": LATENCY_CASE_ORDER_SEED,

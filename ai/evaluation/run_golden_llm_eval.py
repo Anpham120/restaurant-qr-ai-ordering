@@ -26,15 +26,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AI_ROOT = PROJECT_ROOT / "ai"
 sys.path.insert(0, str(AI_ROOT))
 
-from app.config import load_config  # noqa: E402
 from app.rag.knowledge_base import load_markdown_knowledge_base  # noqa: E402
 from evaluation.golden_eval_common import (  # noqa: E402
     AI_ROOT as _AI_ROOT,
     GOLDEN_PATH,
+    DEFAULT_STRATIFIED_SAMPLING_SEED,
     build_llm_service,
     load_golden_cases,
     load_menu_items,
     score_pipeline_case,
+    summarize_case_sample,
 )
 from evaluation.llm_eval_judge import judge_response  # noqa: E402
 from evaluation.llm_eval_metrics import score_llm_case, summarize_llm_metrics  # noqa: E402
@@ -61,7 +62,7 @@ async def evaluate_cases(
         llm_client=llm_client,
         max_retry=max_retry,
     )
-    config = load_config()
+    config = service._config
     if llm_client is None and service._client is not None:
         service._client._max_retry = max_retry
         service._client._retry_delay_seconds = max(2.0, sleep_ms / 1000)
@@ -102,14 +103,21 @@ async def evaluate_cases(
                 "llm_called": llm_called,
                 "response_path": latency.get("path"),
                 "llm_success": llm_metrics.llm_success,
+                "pipeline_available": llm_metrics.pipeline_available,
                 "schema_valid": llm_metrics.schema_valid,
                 "grounding_pass": llm_metrics.grounding_pass,
                 "faithfulness_score": llm_metrics.faithfulness_score,
                 "allergy_disclaimer_pass": llm_metrics.allergy_disclaimer_pass,
                 "price_refusal_pass": llm_metrics.price_refusal_pass,
                 "content_non_empty": llm_metrics.content_non_empty,
+                "evidence_sufficient": llm_metrics.evidence_sufficient,
+                "expected_source_pass": llm_metrics.expected_source_pass,
+                "expected_menu_pass": llm_metrics.expected_menu_pass,
+                "claims_verified": llm_metrics.claims_verified,
+                "answer_adequacy_pass": llm_metrics.answer_adequacy_pass,
                 "composite_pass": llm_metrics.composite_pass,
                 "latency_ms": response.get("latency_ms") or {},
+                "generation_input_sha256": response.get("generation_input_sha256"),
             }
         )
         llm_stage = (response.get("latency_ms") or {}).get("llm")
@@ -175,10 +183,16 @@ async def evaluate_cases(
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "retrieval_method": retrieval_method,
         "embedding_model": embedding_model,
+        "retriever_runtime": service.retriever_runtime,
         "llm": {
             "provider": config.provider,
             "model": config.model,
             "with_judge": with_judge,
+            "generation_config": {
+                "max_tokens": config.max_tokens,
+                "reasoning_effort": config.reasoning_effort,
+                "llm_intent_classification_enabled": config.llm_intent_classification_enabled,
+            },
         },
         "dataset": {
             "path": str(GOLDEN_PATH.relative_to(PROJECT_ROOT)),
@@ -196,10 +210,14 @@ async def evaluate_cases(
 
 async def run_eval(args: argparse.Namespace) -> dict[str, Any]:
     families = set(args.families.split(",")) if args.families else None
+    sampling_strategy = getattr(args, "sampling_strategy", "head")
+    sampling_seed = getattr(args, "sampling_seed", DEFAULT_STRATIFIED_SAMPLING_SEED)
     cases = load_golden_cases(
         None if args.split == "all" else args.split,
         families=families,
         limit=args.limit,
+        sampling_strategy=sampling_strategy,
+        sampling_seed=sampling_seed,
     )
     if not cases:
         raise SystemExit("No golden cases matched the filters.")
@@ -214,6 +232,11 @@ async def run_eval(args: argparse.Namespace) -> dict[str, Any]:
             with_judge=args.with_judge,
             sleep_ms=args.sleep_ms,
             max_retry=args.max_retry,
+        )
+        runs[method]["dataset"]["sampling"] = summarize_case_sample(
+            cases,
+            sampling_strategy=sampling_strategy,
+            sampling_seed=sampling_seed if sampling_strategy == "stratified" else None,
         )
 
     if len(runs) == 1:
@@ -249,6 +272,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split", choices=("dev", "test", "all"), default="dev")
     parser.add_argument("--limit", type=int, default=30, help="Max cases (default 30 pilot)")
     parser.add_argument("--families", default="", help="Comma-separated family filter")
+    parser.add_argument(
+        "--sampling-strategy",
+        choices=("head", "stratified"),
+        default="head",
+        help="Case selection policy; head preserves historical behaviour (default head)",
+    )
+    parser.add_argument(
+        "--sampling-seed",
+        type=int,
+        default=DEFAULT_STRATIFIED_SAMPLING_SEED,
+        help="Deterministic seed used by stratified sampling",
+    )
     parser.add_argument("--embedding-model", default="e5_small")
     parser.add_argument(
         "--compare-retrieval",
@@ -258,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--with-judge",
         action="store_true",
-        help="Also run Gemini-as-judge rubric (doubles API cost)",
+        help="Also run an independent judge rubric (adds API cost)",
     )
     parser.add_argument(
         "--sleep-ms",
@@ -270,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
         "--max-retry",
         type=int,
         default=4,
-        help="Gemini retries on 429/5xx during eval (default 4)",
+        help="9router retries on 429/5xx during eval (default 4)",
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)

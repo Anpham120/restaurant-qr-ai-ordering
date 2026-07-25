@@ -159,6 +159,7 @@ public static class ChatEndpoints
                 : request.TableCode.Trim();
             var excludedIds = chatStore.GetExcludedMenuItemIds(chatSessionId);
             var facts = chatStore.GetFacts(chatSessionId);
+            var sessionState = chatStore.GetSessionState(chatSessionId);
             var assistantReply = await assistant.GenerateReplyAsync(
                 userMessage.Content,
                 history,
@@ -168,6 +169,7 @@ public static class ChatEndpoints
                 chatSession.RollingSummary,
                 excludedIds,
                 facts,
+                sessionState,
                 cancellationToken);
             var assistantMessage = chatStore.AddMessage(
                 chatSessionId,
@@ -181,24 +183,12 @@ public static class ChatEndpoints
                 return ApiResults.NotFound("CHAT_SESSION_NOT_FOUND", "Chat session was not found.");
             }
 
-            if (assistantReply.FactsToPersist is { Count: > 0 } factsToPersist)
-            {
-                chatStore.UpsertFacts(
-                    chatSessionId,
-                    factsToPersist.Select(f => (f.Kind, f.Value, f.Confidence, (string?)assistantMessage.Id)));
-            }
-
-            if (!string.IsNullOrWhiteSpace(assistantReply.UpdatedRollingSummary))
-            {
-                chatStore.UpdateRollingSummary(chatSessionId, assistantReply.UpdatedRollingSummary);
-            }
-
-            if (assistantReply.RejectedMenuItemIds is { Count: > 0 } rejectedIds)
-            {
-                chatStore.UpsertRecommendations(
-                    chatSessionId,
-                    rejectedIds.Select(id => (id, "rejected", (string?)userMessage.Id)));
-            }
+            ChatSessionStatePersistence.ApplyAssistantReply(
+                chatStore,
+                chatSessionId,
+                assistantReply,
+                assistantMessage.Id,
+                userMessage.Id);
 
             logger.LogInformation(
                 "Stored chat exchange for session {ChatSessionId} with {SuggestedActionCount} suggested actions and {GuardrailCount} guardrail flags.",

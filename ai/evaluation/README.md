@@ -6,23 +6,31 @@ Research package dùng chung cho BM25, neural embedding và hybrid.
 
 | Lớp | Script | KPI chính? |
 | --- | --- | --- |
-| **E2E+LLM (9router)** | `run_golden_llm_eval.py` | **Có** — `composite_pass`, grounding, faithfulness |
+| **E2E+LLM (9router)** | `run_dual_llm_eval.py` / `run_golden_llm_eval.py` | **Có** — availability tách riêng quality-on-success, claim support, faithfulness, adequacy và abstention |
 | Retrieval research | `run_retrieval_experiment.py` | Có (ADR retriever) |
 | Pipeline no-LLM | `run_golden_chat_eval.py` | **Không** — CI smoke safety/forbidden only |
 | CI gates | `ci_golden_gates.py` | Safety + retrieval smoke (no API) |
+
+Không dùng `composite_pass=100%` làm headline hoặc bằng chứng release nếu
+availability, faithfulness, answer adequacy, human review hay frozen-test gate chưa
+đạt. Mọi tỷ lệ phải kèm tử số/mẫu số; provider failure không được gộp vào chất
+lượng trên nhóm gọi thành công.
 
 ### E2E+LLM qua 9router
 
 ```powershell
 cd ai
-$env:AI_PROVIDER='openai'
-$env:AI_BASE_URL='http://localhost:20128/v1'
-$env:AI_API_KEY='...'
-$env:AI_MODEL='cx/gpt-5.5'
+$env:LLM_PROVIDER='9router'
+$env:LLM_BASE_URL='http://localhost:20128/v1'
+$env:LLM_API_KEY='...'
+$env:LLM_MODEL='cx/gpt-5.5'
 py -m evaluation.run_golden_llm_eval --split dev --limit 234
 
-$env:AI_MODEL='oc/deepseek-v4-flash-free'
+$env:LLM_MODEL='oc/deepseek-v4-flash-free'
 py -m evaluation.run_golden_llm_eval --split dev --limit 234 --output evaluation/results/golden_llm_eval_deepseek_v4_full.json
+
+# Paired comparison: cùng case, evidence, prompt và budget cho cả hai model
+py -m evaluation.run_dual_llm_eval --split dev --limit 234 --run-id current-approved-candidate
 ```
 
 ### CI smoke (no 9router)
