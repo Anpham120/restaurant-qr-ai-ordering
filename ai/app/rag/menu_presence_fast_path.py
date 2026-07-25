@@ -22,15 +22,32 @@ def _normalize(text: str) -> str:
     return normalize_query_text(text)
 
 
+_OPEN_MENU_BROWSE_TERMS = (
+    "mon gi",
+    "co gi an",
+    "mon nao",
+    "nhung mon",
+    "nhung bia",
+    "bia gi",
+    "gi nhi",
+    "an nhe",
+    "mon nhe",
+    "goi y",
+    "de xuat",
+    "tu van",
+)
+
+
 def _is_menu_presence_query(normalized: str) -> bool:
-    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
-        return True
-    if "o day co" in normalized:
-        return True
     padded = f" {normalized} "
-    if " co " not in padded:
+    has_khong = " khong" in padded or normalized.endswith(" khong")
+    if any(term in normalized for term in _OPEN_MENU_BROWSE_TERMS):
         return False
-    if " khong" in padded or normalized.endswith(" khong"):
+    if has_khong and _menu_keywords(normalized):
+        return True
+    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
+        return has_khong and bool(_menu_keywords(normalized))
+    if "o day co" in normalized and has_khong:
         return bool(_menu_keywords(normalized))
     return False
 
