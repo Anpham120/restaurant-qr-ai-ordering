@@ -15,6 +15,7 @@ from app.rag.menu_item_kind import (
     detect_requested_item_kind,
     filter_items_by_kind,
 )
+from app.rag.menu_presence_fast_path import is_menu_presence_query
 from app.rag.intent_routing_signals import (
     is_allergy_or_avoidance_refinement,
     is_category_listing_query,
@@ -286,6 +287,8 @@ def build_conversation_policy(
         wants_recommendations = False
     elif catalog_browse:
         wants_recommendations = False
+    elif is_menu_presence_query(message):
+        wants_recommendations = False
     elif (
         category
         and is_category_listing_query(normalized_message)
@@ -365,6 +368,8 @@ def build_conversation_policy(
         and not is_solo_seating_question(normalized_message)
     ):
         party_size = 1
+    if is_menu_presence_query(message):
+        wants_recommendations = False
     return ConversationPolicy(
         requested_count=requested_count,
         wants_recommendations=wants_recommendations,
