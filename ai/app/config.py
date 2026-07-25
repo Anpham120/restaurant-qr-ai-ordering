@@ -120,7 +120,7 @@ def load_config() -> AiServiceConfig:
     pipeline_profile = os.getenv(
         "AI_PIPELINE_PROFILE",
         DEFAULT_PIPELINE_PROFILE,
-    ).strip()
+    ).strip() or DEFAULT_PIPELINE_PROFILE
     if pipeline_profile not in PIPELINE_PROFILES:
         raise ValueError(
             "AI_PIPELINE_PROFILE must be one of: "
