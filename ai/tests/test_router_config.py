@@ -62,6 +62,28 @@ class RouterConfigTests(unittest.TestCase):
                 }
             )
 
+    def test_gemini_api_host_in_base_url_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Gemini endpoints"):
+            self._load_config(
+                {
+                    "LLM_PROVIDER": "9router",
+                    "LLM_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai",
+                    "LLM_API_KEY": "router-test-key",
+                    "LLM_MODEL": "oc/deepseek-v4-flash-free",
+                }
+            )
+
+    def test_gemini_hostname_substring_in_path_is_allowed(self) -> None:
+        config = self._load_config(
+            {
+                "LLM_PROVIDER": "9router",
+                "LLM_BASE_URL": "http://127.0.0.1:20128/v1/generativelanguage.googleapis.com",
+                "LLM_API_KEY": "router-test-key",
+                "LLM_MODEL": "oc/deepseek-v4-flash-free",
+            }
+        )
+        self.assertTrue(config.llm_enabled)
+
     def test_non_gpt55_or_deepseek_model_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "GPT-5.5 or DeepSeek"):
             self._load_config(

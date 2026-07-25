@@ -4,10 +4,13 @@ import os
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
+
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
 DEFAULT_LLM_MODEL = "oc/deepseek-v4-flash-free"
 LLM_PROVIDERS = frozenset({"9router"})
 LEGACY_ROUTER_PROVIDER_NAMES = frozenset({"router", "openai"})
+DISALLOWED_LLM_HOST = "generativelanguage.googleapis.com"
 
 
 def is_supported_router_model(model: str) -> bool:
@@ -85,12 +88,22 @@ def _resolve_provider() -> str:
     return raw
 
 
+def _is_disallowed_gemini_base_url(base_url: str) -> bool:
+    parsed = urlparse(base_url.strip())
+    host = parsed.hostname
+    if not host:
+        return False
+    normalized = host.casefold().rstrip(".")
+    blocked = DISALLOWED_LLM_HOST.casefold()
+    return normalized == blocked or normalized.endswith(f".{blocked}")
+
+
 def load_config() -> AiServiceConfig:
     _load_env_file()
     provider = _resolve_provider()
     base_url = _resolve_base_url()
     model = _canonical_env("LLM_MODEL", "AI_MODEL", default=DEFAULT_LLM_MODEL).strip()
-    if "generativelanguage.googleapis.com" in base_url.casefold():
+    if _is_disallowed_gemini_base_url(base_url):
         raise ValueError("Gemini endpoints are not supported; configure the 9router base URL")
     if not is_supported_router_model(model):
         raise ValueError("LLM_MODEL must select GPT-5.5 or DeepSeek through 9router")
