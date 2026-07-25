@@ -15,7 +15,13 @@ const formatVnd = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 const formatTime = (value: string) =>
   new Date(value).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
-export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) {
+export function CounterShiftPanel({
+  embedded = false,
+  supervisorMode = false,
+}: {
+  embedded?: boolean;
+  supervisorMode?: boolean;
+}) {
   const [shift, setShift] = useState<CounterShiftSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState("0");
@@ -29,15 +35,9 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
     try {
       const current = await getCurrentCounterShift();
       setShift(current);
-      // #region agent log
-      fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-SHIFT',location:'CounterShiftPanel.tsx:refresh',message:'counter shift loaded',data:{hasOpenShift:Boolean(current?.status==='Open')},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     } catch (error) {
       const status = error instanceof ApiError ? error.status : 0;
       const apiMessage = error instanceof ApiError ? error.message : "";
-      // #region agent log
-      fetch('http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'613762'},body:JSON.stringify({sessionId:'613762',runId:'prod-ops',hypothesisId:'H-SHIFT',location:'CounterShiftPanel.tsx:refresh',message:'counter shift load failed',data:{status,apiMessage},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (status === 403) {
         setLoadError("Tài khoản không có quyền quản lý ca quầy. Liên hệ admin để cấp quyền CounterStaff hoặc Staff.");
       } else if (status === 401) {
@@ -124,6 +124,12 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
         </div>
       ) : null}
 
+      {supervisorMode ? (
+        <div className="counter-alert counter-alert--info" role="status">
+          Chế độ giám sát: chỉ xem số liệu ca. Nhân viên quầy mở/chốt ca và thu tiền tại workspace quầy.
+        </div>
+      ) : null}
+
       {isOpen && shift ? (
         <>
           <div className="counter-shift-hero counter-shift-hero--open">
@@ -158,6 +164,7 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
             </article>
           </div>
 
+          {!supervisorMode ? (
           <div className="counter-action-card">
             <h3>Chốt ca cuối phiên</h3>
             <p>Đếm tiền thực tế trong két và nhập số liệu trước khi kết thúc ca.</p>
@@ -180,6 +187,7 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
               </button>
             </div>
           </div>
+          ) : null}
         </>
       ) : (
         <>
@@ -187,10 +195,15 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
             <div className="counter-shift-hero-icon" aria-hidden="true">
               <Clock3 size={24} />
             </div>
-            <h2>Chưa mở ca quầy</h2>
-            <p>Nhập tiền mặt đầu ca để bắt đầu phiên thu ngân. Sau khi mở ca, chuyển sang tab Chờ thanh toán.</p>
+            <h2>{supervisorMode ? "Chưa có ca quầy mở" : "Chưa mở ca quầy"}</h2>
+            <p>
+              {supervisorMode
+                ? "Khi nhân viên quầy mở ca, bạn sẽ thấy tiền đầu ca và dự kiến trong két tại đây."
+                : "Nhập tiền mặt đầu ca để bắt đầu phiên thu ngân. Sau khi mở ca, chuyển sang tab Chờ thanh toán."}
+            </p>
           </div>
 
+          {!supervisorMode ? (
           <div className="counter-action-card">
             <h3>Mở ca mới</h3>
             <p>Tiền đầu ca là số tiền mặt có sẵn trong két trước khi bắt đầu thu.</p>
@@ -213,6 +226,7 @@ export function CounterShiftPanel({ embedded = false }: { embedded?: boolean }) 
               </button>
             </div>
           </div>
+          ) : null}
         </>
       )}
     </section>

@@ -11,6 +11,8 @@ type OpsHubShellProps = {
   isAdmin?: boolean;
   connectionStatus?: RealtimeConnectionStatus;
   className?: string;
+  stickyTabs?: boolean;
+  defaultTabId?: string;
   children: ReactNode;
 };
 
@@ -21,6 +23,8 @@ export function OpsHubShell({
   isAdmin = true,
   connectionStatus,
   className,
+  stickyTabs = true,
+  defaultTabId,
   children,
 }: OpsHubShellProps) {
   return (
@@ -34,7 +38,7 @@ export function OpsHubShell({
           {connectionStatus ? <OpsConnectionBadge status={connectionStatus} /> : null}
         </div>
       </div>
-      <OpsHubTabs tabs={tabs} isAdmin={isAdmin} sticky />
+      <OpsHubTabs tabs={tabs} isAdmin={isAdmin} sticky={stickyTabs} defaultTabId={defaultTabId} />
       <div className="ops-hub-content">{children}</div>
     </div>
   );

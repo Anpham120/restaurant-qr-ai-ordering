@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@cmc/auth";
 import { AdminInvoicesPanel } from "../AdminInvoicesPage";
 import { StaffPaymentsPage } from "../StaffPaymentsPage";
 import { CounterShiftPanel } from "./CounterShiftPanel";
@@ -10,19 +11,27 @@ import { hasPendingCounterPayments } from "../../services/opsSummaryService";
 import "../../components/operations/operations.css";
 import "./counter-hub.css";
 
-const COUNTER_TABS = [
+const COUNTER_STAFF_TABS = [
   { id: "shift", label: "Ca làm việc" },
   { id: "payments", label: "Chờ thanh toán" },
   { id: "invoices", label: "Lịch sử hóa đơn" },
 ];
 
+const COUNTER_SUPERVISOR_TABS = [
+  { id: "shift", label: "Giám sát ca" },
+  { id: "invoices", label: "Lịch sử hóa đơn" },
+];
+
 export function CounterHubPage() {
+  const { user } = useAuth();
+  const isSupervisor = user?.role === "Admin";
+  const counterTabs = isSupervisor ? COUNTER_SUPERVISOR_TABS : COUNTER_STAFF_TABS;
   const [searchParams, setSearchParams] = useSearchParams();
-  const { activeTab } = useOpsHubTab(COUNTER_TABS);
+  const { activeTab } = useOpsHubTab(counterTabs);
   const connectionStatus = useOpsConnectionStatus();
 
   useEffect(() => {
-    if (searchParams.get("tab")) return;
+    if (isSupervisor || searchParams.get("tab")) return;
     let active = true;
     void hasPendingCounterPayments()
       .then((hasPending) => {
@@ -33,17 +42,19 @@ export function CounterHubPage() {
     return () => {
       active = false;
     };
-  }, [searchParams, setSearchParams]);
+  }, [isSupervisor, searchParams, setSearchParams]);
 
   return (
     <OpsHubShell
       className="ops-hub-shell--counter"
-      title="Quầy thu ngân"
-      description="Mở ca, thu tiền và tra cứu hóa đơn phiên bàn."
-      tabs={COUNTER_TABS}
+      title={isSupervisor ? "Giám sát quầy" : "Quầy thu ngân"}
+      description={isSupervisor
+        ? "Xem tiền theo ca và lịch sử hóa đơn — không thao tác thu/chốt ca tại đây."
+        : "Mở ca, thu tiền và tra cứu hóa đơn phiên bàn."}
+      tabs={counterTabs}
       connectionStatus={connectionStatus}
     >
-      {activeTab === "shift" ? <CounterShiftPanel embedded /> : null}
+      {activeTab === "shift" ? <CounterShiftPanel embedded supervisorMode={isSupervisor} /> : null}
       {activeTab === "payments" ? <StaffPaymentsPage embedded /> : null}
       {activeTab === "invoices" ? <AdminInvoicesPanel embedded /> : null}
     </OpsHubShell>
