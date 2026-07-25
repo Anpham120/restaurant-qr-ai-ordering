@@ -109,6 +109,35 @@ class AssistantLlmFirstTests(unittest.TestCase):
         self.assertEqual("llm", response["latency_ms"]["path"])
         self.assertTrue(response.get("provider_available"))
 
+    def test_pho_presence_uses_menu_not_llm_when_llm_first(self) -> None:
+        client = _CountingClient()
+        service = AiAssistantService(_llm_first_config(), llm_client=client)
+        response = asyncio.run(
+            service.chat(
+                {
+                    "message": "Ở đây có phở không",
+                    "history": [],
+                    "menu_items": [
+                        {
+                            "id": "m_pho",
+                            "name": "Phở bò tái",
+                            "description": "Phở",
+                            "category_name": "Phở",
+                            "category_id": "cat_pho",
+                            "price_vnd": 85000,
+                            "is_available": True,
+                        },
+                        *_menu(),
+                    ],
+                    "table_code": "T01",
+                }
+            )
+        )
+
+        self.assertEqual(0, client.calls)
+        self.assertEqual("menu_presence", response["latency_ms"]["path"])
+        self.assertIn("phở", response["content"].casefold())
+
     def test_llm_first_false_still_allows_party_fast_path(self) -> None:
         client = _CountingClient()
         service = AiAssistantService(

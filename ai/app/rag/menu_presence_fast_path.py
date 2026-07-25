@@ -22,6 +22,19 @@ def _normalize(text: str) -> str:
     return normalize_query_text(text)
 
 
+def _is_menu_presence_query(normalized: str) -> bool:
+    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
+        return True
+    if "o day co" in normalized:
+        return True
+    padded = f" {normalized} "
+    if " co " not in padded:
+        return False
+    if " khong" in padded or normalized.endswith(" khong"):
+        return bool(_menu_keywords(normalized))
+    return False
+
+
 def _menu_keywords(normalized_query: str) -> list[str]:
     tokens = set(normalized_query.split())
     keywords: list[str] = []
@@ -50,6 +63,12 @@ def _menu_keywords(normalized_query: str) -> list[str]:
     return keywords
 
 
+def is_menu_presence_query(message: str) -> bool:
+    """True when user asks whether a dish/category exists on the live menu."""
+
+    return _is_menu_presence_query(_normalize(message))
+
+
 def try_menu_presence_fast_path(
     message: str,
     menu_items: list[dict[str, Any]],
@@ -58,13 +77,13 @@ def try_menu_presence_fast_path(
 ) -> dict[str, Any] | None:
     """Answer 'có món X không?' from live menu without LLM."""
 
-    if wants_recommendations or not menu_items:
+    normalized = _normalize(message)
+    if not menu_items:
+        return None
+    if not is_menu_presence_query(message):
         return None
 
-    normalized = _normalize(message)
     if any(term in normalized for term in _ALLERGY_OR_AVOID_TERMS):
-        return None
-    if not any(term in normalized for term in _MENU_PRESENCE_TERMS):
         return None
 
     keywords = _menu_keywords(normalized)
