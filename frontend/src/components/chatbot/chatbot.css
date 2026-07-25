@@ -526,4 +526,9 @@
   .cmc-chat-composer button {
     min-height: 44px;
   }
+
+  /* Ordering bottom nav covers composer — lift input + keep send reachable */
+  .ordering-main .page-shell-chat .cmc-chat-composer {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  }
 }
