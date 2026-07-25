@@ -1,19 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from typing import Any
 
 import httpx
 
-from app.clients.gemini import GeminiClient
+from app.clients.router import RouterClient
 from app.config import AiServiceConfig
 from app.rag.budget_solver import solve_budget
 from app.rag.budget_recommendation_fast_path import try_budget_recommendation_fast_path
 from app.rag.party_recommendation_fast_path import try_party_recommendation_fast_path
 from app.rag.confidence import compute_retrieval_confidence
+from app.rag.claim_verifier import verify_claims
 from app.rag.constraint_extractor import extract_constraints
 from app.rag.content_grounding import format_grounded_recommendation_content, ground_response_content
 from app.rag.conversation_policy import (
@@ -55,7 +59,6 @@ from app.rag.retrieval_factory import build_retriever_stack
 from app.rag.retriever import BM25Retriever, Retriever
 from app.rag.smalltalk import try_smalltalk
 from app.rag.vietnamese_normalizer import normalize_query_text
-from app.rag.streaming_json import extract_streaming_content
 from app.schemas import ChatResponse, FollowUp, RetrievedSource
 
 
@@ -79,7 +82,7 @@ class AiAssistantService:
         self,
         config: AiServiceConfig,
         *,
-        llm_client: GeminiClient | None = None,
+        llm_client: RouterClient | None = None,
         embedding_encoder: EmbeddingEncoder | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
@@ -93,7 +96,7 @@ class AiAssistantService:
         )
         self._client = llm_client
         if self._client is None and config.llm_enabled:
-            self._client = GeminiClient(
+            self._client = RouterClient(
                 config.base_url,
                 config.api_key,
                 config.model,
@@ -102,7 +105,6 @@ class AiAssistantService:
                 http_client=http_client,
                 max_tokens=config.max_tokens,
                 reasoning_effort=config.reasoning_effort,
-                use_gemini_features=config.uses_gemini_native_features,
             )
         self._cache = ResponseCache(max_size=500, ttl_seconds=300)
         self._ready = False
@@ -110,6 +112,10 @@ class AiAssistantService:
     @property
     def retrieval_method(self) -> str:
         return self._retrieval_method
+
+    @property
+    def retriever_runtime(self) -> dict[str, Any]:
+        return dict(self._retriever_runtime)
 
     @property
     def is_ready(self) -> bool:
@@ -120,12 +126,22 @@ class AiAssistantService:
         embedding_encoder: EmbeddingEncoder | None,
     ) -> tuple[Retriever, EmbeddingEncoder | None]:
         try:
+            resolved_encoder = embedding_encoder
+            if self._config.retrieval_method.strip().casefold() != "bm25" and resolved_encoder is None:
+                resolved_encoder = create_encoder(self._config.embedding_model)
             stack = build_retriever_stack(
                 self._chunks,
                 self._config.retrieval_method,
-                encoder=embedding_encoder or create_encoder(self._config.embedding_model),
+                encoder=resolved_encoder,
             )
             self._retrieval_method = stack.method
+            self._retriever_runtime = {
+                "requested_method": self._config.retrieval_method,
+                "effective_method": stack.method,
+                "embedding_model": self._config.embedding_model,
+                "fallback_used": False,
+                "fallback_error_type": None,
+            }
             return stack.retriever, stack.encoder
         except Exception as exception:
             logger.exception(
@@ -134,6 +150,13 @@ class AiAssistantService:
                 type(exception).__name__,
             )
             self._retrieval_method = "bm25-fallback"
+            self._retriever_runtime = {
+                "requested_method": self._config.retrieval_method,
+                "effective_method": self._retrieval_method,
+                "embedding_model": self._config.embedding_model,
+                "fallback_used": True,
+                "fallback_error_type": type(exception).__name__,
+            }
             return BM25Retriever(self._chunks), None
 
     def prewarm(self) -> None:
@@ -155,6 +178,14 @@ class AiAssistantService:
                 "content": item.chunk.content,
                 "score": item.score,
                 "tags": list(item.chunk.tags),
+                "chunk_id": item.chunk.chunk_id,
+                "document_id": item.chunk.document_id,
+                "parent_id": item.chunk.parent_id,
+                "section_path": list(item.chunk.section_path),
+                "content_hash": item.chunk.content_hash,
+                "risk_tier": item.chunk.risk_tier,
+                "valid_from": item.chunk.valid_from,
+                "valid_to": item.chunk.valid_to,
             }
             for item in results
         ]
@@ -172,8 +203,27 @@ class AiAssistantService:
 
     async def chat_stream(self, payload: dict) -> AsyncIterator[dict[str, Any]]:
         message = str(payload.get("message") or "").strip()
+        security_response = _try_security_guardrail_response(
+            message,
+            pipeline_version=self._config.pipeline_version,
+        )
+        if security_response is not None:
+            security_response = _finalize_response_payload(
+                security_response,
+                _minimal_context(payload, self._config.pipeline_version, intent="security"),
+            )
+            yield {"type": "token", "data": {"text": security_response["content"]}}
+            yield {"type": "final", "data": security_response}
+            yield {"type": "done", "data": {"ok": True}}
+            return
         smalltalk = try_smalltalk(message)
         if smalltalk is not None:
+            stages = {"total": 0.0, "path": "smalltalk"}
+            smalltalk["latency_ms"] = stages
+            smalltalk = _finalize_response_payload(
+                smalltalk,
+                _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
+            )
             yield {"type": "token", "data": {"text": smalltalk["content"]}}
             yield {"type": "final", "data": smalltalk}
             yield {"type": "done", "data": {"ok": True}}
@@ -232,20 +282,14 @@ class AiAssistantService:
             return
 
         messages = _build_llm_messages(message, context, payload)
+        context["generation_input_sha256"] = _generation_input_sha256(messages)
 
         accumulated = ""
-        last_content = ""
         llm_started = time.perf_counter()
         try:
             async with asyncio.timeout(self._config.llm_timeout_seconds):
                 async for delta in self._client.complete_stream(messages):
                     accumulated += delta
-                    content = extract_streaming_content(accumulated)
-                    if content and content != last_content:
-                        new_text = content[len(last_content) :]
-                        if new_text:
-                            yield {"type": "token", "data": {"text": new_text}}
-                        last_content = content
         except TimeoutError:
             context["flags"] = _dedupe([*context["flags"], "AI_PROVIDER_UNAVAILABLE"])
         except Exception as exception:
@@ -265,10 +309,8 @@ class AiAssistantService:
             context=context,
             payload=payload,
         )
-        if last_content != response["content"]:
-            remainder = response["content"][len(last_content) :]
-            if remainder:
-                yield {"type": "token", "data": {"text": remainder}}
+        if response.get("content"):
+            yield {"type": "token", "data": {"text": response["content"]}}
         yield {"type": "final", "data": response}
         yield {"type": "done", "data": {"ok": True}}
 
@@ -276,10 +318,30 @@ class AiAssistantService:
         started = time.perf_counter()
         message = str(payload.get("message") or "").strip()
 
+        security_response = _try_security_guardrail_response(
+            message,
+            pipeline_version=self._config.pipeline_version,
+        )
+        if security_response is not None:
+            stages = {
+                "total": round((time.perf_counter() - started) * 1000, 1),
+                "path": "guardrail",
+            }
+            security_response["latency_ms"] = stages
+            security_response = _finalize_response_payload(
+                security_response,
+                _minimal_context(payload, self._config.pipeline_version, intent="security"),
+            )
+            return security_response, stages
+
         smalltalk = try_smalltalk(message)
         if smalltalk is not None:
             stages = {"total": round((time.perf_counter() - started) * 1000, 1), "path": "smalltalk"}
             smalltalk["latency_ms"] = stages
+            smalltalk = _finalize_response_payload(
+                smalltalk,
+                _minimal_context(payload, self._config.pipeline_version, intent="smalltalk"),
+            )
             return smalltalk, stages
 
         context = await self._prepare_context(payload)
@@ -310,10 +372,12 @@ class AiAssistantService:
         flags = list(context["flags"])
 
         if self._client is not None and context.get("should_call_llm", True):
+            messages = _build_llm_messages(message, context, payload)
+            context["generation_input_sha256"] = _generation_input_sha256(messages)
             llm_started = time.perf_counter()
             try:
                 async with asyncio.timeout(self._config.llm_timeout_seconds):
-                    raw_answer = await self._client.complete(_build_llm_messages(message, context, payload))
+                    raw_answer = await self._client.complete(messages)
                 stages["llm"] = round((time.perf_counter() - llm_started) * 1000, 1)
                 parsed = parse_model_response(
                     raw_answer,
@@ -368,6 +432,9 @@ class AiAssistantService:
                 session_id=context["session_id"],
                 exclusion_ids=context["exclusion_list"],
                 menu_version=context["menu_version"],
+                index_version=self._config.rag_config_id,
+                prompt_version=self._config.pipeline_version,
+                model_version=self._config.model,
                 cacheable=context["cacheable"],
             )
 
@@ -388,20 +455,35 @@ class AiAssistantService:
 
         message = str(payload.get("message") or "").strip()
         history = payload.get("history") or []
-        session_memory = str(payload.get("session_memory") or "").strip()
-        rolling_summary = str(payload.get("rolling_summary") or "").strip()
-        menu_items = payload.get("menu_items") or []
+        session_state = payload.get("session_state") or {}
+        live_context = payload.get("live_context") or {}
+        session_memory = _session_memory_with_typed_ledger(
+            str(payload.get("session_memory") or "").strip(),
+            session_state,
+        )
+        rolling_summary = str(
+            payload.get("rolling_summary") or session_state.get("rolling_summary") or ""
+        ).strip()
+        menu_items = payload.get("menu_items") or live_context.get("menu_items") or []
         session_id = str(payload.get("session_id") or "").strip()
-        menu_version = str(payload.get("menu_version") or "").strip()
-        facts = payload.get("facts") or []
-        cart_items = payload.get("cart_items") or []
-        orders = payload.get("orders") or []
-        promotions = payload.get("promotions") or []
-        local_time = payload.get("local_time")
-        meal_period = payload.get("meal_period")
+        menu_version = str(
+            payload.get("catalog_version")
+            or live_context.get("catalog_version")
+            or payload.get("menu_version")
+            or ""
+        ).strip()
+        facts = payload.get("facts") or session_state.get("facts") or []
+        cart_items = payload.get("cart_items") or live_context.get("cart_items") or []
+        orders = payload.get("orders") or live_context.get("orders") or []
+        promotions = payload.get("promotions") or live_context.get("promotions") or []
+        local_time = payload.get("local_time") or live_context.get("local_time")
+        meal_period = payload.get("meal_period") or live_context.get("meal_period")
 
         extract_started = time.perf_counter()
-        constraints = extract_constraints(message, history)
+        constraints = _merge_typed_constraints(
+            session_state.get("constraints") or {},
+            extract_constraints(message, history),
+        )
         payload_language = str(payload.get("language") or "").strip()
         if payload_language in {"vi", "en"}:
             constraints = {**constraints, "language": payload_language}
@@ -414,8 +496,35 @@ class AiAssistantService:
             category=constraints.get("category"),
             variation_seed=session_id or message,
         )
+        if policy.party_size is None and constraints.get("party_size"):
+            policy = replace(policy, party_size=int(constraints["party_size"]))
         intent_result = classify_intent_for_message(message, history)
         intent_flags: list[str] = []
+        live_response = _try_live_data_response(
+            message,
+            history,
+            session_state,
+            menu_items,
+            pipeline_version=self._config.pipeline_version,
+        )
+        if live_response is not None:
+            stages["extract"] = round((time.perf_counter() - extract_started) * 1000, 1)
+            available = [item for item in menu_items if bool(item.get("is_available", True))]
+            return {
+                "early_response": live_response,
+                "stages": stages,
+                "policy": policy,
+                "available_menu_items": available,
+                "message": message,
+                "history": history,
+                "rolling_summary": rolling_summary,
+                "facts": facts,
+                "session_state": session_state,
+                "constraints": constraints,
+                "intent": intent_result.intent,
+                "pipeline_version": self._config.pipeline_version,
+                "retriever_runtime": self.retriever_runtime,
+            }
         if (
             self._config.llm_intent_classification_enabled
             and self._client is not None
@@ -439,7 +548,10 @@ class AiAssistantService:
 
         payload_excluded = frozenset(
             str(item_id).strip()
-            for item_id in (payload.get("excluded_menu_item_ids") or [])
+            for item_id in (
+                list(payload.get("excluded_menu_item_ids") or [])
+                + list(session_state.get("rejected_menu_item_ids") or [])
+            )
             if str(item_id).strip()
         )
         allergen_context = bool(constraints.get("allergens")) and has_allergy_avoidance_context(
@@ -471,6 +583,21 @@ class AiAssistantService:
             excluded_category_ids,
         )
 
+        fast_path_context = {
+            "message": message,
+            "history": history,
+            "session_memory": session_memory,
+            "rolling_summary": rolling_summary,
+            "session_id": session_id,
+            "menu_version": menu_version,
+            "facts": facts,
+            "session_state": session_state,
+            "constraints": constraints,
+            "intent": intent_result.intent,
+            "pipeline_version": self._config.pipeline_version,
+            "retriever_runtime": self.retriever_runtime,
+        }
+
         menu_started = time.perf_counter()
         candidate_menu_items = self._menu_retriever.select(
             message,
@@ -490,7 +617,13 @@ class AiAssistantService:
         catalog_response = _try_catalog_fast_path(message, constraints, menu_items, excluded_ids)
         if catalog_response is not None:
             catalog_response["latency_ms"] = {**stages, "path": "catalog_fast_path"}
-            return _early_context_response(catalog_response, stages, policy, available_menu_items)
+            return _early_context_response(
+                catalog_response,
+                stages,
+                policy,
+                available_menu_items,
+                context=fast_path_context,
+            )
 
         party_fast_path = try_party_recommendation_fast_path(
             constraints,
@@ -501,7 +634,13 @@ class AiAssistantService:
         )
         if party_fast_path is not None:
             party_fast_path["latency_ms"] = {**stages, "path": "party_fast_path"}
-            return _early_context_response(party_fast_path, stages, policy, available_menu_items)
+            return _early_context_response(
+                party_fast_path,
+                stages,
+                policy,
+                available_menu_items,
+                context=fast_path_context,
+            )
 
         pairing_fast_path = try_pairing_recommendation_fast_path(
             message,
@@ -511,10 +650,22 @@ class AiAssistantService:
         )
         if pairing_fast_path is not None:
             pairing_fast_path["latency_ms"] = {**stages, "path": "pairing_fast_path"}
-            return _early_context_response(pairing_fast_path, stages, policy, available_menu_items)
+            return _early_context_response(
+                pairing_fast_path,
+                stages,
+                policy,
+                available_menu_items,
+                context=fast_path_context,
+            )
 
         rewrite_started = time.perf_counter()
-        rewritten = rewrite_query(message, history, intent=intent_result)
+        rewritten = rewrite_query(
+            message,
+            history,
+            intent=intent_result,
+            session_state=session_state,
+            rolling_summary=rolling_summary,
+        )
         search_query = rewritten if rewritten != message else message
         stages["rewrite"] = round((time.perf_counter() - rewrite_started) * 1000, 1)
 
@@ -573,7 +724,18 @@ class AiAssistantService:
                 )
         if kb_fast_path is not None:
             kb_fast_path["latency_ms"] = {**stages, "path": "kb_fast_path"}
-            return _early_context_response(kb_fast_path, stages, policy, available_menu_items)
+            return _early_context_response(
+                kb_fast_path,
+                stages,
+                policy,
+                available_menu_items,
+                context={
+                    **fast_path_context,
+                    "retrieved": retrieved,
+                    "chunks": chunks,
+                    "confidence_score": confidence.score,
+                },
+            )
 
         budget_picks: list[dict[str, Any]] = []
         if constraints.get("budget_vnd"):
@@ -592,9 +754,20 @@ class AiAssistantService:
         )
         if budget_fast_path is not None:
             budget_fast_path["latency_ms"] = {**stages, "path": "budget_fast_path"}
-            return _early_context_response(budget_fast_path, stages, policy, available_menu_items)
+            return _early_context_response(
+                budget_fast_path,
+                stages,
+                policy,
+                available_menu_items,
+                context={
+                    **fast_path_context,
+                    "retrieved": retrieved,
+                    "chunks": chunks,
+                    "confidence_score": confidence.score,
+                },
+            )
 
-        source_ids = [item.chunk.source for item in retrieved[:3]]
+        source_ids = [item.chunk.chunk_id for item in retrieved[:3]]
         cacheable = _is_cacheable(constraints)
         cached = self._cache.get(
             message,
@@ -602,12 +775,24 @@ class AiAssistantService:
             session_id=session_id,
             exclusion_ids=exclusion_list,
             menu_version=menu_version,
+            index_version=self._config.rag_config_id,
+            prompt_version=self._config.pipeline_version,
+            model_version=self._config.model,
             cacheable=cacheable,
         )
         if cached is not None:
             stages["total"] = round((time.perf_counter() - started) * 1000, 1)
             cached["latency_ms"] = {**stages, "path": "cache_hit"}
-            return {"cached_response": cached, "stages": stages}
+            cached.pop("session_updates", None)
+            cached.pop("updated_rolling_summary", None)
+            return {
+                "cached_response": cached,
+                "stages": stages,
+                **fast_path_context,
+                "retrieved": retrieved,
+                "chunks": chunks,
+                "confidence_score": confidence.score,
+            }
 
         requested_count = constraints.get("requested_count") or policy.requested_count
         max_suggestions = requested_count or policy.max_suggestions
@@ -651,7 +836,10 @@ class AiAssistantService:
             "confidence_score": confidence.score,
             "should_call_llm": confidence.should_call_llm,
             "confidence_level": confidence.level,
-            "intent": intent,
+            "intent": intent.intent,
+            "session_state": session_state,
+            "pipeline_version": self._config.pipeline_version,
+            "retriever_runtime": self.retriever_runtime,
         }
 
 
@@ -717,6 +905,9 @@ def _finalize_llm_response(
             session_id=context["session_id"],
             exclusion_ids=context["exclusion_list"],
             menu_version=context["menu_version"],
+            index_version=service._config.rag_config_id,
+            prompt_version=service._config.pipeline_version,
+            model_version=service._config.model,
             cacheable=context["cacheable"],
         )
     return response
@@ -725,7 +916,7 @@ def _finalize_llm_response(
 def _build_menu_based_fallback(
     context: dict[str, Any],
 ) -> tuple[str, list[dict], list[str]] | None:
-    """When Gemini fails, still suggest real menu items for recommendation queries."""
+    """When 9router fails, still suggest real menu items for recommendation queries."""
 
     if not context["policy"].wants_recommendations:
         return None
@@ -781,28 +972,51 @@ def _build_llm_messages(message: str, context: dict[str, Any], payload: dict) ->
     )
 
 
+def _generation_input_sha256(messages: list[dict[str, str]]) -> str:
+    """Fingerprint the exact provider input without persisting prompt or user text."""
+
+    canonical = json.dumps(
+        messages,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _early_context_response(
     early_response: dict[str, Any],
     stages: dict[str, float],
     policy: Any,
     available_menu_items: list[dict[str, Any]],
+    *,
+    context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from app.rag.content_grounding import strip_menu_ids
 
     if early_response.get("content"):
         early_response["content"] = strip_menu_ids(str(early_response["content"]))
-    return {
+    result = {
         "early_response": early_response,
         "stages": stages,
         "policy": policy,
         "available_menu_items": available_menu_items,
     }
+    if context:
+        result.update(context)
+    return result
 
 
 def _finalize_suggested_actions(
     context: dict[str, Any],
     suggested_actions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    early_response = context.get("early_response") or {}
+    decision = early_response.get("decision") or {}
+    if decision.get("evidence_sufficient") is False:
+        return []
+    if decision.get("intent") in {"ask_price", "nutrition_info", "allergy_info"}:
+        return suggested_actions
     policy = context["policy"]
     if policy.wants_recommendations or not policy.surface_prior_suggestion_cards:
         return suggested_actions
@@ -857,9 +1071,50 @@ def _apply_parsed_response(
         wants_recommendations=context["policy"].wants_recommendations,
     )
     merged_flags = _dedupe([*flags, *parsed.guardrail_flags, *grounding_flags])
+    verified_claims, claims_verified = verify_claims(
+        parsed.claims,
+        chunks=context["chunks"],
+        menu_items=context["available_menu_items"],
+    )
+    context["claims"] = verified_claims
+    if not claims_verified:
+        content = (
+            "Mình chưa đủ bằng chứng để xác nhận câu trả lời đó. "
+            "Bạn có thể nói rõ món/thông tin cần kiểm tra, hoặc nhờ nhân viên xác nhận giúp."
+        )
+        suggested_actions = []
+        merged_flags = _dedupe([*merged_flags, "UNSUPPORTED_CLAIM_BLOCKED", "EVIDENCE_INSUFFICIENT"])
+        context["abstain_reason"] = "unsupported_claim"
+        context["evidence_sufficient"] = False
     if suggested_actions:
         merged_flags = _dedupe([*merged_flags, "CUSTOMER_CONFIRMATION_REQUIRED"])
     return content, suggested_actions, merged_flags
+
+
+def _minimal_context(payload: dict[str, Any], pipeline_version: str, *, intent: str) -> dict[str, Any]:
+    state = payload.get("session_state") or {}
+    return {
+        "message": str(payload.get("message") or ""),
+        "rolling_summary": str(payload.get("rolling_summary") or state.get("rolling_summary") or ""),
+        "facts": payload.get("facts") or state.get("facts") or [],
+        "session_state": state,
+        "constraints": state.get("constraints") or {},
+        "intent": intent,
+        "pipeline_version": pipeline_version,
+    }
+
+
+def _route_from_path(path: str, evidence: list[dict[str, Any]]) -> str:
+    if path in {"smalltalk", "guardrail"}:
+        return "deterministic"
+    if path in {"catalog_fast_path", "party_fast_path", "budget_fast_path", "pairing_fast_path"}:
+        return "live_data"
+    if path == "kb_fast_path":
+        return "kb_rag"
+    if path in {"llm", "fallback", "fallback_no_llm", "cache_hit"}:
+        sources = {str(item.get("source") or "") for item in evidence}
+        return "live_data" if sources and sources <= {"live_menu"} else "kb_rag"
+    return "kb_rag" if evidence else "abstain"
 
 
 def _attach_rolling_summary(
@@ -879,6 +1134,9 @@ def _attach_rolling_summary(
     )
     if updated:
         response["updated_rolling_summary"] = updated
+        updates = dict(response.get("session_updates") or {})
+        updates["rolling_summary"] = updated
+        response["session_updates"] = updates
     return response
 
 
@@ -886,12 +1144,253 @@ def _finalize_response_payload(
     response: dict[str, Any],
     context: dict[str, Any],
 ) -> dict[str, Any]:
+    response.setdefault("contract_version", "v2")
+    response.setdefault("pipeline_version", str(context.get("pipeline_version") or "v2"))
+    if context.get("retriever_runtime") is not None:
+        response.setdefault("retriever_runtime", dict(context["retriever_runtime"]))
+    if context.get("generation_input_sha256"):
+        response.setdefault("generation_input_sha256", str(context["generation_input_sha256"]))
+    path = str((response.get("latency_ms") or {}).get("path") or "")
+    if response.get("provider_available"):
+        response.setdefault("provider_status", "available")
+    elif "AI_PROVIDER_UNAVAILABLE" in (response.get("guardrail_flags") or []):
+        response.setdefault("provider_status", "unavailable")
+    else:
+        response.setdefault("provider_status", "not_called")
+
+    claims = list(response.get("claims") or [])
+    if not claims and response.get("suggested_cart_actions"):
+        claims = _claims_from_menu_actions(response["suggested_cart_actions"])
+    response["claims"] = claims
+
+    evidence = list(response.get("evidence") or [])
+    if not evidence:
+        for source in response.get("retrieved_sources") or []:
+            evidence.append(
+                {
+                    "source": source.get("source") or "knowledge_base",
+                    "title": source.get("title"),
+                    "chunk_id": source.get("chunk_id"),
+                    "section": " / ".join(source.get("section_path") or []),
+                    "score": source.get("score"),
+                }
+            )
+        for action in response.get("suggested_cart_actions") or []:
+            evidence.append(
+                {
+                    "source": "live_menu",
+                    "menu_item_id": action.get("menu_item_id"),
+                    "title": action.get("name"),
+                    "score": 1.0,
+                }
+            )
+        response["evidence"] = evidence
+
+    if not response.get("decision"):
+        route = _route_from_path(path, evidence)
+        response["decision"] = {
+            "intent": context.get("intent"),
+            "route": route,
+            "confidence": context.get("confidence_score"),
+            "evidence_sufficient": route == "deterministic" or bool(evidence),
+            "abstain_reason": None if route == "deterministic" or evidence else "insufficient_evidence",
+        }
+    decision = dict(response.get("decision") or {})
+    evidence_ids = {
+        str(value).strip()
+        for item in evidence
+        for value in (item.get("chunk_id"), item.get("menu_item_id"))
+        if value and str(value).strip()
+    }
+    claims_valid = all(
+        bool(claim.get("verified"))
+        and bool(claim.get("evidence_ids"))
+        and set(str(value).strip() for value in claim.get("evidence_ids") or [])
+        <= evidence_ids
+        for claim in claims
+    )  # empty claims → all() = True → pass
+    if (
+        path not in {"smalltalk", "guardrail", "clarify", "fallback", "live_data"}
+        and decision.get("evidence_sufficient") is not False
+        and claims
+        and not claims_valid
+    ):
+        response["content"] = (
+            "Mình chưa đủ bằng chứng đã kiểm chứng để trả lời chắc chắn. "
+            "Bạn vui lòng nói rõ thông tin cần kiểm tra hoặc nhờ nhân viên xác nhận giúp."
+        )
+        response["suggested_cart_actions"] = []
+        response["guardrail_flags"] = _dedupe(
+            [
+                *(response.get("guardrail_flags") or []),
+                "UNSUPPORTED_CLAIM_BLOCKED",
+                "EVIDENCE_INSUFFICIENT",
+            ]
+        )
+        decision.update(
+            {
+                "route": "abstain",
+                "evidence_sufficient": False,
+                "abstain_reason": (
+                    "missing_verified_claims" if not claims else "unverified_claims"
+                ),
+            }
+        )
+        response["decision"] = decision
+    if context.get("abstain_reason"):
+        decision = dict(response.get("decision") or {})
+        decision.update(
+            {
+                "route": "abstain",
+                "evidence_sufficient": False,
+                "abstain_reason": context["abstain_reason"],
+            }
+        )
+        response["decision"] = decision
+
+    state = context.get("session_state") or {}
+    updates = dict(response.get("session_updates") or {})
+    updates.setdefault("facts", list(context.get("facts") or state.get("facts") or []))
+    updates["constraints"] = dict(context.get("constraints") or state.get("constraints") or {})
+    updates["referenced_menu_item_ids"] = _merge_id_lists(
+        state.get("referenced_menu_item_ids") or [],
+        updates.get("referenced_menu_item_ids") or [],
+    )
+    updates["suggested_menu_item_ids"] = _merge_id_lists(
+        state.get("suggested_menu_item_ids") or [],
+        updates.get("suggested_menu_item_ids") or [],
+        [
+            str(action.get("menu_item_id"))
+            for action in (response.get("suggested_cart_actions") or [])
+            if action.get("menu_item_id")
+        ],
+    )
+    updates["rejected_menu_item_ids"] = _merge_id_lists(
+        state.get("rejected_menu_item_ids") or [],
+        updates.get("rejected_menu_item_ids") or [],
+        list(getattr(context.get("policy"), "rejected_ids", ()) or ()),
+    )
+    updates["accepted_menu_item_ids"] = _merge_id_lists(
+        state.get("accepted_menu_item_ids") or [],
+        updates.get("accepted_menu_item_ids") or [],
+    )
+    updates["added_to_cart_menu_item_ids"] = _merge_id_lists(
+        state.get("added_to_cart_menu_item_ids") or [],
+        updates.get("added_to_cart_menu_item_ids") or [],
+    )
+    updates.setdefault("memory_version", str(state.get("memory_version") or "v1"))
+    response["session_updates"] = updates
+
     return _attach_rolling_summary(
         response,
         context,
         content=str(response.get("content") or ""),
         suggested_actions=list(response.get("suggested_cart_actions") or []),
     )
+
+
+def _claims_from_menu_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
+    for action in actions:
+        item_id = str(action.get("menu_item_id") or action.get("id") or "").strip()
+        name = str(action.get("name") or "").strip()
+        if not item_id or not name:
+            continue
+        price = action.get("price_vnd") or action.get("price")
+        text = f"{name} có trong thực đơn hiện tại"
+        if isinstance(price, (int, float)):
+            text += f" với giá {int(price):,} đồng".replace(",", ".")
+        claims.append(
+            {
+                "text": text + ".",
+                "evidence_ids": [item_id],
+                "verified": True,
+                "reason": None,
+            }
+        )
+    return claims
+
+
+def _merge_id_lists(*groups: Any) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for value in group or []:
+            item_id = str(value).strip()
+            if item_id and item_id not in seen:
+                seen.add(item_id)
+                result.append(item_id)
+    return result
+
+
+def _session_memory_with_typed_ledger(
+    session_memory: str,
+    session_state: dict[str, Any],
+) -> str:
+    lines = [session_memory] if session_memory else []
+    for label, key in (
+        ("SUGGESTED_MENU_ITEM_IDS", "suggested_menu_item_ids"),
+        ("REJECTED_MENU_ITEM_IDS", "rejected_menu_item_ids"),
+    ):
+        values = [
+            str(value).strip()
+            for value in (session_state.get(key) or [])
+            if str(value).strip()
+        ]
+        if values:
+            lines.append(f"{label}: {','.join(values)}")
+    return "\n".join(lines)
+
+
+def _merge_typed_constraints(
+    state_constraints: dict[str, Any],
+    extracted: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep durable typed facts when Last-N history no longer contains them."""
+
+    result = dict(extracted)
+    for key in ("party_size", "budget_vnd", "category"):
+        if result.get(key) is None and state_constraints.get(key) is not None:
+            result[key] = state_constraints[key]
+    for key in ("allergens", "diet"):
+        if not result.get(key) and state_constraints.get(key):
+            value = state_constraints[key]
+            result[key] = list(value) if isinstance(value, (list, tuple, set)) else value
+    if result.get("spice") in (None, "unknown") and state_constraints.get("spice") not in (
+        None,
+        "unknown",
+    ):
+        result["spice"] = state_constraints["spice"]
+    return result
+
+
+def _try_security_guardrail_response(
+    message: str,
+    *,
+    pipeline_version: str,
+) -> dict[str, Any] | None:
+    flags = detect_guardrail_flags(message)
+    if "PROMPT_INJECTION_BLOCKED" not in flags:
+        return None
+    return ChatResponse(
+        content=(
+            "Mình chỉ hỗ trợ thông tin nhà hàng và thực đơn. "
+            "Mình không thể thực hiện yêu cầu thay đổi quy tắc hoặc tiết lộ cấu hình nội bộ."
+        ),
+        provider_available=False,
+        provider_status="not_called",
+        model="deterministic-security-guardrail",
+        pipeline_version=pipeline_version,
+        decision={
+            "intent": "security",
+            "route": "deterministic",
+            "confidence": 1.0,
+            "evidence_sufficient": True,
+            "abstain_reason": None,
+        },
+        guardrail_flags=flags,
+        latency_ms={"path": "guardrail"},
+    ).model_dump()
 
 
 def _build_response_from_parts(
@@ -918,6 +1417,9 @@ def _build_response_from_parts(
                 source=item.chunk.source,
                 title=item.chunk.title,
                 score=item.score,
+                chunk_id=item.chunk.chunk_id,
+                document_id=item.chunk.document_id,
+                section_path=list(item.chunk.section_path),
             )
             for item in retrieved
         ],
@@ -926,6 +1428,7 @@ def _build_response_from_parts(
         follow_up=follow_up,
         suggest_staff_handoff=suggest_staff_handoff,
         latency_ms=stages,
+        claims=list((context or {}).get("claims") or []),
     ).model_dump()
     if context is not None:
         return _finalize_response_payload(result, context)
@@ -977,6 +1480,240 @@ def _build_follow_up(
     return FollowUp(can_show_more=can_show_more, remaining_count=remaining_count)
 
 
+def _try_live_data_response(
+    message: str,
+    history: list[dict[str, Any]],
+    session_state: dict[str, Any],
+    menu_items: list[dict[str, Any]],
+    *,
+    pipeline_version: str,
+) -> dict[str, Any] | None:
+    normalized = normalize_query_text(message)
+    nutrition_terms = ("calo", "calorie", "dinh duong", "duong", "sugar", "protein", "chat dam")
+    price_terms = ("bao nhieu", "gia bao", "gia tien", "price", "cost")
+    allergen_terms = ("di ung", "allerg", "dau phong", "tom", "cua", "hai san", "gluten", "sua", "trung")
+    reference_terms = ("mon do", "mon nay", "cai do", "cai nay", "that one")
+    names_in_query = any(
+        item.get("name") and normalize_query_text(str(item["name"])) in normalized
+        for item in menu_items
+    )
+    is_nutrition = any(term in normalized for term in nutrition_terms)
+    is_price = any(term in normalized for term in price_terms) and not is_nutrition
+    is_allergy = (
+        any(term in normalized for term in allergen_terms)
+        and (any(term in normalized for term in reference_terms) or names_in_query)
+    )
+    if not is_nutrition and not is_price and not is_allergy:
+        return None
+
+    item = _resolve_live_menu_item(message, history, session_state, menu_items)
+    if item is None:
+        return _live_response(
+            content="Bạn đang hỏi món nào? Hãy chọn hoặc nói rõ tên món để mình tra dữ liệu trực tiếp.",
+            intent="allergy_info" if is_allergy else ("nutrition_info" if is_nutrition else "ask_price"),
+            evidence_sufficient=False,
+            abstain_reason="unresolved_reference",
+            pipeline_version=pipeline_version,
+            item=None,
+            claims=[],
+        )
+
+    item_id = str(item.get("id") or "")
+    name = str(item.get("name") or "món này")
+    if is_allergy:
+        if "allergens" not in item and "ingredients" not in item:
+            response = _live_response(
+                content=f"Mình chưa có dữ liệu thành phần/dị ứng đáng tin cậy cho {name}. Nếu bạn có dị ứng, vui lòng hỏi nhân viên để xác nhận trực tiếp với bếp trước khi dùng món.",
+                intent="allergy_info",
+                evidence_sufficient=False,
+                abstain_reason="missing_live_allergen_data",
+                pipeline_version=pipeline_version,
+                item=item,
+                claims=[],
+            )
+            response["guardrail_flags"] = _dedupe(
+                [*response["guardrail_flags"], "ALLERGY_DISCLAIMER"]
+            )
+            return response
+
+        recorded = normalize_query_text(
+            " ".join(
+                [
+                    *[str(value) for value in (item.get("allergens") or [])],
+                    *[str(value) for value in (item.get("ingredients") or [])],
+                ]
+            )
+        )
+        matched = [term for term in allergen_terms if term in normalized and term in recorded]
+        if matched:
+            claim = f"Dữ liệu menu ghi nhận {name} có {', '.join(matched)}. Bạn nên tránh món và xác nhận lại với nhân viên/bếp."
+            response = _live_response(
+                content=claim,
+                intent="allergy_info",
+                evidence_sufficient=True,
+                abstain_reason=None,
+                pipeline_version=pipeline_version,
+                item=item,
+                claims=[{"text": claim, "evidence_ids": [item_id], "verified": True}],
+            )
+        else:
+            response = _live_response(
+                content=f"Dữ liệu hiện tại không ghi nhận dị nguyên bạn hỏi cho {name}, nhưng điều này không đủ để xác nhận món an toàn. Vui lòng hỏi nhân viên/bếp.",
+                intent="allergy_info",
+                evidence_sufficient=False,
+                abstain_reason="allergy_requires_staff_confirmation",
+                pipeline_version=pipeline_version,
+                item=item,
+                claims=[],
+            )
+        response["guardrail_flags"] = _dedupe(
+            [*response["guardrail_flags"], "ALLERGY_DISCLAIMER"]
+        )
+        return response
+
+    if is_price:
+        if item.get("price_vnd") is None:
+            return _live_response(
+                content=f"Mình chưa có dữ liệu giá đáng tin cậy cho {name}. Bạn vui lòng kiểm tra menu hoặc hỏi nhân viên.",
+                intent="ask_price",
+                evidence_sufficient=False,
+                abstain_reason="missing_live_price_data",
+                pipeline_version=pipeline_version,
+                item=item,
+                claims=[],
+            )
+        price = int(float(item["price_vnd"]))
+        availability = "hiện còn bán" if bool(item.get("is_available", True)) else "hiện đang hết"
+        claim = f"{name} có giá {price:,} đồng và {availability}.".replace(",", ".")
+        return _live_response(
+            content=claim,
+            intent="ask_price",
+            evidence_sufficient=True,
+            abstain_reason=None,
+            pipeline_version=pipeline_version,
+            item=item,
+            claims=[{"text": claim, "evidence_ids": [item_id], "verified": True}],
+        )
+
+    requested_fields: list[tuple[str, str, str]] = []
+    if "calo" in normalized or "calorie" in normalized:
+        requested_fields.append(("calories_kcal", "năng lượng", "kcal"))
+    if "duong" in normalized or "sugar" in normalized:
+        requested_fields.append(("sugar_g", "đường", "g"))
+    if "protein" in normalized or "chat dam" in normalized:
+        requested_fields.append(("protein_g", "protein", "g"))
+    if not requested_fields:
+        requested_fields = [
+            ("calories_kcal", "năng lượng", "kcal"),
+            ("sugar_g", "đường", "g"),
+            ("protein_g", "protein", "g"),
+        ]
+    available_values = [field for field in requested_fields if item.get(field[0]) is not None]
+    if len(available_values) != len(requested_fields):
+        return _live_response(
+            content=f"Mình chưa có dữ liệu dinh dưỡng đáng tin cậy cho {name}; mình không đoán số calo, đường hoặc protein. Bạn vui lòng hỏi nhân viên.",
+            intent="nutrition_info",
+            evidence_sufficient=False,
+            abstain_reason="missing_live_nutrition_data",
+            pipeline_version=pipeline_version,
+            item=item,
+            claims=[],
+        )
+    facts = [f"{label} {item[key]} {unit}" for key, label, unit in available_values]
+    claim = f"Theo dữ liệu menu hiện tại, {name} có " + ", ".join(facts) + "."
+    return _live_response(
+        content=claim,
+        intent="nutrition_info",
+        evidence_sufficient=True,
+        abstain_reason=None,
+        pipeline_version=pipeline_version,
+        item=item,
+        claims=[{"text": claim, "evidence_ids": [item_id], "verified": True}],
+    )
+
+
+def _resolve_live_menu_item(
+    message: str,
+    history: list[dict[str, Any]],
+    session_state: dict[str, Any],
+    menu_items: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    by_id = {str(item.get("id") or ""): item for item in menu_items if item.get("id")}
+    normalized = normalize_query_text(message)
+    explicit = [
+        item
+        for item in menu_items
+        if item.get("name") and normalize_query_text(str(item["name"])) in normalized
+    ]
+    if explicit:
+        return max(explicit, key=lambda item: len(str(item.get("name") or "")))
+
+    candidate_ids: list[str] = []
+    for turn in reversed(history):
+        for action in reversed(list(turn.get("suggested_cart_actions") or [])):
+            candidate_ids.append(str(action.get("menu_item_id") or ""))
+    for key in (
+        "referenced_menu_item_ids",
+        "accepted_menu_item_ids",
+        "suggested_menu_item_ids",
+        "added_to_cart_menu_item_ids",
+    ):
+        candidate_ids.extend(reversed([str(value) for value in (session_state.get(key) or [])]))
+    return next((by_id[item_id] for item_id in candidate_ids if item_id in by_id), None)
+
+
+def _live_response(
+    *,
+    content: str,
+    intent: str,
+    evidence_sufficient: bool,
+    abstain_reason: str | None,
+    pipeline_version: str,
+    item: dict[str, Any] | None,
+    claims: list[dict[str, Any]],
+) -> dict[str, Any]:
+    item_id = str((item or {}).get("id") or "")
+    evidence = (
+        [
+            {
+                "source": "live_menu",
+                "title": (item or {}).get("name"),
+                "menu_item_id": item_id,
+                "score": 1.0,
+            }
+        ]
+        if item is not None
+        else []
+    )
+    flags = [] if evidence_sufficient else ["EVIDENCE_INSUFFICIENT"]
+    return {
+        "contract_version": "v2",
+        "content": content,
+        "provider_available": False,
+        "provider_status": "not_called",
+        "model": "deterministic-live-data",
+        "pipeline_version": pipeline_version,
+        "retrieved_sources": [],
+        "decision": {
+            "intent": intent,
+            "route": "live_data" if item is not None else "clarify",
+            "confidence": 1.0 if evidence_sufficient else 0.0,
+            "evidence_sufficient": evidence_sufficient,
+            "abstain_reason": abstain_reason,
+        },
+        "evidence": evidence,
+        "claims": claims,
+        "session_updates": {
+            "referenced_menu_item_ids": [item_id] if item_id else [],
+        },
+        "guardrail_flags": flags,
+        "suggested_cart_actions": [],
+        "follow_up": {"can_show_more": False, "remaining_count": 0},
+        "suggest_staff_handoff": not evidence_sufficient,
+        "latency_ms": {"path": "live_data" if item is not None else "clarify"},
+    }
+
+
 def _try_catalog_fast_path(
     message: str,
     constraints: dict[str, Any],
@@ -1019,11 +1756,33 @@ def _try_catalog_fast_path(
         f"Đây là các món thuộc nhóm {display_category} đang còn phục vụ:\n"
         + "\n".join(lines)
     )
+    cited_items = matched[:12]
     return ChatResponse(
         content=content,
         provider_available=False,
         model="deterministic-catalog",
         retrieved_sources=[],
+        evidence=[
+            {
+                "source": "live_menu",
+                "menu_item_id": _item_id(item),
+                "title": str(item.get("name") or "Món"),
+                "score": 1.0,
+            }
+            for item in cited_items
+            if _item_id(item)
+        ],
+        claims=_claims_from_menu_actions(
+            [
+                {
+                    "menu_item_id": _item_id(item),
+                    "name": item.get("name") or "Món",
+                    "price_vnd": item.get("price_vnd") or item.get("price"),
+                }
+                for item in cited_items
+                if _item_id(item)
+            ]
+        ),
         guardrail_flags=[],
         suggested_cart_actions=[],
         follow_up=FollowUp(

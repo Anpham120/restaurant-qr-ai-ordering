@@ -42,6 +42,158 @@ def _result(item_id: str, score: float = 1.0) -> RetrievedChunk:
 
 
 class MenuQueryFilterTests(unittest.TestCase):
+    def test_budget_aliases_resolve_to_the_live_budget_tag(self) -> None:
+        menu_items = [
+            _item(
+                "menu:m_cheap",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["bình dân"],
+            ),
+            _item(
+                "menu:m_premium",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["cao cấp"],
+            ),
+        ]
+
+        for query in (
+            "Tôi muốn chọn món có mức giá tiết kiệm",
+            "Menu có món nào hợp ngân sách thấp không?",
+            "Cho tôi xem các lựa chọn giá mềm",
+            "Món nào phù hợp khi tôi muốn chi tiêu vừa phải?",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(
+                    {"menu:m_cheap"},
+                    infer_allowed_menu_item_ids(query, menu_items),
+                )
+
+    def test_budget_aliases_do_not_match_unrelated_squid_or_garlic_terms(self) -> None:
+        menu_items = [
+            _item(
+                "menu:m_squid",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["mực", "hải sản"],
+            ),
+            _item(
+                "menu:m_garlic",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["tỏi"],
+            ),
+            _item(
+                "menu:m_cheap",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["bình dân"],
+            ),
+        ]
+
+        allowed = infer_allowed_menu_item_ids(
+            "Tôi muốn hỏi mức cay của món mực xào tỏi",
+            menu_items,
+        )
+        self.assertNotIn("menu:m_cheap", allowed or set())
+
+    def test_party_size_aliases_resolve_to_the_live_portion_tag(self) -> None:
+        menu_items = [
+            _item(
+                "menu:m_shared",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["2-3 người"],
+            ),
+            _item(
+                "menu:m_solo",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["1 người"],
+            ),
+        ]
+
+        for query in (
+            "Gợi ý món cho hai người cùng ăn",
+            "Bàn tôi có ba khách thì nên chọn món nào?",
+            "Món nào đủ để chia sẻ cho nhóm 2 đến 3 người?",
+            "Tư vấn món chung cho một cặp đôi",
+            "Có lựa chọn nào phù hợp bàn ba người không?",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(
+                    {"menu:m_shared"},
+                    infer_allowed_menu_item_ids(query, menu_items),
+                )
+
+    def test_specific_tag_does_not_collide_with_vietnamese_function_words(self) -> None:
+        menu_items = [
+            _item(
+                "menu:m_spicy",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["cay dam"],
+            ),
+            _item(
+                "menu:m_garlic",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["toi"],
+            ),
+            _item(
+                "menu:m_squid",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["muc"],
+            ),
+        ]
+
+        for query in (
+            "Tôi muốn món cay đậm ở mức vừa phải",
+            "Toi muon mon cay dam o muc vua phai",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(
+                    {"menu:m_spicy"},
+                    infer_allowed_menu_item_ids(query, menu_items),
+                )
+
+        self.assertIsNone(
+            infer_allowed_menu_item_ids("Tôi muốn chọn món", menu_items)
+        )
+
+    def test_ambiguous_ascii_tags_require_explicit_accented_aliases(self) -> None:
+        menu_items = [
+            _item(
+                "menu:m_garlic",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["toi"],
+            ),
+            _item(
+                "menu:m_squid",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["muc", "xao"],
+            ),
+            _item(
+                "menu:m_other_stir_fry",
+                category_id="cat_main",
+                category_name="Món chính",
+                tags=["xao"],
+            ),
+        ]
+
+        self.assertEqual(
+            {"menu:m_garlic"},
+            infer_allowed_menu_item_ids("Có món dùng tỏi không?", menu_items),
+        )
+        self.assertEqual(
+            {"menu:m_squid"},
+            infer_allowed_menu_item_ids("Có món mực xào không?", menu_items),
+        )
+
     def test_alcohol_query_restricts_to_alcohol_category(self) -> None:
         menu_items = [
             _item("menu:m_085"),

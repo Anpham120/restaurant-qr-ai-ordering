@@ -12,6 +12,7 @@ safety_level: medium
 ---
 
 # Thang Cay Và Hương Vị
+<!-- question_variants: cay mấy, mức cay, spicy level, ít cay, cay vừa, cay nhiều, không cay -->
 
 ## Thang Cay (0–5)
 
@@ -27,6 +28,7 @@ safety_level: medium
 Ví dụ trả lời: "Bún bò Huế (m_013) cay mức 3/5 — cay đậm vị sả và ruốc Huế."
 
 ## Trục Hương Vị Khác
+<!-- question_variants: vị gì, mặn ngọt, chua cay, flavor, taste -->
 
 - **Ngọt**: m_036 (gà mật ong), m_062 (trà sữa), m_025 (cua rang me).
 - **Chua**: m_025, m_029, m_011 (nước chấm).

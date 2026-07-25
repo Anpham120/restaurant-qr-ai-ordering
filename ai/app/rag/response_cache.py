@@ -52,14 +52,28 @@ class ResponseCache:
         session_id: str = "",
         exclusion_ids: list[str] | None = None,
         menu_version: str = "",
+        index_version: str = "",
+        prompt_version: str = "",
+        model_version: str = "",
         *,
+        catalog_version: str | None = None,
         cacheable: bool = True,
     ) -> dict[str, Any] | None:
         """Look up a cached response. Returns None on miss, expiry, or non-cacheable intent."""
         if not cacheable:
             return None
 
-        key = self._make_key(query, source_ids, session_id, exclusion_ids, menu_version)
+        effective_catalog_version = catalog_version if catalog_version is not None else menu_version
+        key = self._make_key(
+            query,
+            source_ids,
+            session_id,
+            exclusion_ids,
+            effective_catalog_version,
+            index_version,
+            prompt_version,
+            model_version,
+        )
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -81,14 +95,28 @@ class ResponseCache:
         session_id: str = "",
         exclusion_ids: list[str] | None = None,
         menu_version: str = "",
+        index_version: str = "",
+        prompt_version: str = "",
+        model_version: str = "",
         *,
+        catalog_version: str | None = None,
         cacheable: bool = True,
     ) -> None:
         """Store a response in the cache when the intent is cacheable."""
         if not cacheable:
             return
 
-        key = self._make_key(query, source_ids, session_id, exclusion_ids, menu_version)
+        effective_catalog_version = catalog_version if catalog_version is not None else menu_version
+        key = self._make_key(
+            query,
+            source_ids,
+            session_id,
+            exclusion_ids,
+            effective_catalog_version,
+            index_version,
+            prompt_version,
+            model_version,
+        )
         entry = CacheEntry(
             response=response,
             created_at=time.monotonic(),
@@ -129,11 +157,15 @@ class ResponseCache:
         session_id: str,
         exclusion_ids: list[str] | None,
         menu_version: str,
+        index_version: str = "",
+        prompt_version: str = "",
+        model_version: str = "",
     ) -> str:
         normalized_query = query.strip().lower()
         source_part = "|".join(sorted(source_ids[:3]))
         exclusion_hash = hashlib.sha256(
             "|".join(sorted(str(item_id) for item_id in (exclusion_ids or []))).encode("utf-8")
         ).hexdigest()[:12]
-        raw = f"{session_id}::{menu_version}::{exclusion_hash}::{normalized_query}::{source_part}"
+        version_part = "::".join([menu_version, index_version, prompt_version, model_version])
+        raw = f"{session_id}::{version_part}::{exclusion_hash}::{normalized_query}::{source_part}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]

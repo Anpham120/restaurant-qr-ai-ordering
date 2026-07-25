@@ -14,6 +14,7 @@ safety_level: medium
 # Hướng Dẫn Sử Dụng & Dịch Vụ
 
 ## Cách Đặt Món Qua QR
+<!-- question_variants: đặt món, order, cách đặt, QR code, quét QR, scan QR -->
 
 1. Ngồi vào bàn, tìm mã QR dán trên bàn.
 2. Quét mã QR bằng camera điện thoại.
@@ -28,6 +29,7 @@ safety_level: medium
 Khi quét QR, hệ thống tự mở phiên bàn (TableSession). Mỗi phiên bàn có mã riêng (ví dụ: T01, T02). Trong phiên, tất cả khách tại bàn đều có thể đặt thêm món (gọi từng round). Phiên bàn đóng khi khách thanh toán hoặc nhân viên đóng phiên.
 
 ## Chat Với AI Assistant
+<!-- question_variants: chat AI, hỏi AI, trợ lý ảo, assistant, bot -->
 
 1. Nhấn biểu tượng chat trên trang đặt món.
 2. Gõ câu hỏi bằng tiếng Việt.
@@ -38,6 +40,7 @@ Khi quét QR, hệ thống tự mở phiên bàn (TableSession). Mỗi phiên b�
 AI không tự thêm món, không tự đặt đơn, không tự thanh toán. Mọi thao tác đều do khách quyết định.
 
 ## Thanh Toán VietQR
+<!-- question_variants: thanh toán, payment, trả tiền, tính tiền, VietQR, chuyển khoản -->
 
 1. Khi muốn thanh toán, nhấn "Tính tiền" trên giao diện.
 2. Hệ thống hiển thị mã VietQR với số tiền cần thanh toán.
@@ -46,6 +49,7 @@ AI không tự thêm món, không tự đặt đơn, không tự thanh toán. M�
 5. Nếu thanh toán tiền mặt, gọi nhân viên đến bàn.
 
 ## Gọi Nhân Viên
+<!-- question_variants: gọi nhân viên, waiter, phục vụ, cần hỗ trợ, nhờ nhân viên -->
 
 Có 3 cách gọi nhân viên:
 1. Nhấn nút gọi trên thiết bị tại bàn (nếu có).
@@ -53,6 +57,7 @@ Có 3 cách gọi nhân viên:
 3. Giơ tay hoặc gọi trực tiếp.
 
 ## Gia Vị & Phụ Kiện
+<!-- question_variants: gia vị, nước chấm, tương ớt, muối tiêu, condiments -->
 
 Trên mỗi bàn có sẵn:
 - Tương ớt Chin-su
@@ -85,6 +90,7 @@ Sau khi gửi đơn đầu tiên, khách vẫn có thể gọi thêm:
 Mỗi round xử lý riêng. Khách có thể gọi nhiều round trong cùng phiên.
 
 ## Khi Có Vấn Đề
+<!-- question_variants: khiếu nại, complaint, phản hồi, không hài lòng, vấn đề -->
 
 - Món sai / thiếu: gọi nhân viên trực tiếp.
 - Thanh toán lỗi: gọi nhân viên hoặc hotline 0901-234-567.

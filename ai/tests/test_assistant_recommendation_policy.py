@@ -22,6 +22,12 @@ class _RecommendationClient:
                     {"menu_item_id": "m_001", "quantity": 1},
                     {"menu_item_id": "m_002", "quantity": 1},
                 ],
+                "claims": [
+                    {
+                        "text": "Mình đã chọn món phù hợp.",
+                        "evidence_ids": ["m_002"],
+                    }
+                ],
                 "guardrail_flags": [],
             },
             ensure_ascii=False,
@@ -32,10 +38,10 @@ class AssistantRecommendationPolicyTests(unittest.TestCase):
     def test_explicit_card_count_excludes_items_suggested_earlier_in_session(self) -> None:
         client = _RecommendationClient()
         config = AiServiceConfig(
-            provider="gemini",
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            provider="9router",
+            base_url="http://localhost:20128/v1",
             api_key="test-key",
-            model="gemini-test",
+            model="cx/gpt-5.5",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,

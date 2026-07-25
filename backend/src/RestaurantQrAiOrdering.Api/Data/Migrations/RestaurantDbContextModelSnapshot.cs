@@ -319,6 +319,10 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("id");
 
+                    b.Property<string>("ConstraintsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("constraints_json");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -327,10 +331,22 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_closed");
 
+                    b.Property<string>("MemoryVersion")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("v1")
+                        .HasColumnName("memory_version");
+
                     b.Property<string>("OrderId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("order_id");
+
+                    b.Property<string>("ReferencedMenuItemIdsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("referenced_menu_item_ids_json");
 
                     b.Property<string>("RestaurantTableId")
                         .HasMaxLength(50)

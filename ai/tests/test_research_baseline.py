@@ -4,16 +4,61 @@ import contextlib
 import io
 import unittest
 
+from app.rag.knowledge_base import KnowledgeChunk
+from app.rag.retriever import RetrievedChunk
 from evaluation.research_dataset import DatasetSplit
+from evaluation.research_dataset import RetrievalTarget
 from evaluation.run_research_baseline import (
     _hash_framed_records,
     _percentile,
     main,
     run_baseline,
+    search_retrieval_case,
 )
 
 
 class ResearchBaselineTests(unittest.TestCase):
+    def test_menu_constraints_are_applied_before_candidate_ranking(self) -> None:
+        expensive = RetrievedChunk(
+            chunk=KnowledgeChunk(
+                source="menu:m_expensive",
+                title="Premium",
+                content="premium",
+                tags=(),
+            ),
+            score=1.0,
+        )
+        cheap = RetrievedChunk(
+            chunk=KnowledgeChunk(
+                source="menu:m_cheap",
+                title="Budget",
+                content="budget",
+                tags=(),
+            ),
+            score=0.1,
+        )
+
+        class FilterAwareRetriever:
+            def search(self, query, top_k=5, *, filters=None):
+                ranked = [expensive, cheap]
+                if filters is not None:
+                    ranked = [item for item in ranked if filters.allows(item.chunk)]
+                return ranked[:top_k]
+
+        results = search_retrieval_case(
+            FilterAwareRetriever(),
+            query="Tôi muốn món giá tiết kiệm",
+            target=RetrievalTarget.MENU,
+            top_k=5,
+            menu_items=[
+                {"id": "menu:m_cheap", "tags": ["bình dân"]},
+                {"id": "menu:m_expensive", "tags": ["cao cấp"]},
+            ],
+            apply_menu_filters=True,
+        )
+
+        self.assertEqual(["menu:m_cheap"], [item.chunk.source for item in results])
+
     def test_v38_dev_baseline_is_reproducible_and_does_not_open_test(self) -> None:
         first = run_baseline(DatasetSplit.DEV, top_k=5)
         second = run_baseline(DatasetSplit.DEV, top_k=5)
@@ -22,7 +67,7 @@ class ResearchBaselineTests(unittest.TestCase):
         self.assertEqual("bm25", result["method"])
         self.assertEqual("dev", result["split"])
         self.assertEqual(125, result["dataset"]["case_count"])
-        self.assertEqual(296, result["corpus"]["document_count"])
+        self.assertEqual(304, result["corpus"]["document_count"])
         self.assertFalse(result["frozen_test_opened"])
         self.assertEqual(110, result["per_query_count"])
         self.assertEqual(110, result["latency_ms"]["samples"])

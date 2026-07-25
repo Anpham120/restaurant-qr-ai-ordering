@@ -98,11 +98,42 @@ def try_menu_presence_fast_path(
         + "\n".join(lines)
         + kid_note
     )
+    cited_items = matched[:8]
+    evidence = [
+        {
+            "source": "live_menu",
+            "menu_item_id": str(item.get("id") or item.get("menu_item_id")),
+            "title": str(item.get("name") or "Món"),
+            "score": 1.0,
+        }
+        for item in cited_items
+        if item.get("id") or item.get("menu_item_id")
+    ]
+    claims = []
+    for item in cited_items:
+        item_id = str(item.get("id") or item.get("menu_item_id") or "").strip()
+        if not item_id:
+            continue
+        name = str(item.get("name") or "Món").strip()
+        price = item.get("price_vnd") or item.get("price")
+        claim_text = f"{name} có trong thực đơn hiện tại và đang còn phục vụ"
+        if isinstance(price, (int, float)):
+            claim_text += f", giá {int(price):,} đồng".replace(",", ".")
+        claims.append(
+            {
+                "text": claim_text + ".",
+                "evidence_ids": [item_id],
+                "verified": True,
+                "reason": None,
+            }
+        )
     return {
         "content": content,
         "provider_available": False,
         "model": "deterministic-menu-presence",
         "retrieved_sources": [],
+        "evidence": evidence,
+        "claims": claims,
         "guardrail_flags": [],
         "suggested_cart_actions": [],
         "follow_up": {"can_show_more": len(matched) > 8, "remaining_count": max(len(matched) - 8, 0)},

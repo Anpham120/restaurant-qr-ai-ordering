@@ -14,6 +14,7 @@ safety_level: critical
 # Thông Tin Dị Ứng Và Chế Độ Ăn
 
 ## Dị Ứng Hải Sản (Tôm, Cua, Mực, Nghêu, Ốc)
+<!-- question_variants: dị ứng tôm cua, allergy hải sản, tôm cua dị ứng, seafood allergy, có tôm không, ai bị dị ứng hải sản -->
 
 Khách dị ứng hải sản cần tránh các món sau:
 - Gỏi cuốn tôm thịt (m_001): có tôm.
@@ -50,6 +51,7 @@ Một số nước chấm và món có đậu phộng:
 AI nên hỏi lại nếu khách đề cập dị ứng đậu phộng. Hầu hết món có thể yêu cầu bỏ đậu phộng qua ghi chú.
 
 ## Gluten (Bột Mì)
+<!-- question_variants: không gluten, gluten free, bột mì dị ứng, celiac -->
 
 Các món có thể chứa gluten:
 - Nem rán Hà Nội (m_002): vỏ nem chiên bằng bột mì.
@@ -61,6 +63,7 @@ Các món có thể chứa gluten:
 Món an toàn không gluten: phở (bánh phở bằng gạo), bún (bún bằng gạo), cơm, các món hấp, luộc, nướng không tẩm bột.
 
 ## Dị Ứng Trứng
+<!-- question_variants: dị ứng trứng, egg allergy, có trứng không -->
 
 Món có thể chứa trứng:
 - Cà phê trứng Hà Nội (m_058): trứng gà.
@@ -70,6 +73,7 @@ Món có thể chứa trứng:
 - Bánh chuối nướng (m_076): có thể có trứng.
 
 ## Dị Ứng Sữa / Lactose
+<!-- question_variants: dị ứng sữa, lactose intolerance, không uống sữa được -->
 
 Món có thể chứa sữa:
 - Bạc xỉu Sài Gòn (m_059): sữa đặc.
@@ -82,6 +86,7 @@ Món có thể chứa sữa:
 Thay thế: nước ép, sinh tố (không sữa), trà sen, trà đào.
 
 ## Ăn Chay
+<!-- question_variants: món chay, vegetarian, vegan, không thịt, không cá -->
 
 Nhà hàng có nhóm Món chay riêng với 7 món:
 - Phở chay nấm đông cô (m_050): 60.000đ
@@ -99,6 +104,7 @@ Tráng miệng chay: chè khúc bạch (có sữa), chè bưởi, sương sa h�
 Trái cây: tất cả 7 món trái cây đều phù hợp cho người ăn chay.
 
 ## Ăn Kiêng / Ít Calo
+<!-- question_variants: ăn kiêng, diet, ít calo, low calorie, giảm cân -->
 
 Món nhẹ ít calo:
 - Gỏi cuốn tôm thịt (m_001): cuốn tươi, không chiên, tag "it calo", "thanh nhe".
@@ -110,11 +116,13 @@ Món nhẹ ít calo:
 Nên tránh nếu giảm calo: các món chiên (nem rán, cánh gà chiên, bánh xèo), cơm chiên, xôi xoài.
 
 ## Keto / Low-Carb
+<!-- question_variants: keto, low carb, ít tinh bột, không cơm -->
 
 Phù hợp: Gà nướng mật ong (bỏ mật ong), Gà hấp lá chanh, Tôm rang muối, Mực xào sa tế, Nghêu hấp sả, thịt nướng, cá nướng.
 Tránh: cơm, phở, bún, bánh mì, chè, xôi, sinh tố ngọt.
 
 ## High-Protein
+<!-- question_variants: high protein, nhiều đạm, tập gym ăn gì -->
 
 Tag "giau protein" có 30 món trong menu, bao gồm:
 - Tất cả món gà (7 món)

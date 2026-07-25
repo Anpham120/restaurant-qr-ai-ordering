@@ -7,8 +7,9 @@ from app.rag.knowledge_base import KnowledgeChunk
 from app.rag.retriever import RetrievalFilters, RetrievedChunk
 
 
-def _chunk(source: str) -> KnowledgeChunk:
-    return KnowledgeChunk(source=source, title=source, content=source, tags=("menu",))
+def _chunk(source: str, title: str | None = None) -> KnowledgeChunk:
+    resolved_title = title or source
+    return KnowledgeChunk(source=source, title=resolved_title, content=resolved_title, tags=("menu",))
 
 
 class StubRetriever:
@@ -64,6 +65,29 @@ class HybridRrfRetrieverTests(unittest.TestCase):
         results = hybrid.search("query", top_k=3)
 
         self.assertEqual(["menu:a", "menu:b"], [result.chunk.source for result in results])
+
+    def test_same_source_different_chunks_are_not_collapsed(self) -> None:
+        class SameFileRetriever:
+            def search(
+                self,
+                query: str,
+                top_k: int = 5,
+                *,
+                filters: RetrievalFilters | None = None,
+            ) -> list[RetrievedChunk]:
+                return [
+                    RetrievedChunk(chunk=_chunk("faq.md", "Giờ mở cửa"), score=2.0),
+                    RetrievedChunk(chunk=_chunk("faq.md", "WiFi"), score=1.0),
+                ][:top_k]
+
+        hybrid = HybridRrfRetriever([SameFileRetriever()])
+
+        results = hybrid.search("query", top_k=5)
+
+        self.assertEqual(
+            ["Giờ mở cửa", "WiFi"],
+            [result.chunk.title for result in results],
+        )
 
     def test_equal_fused_scores_are_ordered_by_source(self) -> None:
         hybrid = HybridRrfRetriever(

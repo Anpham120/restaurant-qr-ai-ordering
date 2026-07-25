@@ -20,7 +20,7 @@ Production LLM stack: **9router** with `cx/gpt-5.5` (quality gate) and `oc/deeps
 
 ## JSON output with 9router
 
-Native Gemini `response_format` is **not** used. Structured output relies on prompt + `parse_model_response` repair path.
+Use the JSON response mode supported by the selected 9router route. `parse_model_response` remains the bounded validation/repair path for malformed provider output.
 
 ## Human eval
 

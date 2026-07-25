@@ -14,6 +14,7 @@ safety_level: medium
 # Combo Và Gợi Ý Ghép Món
 
 ## Combo Bữa Trưa 1 Người (Budget 60k–100k)
+<!-- question_variants: combo 1 người, ăn trưa 1 mình, set trưa, combo trưa -->
 
 ### Combo Trưa Phở
 - Phở bò tái nạm (m_008, 75.000đ) hoặc Phở gà ta (m_009, 70.000đ)
@@ -40,6 +41,7 @@ safety_level: medium
 - Phù hợp: ăn chay, ăn kiêng.
 
 ## Combo Bữa Trưa 2 Người (Budget 150k–250k)
+<!-- question_variants: combo 2 người, set 2 người, ăn trưa 2 người -->
 
 ### Combo 2 Người Tiêu Chuẩn
 - Gỏi cuốn tôm thịt (m_001, 65.000đ) – khai vị chia 2
@@ -75,6 +77,7 @@ safety_level: medium
 - Tổng: ~710.000đ
 
 ## Combo Sinh Nhật / Tiệc
+<!-- question_variants: combo sinh nhật, tiệc sinh nhật, birthday combo, set sinh nhật -->
 
 ### Combo Sinh Nhật Nhỏ (6 người)
 - Gỏi cuốn tôm thịt (m_001, 65.000đ) × 2
@@ -98,6 +101,7 @@ safety_level: medium
 - Tổng: ~3.140.000đ
 
 ## Combo Hẹn Hò 2 Người
+<!-- question_variants: combo hẹn hò, set hẹn hò, date dinner, romantic dinner, ăn 2 người lãng mạn -->
 
 - Gỏi xoài tôm sú (m_005, 85.000đ) – khai vị chia 2
 - Cá lóc nướng trui (m_023, 195.000đ) – chia 2
@@ -108,6 +112,7 @@ safety_level: medium
 - Phù hợp: buổi tối, sân thượng, lãng mạn.
 
 ## Combo Gia Đình (4 người, có trẻ em)
+<!-- question_variants: combo gia đình, set gia đình, family combo, ăn gia đình -->
 
 - Gỏi cuốn tôm thịt (m_001, 65.000đ) – chia gia đình
 - Cơm gà Hội An (m_016, 70.000đ) × 2 (cho người lớn)
@@ -119,6 +124,7 @@ safety_level: medium
 - Tổng: ~625.000đ
 
 ## Association Rules Ghép Món
+<!-- question_variants: gợi ý kết hợp, ăn kèm gì, món nào hợp, pairing, ghép món -->
 
 Dựa trên phân tích 1000 đơn hàng, các cặp món thường được gọi cùng nhau:
 

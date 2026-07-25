@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +28,9 @@ public sealed record ChatAiRequest(
     IReadOnlyList<object>? Orders = null,
     IReadOnlyList<object>? Promotions = null,
     string? LocalTime = null,
-    string? MealPeriod = null);
+    string? MealPeriod = null,
+    string? CatalogVersion = null,
+    ChatSessionStateSnapshot? SessionState = null);
 
 public sealed record ChatAiResult(
     string Content,
@@ -37,9 +41,45 @@ public sealed record ChatAiResult(
     FollowUpHint? FollowUp = null,
     IReadOnlyList<ChatFactToPersist>? Facts = null,
     IReadOnlyList<string>? RejectedMenuItemIds = null,
-    string? UpdatedRollingSummary = null);
+    string? UpdatedRollingSummary = null,
+    ChatDecisionTrace? Decision = null,
+    IReadOnlyList<ChatEvidenceReference>? Evidence = null,
+    IReadOnlyList<ChatVerifiedClaim>? Claims = null,
+    ChatSessionUpdates? SessionUpdates = null);
 
 public sealed record ChatFactToPersist(string Kind, string Value, double Confidence);
+
+public sealed record ChatDecisionTrace(
+    string? Intent,
+    string? Route,
+    double? Confidence,
+    bool? EvidenceSufficient,
+    string? AbstainReason);
+
+public sealed record ChatEvidenceReference(
+    string Source,
+    string? Title,
+    string? ChunkId,
+    string? MenuItemId,
+    string? Section,
+    double? Score);
+
+public sealed record ChatVerifiedClaim(
+    string Text,
+    IReadOnlyList<string> EvidenceIds,
+    bool Verified,
+    string? Reason);
+
+public sealed record ChatSessionUpdates(
+    IReadOnlyList<ChatFactToPersist> Facts,
+    IReadOnlyDictionary<string, JsonElement> Constraints,
+    IReadOnlyList<string> ReferencedMenuItemIds,
+    IReadOnlyList<string> SuggestedMenuItemIds,
+    IReadOnlyList<string> RejectedMenuItemIds,
+    IReadOnlyList<string> AcceptedMenuItemIds,
+    IReadOnlyList<string> AddedToCartMenuItemIds,
+    string? RollingSummary,
+    string MemoryVersion);
 
 public interface IChatAiProvider
 {
@@ -63,6 +103,7 @@ public interface IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        ChatSessionStateSnapshot? sessionState,
         CancellationToken cancellationToken);
 
     Task StreamReplyAsync(
@@ -74,6 +115,7 @@ public interface IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        ChatSessionStateSnapshot? sessionState,
         Func<ChatAssistantReply, CancellationToken, Task> onCompleteAsync,
         Func<string, CancellationToken, Task> onTokenAsync,
         CancellationToken cancellationToken);
@@ -87,18 +129,86 @@ public sealed record ChatAssistantReply(
     FollowUpHint? FollowUp = null,
     IReadOnlyList<ChatFactToPersist>? FactsToPersist = null,
     IReadOnlyList<string>? RejectedMenuItemIds = null,
-    string? UpdatedRollingSummary = null);
+    string? UpdatedRollingSummary = null,
+    ChatSessionUpdates? SessionUpdates = null);
 
-public sealed class GeminiChatProvider : IChatAiProvider
+public sealed class PythonRagChatProvider : IChatAiProvider
 {
+    private static readonly JsonSerializerOptions RequestJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
+
     private readonly HttpClient httpClient;
     private readonly IConfiguration configuration;
-    private readonly ILogger<GeminiChatProvider> logger;
+    private readonly ILogger<PythonRagChatProvider> logger;
 
-    public GeminiChatProvider(
+    private sealed record ChatRequestV2Payload(
+        string ContractVersion,
+        string Message,
+        string? TableCode,
+        string SessionId,
+        string? TableSessionId,
+        string RollingSummary,
+        string MenuVersion,
+        string CatalogVersion,
+        ChatSessionStatePayload SessionState,
+        ChatLiveContextPayload LiveContext,
+        IReadOnlyList<string> ExcludedMenuItemIds,
+        IReadOnlyList<ChatFactPayload> Facts,
+        IReadOnlyList<object> CartItems,
+        IReadOnlyList<object> Orders,
+        IReadOnlyList<object> Promotions,
+        string? LocalTime,
+        string? MealPeriod,
+        IReadOnlyList<ChatHistoryPayload> History,
+        string SessionMemory,
+        IReadOnlyList<ChatMenuItemPayload> MenuItems);
+
+    private sealed record ChatSessionStatePayload(
+        IReadOnlyList<ChatFactPayload> Facts,
+        IReadOnlyDictionary<string, object?> Constraints,
+        IReadOnlyList<string> ReferencedMenuItemIds,
+        IReadOnlyList<string> SuggestedMenuItemIds,
+        IReadOnlyList<string> RejectedMenuItemIds,
+        IReadOnlyList<string> AcceptedMenuItemIds,
+        IReadOnlyList<string> AddedToCartMenuItemIds,
+        string RollingSummary,
+        string MemoryVersion);
+
+    private sealed record ChatLiveContextPayload(
+        string CatalogVersion,
+        IReadOnlyList<ChatMenuItemPayload> MenuItems,
+        IReadOnlyList<object> CartItems,
+        IReadOnlyList<object> Orders,
+        IReadOnlyList<object> Promotions,
+        string? LocalTime,
+        string? MealPeriod,
+        string? TableCode);
+
+    private sealed record ChatFactPayload(string Kind, string Value, double Confidence);
+
+    private sealed record ChatHistoryPayload(
+        string Role,
+        string Content,
+        IReadOnlyList<ChatHistoryActionPayload> SuggestedCartActions);
+
+    private sealed record ChatHistoryActionPayload(string MenuItemId, string Name);
+
+    private sealed record ChatMenuItemPayload(
+        string Id,
+        string CategoryId,
+        string CategoryName,
+        string Name,
+        string Description,
+        decimal PriceVnd,
+        IReadOnlyList<string> Tags,
+        bool IsAvailable);
+
+    public PythonRagChatProvider(
         HttpClient httpClient,
         IConfiguration configuration,
-        ILogger<GeminiChatProvider> logger)
+        ILogger<PythonRagChatProvider> logger)
     {
         this.httpClient = httpClient;
         this.configuration = configuration;
@@ -133,8 +243,16 @@ public sealed class GeminiChatProvider : IChatAiProvider
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
-            Content = JsonContent.Create(payload)
+            Content = JsonContent.Create(payload, options: RequestJsonOptions)
         };
+        if (!TryAddInternalAuthorization(httpRequest))
+        {
+            yield return new ChatStreamEvent("final", JsonDocument.Parse("""
+                {"content":"Trợ lý AI chưa được cấu hình xác thực nội bộ.","provider_available":false,"suggest_staff_handoff":true,"guardrail_flags":["AI_PROVIDER_UNAVAILABLE"]}
+                """).RootElement);
+            yield return new ChatStreamEvent("done", JsonDocument.Parse("{\"ok\":true}").RootElement);
+            yield break;
+        }
 
         using var response = await httpClient.SendAsync(
             httpRequest,
@@ -155,7 +273,7 @@ public sealed class GeminiChatProvider : IChatAiProvider
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
         string? eventName = null;
-        while (!reader.EndOfStream && !timeoutCts.IsCancellationRequested)
+        while (!timeoutCts.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(timeoutCts.Token);
             if (line is null)
@@ -208,7 +326,15 @@ public sealed class GeminiChatProvider : IChatAiProvider
 
         try
         {
-            using var response = await httpClient.PostAsJsonAsync(endpoint, payload, timeoutCts.Token);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = JsonContent.Create(payload, options: RequestJsonOptions)
+            };
+            if (!TryAddInternalAuthorization(httpRequest))
+            {
+                return Unavailable();
+            }
+            using var response = await httpClient.SendAsync(httpRequest, timeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
@@ -219,37 +345,15 @@ public sealed class GeminiChatProvider : IChatAiProvider
                 await response.Content.ReadAsStreamAsync(timeoutCts.Token),
                 cancellationToken: timeoutCts.Token);
 
-            var content = ExtractPythonRagContent(json.RootElement);
-            if (string.IsNullOrWhiteSpace(content))
+            var excluded = request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var result = ParseResponsePayload(json.RootElement, request.AvailableMenuItems, excluded);
+            if (string.IsNullOrWhiteSpace(result.Content))
             {
                 return SlowFallback();
             }
 
-            var excluded = request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var actions = ExtractPythonSuggestedActions(json.RootElement, request.AvailableMenuItems, excluded);
-            var flags = ExtractPythonGuardrailFlags(json.RootElement);
-            var handoff = json.RootElement.TryGetProperty("suggest_staff_handoff", out var h)
-                          && h.ValueKind == JsonValueKind.True;
-            var followUp = ExtractFollowUp(json.RootElement);
-            var facts = ExtractFacts(json.RootElement);
-            var rejected = ExtractStringArray(json.RootElement, "rejected_menu_item_ids");
-            var summary = json.RootElement.TryGetProperty("updated_rolling_summary", out var s)
-                          && s.ValueKind == JsonValueKind.String
-                ? s.GetString()
-                : null;
-
             logger.LogInformation("Python AI chat completed in {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
-
-            return new ChatAiResult(
-                content.Trim(),
-                ProviderAvailable: ExtractProviderAvailable(json.RootElement),
-                actions,
-                flags,
-                handoff,
-                followUp,
-                facts,
-                rejected,
-                summary);
+            return result;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -258,48 +362,183 @@ public sealed class GeminiChatProvider : IChatAiProvider
         }
     }
 
-    private static object BuildPayload(ChatAiRequest request)
+    private static ChatRequestV2Payload BuildPayload(ChatAiRequest request)
     {
-        var excluded = request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        return new
+        var excluded = (request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase))
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        var persistedState = request.SessionState;
+        var facts = (persistedState?.Facts ?? request.Facts ?? [])
+            .Select(fact => new ChatFactPayload(fact.Kind, fact.Value, fact.Confidence))
+            .ToList();
+        var history = request.History
+            .TakeLast(12)
+            .Select(message => new ChatHistoryPayload(
+                message.Role,
+                message.Content,
+                message.SuggestedCartActions
+                    .Select(action => new ChatHistoryActionPayload(action.MenuItemId, action.Name))
+                    .ToList()))
+            .ToList();
+        var menuItems = request.AvailableMenuItems
+            .Select(item => new ChatMenuItemPayload(
+                item.Id,
+                item.CategoryId,
+                item.CategoryName,
+                item.Name,
+                item.Description,
+                item.Price,
+                item.Tags,
+                item.IsAvailable))
+            .ToList();
+        var catalogVersion = string.IsNullOrWhiteSpace(request.CatalogVersion)
+            ? ComputeCatalogVersion(request.AvailableMenuItems)
+            : request.CatalogVersion.Trim();
+        var historyActions = request.History.SelectMany(message => message.SuggestedCartActions).ToList();
+        var referencedIds = persistedState is not null
+            ? StableDistinct(persistedState.ReferencedMenuItemIds)
+            : StableDistinct(historyActions.Select(action => action.MenuItemId));
+        var suggestedIds = persistedState is not null
+            ? StableDistinct(persistedState.SuggestedMenuItemIds)
+            : StableDistinct(referencedIds.Concat(excluded));
+        var rejectedIds = persistedState is not null
+            ? StableDistinct(persistedState.RejectedMenuItemIds)
+            : StableDistinct(historyActions
+                .Where(action => action.Status is "dismissed" or "rejected")
+                .Select(action => action.MenuItemId));
+        var acceptedIds = persistedState is not null
+            ? StableDistinct(persistedState.AcceptedMenuItemIds)
+            : StableDistinct(historyActions
+                .Where(action => action.Status is "confirmed" or "accepted")
+                .Select(action => action.MenuItemId));
+        var addedToCartIds = StableDistinct(
+            (persistedState?.AddedToCartMenuItemIds ?? [])
+            .Concat(ExtractCartMenuItemIds(request.CartItems ?? [])));
+        var rollingSummary = persistedState?.RollingSummary ?? request.RollingSummary ?? "";
+        var cartItems = request.CartItems ?? [];
+        var orders = request.Orders ?? [];
+        var promotions = request.Promotions ?? [];
+        var constraints = persistedState?.Constraints.ToDictionary(
+            item => item.Key,
+            item => (object?)item.Value.Clone(),
+            StringComparer.Ordinal)
+            ?? new Dictionary<string, object?>(StringComparer.Ordinal);
+        var sessionState = new ChatSessionStatePayload(
+            facts,
+            constraints,
+            referencedIds,
+            suggestedIds,
+            rejectedIds,
+            acceptedIds,
+            addedToCartIds,
+            rollingSummary,
+            persistedState?.MemoryVersion ?? "v1");
+        var liveContext = new ChatLiveContextPayload(
+            catalogVersion,
+            menuItems,
+            cartItems,
+            orders,
+            promotions,
+            request.LocalTime,
+            request.MealPeriod,
+            request.TableCode);
+
+        // Keep the legacy top-level aliases for one release while V2 consumers move to typed state/context.
+        return new ChatRequestV2Payload(
+            "v2",
+            request.UserMessage,
+            request.TableCode,
+            request.ChatSessionId ?? "",
+            request.TableSessionId,
+            rollingSummary,
+            catalogVersion,
+            catalogVersion,
+            sessionState,
+            liveContext,
+            excluded,
+            facts,
+            cartItems,
+            orders,
+            promotions,
+            request.LocalTime,
+            request.MealPeriod,
+            history,
+            request.SessionMemory,
+            menuItems);
+    }
+
+    internal static string ComputeCatalogVersion(IReadOnlyList<ChatMenuItemContext> menuItems)
+    {
+        var canonical = new StringBuilder();
+        foreach (var item in menuItems
+                     .OrderBy(item => item.Id, StringComparer.Ordinal)
+                     .ThenBy(item => item.Name, StringComparer.Ordinal))
         {
-            message = request.UserMessage,
-            table_code = request.TableCode,
-            session_id = request.ChatSessionId,
-            table_session_id = request.TableSessionId,
-            rolling_summary = request.RollingSummary ?? "",
-            excluded_menu_item_ids = excluded.ToList(),
-            facts = (request.Facts ?? []).Select(f => new { kind = f.Kind, value = f.Value, confidence = f.Confidence }),
-            cart_items = request.CartItems ?? [],
-            orders = request.Orders ?? [],
-            promotions = request.Promotions ?? [],
-            local_time = request.LocalTime,
-            meal_period = request.MealPeriod,
-            history = request.History
-                .TakeLast(10)
-                .Select(message => new
-                {
-                    role = message.Role,
-                    content = message.Content,
-                    suggested_cart_actions = message.SuggestedCartActions.Select(action => new
-                    {
-                        menu_item_id = action.MenuItemId,
-                        name = action.Name
-                    })
-                }),
-            session_memory = request.SessionMemory,
-            menu_items = request.AvailableMenuItems.Select(item => new
+            AppendCatalogValue(canonical, item.Id);
+            AppendCatalogValue(canonical, item.CategoryId);
+            AppendCatalogValue(canonical, item.CategoryName);
+            AppendCatalogValue(canonical, item.Name);
+            AppendCatalogValue(canonical, item.Description);
+            AppendCatalogValue(canonical, item.Price.ToString("G29", CultureInfo.InvariantCulture));
+            AppendCatalogValue(canonical, item.IsAvailable ? "1" : "0");
+            foreach (var tag in item.Tags.OrderBy(tag => tag, StringComparer.Ordinal))
             {
-                id = item.Id,
-                category_id = item.CategoryId,
-                category_name = item.CategoryName,
-                name = item.Name,
-                description = item.Description,
-                price_vnd = item.Price,
-                tags = item.Tags,
-                is_available = item.IsAvailable
-            })
-        };
+                AppendCatalogValue(canonical, tag);
+            }
+
+            canonical.Append('\n');
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()));
+        return $"catalog-sha256-{Convert.ToHexString(hash).ToLowerInvariant()}";
+    }
+
+    private static void AppendCatalogValue(StringBuilder builder, string? value)
+    {
+        var normalized = value ?? "";
+        builder.Append(normalized.Length).Append(':').Append(normalized).Append('|');
+    }
+
+    private static IReadOnlyList<string> StableDistinct(IEnumerable<string?> values)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+        foreach (var value in values)
+        {
+            var normalized = value?.Trim();
+            if (!string.IsNullOrEmpty(normalized) && seen.Add(normalized))
+            {
+                result.Add(normalized);
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string> ExtractCartMenuItemIds(IReadOnlyList<object> cartItems)
+    {
+        var ids = new List<string?>();
+        foreach (var item in cartItems)
+        {
+            var element = item is JsonElement jsonElement
+                ? jsonElement
+                : JsonSerializer.SerializeToElement(item, RequestJsonOptions);
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            if ((element.TryGetProperty("menu_item_id", out var snakeId)
+                 || element.TryGetProperty("menuItemId", out snakeId))
+                && snakeId.ValueKind == JsonValueKind.String)
+            {
+                ids.Add(snakeId.GetString());
+            }
+        }
+
+        return StableDistinct(ids);
     }
 
     private int ReadPositiveInt(string key, string fallbackKey, int defaultValue)
@@ -308,6 +547,190 @@ public sealed class GeminiChatProvider : IChatAiProvider
             ?? configuration[fallbackKey]
             ?? configuration[$"Ai:{key[3..]}"];
         return int.TryParse(rawValue, out var value) && value > 0 ? value : defaultValue;
+    }
+
+    private bool TryAddInternalAuthorization(HttpRequestMessage request)
+    {
+        var token = configuration["AI_INTERNAL_TOKEN"]?.Trim();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            logger.LogError("AI_INTERNAL_TOKEN is missing; refusing an unauthenticated AI request.");
+            return false;
+        }
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return true;
+    }
+
+    internal static ChatAiResult ParseResponsePayload(
+        JsonElement root,
+        IReadOnlyList<ChatMenuItemContext> availableMenuItems,
+        IReadOnlySet<string> excluded)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return SlowFallback();
+        }
+
+        var hasSessionUpdates = root.TryGetProperty("session_updates", out var sessionUpdatesElement)
+                                && sessionUpdatesElement.ValueKind == JsonValueKind.Object;
+        var facts = hasSessionUpdates && sessionUpdatesElement.TryGetProperty("facts", out _)
+            ? ExtractFacts(sessionUpdatesElement)
+            : ExtractFacts(root);
+        var rejectedIds = hasSessionUpdates && sessionUpdatesElement.TryGetProperty("rejected_menu_item_ids", out _)
+            ? ExtractStringArray(sessionUpdatesElement, "rejected_menu_item_ids")
+            : ExtractStringArray(root, "rejected_menu_item_ids");
+        var updatedSummary = hasSessionUpdates
+            ? ExtractOptionalString(sessionUpdatesElement, "rolling_summary")
+            : null;
+        updatedSummary ??= ExtractOptionalString(root, "updated_rolling_summary");
+
+        return new ChatAiResult(
+            (ExtractPythonRagContent(root) ?? "").Trim(),
+            ProviderAvailable: ExtractProviderAvailable(root),
+            SuggestedCartActions: ExtractPythonSuggestedActions(root, availableMenuItems, excluded),
+            GuardrailFlags: ExtractPythonGuardrailFlags(root),
+            SuggestStaffHandoff: root.TryGetProperty("suggest_staff_handoff", out var handoff)
+                                 && handoff.ValueKind == JsonValueKind.True,
+            FollowUp: ExtractFollowUp(root),
+            Facts: facts,
+            RejectedMenuItemIds: rejectedIds,
+            UpdatedRollingSummary: updatedSummary,
+            Decision: ExtractDecision(root),
+            Evidence: ExtractEvidence(root),
+            Claims: ExtractClaims(root),
+            SessionUpdates: hasSessionUpdates ? ExtractSessionUpdates(sessionUpdatesElement) : null);
+    }
+
+    private static ChatDecisionTrace? ExtractDecision(JsonElement root)
+    {
+        if (!root.TryGetProperty("decision", out var decision) || decision.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return new ChatDecisionTrace(
+            ExtractOptionalString(decision, "intent"),
+            ExtractOptionalString(decision, "route"),
+            ExtractOptionalDouble(decision, "confidence"),
+            ExtractOptionalBoolean(decision, "evidence_sufficient"),
+            ExtractOptionalString(decision, "abstain_reason"));
+    }
+
+    private static IReadOnlyList<ChatEvidenceReference> ExtractEvidence(JsonElement root)
+    {
+        var results = new List<ChatEvidenceReference>();
+        if (!root.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array)
+        {
+            return results;
+        }
+
+        foreach (var item in evidence.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            results.Add(new ChatEvidenceReference(
+                ExtractOptionalString(item, "source") ?? "",
+                ExtractOptionalString(item, "title"),
+                ExtractOptionalString(item, "chunk_id"),
+                ExtractOptionalString(item, "menu_item_id"),
+                ExtractOptionalString(item, "section"),
+                ExtractOptionalDouble(item, "score")));
+        }
+
+        return results;
+    }
+
+    private static IReadOnlyList<ChatVerifiedClaim> ExtractClaims(JsonElement root)
+    {
+        var results = new List<ChatVerifiedClaim>();
+        if (!root.TryGetProperty("claims", out var claims) || claims.ValueKind != JsonValueKind.Array)
+        {
+            return results;
+        }
+
+        foreach (var item in claims.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var text = ExtractOptionalString(item, "text");
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            results.Add(new ChatVerifiedClaim(
+                text,
+                ExtractStringArray(item, "evidence_ids"),
+                item.TryGetProperty("verified", out var verified) && verified.ValueKind == JsonValueKind.True,
+                ExtractOptionalString(item, "reason")));
+        }
+
+        return results;
+    }
+
+    private static ChatSessionUpdates ExtractSessionUpdates(JsonElement updates)
+    {
+        var constraints = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        if (updates.TryGetProperty("constraints", out var constraintsElement)
+            && constraintsElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in constraintsElement.EnumerateObject())
+            {
+                constraints[property.Name] = property.Value.Clone();
+            }
+        }
+
+        return new ChatSessionUpdates(
+            ExtractFacts(updates),
+            constraints,
+            ExtractStringArray(updates, "referenced_menu_item_ids"),
+            ExtractStringArray(updates, "suggested_menu_item_ids"),
+            ExtractStringArray(updates, "rejected_menu_item_ids"),
+            ExtractStringArray(updates, "accepted_menu_item_ids"),
+            ExtractStringArray(updates, "added_to_cart_menu_item_ids"),
+            ExtractOptionalString(updates, "rolling_summary"),
+            ExtractOptionalString(updates, "memory_version") ?? "v1");
+    }
+
+    private static string? ExtractOptionalString(JsonElement root, string property)
+    {
+        return root.ValueKind == JsonValueKind.Object
+               && root.TryGetProperty(property, out var value)
+               && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+
+    private static double? ExtractOptionalDouble(JsonElement root, string property)
+    {
+        return root.ValueKind == JsonValueKind.Object
+               && root.TryGetProperty(property, out var value)
+               && value.ValueKind == JsonValueKind.Number
+               && value.TryGetDouble(out var number)
+            ? number
+            : null;
+    }
+
+    private static bool? ExtractOptionalBoolean(JsonElement root, string property)
+    {
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(property, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null
+        };
     }
 
     private static string? ExtractPythonRagContent(JsonElement root)
@@ -340,13 +763,23 @@ public sealed class GeminiChatProvider : IChatAiProvider
 
         foreach (var action in actionsElement.EnumerateArray())
         {
-            var menuItemId = action.TryGetProperty("menu_item_id", out var mid) ? mid.GetString() ?? "" : "";
+            if (action.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var menuItemId = action.TryGetProperty("menu_item_id", out var mid)
+                             && mid.ValueKind == JsonValueKind.String
+                ? mid.GetString() ?? ""
+                : "";
             if (!availableIds.Contains(menuItemId) || excluded.Contains(menuItemId)) continue;
             if (!menuLookup.TryGetValue(menuItemId, out var menuItem) || !menuItem.IsAvailable) continue;
 
             var name = action.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
                 ? n.GetString() ?? menuItem.Name : menuItem.Name;
-            var quantity = action.TryGetProperty("quantity", out var q) && q.TryGetInt32(out var qv)
+            var quantity = action.TryGetProperty("quantity", out var q)
+                           && q.ValueKind == JsonValueKind.Number
+                           && q.TryGetInt32(out var qv)
                 ? Math.Clamp(qv, 1, 20) : 1;
             var reason = action.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String
                 ? r.GetString() ?? "" : "";
@@ -373,7 +806,11 @@ public sealed class GeminiChatProvider : IChatAiProvider
         }
 
         var canShowMore = followUp.TryGetProperty("can_show_more", out var c) && c.ValueKind == JsonValueKind.True;
-        var remaining = followUp.TryGetProperty("remaining_count", out var r) && r.TryGetInt32(out var rv) ? rv : 0;
+        var remaining = followUp.TryGetProperty("remaining_count", out var r)
+                        && r.ValueKind == JsonValueKind.Number
+                        && r.TryGetInt32(out var rv)
+            ? rv
+            : 0;
         return new FollowUpHint(canShowMore, remaining);
     }
 
@@ -387,9 +824,20 @@ public sealed class GeminiChatProvider : IChatAiProvider
 
         foreach (var fact in facts.EnumerateArray())
         {
-            var kind = fact.TryGetProperty("kind", out var k) ? k.GetString() : null;
-            var value = fact.TryGetProperty("value", out var v) ? v.GetString() : null;
-            var confidence = fact.TryGetProperty("confidence", out var c) && c.TryGetDouble(out var cv) ? cv : 0.8;
+            if (fact.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var kind = ExtractOptionalString(fact, "kind");
+            var value = fact.TryGetProperty("value", out var factValue)
+                ? ExtractFactValue(factValue)
+                : null;
+            var confidence = fact.TryGetProperty("confidence", out var c)
+                             && c.ValueKind == JsonValueKind.Number
+                             && c.TryGetDouble(out var cv)
+                ? cv
+                : 0.8;
             if (!string.IsNullOrWhiteSpace(kind) && !string.IsNullOrWhiteSpace(value))
             {
                 results.Add(new ChatFactToPersist(kind, value, confidence));
@@ -397,6 +845,17 @@ public sealed class GeminiChatProvider : IChatAiProvider
         }
 
         return results;
+    }
+
+    private static string? ExtractFactValue(JsonElement value)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => value.GetRawText(),
+            JsonValueKind.Object or JsonValueKind.Array => value.GetRawText(),
+            _ => null
+        };
     }
 
     private static List<string> ExtractStringArray(JsonElement root, string property)
@@ -469,6 +928,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        ChatSessionStateSnapshot? sessionState,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -481,6 +941,7 @@ public sealed class ChatAssistantService : IChatAssistantService
             rollingSummary,
             excludedMenuItemIds,
             facts,
+            sessionState,
             cancellationToken);
 
         if (prepared.CatalogReply is not null)
@@ -504,6 +965,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        ChatSessionStateSnapshot? sessionState,
         Func<ChatAssistantReply, CancellationToken, Task> onCompleteAsync,
         Func<string, CancellationToken, Task> onTokenAsync,
         CancellationToken cancellationToken)
@@ -518,6 +980,7 @@ public sealed class ChatAssistantService : IChatAssistantService
             rollingSummary,
             excludedMenuItemIds,
             facts,
+            sessionState,
             cancellationToken);
 
         if (prepared.CatalogReply is not null)
@@ -580,6 +1043,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         string? rollingSummary,
         IReadOnlySet<string> excludedMenuItemIds,
         IReadOnlyList<ChatSessionFactSnapshot> facts,
+        ChatSessionStateSnapshot? sessionState,
         CancellationToken cancellationToken)
     {
         var (categories, menuItems) = await LoadMenuCatalogCachedAsync(cancellationToken);
@@ -594,8 +1058,7 @@ public sealed class ChatAssistantService : IChatAssistantService
             .Select(item => item.Name)
             .ToList();
 
-        var availableMenuItems = menuItems
-            .Where(item => item.IsAvailable && !excludedMenuItemIds.Contains(item.Id))
+        var catalogMenuItems = menuItems
             .Select(item => new ChatMenuItemContext(
                 item.Id,
                 item.Name,
@@ -606,6 +1069,10 @@ public sealed class ChatAssistantService : IChatAssistantService
                 item.Tags.ToList(),
                 item.IsAvailable))
             .ToList();
+        var availableMenuItems = catalogMenuItems
+            .Where(item => item.IsAvailable && !excludedMenuItemIds.Contains(item.Id))
+            .ToList();
+        var catalogVersion = PythonRagChatProvider.ComputeCatalogVersion(availableMenuItems);
 
         var grounding = ChatMenuGrounding.SelectWithConstraints(userMessage, availableMenuItems, null);
         if (grounding.HasExplicitConstraint
@@ -641,7 +1108,9 @@ public sealed class ChatAssistantService : IChatAssistantService
             orders,
             promotions,
             localTime.ToString("O"),
-            mealPeriod);
+            mealPeriod,
+            catalogVersion,
+            sessionState);
 
         return new PreparedChatContext(request, availableMenuItems, null);
     }
@@ -686,6 +1155,7 @@ public sealed class ChatAssistantService : IChatAssistantService
         IReadOnlyList<ChatMenuItemContext> availableMenuItems,
         IReadOnlySet<string> excludedMenuItemIds)
     {
+        var safeSessionUpdates = SanitizeAiSessionUpdates(providerResult.SessionUpdates);
         if (!providerResult.ProviderAvailable
             && (providerResult.SuggestedCartActions is null || providerResult.SuggestedCartActions.Count == 0))
         {
@@ -695,7 +1165,9 @@ public sealed class ChatAssistantService : IChatAssistantService
                 providerResult.GuardrailFlags ?? ["AI_PROVIDER_UNAVAILABLE"],
                 SuggestStaffHandoff: providerResult.SuggestStaffHandoff,
                 FactsToPersist: providerResult.Facts ?? [],
-                RejectedMenuItemIds: providerResult.RejectedMenuItemIds ?? []);
+                RejectedMenuItemIds: providerResult.RejectedMenuItemIds ?? [],
+                UpdatedRollingSummary: providerResult.UpdatedRollingSummary,
+                SessionUpdates: safeSessionUpdates);
         }
 
         var safeActions = (providerResult.SuggestedCartActions ?? [])
@@ -722,70 +1194,29 @@ public sealed class ChatAssistantService : IChatAssistantService
             followUp,
             providerResult.Facts ?? [],
             providerResult.RejectedMenuItemIds ?? [],
-            providerResult.UpdatedRollingSummary);
+            providerResult.UpdatedRollingSummary,
+            safeSessionUpdates);
+    }
+
+    private static ChatSessionUpdates? SanitizeAiSessionUpdates(ChatSessionUpdates? updates)
+    {
+        if (updates is null)
+        {
+            return null;
+        }
+
+        return updates with
+        {
+            AcceptedMenuItemIds = [],
+            AddedToCartMenuItemIds = []
+        };
     }
 
     private static ChatAiResult ParseStreamFinal(
         JsonElement root,
         IReadOnlyList<ChatMenuItemContext> availableMenuItems,
-        IReadOnlySet<string> excluded)
-    {
-        var content = root.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String
-            ? contentElement.GetString() ?? ""
-            : "";
-        var providerAvailable = root.TryGetProperty("provider_available", out var providerElement)
-            && providerElement.ValueKind == JsonValueKind.True;
-        var handoff = root.TryGetProperty("suggest_staff_handoff", out var h) && h.ValueKind == JsonValueKind.True;
-        var followUp = root.TryGetProperty("follow_up", out var followUpElement) && followUpElement.ValueKind == JsonValueKind.Object
-            ? new FollowUpHint(
-                followUpElement.TryGetProperty("can_show_more", out var c) && c.ValueKind == JsonValueKind.True,
-                followUpElement.TryGetProperty("remaining_count", out var r) && r.TryGetInt32(out var rv) ? rv : 0)
-            : null;
-
-        var actions = new List<SuggestedCartActionResponse>();
-        if (root.TryGetProperty("suggested_cart_actions", out var actionsElement) && actionsElement.ValueKind == JsonValueKind.Array)
-        {
-            var menuLookup = availableMenuItems.ToDictionary(m => m.Id, StringComparer.OrdinalIgnoreCase);
-            foreach (var action in actionsElement.EnumerateArray())
-            {
-                var menuItemId = action.TryGetProperty("menu_item_id", out var mid) ? mid.GetString() ?? "" : "";
-                if (string.IsNullOrWhiteSpace(menuItemId) || excluded.Contains(menuItemId)) continue;
-                if (!menuLookup.TryGetValue(menuItemId, out var menuItem) || !menuItem.IsAvailable) continue;
-                var name = action.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
-                    ? n.GetString() ?? menuItem.Name
-                    : menuItem.Name;
-                var quantity = action.TryGetProperty("quantity", out var q) && q.TryGetInt32(out var qv)
-                    ? Math.Clamp(qv, 1, 20)
-                    : 1;
-                var reason = action.TryGetProperty("reason", out var rsn) && rsn.ValueKind == JsonValueKind.String
-                    ? rsn.GetString() ?? ""
-                    : "";
-                actions.Add(new SuggestedCartActionResponse(
-                    menuItemId,
-                    name,
-                    menuItem.Price,
-                    quantity,
-                    reason,
-                    RequiresCustomerConfirmation: true,
-                    Status: "pending"));
-            }
-        }
-
-        var flags = new List<string>();
-        if (root.TryGetProperty("guardrail_flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var flag in flagsElement.EnumerateArray())
-            {
-                if (flag.ValueKind == JsonValueKind.String)
-                {
-                    var value = flag.GetString()?.Trim();
-                    if (!string.IsNullOrEmpty(value)) flags.Add(value);
-                }
-            }
-        }
-
-        return new ChatAiResult(content, providerAvailable, actions, flags, handoff, followUp);
-    }
+        IReadOnlySet<string> excluded) =>
+        PythonRagChatProvider.ParseResponsePayload(root, availableMenuItems, excluded);
 
     private void LogStop(Stopwatch stopwatch, string path)
     {

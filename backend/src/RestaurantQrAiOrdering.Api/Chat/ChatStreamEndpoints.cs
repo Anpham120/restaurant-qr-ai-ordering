@@ -78,6 +78,7 @@ public static class ChatStreamEndpoints
                 : request.TableCode.Trim();
             var excludedIds = chatStore.GetExcludedMenuItemIds(chatSessionId);
             var facts = chatStore.GetFacts(chatSessionId);
+            var sessionState = chatStore.GetSessionState(chatSessionId);
 
             var streamingMessageId = $"assistant_stream_{Guid.NewGuid():N}";
             var streamedContent = new StringBuilder();
@@ -96,6 +97,7 @@ public static class ChatStreamEndpoints
                     chatSession.RollingSummary,
                     excludedIds,
                     facts,
+                    sessionState,
                     async (reply, ct) =>
                     {
                         assistantReply = reply;
@@ -105,16 +107,14 @@ public static class ChatStreamEndpoints
                             reply.Content,
                             reply.SuggestedCartActions);
 
-                        if (reply.FactsToPersist is { Count: > 0 } factsToPersist && assistantMessage is not null)
+                        if (assistantMessage is not null)
                         {
-                            chatStore.UpsertFacts(
+                            ChatSessionStatePersistence.ApplyAssistantReply(
+                                chatStore,
                                 chatSessionId,
-                                factsToPersist.Select(f => (f.Kind, f.Value, f.Confidence, (string?)assistantMessage.Id)));
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(reply.UpdatedRollingSummary))
-                        {
-                            chatStore.UpdateRollingSummary(chatSessionId, reply.UpdatedRollingSummary!);
+                                reply,
+                                assistantMessage.Id,
+                                userMessage.Id);
                         }
 
                         var finalPayload = new

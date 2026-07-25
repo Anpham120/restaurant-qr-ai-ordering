@@ -215,42 +215,7 @@ public sealed class DbChatStore : IChatStore
             }
 
             var now = DateTimeOffset.UtcNow;
-            foreach (var (kind, value, confidence, sourceTurnId) in facts)
-            {
-                var normalizedKind = kind.Trim().ToLowerInvariant();
-                var normalizedValue = value.Trim();
-                if (string.IsNullOrWhiteSpace(normalizedKind) || string.IsNullOrWhiteSpace(normalizedValue))
-                {
-                    continue;
-                }
-
-                var existing = session.Facts.FirstOrDefault(f =>
-                    f.Kind.Equals(normalizedKind, StringComparison.OrdinalIgnoreCase)
-                    && f.Value.Equals(normalizedValue, StringComparison.OrdinalIgnoreCase));
-
-                if (existing is null)
-                {
-                    existing = new ChatSessionFact
-                    {
-                        Id = $"fact_{Guid.NewGuid():N}",
-                        ChatSessionId = session.Id,
-                        Kind = normalizedKind,
-                        Value = normalizedValue,
-                        Confidence = confidence,
-                        SourceTurnId = sourceTurnId,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    };
-                    session.Facts.Add(existing);
-                    dbContext.ChatSessionFacts.Add(existing);
-                }
-                else
-                {
-                    existing.Confidence = Math.Max(existing.Confidence, confidence);
-                    existing.SourceTurnId = sourceTurnId ?? existing.SourceTurnId;
-                    existing.UpdatedAt = now;
-                }
-            }
+            UpsertFactsInternal(session, facts, now);
 
             session.UpdatedAt = now;
             dbContext.SaveChanges();
@@ -268,6 +233,63 @@ public sealed class DbChatStore : IChatStore
         return session.Facts
             .Select(f => new ChatSessionFactSnapshot(f.Kind, f.Value, f.Confidence, f.SourceTurnId))
             .ToList();
+    }
+
+    public ChatSessionStateSnapshot? GetSessionState(string chatSessionId)
+    {
+        var session = FindSession(chatSessionId);
+        return session is null ? null : ToStateSnapshot(session);
+    }
+
+    public void ApplyAiSessionUpdates(
+        string chatSessionId,
+        ChatSessionUpdates updates,
+        string? assistantTurnId,
+        string? userTurnId)
+    {
+        lock (GetSessionLock(chatSessionId))
+        {
+            var session = FindSession(chatSessionId);
+            if (session is null)
+            {
+                return;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            UpsertFactsInternal(
+                session,
+                updates.Facts.Select(fact =>
+                    (fact.Kind, fact.Value, fact.Confidence, assistantTurnId)),
+                now);
+
+            session.ConstraintsJson = JsonSerializer.Serialize(updates.Constraints, JsonOptions);
+            session.ReferencedMenuItemIdsJson = JsonSerializer.Serialize(
+                StableDistinct(
+                    DeserializeStringList(session.ReferencedMenuItemIdsJson)
+                        .Concat(updates.ReferencedMenuItemIds)),
+                JsonOptions);
+            if (!string.IsNullOrWhiteSpace(updates.MemoryVersion))
+            {
+                session.MemoryVersion = updates.MemoryVersion.Trim()[..Math.Min(50, updates.MemoryVersion.Trim().Length)];
+            }
+
+            if (updates.RollingSummary is not null)
+            {
+                session.RollingSummary = updates.RollingSummary.Length <= 8000
+                    ? updates.RollingSummary
+                    : updates.RollingSummary[..8000];
+            }
+
+            UpsertRecommendationEntries(session, updates.SuggestedMenuItemIds, "suggested", assistantTurnId, now);
+            UpsertRecommendationEntries(session, updates.RejectedMenuItemIds, "rejected", userTurnId, now);
+
+            // accepted and added_to_cart are backend-owned transitions. AI output is
+            // context only and must never confirm a customer choice or mutate cart state.
+            // Trusted recommendation/cart endpoints persist those statuses separately.
+
+            session.UpdatedAt = now;
+            dbContext.SaveChanges();
+        }
     }
 
     public void UpdateRollingSummary(string chatSessionId, string summary)
@@ -362,6 +384,62 @@ public sealed class DbChatStore : IChatStore
         return entry;
     }
 
+    private void UpsertFactsInternal(
+        ChatSession session,
+        IEnumerable<(string Kind, string Value, double Confidence, string? SourceTurnId)> facts,
+        DateTimeOffset now)
+    {
+        foreach (var (kind, value, confidence, sourceTurnId) in facts)
+        {
+            var normalizedKind = kind.Trim().ToLowerInvariant();
+            var normalizedValue = value.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedKind) || string.IsNullOrWhiteSpace(normalizedValue))
+            {
+                continue;
+            }
+
+            var existing = session.Facts.FirstOrDefault(f =>
+                f.Kind.Equals(normalizedKind, StringComparison.OrdinalIgnoreCase)
+                && f.Value.Equals(normalizedValue, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null)
+            {
+                existing = new ChatSessionFact
+                {
+                    Id = $"fact_{Guid.NewGuid():N}",
+                    ChatSessionId = session.Id,
+                    Kind = normalizedKind,
+                    Value = normalizedValue,
+                    Confidence = confidence,
+                    SourceTurnId = sourceTurnId,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                session.Facts.Add(existing);
+                dbContext.ChatSessionFacts.Add(existing);
+            }
+            else
+            {
+                existing.Confidence = Math.Max(existing.Confidence, confidence);
+                existing.SourceTurnId = sourceTurnId ?? existing.SourceTurnId;
+                existing.UpdatedAt = now;
+            }
+        }
+    }
+
+    private void UpsertRecommendationEntries(
+        ChatSession session,
+        IEnumerable<string> menuItemIds,
+        string status,
+        string? turnId,
+        DateTimeOffset now)
+    {
+        foreach (var menuItemId in StableDistinct(menuItemIds))
+        {
+            UpsertRecommendationInternal(session, menuItemId, status, turnId, now);
+        }
+    }
+
     private ChatSession? FindSession(string chatSessionId)
     {
         var normalizedChatSessionId = chatSessionId.Trim();
@@ -404,6 +482,34 @@ public sealed class DbChatStore : IChatStore
             session.RollingSummary,
             session.Recommendations.Select(ToRecommendationSnapshot).ToList(),
             session.Facts.Select(f => new ChatSessionFactSnapshot(f.Kind, f.Value, f.Confidence, f.SourceTurnId)).ToList());
+    }
+
+    private static ChatSessionStateSnapshot ToStateSnapshot(ChatSession session)
+    {
+        IReadOnlyList<string> RecommendationIds(string status) => session.Recommendations
+            .Where(entry => entry.Status.Equals(status, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(entry => entry.CreatedAt)
+            .Select(entry => entry.MenuItemId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new ChatSessionStateSnapshot(
+            session.Facts
+                .OrderBy(fact => fact.CreatedAt)
+                .Select(fact => new ChatSessionFactSnapshot(
+                    fact.Kind,
+                    fact.Value,
+                    fact.Confidence,
+                    fact.SourceTurnId))
+                .ToList(),
+            DeserializeConstraints(session.ConstraintsJson),
+            DeserializeStringList(session.ReferencedMenuItemIdsJson),
+            RecommendationIds("suggested"),
+            RecommendationIds("rejected"),
+            RecommendationIds("accepted"),
+            RecommendationIds("added_to_cart"),
+            session.RollingSummary,
+            string.IsNullOrWhiteSpace(session.MemoryVersion) ? "v1" : session.MemoryVersion);
     }
 
     private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message, ChatSession session)
@@ -464,6 +570,57 @@ public sealed class DbChatStore : IChatStore
         {
             return [];
         }
+    }
+
+    private static IReadOnlyDictionary<string, JsonElement> DeserializeConstraints(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json, JsonOptions)
+                   ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        }
+    }
+
+    private static IReadOnlyList<string> DeserializeStringList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return StableDistinct(JsonSerializer.Deserialize<IReadOnlyList<string>>(json, JsonOptions) ?? []);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> StableDistinct(IEnumerable<string?> values)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+        foreach (var value in values)
+        {
+            var normalized = value?.Trim();
+            if (!string.IsNullOrEmpty(normalized) && seen.Add(normalized))
+            {
+                result.Add(normalized);
+            }
+        }
+
+        return result;
     }
 
     private static string? NormalizeOptional(string? value)

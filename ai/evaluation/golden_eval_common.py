@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AI_ROOT = PROJECT_ROOT / "ai"
 GOLDEN_PATH = AI_ROOT / "evaluation" / "golden" / "cases.jsonl"
 MENU_DATASET_PATH = PROJECT_ROOT / "backend" / "data" / "menu-dataset.json"
+DEFAULT_STRATIFIED_SAMPLING_SEED = 20260722
+SAMPLING_STRATEGIES = frozenset({"head", "stratified"})
 
 
 def load_golden_cases(
@@ -20,7 +24,21 @@ def load_golden_cases(
     *,
     families: set[str] | None = None,
     limit: int | None = None,
+    sampling_strategy: str = "head",
+    sampling_seed: int = DEFAULT_STRATIFIED_SAMPLING_SEED,
 ) -> list[dict[str, Any]]:
+    """Load filtered golden cases with an optional deterministic sampling policy.
+
+    ``head`` preserves the historical file-order behaviour. ``stratified``
+    balances a bounded sample across ``(family, intent)`` strata. Both stratum
+    and within-stratum order are derived from SHA-256 ranks so the same seed and
+    dataset produce exactly the same case IDs and order on every model run.
+    """
+
+    if sampling_strategy not in SAMPLING_STRATEGIES:
+        expected = ", ".join(sorted(SAMPLING_STRATEGIES))
+        raise ValueError(f"Unknown sampling strategy {sampling_strategy!r}; expected one of: {expected}")
+
     cases: list[dict[str, Any]] = []
     with GOLDEN_PATH.open(encoding="utf-8") as handle:
         for line in handle:
@@ -33,9 +51,92 @@ def load_golden_cases(
             if families is not None and case.get("family") not in families:
                 continue
             cases.append(case)
-            if limit is not None and len(cases) >= limit:
+
+    if limit is not None and limit <= 0:
+        return []
+    if sampling_strategy == "head":
+        return cases if limit is None else cases[:limit]
+    return _stratified_cases(cases, limit=limit, seed=sampling_seed)
+
+
+def summarize_case_sample(
+    cases: list[dict[str, Any]],
+    *,
+    sampling_strategy: str,
+    sampling_seed: int | None,
+) -> dict[str, Any]:
+    """Return secret-safe, reproducible provenance for an evaluation sample."""
+
+    case_ids = [str(case.get("id") or "") for case in cases]
+    return {
+        "strategy": sampling_strategy,
+        "seed": sampling_seed,
+        "case_count": len(cases),
+        "family_distribution": _value_distribution(cases, "family"),
+        "intent_distribution": _value_distribution(cases, "intent"),
+        "case_set_sha256": _sequence_sha256(sorted(case_ids)),
+        "case_order_sha256": _sequence_sha256(case_ids),
+    }
+
+
+def _stratified_cases(
+    cases: list[dict[str, Any]],
+    *,
+    limit: int | None,
+    seed: int,
+) -> list[dict[str, Any]]:
+    strata: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for case in cases:
+        key = (
+            str(case.get("family") or "unknown"),
+            str(case.get("intent") or "unknown"),
+        )
+        strata.setdefault(key, []).append(case)
+
+    ordered_keys = sorted(
+        strata,
+        key=lambda key: (_stable_rank(seed, "stratum", *key), key),
+    )
+    for key, rows in strata.items():
+        rows.sort(
+            key=lambda case: (
+                _stable_rank(seed, "case", *key, str(case.get("id") or "")),
+                str(case.get("id") or ""),
+            )
+        )
+
+    target = len(cases) if limit is None else min(limit, len(cases))
+    selected: list[dict[str, Any]] = []
+    positions = {key: 0 for key in ordered_keys}
+    while len(selected) < target:
+        added = False
+        for key in ordered_keys:
+            position = positions[key]
+            if position >= len(strata[key]):
+                continue
+            selected.append(strata[key][position])
+            positions[key] = position + 1
+            added = True
+            if len(selected) >= target:
                 break
-    return cases
+        if not added:
+            break
+    return selected
+
+
+def _stable_rank(seed: int, *parts: str) -> str:
+    payload = "\x1f".join((str(seed), *parts)).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _sequence_sha256(values: list[str]) -> str:
+    payload = json.dumps(values, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _value_distribution(cases: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts = Counter(str(case.get(key) or "unknown") for case in cases)
+    return dict(sorted(counts.items()))
 
 
 def load_menu_items() -> list[dict[str, Any]]:
@@ -116,7 +217,7 @@ def build_llm_service(
         )
     if not config.llm_enabled and llm_client is None:
         raise RuntimeError(
-            "LLM evaluation requires AI_API_KEY, AI_BASE_URL, and AI_MODEL in ai/.env "
+            "LLM evaluation requires LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL in ai/.env "
             "(9router OpenAI-compatible gateway; or pass a mock llm_client in tests)."
         )
     return AiAssistantService(config, llm_client=llm_client)

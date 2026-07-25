@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from evaluation.research_dataset import DatasetSplit
 from evaluation.run_retrieval_experiment import (
+    PRODUCTION_FEASIBLE_METHODS,
     RetrievalMethod,
     run_comparison,
     run_method,
@@ -28,6 +29,16 @@ class DeterministicFakeEncoder:
 
 
 class RetrievalExperimentTests(unittest.TestCase):
+    def test_production_feasible_profile_excludes_large_research_encoders(self) -> None:
+        self.assertEqual(
+            (
+                RetrievalMethod.BM25,
+                RetrievalMethod.DENSE_E5_SMALL,
+                RetrievalMethod.HYBRID_E5_SMALL,
+            ),
+            PRODUCTION_FEASIBLE_METHODS,
+        )
+
     def test_dense_method_uses_same_dev_dataset_and_records_model_provenance(self) -> None:
         result = run_method(
             RetrievalMethod.DENSE_E5_SMALL,
@@ -91,6 +102,43 @@ class RetrievalExperimentTests(unittest.TestCase):
             "within each test family across method pairs",
             comparison["correction_scope"],
         )
+
+    def test_screening_run_records_explicit_latency_repetition_count(self) -> None:
+        result = run_method(
+            RetrievalMethod.DENSE_E5_SMALL,
+            top_k=3,
+            encoder=DeterministicFakeEncoder(),
+            latency_repetitions=1,
+        )
+
+        self.assertEqual(
+            1,
+            result["latency_ms"]["protocol"]["repetitions_per_query"],
+        )
+
+    def test_multi_encoder_comparison_is_grouped_to_bound_peak_memory(self) -> None:
+        methods = [
+            RetrievalMethod.DENSE_E5_SMALL,
+            RetrievalMethod.HYBRID_E5_SMALL,
+            RetrievalMethod.DENSE_MPNET,
+            RetrievalMethod.HYBRID_MPNET,
+        ]
+        with patch(
+            "evaluation.run_retrieval_experiment.create_encoder",
+            side_effect=[DeterministicFakeEncoder(), DeterministicFakeEncoder()],
+        ) as encoder_constructor:
+            result = run_comparison(methods, top_k=3)
+
+        self.assertEqual(2, encoder_constructor.call_count)
+        protocol = result["method_order_protocol"]
+        self.assertEqual("memory-bounded-deterministic-groups", protocol["strategy"])
+        keys = protocol["execution_encoder_keys"]
+        self.assertIn(keys, (["e5_small", "mpnet_base"], ["mpnet_base", "e5_small"]))
+        order = protocol["execution_order"]
+        first_group = {_method.split("_")[1] for _method in order[:2]}
+        second_group = {_method.split("_")[1] for _method in order[2:]}
+        self.assertEqual(1, len(first_group))
+        self.assertEqual(1, len(second_group))
 
     def test_frozen_test_guard_applies_to_every_method(self) -> None:
         with patch(

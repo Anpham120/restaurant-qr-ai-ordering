@@ -12,6 +12,7 @@ safety_level: high
 ---
 
 # Thông Tin Nguyên Liệu & Dinh Dưỡng
+<!-- question_variants: calories, calo, dinh dưỡng, nutrition, bao nhiêu calo -->
 
 ## Nguyên Liệu Chính Theo Nhóm
 

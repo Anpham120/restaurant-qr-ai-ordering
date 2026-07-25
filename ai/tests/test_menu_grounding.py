@@ -37,6 +37,17 @@ MENU = [
 
 
 class MenuGroundingTests(unittest.TestCase):
+    def test_output_parser_keeps_structured_claims_unverified(self) -> None:
+        parsed = parse_model_response(
+            '{"content":"Phở bò giá 85.000 đồng.","suggested_cart_actions":[],"guardrail_flags":[],"claims":[{"text":"Phở bò giá 85.000 đồng.","evidence_ids":["m_001"]}]}',
+            [{"id": "m_001", "name": "Phở bò", "price_vnd": 85000, "is_available": True}],
+        )
+
+        self.assertIsNotNone(parsed)
+        assert parsed is not None
+        self.assertEqual(["m_001"], parsed.claims[0]["evidence_ids"])
+        self.assertNotIn("verified", parsed.claims[0])
+
     def test_v34_category_request_only_returns_live_category_candidates(self):
         candidates = select_menu_candidates("Cho tôi các món hải sản", MENU)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import random
 import sys
@@ -32,6 +33,7 @@ from app.rag.retriever import (  # noqa: E402
 from evaluation.research_dataset import DatasetSplit  # noqa: E402
 from evaluation.retrieval_comparison import compare_retrieval_results  # noqa: E402
 from evaluation.run_research_baseline import (  # noqa: E402
+    LATENCY_REPETITIONS,
     RetrieverFactory,
     run_retrieval_experiment,
     validate_experiment_request,
@@ -65,6 +67,15 @@ DEFAULT_METHODS = (
     RetrievalMethod.HYBRID_VI_BI,
 )
 
+# Methods that fit the production-like CPU / ~3 GB RAM research environment.
+# Larger encoders remain part of DEFAULT_METHODS, but an artifact created with
+# this profile must never imply they were measured.
+PRODUCTION_FEASIBLE_METHODS = (
+    RetrievalMethod.BM25,
+    RetrievalMethod.DENSE_E5_SMALL,
+    RetrievalMethod.HYBRID_E5_SMALL,
+)
+
 
 def run_method(
     method: RetrievalMethod,
@@ -75,6 +86,7 @@ def run_method(
     encoder: EmbeddingEncoder | None = None,
     apply_menu_filters: bool = True,
     with_rerank: bool = False,
+    latency_repetitions: int = LATENCY_REPETITIONS,
 ) -> dict[str, object]:
     validate_experiment_request(
         method=method.value,
@@ -92,6 +104,7 @@ def run_method(
         allow_frozen_test=allow_frozen_test,
         apply_menu_filters=apply_menu_filters,
         with_rerank=with_rerank,
+        latency_repetitions=latency_repetitions,
     )
     if encoder is not None and method is not RetrievalMethod.BM25:
         result["resource_profile"] = {
@@ -110,6 +123,7 @@ def run_comparison(
     encoder: EmbeddingEncoder | None = None,
     apply_menu_filters: bool = True,
     with_rerank: bool = False,
+    latency_repetitions: int = LATENCY_REPETITIONS,
 ) -> dict[str, object]:
     if not methods:
         raise ValueError("At least one retrieval method is required")
@@ -122,26 +136,39 @@ def run_comparison(
         allow_frozen_test=allow_frozen_test,
     )
 
-    encoder_cache: dict[str, EmbeddingEncoder] = {}
-    execution_order = list(methods)
-    random.Random(METHOD_ORDER_SEED).shuffle(execution_order)
+    shuffled_order = list(methods)
+    random.Random(METHOD_ORDER_SEED).shuffle(shuffled_order)
+    grouped_order: dict[str | None, list[RetrievalMethod]] = {}
+    for method in shuffled_order:
+        grouped_order.setdefault(_method_encoder_key(method), []).append(method)
+
+    # A full comparison previously retained every encoder in one cache.  The
+    # three research encoders can exceed the production-like 3 GB RAM budget
+    # even though each model fits independently.  Run one encoder family at a
+    # time, reusing it for dense + hybrid, then release it before the next.
+    execution_order = [method for group in grouped_order.values() for method in group]
     executed_results: dict[str, dict[str, object]] = {}
-    for method in execution_order:
+    execution_encoder_keys: list[str] = []
+    for encoder_key, grouped_methods in grouped_order.items():
         method_encoder = encoder
-        encoder_key = _method_encoder_key(method)
         if encoder_key is not None:
-            if encoder_key not in encoder_cache:
-                encoder_cache[encoder_key] = create_encoder(encoder_key)
-            method_encoder = encoder_cache[encoder_key]
-        executed_results[method.value] = run_method(
-            method,
-            split,
-            top_k=top_k,
-            allow_frozen_test=allow_frozen_test,
-            encoder=method_encoder,
-            apply_menu_filters=apply_menu_filters,
-            with_rerank=with_rerank,
-        )
+            execution_encoder_keys.append(encoder_key)
+            if method_encoder is None:
+                method_encoder = create_encoder(encoder_key)
+        for method in grouped_methods:
+            executed_results[method.value] = run_method(
+                method,
+                split,
+                top_k=top_k,
+                allow_frozen_test=allow_frozen_test,
+                encoder=method_encoder,
+                apply_menu_filters=apply_menu_filters,
+                with_rerank=with_rerank,
+                latency_repetitions=latency_repetitions,
+            )
+        if encoder is None and encoder_key is not None:
+            del method_encoder
+            gc.collect()
 
     results = {name: executed_results[name] for name in sorted(executed_results)}
     return {
@@ -158,8 +185,10 @@ def run_comparison(
             for key, spec in ENCODER_REGISTRY.items()
         },
         "method_order_protocol": {
-            "strategy": "deterministic-shuffle",
+            "strategy": "memory-bounded-deterministic-groups",
             "seed": METHOD_ORDER_SEED,
+            "shuffled_requested_order": [method.value for method in shuffled_order],
+            "execution_encoder_keys": execution_encoder_keys,
             "execution_order": [method.value for method in execution_order],
         },
         "pairwise_statistics": compare_retrieval_results(
@@ -274,7 +303,7 @@ def _parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--method",
-        choices=["all", *(method.value for method in DEFAULT_METHODS)],
+        choices=["all", "production", *(method.value for method in DEFAULT_METHODS)],
         default="all",
     )
     parser.add_argument(
@@ -283,6 +312,12 @@ def _parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
         default=DatasetSplit.DEV.value,
     )
     parser.add_argument("--top-k", type=int, default=10)
+    parser.add_argument(
+        "--latency-repetitions",
+        type=int,
+        default=LATENCY_REPETITIONS,
+        help="Search repetitions per query; use 1 only for screening, not release latency claims.",
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--allow-frozen-test",
@@ -304,11 +339,15 @@ def _parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(arguments: Sequence[str] | None = None) -> int:
     args = _parse_args(arguments)
-    methods = (
-        tuple(DEFAULT_METHODS)
-        if args.method == "all"
-        else (RetrievalMethod(args.method),)
-    )
+    if args.method == "all":
+        methods = tuple(DEFAULT_METHODS)
+        experiment_profile = "all-research-encoders"
+    elif args.method == "production":
+        methods = tuple(PRODUCTION_FEASIBLE_METHODS)
+        experiment_profile = "production-feasible"
+    else:
+        methods = (RetrievalMethod(args.method),)
+        experiment_profile = "single-method"
     try:
         result = run_comparison(
             methods,
@@ -317,10 +356,19 @@ def main(arguments: Sequence[str] | None = None) -> int:
             allow_frozen_test=args.allow_frozen_test,
             apply_menu_filters=not args.no_menu_filters,
             with_rerank=args.with_rerank,
+            latency_repetitions=args.latency_repetitions,
         )
     except (PermissionError, RuntimeError) as error:
         print(str(error), file=sys.stderr)
         return 2
+
+    result["experiment_profile"] = {
+        "name": experiment_profile,
+        "measured_methods": [method.value for method in methods],
+        "not_measured_methods": [
+            method.value for method in DEFAULT_METHODS if method not in methods
+        ],
+    }
 
     serialized = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True)
     if args.output is None:

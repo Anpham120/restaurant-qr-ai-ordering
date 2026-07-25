@@ -698,6 +698,17 @@ public class RestaurantDbContext : DbContext
                 .IsRequired();
             entity.Property(e => e.RollingSummary)
                 .HasColumnName("rolling_summary");
+            entity.Property(e => e.ConstraintsJson)
+                .HasColumnName("constraints_json")
+                .HasColumnType("jsonb");
+            entity.Property(e => e.ReferencedMenuItemIdsJson)
+                .HasColumnName("referenced_menu_item_ids_json")
+                .HasColumnType("jsonb");
+            entity.Property(e => e.MemoryVersion)
+                .HasColumnName("memory_version")
+                .HasMaxLength(50)
+                .HasDefaultValue("v1")
+                .IsRequired();
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
