@@ -53,7 +53,10 @@ RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
 RAG_TOP_K=5
 RAG_RETRIEVAL_METHOD=hybrid
 AI_EMBEDDING_MODEL=e5_small
+AI_LLM_FIRST=true
 ```
+
+`AI_LLM_FIRST=true` (mặc định staging/production): mọi lượt hội thoại/gợi ý đi qua DeepSeek; hybrid RAG và menu live được đưa vào prompt để model quyết dùng nguồn nào. **Ngoại lệ không gọi LLM:** guardrail bảo mật; tra **giá / calo / dị ứng** một món đã resolve (`live_data`); khi `AI_LLM_FIRST=false` các fast-path deterministic legacy (KB, party, pairing, budget) vẫn có thể trả lời sớm (lab).
 
 Cấu hình trên khớp Part II notebook (Hybrid RRF + `intfloat/multilingual-e5-small`). Docker staging/production: xem `deploy/docker-compose.yml` service `ai-service`.
 

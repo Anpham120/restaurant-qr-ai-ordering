@@ -38,6 +38,7 @@ class AiServiceConfig:
     internal_token: str = ""
     pipeline_version: str = "v2"
     rag_config_id: str = "default"
+    llm_first: bool = True
 
     @property
     def timeout_seconds(self) -> float:
@@ -131,7 +132,15 @@ def load_config() -> AiServiceConfig:
         internal_token=os.getenv("AI_INTERNAL_TOKEN", "").strip(),
         pipeline_version=os.getenv("AI_PIPELINE", "v2").strip() or "v2",
         rag_config_id=os.getenv("RAG_CONFIG_ID", "default").strip() or "default",
+        llm_first=_env_flag("AI_LLM_FIRST", default=True),
     )
+
+
+def _env_flag(name: str, *, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _env(*names: str, default: str = "") -> str:

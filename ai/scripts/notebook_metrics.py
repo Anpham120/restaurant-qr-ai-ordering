@@ -486,7 +486,7 @@ def format_part17_bullet_part4(summary: dict[str, Any]) -> str:
     return (
         f"4. **Part IV** — So sánh **3 model** trên cùng 20 query: "
         f"{', '.join(parts)}{latency_note}. "
-        "KB FAQ ổn trên fast-path; Menu/Allergy cần LiveContext + human eval."
+        "KB FAQ ổn trên retrieval eval; production chat **LLM-first** (DeepSeek) với RAG/menu làm ngữ cảnh."
     )
 
 
@@ -507,8 +507,10 @@ def format_production_report_section() -> str:
         "`vietnamese_normalizer` trong BM25 và pipeline query |\n"
         "| **Retrieval Hybrid RRF** (BM25 + Dense E5 small) Part II | **Đã áp dụng** | "
         "`RAG_RETRIEVAL_METHOD=hybrid`, `AI_EMBEDDING_MODEL=e5_small` — ADR retriever |\n"
-        "| **Intent / evidence routing** Part III — KB vs menu vs giỏ | **Đã áp dụng** | "
-        "`intent_classifier` + fast-path (KB, menu, budget, pairing); LLM intent khi câu mơ hồ |\n"
+        "| **Intent / evidence routing** Part III — KB vs menu vs giỏ | **Đã áp dụng (LLM-first)** | "
+        "`AI_LLM_FIRST=true`: DeepSeek quyết định dùng RAG, menu, hay cả hai; "
+        "`live_data` cho giá/calo/dị ứng món cụ thể; fast-path deterministic (KB, party, pairing, budget) "
+        "chỉ còn khi `AI_LLM_FIRST=false` (legacy/lab) |\n"
         "| **Guardrails** — PII, prompt injection, chống tự đặt món / bịa giá | **Đã áp dụng** | "
         "`guardrails.detect_guardrail_flags`; injection **chặn trước LLM** (`assistant.py`) |\n"
         "| **Chặn / xử lý câu hỏi sai chủ đề** Part III | **Đã áp dụng một phần** | "
@@ -526,10 +528,12 @@ def format_production_report_section() -> str:
         "| So sánh **3 model** / metric Part IV | **Không đưa vào production** | "
         "Chỉ phục vụ thí nghiệm và báo cáo |\n"
         "| Human eval, gate chất lượng end-to-end | **Chưa hoàn tất release** | "
-        "[`AI_STAGING_READINESS.md`](../../docs/ai/AI_STAGING_READINESS.md) — **NOT READY** |\n\n"
+        "[`AI_STAGING_READINESS.md`](../../docs/ai/AI_STAGING_READINESS.md) — **NOT READY**; "
+        "ưu tiên LLM-first + eval golden sau thay đổi routing |\n\n"
         "### Stack production nhóm chốt vận hành\n\n"
         "| Thành phần | Giá trị |\n"
         "|---|---|\n"
+        "| Chat routing | `AI_LLM_FIRST=true` (LLM-first) |\n"
         "| Retrieval | `hybrid` + `e5_small` |\n"
         "| LLM | `oc/deepseek-v4-flash-free` (9router) |\n"
         "| Tích hợp | `CHAT_AI_PROVIDER=python-rag`, Docker [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) |\n"
