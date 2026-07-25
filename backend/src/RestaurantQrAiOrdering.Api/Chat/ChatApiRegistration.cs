@@ -8,7 +8,7 @@ public static class ChatApiRegistration
         services.AddScoped<IChatStore, DbChatStore>();
         services.AddScoped<IChatAssistantService, ChatAssistantService>();
         services.AddSingleton<IChatRateLimiter, ChatRateLimiter>();
-        services.AddHttpClient<IChatAiProvider, GeminiChatProvider>();
+        services.AddHttpClient<IChatAiProvider, PythonRagChatProvider>();
 
         return services;
     }

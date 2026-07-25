@@ -12,6 +12,7 @@ safety_level: medium
 ---
 
 # Khẩu Phần Và Số Người
+<!-- question_variants: mấy người ăn, bao nhiêu người, phần ăn, portion size, đủ cho mấy người -->
 
 ## Quy Ước Khẩu Phần
 

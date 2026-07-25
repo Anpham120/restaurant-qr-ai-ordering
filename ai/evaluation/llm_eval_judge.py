@@ -1,4 +1,4 @@
-"""Optional LLM-as-judge scoring for golden LLM evaluation (Gemini rubric)."""
+"""Optional independent LLM-as-judge scoring for golden LLM evaluation."""
 
 from __future__ import annotations
 

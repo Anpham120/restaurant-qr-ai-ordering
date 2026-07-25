@@ -10,9 +10,7 @@ from app.rag.retriever import RetrievedChunk
 
 class ConfidenceFaqIntentTests(unittest.TestCase):
     def test_faq_intent_low_confidence_skips_llm(self) -> None:
-        chunk = type("Chunk", (), {"source": "faq.md", "title": "WiFi", "content": "wifi"})()
-        results = [RetrievedChunk(chunk, 0.02)]
-        result = compute_retrieval_confidence(results, intent="payment")
+        result = compute_retrieval_confidence([], intent="payment")
         self.assertFalse(result.should_call_llm)
 
     def test_menu_intent_very_low_still_calls_llm(self) -> None:

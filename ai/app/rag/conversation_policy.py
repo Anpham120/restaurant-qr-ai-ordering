@@ -460,6 +460,8 @@ def build_prior_suggestion_actions(
                 "requires_customer_confirmation": True,
             }
         )
+        if len(actions) >= policy.max_suggestions:
+            break
     return actions
 
 

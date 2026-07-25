@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace RestaurantQrAiOrdering.Api.Chat;
 
 public sealed record ChatSessionSnapshot(
@@ -31,6 +33,17 @@ public sealed record ChatSessionFactSnapshot(
     string Value,
     double Confidence,
     string? SourceTurnId);
+
+public sealed record ChatSessionStateSnapshot(
+    IReadOnlyList<ChatSessionFactSnapshot> Facts,
+    IReadOnlyDictionary<string, JsonElement> Constraints,
+    IReadOnlyList<string> ReferencedMenuItemIds,
+    IReadOnlyList<string> SuggestedMenuItemIds,
+    IReadOnlyList<string> RejectedMenuItemIds,
+    IReadOnlyList<string> AcceptedMenuItemIds,
+    IReadOnlyList<string> AddedToCartMenuItemIds,
+    string? RollingSummary,
+    string MemoryVersion);
 
 public sealed record ChatSessionCreateResult(
     ChatSessionSnapshot Session,
@@ -66,6 +79,18 @@ public interface IChatStore
         IEnumerable<(string Kind, string Value, double Confidence, string? SourceTurnId)> facts);
 
     IReadOnlyList<ChatSessionFactSnapshot> GetFacts(string chatSessionId);
+
+    ChatSessionStateSnapshot? GetSessionState(string chatSessionId);
+
+    /// <summary>
+    /// Persists AI-owned memory fields. Customer acceptance and cart transitions
+    /// in the supplied payload are deliberately ignored and remain backend-owned.
+    /// </summary>
+    void ApplyAiSessionUpdates(
+        string chatSessionId,
+        ChatSessionUpdates updates,
+        string? assistantTurnId,
+        string? userTurnId);
 
     void UpdateRollingSummary(string chatSessionId, string summary);
 

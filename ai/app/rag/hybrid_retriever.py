@@ -45,24 +45,24 @@ class HybridRrfRetriever:
             return []
 
         candidate_depth = top_k * self._candidate_multiplier
-        chunks_by_source = {}
-        scores_by_source: dict[str, float] = {}
+        chunks_by_id = {}
+        scores_by_id: dict[str, float] = {}
 
         for retriever, weight in zip(self._retrievers, self._weights, strict=True):
             results = retriever.search(query, candidate_depth, filters=filters)
-            seen_sources: set[str] = set()
+            seen_chunk_ids: set[str] = set()
             for rank, result in enumerate(results, start=1):
-                source = result.chunk.source
-                if source in seen_sources:
+                chunk_id = result.chunk.chunk_id
+                if chunk_id in seen_chunk_ids:
                     continue
-                seen_sources.add(source)
-                chunks_by_source.setdefault(source, result.chunk)
-                scores_by_source[source] = scores_by_source.get(source, 0.0) + (
+                seen_chunk_ids.add(chunk_id)
+                chunks_by_id.setdefault(chunk_id, result.chunk)
+                scores_by_id[chunk_id] = scores_by_id.get(chunk_id, 0.0) + (
                     weight / (self._rrf_k + rank)
                 )
 
         fused = [
-            RetrievedChunk(chunk=chunks_by_source[source], score=round(score, 10))
-            for source, score in scores_by_source.items()
+            RetrievedChunk(chunk=chunks_by_id[chunk_id], score=round(score, 10))
+            for chunk_id, score in scores_by_id.items()
         ]
-        return sorted(fused, key=lambda item: (-item.score, item.chunk.source))[:top_k]
+        return sorted(fused, key=lambda item: (-item.score, item.chunk.chunk_id))[:top_k]

@@ -261,12 +261,14 @@ class DenseRetriever:
 
         scored: list[RetrievedChunk] = []
         for chunk, document_vector in zip(self._chunks, self._document_vectors, strict=True):
+            if not chunk.is_current:
+                continue
             if filters is not None and not filters.allows(chunk):
                 continue
             score = sum(left * right for left, right in zip(query_vector, document_vector, strict=True))
             scored.append(RetrievedChunk(chunk=chunk, score=round(score, 8)))
 
-        return sorted(scored, key=lambda item: (-item.score, item.chunk.source))[:top_k]
+        return sorted(scored, key=lambda item: (-item.score, item.chunk.chunk_id))[:top_k]
 
     def _normalize(self, vector: Sequence[float]) -> tuple[float, ...]:
         return _normalize_vector(vector, self._dimension)
@@ -291,7 +293,7 @@ def build_document_vectors_cached(
 
     for index, (chunk, text) in enumerate(zip(chunks, document_texts, strict=True)):
         content_hash = _content_hash(text)
-        cached = cache.get(chunk.source)
+        cached = cache.get(chunk.chunk_id)
         if cached is not None and cached[1] == content_hash:
             vectors[index] = cached[0]
             continue
@@ -306,7 +308,7 @@ def build_document_vectors_cached(
             normalized = _normalize_vector(vector, encoder.dimension)
             vectors[index] = normalized
             content_hash = _content_hash(document_texts[index])
-            cache[chunks[index].source] = (normalized, content_hash)
+            cache[chunks[index].chunk_id] = (normalized, content_hash)
 
     if any(vector is None for vector in vectors):
         raise ValueError("Failed to build embeddings for all chunks")

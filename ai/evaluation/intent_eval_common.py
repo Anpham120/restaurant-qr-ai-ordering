@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.clients.gemini import GeminiClient
+from app.clients.router import RouterClient
 from app.config import AiServiceConfig, load_config
 from app.rag.constraint_extractor import extract_constraints
 from app.rag.conversation_policy import build_conversation_policy
@@ -123,21 +123,20 @@ def score_full(pred: dict[str, Any], expected: dict[str, Any]) -> bool:
     return score_routing(pred, expected) and score_solo_flag(pred, expected)
 
 
-def build_client(config: AiServiceConfig, model: str) -> GeminiClient:
-    return GeminiClient(
+def build_client(config: AiServiceConfig, model: str) -> RouterClient:
+    return RouterClient(
         config.base_url,
         config.api_key,
         model,
         config.intent_classification_timeout_seconds,
         config.max_retry,
-        use_gemini_features=config.uses_gemini_native_features,
     )
 
 
 async def hybrid_route(
     message: str,
     *,
-    client: GeminiClient | None,
+    client: RouterClient | None,
     config: AiServiceConfig,
     history: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], float | None, bool]:

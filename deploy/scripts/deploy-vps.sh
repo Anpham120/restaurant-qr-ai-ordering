@@ -22,8 +22,10 @@ required_vars=(
   PAYMENTS__VIETQR__ACCOUNTNUMBER
   PAYMENTS__VIETQR__ACCOUNTNAME
   AI_SERVICE_URL
-  AI_MODEL
-  GEMINI_API_KEY
+  AI_INTERNAL_TOKEN
+  LLM_PROVIDER
+  LLM_API_KEY
+  LLM_MODEL
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -96,12 +98,14 @@ FRONTEND_SERVER_NAMES=$(env_quote "$FRONTEND_SERVER_NAMES")
   PAYMENTS__VIETQR__ACCOUNTNAME=$(env_quote "$PAYMENTS__VIETQR__ACCOUNTNAME")
   PAYMENTS__VIETQR__TEMPLATE=$(env_quote "${PAYMENTS__VIETQR__TEMPLATE:-compact2}")
 RUN_DB_MIGRATIONS_ON_STARTUP=$(env_quote "${RUN_DB_MIGRATIONS_ON_STARTUP:-false}")
-AI_PROVIDER=$(env_quote "${AI_PROVIDER:-python-rag}")
+CHAT_AI_PROVIDER=$(env_quote "${CHAT_AI_PROVIDER:-python-rag}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
-AI_LLM_PROVIDER=$(env_quote "${AI_LLM_PROVIDER:-gemini}")
-GEMINI_API_KEY=$(env_quote "$GEMINI_API_KEY")
-AI_MODEL=$(env_quote "$AI_MODEL")
+AI_INTERNAL_TOKEN=$(env_quote "$AI_INTERNAL_TOKEN")
+LLM_PROVIDER=$(env_quote "${LLM_PROVIDER:-9router}")
+LLM_BASE_URL=$(env_quote "${LLM_BASE_URL:-}")
+LLM_API_KEY=$(env_quote "$LLM_API_KEY")
+LLM_MODEL=$(env_quote "$LLM_MODEL")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
 RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")

@@ -14,16 +14,19 @@ safety_level: low
 # Phương Pháp Nấu
 
 ## Chiên / Rán
+<!-- question_variants: chiên, fried, chiên giòn, deep fried -->
 
 - m_002, m_003, m_006, m_038 — giòn, nhiều dầu hơn món hấp/luộc.
 - Khách "ít dầu" nên chuyển sang món cuốn, hấp, nướng.
 
 ## Nướng / Rang
+<!-- question_variants: nướng, grilled, BBQ, đồ nướng, nướng than -->
 
 - m_023, m_024, m_036, m_040 — đậm vị, phù hợp nhậu.
 - m_022 tôm hùm nướng — món cao cấp, thời gian chế biến lâu hơn.
 
 ## Hấp / Luộc
+<!-- question_variants: hấp, steamed, món hấp -->
 
 - m_037, m_027, m_009 — thanh, ít dầu.
 - Phù hợp người cao tuổi, ăn kiêng.

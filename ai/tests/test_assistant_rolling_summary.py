@@ -29,10 +29,10 @@ class _EmptyRetriever:
 class AssistantRollingSummaryResponseTests(unittest.TestCase):
     def test_chat_response_includes_updated_rolling_summary(self) -> None:
         config = AiServiceConfig(
-            provider="gemini",
+            provider="9router",
             base_url="https://example.com/v1",
             api_key="test-key",
-            model="test-model",
+            model="cx/gpt-5.5",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,
@@ -40,7 +40,7 @@ class AssistantRollingSummaryResponseTests(unittest.TestCase):
             reasoning_effort="low",
             knowledge_base_path=Path(__file__).resolve().parents[1] / "knowledge-base",
             top_k=3,
-            retrieval_method="hybrid",
+            retrieval_method="bm25",
         )
         service = AiAssistantService(config, llm_client=None)
         service._retriever = _EmptyRetriever()  # noqa: SLF001

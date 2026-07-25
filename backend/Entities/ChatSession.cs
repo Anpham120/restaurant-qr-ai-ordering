@@ -30,6 +30,15 @@ public class ChatSession
     /// <summary>LLM rolling summary of older turns in this session.</summary>
     public string? RollingSummary { get; set; }
 
+    /// <summary>JSON object containing typed conversation constraints.</summary>
+    public string? ConstraintsJson { get; set; }
+
+    /// <summary>JSON array containing menu item IDs referenced during the session.</summary>
+    public string? ReferencedMenuItemIdsJson { get; set; }
+
+    /// <summary>Version of the typed memory contract persisted for this session.</summary>
+    public string MemoryVersion { get; set; } = "v1";
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

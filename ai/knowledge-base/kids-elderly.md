@@ -12,6 +12,7 @@ safety_level: high
 ---
 
 # Trẻ Em Và Người Cao Tuổi
+<!-- question_variants: trẻ em, con nít, kids menu, menu trẻ em, bé ăn gì -->
 
 ## Trẻ Em
 
@@ -20,6 +21,7 @@ safety_level: high
 - Không gợi ý bia/rượu (m_085–m_091) cho trẻ em.
 
 ## Người Cao Tuổi
+<!-- question_variants: người già, elderly, người cao tuổi, ông bà ăn gì -->
 
 - Ưu tiên món mềm, ít dầu: m_004, m_007, m_009, m_037, m_053.
 - Phở/bún nóng: nhắc khách cẩn thận nhiệt độ.

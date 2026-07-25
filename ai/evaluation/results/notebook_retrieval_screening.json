@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-07-24T16:10:36",
+  "method": "hybrid_rrf",
+  "hit5_overall": 0.8504672897196262,
+  "hit5_by_group": {
+    "clean_kb": {
+      "hit5": 1.0,
+      "n": 35
+    },
+    "noisy": {
+      "hit5": 0.7358490566037735,
+      "n": 53
+    },
+    "vocab": {
+      "hit5": 0.8947368421052632,
+      "n": 19
+    }
+  },
+  "eval_case_count": 107
+}

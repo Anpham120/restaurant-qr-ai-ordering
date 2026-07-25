@@ -11,6 +11,24 @@ from pathlib import Path
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 
+def classify_failure(case: dict[str, object]) -> str:
+    if case.get("route_expected") and case.get("route_actual") != case.get("route_expected"):
+        return "wrong_route"
+    if case.get("abstain_reason") == "unresolved_reference":
+        return "unresolved_reference"
+    if "STALE_DATA" in (case.get("guardrail_flags") or []):
+        return "stale_data"
+    if case.get("schema_valid") is False or case.get("llm_success") is False:
+        return "provider_schema_failure"
+    if case.get("expected_chunk_hit") is False or case.get("expected_source_hit") is False:
+        return "retrieval_miss"
+    if case.get("evidence_sufficient") is False:
+        return "insufficient_evidence"
+    if case.get("claims_verified") is False:
+        return "unsupported_claim"
+    return "other"
+
+
 def export_error_analysis(artifact_paths: list[Path], output_csv: Path) -> dict[str, object]:
     rows: list[dict[str, str]] = []
     by_family: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "fail": 0})
@@ -32,13 +50,14 @@ def export_error_analysis(artifact_paths: list[Path], output_csv: Path) -> dict[
                     "composite_pass": str(composite_pass),
                     "grounding_pass": str(case.get("grounding_pass")),
                     "llm_success": str(case.get("llm_success")),
+                    "failure_type": "none" if composite_pass else classify_failure(case),
                 }
             )
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     with output_csv.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["artifact", "case_id", "family", "composite_pass", "grounding_pass", "llm_success"],
+            fieldnames=["artifact", "case_id", "family", "composite_pass", "grounding_pass", "llm_success", "failure_type"],
         )
         writer.writeheader()
         writer.writerows(rows)

@@ -4,6 +4,7 @@ import unittest
 from collections.abc import Sequence
 
 from app.rag.embedding_retriever import DenseRetriever, SentenceTransformerE5Encoder
+from app.rag.embedding_retriever import build_document_vectors_cached
 from app.rag.knowledge_base import KnowledgeChunk
 from app.rag.retriever import RetrievalFilters
 
@@ -88,6 +89,23 @@ class DenseRetrieverTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "must not be all zeros"):
             retriever.search("món biển")
+
+    def test_vector_cache_keys_by_chunk_id_not_source_filename(self) -> None:
+        chunks = [
+            KnowledgeChunk(source="faq.md", title="Giờ mở cửa", content="Nhà hàng mở cửa.", tags=("faq",)),
+            KnowledgeChunk(source="faq.md", title="WiFi", content="Nhà hàng có wifi.", tags=("faq",)),
+        ]
+        texts = ["Tôm nướng", "Bò nướng"]
+        cache: dict[str, tuple[tuple[float, ...], str]] = {}
+
+        vectors = build_document_vectors_cached(chunks, texts, FakeEncoder(), cache)
+
+        self.assertEqual(2, len(vectors))
+        self.assertEqual(2, len(cache))
+        self.assertEqual(
+            {chunk.chunk_id for chunk in chunks},
+            set(cache.keys()),
+        )
 
 
 if __name__ == "__main__":

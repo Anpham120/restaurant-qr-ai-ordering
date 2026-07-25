@@ -69,6 +69,8 @@ def rewrite_query(
     history: list[dict[str, Any]] | None = None,
     *,
     intent: IntentResult | None = None,
+    session_state: dict[str, Any] | None = None,
+    rolling_summary: str = "",
 ) -> str:
     """Rewrite a user query for better RAG retrieval.
 
@@ -124,11 +126,74 @@ def rewrite_query(
         if context:
             parts.append(context)
 
+    reference_context = _extract_reference_context(original, history or [], session_state or {})
+    if reference_context:
+        parts.append(reference_context)
+
+    typed_context = _extract_typed_state_context(session_state or {}, rolling_summary)
+    if typed_context:
+        parts.append(typed_context)
+
     # Dedupe and join
     if len(parts) <= 1:
         return normalized if normalized != original else original
 
     return " | ".join(parts)
+
+
+def _extract_reference_context(
+    message: str,
+    history: list[dict[str, Any]],
+    session_state: dict[str, Any],
+) -> str:
+    normalized = normalize_query_text(message)
+    referential_terms = (
+        "cai do",
+        "mon do",
+        "mon nay",
+        "no bao nhieu",
+        "cai nay",
+        "that one",
+        "it cost",
+    )
+    if not any(term in normalized for term in referential_terms):
+        return ""
+
+    for turn in reversed(history):
+        actions = list(turn.get("suggested_cart_actions") or [])
+        for action in reversed(actions):
+            item_id = str(action.get("menu_item_id") or "").strip()
+            name = str(action.get("name") or "").strip()
+            if item_id or name:
+                return f"tham chieu mon {name} {item_id}".strip()
+
+    for key in (
+        "referenced_menu_item_ids",
+        "accepted_menu_item_ids",
+        "suggested_menu_item_ids",
+    ):
+        ids = [str(value).strip() for value in (session_state.get(key) or []) if str(value).strip()]
+        if ids:
+            return f"tham chieu menu id {ids[-1]}"
+    return ""
+
+
+def _extract_typed_state_context(session_state: dict[str, Any], rolling_summary: str) -> str:
+    parts: list[str] = []
+    constraints = session_state.get("constraints") or {}
+    for key in sorted(constraints)[:6]:
+        value = constraints[key]
+        if value not in (None, "", [], {}):
+            parts.append(f"{key}={value}")
+    for fact in list(session_state.get("facts") or [])[:4]:
+        kind = str(fact.get("kind") or "").strip()
+        value = str(fact.get("value") or "").strip()
+        if kind and value:
+            parts.append(f"{kind}={value}")
+    summary = normalize_query_text(rolling_summary)[:160].strip()
+    if summary:
+        parts.append(f"tom tat phien {summary}")
+    return " ".join(parts)
 
 
 def _expand_synonyms(text: str) -> list[str]:

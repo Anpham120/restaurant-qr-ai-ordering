@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Entities;
@@ -83,6 +84,102 @@ public sealed class ChatStoreTests
 
         Assert.Contains("m_001", excluded);
         Assert.Contains("m_002", excluded);
+    }
+
+    [Fact]
+    public void SessionStatePersistence_AppliesSafeV2StateAndPreservesBackendOwnedTransitions()
+    {
+        var options = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        using var db = new RestaurantDbContext(options);
+        SeedOpenTableSession(db, "ts_v2_state");
+        var store = new DbChatStore(db);
+        var created = store.CreateOrGetSession("T01", "ts_v2_state");
+        var constraints = new Dictionary<string, JsonElement>
+        {
+            ["budget_vnd"] = JsonSerializer.SerializeToElement(500_000),
+            ["diet"] = JsonSerializer.SerializeToElement(new[] { "vegetarian" })
+        };
+        var updates = new ChatSessionUpdates(
+            [new ChatFactToPersist("party_size", "6", 0.98)],
+            constraints,
+            ["m_ref"],
+            ["m_suggested"],
+            ["m_rejected"],
+            ["m_accepted"],
+            ["m_cart"],
+            "Six guests, vegetarian, budget 500k.",
+            "v2");
+        var reply = new ChatAssistantReply(
+            "Reply",
+            [],
+            [],
+            SessionUpdates: updates);
+        store.UpsertRecommendations(
+            created.Session.Id,
+            [
+                ("m_trusted_accepted", "accepted", (string?)"trusted-user-turn"),
+                ("m_trusted_cart", "added_to_cart", (string?)"trusted-cart-turn")
+            ]);
+
+        ChatSessionStatePersistence.ApplyAssistantReply(
+            store,
+            created.Session.Id,
+            reply,
+            assistantTurnId: "assistant-turn",
+            userTurnId: "user-turn");
+
+        var state = Assert.IsType<ChatSessionStateSnapshot>(store.GetSessionState(created.Session.Id));
+        Assert.Equal("v2", state.MemoryVersion);
+        Assert.Equal("Six guests, vegetarian, budget 500k.", state.RollingSummary);
+        Assert.Equal(500_000, state.Constraints["budget_vnd"].GetInt32());
+        Assert.Equal("vegetarian", state.Constraints["diet"][0].GetString());
+        Assert.Equal(["m_ref"], state.ReferencedMenuItemIds);
+        Assert.Equal(["m_suggested"], state.SuggestedMenuItemIds);
+        Assert.Equal(["m_rejected"], state.RejectedMenuItemIds);
+        Assert.Equal(["m_trusted_accepted"], state.AcceptedMenuItemIds);
+        Assert.Equal(["m_trusted_cart"], state.AddedToCartMenuItemIds);
+        Assert.DoesNotContain("m_accepted", state.AcceptedMenuItemIds);
+        Assert.DoesNotContain("m_cart", state.AddedToCartMenuItemIds);
+        var fact = Assert.Single(state.Facts);
+        Assert.Equal("party_size", fact.Kind);
+        Assert.Equal("6", fact.Value);
+        Assert.Equal("assistant-turn", fact.SourceTurnId);
+    }
+
+    [Fact]
+    public void SessionStatePersistence_KeepsLegacyReplyFallbackForOneRelease()
+    {
+        var options = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        using var db = new RestaurantDbContext(options);
+        SeedOpenTableSession(db, "ts_legacy_state");
+        var store = new DbChatStore(db);
+        var created = store.CreateOrGetSession("T01", "ts_legacy_state");
+        var reply = new ChatAssistantReply(
+            "Legacy reply",
+            [],
+            [],
+            FactsToPersist: [new ChatFactToPersist("allergen", "peanut", 0.99)],
+            RejectedMenuItemIds: ["m_legacy_rejected"],
+            UpdatedRollingSummary: "Legacy summary");
+
+        ChatSessionStatePersistence.ApplyAssistantReply(
+            store,
+            created.Session.Id,
+            reply,
+            assistantTurnId: "assistant-legacy",
+            userTurnId: "user-legacy");
+
+        var state = Assert.IsType<ChatSessionStateSnapshot>(store.GetSessionState(created.Session.Id));
+        Assert.Equal("v1", state.MemoryVersion);
+        Assert.Equal("Legacy summary", state.RollingSummary);
+        Assert.Equal(["m_legacy_rejected"], state.RejectedMenuItemIds);
+        var fact = Assert.Single(state.Facts);
+        Assert.Equal("allergen", fact.Kind);
+        Assert.Equal("peanut", fact.Value);
     }
 
     private static void SeedOpenTableSession(RestaurantDbContext db, string sessionId)

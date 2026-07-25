@@ -11,6 +11,7 @@ from app.rag.conversation_policy import (
 )
 from app.rag.policy_faq_fast_path import try_wifi_policy_fast_path
 from app.rag.guardrails import detect_guardrail_flags
+from app.rag.knowledge_base import stable_chunk_id
 from app.rag.retriever import RetrievalFilters, Retriever
 from app.rag.vietnamese_normalizer import normalize_query_text
 
@@ -215,7 +216,8 @@ def _relevance_score(normalized_query: str, item: Any, preferred_sources: tuple[
 
 
 def _format_chunk_answer(content: str) -> str:
-    text = re.sub(r"^#+\s*", "", content.strip(), flags=re.MULTILINE)
+    text = re.sub(r"<!--.*?-->", "", content.strip(), flags=re.DOTALL)
+    text = re.sub(r"^#+\s*", "", text.strip(), flags=re.MULTILINE)
     text = re.sub(r"\n{3,}", "\n\n", text)
     paragraphs = [part.strip() for part in text.split("\n\n") if part.strip()]
     if not paragraphs:
@@ -246,6 +248,16 @@ def _build_fast_path_response(
     model: str,
     history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    document_id = str(getattr(item.chunk, "document_id", "") or item.chunk.source)
+    section_path = tuple(
+        getattr(item.chunk, "section_path", ()) or (item.chunk.title,)
+    )
+    chunk_id = str(getattr(item.chunk, "chunk_id", "") or "") or stable_chunk_id(
+        document_id=document_id,
+        section_path=section_path,
+        content_hash="",
+    )
+    claim_text = content.strip()
     if history:
         content = _apply_session_context_prefix(content, history)
     flags: list[str] = []
@@ -265,6 +277,26 @@ def _build_fast_path_response(
                 "source": item.chunk.source,
                 "title": item.chunk.title,
                 "score": float(item.score),
+                "chunk_id": chunk_id,
+                "document_id": document_id,
+                "section_path": list(section_path),
+            }
+        ],
+        "evidence": [
+            {
+                "source": item.chunk.source,
+                "title": item.chunk.title,
+                "chunk_id": chunk_id,
+                "section": " / ".join(section_path),
+                "score": float(item.score),
+            }
+        ],
+        "claims": [
+            {
+                "text": claim_text,
+                "evidence_ids": [chunk_id],
+                "verified": True,
+                "reason": None,
             }
         ],
         "guardrail_flags": flags,

@@ -17,10 +17,10 @@ class _FailingClient:
 class MenuFallbackTests(unittest.TestCase):
     def test_recommendation_query_falls_back_to_real_menu_items(self) -> None:
         config = AiServiceConfig(
-            provider="gemini",
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            provider="9router",
+            base_url="http://localhost:20128/v1",
             api_key="test-key",
-            model="gemini-test",
+            model="cx/gpt-5.5",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,
@@ -71,10 +71,10 @@ class MenuFallbackTests(unittest.TestCase):
 
     def test_stream_without_llm_uses_menu_fallback(self) -> None:
         config = AiServiceConfig(
-            provider="gemini",
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            provider="9router",
+            base_url="http://localhost:20128/v1",
             api_key="",
-            model="gemini-test",
+            model="cx/gpt-5.5",
             llm_timeout_seconds=1,
             request_budget_seconds=2,
             max_retry=0,

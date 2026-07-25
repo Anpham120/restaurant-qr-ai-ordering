@@ -19,7 +19,6 @@ export function MenuHubPage() {
       title="Thực đơn"
       description="Quản lý món và danh mục trên cùng một màn hình."
       tabs={MENU_TABS}
-      stickyTabs={false}
     >
       {activeTab === "items" ? <AdminMenuManager embedded /> : null}
       {activeTab === "categories" ? <AdminCategoryManager embedded /> : null}
