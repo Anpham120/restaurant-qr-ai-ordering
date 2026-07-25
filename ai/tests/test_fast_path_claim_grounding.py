@@ -174,6 +174,96 @@ class FastPathClaimGroundingTests(unittest.TestCase):
         self.assertEqual("abstain", finalized["decision"]["route"])
         self.assertEqual("unverified_claims", finalized["decision"]["abstain_reason"])
 
+    def test_verified_menu_claim_without_cart_action_gets_live_menu_evidence(self) -> None:
+        response = {
+            "content": "Nhà hàng hiện có Phở bò tái.",
+            "provider_available": True,
+            "model": "oc/deepseek-v4-flash-free",
+            "retrieved_sources": [],
+            "claims": [
+                {
+                    "text": "Nhà hàng hiện có Phở bò tái.",
+                    "evidence_ids": ["m_001"],
+                    "verified": True,
+                    "reason": None,
+                }
+            ],
+            "guardrail_flags": [],
+            "suggested_cart_actions": [],
+            "follow_up": {"can_show_more": False, "remaining_count": 0},
+            "latency_ms": {"path": "llm"},
+        }
+        context = {
+            "intent": "browse_menu",
+            "pipeline_version": "v3",
+            "pipeline_profile": "llm_first_v1",
+            "message": "Nhà hàng có những món phở gì?",
+            "session_state": {},
+            "constraints": {},
+            "facts": [],
+            "available_menu_items": [
+                {
+                    "id": "m_001",
+                    "name": "Phở bò tái",
+                    "price_vnd": 85000,
+                    "is_available": True,
+                }
+            ],
+            "chunks": [],
+        }
+
+        finalized = _finalize_response_payload(response, context)
+
+        self.assertEqual("live_data", finalized["decision"]["route"])
+        self.assertEqual("m_001", finalized["evidence"][0]["menu_item_id"])
+        self.assertNotIn("EVIDENCE_INSUFFICIENT", finalized["guardrail_flags"])
+
+    def test_resolved_menu_ids_follow_actions_not_all_candidate_evidence(self) -> None:
+        response = {
+            "content": "Mình gợi ý Phở gà rồi Phở bò.",
+            "provider_available": True,
+            "model": "test",
+            "suggested_cart_actions": [
+                {"menu_item_id": "m_009", "name": "Phở gà"},
+                {"menu_item_id": "m_008", "name": "Phở bò"},
+            ],
+            "claims": [
+                {
+                    "text": "Hai món đều có trong menu.",
+                    "evidence_ids": ["m_009", "m_008"],
+                    "verified": True,
+                }
+            ],
+            "evidence": [
+                {"source": "live_menu", "menu_item_id": "m_candidate"},
+                {"source": "live_menu", "menu_item_id": "m_008"},
+                {"source": "live_menu", "menu_item_id": "m_009"},
+            ],
+            "guardrail_flags": [],
+            "latency_ms": {"path": "llm"},
+        }
+        context = {
+            "pipeline_version": "v2",
+            "pipeline_profile": "planner_state_v3",
+            "model": "oc/deepseek-v4-flash-free",
+            "session_state": {
+                "conversation_frame": {"turn_sequence": 1},
+            },
+            "available_menu_items": [
+                {"id": "m_008", "name": "Phở bò", "price_vnd": 75000},
+                {"id": "m_009", "name": "Phở gà", "price_vnd": 70000},
+                {"id": "m_candidate", "name": "Bún", "price_vnd": 65000},
+            ],
+        }
+
+        finalized = _finalize_response_payload(response, context)
+
+        self.assertEqual(["m_009", "m_008"], finalized["resolved_menu_item_ids"])
+        self.assertEqual(
+            ["m_009", "m_008"],
+            finalized["session_updates"]["conversation_frame"]["focus_menu_item_ids"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

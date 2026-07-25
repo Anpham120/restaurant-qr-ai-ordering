@@ -119,6 +119,52 @@ class ChatContractV2Tests(unittest.TestCase):
         self.assertEqual(3.5, item.sugar_g)
         self.assertEqual(["gluten"], item.allergens)
 
+    def test_v2_contract_carries_pipeline_profile_and_typed_conversation_frame(self) -> None:
+        request = ChatRequest(
+            contract_version="v2",
+            message="Món thứ hai bao nhiêu tiền?",
+            pipeline_profile="planner_state_v3",
+            session_state={
+                "memory_version": "v2",
+                "conversation_frame": {
+                    "active_topic": "menu",
+                    "active_intent": "ask_price",
+                    "focus_menu_item_ids": ["m_002"],
+                    "turn_sequence": 3,
+                    "pending_clarification": None,
+                },
+            },
+        )
+
+        self.assertEqual("planner_state_v3", request.pipeline_profile)
+        self.assertEqual(
+            ["m_002"],
+            request.session_state.conversation_frame.focus_menu_item_ids,
+        )
+        self.assertEqual(3, request.session_state.conversation_frame.turn_sequence)
+
+        response = ChatResponse(
+            content="Món thứ hai có giá 80.000 đồng.",
+            provider_available=False,
+            model="deterministic-live-menu",
+            pipeline_profile="planner_state_v3",
+            resolved_menu_item_ids=["m_002"],
+            verifier_result="passed",
+            session_updates={
+                "memory_version": "v2",
+                "conversation_frame": {
+                    "active_topic": "menu",
+                    "active_intent": "ask_price",
+                    "focus_menu_item_ids": ["m_002"],
+                    "turn_sequence": 4,
+                },
+            },
+        )
+
+        self.assertEqual("planner_state_v3", response.pipeline_profile)
+        self.assertEqual(["m_002"], response.resolved_menu_item_ids)
+        self.assertEqual("passed", response.verifier_result)
+
 
 if __name__ == "__main__":
     unittest.main()

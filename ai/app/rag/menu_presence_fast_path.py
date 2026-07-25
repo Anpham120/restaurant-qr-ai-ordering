@@ -41,6 +41,16 @@ _OPEN_MENU_BROWSE_TERMS = (
 def _is_menu_presence_query(normalized: str) -> bool:
     padded = f" {normalized} "
     has_khong = " khong" in padded or normalized.endswith(" khong")
+    if any(
+        phrase in normalized
+        for phrase in (
+            "khong phai bia",
+            "khong muon bia",
+            "khong lay bia",
+            "tranh bia",
+        )
+    ):
+        return False
     if any(term in normalized for term in _OPEN_MENU_BROWSE_TERMS):
         return False
     if has_khong and _menu_keywords(normalized):
@@ -71,6 +81,7 @@ def _menu_keywords(normalized_query: str) -> list[str]:
         "dessert",
         "tra",
         "bia",
+        "nhau",
     ):
         if keyword in tokens:
             keywords.append(keyword)
@@ -111,7 +122,19 @@ def try_menu_presence_fast_path(
         item
         for item in menu_items
         if bool(item.get("is_available", True))
-        and any(keyword in _normalize(str(item.get("name") or "")) for keyword in keywords)
+        and any(
+            keyword
+            in _normalize(
+                " ".join(
+                    [
+                        str(item.get("name") or ""),
+                        str(item.get("category_name") or item.get("category") or ""),
+                        " ".join(str(tag) for tag in (item.get("tags") or [])),
+                    ]
+                )
+            )
+            for keyword in keywords
+        )
     ]
     if not matched:
         return None

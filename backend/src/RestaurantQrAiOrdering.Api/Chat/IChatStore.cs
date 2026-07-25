@@ -34,6 +34,21 @@ public sealed record ChatSessionFactSnapshot(
     double Confidence,
     string? SourceTurnId);
 
+public sealed record ChatPendingClarification(
+    string Slot,
+    string Question,
+    IReadOnlyList<string> CandidateMenuItemIds);
+
+public sealed record ChatConversationFrame(
+    string? ActiveTopic,
+    string? ActiveIntent,
+    IReadOnlyList<string> FocusMenuItemIds,
+    string? ResolvedCategory,
+    IReadOnlyList<string> ResolvedTags,
+    int TurnSequence,
+    ChatPendingClarification? PendingClarification,
+    IReadOnlyDictionary<string, JsonElement> ConstraintProvenance);
+
 public sealed record ChatSessionStateSnapshot(
     IReadOnlyList<ChatSessionFactSnapshot> Facts,
     IReadOnlyDictionary<string, JsonElement> Constraints,
@@ -43,7 +58,8 @@ public sealed record ChatSessionStateSnapshot(
     IReadOnlyList<string> AcceptedMenuItemIds,
     IReadOnlyList<string> AddedToCartMenuItemIds,
     string? RollingSummary,
-    string MemoryVersion);
+    string MemoryVersion,
+    ChatConversationFrame? ConversationFrame = null);
 
 public sealed record ChatSessionCreateResult(
     ChatSessionSnapshot Session,

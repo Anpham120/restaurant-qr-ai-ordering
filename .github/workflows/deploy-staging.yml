@@ -56,7 +56,8 @@ jobs:
       LLM_PROVIDER: 9router
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
-      LLM_MODEL: ${{ vars.LLM_MODEL || 'oc/deepseek-v4-flash-free' }}
+      LLM_MODEL: oc/deepseek-v4-flash-free
+      AI_PIPELINE_PROFILE: ${{ vars.AI_PIPELINE_PROFILE }}
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
       AI_LLM_FIRST: "true"
@@ -67,6 +68,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Python for controlled pipeline evaluation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AI evaluation dependencies
+        run: python -m pip install -r ai/requirements.txt
+
+      - name: Compare all pipeline profiles with DeepSeek
+        env:
+          PYTHONPATH: ai
+        run: python ai/evaluation/run_pipeline_profile_eval.py
+
+      - name: Bind staging configuration to the research winner
+        env:
+          PYTHONPATH: ai
+        run: |
+          args=()
+          if [ -n "${AI_PIPELINE_PROFILE:-}" ]; then
+            args+=(--expected-profile "$AI_PIPELINE_PROFILE")
+          fi
+          python ai/evaluation/verify_pipeline_selection.py \
+            ai/evaluation/results/pipeline_selection.json \
+            --expected-model oc/deepseek-v4-flash-free \
+            --expected-commit "$GITHUB_SHA" \
+            --github-env "$GITHUB_ENV" \
+            "${args[@]}"
+
+      - name: Upload pipeline selection evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-selection-staging-${{ github.sha }}
+          path: ai/evaluation/results/pipeline_selection.json
+          if-no-files-found: error
 
       - name: Deploy to staging VPS
         run: bash deploy/scripts/deploy-vps.sh
@@ -82,6 +118,7 @@ jobs:
             echo "- Kitchen board: https://kitchen-staging.cmcrestaurant.app"
             echo "- API health: https://api-staging.cmcrestaurant.app/api/health"
             echo "- AI smoke: included in deploy health-check (/ready + /v1/chat)"
+            echo "- Pipeline profile: ${AI_PIPELINE_PROFILE}"
             echo "- Runbook: docs/ai/VPS_STAGING_AI_RUNBOOK.md"
             echo "- Result: workflow reached post-deploy summary"
           } >> "$GITHUB_STEP_SUMMARY"

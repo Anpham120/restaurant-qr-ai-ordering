@@ -30,6 +30,61 @@ FAIL_CLOSED_CONTENT_MARKERS = (
 UNKNOWN_ROUTES = frozenset({None, "?", "unknown", ""})
 
 
+def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
+    rows = []
+    for candidate in artifact.get("profiles") or []:
+        metrics = candidate.get("metrics") or {}
+        rows.append(
+            {
+                "profile": str(candidate.get("profile") or ""),
+                "safety_passed": bool(metrics.get("safety_passed")),
+                "unsupported_claims": int(metrics.get("unsupported_claims") or 0),
+                "strict_semantic_success": float(
+                    metrics.get("strict_semantic_success") or 0.0
+                ),
+                "context_accuracy": float(metrics.get("context_accuracy") or 0.0),
+                "p95_latency_ms": float(metrics.get("p95_latency_ms") or 0.0),
+                "mean_llm_calls": float(metrics.get("mean_llm_calls") or 0.0),
+                "run_to_run_disagreement_rate": float(
+                    metrics.get("run_to_run_disagreement_rate") or 0.0
+                ),
+            }
+        )
+    return {
+        "winner": artifact.get("winner"),
+        "selection_reason": artifact.get("selection_reason"),
+        "model": artifact.get("model"),
+        "commit_sha": artifact.get("commit_sha"),
+        "working_tree_dirty": bool(artifact.get("working_tree_dirty")),
+        "dataset_hash": artifact.get("dataset_hash"),
+        "generated_at": artifact.get("generated_at"),
+        "rows": rows,
+    }
+
+
+def format_pipeline_selection_conclusion(artifact: dict[str, Any]) -> str:
+    summary = summarize_pipeline_selection(artifact)
+    winner = summary["winner"]
+    if not winner:
+        return (
+            "**DEPLOY BLOCKED** — không profile nào qua safety hard gate; "
+            f"lý do: `{summary['selection_reason'] or 'unknown'}`."
+        )
+    provenance_warning = (
+        "**LOCAL RESEARCH ONLY** — working tree còn thay đổi; CI phải chạy lại trên "
+        "commit sạch trước deploy. "
+        if summary["working_tree_dirty"]
+        else ""
+    )
+    return provenance_warning + (
+        f"Production phải chạy **`{winner}`** với model "
+        f"**`{summary['model']}`**, vì đây là winner sau thứ tự "
+        "an toàn → strict semantic quality → context → p95 latency → số lượt LLM. "
+        f"Artifact gắn với commit `{summary['commit_sha']}` và dataset "
+        f"`{summary['dataset_hash']}`."
+    )
+
+
 def _query_text(query_obj: Any) -> str:
     if isinstance(query_obj, dict):
         return str(query_obj.get("query", ""))
@@ -507,10 +562,8 @@ def format_production_report_section() -> str:
         "`vietnamese_normalizer` trong BM25 và pipeline query |\n"
         "| **Retrieval Hybrid RRF** (BM25 + Dense E5 small) Part II | **Đã áp dụng** | "
         "`RAG_RETRIEVAL_METHOD=hybrid`, `AI_EMBEDDING_MODEL=e5_small` — ADR retriever |\n"
-        "| **Intent / evidence routing** Part III — KB vs menu vs giỏ | **Đã áp dụng (LLM-first)** | "
-        "`AI_LLM_FIRST=true`: DeepSeek quyết định dùng RAG, menu, hay cả hai; "
-        "`live_data` cho giá/calo/dị ứng món cụ thể; fast-path deterministic (KB, party, pairing, budget) "
-        "chỉ còn khi `AI_LLM_FIRST=false` (legacy/lab) |\n"
+        "| **Ba profile pipeline** Part III | **Đã áp dụng để thử nghiệm** | "
+        "`llm_first_v1`, `evidence_first_v2`, `planner_state_v3`; production chỉ bật winner |\n"
         "| **Guardrails** — PII, prompt injection, chống tự đặt món / bịa giá | **Đã áp dụng** | "
         "`guardrails.detect_guardrail_flags`; injection **chặn trước LLM** (`assistant.py`) |\n"
         "| **Chặn / xử lý câu hỏi sai chủ đề** Part III | **Đã áp dụng một phần** | "
@@ -519,8 +572,8 @@ def format_production_report_section() -> str:
         "| **Ngữ cảnh hội thoại** (session, rolling summary, lịch sử) Part III | **Đã áp dụng** | "
         "Backend gửi `session_memory`, `rolling_summary`, `session_state`, history → "
         "`rewrite_query` và prompt LLM |\n"
-        "| **Claim Verifier** chống bịa sau LLM | **Đã áp dụng (KB)** | "
-        "`verify_claims` trên chunk KB + menu id; câu menu phức tạp vẫn phụ thuộc LiveContext (§16) |\n"
+        "| **Claim Verifier** chống bịa sau LLM | **Đã áp dụng (KB + LiveContext)** | "
+        "`verify_claims` trên chunk KB và live menu IDs; evidence assembly dùng chung cho ba profile |\n"
         "| **Structured response** (evidence, claims, guardrail_flags, cart gợi ý) | **Đã áp dụng** | "
         "Contract `/v1/chat` — backend kiểm tra trước khi hiển thị |\n"
         "| **LLM DeepSeek** qua 9router | **Đã áp dụng (staging/production)** | "
@@ -533,16 +586,16 @@ def format_production_report_section() -> str:
         "### Stack production nhóm chốt vận hành\n\n"
         "| Thành phần | Giá trị |\n"
         "|---|---|\n"
-        "| Chat routing | `AI_LLM_FIRST=true` (LLM-first) |\n"
+        "| Chat routing | `AI_PIPELINE_PROFILE=<winner từ pipeline_selection.json>` |\n"
         "| Retrieval | `hybrid` + `e5_small` |\n"
-        "| LLM | `oc/deepseek-v4-flash-free` (9router) |\n"
+        "| LLM duy nhất | `oc/deepseek-v4-flash-free` (9router), không GPT fallback |\n"
         "| Tích hợp | `CHAT_AI_PROVIDER=python-rag`, Docker [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) |\n"
         "| Kiểm tra sau deploy | [`VPS_STAGING_AI_RUNBOOK.md`](../../docs/ai/VPS_STAGING_AI_RUNBOOK.md) |\n\n"
         "### Kết luận báo cáo\n\n"
         "Notebook chứng minh **phương pháp** (RAG hybrid, guardrails, routing, session) và **đo** trên bộ eval "
         "tự xây; **hệ thống thật** đã gắn cùng module code với cấu hình trên. "
-        "Phần còn lại trước khi coi là production hoàn chỉnh: mở rộng Claim Verifier với **LiveContext menu**, "
-        "human review, và các gate trong `AI_STAGING_READINESS.md` — **không** nằm ngoài phạm vi đã cam kết triển khai ở bảng trên."
+        "Evidence assembly KB + LiveContext đã được sửa chung trước thí nghiệm profile. "
+        "Production chỉ chạy winner sau safety gate; phần còn lại là human review và staging load test."
     )
 
 

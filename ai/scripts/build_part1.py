@@ -6,7 +6,7 @@ from pathlib import Path
 nb = nbf.v4.new_notebook()
 nb.metadata.update({
     "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-    "language_info": {"name": "python", "version": "3.13.0"},
+    "language_info": {"name": "python", "version": "3.11.9"},
 })
 
 def md(src): return nbf.v4.new_markdown_cell(src.strip())

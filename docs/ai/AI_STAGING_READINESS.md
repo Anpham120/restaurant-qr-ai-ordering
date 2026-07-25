@@ -6,6 +6,13 @@ Last updated: 2026-07-25.
 retained for provenance only; they do not satisfy the current evidence-first
 release contract.
 
+The release architecture is now selected by
+`evaluation/results/pipeline_selection.json`, generated from a controlled
+DeepSeek-only comparison of all three pipeline profiles. `planner_state_v3` may
+remain in the codebase for research, but it cannot be enabled unless it is the
+artifact winner. A missing winner, profile drift, commit drift, or failed
+post-deploy semantic smoke blocks/rolls back the release.
+
 ## Pre-canary gates
 
 | Gate | Status | Evidence |

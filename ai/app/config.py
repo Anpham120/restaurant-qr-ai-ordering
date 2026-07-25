@@ -8,6 +8,14 @@ from urllib.parse import urlparse
 
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
 DEFAULT_LLM_MODEL = "oc/deepseek-v4-flash-free"
+DEFAULT_PIPELINE_PROFILE = "llm_first_v1"
+PIPELINE_PROFILES = frozenset(
+    {
+        "llm_first_v1",
+        "evidence_first_v2",
+        "planner_state_v3",
+    }
+)
 LLM_PROVIDERS = frozenset({"9router"})
 LEGACY_ROUTER_PROVIDER_NAMES = frozenset({"router", "openai"})
 DISALLOWED_LLM_HOST = "generativelanguage.googleapis.com"
@@ -39,6 +47,7 @@ class AiServiceConfig:
     pipeline_version: str = "v2"
     rag_config_id: str = "default"
     llm_first: bool = True
+    pipeline_profile: str = DEFAULT_PIPELINE_PROFILE
 
     @property
     def timeout_seconds(self) -> float:
@@ -108,6 +117,15 @@ def load_config() -> AiServiceConfig:
         raise ValueError("Gemini endpoints are not supported; configure the 9router base URL")
     if not is_supported_router_model(model):
         raise ValueError("LLM_MODEL must select GPT-5.5 or DeepSeek through 9router")
+    pipeline_profile = os.getenv(
+        "AI_PIPELINE_PROFILE",
+        DEFAULT_PIPELINE_PROFILE,
+    ).strip()
+    if pipeline_profile not in PIPELINE_PROFILES:
+        raise ValueError(
+            "AI_PIPELINE_PROFILE must be one of: "
+            + ", ".join(sorted(PIPELINE_PROFILES))
+        )
     return AiServiceConfig(
         provider=provider,
         base_url=base_url,
@@ -133,6 +151,7 @@ def load_config() -> AiServiceConfig:
         pipeline_version=os.getenv("AI_PIPELINE", "v2").strip() or "v2",
         rag_config_id=os.getenv("RAG_CONFIG_ID", "default").strip() or "default",
         llm_first=_env_flag("AI_LLM_FIRST", default=True),
+        pipeline_profile=pipeline_profile,
     )
 
 
