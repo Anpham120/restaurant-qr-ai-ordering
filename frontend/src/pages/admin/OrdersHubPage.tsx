@@ -7,23 +7,26 @@ import { useOpsConnectionStatus } from "../../components/operations/OpsRealtimeP
 import "../../components/operations/operations.css";
 
 const ORDER_TABS = [
-  { id: "kanban", label: "Kanban" },
-  { id: "table", label: "Bảng chi tiết", adminOnly: true },
+  { id: "table", label: "Quản lý đơn", adminOnly: true },
+  { id: "kanban", label: "Kanban vận hành", counterOnly: true },
 ];
 
 export function OrdersHubPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "Admin";
-  const { activeTab } = useOpsHubTab(ORDER_TABS, "tab", isAdmin);
+  const { activeTab } = useOpsHubTab(ORDER_TABS, "tab", isAdmin, isAdmin ? "table" : "kanban");
   const connectionStatus = useOpsConnectionStatus();
 
   return (
     <OpsHubShell
       title="Đơn hàng"
-      description="Theo dõi kanban realtime hoặc quản lý chi tiết toàn bộ đơn."
+      description={isAdmin
+        ? "Theo dõi, lọc và đối soát đơn — không cần thao tác kanban bếp/phục vụ."
+        : "Theo dõi kanban realtime và xử lý đơn tại quầy."}
       tabs={ORDER_TABS}
       isAdmin={isAdmin}
       connectionStatus={connectionStatus}
+      defaultTabId={isAdmin ? "table" : "kanban"}
     >
       {activeTab === "kanban" ? <StaffOrderBoard embedded /> : null}
       {activeTab === "table" && isAdmin ? <AdminOrderManager embedded /> : null}
