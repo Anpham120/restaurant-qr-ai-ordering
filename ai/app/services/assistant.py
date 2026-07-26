@@ -630,6 +630,21 @@ class AiAssistantService:
             "retriever_runtime": self.retriever_runtime,
         }
 
+        menu_presence_response = try_menu_presence_fast_path(
+            message,
+            available_menu_items,
+            wants_recommendations=policy.wants_recommendations,
+        )
+        if menu_presence_response is not None:
+            menu_presence_response["latency_ms"] = {**stages, "path": "menu_presence"}
+            return _early_context_response(
+                menu_presence_response,
+                stages,
+                policy,
+                available_menu_items,
+                context=fast_path_context,
+            )
+
         menu_started = time.perf_counter()
         candidate_menu_items = self._menu_retriever.select(
             message,
@@ -742,21 +757,15 @@ class AiAssistantService:
 
         kb_fast_path = None
         if use_deterministic_fast_paths and not _should_skip_kb_fast_path:
-            kb_fast_path = try_menu_presence_fast_path(
+            kb_fast_path = try_kb_info_fast_path(
                 message,
-                available_menu_items,
+                retrieved,
+                intent=intent.intent,
                 wants_recommendations=policy.wants_recommendations,
+                retriever=self._retriever,
+                history=history,
+                is_solo_dining=bool(constraints.get("is_solo_dining")),
             )
-            if kb_fast_path is None:
-                kb_fast_path = try_kb_info_fast_path(
-                    message,
-                    retrieved,
-                    intent=intent.intent,
-                    wants_recommendations=policy.wants_recommendations,
-                    retriever=self._retriever,
-                    history=history,
-                    is_solo_dining=bool(constraints.get("is_solo_dining")),
-                )
         if kb_fast_path is not None:
             kb_fast_path["latency_ms"] = {**stages, "path": "kb_fast_path"}
             return _early_context_response(
