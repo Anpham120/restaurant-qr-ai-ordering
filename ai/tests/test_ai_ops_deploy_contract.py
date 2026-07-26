@@ -141,6 +141,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("emit_router_origin_probe | ssh", research_workflow)
         self.assertIn("export ROUTER_API_KEY; bash -s", research_workflow)
         self.assertIn("9router origin listener=", research_workflow)
+        self.assertIn("9router docker candidates=", research_workflow)
+        self.assertIn("9router systemd candidates=", research_workflow)
         self.assertIn("Preflight 9router HTTP readiness", research_workflow)
         self.assertIn("/v1/models", research_workflow)
         self.assertIn("oc/deepseek-v4-flash-free", research_workflow)
