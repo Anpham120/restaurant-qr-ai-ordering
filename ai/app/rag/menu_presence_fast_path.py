@@ -22,6 +22,46 @@ def _normalize(text: str) -> str:
     return normalize_query_text(text)
 
 
+_OPEN_MENU_BROWSE_TERMS = (
+    "mon gi",
+    "co gi an",
+    "mon nao",
+    "nhung mon",
+    "nhung bia",
+    "bia gi",
+    "gi nhi",
+    "an nhe",
+    "mon nhe",
+    "goi y",
+    "de xuat",
+    "tu van",
+)
+
+
+def _is_menu_presence_query(normalized: str) -> bool:
+    padded = f" {normalized} "
+    has_khong = " khong" in padded or normalized.endswith(" khong")
+    if any(
+        phrase in normalized
+        for phrase in (
+            "khong phai bia",
+            "khong muon bia",
+            "khong lay bia",
+            "tranh bia",
+        )
+    ):
+        return False
+    if any(term in normalized for term in _OPEN_MENU_BROWSE_TERMS):
+        return False
+    if has_khong and _menu_keywords(normalized):
+        return True
+    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
+        return has_khong and bool(_menu_keywords(normalized))
+    if "o day co" in normalized and has_khong:
+        return bool(_menu_keywords(normalized))
+    return False
+
+
 def _menu_keywords(normalized_query: str) -> list[str]:
     tokens = set(normalized_query.split())
     keywords: list[str] = []
@@ -41,6 +81,7 @@ def _menu_keywords(normalized_query: str) -> list[str]:
         "dessert",
         "tra",
         "bia",
+        "nhau",
     ):
         if keyword in tokens:
             keywords.append(keyword)
@@ -48,6 +89,12 @@ def _menu_keywords(normalized_query: str) -> list[str]:
     if "bo" in tokens and "qua" not in tokens:
         keywords.append("bo")
     return keywords
+
+
+def is_menu_presence_query(message: str) -> bool:
+    """True when user asks whether a dish/category exists on the live menu."""
+
+    return _is_menu_presence_query(_normalize(message))
 
 
 def try_menu_presence_fast_path(
@@ -58,13 +105,13 @@ def try_menu_presence_fast_path(
 ) -> dict[str, Any] | None:
     """Answer 'có món X không?' from live menu without LLM."""
 
-    if wants_recommendations or not menu_items:
+    normalized = _normalize(message)
+    if not menu_items:
+        return None
+    if not is_menu_presence_query(message):
         return None
 
-    normalized = _normalize(message)
     if any(term in normalized for term in _ALLERGY_OR_AVOID_TERMS):
-        return None
-    if not any(term in normalized for term in _MENU_PRESENCE_TERMS):
         return None
 
     keywords = _menu_keywords(normalized)
@@ -75,7 +122,19 @@ def try_menu_presence_fast_path(
         item
         for item in menu_items
         if bool(item.get("is_available", True))
-        and any(keyword in _normalize(str(item.get("name") or "")) for keyword in keywords)
+        and any(
+            keyword
+            in _normalize(
+                " ".join(
+                    [
+                        str(item.get("name") or ""),
+                        str(item.get("category_name") or item.get("category") or ""),
+                        " ".join(str(tag) for tag in (item.get("tags") or [])),
+                    ]
+                )
+            )
+            for keyword in keywords
+        )
     ]
     if not matched:
         return None

@@ -304,8 +304,9 @@ cells.append(md(
 cells.append(md(
     "## 11. Claim Verifier \u2014 ch\u1ed1ng hallucination\n\n"
     "LLM c\u00f3 th\u1ec3 b\u1ecba s\u1ed1 li\u1ec7u. Claim Verifier ki\u1ec3m tra **sau** khi LLM tr\u1ea3 l\u1eddi:\n"
-    "- S\u1ed1 trong c\u00e2u tr\u1ea3 l\u1eddi c\u00f3 kh\u1edbp **evidence t\u1eeb KB (Part I)**?\n"
-    "- Evidence ID c\u00f3 t\u1ed3n t\u1ea1i trong 213 chunks?\n"
+    "- Claim về chính sách/FAQ có khớp **evidence từ KB (Part I)**?\n"
+    "- Claim về món, giá, category, tag có khớp **LiveContext menu**?\n"
+    "- Evidence ID có tồn tại trong tập evidence được phép của đúng request?\n"
     "- N\u1ebfu kh\u00f4ng \u2192 ch\u1eb7n response, tr\u1ea3 v\u1ec1 `\"ch\u01b0a \u0111\u1ee7 th\u00f4ng tin\"`\n\n"
     "> **Ngu\u1ed3n d\u1eef li\u1ec7u:** `notebook_live_test.json` \u2192 `claim_results` (4 claims, ki\u1ec3m tra KB Part I)"
 ))
@@ -354,11 +355,24 @@ cells.append(md(
     "|---|---|---|\n"
     "| **S\u1ed1 sai** | 8:00 thay v\u00ec 10:00 | So s\u00e1nh numeric v\u1edbi evidence |\n"
     "| **Kh\u00f4ng evidence** | \"c\u00f3 h\u1ed3 b\u01a1i\" nh\u01b0ng kh\u00f4ng KB n\u00e0o n\u00f3i | Check `evidence_ids` r\u1ed7ng |\n"
-    "| **Evidence gi\u1ea3** | ID kh\u00f4ng t\u1ed3n t\u1ea1i | Lookup trong 213 chunks (Part I) |\n\n"
-    "**Li\u00ean k\u1ebft Part I:** Verifier d\u00f9ng ch\u00ednh 213 KB chunks \u0111\u00e3 ph\u00e2n t\u00edch \u1edf Part I\n"
-    "l\u00e0m ngu\u1ed3n s\u1ef1 th\u1eadt. N\u1ebfu LLM claim \u0111i\u1ec1u g\u00ec kh\u00f4ng c\u00f3 trong KB \u2192 b\u1ecb ch\u1eb7n.\n\n"
+    "| **Evidence gi\u1ea3** | ID kh\u00f4ng t\u1ed3n t\u1ea1i | Lookup trong KB chunks + live menu IDs |\n\n"
+    "**Nguồn sự thật:** Verifier dùng 213 KB chunks cho FAQ/chính sách và LiveContext "
+    "cho món/giá/category/tag. Evidence assembly này dùng chung cho cả ba profile.\n\n"
     "**H\u1ea1n ch\u1ebf:** Lexical matching \u2014 n\u1ebfu LLM paraphrase \u0111\u00fang ngh\u0129a nh\u01b0ng kh\u00e1c t\u1eeb,\n"
     "verifier c\u00f3 th\u1ec3 false-reject."
+))
+
+cells.append(md(
+    "## 11.1 Ba phương pháp pipeline được nghiên cứu\n\n"
+    "Notebook **không mặc định** `planner + typed state` là kiến trúc production. "
+    "Ba profile dưới đây phải chạy trên cùng DeepSeek, menu, KB, prompt budget và dataset:\n\n"
+    "| Profile | Cách xử lý factual | Câu phức tạp | Bộ nhớ hội thoại |\n"
+    "|---|---|---|---|\n"
+    "| `llm_first_v1` | DeepSeek-first (trừ guardrail/fast path bắt buộc) | DeepSeek | Rolling summary |\n"
+    "| `evidence_first_v2` | Menu/giá/category/tag deterministic từ live evidence | DeepSeek | Rolling summary |\n"
+    "| `planner_state_v3` | Evidence-first | DeepSeek semantic planner rồi DeepSeek trả lời khi cần | Typed `ConversationFrame` + constraints |\n\n"
+    "Mọi profile dùng chung evidence assembly và Claim Verifier. Vì vậy kết quả so sánh "
+    "đo khác biệt phương pháp, không bị thiên vị bởi lỗi evidence của riêng một nhánh."
 ))
 
 # ============ PART IV ============
@@ -442,7 +456,8 @@ cells.append(md(
 cells.append(md(
     "## 12. Pipeline end-to-end: queries th\u1eadt v\u1edbi LLM\n\n"
     "> **Ngu\u1ed3n d\u1eef li\u1ec7u:** `notebook_live_test.json` \u2192 `pipeline_results`\n"
-    "> C\u00f9ng **20 queries** nh\u01b0 \u00a78 Intent, model `cx/gpt-5.5`"
+    "> C\u00f9ng **20 queries** nh\u01b0 \u00a78 Intent. Đây là artifact pipeline lịch sử; "
+    "thí nghiệm chọn kiến trúc mới ở §14.4 cố định model DeepSeek."
 ))
 
 cells.append(code(
@@ -596,7 +611,7 @@ cells.append(code(
 
 # ============ S14 THREE MODEL COMPARISON ============
 cells.append(md(
-    "## 14. So s\u00e1nh 3 model LLM\n\n"
+    "## 14. So s\u00e1nh 3 model LLM (thí nghiệm lịch sử)\n\n"
     "Test c\u00f9ng **20 queries** (6 lo\u1ea1i: KB FAQ, Menu, Allergy, Order, Off-topic, Chitchat)\n"
     "v\u1edbi **3 model**:\n"
     "- `oc/deepseek-v4-flash-free` — **triển khai** staging/production\n"
@@ -841,13 +856,83 @@ cells.append(code(
     'display(Markdown(format_part4_narrative(_dual_summary)))'
 ))
 
+cells.append(md(
+    "## 14.4 Thí nghiệm chọn kiến trúc production (cố định DeepSeek)\n\n"
+    "Đây là thí nghiệm quyết định production. Nó khác §14 ở chỗ **model được giữ cố định** "
+    "là `oc/deepseek-v4-flash-free`; biến độc lập duy nhất là profile pipeline.\n\n"
+    "- Single-turn: KB, menu, giá, category, tag, gợi ý và ba câu production.\n"
+    "- Multi-turn: ordinal referent, loại món, đổi số người/chủ đề/sở thích, duy trì dị ứng.\n"
+    "- Safety: ID/giá giả, món ngoài menu, dị ứng, injection, session isolation.\n"
+    "- Availability: timeout/response lỗi; LLM case chạy ba lượt, deterministic case một lượt.\n\n"
+    "Thứ tự chọn: **safety hard gate → strict semantic quality → context accuracy → "
+    "p95 latency → số lượt gọi DeepSeek**. Không có profile qua hard gate thì deployment bị chặn."
+))
+
+cells.append(code(
+    'from scripts.notebook_metrics import summarize_pipeline_selection\n\n'
+    'pipeline_selection_path = AI_ROOT / "evaluation" / "results" / "pipeline_selection.json"\n'
+    'if pipeline_selection_path.exists():\n'
+    '    pipeline_selection = json.loads(pipeline_selection_path.read_text(encoding="utf-8"))\n'
+    'else:\n'
+    '    pipeline_selection = {\n'
+    '        "winner": None,\n'
+    '        "selection_reason": "artifact_not_generated",\n'
+    '        "profiles": [],\n'
+    '    }\n'
+    'pipeline_selection_summary = summarize_pipeline_selection(pipeline_selection)\n'
+    'selection_rows = pipeline_selection_summary["rows"]\n'
+    'if selection_rows:\n'
+    '    display(pd.DataFrame(selection_rows).style.hide(axis="index").format({\n'
+    '        "strict_semantic_success": "{:.1%}",\n'
+    '        "context_accuracy": "{:.1%}",\n'
+    '        "p95_latency_ms": "{:.1f}",\n'
+    '        "mean_llm_calls": "{:.2f}",\n'
+    '        "run_to_run_disagreement_rate": "{:.1%}",\n'
+    '    }).set_caption("Controlled DeepSeek pipeline comparison"))\n'
+    'else:\n'
+    '    print("Chưa có pipeline_selection.json — chạy run_pipeline_profile_eval.py; production vẫn BLOCKED.")\n'
+    'print("Winner:", pipeline_selection_summary["winner"])\n'
+    'print("Commit:", pipeline_selection_summary["commit_sha"])\n'
+    'print("Dataset:", pipeline_selection_summary["dataset_hash"])'
+))
+
+cells.append(code(
+    'import numpy as np\n\n'
+    'if selection_rows:\n'
+    '    labels = [row["profile"] for row in selection_rows]\n'
+    '    strict = [100 * row["strict_semantic_success"] for row in selection_rows]\n'
+    '    context = [100 * row["context_accuracy"] for row in selection_rows]\n'
+    '    x = np.arange(len(labels))\n'
+    '    fig, ax = plt.subplots(figsize=(9, 4))\n'
+    '    ax.bar(x - 0.18, strict, 0.36, label="Strict semantic success")\n'
+    '    ax.bar(x + 0.18, context, 0.36, label="Context accuracy")\n'
+    '    ax.set_xticks(x, labels)\n'
+    '    ax.set_ylim(0, 100)\n'
+    '    ax.set_ylabel("%")\n'
+    '    ax.set_title("So sánh profile sau safety gate")\n'
+    '    ax.legend()\n'
+    '    plt.tight_layout()\n'
+    '    plt.show()'
+))
+
 # ============ PART V ============
 cells.append(md(
     "---\n"
     "# PH\u1ea6N V \u2014 K\u1ebET LU\u1eacN"
 ))
 
-cells.append(md("## 15. T\u1ed5ng h\u1ee3p k\u1ebft qu\u1ea3 5 ph\u1ea7n"))
+cells.append(md(
+    "## 15. Kết luận lựa chọn kiến trúc production\n\n"
+    "Kết luận dưới đây được sinh trực tiếp từ `pipeline_selection.json`, không hardcode winner. "
+    "Production chỉ được bật profile thắng trên đúng model và commit đã đánh giá."
+))
+
+cells.append(code(
+    'from scripts.notebook_metrics import format_pipeline_selection_conclusion\n\n'
+    'display(Markdown(format_pipeline_selection_conclusion(pipeline_selection)))'
+))
+
+cells.append(md("## 15.1 T\u1ed5ng h\u1ee3p k\u1ebft qu\u1ea3 5 ph\u1ea7n"))
 
 cells.append(code(
     '# T\u1ed5ng h\u1ee3p\n'
@@ -950,11 +1035,11 @@ cells.append(md(
     "**Y\u1ebfu (< 80%) / c\u1ea7n t\u00e1ch metric:**\n"
     "- **Intent Router**: miss teencode v\u00e0 edge cases\n"
     "- **Pipeline \u00a712** vs **so s\u00e1nh 3 model \u00a714**: c\u00f9ng 20 query, metric/timestamp kh\u00e1c nhau\n"
-    "- **Non-abstain Part IV**: nhi\u1ec1u abstain fail-closed \u2014 Claim Verifier ch\u1ec9 check KB\n\n"
-    "**Gi\u1ea3i th\u00edch pipeline y\u1ebfu:**\n"
-    "Pipeline kh\u00f4ng y\u1ebfu v\u00ec code sai, m\u00e0 v\u00ec **Claim Verifier ch\u01b0a check LiveContext**.\n"
-    "KB FAQ \u2192 ho\u1ea1t \u0111\u1ed9ng t\u1ed1t. Menu/Allergy \u2192 LLM sinh \u0111\u00fang nh\u01b0ng\n"
-    "verifier kh\u00f4ng t\u00ecm evidence \u2192 abstain."
+    "- **Artifact lịch sử Part IV**: nhiều abstain do evidence assembly khi đó chưa có LiveContext\n\n"
+    "**Cách đọc đúng kết quả:**\n"
+    "Lỗi evidence assembly đã được sửa chung trước thí nghiệm profile ở §14.4. "
+    "Vì vậy artifact lịch sử giải thích sự cố cũ, còn `pipeline_selection.json` "
+    "mới là nguồn quyết định kiến trúc production."
 ))
 
 cells.append(md(
@@ -965,7 +1050,7 @@ cells.append(md(
     "| D\u1eef li\u1ec7u t\u1ef1 x\u00e2y (KB, eval set) | K\u1ebft qu\u1ea3 kh\u00f4ng generalize | Cao |\n"
     "| Sample size nh\u1ecf (20 intent / 20 pipeline / 20\u00d73 model) | Kh\u00f4ng th\u1ed1ng k\u00ea m\u1ea1nh | Cao |\n"
     "| `route` null trong export JSON | Availability \u0111\u1ebfm optimistic | Cao |\n"
-    "| Claim Verifier ch\u1ec9 check KB | Menu/Allergy b\u1ecb abstain d\u00f9 LLM tr\u1ea3 l\u1eddi \u0111\u00fang | Cao |\n"
+    "| Evidence assembly KB/menu | Đã sửa chung; vẫn cần golden regression để tránh tái phát | Cao |\n"
     "| Ch\u01b0a c\u00f3 traffic th\u1eadt | Ch\u01b0a bi\u1ebft production quality | Cao |\n"
     "| 3-model ch\u01b0a kh\u00e1c bi\u1ec7t \u1edf KB path | KB fast-path kh\u00f4ng d\u00f9ng LLM | TB |\n"
     "| Intent rule-based miss teencode | Miss queries Vietnamese noisy | TB |\n"
@@ -1002,7 +1087,7 @@ cells.append(md(
     "   - Intent Router ch\u1ecdn **khi n\u00e0o d\u00f9ng Hybrid RRF** (Part II)\n"
     "   - Guardrails ch\u1eb7n queries nguy hi\u1ec3m **tr\u01b0\u1edbc** khi t\u1ed1n chi ph\u00ed LLM\n"
     "   - Session Memory nh\u1edb d\u1ecb \u1ee9ng, context qua **nhi\u1ec1u l\u01b0\u1ee3t**\n"
-    "   - Claim Verifier d\u00f9ng **KB (Part I) l\u00e0m evidence** ch\u1ed1ng hallucination"
+    "   - Claim Verifier dùng **KB + LiveContext menu** làm evidence chống hallucination"
 ))
 
 cells.append(code(
@@ -1017,7 +1102,7 @@ cells.append(code(
     'print("refresh kh\u00f4ng m\u1ea5t chat, session theo phi\u00ean b\u00e0n.")\n'
     'print()\n'
     'print("> H\u1ec7 th\u1ed1ng ch\u1ea1y \u0111\u01b0\u1ee3c tr\u00ean **VPS 4vCPU/8GB, kh\u00f4ng GPU**.")\n'
-    'print("> B\u01b0\u1edbc ti\u1ebfp theo: Claim Verifier + LiveContext, human eval, gate trong AI_STAGING_READINESS.")'
+    'print("> Production chỉ chạy winner trong pipeline_selection.json; tiếp tục human eval và staging load test.")'
 ))
 
 cells.append(md(format_deploy_lock_section()))

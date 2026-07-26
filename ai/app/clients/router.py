@@ -149,23 +149,40 @@ class RouterClient:
     ) -> str | None:
         """Return raw JSON text from a compact structured-output call."""
 
+        is_deepseek = "deepseek" in self._model.casefold()
+        request_messages = [dict(message) for message in messages]
+        if is_deepseek:
+            schema_instruction = (
+                "Return exactly one JSON object that validates against this schema. "
+                "Do not add markdown or fields outside the schema.\n"
+                f"JSON Schema ({schema_name}): "
+                f"{json.dumps(schema, ensure_ascii=False, separators=(',', ':'))}"
+            )
+            request_messages.insert(
+                0,
+                {"role": "system", "content": schema_instruction},
+            )
         payload: dict = {
             "model": self._model,
             "stream": False,
             "temperature": temperature,
             "max_tokens": max(64, max_tokens),
-            "messages": messages,
+            "messages": request_messages,
             "reasoning_effort": "none",
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "strict": True,
-                    "schema": schema,
-                },
-            },
+            "response_format": (
+                {"type": "json_object"}
+                if is_deepseek
+                else {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "strict": True,
+                        "schema": schema,
+                    },
+                }
+            ),
         }
-        if "deepseek" not in self._model.casefold():
+        if not is_deepseek:
             payload["reasoning_effort"] = self._reasoning_effort
         data = await self._post_chat_completions(payload)
         choices = data.get("choices") or []

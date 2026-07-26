@@ -7,6 +7,7 @@ namespace RestaurantQrAiOrdering.Api.Chat;
 
 public sealed class DbChatStore : IChatStore
 {
+    private const string ConversationFrameConstraintKey = "__conversation_frame_v2";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly HashSet<string> ExclusionStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -262,7 +263,16 @@ public sealed class DbChatStore : IChatStore
                     (fact.Kind, fact.Value, fact.Confidence, assistantTurnId)),
                 now);
 
-            session.ConstraintsJson = JsonSerializer.Serialize(updates.Constraints, JsonOptions);
+            var persistedConstraints = updates.Constraints.ToDictionary(
+                item => item.Key,
+                item => item.Value.Clone(),
+                StringComparer.Ordinal);
+            if (updates.ConversationFrame is not null)
+            {
+                persistedConstraints[ConversationFrameConstraintKey] =
+                    JsonSerializer.SerializeToElement(updates.ConversationFrame, JsonOptions);
+            }
+            session.ConstraintsJson = JsonSerializer.Serialize(persistedConstraints, JsonOptions);
             session.ReferencedMenuItemIdsJson = JsonSerializer.Serialize(
                 StableDistinct(
                     DeserializeStringList(session.ReferencedMenuItemIdsJson)
@@ -493,6 +503,14 @@ public sealed class DbChatStore : IChatStore
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var persistedConstraints = DeserializeConstraints(session.ConstraintsJson);
+        var conversationFrame = DeserializeConversationFrame(persistedConstraints);
+        var publicConstraints = persistedConstraints
+            .Where(item => !item.Key.Equals(
+                ConversationFrameConstraintKey,
+                StringComparison.Ordinal))
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+
         return new ChatSessionStateSnapshot(
             session.Facts
                 .OrderBy(fact => fact.CreatedAt)
@@ -502,14 +520,34 @@ public sealed class DbChatStore : IChatStore
                     fact.Confidence,
                     fact.SourceTurnId))
                 .ToList(),
-            DeserializeConstraints(session.ConstraintsJson),
+            publicConstraints,
             DeserializeStringList(session.ReferencedMenuItemIdsJson),
             RecommendationIds("suggested"),
             RecommendationIds("rejected"),
             RecommendationIds("accepted"),
             RecommendationIds("added_to_cart"),
             session.RollingSummary,
-            string.IsNullOrWhiteSpace(session.MemoryVersion) ? "v1" : session.MemoryVersion);
+            string.IsNullOrWhiteSpace(session.MemoryVersion) ? "v1" : session.MemoryVersion,
+            conversationFrame);
+    }
+
+    private static ChatConversationFrame? DeserializeConversationFrame(
+        IReadOnlyDictionary<string, JsonElement> constraints)
+    {
+        if (!constraints.TryGetValue(ConversationFrameConstraintKey, out var frame)
+            || frame.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        try
+        {
+            return frame.Deserialize<ChatConversationFrame>(JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static ChatMessageSnapshot ToMessageSnapshot(ChatMessage message, ChatSession session)

@@ -43,7 +43,12 @@ async def lifespan(app: FastAPI):
     )
     assistant = AiAssistantService(config, http_client=_http_client)
     assistant.prewarm()
-    logger.info("AI service ready retrieval=%s model=%s", assistant.retrieval_method, config.model)
+    logger.info(
+        "AI service ready retrieval=%s model=%s pipeline_profile=%s",
+        assistant.retrieval_method,
+        config.model,
+        config.pipeline_profile,
+    )
     yield
     await _http_client.aclose()
     _http_client = None
@@ -70,6 +75,7 @@ def health() -> dict:
         "llm_enabled": config.llm_enabled,
         "provider_configured": config.llm_enabled,
         "pipeline": config.pipeline_version,
+        "pipeline_profile": config.pipeline_profile,
         "rag_config_id": config.rag_config_id,
         "retrieval_method": assistant.retrieval_method if assistant else "starting",
         "ready": assistant.is_ready if assistant else False,
@@ -98,6 +104,8 @@ def ready() -> JSONResponse:
             "ready": is_ready,
             "dependencies": dependencies,
             "pipeline": config.pipeline_version,
+            "pipeline_profile": config.pipeline_profile,
+            "model": config.model,
             "rag_config_id": config.rag_config_id,
         },
     )
@@ -153,6 +161,7 @@ def _build_timeout_response(request: ChatRequest) -> dict:
         "added_to_cart_menu_item_ids": list(state.added_to_cart_menu_item_ids),
         "rolling_summary": rolling_summary,
         "memory_version": state.memory_version,
+        "conversation_frame": state.conversation_frame.model_dump(),
     }
     return {
         "contract_version": "v2",
@@ -161,6 +170,9 @@ def _build_timeout_response(request: ChatRequest) -> dict:
         "provider_status": "unavailable",
         "model": config.model,
         "pipeline_version": config.pipeline_version,
+        "pipeline_profile": config.pipeline_profile,
+        "resolved_menu_item_ids": [],
+        "verifier_result": "not_applicable",
         "retrieved_sources": [],
         "decision": {
             "intent": None,

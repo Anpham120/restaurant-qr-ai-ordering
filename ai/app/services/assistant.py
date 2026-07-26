@@ -55,6 +55,7 @@ from app.rag.llm_intent_classifier import (
 from app.rag.prompts import build_fallback_answer, build_messages
 from app.rag.query_rewriter import rewrite_query
 from app.rag.response_cache import ResponseCache
+from app.rag.semantic_planner import apply_semantic_plan, plan_with_llm
 from app.rag.retrieval_factory import build_retriever_stack
 from app.rag.retriever import BM25Retriever, Retriever
 from app.rag.smalltalk import try_smalltalk
@@ -81,6 +82,13 @@ def _should_use_deterministic_fast_paths(config: AiServiceConfig) -> bool:
     """Legacy KB/party/pairing/budget/catalog paths that bypass the LLM."""
 
     return not config.llm_first
+
+
+def _should_use_evidence_first_menu_paths(config: AiServiceConfig) -> bool:
+    return (
+        config.pipeline_profile in {"evidence_first_v2", "planner_state_v3"}
+        or not config.llm_first
+    )
 
 
 def _resolve_should_call_llm(
@@ -555,9 +563,142 @@ class AiAssistantService:
                 "constraints": constraints,
                 "intent": intent_result.intent,
                 "pipeline_version": self._config.pipeline_version,
+                "pipeline_profile": self._config.pipeline_profile,
+                "model": self._config.model,
                 "retriever_runtime": self.retriever_runtime,
             }
         if (
+            self._config.pipeline_profile == "planner_state_v3"
+            and self._client is not None
+        ):
+            planner_started = time.perf_counter()
+            plan = await plan_with_llm(
+                self._client,
+                message,
+                history,
+                session_state,
+                timeout_seconds=self._config.intent_classification_timeout_seconds,
+            )
+            stages["semantic_planner"] = round(
+                (time.perf_counter() - planner_started) * 1000,
+                1,
+            )
+            if plan is None:
+                intent_flags.append("SEMANTIC_PLANNER_DEGRADED")
+            else:
+                applied = apply_semantic_plan(
+                    plan,
+                    session_state=session_state,
+                    constraints=constraints,
+                )
+                constraints = applied.constraints
+                session_state = {
+                    **session_state,
+                    "constraints": constraints,
+                    "conversation_frame": applied.frame,
+                    "memory_version": "v2",
+                }
+                policy = build_conversation_policy(
+                    message,
+                    history,
+                    _session_memory_with_typed_ledger(session_memory, session_state),
+                    menu_items,
+                    category=constraints.get("category"),
+                    variation_seed=session_id or message,
+                )
+                if policy.party_size is None and constraints.get("party_size"):
+                    policy = replace(policy, party_size=int(constraints["party_size"]))
+                intent_result = replace(
+                    intent_result,
+                    intent=plan.intent,
+                    confidence=max(intent_result.confidence, plan.confidence),
+                )
+                if applied.frame.get("pending_clarification") is not None:
+                    clarification = ChatResponse(
+                        content=(
+                            "Bạn muốn nói tới món nào? Hãy chọn hoặc nói rõ tên món "
+                            "để mình tra đúng thông tin."
+                        ),
+                        provider_available=True,
+                        model=self._config.model,
+                        pipeline_version=self._config.pipeline_version,
+                        pipeline_profile=self._config.pipeline_profile,
+                        decision={
+                            "intent": plan.intent,
+                            "route": "clarify",
+                            "confidence": plan.confidence,
+                            "evidence_sufficient": False,
+                            "abstain_reason": "semantic_plan_needs_clarification",
+                        },
+                        session_updates={
+                            "constraints": constraints,
+                            "conversation_frame": applied.frame,
+                            "memory_version": "v2",
+                        },
+                        latency_ms={"path": "clarify"},
+                    ).model_dump()
+                    stages["extract"] = round(
+                        (time.perf_counter() - extract_started) * 1000,
+                        1,
+                    )
+                    return {
+                        "early_response": clarification,
+                        "stages": stages,
+                        "policy": policy,
+                        "available_menu_items": [
+                            item
+                            for item in menu_items
+                            if bool(item.get("is_available", True))
+                        ],
+                        "message": message,
+                        "history": history,
+                        "rolling_summary": rolling_summary,
+                        "facts": facts,
+                        "session_state": session_state,
+                        "constraints": constraints,
+                        "intent": intent_result.intent,
+                        "pipeline_version": self._config.pipeline_version,
+                        "pipeline_profile": self._config.pipeline_profile,
+                        "model": self._config.model,
+                        "retriever_runtime": self.retriever_runtime,
+                    }
+                live_response = _try_live_data_response(
+                    message,
+                    history,
+                    session_state,
+                    menu_items,
+                    pipeline_version=self._config.pipeline_version,
+                )
+                if live_response is not None:
+                    stages["extract"] = round(
+                        (time.perf_counter() - extract_started) * 1000,
+                        1,
+                    )
+                    available = [
+                        item
+                        for item in menu_items
+                        if bool(item.get("is_available", True))
+                    ]
+                    return {
+                        "early_response": live_response,
+                        "stages": stages,
+                        "policy": policy,
+                        "available_menu_items": available,
+                        "message": message,
+                        "history": history,
+                        "rolling_summary": rolling_summary,
+                        "facts": facts,
+                        "session_state": session_state,
+                        "constraints": constraints,
+                        "intent": intent_result.intent,
+                        "pipeline_version": self._config.pipeline_version,
+                        "pipeline_profile": self._config.pipeline_profile,
+                        "model": self._config.model,
+                        "retriever_runtime": self.retriever_runtime,
+                    }
+        if (
+            self._config.pipeline_profile != "planner_state_v3"
+            and
             self._config.llm_intent_classification_enabled
             and self._client is not None
             and is_ambiguous(intent_result, constraints, policy, message=message)
@@ -586,8 +727,9 @@ class AiAssistantService:
             )
             if str(item_id).strip()
         )
-        allergen_context = bool(constraints.get("allergens")) and has_allergy_avoidance_context(
-            message
+        allergen_context = bool(constraints.get("allergens")) and (
+            policy.wants_recommendations
+            or has_allergy_avoidance_context(message)
         )
         allergen_excluded = (
             frozenset(
@@ -627,8 +769,26 @@ class AiAssistantService:
             "constraints": constraints,
             "intent": intent_result.intent,
             "pipeline_version": self._config.pipeline_version,
+            "pipeline_profile": self._config.pipeline_profile,
+            "model": self._config.model,
             "retriever_runtime": self.retriever_runtime,
+            "available_menu_items": available_menu_items,
         }
+
+        menu_presence_response = try_menu_presence_fast_path(
+            message,
+            available_menu_items,
+            wants_recommendations=policy.wants_recommendations,
+        )
+        if menu_presence_response is not None:
+            menu_presence_response["latency_ms"] = {**stages, "path": "menu_presence"}
+            return _early_context_response(
+                menu_presence_response,
+                stages,
+                policy,
+                available_menu_items,
+                context=fast_path_context,
+            )
 
         menu_started = time.perf_counter()
         candidate_menu_items = self._menu_retriever.select(
@@ -647,8 +807,7 @@ class AiAssistantService:
         stages["menu_retrieval"] = round((time.perf_counter() - menu_started) * 1000, 1)
 
         use_deterministic_fast_paths = _should_use_deterministic_fast_paths(self._config)
-        if use_deterministic_fast_paths:
-            # legacy deterministic path — skipped when AI_LLM_FIRST=true
+        if _should_use_evidence_first_menu_paths(self._config):
             catalog_response = _try_catalog_fast_path(message, constraints, menu_items, excluded_ids)
             if catalog_response is not None:
                 catalog_response["latency_ms"] = {**stages, "path": "catalog_fast_path"}
@@ -660,6 +819,7 @@ class AiAssistantService:
                     context=fast_path_context,
                 )
 
+        if use_deterministic_fast_paths:
             party_fast_path = try_party_recommendation_fast_path(
                 constraints,
                 policy,
@@ -742,21 +902,15 @@ class AiAssistantService:
 
         kb_fast_path = None
         if use_deterministic_fast_paths and not _should_skip_kb_fast_path:
-            kb_fast_path = try_menu_presence_fast_path(
+            kb_fast_path = try_kb_info_fast_path(
                 message,
-                available_menu_items,
+                retrieved,
+                intent=intent.intent,
                 wants_recommendations=policy.wants_recommendations,
+                retriever=self._retriever,
+                history=history,
+                is_solo_dining=bool(constraints.get("is_solo_dining")),
             )
-            if kb_fast_path is None:
-                kb_fast_path = try_kb_info_fast_path(
-                    message,
-                    retrieved,
-                    intent=intent.intent,
-                    wants_recommendations=policy.wants_recommendations,
-                    retriever=self._retriever,
-                    history=history,
-                    is_solo_dining=bool(constraints.get("is_solo_dining")),
-                )
         if kb_fast_path is not None:
             kb_fast_path["latency_ms"] = {**stages, "path": "kb_fast_path"}
             return _early_context_response(
@@ -881,6 +1035,8 @@ class AiAssistantService:
             "intent": intent.intent,
             "session_state": session_state,
             "pipeline_version": self._config.pipeline_version,
+            "pipeline_profile": self._config.pipeline_profile,
+            "model": self._config.model,
             "retriever_runtime": self.retriever_runtime,
         }
 
@@ -1143,6 +1299,12 @@ def _minimal_context(payload: dict[str, Any], pipeline_version: str, *, intent: 
         "constraints": state.get("constraints") or {},
         "intent": intent,
         "pipeline_version": pipeline_version,
+        "pipeline_profile": str(payload.get("pipeline_profile") or "llm_first_v1"),
+        "available_menu_items": (
+            payload.get("menu_items")
+            or (payload.get("live_context") or {}).get("menu_items")
+            or []
+        ),
     }
 
 
@@ -1188,6 +1350,13 @@ def _finalize_response_payload(
 ) -> dict[str, Any]:
     response.setdefault("contract_version", "v2")
     response.setdefault("pipeline_version", str(context.get("pipeline_version") or "v2"))
+    response["pipeline_profile"] = str(
+        context.get("pipeline_profile")
+        or response.get("pipeline_profile")
+        or "llm_first_v1"
+    )
+    if context.get("model"):
+        response["model"] = str(context["model"])
     if context.get("retriever_runtime") is not None:
         response["retriever_runtime"] = dict(context["retriever_runtime"])
     if context.get("generation_input_sha256"):
@@ -1206,6 +1375,11 @@ def _finalize_response_payload(
     response["claims"] = claims
 
     evidence = list(response.get("evidence") or [])
+    evidence = _merge_verified_claim_evidence(
+        evidence,
+        claims,
+        context.get("available_menu_items") or [],
+    )
     if not evidence:
         for source in response.get("retrieved_sources") or []:
             evidence.append(
@@ -1227,6 +1401,8 @@ def _finalize_response_payload(
                 }
             )
         response["evidence"] = evidence
+    else:
+        response["evidence"] = evidence
 
     if not response.get("decision"):
         route = _route_from_path(path, evidence)
@@ -1244,6 +1420,31 @@ def _finalize_response_payload(
         for value in (item.get("chunk_id"), item.get("menu_item_id"))
         if value and str(value).strip()
     }
+    live_menu_evidence_ids = {
+        str(item.get("menu_item_id")).strip()
+        for item in evidence
+        if item.get("menu_item_id")
+    }
+    resolved_menu_item_ids: list[str] = []
+    for action in response.get("suggested_cart_actions") or []:
+        item_id = str(action.get("menu_item_id") or "").strip()
+        if (
+            item_id
+            and item_id in live_menu_evidence_ids
+            and item_id not in resolved_menu_item_ids
+        ):
+            resolved_menu_item_ids.append(item_id)
+    for claim in claims:
+        if not claim.get("verified"):
+            continue
+        for raw_id in claim.get("evidence_ids") or []:
+            item_id = str(raw_id).strip()
+            if (
+                item_id in live_menu_evidence_ids
+                and item_id not in resolved_menu_item_ids
+            ):
+                resolved_menu_item_ids.append(item_id)
+    response["resolved_menu_item_ids"] = resolved_menu_item_ids
     claims_valid = all(
         bool(claim.get("verified"))
         and bool(claim.get("evidence_ids"))
@@ -1279,6 +1480,11 @@ def _finalize_response_payload(
             }
         )
         response["decision"] = decision
+    response["verifier_result"] = (
+        "passed"
+        if claims and all(bool(claim.get("verified")) for claim in claims)
+        else ("failed" if claims else "not_applicable")
+    )
     if context.get("abstain_reason"):
         decision = dict(response.get("decision") or {})
         decision.update(
@@ -1294,6 +1500,12 @@ def _finalize_response_payload(
     updates = dict(response.get("session_updates") or {})
     updates.setdefault("facts", list(context.get("facts") or state.get("facts") or []))
     updates["constraints"] = dict(context.get("constraints") or state.get("constraints") or {})
+    frame = dict(state.get("conversation_frame") or {})
+    if response.get("pipeline_profile") == "planner_state_v3":
+        resolved_ids = list(response.get("resolved_menu_item_ids") or [])
+        if resolved_ids and frame.get("pending_clarification") is None:
+            frame["focus_menu_item_ids"] = resolved_ids
+        updates["conversation_frame"] = frame
     updates["referenced_menu_item_ids"] = _merge_id_lists(
         state.get("referenced_menu_item_ids") or [],
         updates.get("referenced_menu_item_ids") or [],
@@ -1320,7 +1532,14 @@ def _finalize_response_payload(
         state.get("added_to_cart_menu_item_ids") or [],
         updates.get("added_to_cart_menu_item_ids") or [],
     )
-    updates.setdefault("memory_version", str(state.get("memory_version") or "v1"))
+    updates.setdefault(
+        "memory_version",
+        (
+            "v2"
+            if response.get("pipeline_profile") == "planner_state_v3"
+            else str(state.get("memory_version") or "v1")
+        ),
+    )
     response["session_updates"] = updates
 
     return _attach_rolling_summary(
@@ -1329,6 +1548,43 @@ def _finalize_response_payload(
         content=str(response.get("content") or ""),
         suggested_actions=list(response.get("suggested_cart_actions") or []),
     )
+
+
+def _merge_verified_claim_evidence(
+    evidence: list[dict[str, Any]],
+    claims: list[dict[str, Any]],
+    menu_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    result = list(evidence)
+    existing_ids = {
+        str(value).strip()
+        for item in result
+        for value in (item.get("chunk_id"), item.get("menu_item_id"))
+        if value and str(value).strip()
+    }
+    menu_by_id = {
+        _item_id(item): item
+        for item in menu_items
+        if _item_id(item)
+    }
+    for claim in claims:
+        if not claim.get("verified"):
+            continue
+        for raw_id in claim.get("evidence_ids") or []:
+            evidence_id = str(raw_id).strip()
+            item = menu_by_id.get(evidence_id)
+            if not item or evidence_id in existing_ids:
+                continue
+            result.append(
+                {
+                    "source": "live_menu",
+                    "menu_item_id": evidence_id,
+                    "title": str(item.get("name") or "Món"),
+                    "score": 1.0,
+                }
+            )
+            existing_ids.add(evidence_id)
+    return result
 
 
 def _claims_from_menu_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1691,6 +1947,12 @@ def _resolve_live_menu_item(
         return max(explicit, key=lambda item: len(str(item.get("name") or "")))
 
     candidate_ids: list[str] = []
+    frame = session_state.get("conversation_frame") or {}
+    candidate_ids.extend(
+        str(value)
+        for value in (frame.get("focus_menu_item_ids") or [])
+        if str(value).strip()
+    )
     for turn in reversed(history):
         for action in reversed(list(turn.get("suggested_cart_actions") or [])):
             candidate_ids.append(str(action.get("menu_item_id") or ""))
@@ -1765,7 +2027,16 @@ def _try_catalog_fast_path(
     if "CUSTOMER_CONFIRMATION_REQUIRED" in detect_guardrail_flags(message):
         return None
     if not constraints.get("is_catalog_only"):
-        return None
+        normalized = normalize_query_text(message)
+        browse_category = (
+            not constraints.get("is_recommendation")
+            and any(
+                marker in normalized
+                for marker in ("xem", "cac mon", "co nhung mon", "menu", "thuc don")
+            )
+        )
+        if not browse_category:
+            return None
     if not constraints.get("category"):
         return None
     # Session party_size / prior soft criteria must not block category listing.
@@ -1773,7 +2044,11 @@ def _try_catalog_fast_path(
         return None
     from app.rag.constraint_extractor import has_hard_dietary_constraints
 
-    if has_hard_dietary_constraints(constraints):
+    effective_constraints = dict(constraints)
+    if not has_allergy_avoidance_context(message):
+        # Browsing "món hải sản" names a category; it is not an allergy request.
+        effective_constraints["allergens"] = []
+    if has_hard_dietary_constraints(effective_constraints):
         return None
 
     category = str(constraints["category"])

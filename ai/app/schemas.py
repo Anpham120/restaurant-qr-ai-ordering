@@ -33,6 +33,23 @@ class MenuItemContext(BaseModel):
     nutrition_facts: dict[str, Any] = Field(default_factory=dict)
 
 
+class PendingClarification(BaseModel):
+    slot: str
+    question: str = ""
+    candidate_menu_item_ids: list[str] = Field(default_factory=list)
+
+
+class ConversationFrame(BaseModel):
+    active_topic: str | None = None
+    active_intent: str | None = None
+    focus_menu_item_ids: list[str] = Field(default_factory=list)
+    resolved_category: str | None = None
+    resolved_tags: list[str] = Field(default_factory=list)
+    turn_sequence: int = Field(default=0, ge=0)
+    pending_clarification: PendingClarification | None = None
+    constraint_provenance: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
 class SessionState(BaseModel):
     facts: list[dict[str, Any]] = Field(default_factory=list)
     constraints: dict[str, Any] = Field(default_factory=dict)
@@ -43,6 +60,7 @@ class SessionState(BaseModel):
     added_to_cart_menu_item_ids: list[str] = Field(default_factory=list)
     rolling_summary: str = ""
     memory_version: str = "v1"
+    conversation_frame: ConversationFrame = Field(default_factory=ConversationFrame)
 
 
 class LiveContext(BaseModel):
@@ -76,6 +94,7 @@ class ChatRequest(BaseModel):
     meal_period: str | None = None
     menu_items: list[MenuItemContext] = Field(default_factory=list)
     table_code: str | None = None
+    pipeline_profile: str = "llm_first_v1"
 
     @model_validator(mode="after")
     def normalize_v2_payload(self) -> "ChatRequest":
@@ -176,6 +195,7 @@ class SessionUpdates(BaseModel):
     added_to_cart_menu_item_ids: list[str] = Field(default_factory=list)
     rolling_summary: str | None = None
     memory_version: str = "v1"
+    conversation_frame: ConversationFrame = Field(default_factory=ConversationFrame)
 
 
 class ChatResponse(BaseModel):
@@ -197,3 +217,6 @@ class ChatResponse(BaseModel):
     suggest_staff_handoff: bool = False
     latency_ms: dict[str, float | str] = Field(default_factory=dict)
     updated_rolling_summary: str | None = None
+    pipeline_profile: str = "llm_first_v1"
+    resolved_menu_item_ids: list[str] = Field(default_factory=list)
+    verifier_result: str = "not_applicable"
