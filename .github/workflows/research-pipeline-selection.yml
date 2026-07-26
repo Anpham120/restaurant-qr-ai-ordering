@@ -91,7 +91,11 @@ jobs:
             printf '%s\n' "$LLM_API_KEY"
             cat <<'REMOTE_SCRIPT'
           set -eu
-          IFS= read -r ROUTER_API_KEY
+          if command -v ss >/dev/null 2>&1 && ss -ltnH | awk '$4 ~ /:20128$/ {found=1} END {exit !found}'; then
+            echo "9router origin listener=present"
+          else
+            echo "9router origin listener=absent"
+          fi
           set +e
           status="$(
             curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
@@ -112,7 +116,7 @@ jobs:
             -o UserKnownHostsFile="${ROUTER_TUNNEL_DIR}/known-hosts" \
             -o StrictHostKeyChecking=yes \
             "${SSH_USER}@${SSH_HOST}" \
-            'bash -s'
+            'IFS= read -r ROUTER_API_KEY; export ROUTER_API_KEY; bash -s'
 
       - name: Preflight 9router HTTP readiness
         # A TCP connection alone does not prove that the router can serve the
