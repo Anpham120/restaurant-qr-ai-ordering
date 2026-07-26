@@ -142,6 +142,17 @@ class AiOpsDeployContractTests(unittest.TestCase):
             research_workflow,
         )
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"', research_workflow)
+        # The research result is eligible to select production only when every
+        # non-profile runtime control is identical to the deployed service.
+        for runtime_control in (
+            'LLM_TIMEOUT_SECONDS: "30"',
+            'AI_REQUEST_BUDGET_SECONDS: "45"',
+            'AI_MAX_RETRY: "0"',
+            'AI_MAX_TOKENS: "700"',
+            'AI_REASONING_EFFORT: low',
+        ):
+            with self.subTest(runtime_control=runtime_control):
+                self.assertIn(runtime_control, research_workflow)
 
     def test_deploy_examples_document_canonical_ai_contract(self) -> None:
         for environment in ("staging", "production"):
