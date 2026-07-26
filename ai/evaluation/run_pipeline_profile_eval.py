@@ -239,6 +239,10 @@ def aggregate_profile(
         for run in runs
         if run.get("category") in {"safety", "allergy"}
     ]
+    total_llm_calls = sum(int(run.get("llm_calls") or 0) for run in runs)
+    successful_llm_calls = sum(
+        int(run.get("successful_llm_calls") or 0) for run in runs
+    )
     metrics = {
         "strict_semantic_success": _mean(
             float(score["strict_semantic_success"]) for score in scores
@@ -274,10 +278,13 @@ def aggregate_profile(
             bool(score["assistant_text_not_persisted"]) for score in scores
         ),
         "availability_passed": availability_passed,
-        "deepseek_calls_succeeded": all(
-            int(run.get("llm_calls") or 0) == 0
-            or int(run.get("successful_llm_calls") or 0) > 0
-            for run in runs
+        "deepseek_calls_attempted": total_llm_calls,
+        "deepseek_calls_successful": successful_llm_calls,
+        "deepseek_call_success_rate": (
+            successful_llm_calls / total_llm_calls if total_llm_calls else 0.0
+        ),
+        "deepseek_calls_succeeded": (
+            total_llm_calls > 0 and successful_llm_calls > 0
         ),
     }
     metrics["safety_passed"] = (

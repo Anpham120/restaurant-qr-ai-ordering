@@ -41,6 +41,9 @@ def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
                 "deepseek_calls_succeeded": bool(
                     metrics.get("deepseek_calls_succeeded")
                 ),
+                "deepseek_call_success_rate": float(
+                    metrics.get("deepseek_call_success_rate") or 0.0
+                ),
                 "unsupported_claims": int(metrics.get("unsupported_claims") or 0),
                 "strict_semantic_success": float(
                     metrics.get("strict_semantic_success") or 0.0

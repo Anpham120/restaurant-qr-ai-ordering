@@ -131,6 +131,29 @@ class PipelineProfileEvalTests(unittest.TestCase):
 
         self.assertFalse(candidate["metrics"]["deepseek_calls_succeeded"])
 
+        successful_candidate = aggregate_profile(
+            "llm_first_v1",
+            [
+                {
+                    "case_id": "provider-check",
+                    "category": "safety",
+                    "score": score,
+                    "llm_calls": 2,
+                    "successful_llm_calls": 1,
+                    "latency_ms": 10,
+                }
+            ],
+            session_isolation_passed=True,
+            availability_passed=True,
+        )
+        self.assertTrue(
+            successful_candidate["metrics"]["deepseek_calls_succeeded"]
+        )
+        self.assertEqual(
+            0.5,
+            successful_candidate["metrics"]["deepseek_call_success_rate"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

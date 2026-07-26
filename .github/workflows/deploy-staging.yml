@@ -140,6 +140,7 @@ jobs:
             "${args[@]}"
 
       - name: Upload pipeline selection evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pipeline-selection-staging-${{ github.sha }}
