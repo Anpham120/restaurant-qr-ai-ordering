@@ -61,7 +61,7 @@ public sealed class ChatStoreTests
     }
 
     [Fact]
-    public void DbStore_LedgerExcludesSuggestedItems()
+    public void DbStore_LedgerKeepsSuggestedItemsAvailableForFactualFollowUps()
     {
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
@@ -82,7 +82,7 @@ public sealed class ChatStoreTests
 
         var excluded = store.GetExcludedMenuItemIds(created.Session.Id);
 
-        Assert.Contains("m_001", excluded);
+        Assert.DoesNotContain("m_001", excluded);
         Assert.Contains("m_002", excluded);
     }
 
