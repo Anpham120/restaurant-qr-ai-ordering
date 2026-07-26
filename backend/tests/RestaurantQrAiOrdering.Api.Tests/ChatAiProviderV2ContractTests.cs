@@ -15,6 +15,93 @@ namespace RestaurantQrAiOrdering.Api.Tests;
 public sealed class ChatAiProviderV2ContractTests
 {
     [Fact]
+    public async Task GenerateAsync_SerializesDefaultConversationFrameForNewPersistedState()
+    {
+        var handler = new RecordingHandler(_ => JsonResponse(MinimalResponse));
+        var provider = CreateProvider(handler);
+        var newSessionState = new ChatSessionStateSnapshot(
+            [],
+            new Dictionary<string, JsonElement>(),
+            [],
+            [],
+            [],
+            [],
+            [],
+            null,
+            "v1",
+            ConversationFrame: null);
+
+        await provider.GenerateAsync(
+            Request([], [Menu("m-1", "Pho", 85000)]) with
+            {
+                SessionState = newSessionState
+            },
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(Assert.Single(handler.RequestBodies));
+        var frame = document.RootElement
+            .GetProperty("session_state")
+            .GetProperty("conversation_frame");
+
+        Assert.Equal(JsonValueKind.Object, frame.ValueKind);
+        Assert.Equal(0, frame.GetProperty("turn_sequence").GetInt32());
+        Assert.Empty(frame.GetProperty("focus_menu_item_ids").EnumerateArray());
+        Assert.Empty(frame.GetProperty("resolved_tags").EnumerateArray());
+        Assert.Equal(JsonValueKind.Object, frame.GetProperty("constraint_provenance").ValueKind);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ClassifiesUpstreamContractErrorsWithoutExposingDetails()
+    {
+        const string upstreamDetail = "conversation_frame must be an object";
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.UnprocessableEntity)
+        {
+            Content = new StringContent(
+                $$"""{"detail":"{{upstreamDetail}}"}""",
+                Encoding.UTF8,
+                "application/json")
+        });
+        var provider = CreateProvider(handler);
+
+        var result = await provider.GenerateAsync(
+            Request([], [Menu("m-1", "Pho", 85000)]),
+            CancellationToken.None);
+
+        Assert.False(result.ProviderAvailable);
+        Assert.Contains("AI_UPSTREAM_CONTRACT_ERROR", result.GuardrailFlags!);
+        Assert.DoesNotContain(upstreamDetail, result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateStreamAsync_ClassifiesUpstreamContractErrors()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.UnprocessableEntity)
+        {
+            Content = new StringContent(
+                """{"detail":"conversation_frame must be an object"}""",
+                Encoding.UTF8,
+                "application/json")
+        });
+        var provider = CreateProvider(handler);
+        JsonElement? final = null;
+
+        await foreach (var streamEvent in provider.GenerateStreamAsync(
+                           Request([], [Menu("m-1", "Pho", 85000)]),
+                           CancellationToken.None))
+        {
+            if (streamEvent.EventType == "final")
+            {
+                final = streamEvent.Data;
+            }
+        }
+
+        var payload = Assert.IsType<JsonElement>(final);
+        Assert.Contains(
+            payload.GetProperty("guardrail_flags").EnumerateArray(),
+            flag => flag.GetString() == "AI_UPSTREAM_CONTRACT_ERROR");
+    }
+
+    [Fact]
     public async Task GenerateAsync_SendsBoundedTypedV2ContextWithDeterministicCatalogVersion()
     {
         var handler = new RecordingHandler(_ => JsonResponse(MinimalResponse));

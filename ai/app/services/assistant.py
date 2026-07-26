@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from app.clients.router import RouterClient
+from app.clients.router import ModelAttempt, RouterClient, capture_model_attempts
 from app.config import AiServiceConfig
 from app.rag.budget_solver import solve_budget
 from app.rag.budget_recommendation_fast_path import try_budget_recommendation_fast_path
@@ -102,6 +102,47 @@ def _resolve_should_call_llm(
     return bool(context.get("should_call_llm", True))
 
 
+def _attach_model_route(
+    response: dict,
+    attempts: tuple[ModelAttempt, ...],
+    config: AiServiceConfig,
+) -> dict:
+    finalized = dict(response)
+    serialized_attempts = [attempt.to_dict() for attempt in attempts]
+    successful_attempts = [
+        attempt for attempt in attempts if attempt.outcome == "success"
+    ]
+    fallback_used = any(
+        attempt.role == "rate_limit_fallback" for attempt in attempts
+    )
+
+    if finalized.get("provider_available") and successful_attempts:
+        finalized["model"] = successful_attempts[-1].model
+    finalized["primary_model"] = config.model
+    finalized["fallback_model"] = (
+        config.rate_limit_fallback_model
+        if config.rate_limit_fallback_enabled
+        else None
+    )
+    finalized["fallback_used"] = fallback_used
+    finalized["fallback_reason"] = "rate_limit_429" if fallback_used else None
+    finalized["model_attempts"] = serialized_attempts
+
+    model_route = [
+        f"{attempt.model}:{attempt.outcome}"
+        for attempt in attempts
+    ]
+    logger.info(
+        "chat completed pipeline_profile=%s model_route=%s "
+        "resolved_menu_item_ids=%s verifier_result=%s",
+        finalized.get("pipeline_profile") or config.pipeline_profile,
+        model_route,
+        finalized.get("resolved_menu_item_ids") or [],
+        finalized.get("verifier_result") or "not_applicable",
+    )
+    return finalized
+
+
 class AiAssistantService:
     def __init__(
         self,
@@ -130,6 +171,8 @@ class AiAssistantService:
                 http_client=http_client,
                 max_tokens=config.max_tokens,
                 reasoning_effort=config.reasoning_effort,
+                fallback_model=config.rate_limit_fallback_model,
+                fallback_enabled=config.rate_limit_fallback_enabled,
             )
         self._cache = ResponseCache(max_size=500, ttl_seconds=300)
         self._ready = False
@@ -223,10 +266,28 @@ class AiAssistantService:
         self._cache.invalidate()
 
     async def chat(self, payload: dict) -> dict:
-        response, _stages = await self._process_chat(payload)
-        return response
+        with capture_model_attempts() as collector:
+            response, _stages = await self._process_chat(payload)
+        return _attach_model_route(response, collector.snapshot(), self._config)
 
     async def chat_stream(self, payload: dict) -> AsyncIterator[dict[str, Any]]:
+        with capture_model_attempts() as collector:
+            async for event in self._chat_stream_untraced(payload):
+                if event["type"] == "final":
+                    event = {
+                        **event,
+                        "data": _attach_model_route(
+                            event["data"],
+                            collector.snapshot(),
+                            self._config,
+                        ),
+                    }
+                yield event
+
+    async def _chat_stream_untraced(
+        self,
+        payload: dict,
+    ) -> AsyncIterator[dict[str, Any]]:
         message = str(payload.get("message") or "").strip()
         security_response = _try_security_guardrail_response(
             message,
@@ -1356,7 +1417,7 @@ def _finalize_response_payload(
         or "llm_first_v1"
     )
     if context.get("model"):
-        response["model"] = str(context["model"])
+        response.setdefault("model", str(context["model"]))
     if context.get("retriever_runtime") is not None:
         response["retriever_runtime"] = dict(context["retriever_runtime"])
     if context.get("generation_input_sha256"):

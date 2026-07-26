@@ -20,6 +20,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 ai/.venv/
+ai/_list_sections.py
+ai/evaluation/results/
 
 # Local environment and generated artifacts
 .env

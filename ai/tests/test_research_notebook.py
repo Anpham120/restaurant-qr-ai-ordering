@@ -33,6 +33,9 @@ class ResearchNotebookContractTests(unittest.TestCase):
         text = _notebook_text(nbformat.read(str(NOTEBOOK_PATH), as_version=4))
         self.assertIn("notebook_live_test.json", text)
         self.assertIn("dual_model_test.json", text)
+        self.assertIn("cx/gpt-5.6-luna-review", text)
+        self.assertIn("http_429", text)
+        self.assertIn("fallback", text.casefold())
         self.assertIn("Bảng thuật ngữ metric", text)
         self.assertIn("Bản đồ bằng chứng (staging)", text)
         self.assertIn("format_part12_narrative", text)
@@ -69,9 +72,12 @@ class ResearchNotebookContractTests(unittest.TestCase):
             reloaded = nbformat.read(path, as_version=4)
         self.assertEqual([], validate_notebook(reloaded))
 
-    def test_repository_keeps_exactly_one_notebook(self) -> None:
+    def test_repository_keeps_only_the_active_and_legacy_reference_notebooks(self) -> None:
         notebooks = sorted(AI_ROOT.rglob("*.ipynb"))
-        self.assertEqual([NOTEBOOK_PATH], notebooks)
+        canonical_report = AI_ROOT / "notebooks" / "restaurant_ai_research_report.ipynb"
+        # The old report stays as a reference until the owner explicitly
+        # approves cleanup; the new canonical report is the active replacement.
+        self.assertEqual([NOTEBOOK_PATH, canonical_report], notebooks)
 
 
 if __name__ == "__main__":

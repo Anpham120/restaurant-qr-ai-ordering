@@ -1,0 +1,106 @@
+name: Research Pipeline Selection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-pipeline-selection
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: compare-pipeline-profiles
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      SSH_HOST: ${{ secrets.STAGING_HOST }}
+      SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      LLM_PROVIDER: 9router
+      LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
+      LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
+      LLM_MODEL: oc/deepseek-v4-flash-free
+      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      RAG_TOP_K: "5"
+      RAG_RETRIEVAL_METHOD: hybrid
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AI evaluation dependencies
+        run: python -m pip install -r ai/requirements.txt
+
+      - name: Open secure 9router tunnel
+        run: |
+          tunnel_dir="$(mktemp -d)"
+          key_file="${tunnel_dir}/deploy-key"
+          known_hosts_file="${tunnel_dir}/known-hosts"
+          printf '%s\n' "$SSH_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          ssh-keyscan -H "$SSH_HOST" > "$known_hosts_file" 2>/dev/null
+          ssh \
+            -i "$key_file" \
+            -o UserKnownHostsFile="$known_hosts_file" \
+            -o StrictHostKeyChecking=yes \
+            -o ExitOnForwardFailure=yes \
+            -N -L 20128:127.0.0.1:20128 \
+            "${SSH_USER}@${SSH_HOST}" &
+          tunnel_pid=$!
+          echo "ROUTER_TUNNEL_PID=${tunnel_pid}" >> "$GITHUB_ENV"
+          echo "ROUTER_TUNNEL_DIR=${tunnel_dir}" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import socket
+          import time
+
+          for _ in range(30):
+              try:
+                  with socket.create_connection(("127.0.0.1", 20128), timeout=1):
+                      break
+              except OSError:
+                  time.sleep(1)
+          else:
+              raise SystemExit("9router SSH tunnel did not become ready")
+          PY
+
+      - name: Compare all pipeline profiles with DeepSeek
+        env:
+          PYTHONPATH: ai
+        run: python ai/evaluation/run_pipeline_profile_eval.py
+
+      - name: Close secure 9router tunnel
+        if: always()
+        run: |
+          if [ -n "${ROUTER_TUNNEL_PID:-}" ]; then
+            kill "$ROUTER_TUNNEL_PID" 2>/dev/null || true
+          fi
+          if [ -n "${ROUTER_TUNNEL_DIR:-}" ]; then
+            rm -rf -- "$ROUTER_TUNNEL_DIR"
+          fi
+
+      - name: Upload raw research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-selection-research-${{ github.sha }}
+          path: ai/evaluation/results/pipeline_selection.json
+          if-no-files-found: error
+
+      - name: Research summary
+        if: success()
+        run: |
+          {
+            echo "## Controlled pipeline research"
+            echo "- Model: oc/deepseek-v4-flash-free"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Raw artifact uploaded for review"
+            echo "- Production remains bound to the approved artifact until a reviewed PR replaces it"
+          } >> "$GITHUB_STEP_SUMMARY"

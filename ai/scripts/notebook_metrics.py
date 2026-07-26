@@ -34,6 +34,7 @@ def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
     rows = []
     for candidate in artifact.get("profiles") or []:
         metrics = candidate.get("metrics") or {}
+        model_usage = metrics.get("model_usage") or {}
         rows.append(
             {
                 "profile": str(candidate.get("profile") or ""),
@@ -54,13 +55,20 @@ def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
                 "run_to_run_disagreement_rate": float(
                     metrics.get("run_to_run_disagreement_rate") or 0.0
                 ),
+                "fallback_rate": float(model_usage.get("fallback_rate") or 0.0),
+                "attempts_by_model": dict(model_usage.get("attempts_by_model") or {}),
+                "successes_by_model": dict(model_usage.get("successes_by_model") or {}),
+                "failures_by_model": dict(model_usage.get("failures_by_model") or {}),
             }
         )
     return {
         "winner": artifact.get("winner"),
         "selection_reason": artifact.get("selection_reason"),
         "model": artifact.get("model"),
-        "commit_sha": artifact.get("commit_sha"),
+        "model_policy": dict(artifact.get("model_policy") or {}),
+        "commit_sha": artifact.get("research_commit_sha")
+        or artifact.get("commit_sha"),
+        "research_input_hash": artifact.get("research_input_hash"),
         "working_tree_dirty": bool(artifact.get("working_tree_dirty")),
         "dataset_hash": artifact.get("dataset_hash"),
         "generated_at": artifact.get("generated_at"),
@@ -82,12 +90,18 @@ def format_pipeline_selection_conclusion(artifact: dict[str, Any]) -> str:
         if summary["working_tree_dirty"]
         else ""
     )
+    policy = summary.get("model_policy") or {}
+    primary_model = policy.get("primary_model") or summary["model"]
+    fallback_model = policy.get("fallback_model") or "không cấu hình"
+    fallback_trigger = policy.get("fallback_trigger") or "không xác định"
     return provenance_warning + (
         f"Production phải chạy **`{winner}`** với model "
-        f"**`{summary['model']}`**, vì đây là winner sau thứ tự "
+        f"primary **`{primary_model}`** và fallback **`{fallback_model}`** "
+        f"khi **`{fallback_trigger}`**, vì đây là winner sau thứ tự "
         "an toàn → strict semantic quality → context → p95 latency → số lượt LLM. "
-        f"Artifact gắn với commit `{summary['commit_sha']}` và dataset "
-        f"`{summary['dataset_hash']}`."
+        f"Artifact gắn với commit nghiên cứu `{summary['commit_sha']}` và dataset "
+        f"`{summary['dataset_hash']}`; production có thể ở commit khác chỉ khi "
+        f"`research_input_hash` vẫn là `{summary['research_input_hash']}`."
     )
 
 
@@ -597,6 +611,10 @@ def format_production_report_section() -> str:
         "| LLM duy nhất | `oc/deepseek-v4-flash-free` (9router), không GPT fallback |\n"
         "| Tích hợp | `CHAT_AI_PROVIDER=python-rag`, Docker [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) |\n"
         "| Kiểm tra sau deploy | [`VPS_STAGING_AI_RUNBOOK.md`](../../docs/ai/VPS_STAGING_AI_RUNBOOK.md) |\n\n"
+        "> Artifact winner được tái sử dụng cho thay đổi backend/frontend/deploy không ảnh hưởng AI; "
+        "workflow **không chạy lại** hàng trăm request DeepSeek. Nếu prompt, runtime AI, scorer, KB, "
+        "dataset hoặc menu thay đổi thì `research_input_hash` đổi và deployment bị chặn để buộc "
+        "chạy lại thí nghiệm.\n\n"
         "### Kết luận báo cáo\n\n"
         "Notebook chứng minh **phương pháp** (RAG hybrid, guardrails, routing, session) và **đo** trên bộ eval "
         "tự xây; **hệ thống thật** đã gắn cùng module code với cấu hình trên. "
@@ -617,3 +635,86 @@ def enrich_pipeline_row(result: dict[str, Any]) -> dict[str, Any]:
         "success_availability": is_non_abstain_success(result),
         "success_strict": is_strict_pipeline_success(result),
     }
+
+
+def format_part17_bullet_part4(summary: dict[str, Any]) -> str:
+    models = summary["models"]
+    total_q = summary["total_q"]
+    per = summary["per_model"]
+    parts = []
+    for model in models:
+        stats = per[model]
+        short = model.split("/")[-1]
+        parts.append(f"{short} {stats['ok']}/{total_q}")
+    latency_bits = []
+    ds = summary["deepseek_model"]
+    if ds in per and per[ds].get("abstain_latency_ms") is not None:
+        latency_bits.append(f"abstain DeepSeek ~{per[ds]['abstain_latency_ms']:.0f}ms")
+    latency_note = f"; {latency_bits[0]}" if latency_bits else ""
+    return (
+        f"4. **Part IV** â€” So sÃ¡nh **3 model** trÃªn cÃ¹ng 20 query: "
+        f"{', '.join(parts)}{latency_note}. "
+        "KB FAQ á»•n trÃªn retrieval eval; production chat cháº¡y **DeepSeek primary** "
+        "vÃ  **Luna fallback chá»‰ khi HTTP 429**, trong khi RAG/menu váº«n lÃ m boundary cho evidence."
+    )
+
+
+def format_production_report_section() -> str:
+    """Final notebook section: report conclusion — what research outputs ship in production."""
+    return (
+        "---\n\n"
+        "## 18. Đưa vào production — kết luận báo cáo\n\n"
+        "Phần này **chốt báo cáo**: kết quả nghiên cứu trong notebook đã được **ứng dụng** "
+        "vào chatbot AI hiện tại (Python AI service + backend .NET trên staging/production) "
+        "ở mức nào, và **stack nào** nhóm cam kết vận hành.\n\n"
+        "### Tính năng từ notebook → hệ thống đang chạy\n\n"
+        "| Nội dung nghiên cứu (notebook) | Trạng thái trên hệ thống | Ghi chú triển khai |\n"
+        "|---|---|---|\n"
+        "| **Knowledge Base** Part I — 26 file MD, chunk theo `##`, question variants | **Đã áp dụng** | "
+        "`knowledge-base/` load lúc khởi động AI service |\n"
+        "| **Chuẩn hóa tiếng Việt** (teencode, không dấu, emoji) | **Đã áp dụng** | "
+        "`vietnamese_normalizer` trong BM25 và pipeline query |\n"
+        "| **Retrieval Hybrid RRF** (BM25 + Dense E5 small) Part II | **Đã áp dụng** | "
+        "`RAG_RETRIEVAL_METHOD=hybrid`, `AI_EMBEDDING_MODEL=e5_small` — ADR retriever |\n"
+        "| **Ba profile pipeline** Part III | **Đã áp dụng để thử nghiệm** | "
+        "`llm_first_v1`, `evidence_first_v2`, `planner_state_v3`; production chỉ bật winner |\n"
+        "| **Guardrails** — PII, prompt injection, chống tự đặt món / bịa giá | **Đã áp dụng** | "
+        "`guardrails.detect_guardrail_flags`; injection **chặn trước LLM** (`assistant.py`) |\n"
+        "| **Chặn / xử lý câu hỏi sai chủ đề** Part III | **Đã áp dụng một phần** | "
+        "Cờ `OUT_OF_SCOPE` + chunk KB `out-of-domain-redirect`; LLM + prompt hướng dẫn từ chối — "
+        "**chưa** có nhánh từ chối cứng cho mọi off-topic như injection |\n"
+        "| **Ngữ cảnh hội thoại** (session, rolling summary, lịch sử) Part III | **Đã áp dụng** | "
+        "Backend gửi `session_memory`, `rolling_summary`, `session_state`, history → "
+        "`rewrite_query` và prompt LLM |\n"
+        "| **Claim Verifier** chống bịa sau LLM | **Đã áp dụng (KB + LiveContext)** | "
+        "`verify_claims` trên chunk KB và live menu IDs; evidence assembly dùng chung cho ba profile |\n"
+        "| **Structured response** (evidence, claims, guardrail_flags, cart gợi ý) | **Đã áp dụng** | "
+        "Contract `/v1/chat` — backend kiểm tra trước khi hiển thị |\n"
+        "| **DeepSeek primary + Luna fallback** qua 9router | **Đã áp dụng theo policy production** | "
+        "`LLM_MODEL=oc/deepseek-v4-flash-free`, `LLM_RATE_LIMIT_FALLBACK_MODEL=cx/gpt-5.6-luna-review`, "
+        "`LLM_RATE_LIMIT_FALLBACK_ENABLED=true` |\n"
+        "| So sánh **3 model** / metric Part IV | **Không đưa vào production** | "
+        "Chỉ phục vụ thí nghiệm và báo cáo |\n"
+        "| Human eval, gate chất lượng end-to-end | **Chưa hoàn tất release** | "
+        "[`AI_STAGING_READINESS.md`](../../docs/ai/AI_STAGING_READINESS.md) — **NOT READY**; "
+        "ưu tiên LLM-first + eval golden sau thay đổi routing |\n\n"
+        "### Stack production nhóm chốt vận hành\n\n"
+        "| Thành phần | Giá trị |\n"
+        "|---|---|\n"
+        "| Chat routing | `AI_PIPELINE_PROFILE=<winner từ pipeline_selection.json>` |\n"
+        "| Retrieval | `hybrid` + `e5_small` |\n"
+        "| Model policy | DeepSeek primary `oc/deepseek-v4-flash-free` → Luna fallback `cx/gpt-5.6-luna-review` **chỉ khi `http_429`** |\n"
+        "| Tích hợp | `CHAT_AI_PROVIDER=python-rag`, Docker [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) |\n"
+        "| Kiểm tra sau deploy | [`VPS_STAGING_AI_RUNBOOK.md`](../../docs/ai/VPS_STAGING_AI_RUNBOOK.md) |\n\n"
+        "> Artifact winner được tái sử dụng cho thay đổi backend/frontend/deploy không ảnh hưởng AI; "
+        "workflow **không chạy lại** hàng trăm request DeepSeek. Nếu prompt, runtime AI, scorer, KB, "
+        "dataset hoặc menu thay đổi thì `research_input_hash` đổi và deployment bị chặn để buộc "
+        "chạy lại thí nghiệm.\n\n"
+        "### Kết luận báo cáo\n\n"
+        "Notebook chứng minh **phương pháp** (RAG hybrid, guardrails, routing, session) và **đo** trên bộ eval "
+        "tự xây; **hệ thống thật** đã gắn cùng module code với cấu hình trên. "
+        "Evidence assembly KB + LiveContext đã được sửa chung trước thí nghiệm profile. "
+        "Production chỉ chạy winner sau safety gate, với **effective model** được ghi telemetry "
+        "để phân biệt DeepSeek primary và Luna fallback khi bị `http_429`; phần còn lại là "
+        "human review và staging load test."
+    )

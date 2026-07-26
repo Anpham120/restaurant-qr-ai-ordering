@@ -11,7 +11,7 @@ _SAFETY_METRICS = (
     "session_isolation_passed",
     "allowed_evidence_only",
     "assistant_text_not_persisted",
-    "deepseek_calls_succeeded",
+    "provider_calls_succeeded",
 )
 
 

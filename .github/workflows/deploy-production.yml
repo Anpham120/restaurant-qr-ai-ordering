@@ -58,6 +58,10 @@ jobs:
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
       LLM_MODEL: oc/deepseek-v4-flash-free
+      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      LLM_TIMEOUT_SECONDS: "30"
+      AI_REQUEST_BUDGET_SECONDS: "45"
       AI_PIPELINE_PROFILE: ${{ vars.AI_PIPELINE_PROFILE }}
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
@@ -70,60 +74,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python for controlled pipeline evaluation
+      - name: Setup Python for research artifact verification
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install AI evaluation dependencies
-        run: python -m pip install -r ai/requirements.txt
-
-      - name: Open secure 9router tunnel
-        run: |
-          tunnel_dir="$(mktemp -d)"
-          key_file="${tunnel_dir}/deploy-key"
-          known_hosts_file="${tunnel_dir}/known-hosts"
-          printf '%s\n' "$SSH_KEY" > "$key_file"
-          chmod 600 "$key_file"
-          ssh-keyscan -H "$SSH_HOST" > "$known_hosts_file" 2>/dev/null
-          ssh \
-            -i "$key_file" \
-            -o UserKnownHostsFile="$known_hosts_file" \
-            -o StrictHostKeyChecking=yes \
-            -o ExitOnForwardFailure=yes \
-            -N -L 20128:127.0.0.1:20128 \
-            "${SSH_USER}@${SSH_HOST}" &
-          tunnel_pid=$!
-          echo "ROUTER_TUNNEL_PID=${tunnel_pid}" >> "$GITHUB_ENV"
-          echo "ROUTER_TUNNEL_DIR=${tunnel_dir}" >> "$GITHUB_ENV"
-          python - <<'PY'
-          import socket
-          import time
-
-          for _ in range(30):
-              try:
-                  with socket.create_connection(("127.0.0.1", 20128), timeout=1):
-                      break
-              except OSError:
-                  time.sleep(1)
-          else:
-              raise SystemExit("9router SSH tunnel did not become ready")
-          PY
-
-      - name: Compare all pipeline profiles with DeepSeek
-        env:
-          PYTHONPATH: ai
-        run: python ai/evaluation/run_pipeline_profile_eval.py
-
-      - name: Close secure 9router tunnel
-        if: always()
-        run: |
-          if [ -n "${ROUTER_TUNNEL_PID:-}" ]; then
-            kill "$ROUTER_TUNNEL_PID" 2>/dev/null || true
-          fi
-          if [ -n "${ROUTER_TUNNEL_DIR:-}" ]; then
-            rm -rf -- "$ROUTER_TUNNEL_DIR"
-          fi
 
       - name: Bind production configuration to the research winner
         env:
@@ -134,9 +88,15 @@ jobs:
             args+=(--expected-profile "$AI_PIPELINE_PROFILE")
           fi
           python ai/evaluation/verify_pipeline_selection.py \
-            ai/evaluation/results/pipeline_selection.json \
-            --expected-model oc/deepseek-v4-flash-free \
-            --expected-commit "$GITHUB_SHA" \
+            ai/evaluation/approved/pipeline_selection.json \
+            --expected-primary-model oc/deepseek-v4-flash-free \
+            --expected-fallback-model cx/gpt-5.6-luna-review \
+            --expected-fallback-trigger http_429 \
+            --expected-max-fallbacks 1 \
+            --require-fallback-enabled \
+            --verify-current-research-inputs \
+            --verify-current-canonical-dataset \
+            --repository-root . \
             --github-env "$GITHUB_ENV" \
             "${args[@]}"
 
@@ -145,7 +105,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pipeline-selection-production-${{ github.sha }}
-          path: ai/evaluation/results/pipeline_selection.json
+          path: ai/evaluation/approved/pipeline_selection.json
           if-no-files-found: error
 
       - name: Deploy to production VPS

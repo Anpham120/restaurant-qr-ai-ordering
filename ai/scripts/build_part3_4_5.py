@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Build Part III+IV+V — rich charts + markdown analysis."""
 import sys
 from pathlib import Path
@@ -857,15 +857,17 @@ cells.append(code(
 ))
 
 cells.append(md(
-    "## 14.4 Thí nghiệm chọn kiến trúc production (cố định DeepSeek)\n\n"
-    "Đây là thí nghiệm quyết định production. Nó khác §14 ở chỗ **model được giữ cố định** "
-    "là `oc/deepseek-v4-flash-free`; biến độc lập duy nhất là profile pipeline.\n\n"
+    "## 14.4 Thí nghiệm chọn kiến trúc production (DeepSeek primary + Luna fallback)\n\n"
+    "Đây là thí nghiệm quyết định production. Nó khác §14 cũ ở chỗ **policy model được giữ cố định**: "
+    "`oc/deepseek-v4-flash-free` là primary, `cx/gpt-5.6-luna-review` là fallback **chỉ khi HTTP 429**; "
+    "biến được lập duy nhất là profile pipeline.\n\n"
     "- Single-turn: KB, menu, giá, category, tag, gợi ý và ba câu production.\n"
     "- Multi-turn: ordinal referent, loại món, đổi số người/chủ đề/sở thích, duy trì dị ứng.\n"
     "- Safety: ID/giá giả, món ngoài menu, dị ứng, injection, session isolation.\n"
-    "- Availability: timeout/response lỗi; LLM case chạy ba lượt, deterministic case một lượt.\n\n"
-    "Thứ tự chọn: **safety hard gate → strict semantic quality → context accuracy → "
-    "p95 latency → số lượt gọi DeepSeek**. Không có profile qua hard gate thì deployment bị chặn."
+    "- Availability: timeout/response lỗi; LLM case chạy ba lượt, deterministic case một lượt; "
+    "ghi nhận `effective model`, `fallback rate`, và `model_attempts`.\n\n"
+    "Thứ tự chọn: **safety hard gate → strict semantic quality → context accuracy → p95 latency → số lượt gọi fallback**. "
+    "Không có profile qua hard gate thì deployment bị chặn."
 ))
 
 cells.append(code(
@@ -881,18 +883,30 @@ cells.append(code(
     '    }\n'
     'pipeline_selection_summary = summarize_pipeline_selection(pipeline_selection)\n'
     'selection_rows = pipeline_selection_summary["rows"]\n'
+    'policy = pipeline_selection_summary.get("model_policy") or {}\n'
     'if selection_rows:\n'
+    '    display(pd.DataFrame([{\n'
+    '        "primary_model": policy.get("primary_model"),\n'
+    '        "fallback_model": policy.get("fallback_model"),\n'
+    '        "fallback_trigger": policy.get("fallback_trigger"),\n'
+    '        "fallback_enabled": policy.get("fallback_enabled"),\n'
+    '    }]).style.hide(axis="index").set_caption("Production model policy from artifact"))\n'
     '    display(pd.DataFrame(selection_rows).style.hide(axis="index").format({\n'
     '        "strict_semantic_success": "{:.1%}",\n'
     '        "context_accuracy": "{:.1%}",\n'
     '        "p95_latency_ms": "{:.1f}",\n'
     '        "mean_llm_calls": "{:.2f}",\n'
     '        "run_to_run_disagreement_rate": "{:.1%}",\n'
+    '        "fallback_rate": "{:.1%}",\n'
     '    }).set_caption("Controlled DeepSeek pipeline comparison"))\n'
     'else:\n'
     '    print("Chưa có pipeline_selection.json — chạy run_pipeline_profile_eval.py; production vẫn BLOCKED.")\n'
     'print("Winner:", pipeline_selection_summary["winner"])\n'
+    'print("Primary model:", policy.get("primary_model"))\n'
+    'print("Fallback model:", policy.get("fallback_model"))\n'
+    'print("Fallback trigger:", policy.get("fallback_trigger"))\n'
     'print("Commit:", pipeline_selection_summary["commit_sha"])\n'
+    'print("Research input:", pipeline_selection_summary["research_input_hash"])\n'
     'print("Dataset:", pipeline_selection_summary["dataset_hash"])'
 ))
 
@@ -924,7 +938,8 @@ cells.append(md(
 cells.append(md(
     "## 15. Kết luận lựa chọn kiến trúc production\n\n"
     "Kết luận dưới đây được sinh trực tiếp từ `pipeline_selection.json`, không hardcode winner. "
-    "Production chỉ được bật profile thắng trên đúng model và commit đã đánh giá."
+    "Production chỉ được bật profile thắng trên đúng model và đúng `research_input_hash`; "
+    "commit triển khai có thể khác khi chỉ sửa backend/frontend/deploy không ảnh hưởng thí nghiệm."
 ))
 
 cells.append(code(

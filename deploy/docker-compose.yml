@@ -29,7 +29,10 @@ x-api-environment: &api-environment
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
   AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
-  BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-12}
+  # Keep the browser-facing API alive slightly longer than the AI service's
+  # end-to-end request budget.  Otherwise a valid DeepSeek/Luna response can
+  # be discarded by the backend before the AI service returns it.
+  BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-50}
   AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
 
 services:
@@ -98,9 +101,11 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:20128/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-oc/deepseek-v4-flash-free}
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-cx/gpt-5.6-luna-review}
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-true}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-12}
-      AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-14}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}
       AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-700}
       AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-low}
