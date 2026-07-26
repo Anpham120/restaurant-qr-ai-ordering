@@ -118,6 +118,59 @@ class AiInternalAuthReadinessTests(unittest.TestCase):
         self.assertTrue(payload["ready"])
         self.assertTrue(all(item["ready"] for item in payload["dependencies"].values()))
 
+    def test_health_and_readiness_publish_exact_model_policy(self) -> None:
+        policy_config = replace(
+            main.config,
+            provider="9router",
+            base_url="http://router.example/v1",
+            api_key="provider-key",
+            model="oc/deepseek-v4-flash-free",
+            internal_token="internal-secret",
+            rate_limit_fallback_model="cx/gpt-5.6-luna-review",
+            rate_limit_fallback_enabled=True,
+        )
+        expected_policy = {
+            "primary_model": "oc/deepseek-v4-flash-free",
+            "fallback_model": "cx/gpt-5.6-luna-review",
+            "fallback_enabled": True,
+            "fallback_trigger": "http_429",
+            "max_fallbacks_per_operation": 1,
+        }
+
+        with (
+            patch.object(main, "config", policy_config),
+            patch.object(main, "assistant", _AssistantState(ready=True)),
+        ):
+            health_payload = main.health()
+            ready_payload = json.loads(main.ready().body)
+
+        self.assertEqual(expected_policy, health_payload["model_policy"])
+        self.assertEqual(expected_policy, ready_payload["model_policy"])
+
+    def test_timeout_response_reports_no_fallback_attempt(self) -> None:
+        request = ChatRequest(contract_version="v2", message="CÃ³ phá»Ÿ khÃ´ng?")
+        policy_config = replace(
+            main.config,
+            model="oc/deepseek-v4-flash-free",
+            rate_limit_fallback_model="cx/gpt-5.6-luna-review",
+            rate_limit_fallback_enabled=True,
+        )
+
+        with patch.object(main, "config", policy_config):
+            response = main._build_timeout_response(request)  # noqa: SLF001
+
+        self.assertEqual(
+            "oc/deepseek-v4-flash-free",
+            response["primary_model"],
+        )
+        self.assertEqual(
+            "cx/gpt-5.6-luna-review",
+            response["fallback_model"],
+        )
+        self.assertFalse(response["fallback_used"])
+        self.assertIsNone(response["fallback_reason"])
+        self.assertEqual([], response["model_attempts"])
+
 
 if __name__ == "__main__":
     unittest.main()

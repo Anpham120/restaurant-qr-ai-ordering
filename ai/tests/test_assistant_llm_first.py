@@ -192,6 +192,10 @@ class AssistantLlmFirstTests(unittest.TestCase):
         self.assertEqual(0, client.calls)
         self.assertEqual("menu_presence", response["latency_ms"]["path"])
         self.assertIn("phở", response["content"].casefold())
+        self.assertTrue(response["model"].startswith("deterministic-"))
+        self.assertFalse(response["fallback_used"])
+        self.assertIsNone(response["fallback_reason"])
+        self.assertEqual([], response["model_attempts"])
 
     def test_llm_first_false_still_allows_party_fast_path(self) -> None:
         client = _CountingClient()
