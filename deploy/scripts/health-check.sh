@@ -55,7 +55,7 @@ echo "Running protected basic AI smoke request"
 curl --fail --show-error --silent --retry 2 --retry-delay 2 --retry-all-errors \
   -H "Authorization: Bearer ${AI_INTERNAL_TOKEN}" \
   -H "Content-Type: application/json" \
-  --data '{"message":"Xin chÃ o"}' \
+  --data '{"message":"Xin chào"}' \
   "$ai_chat_url" >/dev/null
 
 menu_dataset="/opt/cmc-restaurant/${DEPLOY_ENV}/repo/backend/data/menu-dataset.json"
@@ -123,7 +123,7 @@ assert payload.get("primary_model") == expected_model, payload
 assert payload.get("fallback_model") == expected_fallback_model, payload
 assert payload.get("model") in {expected_model, expected_fallback_model}, payload
 assert payload.get("provider_status") in {"ok", "not_called"}, payload
-assert "mÃ¬nh chÆ°a Ä‘á»§ báº±ng chá»©ng" not in content, payload
+assert "mình chưa đủ bằng chứng" not in content, payload
 assert payload.get("verifier_result") != "failed", payload
 assert payload.get("resolved_menu_item_ids"), payload
 assert payload.get("evidence"), payload
@@ -132,9 +132,9 @@ PY
 }
 
 echo "Running protected semantic AI smoke probes"
-run_semantic_probe "pho-list" "NhÃ  hÃ ng mÃ¬nh cÃ³ nhá»¯ng mÃ³n phá»Ÿ gÃ¬ nhá»‰?"
-run_semantic_probe "pho-recommend" "Gá»£i Ã½ cho mÃ¬nh mÃ³n phá»Ÿ táº¡i nhÃ  hÃ ng Ä‘i"
-run_semantic_probe "nhau" "MÃ¬nh cÃ³ mÃ³n nháº­u khÃ´ng?"
+run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"
+run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"
+run_semantic_probe "nhau" "Mình có món nhậu không?"
 
 echo "Running backend-integrated AI smoke request"
 backend_session_request="${probe_dir}/backend-session-request.json"
@@ -166,7 +166,7 @@ import json
 import sys
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump({"content": "á»Ÿ Ä‘Ã¢y cÃ³ phá»Ÿ khÃ´ng"}, handle, ensure_ascii=False)
+    json.dump({"content": "Ở đây có phở không"}, handle, ensure_ascii=False)
 PY
 
 backend_session_id="$(cat "${probe_dir}/backend-session-id.txt")"
@@ -199,8 +199,8 @@ flags = {str(flag) for flag in final_payload.get("guardrailFlags") or []}
 forbidden_flags = {"AI_PROVIDER_UNAVAILABLE", "AI_UPSTREAM_CONTRACT_ERROR"}
 assert content, final_payload
 assert not flags.intersection(forbidden_flags), final_payload
-assert "há»‡ thá»‘ng hÆ¡i cháº­m" not in content.casefold(), final_payload
-assert "phá»Ÿ" in content.casefold(), final_payload
+assert "hệ thống hơi chậm" not in content.casefold(), final_payload
+assert "phở" in content.casefold(), final_payload
 PY
 
 report_dir="/opt/cmc-restaurant/${DEPLOY_ENV}/reports"
@@ -228,9 +228,9 @@ cat > "${report_dir}/last-deployment.md" <<EOF
 
 ## Compose Status
 
-\`\`\`json
+```json
 ${compose_status}
-\`\`\`
+```
 EOF
 
 echo "Health check passed for ${DEPLOY_ENV}"

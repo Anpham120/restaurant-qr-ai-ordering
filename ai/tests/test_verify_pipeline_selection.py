@@ -90,6 +90,19 @@ class VerifyPipelineSelectionTests(unittest.TestCase):
                 expected_research_input_hash="sha256:changed",
             )
 
+    def test_rejects_canonical_dataset_drift(self) -> None:
+        with self.assertRaisesRegex(ValueError, "dataset drift"):
+            validate_artifact(
+                _artifact(),
+                expected_profile="evidence_first_v2",
+                expected_primary_model="oc/deepseek-v4-flash-free",
+                expected_fallback_model="cx/gpt-5.6-luna-review",
+                expected_fallback_trigger="http_429",
+                expected_max_fallbacks=1,
+                require_fallback_enabled=True,
+                expected_dataset_hash="sha256:canonical-data",
+            )
+
     def test_rejects_profile_drift(self) -> None:
         with self.assertRaisesRegex(ValueError, "profile"):
             validate_artifact(

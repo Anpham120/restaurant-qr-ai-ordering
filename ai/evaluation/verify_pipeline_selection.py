@@ -14,6 +14,7 @@ from app.config import (
     PIPELINE_PROFILES,
 )
 from evaluation.pipeline_selection import passes_safety_gate
+from evaluation.canonical_research_data import load_canonical_research_bundle
 from evaluation.research_inputs import compute_research_input_hash
 
 DEEPSEEK_MODEL = DEFAULT_LLM_MODEL
@@ -32,6 +33,7 @@ def validate_artifact(
     expected_max_fallbacks: int = 1,
     require_fallback_enabled: bool = False,
     expected_research_input_hash: str | None = None,
+    expected_dataset_hash: str | None = None,
 ) -> str:
     if artifact.get("schema_version") != "pipeline-selection-v3":
         raise ValueError("unsupported pipeline selection artifact schema")
@@ -99,6 +101,11 @@ def validate_artifact(
         raise ValueError("pipeline selection artifact is missing research commit")
     if not str(artifact.get("dataset_hash") or "").startswith("sha256:"):
         raise ValueError("pipeline selection artifact is missing dataset hash")
+    if expected_dataset_hash and artifact.get("dataset_hash") != expected_dataset_hash:
+        raise ValueError(
+            "dataset drift: "
+            f"artifact={artifact.get('dataset_hash')!r}, runtime={expected_dataset_hash!r}"
+        )
     if not artifact.get("generated_at"):
         raise ValueError("pipeline selection artifact is missing generated_at")
     if not int(artifact.get("source_run_id") or 0):
@@ -119,6 +126,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--require-fallback-enabled", action="store_true")
     parser.add_argument("--expected-research-input-hash")
     parser.add_argument("--verify-current-research-inputs", action="store_true")
+    parser.add_argument("--verify-current-canonical-dataset", action="store_true")
     parser.add_argument("--repository-root", type=Path, default=PROJECT_ROOT)
     parser.add_argument("--github-env", type=Path)
     return parser.parse_args()
@@ -136,6 +144,11 @@ def main() -> int:
                 "explicit research input hash does not match the current checkout"
             )
         expected_research_input_hash = current_hash
+    expected_dataset_hash = None
+    if args.verify_current_canonical_dataset:
+        expected_dataset_hash = load_canonical_research_bundle(
+            args.repository_root.resolve() / "ai"
+        ).dataset_hash
     winner = validate_artifact(
         artifact,
         expected_profile=args.expected_profile,
@@ -145,6 +158,7 @@ def main() -> int:
         expected_max_fallbacks=args.expected_max_fallbacks,
         require_fallback_enabled=args.require_fallback_enabled,
         expected_research_input_hash=expected_research_input_hash,
+        expected_dataset_hash=expected_dataset_hash,
     )
     if args.github_env:
         with args.github_env.open("a", encoding="utf-8") as handle:

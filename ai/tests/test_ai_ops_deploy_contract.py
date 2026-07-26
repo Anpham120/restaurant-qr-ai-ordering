@@ -19,6 +19,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
             "LLM_MODEL",
             "LLM_RATE_LIMIT_FALLBACK_MODEL",
             "LLM_RATE_LIMIT_FALLBACK_ENABLED",
+            "LLM_TIMEOUT_SECONDS",
+            "AI_REQUEST_BUDGET_SECONDS",
         ):
             with self.subTest(name=name):
                 self.assertIn(f"{name}:", compose)
@@ -54,7 +56,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn('policy.get("fallback_trigger") == "http_429"', script)
         self.assertIn('int(policy.get("max_fallbacks_per_operation") or 0) == 1', script)
         self.assertIn("Authorization: Bearer ${AI_INTERNAL_TOKEN}", script)
-        self.assertIn('"message":"Xin chÃ o"', script)
+        self.assertIn('"message":"Xin chào"', script)
         self.assertIn("/v1/chat", script)
         self.assertIn('{"ok", "not_called"}', script)
         self.assertIn(
@@ -67,6 +69,9 @@ class AiOpsDeployContractTests(unittest.TestCase):
         )
         self.assertNotIn('assert payload.get("model") == expected_model, payload', script)
         self.assertNotIn('payload.get("provider_available") is True', script)
+        self.assertIn('run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"', script)
+        self.assertIn('run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"', script)
+        self.assertIn('run_semantic_probe "nhau" "Mình có món nhậu không?"', script)
 
     def test_deploy_vps_requires_and_writes_fallback_model_policy(self) -> None:
         script = (REPO_ROOT / "deploy" / "scripts" / "deploy-vps.sh").read_text(
@@ -81,6 +86,14 @@ class AiOpsDeployContractTests(unittest.TestCase):
         )
         self.assertIn(
             'LLM_RATE_LIMIT_FALLBACK_ENABLED=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_ENABLED")',
+            script,
+        )
+        self.assertIn(
+            'LLM_TIMEOUT_SECONDS=$(env_quote "${LLM_TIMEOUT_SECONDS:-${AI_TIMEOUT_SECONDS:-30}}")',
+            script,
+        )
+        self.assertIn(
+            'AI_REQUEST_BUDGET_SECONDS=$(env_quote "${AI_REQUEST_BUDGET_SECONDS:-45}")',
             script,
         )
 
@@ -99,6 +112,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
             workflow,
         )
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"', workflow)
+        self.assertIn('LLM_TIMEOUT_SECONDS: "30"', workflow)
+        self.assertIn('AI_REQUEST_BUDGET_SECONDS: "45"', workflow)
         self.assertNotIn("GEMINI", workflow.upper())
         production_workflow = (
             REPO_ROOT / ".github" / "workflows" / "deploy-production.yml"
@@ -106,12 +121,15 @@ class AiOpsDeployContractTests(unittest.TestCase):
         for deploy_workflow in (workflow, production_workflow):
             self.assertIn("approved/pipeline_selection.json", deploy_workflow)
             self.assertIn("--verify-current-research-inputs", deploy_workflow)
+            self.assertIn("--verify-current-canonical-dataset", deploy_workflow)
             self.assertIn("--expected-primary-model", deploy_workflow)
             self.assertIn("--expected-fallback-model", deploy_workflow)
             self.assertIn("--expected-fallback-trigger", deploy_workflow)
             self.assertIn("--expected-max-fallbacks", deploy_workflow)
             self.assertIn("--require-fallback-enabled", deploy_workflow)
             self.assertNotIn("Open secure 9router tunnel", deploy_workflow)
+            self.assertIn('LLM_TIMEOUT_SECONDS: "30"', deploy_workflow)
+            self.assertIn('AI_REQUEST_BUDGET_SECONDS: "45"', deploy_workflow)
 
         research_workflow = (
             REPO_ROOT / ".github" / "workflows" / "research-pipeline-selection.yml"

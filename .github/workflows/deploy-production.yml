@@ -60,6 +60,8 @@ jobs:
       LLM_MODEL: oc/deepseek-v4-flash-free
       LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
       LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      LLM_TIMEOUT_SECONDS: "30"
+      AI_REQUEST_BUDGET_SECONDS: "45"
       AI_PIPELINE_PROFILE: ${{ vars.AI_PIPELINE_PROFILE }}
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
@@ -93,6 +95,7 @@ jobs:
             --expected-max-fallbacks 1 \
             --require-fallback-enabled \
             --verify-current-research-inputs \
+            --verify-current-canonical-dataset \
             --repository-root . \
             --github-env "$GITHUB_ENV" \
             "${args[@]}"

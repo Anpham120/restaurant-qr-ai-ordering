@@ -33,12 +33,16 @@ from app.config import (  # noqa: E402
 )
 from app.services.assistant import AiAssistantService  # noqa: E402
 from evaluation.golden_eval_common import load_menu_items  # noqa: E402
+from evaluation.canonical_research_data import (  # noqa: E402
+    canonical_pipeline_evaluation_dataset,
+    load_canonical_research_bundle,
+)
 from evaluation.pipeline_selection import select_winner  # noqa: E402
 from evaluation.research_inputs import compute_research_input_hash  # noqa: E402
 
 DEEPSEEK_MODEL = "oc/deepseek-v4-flash-free"
 PROFILE_ORDER = ("llm_first_v1", "evidence_first_v2", "planner_state_v3")
-DATASET_PATH = AI_ROOT / "evaluation" / "pipeline_profile_cases.json"
+DATASET_PATH = AI_ROOT / "evaluation" / "datasets" / "canonical_research_manifest.v1.json"
 DEFAULT_OUTPUT_PATH = AI_ROOT / "evaluation" / "results" / "pipeline_selection.json"
 
 
@@ -695,6 +699,20 @@ def _dataset_hash(dataset_path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+def _load_evaluation_dataset(dataset_path: Path) -> tuple[dict[str, Any], str]:
+    """Load the canonical catalogue by default, retaining legacy input support.
+
+    The legacy JSON option exists only for historical reproduction. New runs use
+    the manifest adapter and write the manifest's hash into the selection
+    artifact, allowing CI and production to fail closed on dataset drift.
+    """
+    if dataset_path.resolve() == DATASET_PATH.resolve():
+        bundle = load_canonical_research_bundle(AI_ROOT)
+        return canonical_pipeline_evaluation_dataset(bundle), bundle.dataset_hash
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    return dataset, _dataset_hash(dataset_path)
+
+
 def _commit_sha() -> str:
     return subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -718,7 +736,7 @@ def _working_tree_dirty() -> bool:
 
 
 async def _main(args: argparse.Namespace) -> int:
-    dataset = json.loads(args.dataset.read_text(encoding="utf-8"))
+    dataset, dataset_hash = _load_evaluation_dataset(args.dataset)
     unknown = set(PROFILE_ORDER) - set(PIPELINE_PROFILES)
     if unknown:
         raise RuntimeError(f"Runtime does not implement profiles: {sorted(unknown)}")
@@ -727,7 +745,7 @@ async def _main(args: argparse.Namespace) -> int:
         profile_results=profile_results,
         commit_sha=_commit_sha(),
         research_input_hash=compute_research_input_hash(PROJECT_ROOT),
-        dataset_hash=_dataset_hash(args.dataset),
+        dataset_hash=dataset_hash,
         generated_at=datetime.now(timezone.utc).isoformat(),
         working_tree_dirty=_working_tree_dirty(),
     )
