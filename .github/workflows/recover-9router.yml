@@ -44,9 +44,22 @@ jobs:
             "${SSH_USER}@${SSH_HOST}" \
             'set -eu
             sudo -n systemctl restart 9router.service
-            systemctl is-active --quiet 9router.service
-            if ! ss -ltnH | grep -q ":20128"; then
-              echo "9router listener did not become ready" >&2
-              exit 1
+            for attempt in $(seq 1 30); do
+              if systemctl is-active --quiet 9router.service && ss -ltnH | grep -q ":20128"; then
+                echo "9router listener is ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            service_state="$(sudo -n systemctl show 9router.service \
+              -p ActiveState -p SubState -p ExecMainCode -p ExecMainStatus \
+              --no-pager)"
+            printf "9router service state=%s\\n" "$service_state"
+            router_process_listeners="$(sudo -n ss -ltnp | grep -Ei "9router|router" || true)"
+            if [ -n "$router_process_listeners" ]; then
+              printf "9router process listeners=%s\\n" "$router_process_listeners"
+            else
+              echo "9router process listeners=none"
             fi
-            echo "9router listener is ready"'
+            echo "9router listener did not become ready" >&2
+            exit 1'

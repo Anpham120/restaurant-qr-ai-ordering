@@ -194,6 +194,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("environment: staging", workflow)
         self.assertIn("sudo -n systemctl restart 9router.service", workflow)
         self.assertIn("systemctl is-active --quiet 9router.service", workflow)
+        self.assertIn("seq 1 30", workflow)
+        self.assertIn("9router service state=", workflow)
         self.assertIn("9router listener is ready", workflow)
         self.assertNotIn("docker restart", workflow)
 
