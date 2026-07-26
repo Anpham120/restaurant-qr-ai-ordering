@@ -152,7 +152,12 @@ def load_canonical_research_bundle(ai_root: Path | None = None) -> CanonicalRese
     )
     cases = tuple(_case_from_raw(item) for item in raw_manifest["cases"])
     knowledge_base_hash = _knowledge_base_hash(knowledge_base_path)
-    menu_fixture_hash = _sha256_bytes(menu_path.read_bytes())
+    # Hash the logical menu document, not its serialization bytes.  The
+    # catalogue is evaluated on Windows locally and Linux in CI/production;
+    # a byte hash would turn equivalent UTF-8/BOM or line-ending encodings into
+    # a false dataset-drift deployment failure.
+    menu_payload = json.loads(menu_path.read_text(encoding="utf-8-sig"))
+    menu_fixture_hash = _sha256_bytes(_canonical_json(menu_payload))
     dataset_hash = _sha256_bytes(
         _canonical_json(
             {
