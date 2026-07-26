@@ -136,6 +136,9 @@ class AiOpsDeployContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("-L 20128:127.0.0.1:20128", research_workflow)
         self.assertIn("Open secure 9router tunnel", research_workflow)
+        self.assertIn("Preflight 9router HTTP readiness", research_workflow)
+        self.assertIn("/v1/models", research_workflow)
+        self.assertIn("oc/deepseek-v4-flash-free", research_workflow)
         self.assertIn("run_pipeline_profile_eval.py", research_workflow)
         self.assertIn(
             "LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review",

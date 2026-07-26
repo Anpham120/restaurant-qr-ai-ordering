@@ -79,6 +79,80 @@ jobs:
               raise SystemExit("9router SSH tunnel did not become ready")
           PY
 
+      - name: Preflight 9router HTTP readiness
+        # A TCP connection alone does not prove that the router can serve the
+        # configured model.  Fail before the controlled evaluation when the
+        # HTTP route is reset or rejects the model; never print the API key or
+        # response body.  Luna is attempted only after an actual primary 429.
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          import httpx
+
+          base_url = os.environ["LLM_BASE_URL"].rstrip("/")
+          primary = os.environ["LLM_MODEL"]
+          fallback = os.environ["LLM_RATE_LIMIT_FALLBACK_MODEL"]
+          headers = {
+              "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
+              "Content-Type": "application/json",
+          }
+          payload = {
+              "model": primary,
+              "messages": [{"role": "user", "content": "Reply exactly: OK"}],
+              "max_tokens": 8,
+              "temperature": 0,
+          }
+
+          def request(model: str) -> httpx.Response:
+              try:
+                  with httpx.Client(timeout=15.0) as client:
+                      return client.post(
+                          f"{base_url}/chat/completions",
+                          headers=headers,
+                          json={**payload, "model": model},
+                      )
+              except httpx.HTTPError as exc:
+                  raise SystemExit(
+                      f"9router HTTP preflight transport failure for {model}: "
+                      f"{type(exc).__name__}"
+                  ) from exc
+
+          response = request(primary)
+          print(f"9router primary preflight status={response.status_code}")
+          if response.status_code == 429:
+              fallback_response = request(fallback)
+              print(
+                  "9router fallback preflight "
+                  f"model={fallback} status={fallback_response.status_code}"
+              )
+              if not fallback_response.is_success:
+                  raise SystemExit(
+                      "9router fallback preflight failed after primary HTTP 429; "
+                      f"status={fallback_response.status_code}"
+                  )
+          elif not response.is_success:
+              raise SystemExit(
+                  "9router primary preflight failed without HTTP 429; "
+                  f"status={response.status_code}"
+              )
+
+          try:
+              models_response = httpx.get(
+                  f"{base_url}/models", headers=headers, timeout=10.0
+              )
+          except httpx.HTTPError as exc:
+              raise SystemExit(
+                  f"9router /v1/models transport failure: {type(exc).__name__}"
+              ) from exc
+          print(f"9router /v1/models status={models_response.status_code}")
+          if not models_response.is_success:
+              raise SystemExit(
+                  f"9router /v1/models preflight failed; status={models_response.status_code}"
+              )
+          PY
+
       - name: Compare all pipeline profiles with DeepSeek
         env:
           PYTHONPATH: ai
