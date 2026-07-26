@@ -6,6 +6,8 @@ but those views must always be filtered from one canonical case catalogue.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 from evaluation.canonical_research_data import (
@@ -27,6 +29,21 @@ def test_canonical_bundle_is_complete_and_hash_bound() -> None:
     assert bundle.menu_fixture_hash.startswith("sha256:")
     assert bundle.dataset_hash.startswith("sha256:")
     assert validate_canonical_research_bundle(bundle) == []
+
+
+def test_menu_fixture_hash_is_canonical_json_not_source_bytes() -> None:
+    bundle = load_canonical_research_bundle(AI_ROOT)
+    menu = json.loads(bundle.menu_path.read_text(encoding="utf-8-sig"))
+    canonical_menu = json.dumps(
+        menu,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    assert bundle.menu_fixture_hash == (
+        f"sha256:{hashlib.sha256(canonical_menu).hexdigest()}"
+    )
 
 
 def test_all_evaluation_views_filter_the_same_case_catalogue() -> None:
