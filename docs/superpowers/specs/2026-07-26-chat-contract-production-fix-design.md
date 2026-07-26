@@ -70,3 +70,21 @@ generic slow fallback.
 This fix does not change the three research profiles, DeepSeek model, winner
 selection, retrieval method, evidence rules, or notebook conclusions.
 
+## Research artifact lifecycle amendment
+
+The controlled DeepSeek comparison is a research activity, not a per-deploy
+health check. Re-running roughly 200 free-model requests for a backend-only
+change exhausted the 9router quota and blocked staging with HTTP 429 even
+though the previously approved experiment was still applicable.
+
+The approved selection is stored separately from raw experimental output.
+Deployment recomputes a `research_input_hash` over the AI runtime, prompts,
+selection scorer, KB, evaluation dataset, requirements and menu data. It may
+reuse the approved winner only when this hash is unchanged. Any relevant input
+change fails closed and requires a new manual controlled comparison plus review
+of the replacement approved artifact.
+
+This preserves the notebook-to-production decision while allowing backend,
+frontend and deployment-only fixes to ship without consuming DeepSeek research
+quota. The deployment commit and research commit may differ; the relevant AI
+inputs may not.

@@ -32,7 +32,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn('{"ok", "not_called"}', script)
         self.assertNotIn('payload.get("provider_available") is True', script)
 
-    def test_staging_deploy_waits_for_ci_and_receives_ai_secrets(self) -> None:
+    def test_deploy_uses_approved_winner_and_research_owns_router_tunnel(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "deploy-staging.yml").read_text(
             encoding="utf-8"
         )
@@ -47,8 +47,16 @@ class AiOpsDeployContractTests(unittest.TestCase):
             REPO_ROOT / ".github" / "workflows" / "deploy-production.yml"
         ).read_text(encoding="utf-8")
         for deploy_workflow in (workflow, production_workflow):
-            self.assertIn("-L 20128:127.0.0.1:20128", deploy_workflow)
-            self.assertIn("Open secure 9router tunnel", deploy_workflow)
+            self.assertIn("approved/pipeline_selection.json", deploy_workflow)
+            self.assertIn("--verify-current-research-inputs", deploy_workflow)
+            self.assertNotIn("Open secure 9router tunnel", deploy_workflow)
+
+        research_workflow = (
+            REPO_ROOT / ".github" / "workflows" / "research-pipeline-selection.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("-L 20128:127.0.0.1:20128", research_workflow)
+        self.assertIn("Open secure 9router tunnel", research_workflow)
+        self.assertIn("run_pipeline_profile_eval.py", research_workflow)
 
     def test_deploy_examples_document_canonical_ai_contract(self) -> None:
         for environment in ("staging", "production"):

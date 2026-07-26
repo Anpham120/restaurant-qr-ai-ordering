@@ -14,7 +14,8 @@ class NotebookPipelineSelectionTests(unittest.TestCase):
             "winner": "evidence_first_v2",
             "selection_reason": "safety_then_quality",
             "model": "oc/deepseek-v4-flash-free",
-            "commit_sha": "abc123",
+            "research_commit_sha": "abc123",
+            "research_input_hash": "sha256:research",
             "dataset_hash": "sha256:data",
             "profiles": [
                 {
@@ -37,6 +38,7 @@ class NotebookPipelineSelectionTests(unittest.TestCase):
         self.assertEqual(0.9, summary["rows"][0]["strict_semantic_success"])
         self.assertIn("evidence_first_v2", narrative)
         self.assertIn("abc123", narrative)
+        self.assertIn("sha256:research", narrative)
 
     def test_no_winner_is_reported_as_deploy_blocked(self) -> None:
         narrative = format_pipeline_selection_conclusion(

@@ -893,6 +893,7 @@ cells.append(code(
     '    print("Chưa có pipeline_selection.json — chạy run_pipeline_profile_eval.py; production vẫn BLOCKED.")\n'
     'print("Winner:", pipeline_selection_summary["winner"])\n'
     'print("Commit:", pipeline_selection_summary["commit_sha"])\n'
+    'print("Research input:", pipeline_selection_summary["research_input_hash"])\n'
     'print("Dataset:", pipeline_selection_summary["dataset_hash"])'
 ))
 
@@ -924,7 +925,8 @@ cells.append(md(
 cells.append(md(
     "## 15. Kết luận lựa chọn kiến trúc production\n\n"
     "Kết luận dưới đây được sinh trực tiếp từ `pipeline_selection.json`, không hardcode winner. "
-    "Production chỉ được bật profile thắng trên đúng model và commit đã đánh giá."
+    "Production chỉ được bật profile thắng trên đúng model và đúng `research_input_hash`; "
+    "commit triển khai có thể khác khi chỉ sửa backend/frontend/deploy không ảnh hưởng thí nghiệm."
 ))
 
 cells.append(code(

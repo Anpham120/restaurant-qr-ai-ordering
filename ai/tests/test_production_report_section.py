@@ -11,6 +11,8 @@ class ProductionReportSectionTests(unittest.TestCase):
         self.assertIn("OUT_OF_SCOPE", text)
         self.assertIn("session_memory", text)
         self.assertIn("hybrid", text)
+        self.assertIn("research_input_hash", text)
+        self.assertIn("không chạy lại", text)
         self.assertNotIn("Notebook vs triển khai", text)
 
 
