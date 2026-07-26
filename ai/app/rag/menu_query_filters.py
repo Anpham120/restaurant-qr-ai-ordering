@@ -44,6 +44,16 @@ AMBIGUOUS_ASCII_TAGS = frozenset(TAG_SURFACE_QUERY_ALIASES)
 SEMANTIC_SURFACE_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
     "tra": ("trà", "tra"),
 }
+PAYMENT_QUERY_TERMS = (
+    "tra bang",
+    "tra tien",
+    "thanh toan",
+    "quet the",
+    "chuyen khoan",
+    "tien mat",
+    "hoa don",
+    "bill",
+)
 
 ALCOHOL_CATEGORY_IDS = frozenset({"cat_alcohol"})
 SWEET_CATEGORY_IDS = frozenset(
@@ -341,6 +351,10 @@ def _semantic_alias_matches(
     normalized_query: str,
     normalized_alias: str,
 ) -> bool:
+    if normalized_alias == "tra" and any(
+        _contains_phrase(normalized_query, term) for term in PAYMENT_QUERY_TERMS
+    ):
+        return False
     surface_aliases = SEMANTIC_SURFACE_QUERY_ALIASES.get(normalized_alias)
     if surface_aliases:
         surface_query = _surface_text(query)
