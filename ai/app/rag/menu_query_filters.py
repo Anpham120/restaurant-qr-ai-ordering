@@ -38,6 +38,13 @@ TAG_SURFACE_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
 }
 AMBIGUOUS_ASCII_TAGS = frozenset(TAG_SURFACE_QUERY_ALIASES)
 
+# ``trả`` (pay) and ``trà`` (tea) both normalize to ``tra``.  Preserve the
+# original surface form for this category alias so policy questions never
+# acquire an irrelevant tea-only evidence scope.
+SEMANTIC_SURFACE_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    "tra": ("trà", "tra"),
+}
+
 ALCOHOL_CATEGORY_IDS = frozenset({"cat_alcohol"})
 SWEET_CATEGORY_IDS = frozenset(
     {
@@ -153,7 +160,7 @@ def infer_allowed_menu_item_ids(
     if requested_item_kind is None:
         requested_item_kind = detect_requested_item_kind(query)
 
-    semantic_item_matches = _matched_semantic_item_ids(normalized_query, available)
+    semantic_item_matches = _matched_semantic_item_ids(query, normalized_query, available)
     category_matches = _matched_categories(normalized_query, available)
     tag_matches = _matched_tags(query, normalized_query, available)
 
@@ -286,6 +293,7 @@ def _matched_categories(normalized_query: str, available: Sequence[dict[str, Any
 
 
 def _matched_semantic_item_ids(
+    query: str,
     normalized_query: str,
     available: Sequence[dict[str, Any]],
 ) -> set[str]:
@@ -300,10 +308,11 @@ def _matched_semantic_item_ids(
     from app.rag.constraint_extractor import CATEGORY_ALIASES
 
     matched_aliases = {
-        normalize_query_text(alias)
+        normalized_alias
         for aliases in CATEGORY_ALIASES.values()
         for alias in aliases
-        if _contains_phrase(normalized_query, normalize_query_text(alias))
+        for normalized_alias in (normalize_query_text(alias),)
+        if _semantic_alias_matches(query, normalized_query, normalized_alias)
     }
     if not matched_aliases:
         return set()
@@ -325,6 +334,21 @@ def _matched_semantic_item_ids(
             for alias in most_specific_aliases
         )
     }
+
+
+def _semantic_alias_matches(
+    query: str,
+    normalized_query: str,
+    normalized_alias: str,
+) -> bool:
+    surface_aliases = SEMANTIC_SURFACE_QUERY_ALIASES.get(normalized_alias)
+    if surface_aliases:
+        surface_query = _surface_text(query)
+        return any(
+            _contains_phrase(surface_query, _surface_text(alias))
+            for alias in surface_aliases
+        )
+    return _contains_phrase(normalized_query, normalized_alias)
 
 
 def _matched_tags(

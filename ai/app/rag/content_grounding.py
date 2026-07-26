@@ -121,7 +121,10 @@ def ground_response_content(
             content = format_grounded_recommendation_content(actions)
 
     if wants_recommendations and actions and not _content_mentions_any_action(content, actions):
-        content = format_grounded_recommendation_content(actions, intro=_short_intro(content))
+        # The model's prose did not name any final card, so retaining it as an
+        # intro could re-introduce a dish that the evidence-scope policy just
+        # removed.  Use the fixed grounded intro instead.
+        content = format_grounded_recommendation_content(actions)
 
     return strip_menu_ids(content.strip()), _dedupe_flags(flags), actions
 
