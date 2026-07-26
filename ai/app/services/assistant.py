@@ -1318,23 +1318,28 @@ def _apply_parsed_response(
     if context["policy"].wants_recommendations and not suggested_actions:
         suggested_actions = infer_suggested_actions_from_content(
             parsed.content,
-            context["available_menu_items"],
+            context["candidate_menu_items"],
             context["policy"],
         )
 
     suggested_actions = _finalize_suggested_actions(context, suggested_actions)
+    evidence_menu_items = (
+        context["candidate_menu_items"]
+        if context["policy"].wants_recommendations
+        else context["available_menu_items"]
+    )
 
     content, grounding_flags, suggested_actions = ground_response_content(
         parsed.content,
         suggested_actions,
-        context["available_menu_items"],
+        evidence_menu_items,
         wants_recommendations=context["policy"].wants_recommendations,
     )
     merged_flags = _dedupe([*flags, *parsed.guardrail_flags, *grounding_flags])
     verified_claims, claims_verified = verify_claims(
         parsed.claims,
         chunks=context["chunks"],
-        menu_items=context["available_menu_items"],
+        menu_items=evidence_menu_items,
     )
     context["claims"] = verified_claims
     if not claims_verified:
@@ -1425,11 +1430,11 @@ def _finalize_response_payload(
         response.setdefault("generation_input_sha256", str(context["generation_input_sha256"]))
     path = str((response.get("latency_ms") or {}).get("path") or "")
     if response.get("provider_available"):
-        response.setdefault("provider_status", "available")
+        response["provider_status"] = "available"
     elif "AI_PROVIDER_UNAVAILABLE" in (response.get("guardrail_flags") or []):
-        response.setdefault("provider_status", "unavailable")
+        response["provider_status"] = "unavailable"
     else:
-        response.setdefault("provider_status", "not_called")
+        response["provider_status"] = "not_called"
 
     claims = list(response.get("claims") or [])
     if not claims and response.get("suggested_cart_actions"):

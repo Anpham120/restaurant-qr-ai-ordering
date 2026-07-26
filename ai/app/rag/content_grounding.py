@@ -16,6 +16,13 @@ _MENU_ID_TOKEN = re.compile(
     re.IGNORECASE,
 )
 
+_MENU_DATA_DISCLAIMER_PATTERNS = (
+    "chua co du lieu thuc don",
+    "khong co du lieu thuc don",
+    "chua co du lieu menu",
+    "khong co du lieu menu",
+)
+
 # Patterns indicating the response is listing items to AVOID (allergy/dietary),
 # not recommending them. In this context, mentioning dish names is informational
 # warning, not fabrication.
@@ -71,6 +78,18 @@ def ground_response_content(
     flags: list[str] = []
     actions = list(suggested_actions)
     menu_names = _menu_name_index(menu_items)
+
+    # A model can produce valid action cards yet incorrectly say that no menu
+    # data is available.  The live cards are the authoritative evidence, so
+    # replace the contradictory prose instead of exposing it to the customer.
+    if (
+        wants_recommendations
+        and actions
+        and menu_names
+        and _has_menu_data_disclaimer(content)
+    ):
+        flags.append("MENU_DATA_CONTRADICTION_BLOCKED")
+        content = format_grounded_recommendation_content(actions)
 
     if wants_recommendations and not actions:
         if not _is_avoidance_context(content) and not _is_allergy_advisory_response(content):
@@ -317,6 +336,11 @@ def _menu_name_index(menu_items: list[dict[str, Any]]) -> dict[str, str]:
         if normalized:
             names[normalized] = name
     return names
+
+
+def _has_menu_data_disclaimer(content: str) -> bool:
+    normalized = normalize_query_text(content)
+    return any(pattern in normalized for pattern in _MENU_DATA_DISCLAIMER_PATTERNS)
 
 
 def _short_intro(content: str) -> str | None:

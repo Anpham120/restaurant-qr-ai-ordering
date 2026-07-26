@@ -391,15 +391,22 @@ def enforce_suggestion_policy(
 
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
+    candidates_by_id = {
+        _item_id(item): item
+        for item in candidate_menu_items
+        if _item_id(item)
+    }
     for action in actions:
         item_id = _item_id(action)
         if not item_id or item_id in seen or item_id in policy.excluded_menu_item_ids:
             continue
+        # Candidate menu items are the live evidence supplied to the model.
+        # Never let a valid-but-out-of-scope catalog item leak into a
+        # recommendation merely because the model happened to know its id.
+        if policy.wants_recommendations and item_id not in candidates_by_id:
+            continue
         if policy.requested_item_kind is not None:
-            matching = next(
-                (item for item in candidate_menu_items if _item_id(item) == item_id),
-                None,
-            )
+            matching = candidates_by_id.get(item_id)
             if matching is not None and classify_menu_item_kind(matching) != policy.requested_item_kind:
                 continue
         seen.add(item_id)

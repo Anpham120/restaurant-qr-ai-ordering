@@ -153,10 +153,13 @@ def infer_allowed_menu_item_ids(
     if requested_item_kind is None:
         requested_item_kind = detect_requested_item_kind(query)
 
+    semantic_item_matches = _matched_semantic_item_ids(normalized_query, available)
     category_matches = _matched_categories(normalized_query, available)
     tag_matches = _matched_tags(query, normalized_query, available)
 
-    if category_matches:
+    if semantic_item_matches:
+        allowed = semantic_item_matches
+    elif category_matches:
         allowed = {
             _item_id(item)
             for item in available
@@ -280,6 +283,48 @@ def _matched_categories(normalized_query: str, available: Sequence[dict[str, Any
         and any(_contains_phrase(normalized_query, alias) for alias in aliases)
     )
     return {match for match in matches if match}
+
+
+def _matched_semantic_item_ids(
+    normalized_query: str,
+    available: Sequence[dict[str, Any]],
+) -> set[str]:
+    """Prefer the named dish family over its broader menu category.
+
+    ``Phở & Bún`` is one catalog category, but a customer asking for ``phở``
+    should never receive a bún or unrelated dish merely because both share a
+    category.  Reuse the constraint extractor aliases so semantic routing and
+    retrieval use the same vocabulary.
+    """
+
+    from app.rag.constraint_extractor import CATEGORY_ALIASES
+
+    matched_aliases = {
+        normalize_query_text(alias)
+        for aliases in CATEGORY_ALIASES.values()
+        for alias in aliases
+        if _contains_phrase(normalized_query, normalize_query_text(alias))
+    }
+    if not matched_aliases:
+        return set()
+
+    max_specificity = max(len(alias.split()) for alias in matched_aliases)
+    most_specific_aliases = {
+        alias
+        for alias in matched_aliases
+        if len(alias.split()) == max_specificity
+    }
+    return {
+        _item_id(item)
+        for item in available
+        if any(
+            _contains_phrase(
+                normalize_query_text(str(item.get("name") or "")),
+                alias,
+            )
+            for alias in most_specific_aliases
+        )
+    }
 
 
 def _matched_tags(
