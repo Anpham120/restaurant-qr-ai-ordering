@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RestaurantQrAiOrdering.Api.Data;
+using RestaurantQrAiOrdering.Api.Logging;
 using RestaurantQrAiOrdering.Entities;
 
 namespace RestaurantQrAiOrdering.Api.Chat;
@@ -268,10 +270,13 @@ public sealed class PythonRagChatProvider : IChatAiProvider
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("Python AI stream returned HTTP {StatusCode}.", (int)response.StatusCode);
-            yield return new ChatStreamEvent("final", JsonDocument.Parse("""
-                {"content":"Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.","provider_available":false,"suggest_staff_handoff":true,"guardrail_flags":["AI_PROVIDER_UNAVAILABLE"]}
-                """).RootElement);
+            var responseBody = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+            var excerpt = responseBody[..Math.Min(responseBody.Length, 2048)];
+            logger.LogWarning(
+                "Python AI stream returned HTTP {StatusCode} response_excerpt={ResponseExcerpt}.",
+                (int)response.StatusCode,
+                LogSanitizer.ForLog(excerpt));
+            yield return new ChatStreamEvent("final", CreateStreamFailurePayload(response.StatusCode));
             yield return new ChatStreamEvent("done", JsonDocument.Parse("{\"ok\":true}").RootElement);
             yield break;
         }
@@ -344,8 +349,13 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             using var response = await httpClient.SendAsync(httpRequest, timeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Python AI service returned HTTP {StatusCode}.", (int)response.StatusCode);
-                return SlowFallback();
+                var responseBody = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+                var excerpt = responseBody[..Math.Min(responseBody.Length, 2048)];
+                logger.LogWarning(
+                    "Python AI service returned HTTP {StatusCode} response_excerpt={ResponseExcerpt}.",
+                    (int)response.StatusCode,
+                    LogSanitizer.ForLog(excerpt));
+                return UpstreamFailureFallback(response.StatusCode);
             }
 
             using var json = await JsonDocument.ParseAsync(
@@ -449,7 +459,7 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             addedToCartIds,
             rollingSummary,
             persistedState?.MemoryVersion ?? "v1",
-            persistedState?.ConversationFrame);
+            persistedState?.ConversationFrame ?? CreateDefaultConversationFrame());
         var liveContext = new ChatLiveContextPayload(
             catalogVersion,
             menuItems,
@@ -484,6 +494,17 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             request.SessionMemory,
             menuItems);
     }
+
+    private static ChatConversationFrame CreateDefaultConversationFrame() =>
+        new(
+            ActiveTopic: null,
+            ActiveIntent: null,
+            FocusMenuItemIds: [],
+            ResolvedCategory: null,
+            ResolvedTags: [],
+            TurnSequence: 0,
+            PendingClarification: null,
+            ConstraintProvenance: new Dictionary<string, JsonElement>());
 
     private string ReadPipelineProfile()
     {
@@ -949,6 +970,30 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             ProviderAvailable: false,
             GuardrailFlags: ["AI_PROVIDER_UNAVAILABLE"],
             SuggestStaffHandoff: true);
+    }
+
+    private static ChatAiResult UpstreamFailureFallback(HttpStatusCode statusCode)
+    {
+        var flags = statusCode is >= HttpStatusCode.BadRequest and < HttpStatusCode.InternalServerError
+            ? new[] { "AI_PROVIDER_UNAVAILABLE", "AI_UPSTREAM_CONTRACT_ERROR" }
+            : ["AI_PROVIDER_UNAVAILABLE"];
+        return new ChatAiResult(
+            "Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé.",
+            ProviderAvailable: false,
+            GuardrailFlags: flags,
+            SuggestStaffHandoff: true);
+    }
+
+    private static JsonElement CreateStreamFailurePayload(HttpStatusCode statusCode)
+    {
+        var failure = UpstreamFailureFallback(statusCode);
+        return JsonSerializer.SerializeToElement(new
+        {
+            content = failure.Content,
+            provider_available = failure.ProviderAvailable,
+            suggest_staff_handoff = failure.SuggestStaffHandoff,
+            guardrail_flags = failure.GuardrailFlags
+        });
     }
 }
 

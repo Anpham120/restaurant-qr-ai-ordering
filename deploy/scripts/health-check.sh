@@ -14,6 +14,7 @@ api_health_url="${API_HEALTH_URL:-https://${API_SERVER_NAME}/api/health}"
 api_ready_url="${API_READY_URL:-https://${API_SERVER_NAME}/health/ready}"
 ai_ready_url="${AI_READY_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}/ready}"
 ai_chat_url="${AI_CHAT_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}/v1/chat}"
+api_chat_sessions_url="${API_CHAT_SESSIONS_URL:-https://${API_SERVER_NAME}/api/chat/sessions}"
 
 echo "Checking frontend: ${frontend_url}"
 curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors "$frontend_url" >/dev/null
@@ -123,6 +124,73 @@ echo "Running protected semantic AI smoke probes"
 run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"
 run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"
 run_semantic_probe "nhau" "Mình có món nhậu không?"
+
+echo "Running backend-integrated AI smoke request"
+backend_session_request="${probe_dir}/backend-session-request.json"
+backend_session_response="${probe_dir}/backend-session-response.json"
+backend_message_request="${probe_dir}/backend-message-request.json"
+backend_stream_response="${probe_dir}/backend-stream-response.txt"
+printf '{}\n' > "$backend_session_request"
+curl --fail --show-error --silent --retry 2 --retry-delay 2 --retry-all-errors \
+  -H "Content-Type: application/json" \
+  --data-binary "@${backend_session_request}" \
+  "$api_chat_sessions_url" > "$backend_session_response"
+
+python3 - "$backend_session_response" "${probe_dir}/backend-session-id.txt" "${probe_dir}/backend-session-token.txt" <<'PY'
+import json
+import sys
+
+source, session_target, token_target = sys.argv[1:4]
+payload = json.load(open(source, encoding="utf-8"))
+session_id = str(payload.get("chatSessionId") or "").strip()
+access_token = str(payload.get("accessToken") or "").strip()
+assert session_id, payload
+assert access_token, payload
+open(session_target, "w", encoding="utf-8").write(session_id)
+open(token_target, "w", encoding="utf-8").write(access_token)
+PY
+
+python3 - "$backend_message_request" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump({"content": "ở đây có phở không"}, handle, ensure_ascii=False)
+PY
+
+backend_session_id="$(cat "${probe_dir}/backend-session-id.txt")"
+backend_session_token="$(cat "${probe_dir}/backend-session-token.txt")"
+curl --fail --show-error --silent --retry 2 --retry-delay 2 --retry-all-errors \
+  -H "Content-Type: application/json; charset=utf-8" \
+  -H "Accept: text/event-stream" \
+  -H "X-Chat-Session-Token: ${backend_session_token}" \
+  --data-binary "@${backend_message_request}" \
+  "${api_chat_sessions_url}/${backend_session_id}/messages/stream" > "$backend_stream_response"
+
+python3 - "$backend_stream_response" <<'PY'
+import json
+import sys
+
+event_name = ""
+final_payload = None
+for raw_line in open(sys.argv[1], encoding="utf-8"):
+    line = raw_line.rstrip("\r\n")
+    if line.startswith("event: "):
+        event_name = line[7:].strip()
+    elif line.startswith("data: ") and event_name == "final":
+        final_payload = json.loads(line[6:])
+        event_name = ""
+
+assert final_payload is not None, "Backend AI stream did not emit a final event"
+message = final_payload.get("message") or {}
+content = str(message.get("content") or "").strip()
+flags = {str(flag) for flag in final_payload.get("guardrailFlags") or []}
+forbidden_flags = {"AI_PROVIDER_UNAVAILABLE", "AI_UPSTREAM_CONTRACT_ERROR"}
+assert content, final_payload
+assert not flags.intersection(forbidden_flags), final_payload
+assert "hệ thống hơi chậm" not in content.casefold(), final_payload
+assert "phở" in content.casefold(), final_payload
+PY
 
 report_dir="/opt/cmc-restaurant/${DEPLOY_ENV}/reports"
 mkdir -p "$report_dir"
