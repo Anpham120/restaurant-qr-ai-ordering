@@ -136,6 +136,8 @@ class AiOpsDeployContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("-L 20128:127.0.0.1:20128", research_workflow)
         self.assertIn("Open secure 9router tunnel", research_workflow)
+        self.assertIn("Diagnose 9router origin", research_workflow)
+        self.assertIn("read -r ROUTER_API_KEY", research_workflow)
         self.assertIn("Preflight 9router HTTP readiness", research_workflow)
         self.assertIn("/v1/models", research_workflow)
         self.assertIn("oc/deepseek-v4-flash-free", research_workflow)
@@ -145,6 +147,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
             research_workflow,
         )
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"', research_workflow)
+        self.assertIn("if-no-files-found: ignore", research_workflow)
         # The research result is eligible to select production only when every
         # non-profile runtime control is identical to the deployed service.
         for runtime_control in (

@@ -79,6 +79,28 @@ jobs:
               raise SystemExit("9router SSH tunnel did not become ready")
           PY
 
+      - name: Diagnose 9router origin
+        # Keep the gateway key off the command line and out of logs.  This
+        # direct request distinguishes a broken router/upstream from a broken
+        # SSH forwarding path when the runner sees a transport reset.
+        run: |
+          printf '%s\n' "$LLM_API_KEY" | ssh \
+            -i "${ROUTER_TUNNEL_DIR}/deploy-key" \
+            -o UserKnownHostsFile="${ROUTER_TUNNEL_DIR}/known-hosts" \
+            -o StrictHostKeyChecking=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            'set -eu
+            IFS= read -r ROUTER_API_KEY
+            set +e
+            status="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
+              -H "Authorization: Bearer ${ROUTER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              --data '\''{"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}\'' \
+              http://127.0.0.1:20128/v1/chat/completions)"
+            curl_exit=$?
+            set -e
+            printf "9router origin primary preflight curl_exit=%s status=%s\\n" "$curl_exit" "$status"'
+
       - name: Preflight 9router HTTP readiness
         # A TCP connection alone does not prove that the router can serve the
         # configured model.  Fail before the controlled evaluation when the
@@ -174,7 +196,10 @@ jobs:
         with:
           name: pipeline-selection-research-${{ github.sha }}
           path: ai/evaluation/results/pipeline_selection.json
-          if-no-files-found: error
+          # A preflight failure occurs before evaluation and therefore has no
+          # selection artifact.  Preserve the primary diagnostic instead of
+          # obscuring it with an unrelated upload failure.
+          if-no-files-found: ignore
 
       - name: Research summary
         if: success()
