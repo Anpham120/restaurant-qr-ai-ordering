@@ -60,7 +60,9 @@ def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
         "winner": artifact.get("winner"),
         "selection_reason": artifact.get("selection_reason"),
         "model": artifact.get("model"),
-        "commit_sha": artifact.get("commit_sha"),
+        "commit_sha": artifact.get("research_commit_sha")
+        or artifact.get("commit_sha"),
+        "research_input_hash": artifact.get("research_input_hash"),
         "working_tree_dirty": bool(artifact.get("working_tree_dirty")),
         "dataset_hash": artifact.get("dataset_hash"),
         "generated_at": artifact.get("generated_at"),
@@ -86,8 +88,9 @@ def format_pipeline_selection_conclusion(artifact: dict[str, Any]) -> str:
         f"Production phải chạy **`{winner}`** với model "
         f"**`{summary['model']}`**, vì đây là winner sau thứ tự "
         "an toàn → strict semantic quality → context → p95 latency → số lượt LLM. "
-        f"Artifact gắn với commit `{summary['commit_sha']}` và dataset "
-        f"`{summary['dataset_hash']}`."
+        f"Artifact gắn với commit nghiên cứu `{summary['commit_sha']}` và dataset "
+        f"`{summary['dataset_hash']}`; production có thể ở commit khác chỉ khi "
+        f"`research_input_hash` vẫn là `{summary['research_input_hash']}`."
     )
 
 
@@ -597,6 +600,10 @@ def format_production_report_section() -> str:
         "| LLM duy nhất | `oc/deepseek-v4-flash-free` (9router), không GPT fallback |\n"
         "| Tích hợp | `CHAT_AI_PROVIDER=python-rag`, Docker [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) |\n"
         "| Kiểm tra sau deploy | [`VPS_STAGING_AI_RUNBOOK.md`](../../docs/ai/VPS_STAGING_AI_RUNBOOK.md) |\n\n"
+        "> Artifact winner được tái sử dụng cho thay đổi backend/frontend/deploy không ảnh hưởng AI; "
+        "workflow **không chạy lại** hàng trăm request DeepSeek. Nếu prompt, runtime AI, scorer, KB, "
+        "dataset hoặc menu thay đổi thì `research_input_hash` đổi và deployment bị chặn để buộc "
+        "chạy lại thí nghiệm.\n\n"
         "### Kết luận báo cáo\n\n"
         "Notebook chứng minh **phương pháp** (RAG hybrid, guardrails, routing, session) và **đo** trên bộ eval "
         "tự xây; **hệ thống thật** đã gắn cùng module code với cấu hình trên. "

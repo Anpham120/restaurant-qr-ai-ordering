@@ -7,13 +7,16 @@ from evaluation.verify_pipeline_selection import validate_artifact
 
 def _artifact() -> dict:
     return {
-        "schema_version": "pipeline-selection-v1",
+        "schema_version": "pipeline-selection-approved-v2",
         "model": "oc/deepseek-v4-flash-free",
         "winner": "evidence_first_v2",
-        "commit_sha": "abc123",
+        "research_commit_sha": "abc123",
+        "research_input_hash": "sha256:research",
         "working_tree_dirty": False,
         "dataset_hash": "sha256:data",
         "generated_at": "2026-07-25T00:00:00Z",
+        "source_run_id": 123,
+        "source_artifact_sha256": "sha256:source",
         "profiles": [
             {
                 "profile": "evidence_first_v2",
@@ -37,9 +40,31 @@ class VerifyPipelineSelectionTests(unittest.TestCase):
             _artifact(),
             expected_profile="evidence_first_v2",
             expected_model="oc/deepseek-v4-flash-free",
-            expected_commit="abc123",
+            expected_research_input_hash="sha256:research",
         )
         self.assertEqual("evidence_first_v2", winner)
+
+    def test_accepts_different_deployment_commit_when_research_inputs_match(self) -> None:
+        artifact = _artifact()
+        artifact["deployment_commit_sha"] = "different-runtime-commit"
+
+        winner = validate_artifact(
+            artifact,
+            expected_profile="evidence_first_v2",
+            expected_model="oc/deepseek-v4-flash-free",
+            expected_research_input_hash="sha256:research",
+        )
+
+        self.assertEqual("evidence_first_v2", winner)
+
+    def test_rejects_research_input_drift(self) -> None:
+        with self.assertRaisesRegex(ValueError, "research input drift"):
+            validate_artifact(
+                _artifact(),
+                expected_profile="evidence_first_v2",
+                expected_model="oc/deepseek-v4-flash-free",
+                expected_research_input_hash="sha256:changed",
+            )
 
     def test_rejects_profile_drift(self) -> None:
         with self.assertRaisesRegex(ValueError, "profile"):

@@ -182,3 +182,14 @@ gates pass.
 Send `ở đây có phở không` through the exact table session and confirm the reply
 contains grounded menu evidence rather than the slow fallback.
 
+### Task 6: Separate controlled research from routine deployment
+
+- [x] Preserve the successful raw experiment and source-run provenance in an
+  approved compact selection artifact.
+- [x] Hash all research inputs that can affect profile output or scoring.
+- [x] Verify that hash, winner, model and safety gate during every deployment.
+- [x] Block deployment when the hash drifts.
+- [x] Run the three-profile DeepSeek comparison only through the manual
+  research workflow, then promote a reviewed result by PR.
+- [x] Update the notebook narrative to explain hash-equivalent deployment
+  commits.

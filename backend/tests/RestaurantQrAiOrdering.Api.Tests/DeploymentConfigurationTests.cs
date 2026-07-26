@@ -34,6 +34,32 @@ public sealed class DeploymentConfigurationTests
         Assert.Contains("AI_PROVIDER_UNAVAILABLE", script, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("deploy-staging.yml")]
+    [InlineData("deploy-production.yml")]
+    public void Deployment_UsesApprovedResearchArtifactWithoutRerunningDeepSeek(string workflowName)
+    {
+        var workflow = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflowName));
+
+        Assert.Contains(
+            "ai/evaluation/approved/pipeline_selection.json",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "--verify-current-research-inputs",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "run_pipeline_profile_eval.py",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Open secure 9router tunnel",
+            workflow,
+            StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
