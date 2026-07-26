@@ -166,7 +166,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Bind CI config to approved research winner
+      # CI validates the artifact schema and model/profile contract.  It must
+      # not require the current research hash: a PR that changes the canonical
+      # dataset is what enables the subsequent research run.  Staging and
+      # production enforce current research + canonical dataset hashes.
+      - name: Bind CI config to structurally approved research winner
         env:
           PYTHONPATH: ai
         run: |
@@ -177,7 +181,6 @@ jobs:
             --expected-fallback-trigger http_429 \
             --expected-max-fallbacks 1 \
             --require-fallback-enabled \
-            --verify-current-research-inputs \
             --repository-root . \
             --github-env "$GITHUB_ENV"
 
