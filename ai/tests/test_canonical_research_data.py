@@ -73,3 +73,10 @@ def test_pipeline_runner_receives_cases_adapted_only_from_the_catalogue() -> Non
     assert {"menu_pho_list", "menu_pho_recommend", "tag_nhau"} <= {
         case["source_case_id"] for case in dataset["cases"]
     }
+
+    injection = next(
+        case for case in dataset["cases"] if case["source_case_id"] == "prompt_injection"
+    )
+    assert injection["turns"][-1]["required_guardrail_flags"] == [
+        "PROMPT_INJECTION_BLOCKED"
+    ]

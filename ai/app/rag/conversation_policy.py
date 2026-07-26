@@ -506,9 +506,29 @@ def _requested_count(normalized_message: str) -> int | None:
         r"\b(\d{1,2})\s+(?:mon\b|(?:more\s+)?(?:dish(?:es)?|item|option)s?\b)",
         normalized_message,
     )
-    if not match:
+    if match:
+        return min(max(int(match.group(1)), 1), MAX_SUGGESTIONS)
+
+    # Vietnamese customers commonly spell out a requested number ("hai món")
+    # instead of using a digit.  Keep this deterministic so the visible cards
+    # remain a stable referent for a later question such as "món thứ hai".
+    word_match = re.search(
+        r"\b(mot|hai|ba|bon|nam|sau|bay|tam)\s+mon\b",
+        normalized_message,
+    )
+    if not word_match:
         return None
-    return min(max(int(match.group(1)), 1), MAX_SUGGESTIONS)
+    vietnamese_counts = {
+        "mot": 1,
+        "hai": 2,
+        "ba": 3,
+        "bon": 4,
+        "nam": 5,
+        "sau": 6,
+        "bay": 7,
+        "tam": 8,
+    }
+    return vietnamese_counts[word_match.group(1)]
 
 
 def _contains_term(normalized_message: str, term: str) -> bool:

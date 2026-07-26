@@ -50,6 +50,17 @@ class ConversationPolicyTests(unittest.TestCase):
 
         self.assertEqual(["m_001", "m_002"], [item["menu_item_id"] for item in result])
 
+    def test_vietnamese_word_count_limits_recommendations(self) -> None:
+        policy = build_conversation_policy("Gợi ý hai món", [], "", MENU)
+
+        result = enforce_suggestion_policy([], MENU, policy)
+
+        self.assertEqual(2, policy.requested_count)
+        self.assertEqual(
+            ["m_001", "m_002"],
+            [item["menu_item_id"] for item in result],
+        )
+
     def test_information_question_does_not_hide_previously_mentioned_item(self) -> None:
         policy = build_conversation_policy(
             "Món 1 giá bao nhiêu?",

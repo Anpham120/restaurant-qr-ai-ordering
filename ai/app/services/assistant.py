@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import replace
@@ -2007,6 +2008,32 @@ def _resolve_live_menu_item(
     if explicit:
         return max(explicit, key=lambda item: len(str(item.get("name") or "")))
 
+    ordinal = _referent_ordinal(normalized)
+    if ordinal is not None:
+        # The most recent assistant cards are exactly the list the guest saw,
+        # unlike the cumulative session ledger.  Preserve their display order
+        # so "món thứ hai" cannot silently resolve to the most recent item.
+        for turn in reversed(history):
+            if str(turn.get("role") or "").casefold() != "assistant":
+                continue
+            displayed_ids = [
+                str(action.get("menu_item_id") or "").strip()
+                for action in (turn.get("suggested_cart_actions") or [])
+                if isinstance(action, dict)
+                and str(action.get("menu_item_id") or "").strip() in by_id
+            ]
+            if ordinal <= len(displayed_ids):
+                return by_id[displayed_ids[ordinal - 1]]
+            break
+
+        suggested_ids = [
+            str(value).strip()
+            for value in (session_state.get("suggested_menu_item_ids") or [])
+            if str(value).strip() in by_id
+        ]
+        if ordinal <= len(suggested_ids):
+            return by_id[suggested_ids[ordinal - 1]]
+
     candidate_ids: list[str] = []
     frame = session_state.get("conversation_frame") or {}
     candidate_ids.extend(
@@ -2025,6 +2052,31 @@ def _resolve_live_menu_item(
     ):
         candidate_ids.extend(reversed([str(value) for value in (session_state.get(key) or [])]))
     return next((by_id[item_id] for item_id in candidate_ids if item_id in by_id), None)
+
+
+def _referent_ordinal(normalized_message: str) -> int | None:
+    """Return a 1-based ordinal when the guest refers to an earlier item."""
+
+    match = re.search(
+        r"\b(?:mon\s+)?(?:thu|so)\s*(\d+|mot|hai|ba|bon|nam|sau|bay|tam)\b",
+        normalized_message,
+    )
+    if not match:
+        return None
+    raw = match.group(1)
+    if raw.isdigit():
+        value = int(raw)
+        return value if value > 0 else None
+    return {
+        "mot": 1,
+        "hai": 2,
+        "ba": 3,
+        "bon": 4,
+        "nam": 5,
+        "sau": 6,
+        "bay": 7,
+        "tam": 8,
+    }.get(raw)
 
 
 def _live_response(

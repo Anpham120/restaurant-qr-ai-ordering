@@ -84,6 +84,24 @@ class _PlannerClient:
         )
 
 
+class _OrdinalRecommendationClient:
+    async def complete(self, _messages: list[dict[str, str]]) -> str:
+        return json.dumps(
+            {
+                "content": "Mình gợi ý các món phở trong thực đơn.",
+                "suggested_cart_actions": [
+                    {"menu_item_id": "m_008", "name": "Phở bò tái nạm", "quantity": 1},
+                    {"menu_item_id": "m_009", "name": "Phở gà ta", "quantity": 1},
+                    {"menu_item_id": "m_005", "name": "Gỏi xoài tôm sú", "quantity": 1},
+                    {"menu_item_id": "m_050", "name": "Phở chay nấm đông cô", "quantity": 1},
+                ],
+                "claims": [],
+                "guardrail_flags": [],
+            },
+            ensure_ascii=False,
+        )
+
+
 def _menu() -> list[dict]:
     return [
         {
@@ -108,6 +126,43 @@ def _menu() -> list[dict]:
     ]
 
 
+def _ordinal_menu() -> list[dict]:
+    return [
+        {
+            "id": "m_008",
+            "name": "Phở bò tái nạm",
+            "category_name": "Phở & Bún",
+            "category_id": "cat_pho_bun",
+            "price_vnd": 75000,
+            "is_available": True,
+        },
+        {
+            "id": "m_009",
+            "name": "Phở gà ta",
+            "category_name": "Phở & Bún",
+            "category_id": "cat_pho_bun",
+            "price_vnd": 70000,
+            "is_available": True,
+        },
+        {
+            "id": "m_005",
+            "name": "Gỏi xoài tôm sú",
+            "category_name": "Khai vị",
+            "category_id": "cat_appetizer",
+            "price_vnd": 85000,
+            "is_available": True,
+        },
+        {
+            "id": "m_050",
+            "name": "Phở chay nấm đông cô",
+            "category_name": "Phở & Bún",
+            "category_id": "cat_pho_bun",
+            "price_vnd": 60000,
+            "is_available": True,
+        },
+    ]
+
+
 def _llm_first_config(*, llm_first: bool = True) -> AiServiceConfig:
     return AiServiceConfig(
         provider="9router",
@@ -127,6 +182,41 @@ def _llm_first_config(*, llm_first: bool = True) -> AiServiceConfig:
 
 
 class AssistantLlmFirstTests(unittest.TestCase):
+    def test_price_for_second_suggested_dish_uses_second_item_in_order(self) -> None:
+        service = AiAssistantService(
+            _llm_first_config(),
+            llm_client=_OrdinalRecommendationClient(),
+        )
+        previous_actions = [
+            {"menu_item_id": item_id}
+            for item_id in ("m_008", "m_009", "m_005", "m_050")
+        ]
+
+        response = asyncio.run(
+            service.chat(
+                {
+                    "message": "Món thứ hai giá bao nhiêu?",
+                    "history": [
+                        {"role": "user", "content": "Gợi ý hai món phở cho mình"},
+                        {
+                            "role": "assistant",
+                            "content": "Mình đã gợi ý các món.",
+                            "suggested_cart_actions": previous_actions,
+                        },
+                    ],
+                    "session_state": {
+                        "suggested_menu_item_ids": ["m_008", "m_009", "m_005", "m_050"],
+                    },
+                    "menu_items": _ordinal_menu(),
+                    "table_code": "T01",
+                }
+            )
+        )
+
+        self.assertEqual("live_data", response["latency_ms"]["path"])
+        self.assertEqual(["m_009"], response["resolved_menu_item_ids"])
+        self.assertIn("70.000", response["content"])
+
     def test_party_size_recommendation_calls_llm_not_fast_path(self) -> None:
         client = _CountingClient()
         service = AiAssistantService(_llm_first_config(), llm_client=client)
