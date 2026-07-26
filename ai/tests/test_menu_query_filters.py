@@ -274,12 +274,12 @@ class MenuQueryFilterTests(unittest.TestCase):
             },
         ]
 
-        allowed = infer_allowed_menu_item_ids(
+        for query in (
             "Mình muốn trả bằng thẻ được không?",
-            menu_items,
-        )
-
-        self.assertIsNone(allowed)
+            "Minh muon tra bang the duoc khong?",
+        ):
+            with self.subTest(query=query):
+                self.assertIsNone(infer_allowed_menu_item_ids(query, menu_items))
 
     def test_rejection_healthy_excludes_sweet_items(self) -> None:
         menu_items = [
