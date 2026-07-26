@@ -154,7 +154,8 @@ jobs:
       LLM_PROVIDER: 9router
       LLM_BASE_URL: http://127.0.0.1:20128/v1
       LLM_API_KEY: ci-provider-key-placeholder
-      LLM_MODEL: cx/gpt-5.5
+      LLM_MODEL: oc/deepseek-v4-flash-free
+      AI_PIPELINE_PROFILE: llm_first_v1
     steps:
       - name: Checkout
         uses: actions/checkout@v4

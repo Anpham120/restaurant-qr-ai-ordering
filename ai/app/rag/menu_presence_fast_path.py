@@ -22,15 +22,42 @@ def _normalize(text: str) -> str:
     return normalize_query_text(text)
 
 
+_OPEN_MENU_BROWSE_TERMS = (
+    "mon gi",
+    "co gi an",
+    "mon nao",
+    "nhung mon",
+    "nhung bia",
+    "bia gi",
+    "gi nhi",
+    "an nhe",
+    "mon nhe",
+    "goi y",
+    "de xuat",
+    "tu van",
+)
+
+
 def _is_menu_presence_query(normalized: str) -> bool:
-    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
-        return True
-    if "o day co" in normalized:
-        return True
     padded = f" {normalized} "
-    if " co " not in padded:
+    has_khong = " khong" in padded or normalized.endswith(" khong")
+    if any(
+        phrase in normalized
+        for phrase in (
+            "khong phai bia",
+            "khong muon bia",
+            "khong lay bia",
+            "tranh bia",
+        )
+    ):
         return False
-    if " khong" in padded or normalized.endswith(" khong"):
+    if any(term in normalized for term in _OPEN_MENU_BROWSE_TERMS):
+        return False
+    if has_khong and _menu_keywords(normalized):
+        return True
+    if any(term in normalized for term in _MENU_PRESENCE_TERMS):
+        return has_khong and bool(_menu_keywords(normalized))
+    if "o day co" in normalized and has_khong:
         return bool(_menu_keywords(normalized))
     return False
 
@@ -54,6 +81,7 @@ def _menu_keywords(normalized_query: str) -> list[str]:
         "dessert",
         "tra",
         "bia",
+        "nhau",
     ):
         if keyword in tokens:
             keywords.append(keyword)
@@ -94,7 +122,19 @@ def try_menu_presence_fast_path(
         item
         for item in menu_items
         if bool(item.get("is_available", True))
-        and any(keyword in _normalize(str(item.get("name") or "")) for keyword in keywords)
+        and any(
+            keyword
+            in _normalize(
+                " ".join(
+                    [
+                        str(item.get("name") or ""),
+                        str(item.get("category_name") or item.get("category") or ""),
+                        " ".join(str(tag) for tag in (item.get("tags") or [])),
+                    ]
+                )
+            )
+            for keyword in keywords
+        )
     ]
     if not matched:
         return None

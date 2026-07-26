@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from app.config import DEFAULT_ROUTER_BASE_URL, load_config
+from app.config import DEFAULT_PIPELINE_PROFILE, DEFAULT_ROUTER_BASE_URL, load_config
 
 
 class RouterConfigTests(unittest.TestCase):
@@ -21,6 +21,11 @@ class RouterConfigTests(unittest.TestCase):
         self.assertEqual(DEFAULT_ROUTER_BASE_URL, config.base_url)
         self.assertEqual("oc/deepseek-v4-flash-free", config.model)
         self.assertFalse(config.llm_enabled)
+
+    def test_blank_pipeline_profile_uses_default_for_unconfigured_ci_variable(self) -> None:
+        config = self._load_config({"AI_PIPELINE_PROFILE": "  "})
+
+        self.assertEqual(DEFAULT_PIPELINE_PROFILE, config.pipeline_profile)
 
     def test_canonical_9router_config_accepts_gpt55_and_deepseek(self) -> None:
         for model in ("cx/gpt-5.5", "oc/deepseek-v4-flash-free"):

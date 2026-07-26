@@ -54,6 +54,7 @@ public sealed class ChatAiProviderV2ContractTests
         var root = first.RootElement;
 
         Assert.Equal("v2", root.GetProperty("contract_version").GetString());
+        Assert.Equal("planner_state_v3", root.GetProperty("pipeline_profile").GetString());
         var boundedHistory = root.GetProperty("history");
         Assert.Equal(12, boundedHistory.GetArrayLength());
         Assert.Equal("turn 2", boundedHistory[0].GetProperty("content").GetString());
@@ -107,7 +108,16 @@ public sealed class ChatAiProviderV2ContractTests
             ["m-accepted"],
             ["m-cart-ledger"],
             "Persisted summary",
-            "v7");
+            "v7",
+            new ChatConversationFrame(
+                "menu",
+                "recommendation",
+                ["m-reference"],
+                "Noodles",
+                ["soup"],
+                3,
+                null,
+                new Dictionary<string, JsonElement>()));
         var request = Request([], [Menu("m-1", "Pho", 85000)]) with
         {
             SessionState = persistedState
@@ -125,6 +135,10 @@ public sealed class ChatAiProviderV2ContractTests
         Assert.Equal(["m-rejected"], Strings(state, "rejected_menu_item_ids"));
         Assert.Equal(["m-accepted"], Strings(state, "accepted_menu_item_ids"));
         Assert.Equal(["m-cart-ledger", "m-1"], Strings(state, "added_to_cart_menu_item_ids"));
+        Assert.Equal("recommendation",
+            state.GetProperty("conversation_frame").GetProperty("active_intent").GetString());
+        Assert.Equal(["m-reference"],
+            Strings(state.GetProperty("conversation_frame"), "focus_menu_item_ids"));
     }
 
     [Fact]
@@ -141,6 +155,10 @@ public sealed class ChatAiProviderV2ContractTests
         Assert.Equal("4", Assert.Single(result.Facts!).Value);
         Assert.Equal(["m-2"], result.RejectedMenuItemIds);
         Assert.Equal("V2 summary", result.UpdatedRollingSummary);
+        Assert.Equal("oc/deepseek-v4-flash-free", result.Model);
+        Assert.Equal("planner_state_v3", result.PipelineProfile);
+        Assert.Equal(["m-1"], result.ResolvedMenuItemIds);
+        Assert.Equal("passed", result.VerifierResult);
 
         var decision = Assert.IsType<ChatDecisionTrace>(result.Decision);
         Assert.Equal("live_menu", decision.Route);
@@ -166,6 +184,9 @@ public sealed class ChatAiProviderV2ContractTests
         Assert.Equal(["m-3"], updates.AcceptedMenuItemIds);
         Assert.Equal(["m-4"], updates.AddedToCartMenuItemIds);
         Assert.Equal("lunch", updates.Constraints["meal"].GetString());
+        var frame = Assert.IsType<ChatConversationFrame>(updates.ConversationFrame);
+        Assert.Equal("recommendation", frame.ActiveIntent);
+        Assert.Equal(["m-1"], frame.FocusMenuItemIds);
     }
 
     [Fact]
@@ -413,7 +434,8 @@ public sealed class ChatAiProviderV2ContractTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["AI_SERVICE_URL"] = "https://ai.internal",
-                ["AI_INTERNAL_TOKEN"] = "test-token"
+                ["AI_INTERNAL_TOKEN"] = "test-token",
+                ["AI_PIPELINE_PROFILE"] = "planner_state_v3"
             })
             .Build();
         return new PythonRagChatProvider(
@@ -474,7 +496,10 @@ public sealed class ChatAiProviderV2ContractTests
           "contract_version": "v2",
           "content": "OK",
           "provider_available": true,
-          "model": "test",
+          "model": "oc/deepseek-v4-flash-free",
+          "pipeline_profile": "planner_state_v3",
+          "resolved_menu_item_ids": ["m-1"],
+          "verifier_result": "passed",
           "suggested_cart_actions": [],
           "guardrail_flags": []
         }
@@ -485,7 +510,10 @@ public sealed class ChatAiProviderV2ContractTests
           "contract_version": "v2",
           "content": "Pho is available.",
           "provider_available": true,
-          "model": "test",
+          "model": "oc/deepseek-v4-flash-free",
+          "pipeline_profile": "planner_state_v3",
+          "resolved_menu_item_ids": ["m-1"],
+          "verifier_result": "passed",
           "decision": {
             "intent": "menu_query",
             "route": "live_menu",
@@ -507,7 +535,17 @@ public sealed class ChatAiProviderV2ContractTests
             "accepted_menu_item_ids": ["m-3"],
             "added_to_cart_menu_item_ids": ["m-4"],
             "rolling_summary": "V2 summary",
-            "memory_version": "v2"
+            "memory_version": "v2",
+            "conversation_frame": {
+              "active_topic": "menu",
+              "active_intent": "recommendation",
+              "focus_menu_item_ids": ["m-1"],
+              "resolved_category": "Noodles",
+              "resolved_tags": ["soup"],
+              "turn_sequence": 2,
+              "pending_clarification": null,
+              "constraint_provenance": {}
+            }
           },
           "facts": [{"kind":"legacy","value":"ignored","confidence":0.1}],
           "rejected_menu_item_ids": ["legacy-rejected"],
