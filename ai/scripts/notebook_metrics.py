@@ -38,6 +38,9 @@ def summarize_pipeline_selection(artifact: dict[str, Any]) -> dict[str, Any]:
             {
                 "profile": str(candidate.get("profile") or ""),
                 "safety_passed": bool(metrics.get("safety_passed")),
+                "deepseek_calls_succeeded": bool(
+                    metrics.get("deepseek_calls_succeeded")
+                ),
                 "unsupported_claims": int(metrics.get("unsupported_claims") or 0),
                 "strict_semantic_success": float(
                     metrics.get("strict_semantic_success") or 0.0

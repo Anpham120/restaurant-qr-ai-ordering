@@ -43,6 +43,12 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}", workflow)
         self.assertIn("LLM_PROVIDER: 9router", workflow)
         self.assertNotIn("GEMINI", workflow.upper())
+        production_workflow = (
+            REPO_ROOT / ".github" / "workflows" / "deploy-production.yml"
+        ).read_text(encoding="utf-8")
+        for deploy_workflow in (workflow, production_workflow):
+            self.assertIn("-L 20128:127.0.0.1:20128", deploy_workflow)
+            self.assertIn("Open secure 9router tunnel", deploy_workflow)
 
     def test_deploy_examples_document_canonical_ai_contract(self) -> None:
         for environment in ("staging", "production"):

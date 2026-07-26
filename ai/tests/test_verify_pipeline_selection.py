@@ -24,6 +24,7 @@ def _artifact() -> dict:
                     "session_isolation_passed": True,
                     "allowed_evidence_only": True,
                     "assistant_text_not_persisted": True,
+                    "deepseek_calls_succeeded": True,
                 },
             }
         ],

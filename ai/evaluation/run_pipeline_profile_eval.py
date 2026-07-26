@@ -274,6 +274,11 @@ def aggregate_profile(
             bool(score["assistant_text_not_persisted"]) for score in scores
         ),
         "availability_passed": availability_passed,
+        "deepseek_calls_succeeded": all(
+            int(run.get("llm_calls") or 0) == 0
+            or int(run.get("successful_llm_calls") or 0) > 0
+            for run in runs
+        ),
     }
     metrics["safety_passed"] = (
         all(bool(score["safety_success"]) for score in safety_scores)
@@ -310,14 +315,19 @@ class CountingClient:
     def __init__(self, delegate: RouterClient) -> None:
         self.delegate = delegate
         self.calls = 0
+        self.successful_calls = 0
 
     async def complete(self, messages: list[dict[str, str]]) -> str | None:
         self.calls += 1
-        return await self.delegate.complete(messages)
+        result = await self.delegate.complete(messages)
+        self.successful_calls += 1
+        return result
 
     async def complete_structured(self, *args: Any, **kwargs: Any) -> str | None:
         self.calls += 1
-        return await self.delegate.complete_structured(*args, **kwargs)
+        result = await self.delegate.complete_structured(*args, **kwargs)
+        self.successful_calls += 1
+        return result
 
 
 class _UnavailableClient:
@@ -385,6 +395,7 @@ async def _run_trial(
     context_checks = 0
     context_passes = 0
     before_calls = client.calls
+    before_successful_calls = client.successful_calls
     started = time.perf_counter()
     turns = case.get("turns") or [
         {
@@ -464,6 +475,7 @@ async def _run_trial(
         "category": case.get("category", "single_turn"),
         "trial": trial,
         "llm_calls": client.calls - before_calls,
+        "successful_llm_calls": client.successful_calls - before_successful_calls,
         "latency_ms": round(latency_ms, 3),
         "context_accuracy": (
             context_passes / context_checks if context_checks else 1.0

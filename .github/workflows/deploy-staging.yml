@@ -77,10 +77,52 @@ jobs:
       - name: Install AI evaluation dependencies
         run: python -m pip install -r ai/requirements.txt
 
+      - name: Open secure 9router tunnel
+        run: |
+          tunnel_dir="$(mktemp -d)"
+          key_file="${tunnel_dir}/deploy-key"
+          known_hosts_file="${tunnel_dir}/known-hosts"
+          printf '%s\n' "$SSH_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          ssh-keyscan -H "$SSH_HOST" > "$known_hosts_file" 2>/dev/null
+          ssh \
+            -i "$key_file" \
+            -o UserKnownHostsFile="$known_hosts_file" \
+            -o StrictHostKeyChecking=yes \
+            -o ExitOnForwardFailure=yes \
+            -N -L 20128:127.0.0.1:20128 \
+            "${SSH_USER}@${SSH_HOST}" &
+          tunnel_pid=$!
+          echo "ROUTER_TUNNEL_PID=${tunnel_pid}" >> "$GITHUB_ENV"
+          echo "ROUTER_TUNNEL_DIR=${tunnel_dir}" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import socket
+          import time
+
+          for _ in range(30):
+              try:
+                  with socket.create_connection(("127.0.0.1", 20128), timeout=1):
+                      break
+              except OSError:
+                  time.sleep(1)
+          else:
+              raise SystemExit("9router SSH tunnel did not become ready")
+          PY
+
       - name: Compare all pipeline profiles with DeepSeek
         env:
           PYTHONPATH: ai
         run: python ai/evaluation/run_pipeline_profile_eval.py
+
+      - name: Close secure 9router tunnel
+        if: always()
+        run: |
+          if [ -n "${ROUTER_TUNNEL_PID:-}" ]; then
+            kill "$ROUTER_TUNNEL_PID" 2>/dev/null || true
+          fi
+          if [ -n "${ROUTER_TUNNEL_DIR:-}" ]; then
+            rm -rf -- "$ROUTER_TUNNEL_DIR"
+          fi
 
       - name: Bind staging configuration to the research winner
         env:

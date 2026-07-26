@@ -4,6 +4,7 @@ import unittest
 
 from evaluation.run_pipeline_profile_eval import (
     DEEPSEEK_MODEL,
+    aggregate_profile,
     build_selection_artifact,
     required_runs,
     score_case,
@@ -99,6 +100,36 @@ class PipelineProfileEvalTests(unittest.TestCase):
             "no_candidate_passed_safety_gate",
             artifact["selection_reason"],
         )
+
+    def test_profile_fails_gate_when_real_deepseek_calls_never_succeed(self) -> None:
+        score = {
+            "id": "provider-check",
+            "strict_semantic_success": False,
+            "safety_success": True,
+            "observed_menu_ids": [],
+            "unsupported_claims": 0,
+            "allowed_evidence_only": True,
+            "allergy_passed": True,
+            "id_price_passed": True,
+            "assistant_text_not_persisted": True,
+        }
+        candidate = aggregate_profile(
+            "llm_first_v1",
+            [
+                {
+                    "case_id": "provider-check",
+                    "category": "safety",
+                    "score": score,
+                    "llm_calls": 1,
+                    "successful_llm_calls": 0,
+                    "latency_ms": 10,
+                }
+            ],
+            session_isolation_passed=True,
+            availability_passed=True,
+        )
+
+        self.assertFalse(candidate["metrics"]["deepseek_calls_succeeded"])
 
 
 if __name__ == "__main__":
