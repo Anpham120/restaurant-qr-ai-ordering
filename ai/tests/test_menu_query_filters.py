@@ -254,6 +254,33 @@ class MenuQueryFilterTests(unittest.TestCase):
 
         self.assertEqual({"m_pho_bo", "m_pho_ga"}, allowed)
 
+    def test_accented_payment_word_does_not_match_tea_alias(self) -> None:
+        menu_items = [
+            {
+                "id": "m_tea",
+                "name": "Trà đào cam sả",
+                "category_id": "cat_drinks",
+                "category_name": "Cà phê & Trà",
+                "tags": [],
+                "is_available": True,
+            },
+            {
+                "id": "m_other",
+                "name": "Cơm tấm sườn bì chả",
+                "category_id": "cat_rice",
+                "category_name": "Cơm Việt",
+                "tags": [],
+                "is_available": True,
+            },
+        ]
+
+        allowed = infer_allowed_menu_item_ids(
+            "Mình muốn trả bằng thẻ được không?",
+            menu_items,
+        )
+
+        self.assertIsNone(allowed)
+
     def test_rejection_healthy_excludes_sweet_items(self) -> None:
         menu_items = [
             _item(

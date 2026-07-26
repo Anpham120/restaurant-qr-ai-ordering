@@ -121,6 +121,30 @@ class ContentGroundingTests(unittest.TestCase):
         self.assertIn("Cơm tấm sườn bì chả", content)
         self.assertEqual(actions, kept_actions)
 
+    def test_out_of_scope_intro_is_not_preserved_when_cards_are_regenerated(self) -> None:
+        candidate_menu = [
+            {"id": "m_pho", "name": "Phở bò tái", "price_vnd": 70000, "is_available": True}
+        ]
+        actions = [
+            {
+                "menu_item_id": "m_pho",
+                "name": "Phở bò tái",
+                "price_vnd": 70000,
+                "reason": "Có trong evidence của yêu cầu phở.",
+            }
+        ]
+
+        content, _, kept_actions = ground_response_content(
+            "Mình gợi ý Gà xào sả ớt cho bạn.",
+            actions,
+            candidate_menu,
+            wants_recommendations=True,
+        )
+
+        self.assertNotIn("Gà xào sả ớt", content)
+        self.assertIn("Phở bò tái", content)
+        self.assertEqual(actions, kept_actions)
+
     def test_format_grounded_recommendation_content(self) -> None:
         content = format_grounded_recommendation_content(
             [
