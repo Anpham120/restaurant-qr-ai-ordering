@@ -59,7 +59,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn('"message":"Xin chào"', script)
         self.assertIn("/v1/chat", script)
         self.assertIn(
-            'assert payload.get("provider_status") == "ok", payload',
+            'assert payload.get("provider_status") == "available", payload',
             script,
         )
         self.assertIn(
@@ -85,7 +85,14 @@ class AiOpsDeployContractTests(unittest.TestCase):
             'assert payload.get("provider_status") == "not_called", payload',
             script,
         )
-        self.assertIn("else:\n    assert payload.get(\"provider_status\") == \"ok\", payload", script)
+        self.assertIn(
+            "else:\n    assert payload.get(\"provider_status\") == \"available\", payload",
+            script,
+        )
+        self.assertIn("successful_attempts", script)
+        self.assertIn('payload.get("fallback_reason") == "rate_limit_429"', script)
+        self.assertIn('"chưa có dữ liệu thực đơn"', script)
+        self.assertIn("pho_allowed_ids", script)
         self.assertIn('run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"', script)
         self.assertIn('run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"', script)
         self.assertIn('run_semantic_probe "nhau" "Mình có món nhậu không?"', script)

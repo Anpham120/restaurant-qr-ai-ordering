@@ -211,6 +211,49 @@ class MenuQueryFilterTests(unittest.TestCase):
         )
         self.assertEqual({"menu:m_085", "menu:m_086"}, allowed)
 
+    def test_named_pho_family_restricts_candidates_to_pho_items(self) -> None:
+        menu_items = [
+            {
+                "id": "m_pho_bo",
+                "name": "Phở bò tái nạm",
+                "category_id": "cat_pho_bun",
+                "category_name": "Phở & Bún",
+                "tags": [],
+                "is_available": True,
+            },
+            {
+                "id": "m_pho_ga",
+                "name": "Phở gà ta",
+                "category_id": "cat_pho_bun",
+                "category_name": "Phở & Bún",
+                "tags": [],
+                "is_available": True,
+            },
+            {
+                "id": "m_bun_bo",
+                "name": "Bún bò Huế",
+                "category_id": "cat_pho_bun",
+                "category_name": "Phở & Bún",
+                "tags": [],
+                "is_available": True,
+            },
+            {
+                "id": "m_ga_xao",
+                "name": "Gà xào sả ớt",
+                "category_id": "cat_chicken",
+                "category_name": "Món gà",
+                "tags": [],
+                "is_available": True,
+            },
+        ]
+
+        allowed = infer_allowed_menu_item_ids(
+            "Gợi ý cho mình món phở tại nhà hàng đi",
+            menu_items,
+        )
+
+        self.assertEqual({"m_pho_bo", "m_pho_ga"}, allowed)
+
     def test_rejection_healthy_excludes_sweet_items(self) -> None:
         menu_items = [
             _item(

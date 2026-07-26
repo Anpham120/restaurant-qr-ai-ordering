@@ -95,6 +95,32 @@ class ContentGroundingTests(unittest.TestCase):
         self.assertNotIn("Sầu riêng Ri6", content)
         self.assertEqual(actions, kept_actions)
 
+    def test_menu_data_disclaimer_is_removed_when_live_cards_exist(self) -> None:
+        contradictory = (
+            "Hiện mình chưa có dữ liệu thực đơn phở của nhà hàng để đề xuất chính xác.\n\n"
+            "1. Cơm tấm sườn bì chả (65.000đ)"
+        )
+        actions = [
+            {
+                "menu_item_id": "m_015",
+                "name": "Cơm tấm sườn bì chả",
+                "price_vnd": 65000,
+                "reason": "Có trong thực đơn hiện tại.",
+            }
+        ]
+
+        content, flags, kept_actions = ground_response_content(
+            contradictory,
+            actions,
+            MENU,
+            wants_recommendations=True,
+        )
+
+        self.assertIn("MENU_DATA_CONTRADICTION_BLOCKED", flags)
+        self.assertNotIn("chưa có dữ liệu thực đơn", content.casefold())
+        self.assertIn("Cơm tấm sườn bì chả", content)
+        self.assertEqual(actions, kept_actions)
+
     def test_format_grounded_recommendation_content(self) -> None:
         content = format_grounded_recommendation_content(
             [

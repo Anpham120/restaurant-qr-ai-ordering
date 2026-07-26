@@ -81,6 +81,25 @@ class ConversationPolicyTests(unittest.TestCase):
         self.assertGreater(len(result), 0)
         self.assertLessEqual(len(result), policy.max_suggestions)
 
+    def test_recommendation_actions_outside_candidate_evidence_are_replaced(self) -> None:
+        candidate_menu = [
+            {"id": "m_pho", "name": "Phở bò", "price_vnd": 70000, "is_available": True}
+        ]
+        policy = build_conversation_policy(
+            "Gợi ý món phở",
+            [],
+            "",
+            candidate_menu,
+        )
+
+        result = enforce_suggestion_policy(
+            [{"menu_item_id": "m_unrelated", "name": "Gà xào sả ớt"}],
+            candidate_menu,
+            policy,
+        )
+
+        self.assertEqual(["m_pho"], [item["menu_item_id"] for item in result])
+
     def test_party_size_triggers_recommendation_cards(self) -> None:
         policy = build_conversation_policy("nhóm 8 người", [], "", MENU)
         self.assertTrue(policy.wants_recommendations)
