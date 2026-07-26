@@ -84,22 +84,35 @@ jobs:
         # direct request distinguishes a broken router/upstream from a broken
         # SSH forwarding path when the runner sees a transport reset.
         run: |
-          printf '%s\n' "$LLM_API_KEY" | ssh \
+          emit_router_origin_probe() {
+            # The first stdin line is the key; the remainder is the remote
+            # script.  This avoids both command-line exposure and nested shell
+            # quoting of a JSON request.
+            printf '%s\n' "$LLM_API_KEY"
+            cat <<'REMOTE_SCRIPT'
+          set -eu
+          IFS= read -r ROUTER_API_KEY
+          set +e
+          status="$(
+            curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
+              -H "Authorization: Bearer ${ROUTER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              --data @- \
+              http://127.0.0.1:20128/v1/chat/completions <<'JSON'
+          {"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
+          JSON
+          )"
+          curl_exit=$?
+          set -e
+          printf "9router origin primary preflight curl_exit=%s status=%s\n" "$curl_exit" "$status"
+          REMOTE_SCRIPT
+          }
+          emit_router_origin_probe | ssh \
             -i "${ROUTER_TUNNEL_DIR}/deploy-key" \
             -o UserKnownHostsFile="${ROUTER_TUNNEL_DIR}/known-hosts" \
             -o StrictHostKeyChecking=yes \
             "${SSH_USER}@${SSH_HOST}" \
-            'set -eu
-            IFS= read -r ROUTER_API_KEY
-            set +e
-            status="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
-              -H "Authorization: Bearer ${ROUTER_API_KEY}" \
-              -H "Content-Type: application/json" \
-              --data '\''{"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}\'' \
-              http://127.0.0.1:20128/v1/chat/completions)"
-            curl_exit=$?
-            set -e
-            printf "9router origin primary preflight curl_exit=%s status=%s\\n" "$curl_exit" "$status"'
+            'bash -s'
 
       - name: Preflight 9router HTTP readiness
         # A TCP connection alone does not prove that the router can serve the
