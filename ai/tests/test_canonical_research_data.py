@@ -46,6 +46,19 @@ def test_menu_fixture_hash_is_canonical_json_not_source_bytes() -> None:
     )
 
 
+def test_knowledge_base_hash_is_independent_of_windows_line_endings() -> None:
+    """The same Markdown knowledge base must hash equally in CI and Windows."""
+    bundle = load_canonical_research_bundle(AI_ROOT)
+    digest = hashlib.sha256()
+    for document in sorted(bundle.knowledge_base_path.glob("*.md")):
+        digest.update(document.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(document.read_bytes().replace(b"\r\n", b"\n"))
+        digest.update(b"\0")
+
+    assert bundle.knowledge_base_hash == f"sha256:{digest.hexdigest()}"
+
+
 def test_all_evaluation_views_filter_the_same_case_catalogue() -> None:
     bundle = load_canonical_research_bundle(AI_ROOT)
     catalogue_ids = {case.case_id for case in bundle.cases}
