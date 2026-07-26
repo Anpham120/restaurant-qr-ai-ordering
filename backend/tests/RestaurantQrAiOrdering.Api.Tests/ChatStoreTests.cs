@@ -110,7 +110,23 @@ public sealed class ChatStoreTests
             ["m_accepted"],
             ["m_cart"],
             "Six guests, vegetarian, budget 500k.",
-            "v2");
+            "v2",
+            new ChatConversationFrame(
+                "menu",
+                "recommendation",
+                ["m_ref"],
+                "Noodles",
+                ["vegetarian"],
+                4,
+                null,
+                new Dictionary<string, JsonElement>
+                {
+                    ["diet"] = JsonSerializer.SerializeToElement(new
+                    {
+                        source = "user",
+                        turn = 4
+                    })
+                }));
         var reply = new ChatAssistantReply(
             "Reply",
             [],
@@ -142,6 +158,11 @@ public sealed class ChatStoreTests
         Assert.Equal(["m_trusted_cart"], state.AddedToCartMenuItemIds);
         Assert.DoesNotContain("m_accepted", state.AcceptedMenuItemIds);
         Assert.DoesNotContain("m_cart", state.AddedToCartMenuItemIds);
+        var frame = Assert.IsType<ChatConversationFrame>(state.ConversationFrame);
+        Assert.Equal("recommendation", frame.ActiveIntent);
+        Assert.Equal(["m_ref"], frame.FocusMenuItemIds);
+        Assert.Equal(4, frame.TurnSequence);
+        Assert.Equal("user", frame.ConstraintProvenance["diet"].GetProperty("source").GetString());
         var fact = Assert.Single(state.Facts);
         Assert.Equal("party_size", fact.Kind);
         Assert.Equal("6", fact.Value);

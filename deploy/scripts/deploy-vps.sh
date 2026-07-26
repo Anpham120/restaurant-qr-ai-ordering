@@ -26,6 +26,7 @@ required_vars=(
   LLM_PROVIDER
   LLM_API_KEY
   LLM_MODEL
+  AI_PIPELINE_PROFILE
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -106,6 +107,7 @@ LLM_PROVIDER=$(env_quote "${LLM_PROVIDER:-9router}")
 LLM_BASE_URL=$(env_quote "${LLM_BASE_URL:-}")
 LLM_API_KEY=$(env_quote "$LLM_API_KEY")
 LLM_MODEL=$(env_quote "$LLM_MODEL")
+AI_PIPELINE_PROFILE=$(env_quote "$AI_PIPELINE_PROFILE")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
 RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")

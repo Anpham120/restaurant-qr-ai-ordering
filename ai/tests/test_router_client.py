@@ -178,6 +178,46 @@ class RouterClientTests(unittest.TestCase):
         )
         self.assertIn("recommend", result or "")
 
+    def test_deepseek_structured_uses_json_object_and_embeds_schema(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            payload = json.loads(request.content)
+            self.assertEqual({"type": "json_object"}, payload["response_format"])
+            self.assertEqual("none", payload["reasoning_effort"])
+            self.assertNotIn("json_schema", payload["response_format"])
+            system_text = "\n".join(
+                message["content"]
+                for message in payload["messages"]
+                if message["role"] == "system"
+            )
+            self.assertIn('"required":["intent"]', system_text)
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": '{"intent":"recommend"}'}}]},
+            )
+
+        client = RouterClient(
+            "http://localhost:20128/v1",
+            "router-key",
+            "oc/deepseek-v4-flash-free",
+            30,
+            transport=httpx.MockTransport(handler),
+        )
+        schema = {
+            "type": "object",
+            "properties": {"intent": {"type": "string"}},
+            "required": ["intent"],
+        }
+
+        result = asyncio.run(
+            client.complete_structured(
+                [{"role": "user", "content": "ping"}],
+                schema,
+                "intent_probe",
+            )
+        )
+
+        self.assertIn("recommend", result or "")
+
     def test_complete_falls_back_to_reasoning_content(self) -> None:
         def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(

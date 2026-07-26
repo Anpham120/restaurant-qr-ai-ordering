@@ -8,7 +8,26 @@
 | Retrieval research | `run_retrieval_experiment.py` | MRR@5, forbidden@10 |
 | Pipeline no-LLM | `run_golden_chat_eval.py` | safety recall, forbidden rate (CI smoke only) |
 
-Production LLM stack: **9router** with `cx/gpt-5.5` (quality gate) and `oc/deepseek-v4-flash-free` (cheap sweep).
+Production LLM stack: **DeepSeek only through 9router**, model
+`oc/deepseek-v4-flash-free`. The old GPT/DeepSeek comparison remains a
+historical model experiment; it is not the architecture-selection gate.
+
+## Pipeline architecture selection
+
+Run:
+
+```text
+python ai/evaluation/run_pipeline_profile_eval.py
+```
+
+This compares `llm_first_v1`, `evidence_first_v2`, and `planner_state_v3` under
+the same DeepSeek model, menu, KB, retrieval configuration, prompt budget, and
+dataset. Selection order is safety hard gate, strict semantic success, context
+accuracy, p95 latency, then mean DeepSeek calls.
+
+The result is `ai/evaluation/results/pipeline_selection.json`. Production must
+derive `AI_PIPELINE_PROFILE` from its winner and validate it with
+`verify_pipeline_selection.py`; a missing winner blocks deployment.
 
 ## Mandatory workflow
 

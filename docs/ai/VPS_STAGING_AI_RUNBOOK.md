@@ -1,71 +1,82 @@
-# VPS staging — AI + chat thật
+# VPS staging — AI và chat thật
 
-Runbook cho deploy **staging** qua GitHub Actions (`.github/workflows/deploy-staging.yml`) và kiểm tra chat AI trên domain staging.
+Runbook deploy staging qua `.github/workflows/deploy-staging.yml`. Kiến trúc
+production không được chọn thủ công: workflow phải chạy thí nghiệm ba profile,
+tạo `ai/evaluation/results/pipeline_selection.json`, rồi bind
+`AI_PIPELINE_PROFILE` vào winner.
 
-## Trước khi deploy
+## Điều kiện trước khi deploy
 
-### 1. 9router trên VPS
+### 1. DeepSeek qua 9router
 
-Service `ai-service` dùng `network_mode: host`. `LLM_BASE_URL` phải trỏ tới gateway **trên cùng máy VPS** (mặc định workflow: `http://127.0.0.1:20128/v1` hoặc `vars.NINE_ROUTER_BASE_URL`).
+`ai-service` dùng `network_mode: host`. `LLM_BASE_URL` phải trỏ tới 9router trên
+cùng VPS (mặc định `http://127.0.0.1:20128/v1`).
 
-- Cài và chạy 9router (systemd hoặc container publish port 20128).
-- Không commit `LLM_API_KEY`; dùng GitHub secret `NINE_ROUTER_API_KEY`.
+- GitHub secret: `NINE_ROUTER_API_KEY`.
+- Model cố định cho thí nghiệm và runtime:
+  `oc/deepseek-v4-flash-free`.
+- Không cấu hình GPT fallback.
 
 ### 2. GitHub Environment `staging`
-
-Secrets / vars tối thiểu (xem `deploy/scripts/deploy-vps.sh`):
 
 | Biến | Nguồn |
 | --- | --- |
 | `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY` | Secrets |
 | `JWT_SIGNING_KEY`, `AI_INTERNAL_TOKEN`, `STAGING_POSTGRES_PASSWORD` | Secrets |
 | `NINE_ROUTER_API_KEY` | Secret |
-| `NINE_ROUTER_BASE_URL` | Variable (optional) |
+| `NINE_ROUTER_BASE_URL` | Variable, tùy chọn |
+| `AI_PIPELINE_PROFILE` | Variable, tùy chọn nhưng nếu đặt phải trùng winner |
 | VietQR `PAYMENTS__VIETQR__*` | Secrets |
 
-Workflow đã set: `CHAT_AI_PROVIDER=python-rag`, `RAG_RETRIEVAL_METHOD=hybrid`, `LLM_MODEL=oc/deepseek-v4-flash-free` (override bằng `vars.LLM_MODEL`), **`AI_LLM_FIRST=true`**, `VITE_USE_MOCK_CHAT=false`.
+Nếu `AI_PIPELINE_PROFILE` đã cấu hình nhưng khác winner, workflow dừng trước
+deploy. Nếu không cấu hình, workflow lấy winner từ artifact và export vào môi
+trường deploy.
 
-### 3. DNS
+## Quy trình deploy
 
-Domain staging (ví dụ `api-staging.cmcrestaurant.app`, `order-staging.cmcrestaurant.app`) trỏ về VPS.
+1. Push `develop` hoặc chạy **Actions → Deploy Staging**.
+2. CI chạy unit/integration/notebook/golden gates.
+3. Job deploy chạy `run_pipeline_profile_eval.py` trên đúng commit:
+   `llm_first_v1`, `evidence_first_v2`, `planner_state_v3`.
+4. `verify_pipeline_selection.py` kiểm tra model, commit, dataset hash và safety
+   hard gate; không có winner thì dừng.
+5. `deploy-vps.sh` truyền winner thành `AI_PIPELINE_PROFILE`.
+6. `health-check.sh` xác minh readiness và ba câu semantic smoke.
 
-## Deploy
+Artifact được upload với tên chứa commit SHA và được đóng gói cùng release.
 
-1. Push `develop` hoặc **Actions → Deploy Staging → Run workflow**.
-2. Workflow chạy CI quality gate rồi `bash deploy/scripts/deploy-vps.sh`.
-3. Trên VPS, script chạy migrate, `docker compose up`, nginx, certbot, **`deploy/scripts/health-check.sh`**.
+## Semantic smoke bắt buộc
 
-Health-check gồm:
+Health check gửi menu thật trong `backend/data/menu-dataset.json` và kiểm tra:
 
-- Frontend + API health/ready
-- `GET http://127.0.0.1:8001/ready`
-- `POST /v1/chat` với `Authorization: Bearer $AI_INTERNAL_TOKEN` và body `{"message":"Xin chào"}`
+1. “Nhà hàng mình có những món phở gì nhỉ?”
+2. “Gợi ý cho mình món phở tại nhà hàng đi”
+3. “Mình có món nhậu không?”
 
-Báo cáo: `/opt/cmc-restaurant/staging/reports/last-deployment.md`
+Mỗi response phải:
 
-## Kiểm tra sau deploy
+- ghi đúng `pipeline_profile` và model `oc/deepseek-v4-flash-free`;
+- không trả fallback “Mình chưa đủ bằng chứng…”;
+- có `resolved_menu_item_ids` và `evidence`;
+- không có claim chưa verify;
+- có `verifier_result != failed`.
 
-1. `curl -fsS https://api-staging.cmcrestaurant.app/api/health`
-2. Đăng nhập demo (`SEED_DEMO_USERS=true` trên staging) → **order-staging** → mở chat.
-3. Smoke chat (DeepSeek qua 9router — kiểm tra log gateway có request `oc/deepseek-v4-flash-free`):
-   - *"Gợi ý món nhẹ cho 2 người"* — `provider_status: available`, gợi ý **món ăn** (không chỉ đồ uống).
-   - *"Món dễ ăn nhậu với bia"* — thẻ giỏ ưu tiên món ăn; có thể nhắc bia trong text.
-   - *"Món không phải đồ uống"* — không list trà/cà phê/rượu thay món ăn.
-4. Câu KB vẫn có thể qua LLM (không còn KB fast-path khi `AI_LLM_FIRST=true`): *"nhà hàng có wifi không?"*
-5. Câu menu / abstain: *"gợi ý món"* — có thể **abstain** nếu Claim Verifier chưa LiveContext (đúng thiết kế; xem notebook §16).
+Nếu bất kỳ điều kiện nào sai, deployment thất bại. Production workflow sẽ
+dispatch rollback theo cơ chế hiện có.
 
-Release quality vẫn **NOT READY** — xem [`AI_STAGING_READINESS.md`](AI_STAGING_READINESS.md).
+## Kiểm tra multi-turn qua UI staging
 
-## Local trước khi push
+- “Gợi ý hai món phở” → “Món thứ hai giá bao nhiêu?”
+- “Loại món vừa gợi ý” → món đó không được gợi ý lại.
+- “Gợi ý cho 2 người” → “Đổi thành 4 người”.
+- “Tôi dị ứng đậu phộng” → đổi chủ đề → gợi ý món; dị ứng vẫn phải được duy trì.
+- Mở phiên bàn khác và xác minh state không rò rỉ.
 
-```powershell
-cd restaurant-qr-ai-ordering\deploy
-# .env từ deploy/env/staging.example.env
-docker compose --env-file .env -f docker-compose.yml up -d --build
-```
-
-Hoặc chỉ AI: `cd ai` → `uvicorn` + `py scripts/smoke_9router.py`.
+Đối chiếu log nội bộ: `pipeline_profile`, model, route,
+`resolved_menu_item_ids`, `verifier_result`.
 
 ## Rollback
 
-Workflow **rollback** hoặc `deploy/scripts/rollback-vps.sh` (xem README deploy).
+Production tự dispatch `.github/workflows/rollback.yml` khi deploy hoặc smoke
+thất bại. Staging có thể chạy workflow rollback hoặc
+`deploy/scripts/rollback-vps.sh`.

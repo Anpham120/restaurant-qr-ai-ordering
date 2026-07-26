@@ -45,7 +45,11 @@ public sealed record ChatAiResult(
     ChatDecisionTrace? Decision = null,
     IReadOnlyList<ChatEvidenceReference>? Evidence = null,
     IReadOnlyList<ChatVerifiedClaim>? Claims = null,
-    ChatSessionUpdates? SessionUpdates = null);
+    ChatSessionUpdates? SessionUpdates = null,
+    string? Model = null,
+    string? PipelineProfile = null,
+    IReadOnlyList<string>? ResolvedMenuItemIds = null,
+    string? VerifierResult = null);
 
 public sealed record ChatFactToPersist(string Kind, string Value, double Confidence);
 
@@ -79,7 +83,8 @@ public sealed record ChatSessionUpdates(
     IReadOnlyList<string> AcceptedMenuItemIds,
     IReadOnlyList<string> AddedToCartMenuItemIds,
     string? RollingSummary,
-    string MemoryVersion);
+    string MemoryVersion,
+    ChatConversationFrame? ConversationFrame = null);
 
 public interface IChatAiProvider
 {
@@ -145,6 +150,7 @@ public sealed class PythonRagChatProvider : IChatAiProvider
 
     private sealed record ChatRequestV2Payload(
         string ContractVersion,
+        string PipelineProfile,
         string Message,
         string? TableCode,
         string SessionId,
@@ -174,7 +180,8 @@ public sealed class PythonRagChatProvider : IChatAiProvider
         IReadOnlyList<string> AcceptedMenuItemIds,
         IReadOnlyList<string> AddedToCartMenuItemIds,
         string RollingSummary,
-        string MemoryVersion);
+        string MemoryVersion,
+        ChatConversationFrame? ConversationFrame);
 
     private sealed record ChatLiveContextPayload(
         string CatalogVersion,
@@ -352,7 +359,14 @@ public sealed class PythonRagChatProvider : IChatAiProvider
                 return SlowFallback();
             }
 
-            logger.LogInformation("Python AI chat completed in {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
+            logger.LogInformation(
+                "Python AI chat completed in {ElapsedMs}ms profile={PipelineProfile} model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
+                stopwatch.ElapsedMilliseconds,
+                result.PipelineProfile ?? "unknown",
+                result.Model ?? "unknown",
+                result.Decision?.Route ?? "unknown",
+                string.Join(",", result.ResolvedMenuItemIds ?? []),
+                result.VerifierResult ?? "unknown");
             return result;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
@@ -362,7 +376,7 @@ public sealed class PythonRagChatProvider : IChatAiProvider
         }
     }
 
-    private static ChatRequestV2Payload BuildPayload(ChatAiRequest request)
+    private ChatRequestV2Payload BuildPayload(ChatAiRequest request)
     {
         var excluded = (request.ExcludedMenuItemIds ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase))
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -434,7 +448,8 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             acceptedIds,
             addedToCartIds,
             rollingSummary,
-            persistedState?.MemoryVersion ?? "v1");
+            persistedState?.MemoryVersion ?? "v1",
+            persistedState?.ConversationFrame);
         var liveContext = new ChatLiveContextPayload(
             catalogVersion,
             menuItems,
@@ -448,6 +463,7 @@ public sealed class PythonRagChatProvider : IChatAiProvider
         // Keep the legacy top-level aliases for one release while V2 consumers move to typed state/context.
         return new ChatRequestV2Payload(
             "v2",
+            ReadPipelineProfile(),
             request.UserMessage,
             request.TableCode,
             request.ChatSessionId ?? "",
@@ -467,6 +483,21 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             history,
             request.SessionMemory,
             menuItems);
+    }
+
+    private string ReadPipelineProfile()
+    {
+        const string fallback = "llm_first_v1";
+        var profile = configuration["AI_PIPELINE_PROFILE"]?.Trim();
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            return fallback;
+        }
+
+        return profile is "llm_first_v1" or "evidence_first_v2" or "planner_state_v3"
+            ? profile
+            : throw new InvalidOperationException(
+                $"Unsupported AI_PIPELINE_PROFILE '{profile}'.");
     }
 
     internal static string ComputeCatalogVersion(IReadOnlyList<ChatMenuItemContext> menuItems)
@@ -599,7 +630,11 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             Decision: ExtractDecision(root),
             Evidence: ExtractEvidence(root),
             Claims: ExtractClaims(root),
-            SessionUpdates: hasSessionUpdates ? ExtractSessionUpdates(sessionUpdatesElement) : null);
+            SessionUpdates: hasSessionUpdates ? ExtractSessionUpdates(sessionUpdatesElement) : null,
+            Model: ExtractOptionalString(root, "model"),
+            PipelineProfile: ExtractOptionalString(root, "pipeline_profile"),
+            ResolvedMenuItemIds: ExtractStringArray(root, "resolved_menu_item_ids"),
+            VerifierResult: ExtractOptionalString(root, "verifier_result"));
     }
 
     private static ChatDecisionTrace? ExtractDecision(JsonElement root)
@@ -696,7 +731,28 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             ExtractStringArray(updates, "accepted_menu_item_ids"),
             ExtractStringArray(updates, "added_to_cart_menu_item_ids"),
             ExtractOptionalString(updates, "rolling_summary"),
-            ExtractOptionalString(updates, "memory_version") ?? "v1");
+            ExtractOptionalString(updates, "memory_version") ?? "v1",
+            ExtractConversationFrame(updates));
+    }
+
+    private static ChatConversationFrame? ExtractConversationFrame(JsonElement root)
+    {
+        if (!root.TryGetProperty("conversation_frame", out var frame)
+            || frame.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ChatConversationFrame>(
+                frame.GetRawText(),
+                RequestJsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static string? ExtractOptionalString(JsonElement root, string property)
@@ -1024,6 +1080,13 @@ public sealed class ChatAssistantService : IChatAssistantService
         }
 
         var providerResult = ParseStreamFinal(finalPayload.Value, prepared.AvailableMenuItems, prepared.Request.ExcludedMenuItemIds ?? excludedMenuItemIds);
+        logger.LogInformation(
+            "Python AI stream profile={PipelineProfile} model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
+            providerResult.PipelineProfile ?? "unknown",
+            providerResult.Model ?? "unknown",
+            providerResult.Decision?.Route ?? "unknown",
+            string.Join(",", providerResult.ResolvedMenuItemIds ?? []),
+            providerResult.VerifierResult ?? "unknown");
         var reply = BuildAssistantReply(providerResult, prepared.AvailableMenuItems, excludedMenuItemIds);
         await onCompleteAsync(reply, cancellationToken);
         LogStop(stopwatch, "python-stream");
