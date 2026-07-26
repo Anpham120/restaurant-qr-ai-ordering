@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.rag.menu_query_filters import infer_allowed_menu_item_ids
 from app.rag.vietnamese_normalizer import normalize_query_text
 
 
@@ -118,24 +119,34 @@ def try_menu_presence_fast_path(
     if not keywords:
         return None
 
-    matched = [
-        item
-        for item in menu_items
-        if bool(item.get("is_available", True))
-        and any(
-            keyword
-            in _normalize(
-                " ".join(
-                    [
-                        str(item.get("name") or ""),
-                        str(item.get("category_name") or item.get("category") or ""),
-                        " ".join(str(tag) for tag in (item.get("tags") or [])),
-                    ]
+    allowed_ids = infer_allowed_menu_item_ids(message, menu_items)
+    if allowed_ids:
+        matched = [
+            item
+            for item in menu_items
+            if bool(item.get("is_available", True))
+            and str(item.get("id") or item.get("menu_item_id") or "").strip()
+            in allowed_ids
+        ]
+    else:
+        matched = [
+            item
+            for item in menu_items
+            if bool(item.get("is_available", True))
+            and any(
+                keyword
+                in _normalize(
+                    " ".join(
+                        [
+                            str(item.get("name") or ""),
+                            str(item.get("category_name") or item.get("category") or ""),
+                            " ".join(str(tag) for tag in (item.get("tags") or [])),
+                        ]
+                    )
                 )
+                for keyword in keywords
             )
-            for keyword in keywords
-        )
-    ]
+        ]
     if not matched:
         return None
 

@@ -67,6 +67,43 @@ class FastPathClaimGroundingTests(unittest.TestCase):
         self.assertIn("Phở", response["content"])
         self.assertEqual("m_001", response["evidence"][0]["menu_item_id"])
 
+    def test_pho_presence_does_not_include_shared_category_or_peanut_tag_matches(self) -> None:
+        response = try_menu_presence_fast_path(
+            "Ở đây có phở không?",
+            [
+                {
+                    "id": "m_roll",
+                    "name": "Gỏi cuốn tôm thịt",
+                    "category_name": "Khai vị",
+                    "tags": ["có đậu phộng"],
+                    "price_vnd": 65000,
+                    "is_available": True,
+                },
+                {
+                    "id": "m_bun",
+                    "name": "Bún bò Huế",
+                    "category_name": "Phở & Bún",
+                    "price_vnd": 80000,
+                    "is_available": True,
+                },
+                {
+                    "id": "m_pho",
+                    "name": "Phở bò tái nạm",
+                    "category_name": "Phở & Bún",
+                    "price_vnd": 75000,
+                    "is_available": True,
+                },
+            ],
+            wants_recommendations=False,
+        )
+
+        self.assertIsNotNone(response)
+        assert response is not None
+        self.assertEqual(
+            ["m_pho"],
+            [item["menu_item_id"] for item in response["evidence"]],
+        )
+
     def test_suggestion_fast_path_gets_live_menu_claims_during_finalization(self) -> None:
         response = {
             "content": "Mình gợi ý Phở bò tái (85.000đ).",
