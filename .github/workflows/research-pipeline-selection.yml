@@ -25,6 +25,14 @@ jobs:
       LLM_MODEL: oc/deepseek-v4-flash-free
       LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
       LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      # Keep all non-profile controls identical to staging/production.  A
+      # selection artifact is invalid if it was measured with a shorter
+      # request window or different generation policy than the deployed AI.
+      LLM_TIMEOUT_SECONDS: "30"
+      AI_REQUEST_BUDGET_SECONDS: "45"
+      AI_MAX_RETRY: "0"
+      AI_MAX_TOKENS: "700"
+      AI_REASONING_EFFORT: low
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
     steps:
