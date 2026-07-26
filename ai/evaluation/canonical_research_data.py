@@ -101,7 +101,10 @@ def _knowledge_base_hash(path: Path) -> str:
     for document in sorted(path.glob("*.md"), key=lambda item: item.name):
         digest.update(document.name.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(document.read_bytes())
+        # The KB is edited and reported from Windows but evaluated on Linux in
+        # CI.  Normalize only the transport-level line ending; the Markdown
+        # content itself remains part of the reproducibility contract.
+        digest.update(document.read_bytes().replace(b"\r\n", b"\n"))
         digest.update(b"\0")
     return f"sha256:{digest.hexdigest()}"
 
