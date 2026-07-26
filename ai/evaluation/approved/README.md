@@ -9,10 +9,11 @@ To replace it:
    proposed AI/prompt/menu/dataset changes.
 2. Require a valid winner and all safety hard gates.
 3. Download the raw artifact and verify its SHA-256.
-4. Copy only the three profile metric objects and decision provenance into a
-   new `pipeline-selection-approved-v2` artifact.
-5. Set `research_input_hash` from
-   `evaluation.research_inputs.compute_research_input_hash`.
+4. Copy the reviewed profile metrics, `model_policy`, winner, selection
+   provenance, `research_commit_sha`, and `research_input_hash` into a
+   new `pipeline-selection-v3` approved artifact.
+5. Preserve deploy-required provenance fields such as `approved_at`,
+   `source_run_id`, `source_artifact_name`, and `source_artifact_sha256`.
 6. Review and merge the artifact through the normal protected PR flow.
 
 Staging and production recompute the hash. A changed AI runtime, scorer, KB,

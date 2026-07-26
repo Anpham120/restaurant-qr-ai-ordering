@@ -7,6 +7,8 @@ set -euo pipefail
 : "${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}"
 : "${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}"
 : "${LLM_MODEL:?LLM_MODEL is required}"
+: "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required}"
+: "${LLM_RATE_LIMIT_FALLBACK_ENABLED:?LLM_RATE_LIMIT_FALLBACK_ENABLED is required}"
 
 primary_frontend_domain="$(printf '%s\n' "$FRONTEND_SERVER_NAMES" | awk '{print $1}')"
 frontend_url="${FRONTEND_HEALTH_URL:-https://${primary_frontend_domain}/}"
@@ -31,22 +33,29 @@ trap 'rm -rf "$probe_dir"' EXIT
 ready_payload="${probe_dir}/ready.json"
 curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors \
   "$ai_ready_url" > "$ready_payload"
-python3 - "$ready_payload" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" <<'PY'
+python3 - "$ready_payload" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" "$LLM_RATE_LIMIT_FALLBACK_ENABLED" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model = sys.argv[2], sys.argv[3]
+expected_profile, expected_model, expected_fallback_model = sys.argv[2], sys.argv[3], sys.argv[4]
+expected_fallback_enabled = sys.argv[5].strip().lower() == "true"
+policy = dict(payload.get("model_policy") or {})
 assert payload.get("ready") is True, payload
 assert payload.get("pipeline_profile") == expected_profile, payload
-assert payload.get("model") == expected_model, payload
+assert str(payload.get("model") or "") == expected_model, payload
+assert policy.get("primary_model") == expected_model, payload
+assert policy.get("fallback_model") == expected_fallback_model, payload
+assert bool(policy.get("fallback_enabled")) is expected_fallback_enabled, payload
+assert policy.get("fallback_trigger") == "http_429", payload
+assert int(policy.get("max_fallbacks_per_operation") or 0) == 1, payload
 PY
 
 echo "Running protected basic AI smoke request"
 curl --fail --show-error --silent --retry 2 --retry-delay 2 --retry-all-errors \
   -H "Authorization: Bearer ${AI_INTERNAL_TOKEN}" \
   -H "Content-Type: application/json" \
-  --data '{"message":"Xin chào"}' \
+  --data '{"message":"Xin chÃ o"}' \
   "$ai_chat_url" >/dev/null
 
 menu_dataset="/opt/cmc-restaurant/${DEPLOY_ENV}/repo/backend/data/menu-dataset.json"
@@ -102,17 +111,19 @@ PY
     --data-binary "@${request_file}" \
     "$ai_chat_url" > "$response_file"
 
-  python3 - "$response_file" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" <<'PY'
+  python3 - "$response_file" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model = sys.argv[2], sys.argv[3]
+expected_profile, expected_model, expected_fallback_model = sys.argv[2], sys.argv[3], sys.argv[4]
 content = str(payload.get("content") or "").casefold()
 assert payload.get("pipeline_profile") == expected_profile, payload
-assert payload.get("model") == expected_model, payload
+assert payload.get("primary_model") == expected_model, payload
+assert payload.get("fallback_model") == expected_fallback_model, payload
+assert payload.get("model") in {expected_model, expected_fallback_model}, payload
 assert payload.get("provider_status") in {"ok", "not_called"}, payload
-assert "mình chưa đủ bằng chứng" not in content, payload
+assert "mÃ¬nh chÆ°a Ä‘á»§ báº±ng chá»©ng" not in content, payload
 assert payload.get("verifier_result") != "failed", payload
 assert payload.get("resolved_menu_item_ids"), payload
 assert payload.get("evidence"), payload
@@ -121,9 +132,9 @@ PY
 }
 
 echo "Running protected semantic AI smoke probes"
-run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"
-run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"
-run_semantic_probe "nhau" "Mình có món nhậu không?"
+run_semantic_probe "pho-list" "NhÃ  hÃ ng mÃ¬nh cÃ³ nhá»¯ng mÃ³n phá»Ÿ gÃ¬ nhá»‰?"
+run_semantic_probe "pho-recommend" "Gá»£i Ã½ cho mÃ¬nh mÃ³n phá»Ÿ táº¡i nhÃ  hÃ ng Ä‘i"
+run_semantic_probe "nhau" "MÃ¬nh cÃ³ mÃ³n nháº­u khÃ´ng?"
 
 echo "Running backend-integrated AI smoke request"
 backend_session_request="${probe_dir}/backend-session-request.json"
@@ -155,7 +166,7 @@ import json
 import sys
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump({"content": "ở đây có phở không"}, handle, ensure_ascii=False)
+    json.dump({"content": "á»Ÿ Ä‘Ã¢y cÃ³ phá»Ÿ khÃ´ng"}, handle, ensure_ascii=False)
 PY
 
 backend_session_id="$(cat "${probe_dir}/backend-session-id.txt")"
@@ -188,8 +199,8 @@ flags = {str(flag) for flag in final_payload.get("guardrailFlags") or []}
 forbidden_flags = {"AI_PROVIDER_UNAVAILABLE", "AI_UPSTREAM_CONTRACT_ERROR"}
 assert content, final_payload
 assert not flags.intersection(forbidden_flags), final_payload
-assert "hệ thống hơi chậm" not in content.casefold(), final_payload
-assert "phở" in content.casefold(), final_payload
+assert "há»‡ thá»‘ng hÆ¡i cháº­m" not in content.casefold(), final_payload
+assert "phá»Ÿ" in content.casefold(), final_payload
 PY
 
 report_dir="/opt/cmc-restaurant/${DEPLOY_ENV}/reports"
@@ -211,6 +222,7 @@ cat > "${report_dir}/last-deployment.md" <<EOF
 - Protected semantic AI smoke (3 production cases): PASS
 - Pipeline profile: ${AI_PIPELINE_PROFILE}
 - LLM model: ${LLM_MODEL}
+- LLM fallback model: ${LLM_RATE_LIMIT_FALLBACK_MODEL}
 - Checked at UTC: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 - Result: PASS
 

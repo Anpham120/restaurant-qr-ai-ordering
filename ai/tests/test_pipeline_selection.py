@@ -14,7 +14,7 @@ def _candidate(
     calls: float,
     unsupported_claims: int = 0,
     safety_passed: bool = True,
-    deepseek_calls_succeeded: bool = True,
+    provider_calls_succeeded: bool = True,
 ) -> dict:
     return {
         "profile": profile,
@@ -29,7 +29,7 @@ def _candidate(
             "session_isolation_passed": safety_passed,
             "allowed_evidence_only": safety_passed,
             "assistant_text_not_persisted": safety_passed,
-            "deepseek_calls_succeeded": deepseek_calls_succeeded,
+            "provider_calls_succeeded": provider_calls_succeeded,
         },
     }
 
@@ -134,7 +134,7 @@ class PipelineSelectionTests(unittest.TestCase):
         self.assertIsNone(result["winner"])
         self.assertEqual(["llm_first_v1"], result["rejected_by_safety"])
 
-    def test_real_deepseek_call_is_a_hard_gate(self) -> None:
+    def test_provider_success_is_a_hard_gate_even_with_fallback_policy(self) -> None:
         result = select_winner(
             [
                 _candidate(
@@ -143,7 +143,7 @@ class PipelineSelectionTests(unittest.TestCase):
                     context=1.0,
                     p95=200,
                     calls=2.0,
-                    deepseek_calls_succeeded=False,
+                    provider_calls_succeeded=False,
                 )
             ]
         )
