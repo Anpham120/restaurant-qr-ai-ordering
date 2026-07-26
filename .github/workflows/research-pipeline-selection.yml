@@ -96,6 +96,22 @@ jobs:
           else
             echo "9router origin listener=absent"
           fi
+          if command -v docker >/dev/null 2>&1 && docker ps -a >/dev/null 2>&1; then
+            docker_candidates="$(docker ps -a --format '{{.Names}}={{.Status}}={{.Ports}}' | awk 'tolower($0) ~ /9router|router/ || $0 ~ /20128/')"
+            if [ -n "$docker_candidates" ]; then
+              printf '9router docker candidates=%s\n' "$docker_candidates"
+            else
+              echo "9router docker candidates=none"
+            fi
+          else
+            echo "9router docker candidates=unavailable"
+          fi
+          systemd_candidates="$(systemctl list-units --type=service --all --no-legend --plain 2>/dev/null | awk 'tolower($1) ~ /9router|router/ {print $1}')"
+          if [ -n "$systemd_candidates" ]; then
+            printf '9router systemd candidates=%s\n' "$systemd_candidates"
+          else
+            echo "9router systemd candidates=none"
+          fi
           set +e
           status="$(
             curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
