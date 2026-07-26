@@ -185,6 +185,18 @@ class AiOpsDeployContractTests(unittest.TestCase):
                 self.assertNotIn("AI_LLM_PROVIDER=", example)
                 self.assertNotIn("gemini", example.casefold())
 
+    def test_router_recovery_is_explicit_targeted_and_verifies_listener(self) -> None:
+        workflow = (
+            REPO_ROOT / ".github" / "workflows" / "recover-9router.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("RESTART_9ROUTER", workflow)
+        self.assertIn("environment: staging", workflow)
+        self.assertIn("sudo -n systemctl restart 9router.service", workflow)
+        self.assertIn("systemctl is-active --quiet 9router.service", workflow)
+        self.assertIn("9router listener is ready", workflow)
+        self.assertNotIn("docker restart", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
