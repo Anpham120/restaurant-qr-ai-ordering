@@ -58,7 +58,10 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("Authorization: Bearer ${AI_INTERNAL_TOKEN}", script)
         self.assertIn('"message":"Xin chào"', script)
         self.assertIn("/v1/chat", script)
-        self.assertIn('{"ok", "not_called"}', script)
+        self.assertIn(
+            'assert payload.get("provider_status") == "ok", payload',
+            script,
+        )
         self.assertIn(
             'assert payload.get("primary_model") == expected_model, payload',
             script,
@@ -69,6 +72,20 @@ class AiOpsDeployContractTests(unittest.TestCase):
         )
         self.assertNotIn('assert payload.get("model") == expected_model, payload', script)
         self.assertNotIn('payload.get("provider_available") is True', script)
+        # A factual catalogue answer is intentionally safe even when the
+        # primary model receives a 429: it is grounded in the live menu and
+        # does not need an LLM response.  The deploy probe must accept that
+        # deterministic path while still rejecting unknown model routes.
+        self.assertIn('model.startswith("deterministic-")', script)
+        self.assertIn(
+            'assert model in {expected_model, expected_fallback_model} or is_deterministic, payload',
+            script,
+        )
+        self.assertIn(
+            'assert payload.get("provider_status") == "not_called", payload',
+            script,
+        )
+        self.assertIn("else:\n    assert payload.get(\"provider_status\") == \"ok\", payload", script)
         self.assertIn('run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ?"', script)
         self.assertIn('run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"', script)
         self.assertIn('run_semantic_probe "nhau" "Mình có món nhậu không?"', script)

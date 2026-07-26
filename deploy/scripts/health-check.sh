@@ -121,8 +121,17 @@ content = str(payload.get("content") or "").casefold()
 assert payload.get("pipeline_profile") == expected_profile, payload
 assert payload.get("primary_model") == expected_model, payload
 assert payload.get("fallback_model") == expected_fallback_model, payload
-assert payload.get("model") in {expected_model, expected_fallback_model}, payload
-assert payload.get("provider_status") in {"ok", "not_called"}, payload
+model = str(payload.get("model") or "")
+# A factual live-menu response may be deliberately deterministic even if an
+# earlier semantic planner attempt hit a rate limit.  It is safe because the
+# verifier has grounded every claim in the supplied menu; do not turn that
+# valid no-LLM route into a false deployment failure.
+is_deterministic = model.startswith("deterministic-")
+assert model in {expected_model, expected_fallback_model} or is_deterministic, payload
+if is_deterministic:
+    assert payload.get("provider_status") == "not_called", payload
+else:
+    assert payload.get("provider_status") == "ok", payload
 assert "mình chưa đủ bằng chứng" not in content, payload
 assert payload.get("verifier_result") != "failed", payload
 assert payload.get("resolved_menu_item_ids"), payload
