@@ -148,6 +148,8 @@ class ProviderObservabilityTests(unittest.TestCase):
             )
 
         self.assertEqual("cx/gpt-5.6-luna-review", response["model"])
+        self.assertTrue(response["provider_available"])
+        self.assertEqual("available", response["provider_status"])
         self.assertEqual(
             "oc/deepseek-v4-flash-free",
             response["primary_model"],
