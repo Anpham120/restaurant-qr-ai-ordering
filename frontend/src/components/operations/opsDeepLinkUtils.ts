@@ -19,3 +19,8 @@ export function buildOrdersKanbanLink(tableCode?: string | null): string {
   const normalized = normalizeTableCode(tableCode);
   return normalized ? `${base}&table=${encodeURIComponent(normalized)}` : base;
 }
+
+export function buildTableOrdersLink(tableCode?: string | null): string {
+  const normalized = normalizeTableCode(tableCode);
+  return normalized ? `/tables/${encodeURIComponent(normalized)}/orders` : "/tables";
+}

@@ -1,4 +1,5 @@
 import type { AdminTableSessionSummary, Order, OrderListResponse } from "@cmc/shared-types";
+import { buildTableOrdersLink } from "../components/operations/opsDeepLinkUtils";
 import { api } from "./apiClient";
 import { getCurrentCounterShift } from "./counterShiftService";
 import { listTableInvoices } from "./orderService";
@@ -55,7 +56,7 @@ export async function fetchOpsCommandSummary(): Promise<OpsCommandSummary> {
       kind: "order" as const,
       label: `${order.orderCode} · Bàn ${order.tableCode ?? "-"}`,
       href: order.tableCode
-        ? `/orders?tab=kanban&table=${encodeURIComponent(order.tableCode)}`
+        ? buildTableOrdersLink(order.tableCode)
         : `/orders?tab=kanban`,
     })),
     ...pendingPayments.slice(0, 3).map((invoice) => ({
