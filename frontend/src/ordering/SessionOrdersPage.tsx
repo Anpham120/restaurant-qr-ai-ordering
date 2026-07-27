@@ -24,7 +24,9 @@ import {
 } from "../services/realtimeOrderService";
 import { useOrderingSession } from "./OrderingSessionProvider";
 import { deriveSessionHubState } from "./sessionResumeState";
+import { mergeSessionOrdersLoadResults } from "./sessionOrdersLoad";
 import { TableInvoicePaymentModal } from "./TableInvoicePaymentModal";
+import { TableElectronicReceiptModal } from "./TableElectronicReceiptModal";
 import { labelGuestItemStatus, labelOrderStatus } from "../utils/opsStatusLabels";
 
 const journeySteps = ["Gọi món", "Chế biến", "Phục vụ", "Thanh toán"] as const;
@@ -38,6 +40,8 @@ export function SessionOrdersPage() {
   const [invoice, setInvoice] = useState<TableInvoice | null>(null);
   const [paymentResult, setPaymentResult] = useState<TableInvoicePaymentRequestResponse | null>(null);
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
+  const [showElectronicReceipt, setShowElectronicReceipt] = useState(false);
+  const [receiptPaidAt, setReceiptPaidAt] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>("disconnected");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,18 +50,23 @@ export function SessionOrdersPage() {
     if (showLoading) setLoading(true);
     setError("");
     try {
-      const [nextOrders, nextInvoice] = await Promise.all([
+      const [ordersResult, invoiceResult] = await Promise.allSettled([
         getTableSessionOrders(context.sessionId, context.sessionToken),
         getTableInvoice(context.sessionId, context.sessionToken),
       ]);
-      setOrders(nextOrders);
-      setInvoice(nextInvoice);
+      const merged = mergeSessionOrdersLoadResults(ordersResult, invoiceResult);
+      setOrders(merged.orders);
+      if (merged.invoice) setInvoice(merged.invoice);
+      setError(merged.error ?? "");
+      if (merged.invoice && (merged.invoice.status === "Confirmed" || merged.invoice.status === "Paid")) {
+        setReceiptPaidAt((current) => current ?? new Date().toISOString());
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải các món đã gọi.");
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [context.sessionId, context.sessionToken, locale]);
+  }, [context.sessionId, context.sessionToken]);
 
   useEffect(() => {
     void loadOrders();
@@ -65,8 +74,22 @@ export function SessionOrdersPage() {
 
   useEffect(() => {
     let active = true;
-    const refresh = () => { if (active) void loadOrders(false); };
-    const unsubscribeEvents = subscribeOrderRealtime(refresh);
+    const handleRealtime = (event: import("../types").OrderRealtimeEvent) => {
+      if (!active) return;
+      if (
+        event.event === "tableInvoice.paymentConfirmed" &&
+        event.payload.invoice.tableSessionId === context.sessionId
+      ) {
+        setInvoice(event.payload.invoice);
+        setReceiptPaidAt(event.payload.paidAt);
+        setShowElectronicReceipt(true);
+        setError("");
+        void loadOrders(false);
+        return;
+      }
+      void loadOrders(false);
+    };
+    const unsubscribeEvents = subscribeOrderRealtime(handleRealtime);
     const unsubscribeConnection = subscribeRealtimeConnection(status => {
       if (active) setConnectionStatus(status);
     });
@@ -88,6 +111,11 @@ export function SessionOrdersPage() {
     const timer = window.setInterval(() => { void loadOrders(false); }, 5_000);
     return () => window.clearInterval(timer);
   }, [connectionStatus, loadOrders]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => { void loadOrders(false); }, 12_000);
+    return () => window.clearInterval(timer);
+  }, [loadOrders]);
 
   useEffect(() => {
     if (!loading && (searchParams.get("focus") === "invoice" || searchParams.get("highlight"))) {
@@ -201,7 +229,18 @@ export function SessionOrdersPage() {
           {canRequestPayment ? <button className="table-invoice-pay-button" onClick={() => setShowPaymentRequest(true)} type="button">{t("Yêu cầu thanh toán")}</button> : null}
           {isPending && invoice.method === "COD" ? <div className="table-invoice-status"><Banknote aria-hidden="true" size={20} /><span><strong>{t("Đang chờ thanh toán tiền mặt")}</strong><small>{t("Nhân viên sẽ đến bàn để thu tiền và xác nhận hóa đơn.")}</small></span></div> : null}
           {isPending && invoice.method === "VietQR" ? <div className="table-invoice-status"><QrCode aria-hidden="true" size={20} /><span><strong>{t("Đang chờ thanh toán VietQR")}</strong><small>{t("Chuyển đúng số tiền và nội dung trên mã QR.")}</small></span></div> : null}
-          {isPaid ? <div className="table-invoice-status"><CheckCircle2 aria-hidden="true" size={20} /><span><strong>{t("Hóa đơn đã thanh toán")}</strong><small>{t("Cảm ơn bạn đã dùng bữa tại CMC Restaurant.")}</small></span></div> : null}
+          {isPaid ? (
+            <div className="table-invoice-status">
+              <CheckCircle2 aria-hidden="true" size={20} />
+              <span>
+                <strong>{t("Hóa đơn đã thanh toán")}</strong>
+                <small>{t("Cảm ơn bạn đã dùng bữa tại CMC Restaurant.")}</small>
+              </span>
+              <button className="table-e-receipt-open" onClick={() => setShowElectronicReceipt(true)} type="button">
+                {t("Xem hóa đơn điện tử")}
+              </button>
+            </div>
+          ) : null}
 
           {vietQr ? (
             <div className="table-invoice-vietqr" role="status">
@@ -236,6 +275,14 @@ export function SessionOrdersPage() {
 
       {showPaymentRequest && invoice ? (
         <TableInvoicePaymentModal invoice={invoice} onClose={() => setShowPaymentRequest(false)} onRequest={handlePaymentRequest} />
+      ) : null}
+
+      {showElectronicReceipt && invoice && receiptPaidAt ? (
+        <TableElectronicReceiptModal
+          invoice={invoice}
+          onClose={() => setShowElectronicReceipt(false)}
+          paidAt={receiptPaidAt}
+        />
       ) : null}
     </section>
   );
