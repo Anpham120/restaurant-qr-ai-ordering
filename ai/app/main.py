@@ -57,6 +57,20 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CMC Restaurant Python AI Service", version="0.2.0", lifespan=lifespan)
 
 
+def _model_policy_payload() -> dict:
+    return {
+        "primary_model": config.model,
+        "fallback_model": (
+            config.rate_limit_fallback_model
+            if config.rate_limit_fallback_enabled
+            else None
+        ),
+        "fallback_enabled": config.rate_limit_fallback_enabled,
+        "fallback_trigger": "http_429",
+        "max_fallbacks_per_operation": 1,
+    }
+
+
 def require_internal_token(authorization: str = Header(default="")) -> None:
     if not config.internal_token:
         raise HTTPException(status_code=503, detail="AI internal authentication is not configured")
@@ -74,6 +88,7 @@ def health() -> dict:
         "model": config.model,
         "llm_enabled": config.llm_enabled,
         "provider_configured": config.llm_enabled,
+        "model_policy": _model_policy_payload(),
         "pipeline": config.pipeline_version,
         "pipeline_profile": config.pipeline_profile,
         "rag_config_id": config.rag_config_id,
@@ -106,6 +121,7 @@ def ready() -> JSONResponse:
             "pipeline": config.pipeline_version,
             "pipeline_profile": config.pipeline_profile,
             "model": config.model,
+            "model_policy": _model_policy_payload(),
             "rag_config_id": config.rag_config_id,
         },
     )
@@ -169,6 +185,15 @@ def _build_timeout_response(request: ChatRequest) -> dict:
         "provider_available": False,
         "provider_status": "unavailable",
         "model": config.model,
+        "primary_model": config.model,
+        "fallback_model": (
+            config.rate_limit_fallback_model
+            if config.rate_limit_fallback_enabled
+            else None
+        ),
+        "fallback_used": False,
+        "fallback_reason": None,
+        "model_attempts": [],
         "pipeline_version": config.pipeline_version,
         "pipeline_profile": config.pipeline_profile,
         "resolved_menu_item_ids": [],

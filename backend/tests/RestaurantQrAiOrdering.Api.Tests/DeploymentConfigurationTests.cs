@@ -11,11 +11,11 @@ public sealed class DeploymentConfigurationTests
             Path.Combine(FindRepositoryRoot(), "deploy", "docker-compose.yml"));
 
         Assert.Contains(
-            "BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-18}",
+            "BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-50}",
             compose,
             StringComparison.Ordinal);
         Assert.Contains(
-            "AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-14}",
+            "AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}",
             compose,
             StringComparison.Ordinal);
     }

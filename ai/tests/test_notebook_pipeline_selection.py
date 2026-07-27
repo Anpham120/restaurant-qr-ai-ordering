@@ -14,6 +14,13 @@ class NotebookPipelineSelectionTests(unittest.TestCase):
             "winner": "evidence_first_v2",
             "selection_reason": "safety_then_quality",
             "model": "oc/deepseek-v4-flash-free",
+            "model_policy": {
+                "primary_model": "oc/deepseek-v4-flash-free",
+                "fallback_model": "cx/gpt-5.6-luna-review",
+                "fallback_enabled": True,
+                "fallback_trigger": "http_429",
+                "max_fallbacks_per_operation": 1,
+            },
             "research_commit_sha": "abc123",
             "research_input_hash": "sha256:research",
             "dataset_hash": "sha256:data",
@@ -26,6 +33,20 @@ class NotebookPipelineSelectionTests(unittest.TestCase):
                         "p95_latency_ms": 120,
                         "mean_llm_calls": 0.4,
                         "safety_passed": True,
+                        "model_usage": {
+                            "fallback_rate": 0.25,
+                            "attempts_by_model": {
+                                "oc/deepseek-v4-flash-free": 3,
+                                "cx/gpt-5.6-luna-review": 1,
+                            },
+                            "successes_by_model": {
+                                "oc/deepseek-v4-flash-free": 2,
+                                "cx/gpt-5.6-luna-review": 1,
+                            },
+                            "failures_by_model": {
+                                "oc/deepseek-v4-flash-free": 1,
+                            },
+                        },
                     },
                 }
             ],
@@ -36,9 +57,16 @@ class NotebookPipelineSelectionTests(unittest.TestCase):
 
         self.assertEqual("evidence_first_v2", summary["winner"])
         self.assertEqual(0.9, summary["rows"][0]["strict_semantic_success"])
+        self.assertEqual(
+            "cx/gpt-5.6-luna-review",
+            summary["model_policy"]["fallback_model"],
+        )
+        self.assertEqual(0.25, summary["rows"][0]["fallback_rate"])
         self.assertIn("evidence_first_v2", narrative)
         self.assertIn("abc123", narrative)
         self.assertIn("sha256:research", narrative)
+        self.assertIn("cx/gpt-5.6-luna-review", narrative)
+        self.assertIn("http_429", narrative)
 
     def test_no_winner_is_reported_as_deploy_blocked(self) -> None:
         narrative = format_pipeline_selection_conclusion(
