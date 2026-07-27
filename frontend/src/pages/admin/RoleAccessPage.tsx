@@ -5,7 +5,6 @@ import {
   ClipboardList,
   CreditCard,
   ShieldCheck,
-  Users,
 } from "lucide-react";
 import "../../components/operations/operations.css";
 
@@ -19,7 +18,7 @@ const roleCards = [
     icon: <ShieldCheck size={22} />,
     summary: "Quản lý cấu hình nhà hàng, tài khoản vận hành, thực đơn, phiên bàn và báo cáo.",
     permissions: [
-      "Tạo tài khoản Staff, Kitchen, Admin",
+      "Tạo tài khoản quầy, bếp, quản trị",
       "Quản lý thực đơn, danh mục, bàn và mã QR",
       "Theo dõi đơn hàng, hóa đơn, phiên bàn, khuyến mãi và báo cáo",
     ],
@@ -39,17 +38,6 @@ const roleCards = [
       "Mở/chốt ca quầy và ghi nhận chênh lệch",
     ],
     denied: ["Không sửa thực đơn", "Không quản lý tài khoản", "Không điều hành bếp"],
-  },
-  {
-    role: "Staff",
-    title: "Nhân viên (legacy)",
-    portal: "Operations",
-    href: "/counter",
-    badge: "Chuyển sang quầy",
-    icon: <Users size={22} />,
-    summary: "Vai trò legacy — đăng nhập chuyển tới workspace quầy.",
-    permissions: ["Xem đơn và hóa đơn phiên", "Hỗ trợ thu ngân khi được cấp Staff"],
-    denied: ["Không có app phục vụ sàn riêng"],
   },
   {
     role: "Kitchen",
@@ -127,7 +115,7 @@ export function RoleAccessPage() {
       <div className="ops-flow-strip">
         <div>
           <ClipboardList size={20} />
-          <strong>Staff nhận đơn</strong>
+          <strong>Quầy nhận đơn</strong>
           <span>{"Placed -> Confirmed"}</span>
         </div>
         <div>
@@ -137,7 +125,7 @@ export function RoleAccessPage() {
         </div>
         <div>
           <CreditCard size={20} />
-          <strong>Staff thu tiền</strong>
+          <strong>Quầy thu tiền</strong>
           <span>{"Served -> Completed"}</span>
         </div>
       </div>

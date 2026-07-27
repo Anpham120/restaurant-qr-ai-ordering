@@ -177,8 +177,49 @@ public sealed class DbUserStore : IUserStore
             return DeleteUserResult.UserNotFound();
         }
 
+        var fallbackAdminId = dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.Id != userId && u.Role == UserRole.Admin)
+            .OrderBy(u => u.CreatedAt)
+            .Select(u => u.Id)
+            .FirstOrDefault();
+
+        var hasCounterRefs = dbContext.CounterShifts.Any(s => s.OpenedByUserId == userId || s.ClosedByUserId == userId)
+            || dbContext.CounterShiftTransactions.Any(t => t.CreatedByUserId == userId);
+
+        if (hasCounterRefs && string.IsNullOrEmpty(fallbackAdminId))
+        {
+            return DeleteUserResult.HasDependencies();
+        }
+
+        if (!string.IsNullOrEmpty(fallbackAdminId))
+        {
+            foreach (var shift in dbContext.CounterShifts.Where(s => s.OpenedByUserId == userId))
+            {
+                shift.OpenedByUserId = fallbackAdminId;
+            }
+
+            foreach (var shift in dbContext.CounterShifts.Where(s => s.ClosedByUserId == userId))
+            {
+                shift.ClosedByUserId = null;
+            }
+
+            foreach (var transaction in dbContext.CounterShiftTransactions.Where(t => t.CreatedByUserId == userId))
+            {
+                transaction.CreatedByUserId = fallbackAdminId;
+            }
+        }
+
         dbContext.Users.Remove(user);
-        dbContext.SaveChanges();
+        try
+        {
+            dbContext.SaveChanges();
+        }
+        catch (DbUpdateException)
+        {
+            return DeleteUserResult.HasDependencies();
+        }
+
         return DeleteUserResult.Success();
     }
 

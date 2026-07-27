@@ -60,7 +60,7 @@ public sealed class CounterShiftAccessTests : IClassFixture<RestaurantApiFactory
             fullName = "Floor Staff",
             email = staffEmail,
             password = staffPassword,
-            role = "Staff",
+            role = "CounterStaff",
         });
         createUserResponse.EnsureSuccessStatusCode();
 

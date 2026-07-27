@@ -16,4 +16,12 @@ public static class UserRole
         Kitchen,
         Admin
     ];
+
+    /// <summary>Roles an administrator may assign when creating or editing staff accounts.</summary>
+    public static readonly string[] AdminAssignable =
+    [
+        Admin,
+        CounterStaff,
+        Kitchen
+    ];
 }

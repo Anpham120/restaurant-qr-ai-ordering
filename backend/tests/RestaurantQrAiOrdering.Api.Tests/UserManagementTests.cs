@@ -25,10 +25,10 @@ public sealed class UserManagementTests : IClassFixture<RestaurantApiFactory>
 
         using var createdResponse = await client.PostAsJsonAsync("/api/users", new
         {
-            fullName = "Managed Customer",
+            fullName = "Managed Counter",
             email,
             password = "ManagedPass!2026",
-            role = "Customer"
+            role = "CounterStaff"
         });
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
         using var created = await ReadJsonAsync(createdResponse);
@@ -36,20 +36,20 @@ public sealed class UserManagementTests : IClassFixture<RestaurantApiFactory>
 
         using var updatedResponse = await client.PutAsJsonAsync($"/api/users/{userId}", new
         {
-            fullName = "Managed Staff",
+            fullName = "Managed Kitchen",
             email = $"updated-{email}",
-            role = "Staff"
+            role = "Kitchen"
         });
         Assert.Equal(HttpStatusCode.OK, updatedResponse.StatusCode);
         using var updated = await ReadJsonAsync(updatedResponse);
-        Assert.Equal("Managed Staff", updated.RootElement.GetProperty("fullName").GetString());
-        Assert.Equal("Staff", updated.RootElement.GetProperty("role").GetString());
+        Assert.Equal("Managed Kitchen", updated.RootElement.GetProperty("fullName").GetString());
+        Assert.Equal("Kitchen", updated.RootElement.GetProperty("role").GetString());
 
         using var duplicateResponse = await client.PutAsJsonAsync($"/api/users/{userId}", new
         {
-            fullName = "Managed Staff",
+            fullName = "Managed Kitchen",
             email = RestaurantApiFactory.AdminEmail,
-            role = "Staff"
+            role = "Kitchen"
         });
         Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
         Assert.Equal("EMAIL_ALREADY_REGISTERED", await ReadErrorCodeAsync(duplicateResponse));
@@ -77,7 +77,7 @@ public sealed class UserManagementTests : IClassFixture<RestaurantApiFactory>
         {
             fullName = session.FullName,
             email = session.Email,
-            role = "Staff"
+            role = "Kitchen"
         });
         Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
         Assert.Equal("CANNOT_REMOVE_OWN_ADMIN_ROLE", await ReadErrorCodeAsync(updateResponse));

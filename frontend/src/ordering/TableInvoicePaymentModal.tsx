@@ -97,7 +97,12 @@ export function TableInvoicePaymentModal({ invoice, onClose, onRequest }: Props)
         if (event.currentTarget === event.target && !isSubmittingRef.current) onClose();
       }}
     >
-      <section aria-labelledby="table-invoice-payment-title" aria-modal="true" className="table-invoice-modal" role="dialog">
+      <section
+        aria-labelledby="table-invoice-payment-title"
+        aria-modal="true"
+        className="table-invoice-modal"
+        role="dialog"
+      >
         <header className="table-invoice-modal-header">
           <div>
             <span>{t("Hóa đơn phiên bàn {table}", { table: invoice.tableCode ?? "—" })}</span>
