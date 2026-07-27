@@ -64,7 +64,7 @@ export function TableElectronicReceiptModal({ invoice, paidAt, tableDisplayName,
             ) : null}
           </div>
 
-          <section aria-label={t("Chi tiết hóa đơn")} className="table-invoice-receipt table-e-receipt-lines">
+          <section aria-label={t("Tóm tắt hóa đơn")} className="table-invoice-receipt table-e-receipt-lines">
             <div className="table-invoice-receipt-title">
               <ReceiptText aria-hidden="true" size={20} />
               <strong>{t("{count} lần gọi món", { count: invoice.orderRounds.length })}</strong>

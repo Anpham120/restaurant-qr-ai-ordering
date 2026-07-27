@@ -202,7 +202,6 @@ export const EN_COPY: Record<string, string> = {
   "Hóa đơn điện tử": "Electronic receipt",
   "Xem hóa đơn điện tử": "View electronic receipt",
   "Mã HĐ": "Invoice no.",
-  "Đã thanh toán": "Amount paid",
   "Đây là biên lai điện tử mô phỏng cho phiên bàn. Phiên đã kết thúc — quét QR trên bàn khi bạn muốn gọi món lần sau.": "This is a simulated electronic receipt for your table session. The session has ended — scan the table QR when you want to order again.",
   "Thanh toán hóa đơn": "Pay bill",
   "Thanh toán hóa đơn phiên": "Pay session bill",
