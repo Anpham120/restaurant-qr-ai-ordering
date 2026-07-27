@@ -75,7 +75,8 @@ public sealed record UpdateUserResult(UpdateUserOutcome Outcome, UserAccount? Us
 public enum DeleteUserOutcome
 {
     Success,
-    UserNotFound
+    UserNotFound,
+    HasDependencies
 }
 
 public sealed record DeleteUserResult(DeleteUserOutcome Outcome)
@@ -88,6 +89,11 @@ public sealed record DeleteUserResult(DeleteUserOutcome Outcome)
     public static DeleteUserResult UserNotFound()
     {
         return new DeleteUserResult(DeleteUserOutcome.UserNotFound);
+    }
+
+    public static DeleteUserResult HasDependencies()
+    {
+        return new DeleteUserResult(DeleteUserOutcome.HasDependencies);
     }
 }
 
