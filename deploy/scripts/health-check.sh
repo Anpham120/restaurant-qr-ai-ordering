@@ -7,6 +7,8 @@ set -euo pipefail
 : "${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}"
 : "${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}"
 : "${LLM_MODEL:?LLM_MODEL is required}"
+: "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required}"
+: "${LLM_RATE_LIMIT_FALLBACK_ENABLED:?LLM_RATE_LIMIT_FALLBACK_ENABLED is required}"
 
 primary_frontend_domain="$(printf '%s\n' "$FRONTEND_SERVER_NAMES" | awk '{print $1}')"
 frontend_url="${FRONTEND_HEALTH_URL:-https://${primary_frontend_domain}/}"
@@ -31,15 +33,22 @@ trap 'rm -rf "$probe_dir"' EXIT
 ready_payload="${probe_dir}/ready.json"
 curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors \
   "$ai_ready_url" > "$ready_payload"
-python3 - "$ready_payload" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" <<'PY'
+python3 - "$ready_payload" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" "$LLM_RATE_LIMIT_FALLBACK_ENABLED" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model = sys.argv[2], sys.argv[3]
+expected_profile, expected_model, expected_fallback_model = sys.argv[2], sys.argv[3], sys.argv[4]
+expected_fallback_enabled = sys.argv[5].strip().lower() == "true"
+policy = dict(payload.get("model_policy") or {})
 assert payload.get("ready") is True, payload
 assert payload.get("pipeline_profile") == expected_profile, payload
-assert payload.get("model") == expected_model, payload
+assert str(payload.get("model") or "") == expected_model, payload
+assert policy.get("primary_model") == expected_model, payload
+assert policy.get("fallback_model") == expected_fallback_model, payload
+assert bool(policy.get("fallback_enabled")) is expected_fallback_enabled, payload
+assert policy.get("fallback_trigger") == "http_429", payload
+assert int(policy.get("max_fallbacks_per_operation") or 0) == 1, payload
 PY
 
 echo "Running protected basic AI smoke request"
@@ -102,21 +111,86 @@ PY
     --data-binary "@${request_file}" \
     "$ai_chat_url" > "$response_file"
 
-  python3 - "$response_file" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" <<'PY'
+  python3 - "$response_file" "$menu_dataset" "$probe_name" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" <<'PY'
 import json
 import sys
+import unicodedata
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model = sys.argv[2], sys.argv[3]
+menu_source, probe_name, expected_profile, expected_model, expected_fallback_model = sys.argv[2:7]
 content = str(payload.get("content") or "").casefold()
 assert payload.get("pipeline_profile") == expected_profile, payload
-assert payload.get("model") == expected_model, payload
-assert payload.get("provider_status") in {"ok", "not_called"}, payload
-assert "mình chưa đủ bằng chứng" not in content, payload
+assert payload.get("primary_model") == expected_model, payload
+assert payload.get("fallback_model") == expected_fallback_model, payload
+model = str(payload.get("model") or "")
+# A factual live-menu response may be deliberately deterministic even if an
+# earlier semantic planner attempt hit a rate limit.  It is safe because the
+# verifier has grounded every claim in the supplied menu; do not turn that
+# valid no-LLM route into a false deployment failure.
+is_deterministic = model.startswith("deterministic-")
+assert model in {expected_model, expected_fallback_model} or is_deterministic, payload
+if is_deterministic:
+    assert payload.get("provider_status") == "not_called", payload
+else:
+    assert payload.get("provider_status") == "available", payload
+    successful_attempts = [
+        attempt
+        for attempt in (payload.get("model_attempts") or [])
+        if attempt.get("outcome") == "success"
+    ]
+    assert successful_attempts, payload
+    assert successful_attempts[-1].get("model") == model, payload
+    if model == expected_fallback_model:
+        assert payload.get("fallback_used") is True, payload
+        assert payload.get("fallback_reason") == "rate_limit_429", payload
+        assert any(
+            attempt.get("model") == expected_model
+            and attempt.get("outcome") == "http_429"
+            for attempt in payload.get("model_attempts") or []
+        ), payload
+        assert any(
+            attempt.get("model") == expected_fallback_model
+            and attempt.get("role") == "rate_limit_fallback"
+            and attempt.get("outcome") == "success"
+            for attempt in payload.get("model_attempts") or []
+        ), payload
+for forbidden_phrase in (
+    "mình chưa đủ bằng chứng",
+    "chưa có dữ liệu thực đơn",
+    "không có dữ liệu thực đơn",
+    "hệ thống hơi chậm",
+):
+    assert forbidden_phrase not in content, payload
 assert payload.get("verifier_result") != "failed", payload
 assert payload.get("resolved_menu_item_ids"), payload
 assert payload.get("evidence"), payload
 assert all(bool(claim.get("verified")) for claim in payload.get("claims") or []), payload
+
+if probe_name.startswith("pho"):
+    raw_menu = json.load(open(menu_source, encoding="utf-8-sig"))
+
+    def normalize_text(value):
+        decomposed = unicodedata.normalize("NFD", str(value or "")).casefold()
+        return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+    pho_allowed_ids = {
+        str(item.get("id") or "").strip()
+        for item in raw_menu.get("items") or []
+        if "pho" in normalize_text(item.get("name"))
+    }
+    resolved_ids = {
+        str(item_id).strip()
+        for item_id in payload.get("resolved_menu_item_ids") or []
+        if str(item_id).strip()
+    }
+    action_ids = {
+        str(action.get("menu_item_id") or "").strip()
+        for action in payload.get("suggested_cart_actions") or []
+        if str(action.get("menu_item_id") or "").strip()
+    }
+    assert pho_allowed_ids, raw_menu
+    assert resolved_ids.issubset(pho_allowed_ids), payload
+    assert action_ids.issubset(pho_allowed_ids), payload
 PY
 }
 
@@ -155,7 +229,7 @@ import json
 import sys
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump({"content": "ở đây có phở không"}, handle, ensure_ascii=False)
+    json.dump({"content": "Ở đây có phở không"}, handle, ensure_ascii=False)
 PY
 
 backend_session_id="$(cat "${probe_dir}/backend-session-id.txt")"
@@ -211,14 +285,15 @@ cat > "${report_dir}/last-deployment.md" <<EOF
 - Protected semantic AI smoke (3 production cases): PASS
 - Pipeline profile: ${AI_PIPELINE_PROFILE}
 - LLM model: ${LLM_MODEL}
+- LLM fallback model: ${LLM_RATE_LIMIT_FALLBACK_MODEL}
 - Checked at UTC: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 - Result: PASS
 
 ## Compose Status
 
-\`\`\`json
+```json
 ${compose_status}
-\`\`\`
+```
 EOF
 
 echo "Health check passed for ${DEPLOY_ENV}"

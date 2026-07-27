@@ -11,7 +11,8 @@ from typing import Iterable
 RESEARCH_INPUT_SCOPES = (
     "ai/app",
     "ai/evaluation/golden_eval_common.py",
-    "ai/evaluation/pipeline_profile_cases.json",
+    "ai/evaluation/canonical_research_data.py",
+    "ai/evaluation/datasets/canonical_research_manifest.v1.json",
     "ai/evaluation/pipeline_selection.py",
     "ai/evaluation/run_pipeline_profile_eval.py",
     "ai/knowledge-base",

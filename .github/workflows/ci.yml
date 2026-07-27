@@ -155,10 +155,34 @@ jobs:
       LLM_BASE_URL: http://127.0.0.1:20128/v1
       LLM_API_KEY: ci-provider-key-placeholder
       LLM_MODEL: oc/deepseek-v4-flash-free
-      AI_PIPELINE_PROFILE: llm_first_v1
+      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Python for approved artifact verification
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # CI validates the artifact schema and model/profile contract.  It must
+      # not require the current research hash: a PR that changes the canonical
+      # dataset is what enables the subsequent research run.  Staging and
+      # production enforce current research + canonical dataset hashes.
+      - name: Bind CI config to structurally approved research winner
+        env:
+          PYTHONPATH: ai
+        run: |
+          python ai/evaluation/verify_pipeline_selection.py \
+            ai/evaluation/approved/pipeline_selection.json \
+            --expected-primary-model oc/deepseek-v4-flash-free \
+            --expected-fallback-model cx/gpt-5.6-luna-review \
+            --expected-fallback-trigger http_429 \
+            --expected-max-fallbacks 1 \
+            --require-fallback-enabled \
+            --repository-root . \
+            --github-env "$GITHUB_ENV"
 
       - name: Validate Docker Compose config
         run: docker compose -f deploy/docker-compose.yml config

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
 DEFAULT_LLM_MODEL = "oc/deepseek-v4-flash-free"
+DEFAULT_RATE_LIMIT_FALLBACK_MODEL = "cx/gpt-5.6-luna-review"
 DEFAULT_PIPELINE_PROFILE = "llm_first_v1"
 PIPELINE_PROFILES = frozenset(
     {
@@ -23,7 +24,11 @@ DISALLOWED_LLM_HOST = "generativelanguage.googleapis.com"
 
 def is_supported_router_model(model: str) -> bool:
     normalized = model.strip().casefold()
-    return "gpt-5.5" in normalized or "deepseek" in normalized
+    return (
+        "gpt-5.5" in normalized
+        or "deepseek" in normalized
+        or normalized == DEFAULT_RATE_LIMIT_FALLBACK_MODEL
+    )
 
 
 @dataclass(frozen=True)
@@ -48,6 +53,8 @@ class AiServiceConfig:
     rag_config_id: str = "default"
     llm_first: bool = True
     pipeline_profile: str = DEFAULT_PIPELINE_PROFILE
+    rate_limit_fallback_model: str | None = None
+    rate_limit_fallback_enabled: bool = False
 
     @property
     def timeout_seconds(self) -> float:
@@ -62,6 +69,16 @@ class AiServiceConfig:
             and bool(self.base_url.strip())
             and bool(self.api_key.strip())
             and is_supported_router_model(self.model)
+        )
+
+    @property
+    def model_policy_valid(self) -> bool:
+        if not self.rate_limit_fallback_enabled:
+            return True
+        return (
+            self.model == DEFAULT_LLM_MODEL
+            and self.rate_limit_fallback_model == DEFAULT_RATE_LIMIT_FALLBACK_MODEL
+            and self.model != self.rate_limit_fallback_model
         )
 
 
@@ -117,6 +134,27 @@ def load_config() -> AiServiceConfig:
         raise ValueError("Gemini endpoints are not supported; configure the 9router base URL")
     if not is_supported_router_model(model):
         raise ValueError("LLM_MODEL must select GPT-5.5 or DeepSeek through 9router")
+    rate_limit_fallback_enabled = _env_flag(
+        "LLM_RATE_LIMIT_FALLBACK_ENABLED",
+        default=False,
+    )
+    configured_fallback_model = os.getenv(
+        "LLM_RATE_LIMIT_FALLBACK_MODEL",
+        "",
+    ).strip()
+    rate_limit_fallback_model = configured_fallback_model or (
+        DEFAULT_RATE_LIMIT_FALLBACK_MODEL
+        if rate_limit_fallback_enabled
+        else None
+    )
+    if rate_limit_fallback_enabled and (
+        model != DEFAULT_LLM_MODEL
+        or rate_limit_fallback_model != DEFAULT_RATE_LIMIT_FALLBACK_MODEL
+        or model == rate_limit_fallback_model
+    ):
+        raise ValueError(
+            "Enabled 429 failover requires DeepSeek primary and GPT-5.6 Luna fallback"
+        )
     pipeline_profile = os.getenv(
         "AI_PIPELINE_PROFILE",
         DEFAULT_PIPELINE_PROFILE,
@@ -152,6 +190,8 @@ def load_config() -> AiServiceConfig:
         rag_config_id=os.getenv("RAG_CONFIG_ID", "default").strip() or "default",
         llm_first=_env_flag("AI_LLM_FIRST", default=True),
         pipeline_profile=pipeline_profile,
+        rate_limit_fallback_model=rate_limit_fallback_model,
+        rate_limit_fallback_enabled=rate_limit_fallback_enabled,
     )
 
 

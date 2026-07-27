@@ -59,6 +59,14 @@ LIVE_SCRIPTS = (
 )
 
 
+def _safe_print(message: str) -> None:
+    text = str(message)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(text.encode("unicode_escape").decode("ascii", errors="replace"))
+
+
 def _notebook_text(notebook: nbformat.NotebookNode) -> str:
     return "\n".join("".join(cell.source) for cell in notebook.cells)
 
@@ -176,11 +184,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     if args.regen_screening and not args.execute:
-        print("Note: --regen-screening requires --execute to run Part II export cell.")
+        _safe_print("Note: --regen-screening requires --execute to run Part II export cell.")
 
     if args.validate_only:
         if not NOTEBOOK_PATH.is_file():
-            print(f"Notebook not found: {NOTEBOOK_PATH}")
+            _safe_print(f"Notebook not found: {NOTEBOOK_PATH}")
             return 1
         notebook = nbformat.read(str(NOTEBOOK_PATH), as_version=4)
     else:
@@ -189,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     issues = validate_notebook(notebook)
     if issues:
         for issue in issues:
-            print(f"VALIDATION: {issue}")
+            _safe_print(f"VALIDATION: {issue}")
         return 1
 
     if args.regen_live:
@@ -201,10 +209,10 @@ def main(argv: list[str] | None = None) -> int:
         issues = validate_notebook(notebook)
         if issues:
             for issue in issues:
-                print(f"VALIDATION: {issue}")
+                _safe_print(f"VALIDATION: {issue}")
             return 1
 
-    print(f"OK {NOTEBOOK_PATH} ({len(notebook.cells)} cells)")
+    _safe_print(f"OK {NOTEBOOK_PATH} ({len(notebook.cells)} cells)")
     return 0
 
 

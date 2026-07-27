@@ -391,15 +391,22 @@ def enforce_suggestion_policy(
 
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
+    candidates_by_id = {
+        _item_id(item): item
+        for item in candidate_menu_items
+        if _item_id(item)
+    }
     for action in actions:
         item_id = _item_id(action)
         if not item_id or item_id in seen or item_id in policy.excluded_menu_item_ids:
             continue
+        # Candidate menu items are the live evidence supplied to the model.
+        # Never let a valid-but-out-of-scope catalog item leak into a
+        # recommendation merely because the model happened to know its id.
+        if policy.wants_recommendations and item_id not in candidates_by_id:
+            continue
         if policy.requested_item_kind is not None:
-            matching = next(
-                (item for item in candidate_menu_items if _item_id(item) == item_id),
-                None,
-            )
+            matching = candidates_by_id.get(item_id)
             if matching is not None and classify_menu_item_kind(matching) != policy.requested_item_kind:
                 continue
         seen.add(item_id)
@@ -506,9 +513,29 @@ def _requested_count(normalized_message: str) -> int | None:
         r"\b(\d{1,2})\s+(?:mon\b|(?:more\s+)?(?:dish(?:es)?|item|option)s?\b)",
         normalized_message,
     )
-    if not match:
+    if match:
+        return min(max(int(match.group(1)), 1), MAX_SUGGESTIONS)
+
+    # Vietnamese customers commonly spell out a requested number ("hai món")
+    # instead of using a digit.  Keep this deterministic so the visible cards
+    # remain a stable referent for a later question such as "món thứ hai".
+    word_match = re.search(
+        r"\b(mot|hai|ba|bon|nam|sau|bay|tam)\s+mon\b",
+        normalized_message,
+    )
+    if not word_match:
         return None
-    return min(max(int(match.group(1)), 1), MAX_SUGGESTIONS)
+    vietnamese_counts = {
+        "mot": 1,
+        "hai": 2,
+        "ba": 3,
+        "bon": 4,
+        "nam": 5,
+        "sau": 6,
+        "bay": 7,
+        "tam": 8,
+    }
+    return vietnamese_counts[word_match.group(1)]
 
 
 def _contains_term(normalized_message: str, term: str) -> bool:
