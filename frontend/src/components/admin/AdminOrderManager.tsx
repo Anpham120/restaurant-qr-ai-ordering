@@ -4,19 +4,28 @@ import { confirmOrderPayment, refundOrderPayment } from "../../services/orderSer
 import { failOrderPayment } from "../../services/adminOrderService";
 import { api } from "../../services/apiClient";
 import { useOpsRealtime } from "../../hooks/useOpsRealtime";
+import { normalizeTableCode } from "../operations/opsDeepLinkUtils";
 import { Package, RefreshCw, X } from "lucide-react";
 import "../operations/operations.css";
 
 const formatVnd = (v: number) => v.toLocaleString("vi-VN") + "đ";
 const ALL_STATUSES: OrderStatus[] = ["Placed", "Confirmed", "Preparing", "Ready", "Served", "Completed", "Cancelled"];
 
-export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) {
+export function AdminOrderManager({
+  embedded = false,
+  scopedTableCode,
+}: {
+  embedded?: boolean;
+  /** When set, only orders for this table; hides global table filter and table column. */
+  scopedTableCode?: string;
+}) {
+  const lockedTable = scopedTableCode ? normalizeTableCode(scopedTableCode) : "";
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterTable, setFilterTable] = useState("");
+  const [filterTable, setFilterTable] = useState(lockedTable);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
 
@@ -34,6 +43,10 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
     }
   }, [filterStatus, filterTable]);
 
+  useEffect(() => {
+    if (lockedTable) setFilterTable(lockedTable);
+  }, [lockedTable]);
+
   useEffect(() => { setIsLoading(true); load(); }, [load]);
 
   useOpsRealtime({ refresh: load });
@@ -42,11 +55,11 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
     const active = orders.filter((o) => !["Completed", "Cancelled"].includes(o.status)).length;
     const total = orders.reduce((s, o) => s + o.totalAmount, 0);
     return [
-      { label: "Tổng đơn", value: String(orders.length), detail: "Trong kết quả filter" },
+      { label: lockedTable ? `Đơn bàn ${lockedTable}` : "Tổng đơn", value: String(orders.length), detail: lockedTable ? "Theo bàn này" : "Trong kết quả filter" },
       { label: "Đang xử lý", value: String(active), detail: "Placed -> Served" },
-      { label: "Tổng giá trị", value: formatVnd(total), detail: "Cộng dồn" },
+      { label: "Tổng giá trị", value: formatVnd(total), detail: lockedTable ? "Phiên / lịch sử bàn" : "Cộng dồn" },
     ];
-  }, [orders]);
+  }, [orders, lockedTable]);
 
   async function handleStatusChange(orderCode: string, status: OrderStatus) {
     setPendingCode(orderCode);
@@ -106,7 +119,9 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
           <option value="">Tất cả trạng thái</option>
           {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <input className="ops-form-input" placeholder="Mã bàn (vd: T01)" value={filterTable} onChange={(e) => setFilterTable(e.target.value)} style={{ width: 140 }} />
+        {!lockedTable ? (
+          <input className="ops-form-input" placeholder="Mã bàn (vd: T01)" value={filterTable} onChange={(e) => setFilterTable(e.target.value)} style={{ width: 140 }} />
+        ) : null}
         <button className="ops-btn ops-btn--ghost" onClick={load} type="button"><RefreshCw aria-hidden="true" size={15} /> Làm mới</button>
       </div>
 
@@ -114,7 +129,7 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
         <thead>
           <tr>
             <th>Mã đơn</th>
-            <th>Bàn</th>
+            {!lockedTable ? <th>Bàn</th> : null}
             <th>Trạng thái</th>
             <th>TT toán</th>
             <th>Tổng tiền</th>
@@ -130,7 +145,7 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
                   {order.orderCode}
                 </button>
               </td>
-              <td>{order.tableCode ?? "-"}</td>
+              {!lockedTable ? <td>{order.tableCode ?? "-"}</td> : null}
               <td><span className={`ops-badge ops-badge--${order.status.toLowerCase()}`}>{order.status}</span></td>
               <td>
                 {order.tableSessionId ? <span className="ops-badge">Theo phiên bàn</span> : (
@@ -153,7 +168,7 @@ export function AdminOrderManager({ embedded = false }: { embedded?: boolean }) 
               </td>
             </tr>
           ))}
-          {orders.length === 0 ? <tr><td colSpan={7}><div className="ops-empty">Không có đơn</div></td></tr> : null}
+          {orders.length === 0 ? <tr><td colSpan={lockedTable ? 6 : 7}><div className="ops-empty">Không có đơn{lockedTable ? ` cho bàn ${lockedTable}` : ""}</div></td></tr> : null}
         </tbody>
       </table>
 
