@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import unittest
 
+from app.config import AiServiceConfig
 from evaluation.run_pipeline_profile_eval import (
     DEEPSEEK_MODEL,
     aggregate_profile,
     build_selection_artifact,
+    create_eval_router_client,
     required_runs,
     score_case,
 )
@@ -81,6 +83,7 @@ class PipelineProfileEvalTests(unittest.TestCase):
                         "session_isolation_passed": True,
                         "allowed_evidence_only": True,
                         "assistant_text_not_persisted": True,
+                        "provider_calls_succeeded": True,
                         "strict_semantic_success": 0.99,
                         "context_accuracy": 0.99,
                         "p95_latency_ms": 10,
@@ -89,11 +92,25 @@ class PipelineProfileEvalTests(unittest.TestCase):
                 }
             ],
             commit_sha="abc123",
+            research_input_hash="sha256:research",
             dataset_hash="sha256:dataset",
             generated_at="2026-07-25T00:00:00Z",
         )
 
         self.assertEqual(DEEPSEEK_MODEL, artifact["model"])
+        self.assertEqual("pipeline-selection-v3", artifact["schema_version"])
+        self.assertEqual("abc123", artifact["research_commit_sha"])
+        self.assertEqual("sha256:research", artifact["research_input_hash"])
+        self.assertEqual(
+            {
+                "primary_model": "oc/deepseek-v4-flash-free",
+                "fallback_model": "cx/gpt-5.6-luna-review",
+                "fallback_enabled": True,
+                "fallback_trigger": "http_429",
+                "max_fallbacks_per_operation": 1,
+            },
+            artifact["model_policy"],
+        )
         self.assertEqual("abc123", artifact["commit_sha"])
         self.assertIsNone(artifact["winner"])
         self.assertEqual(
@@ -130,6 +147,7 @@ class PipelineProfileEvalTests(unittest.TestCase):
         )
 
         self.assertFalse(candidate["metrics"]["deepseek_calls_succeeded"])
+        self.assertFalse(candidate["metrics"]["provider_calls_succeeded"])
 
         successful_candidate = aggregate_profile(
             "llm_first_v1",
@@ -153,6 +171,94 @@ class PipelineProfileEvalTests(unittest.TestCase):
             0.5,
             successful_candidate["metrics"]["deepseek_call_success_rate"],
         )
+        self.assertTrue(successful_candidate["metrics"]["provider_calls_succeeded"])
+
+    def test_profile_aggregates_primary_and_fallback_attempts_separately(self) -> None:
+        score = {
+            "id": "fallback-check",
+            "strict_semantic_success": True,
+            "safety_success": True,
+            "observed_menu_ids": ["m_001"],
+            "unsupported_claims": 0,
+            "allowed_evidence_only": True,
+            "allergy_passed": True,
+            "id_price_passed": True,
+            "assistant_text_not_persisted": True,
+        }
+        candidate = aggregate_profile(
+            "evidence_first_v2",
+            [
+                {
+                    "case_id": "fallback-check",
+                    "category": "safety",
+                    "score": score,
+                    "llm_calls": 1,
+                    "successful_llm_calls": 1,
+                    "latency_ms": 10,
+                    "model_attempts": [
+                        {
+                            "model": "oc/deepseek-v4-flash-free",
+                            "role": "primary",
+                            "outcome": "http_429",
+                            "status_code": 429,
+                            "latency_ms": 1.0,
+                        },
+                        {
+                            "model": "cx/gpt-5.6-luna-review",
+                            "role": "rate_limit_fallback",
+                            "outcome": "success",
+                            "status_code": 200,
+                            "latency_ms": 9.0,
+                        },
+                    ],
+                }
+            ],
+            session_isolation_passed=True,
+            availability_passed=True,
+        )
+
+        usage = candidate["metrics"]["model_usage"]
+        self.assertEqual(
+            {
+                "oc/deepseek-v4-flash-free": 1,
+                "cx/gpt-5.6-luna-review": 1,
+            },
+            usage["attempts_by_model"],
+        )
+        self.assertEqual(
+            {"cx/gpt-5.6-luna-review": 1},
+            usage["successes_by_model"],
+        )
+        self.assertEqual(
+            {"oc/deepseek-v4-flash-free": 1},
+            usage["failures_by_model"],
+        )
+        self.assertEqual(1, usage["fallback_count"])
+        self.assertEqual(1.0, usage["fallback_rate"])
+        self.assertTrue(candidate["metrics"]["provider_calls_succeeded"])
+
+    def test_eval_router_client_enforces_deepseek_luna_429_policy(self) -> None:
+        config = AiServiceConfig(
+            provider="9router",
+            base_url="http://localhost:20128/v1",
+            api_key="test-key",
+            model="oc/deepseek-v4-flash-free",
+            llm_timeout_seconds=12.0,
+            request_budget_seconds=22.0,
+            max_retry=0,
+            max_tokens=700,
+            reasoning_effort="low",
+            knowledge_base_path=__file__,
+            top_k=5,
+            rate_limit_fallback_model="cx/gpt-5.6-luna-review",
+            rate_limit_fallback_enabled=True,
+        )
+
+        client = create_eval_router_client(config)
+
+        self.assertEqual("oc/deepseek-v4-flash-free", client._model)
+        self.assertEqual("cx/gpt-5.6-luna-review", client._fallback_model)
+        self.assertTrue(client._fallback_enabled)
 
 
 if __name__ == "__main__":

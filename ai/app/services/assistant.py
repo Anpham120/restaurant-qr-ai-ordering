@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import replace
@@ -11,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from app.clients.router import RouterClient
+from app.clients.router import ModelAttempt, RouterClient, capture_model_attempts
 from app.config import AiServiceConfig
 from app.rag.budget_solver import solve_budget
 from app.rag.budget_recommendation_fast_path import try_budget_recommendation_fast_path
@@ -102,6 +103,47 @@ def _resolve_should_call_llm(
     return bool(context.get("should_call_llm", True))
 
 
+def _attach_model_route(
+    response: dict,
+    attempts: tuple[ModelAttempt, ...],
+    config: AiServiceConfig,
+) -> dict:
+    finalized = dict(response)
+    serialized_attempts = [attempt.to_dict() for attempt in attempts]
+    successful_attempts = [
+        attempt for attempt in attempts if attempt.outcome == "success"
+    ]
+    fallback_used = any(
+        attempt.role == "rate_limit_fallback" for attempt in attempts
+    )
+
+    if finalized.get("provider_available") and successful_attempts:
+        finalized["model"] = successful_attempts[-1].model
+    finalized["primary_model"] = config.model
+    finalized["fallback_model"] = (
+        config.rate_limit_fallback_model
+        if config.rate_limit_fallback_enabled
+        else None
+    )
+    finalized["fallback_used"] = fallback_used
+    finalized["fallback_reason"] = "rate_limit_429" if fallback_used else None
+    finalized["model_attempts"] = serialized_attempts
+
+    model_route = [
+        f"{attempt.model}:{attempt.outcome}"
+        for attempt in attempts
+    ]
+    logger.info(
+        "chat completed pipeline_profile=%s model_route=%s "
+        "resolved_menu_item_ids=%s verifier_result=%s",
+        finalized.get("pipeline_profile") or config.pipeline_profile,
+        model_route,
+        finalized.get("resolved_menu_item_ids") or [],
+        finalized.get("verifier_result") or "not_applicable",
+    )
+    return finalized
+
+
 class AiAssistantService:
     def __init__(
         self,
@@ -130,6 +172,8 @@ class AiAssistantService:
                 http_client=http_client,
                 max_tokens=config.max_tokens,
                 reasoning_effort=config.reasoning_effort,
+                fallback_model=config.rate_limit_fallback_model,
+                fallback_enabled=config.rate_limit_fallback_enabled,
             )
         self._cache = ResponseCache(max_size=500, ttl_seconds=300)
         self._ready = False
@@ -223,10 +267,28 @@ class AiAssistantService:
         self._cache.invalidate()
 
     async def chat(self, payload: dict) -> dict:
-        response, _stages = await self._process_chat(payload)
-        return response
+        with capture_model_attempts() as collector:
+            response, _stages = await self._process_chat(payload)
+        return _attach_model_route(response, collector.snapshot(), self._config)
 
     async def chat_stream(self, payload: dict) -> AsyncIterator[dict[str, Any]]:
+        with capture_model_attempts() as collector:
+            async for event in self._chat_stream_untraced(payload):
+                if event["type"] == "final":
+                    event = {
+                        **event,
+                        "data": _attach_model_route(
+                            event["data"],
+                            collector.snapshot(),
+                            self._config,
+                        ),
+                    }
+                yield event
+
+    async def _chat_stream_untraced(
+        self,
+        payload: dict,
+    ) -> AsyncIterator[dict[str, Any]]:
         message = str(payload.get("message") or "").strip()
         security_response = _try_security_guardrail_response(
             message,
@@ -1256,26 +1318,40 @@ def _apply_parsed_response(
     if context["policy"].wants_recommendations and not suggested_actions:
         suggested_actions = infer_suggested_actions_from_content(
             parsed.content,
-            context["available_menu_items"],
+            context["candidate_menu_items"],
             context["policy"],
         )
 
     suggested_actions = _finalize_suggested_actions(context, suggested_actions)
+    evidence_menu_items = (
+        context["candidate_menu_items"]
+        if context["policy"].wants_recommendations
+        else context["available_menu_items"]
+    )
 
     content, grounding_flags, suggested_actions = ground_response_content(
         parsed.content,
         suggested_actions,
-        context["available_menu_items"],
+        evidence_menu_items,
         wants_recommendations=context["policy"].wants_recommendations,
     )
     merged_flags = _dedupe([*flags, *parsed.guardrail_flags, *grounding_flags])
     verified_claims, claims_verified = verify_claims(
         parsed.claims,
         chunks=context["chunks"],
-        menu_items=context["available_menu_items"],
+        menu_items=evidence_menu_items,
     )
     context["claims"] = verified_claims
-    if not claims_verified:
+    if not claims_verified and suggested_actions:
+        # The model prose/claim can be unsafe even when the returned cards are
+        # valid live-menu records. Replace only the unsafe model claim with
+        # deterministic menu evidence; do not discard a safe result.
+        content = format_grounded_recommendation_content(suggested_actions)
+        context["claims"] = _claims_from_menu_actions(suggested_actions)
+        merged_flags = _dedupe(
+            [*merged_flags, "MODEL_CLAIM_REPLACED_WITH_LIVE_MENU_EVIDENCE"]
+        )
+    elif not claims_verified:
         content = (
             "Mình chưa đủ bằng chứng để xác nhận câu trả lời đó. "
             "Bạn có thể nói rõ món/thông tin cần kiểm tra, hoặc nhờ nhân viên xác nhận giúp."
@@ -1356,18 +1432,18 @@ def _finalize_response_payload(
         or "llm_first_v1"
     )
     if context.get("model"):
-        response["model"] = str(context["model"])
+        response.setdefault("model", str(context["model"]))
     if context.get("retriever_runtime") is not None:
         response["retriever_runtime"] = dict(context["retriever_runtime"])
     if context.get("generation_input_sha256"):
         response.setdefault("generation_input_sha256", str(context["generation_input_sha256"]))
     path = str((response.get("latency_ms") or {}).get("path") or "")
     if response.get("provider_available"):
-        response.setdefault("provider_status", "available")
+        response["provider_status"] = "available"
     elif "AI_PROVIDER_UNAVAILABLE" in (response.get("guardrail_flags") or []):
-        response.setdefault("provider_status", "unavailable")
+        response["provider_status"] = "unavailable"
     else:
-        response.setdefault("provider_status", "not_called")
+        response["provider_status"] = "not_called"
 
     claims = list(response.get("claims") or [])
     if not claims and response.get("suggested_cart_actions"):
@@ -1946,6 +2022,32 @@ def _resolve_live_menu_item(
     if explicit:
         return max(explicit, key=lambda item: len(str(item.get("name") or "")))
 
+    ordinal = _referent_ordinal(normalized)
+    if ordinal is not None:
+        # The most recent assistant cards are exactly the list the guest saw,
+        # unlike the cumulative session ledger.  Preserve their display order
+        # so "món thứ hai" cannot silently resolve to the most recent item.
+        for turn in reversed(history):
+            if str(turn.get("role") or "").casefold() != "assistant":
+                continue
+            displayed_ids = [
+                str(action.get("menu_item_id") or "").strip()
+                for action in (turn.get("suggested_cart_actions") or [])
+                if isinstance(action, dict)
+                and str(action.get("menu_item_id") or "").strip() in by_id
+            ]
+            if ordinal <= len(displayed_ids):
+                return by_id[displayed_ids[ordinal - 1]]
+            break
+
+        suggested_ids = [
+            str(value).strip()
+            for value in (session_state.get("suggested_menu_item_ids") or [])
+            if str(value).strip() in by_id
+        ]
+        if ordinal <= len(suggested_ids):
+            return by_id[suggested_ids[ordinal - 1]]
+
     candidate_ids: list[str] = []
     frame = session_state.get("conversation_frame") or {}
     candidate_ids.extend(
@@ -1964,6 +2066,31 @@ def _resolve_live_menu_item(
     ):
         candidate_ids.extend(reversed([str(value) for value in (session_state.get(key) or [])]))
     return next((by_id[item_id] for item_id in candidate_ids if item_id in by_id), None)
+
+
+def _referent_ordinal(normalized_message: str) -> int | None:
+    """Return a 1-based ordinal when the guest refers to an earlier item."""
+
+    match = re.search(
+        r"\b(?:mon\s+)?(?:thu|so)\s*(\d+|mot|hai|ba|bon|nam|sau|bay|tam)\b",
+        normalized_message,
+    )
+    if not match:
+        return None
+    raw = match.group(1)
+    if raw.isdigit():
+        value = int(raw)
+        return value if value > 0 else None
+    return {
+        "mot": 1,
+        "hai": 2,
+        "ba": 3,
+        "bon": 4,
+        "nam": 5,
+        "sau": 6,
+        "bay": 7,
+        "tam": 8,
+    }.get(raw)
 
 
 def _live_response(

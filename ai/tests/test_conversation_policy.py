@@ -50,6 +50,17 @@ class ConversationPolicyTests(unittest.TestCase):
 
         self.assertEqual(["m_001", "m_002"], [item["menu_item_id"] for item in result])
 
+    def test_vietnamese_word_count_limits_recommendations(self) -> None:
+        policy = build_conversation_policy("Gợi ý hai món", [], "", MENU)
+
+        result = enforce_suggestion_policy([], MENU, policy)
+
+        self.assertEqual(2, policy.requested_count)
+        self.assertEqual(
+            ["m_001", "m_002"],
+            [item["menu_item_id"] for item in result],
+        )
+
     def test_information_question_does_not_hide_previously_mentioned_item(self) -> None:
         policy = build_conversation_policy(
             "Món 1 giá bao nhiêu?",
@@ -69,6 +80,25 @@ class ConversationPolicyTests(unittest.TestCase):
         self.assertTrue(policy.wants_recommendations)
         self.assertGreater(len(result), 0)
         self.assertLessEqual(len(result), policy.max_suggestions)
+
+    def test_recommendation_actions_outside_candidate_evidence_are_replaced(self) -> None:
+        candidate_menu = [
+            {"id": "m_pho", "name": "Phở bò", "price_vnd": 70000, "is_available": True}
+        ]
+        policy = build_conversation_policy(
+            "Gợi ý món phở",
+            [],
+            "",
+            candidate_menu,
+        )
+
+        result = enforce_suggestion_policy(
+            [{"menu_item_id": "m_unrelated", "name": "Gà xào sả ớt"}],
+            candidate_menu,
+            policy,
+        )
+
+        self.assertEqual(["m_pho"], [item["menu_item_id"] for item in result])
 
     def test_party_size_triggers_recommendation_cards(self) -> None:
         policy = build_conversation_policy("nhóm 8 người", [], "", MENU)

@@ -165,6 +165,48 @@ class ChatContractV2Tests(unittest.TestCase):
         self.assertEqual(["m_002"], response.resolved_menu_item_ids)
         self.assertEqual("passed", response.verifier_result)
 
+    def test_v2_response_carries_effective_model_route(self) -> None:
+        response = ChatResponse(
+            content="MÃ¬nh gá»£i Ã½ Phá»Ÿ bÃ² tÃ¡i.",
+            provider_available=True,
+            model="cx/gpt-5.6-luna-review",
+            primary_model="oc/deepseek-v4-flash-free",
+            fallback_model="cx/gpt-5.6-luna-review",
+            fallback_used=True,
+            fallback_reason="rate_limit_429",
+            model_attempts=[
+                {
+                    "model": "oc/deepseek-v4-flash-free",
+                    "role": "primary",
+                    "outcome": "http_429",
+                    "status_code": 429,
+                    "latency_ms": 12.5,
+                },
+                {
+                    "model": "cx/gpt-5.6-luna-review",
+                    "role": "rate_limit_fallback",
+                    "outcome": "success",
+                    "status_code": 200,
+                    "latency_ms": 45.5,
+                },
+            ],
+        )
+
+        self.assertEqual(
+            "oc/deepseek-v4-flash-free",
+            response.primary_model,
+        )
+        self.assertEqual(
+            "cx/gpt-5.6-luna-review",
+            response.fallback_model,
+        )
+        self.assertTrue(response.fallback_used)
+        self.assertEqual("rate_limit_429", response.fallback_reason)
+        self.assertEqual(
+            ["http_429", "success"],
+            [attempt.outcome for attempt in response.model_attempts],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

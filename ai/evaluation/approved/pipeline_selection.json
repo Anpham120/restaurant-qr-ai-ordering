@@ -1,17 +1,24 @@
 {
-  "schema_version": "pipeline-selection-approved-v2",
+  "schema_version": "pipeline-selection-v3",
   "model": "oc/deepseek-v4-flash-free",
+  "model_policy": {
+    "primary_model": "oc/deepseek-v4-flash-free",
+    "fallback_model": "cx/gpt-5.6-luna-review",
+    "fallback_enabled": true,
+    "fallback_trigger": "http_429",
+    "max_fallbacks_per_operation": 1
+  },
   "profiles": [
     {
       "profile": "llm_first_v1",
       "metrics": {
-        "strict_semantic_success": 0.6842105263157895,
-        "context_accuracy": 0.881578947368421,
-        "p95_latency_ms": 37623.657,
-        "mean_llm_calls": 1.5789473684210527,
-        "run_to_run_disagreement_rate": 0.4166666666666667,
-        "llm_case_count": 12,
-        "deterministic_case_count": 2,
+        "strict_semantic_success": 0.8431372549019608,
+        "context_accuracy": 0.8529411764705882,
+        "p95_latency_ms": 17528.628,
+        "mean_llm_calls": 1.5294117647058822,
+        "run_to_run_disagreement_rate": 0.125,
+        "llm_case_count": 16,
+        "deterministic_case_count": 3,
         "unsupported_claims": 0,
         "allowed_evidence_only": true,
         "allergy_passed": true,
@@ -19,9 +26,22 @@
         "session_isolation_passed": true,
         "assistant_text_not_persisted": true,
         "availability_passed": true,
-        "deepseek_calls_attempted": 60,
-        "deepseek_calls_successful": 57,
-        "deepseek_call_success_rate": 0.95,
+        "model_usage": {
+          "attempts_by_model": {
+            "oc/deepseek-v4-flash-free": 50
+          },
+          "successes_by_model": {
+            "oc/deepseek-v4-flash-free": 50
+          },
+          "failures_by_model": {},
+          "fallback_count": 0,
+          "fallback_rate": 0.0,
+          "logical_llm_operations": 78
+        },
+        "provider_calls_succeeded": true,
+        "deepseek_calls_attempted": 50,
+        "deepseek_calls_successful": 50,
+        "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
       }
@@ -29,13 +49,13 @@
     {
       "profile": "evidence_first_v2",
       "metrics": {
-        "strict_semantic_success": 0.7352941176470589,
-        "context_accuracy": 0.8676470588235294,
-        "p95_latency_ms": 17278.545,
-        "mean_llm_calls": 1.588235294117647,
-        "run_to_run_disagreement_rate": 0.2,
-        "llm_case_count": 10,
-        "deterministic_case_count": 4,
+        "strict_semantic_success": 0.9361702127659575,
+        "context_accuracy": 0.8404255319148937,
+        "p95_latency_ms": 17991.285,
+        "mean_llm_calls": 1.5319148936170213,
+        "run_to_run_disagreement_rate": 0.07142857142857142,
+        "llm_case_count": 14,
+        "deterministic_case_count": 5,
         "unsupported_claims": 0,
         "allowed_evidence_only": true,
         "allergy_passed": true,
@@ -43,9 +63,22 @@
         "session_isolation_passed": true,
         "assistant_text_not_persisted": true,
         "availability_passed": true,
-        "deepseek_calls_attempted": 54,
-        "deepseek_calls_successful": 53,
-        "deepseek_call_success_rate": 0.9814814814814815,
+        "model_usage": {
+          "attempts_by_model": {
+            "oc/deepseek-v4-flash-free": 45
+          },
+          "successes_by_model": {
+            "oc/deepseek-v4-flash-free": 45
+          },
+          "failures_by_model": {},
+          "fallback_count": 0,
+          "fallback_rate": 0.0,
+          "logical_llm_operations": 72
+        },
+        "provider_calls_succeeded": true,
+        "deepseek_calls_attempted": 45,
+        "deepseek_calls_successful": 45,
+        "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
       }
@@ -53,12 +86,12 @@
     {
       "profile": "planner_state_v3",
       "metrics": {
-        "strict_semantic_success": 0.6842105263157895,
-        "context_accuracy": 0.9078947368421053,
-        "p95_latency_ms": 43814.089,
-        "mean_llm_calls": 2.236842105263158,
-        "run_to_run_disagreement_rate": 0.25,
-        "llm_case_count": 12,
+        "strict_semantic_success": 0.9056603773584906,
+        "context_accuracy": 0.9339622641509434,
+        "p95_latency_ms": 25936.654,
+        "mean_llm_calls": 2.358490566037736,
+        "run_to_run_disagreement_rate": 0.11764705882352941,
+        "llm_case_count": 17,
         "deterministic_case_count": 2,
         "unsupported_claims": 0,
         "allowed_evidence_only": true,
@@ -67,9 +100,22 @@
         "session_isolation_passed": true,
         "assistant_text_not_persisted": true,
         "availability_passed": true,
-        "deepseek_calls_attempted": 85,
-        "deepseek_calls_successful": 75,
-        "deepseek_call_success_rate": 0.8823529411764706,
+        "model_usage": {
+          "attempts_by_model": {
+            "oc/deepseek-v4-flash-free": 79
+          },
+          "successes_by_model": {
+            "oc/deepseek-v4-flash-free": 79
+          },
+          "failures_by_model": {},
+          "fallback_count": 0,
+          "fallback_rate": 0.0,
+          "logical_llm_operations": 125
+        },
+        "provider_calls_succeeded": true,
+        "deepseek_calls_attempted": 79,
+        "deepseek_calls_successful": 79,
+        "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
       }
@@ -78,13 +124,14 @@
   "winner": "evidence_first_v2",
   "selection_reason": "safety_gate_then_strict_quality_then_context_then_p95_latency_then_llm_calls",
   "rejected_by_safety": [],
-  "research_commit_sha": "4dbcec68840eed9cf49f5ac271ef1cc8fe2c4de2",
-  "research_input_hash": "sha256:54b4e6197a966e0bdbf54e1315475b96a341c5016bd425a0234981087bc1ebad",
+  "commit_sha": "4714d43818f56d43cd094561d935d4bfbd9d692d",
+  "research_commit_sha": "4714d43818f56d43cd094561d935d4bfbd9d692d",
+  "research_input_hash": "sha256:84c4cf7e96256bc3c69207f0bb3c11fe744cc6a8f96a970bbf59c25975717bb3",
   "working_tree_dirty": false,
-  "dataset_hash": "sha256:88bc467c02830739bb4a0030ff3aad84bf70cbeaceec61661b4110af897be9b0",
-  "generated_at": "2026-07-26T03:25:53.334441+00:00",
-  "approved_at": "2026-07-26T04:49:33Z",
-  "source_run_id": 30185742540,
-  "source_artifact_name": "pipeline-selection-production-4dbcec68840eed9cf49f5ac271ef1cc8fe2c4de2",
-  "source_artifact_sha256": "sha256:459250256c7baaf6035bfdeed27e881e67510a963326a50be873163a5ec8b4ab"
+  "dataset_hash": "sha256:7fba2c74aa0e3688d9cbb776a2956d2df717bc3338f8e6fdb5240ddd52cd5caf",
+  "generated_at": "2026-07-27T00:26:01.172065+00:00",
+  "approved_at": "2026-07-27T00:27:25.042442+00:00",
+  "source_run_id": 30226943373,
+  "source_artifact_name": "pipeline-selection-research-4714d43818f56d43cd094561d935d4bfbd9d692d",
+  "source_artifact_sha256": "sha256:9ece8c7b09a4d6e7d1dc1b7b64df96cd76d759fad1e8a32dd878488ddcf4c53f"
 }

@@ -4,6 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from app import config as ai_config
 from app.config import DEFAULT_PIPELINE_PROFILE, DEFAULT_ROUTER_BASE_URL, load_config
 
 
@@ -109,6 +110,64 @@ class RouterConfigTests(unittest.TestCase):
         )
         self.assertTrue(config.llm_intent_classification_enabled)
         self.assertEqual(2.5, config.intent_classification_timeout_seconds)
+
+    def test_load_config_enables_exact_luna_429_fallback(self) -> None:
+        config = self._load_config(
+            {
+                "LLM_PROVIDER": "9router",
+                "LLM_API_KEY": "router-test-key",
+                "LLM_MODEL": ai_config.DEFAULT_LLM_MODEL,
+                "LLM_RATE_LIMIT_FALLBACK_MODEL": (
+                    ai_config.DEFAULT_RATE_LIMIT_FALLBACK_MODEL
+                ),
+                "LLM_RATE_LIMIT_FALLBACK_ENABLED": "true",
+            }
+        )
+
+        self.assertEqual(ai_config.DEFAULT_LLM_MODEL, config.model)
+        self.assertEqual(
+            ai_config.DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
+            config.rate_limit_fallback_model,
+        )
+        self.assertTrue(config.rate_limit_fallback_enabled)
+        self.assertTrue(config.model_policy_valid)
+
+    def test_enabled_fallback_rejects_unapproved_model_roles(self) -> None:
+        invalid_pairs = (
+            ("cx/gpt-5.5", "cx/gpt-5.6-luna-review"),
+            (ai_config.DEFAULT_LLM_MODEL, "cx/gpt-5.5"),
+            (ai_config.DEFAULT_LLM_MODEL, ai_config.DEFAULT_LLM_MODEL),
+        )
+
+        for primary, fallback in invalid_pairs:
+            with self.subTest(primary=primary, fallback=fallback):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "DeepSeek primary.*Luna fallback",
+                ):
+                    self._load_config(
+                        {
+                            "LLM_PROVIDER": "9router",
+                            "LLM_API_KEY": "router-test-key",
+                            "LLM_MODEL": primary,
+                            "LLM_RATE_LIMIT_FALLBACK_MODEL": fallback,
+                            "LLM_RATE_LIMIT_FALLBACK_ENABLED": "true",
+                        }
+                    )
+
+    def test_disabled_fallback_keeps_historical_model_research_available(self) -> None:
+        config = self._load_config(
+            {
+                "LLM_PROVIDER": "9router",
+                "LLM_API_KEY": "router-test-key",
+                "LLM_MODEL": "cx/gpt-5.5",
+                "LLM_RATE_LIMIT_FALLBACK_ENABLED": "false",
+            }
+        )
+
+        self.assertFalse(config.rate_limit_fallback_enabled)
+        self.assertIsNone(config.rate_limit_fallback_model)
+        self.assertTrue(config.llm_enabled)
 
 
 if __name__ == "__main__":

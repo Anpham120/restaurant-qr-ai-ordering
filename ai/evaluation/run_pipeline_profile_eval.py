@@ -25,15 +25,39 @@ AI_ROOT = PROJECT_ROOT / "ai"
 sys.path.insert(0, str(AI_ROOT))
 
 from app.clients.router import RouterClient  # noqa: E402
-from app.config import PIPELINE_PROFILES, load_config  # noqa: E402
+from app.config import (  # noqa: E402
+    DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
+    AiServiceConfig,
+    PIPELINE_PROFILES,
+    load_config,
+)
 from app.services.assistant import AiAssistantService  # noqa: E402
 from evaluation.golden_eval_common import load_menu_items  # noqa: E402
+from evaluation.canonical_research_data import (  # noqa: E402
+    canonical_pipeline_evaluation_dataset,
+    load_canonical_research_bundle,
+)
 from evaluation.pipeline_selection import select_winner  # noqa: E402
+from evaluation.research_inputs import compute_research_input_hash  # noqa: E402
 
 DEEPSEEK_MODEL = "oc/deepseek-v4-flash-free"
 PROFILE_ORDER = ("llm_first_v1", "evidence_first_v2", "planner_state_v3")
-DATASET_PATH = AI_ROOT / "evaluation" / "pipeline_profile_cases.json"
+DATASET_PATH = AI_ROOT / "evaluation" / "datasets" / "canonical_research_manifest.v1.json"
 DEFAULT_OUTPUT_PATH = AI_ROOT / "evaluation" / "results" / "pipeline_selection.json"
+
+
+def create_eval_router_client(config: AiServiceConfig) -> RouterClient:
+    return RouterClient(
+        config.base_url,
+        config.api_key,
+        config.model,
+        config.llm_timeout_seconds,
+        max_retry=config.max_retry,
+        max_tokens=config.max_tokens,
+        reasoning_effort=config.reasoning_effort,
+        fallback_model=config.rate_limit_fallback_model,
+        fallback_enabled=config.rate_limit_fallback_enabled,
+    )
 
 
 def required_runs(llm_calls: int) -> int:
@@ -243,6 +267,52 @@ def aggregate_profile(
     successful_llm_calls = sum(
         int(run.get("successful_llm_calls") or 0) for run in runs
     )
+    model_attempts = [
+        attempt
+        for run in runs
+        for attempt in (run.get("model_attempts") or [])
+    ]
+    attempts_by_model: dict[str, int] = {}
+    successes_by_model: dict[str, int] = {}
+    failures_by_model: dict[str, int] = {}
+    for attempt in model_attempts:
+        model = str(attempt.get("model") or "")
+        if not model:
+            continue
+        attempts_by_model[model] = attempts_by_model.get(model, 0) + 1
+        target = (
+            successes_by_model
+            if attempt.get("outcome") == "success"
+            else failures_by_model
+        )
+        target[model] = target.get(model, 0) + 1
+    fallback_count = sum(
+        1
+        for attempt in model_attempts
+        if attempt.get("role") == "rate_limit_fallback"
+    )
+    model_usage = {
+        "attempts_by_model": dict(sorted(attempts_by_model.items())),
+        "successes_by_model": dict(sorted(successes_by_model.items())),
+        "failures_by_model": dict(sorted(failures_by_model.items())),
+        "fallback_count": fallback_count,
+        "fallback_rate": (
+            fallback_count / total_llm_calls
+            if total_llm_calls
+            else 0.0
+        ),
+        "logical_llm_operations": total_llm_calls,
+    }
+    deepseek_calls_attempted = (
+        attempts_by_model.get(DEEPSEEK_MODEL, 0)
+        if model_attempts
+        else total_llm_calls
+    )
+    deepseek_calls_successful = (
+        successes_by_model.get(DEEPSEEK_MODEL, 0)
+        if model_attempts
+        else successful_llm_calls
+    )
     metrics = {
         "strict_semantic_success": _mean(
             float(score["strict_semantic_success"]) for score in scores
@@ -278,13 +348,19 @@ def aggregate_profile(
             bool(score["assistant_text_not_persisted"]) for score in scores
         ),
         "availability_passed": availability_passed,
-        "deepseek_calls_attempted": total_llm_calls,
-        "deepseek_calls_successful": successful_llm_calls,
+        "model_usage": model_usage,
+        "provider_calls_succeeded": (
+            total_llm_calls > 0 and successful_llm_calls > 0
+        ),
+        "deepseek_calls_attempted": deepseek_calls_attempted,
+        "deepseek_calls_successful": deepseek_calls_successful,
         "deepseek_call_success_rate": (
-            successful_llm_calls / total_llm_calls if total_llm_calls else 0.0
+            deepseek_calls_successful / deepseek_calls_attempted
+            if deepseek_calls_attempted
+            else 0.0
         ),
         "deepseek_calls_succeeded": (
-            total_llm_calls > 0 and successful_llm_calls > 0
+            deepseek_calls_attempted > 0 and deepseek_calls_successful > 0
         ),
     }
     metrics["safety_passed"] = (
@@ -299,19 +375,29 @@ def build_selection_artifact(
     *,
     profile_results: list[dict[str, Any]],
     commit_sha: str,
+    research_input_hash: str,
     dataset_hash: str,
     generated_at: str,
     working_tree_dirty: bool = False,
 ) -> dict[str, Any]:
     selection = select_winner(profile_results)
     return {
-        "schema_version": "pipeline-selection-v1",
+        "schema_version": "pipeline-selection-v3",
         "model": DEEPSEEK_MODEL,
+        "model_policy": {
+            "primary_model": DEEPSEEK_MODEL,
+            "fallback_model": DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
+            "fallback_enabled": True,
+            "fallback_trigger": "http_429",
+            "max_fallbacks_per_operation": 1,
+        },
         "profiles": profile_results,
         "winner": selection["winner"],
         "selection_reason": selection["selection_reason"],
         "rejected_by_safety": selection["rejected_by_safety"],
         "commit_sha": commit_sha,
+        "research_commit_sha": commit_sha,
+        "research_input_hash": research_input_hash,
         "working_tree_dirty": working_tree_dirty,
         "dataset_hash": dataset_hash,
         "generated_at": generated_at,
@@ -492,6 +578,7 @@ async def _run_trial(
         "final_state": state,
         "pipeline_profile": last_response.get("pipeline_profile"),
         "model": last_response.get("model"),
+        "model_attempts": last_response.get("model_attempts") or [],
     }
 
 
@@ -557,6 +644,8 @@ async def evaluate_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
         load_config(),
         model=DEEPSEEK_MODEL,
         knowledge_base_path=AI_ROOT / "knowledge-base",
+        rate_limit_fallback_model=DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
+        rate_limit_fallback_enabled=True,
     )
     if not base_config.api_key:
         raise RuntimeError("LLM_API_KEY is required for controlled pipeline selection")
@@ -566,18 +655,11 @@ async def evaluate_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
         str(item["id"]) for item in menu_items if bool(item.get("is_available", True))
     }
     async def evaluate_profile(profile: str) -> dict[str, Any]:
-        delegate = RouterClient(
-            base_config.base_url,
-            base_config.api_key,
-            DEEPSEEK_MODEL,
-            base_config.llm_timeout_seconds,
-            max_retry=base_config.max_retry,
-            max_tokens=base_config.max_tokens,
-            reasoning_effort=base_config.reasoning_effort,
-        )
+        profile_config = replace(base_config, pipeline_profile=profile)
+        delegate = create_eval_router_client(profile_config)
         client = CountingClient(delegate)
         service = AiAssistantService(
-            replace(base_config, pipeline_profile=profile),
+            profile_config,
             llm_client=client,
         )
         profile_runs: list[dict[str, Any]] = []
@@ -617,6 +699,20 @@ def _dataset_hash(dataset_path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+def _load_evaluation_dataset(dataset_path: Path) -> tuple[dict[str, Any], str]:
+    """Load the canonical catalogue by default, retaining legacy input support.
+
+    The legacy JSON option exists only for historical reproduction. New runs use
+    the manifest adapter and write the manifest's hash into the selection
+    artifact, allowing CI and production to fail closed on dataset drift.
+    """
+    if dataset_path.resolve() == DATASET_PATH.resolve():
+        bundle = load_canonical_research_bundle(AI_ROOT)
+        return canonical_pipeline_evaluation_dataset(bundle), bundle.dataset_hash
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    return dataset, _dataset_hash(dataset_path)
+
+
 def _commit_sha() -> str:
     return subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -640,7 +736,7 @@ def _working_tree_dirty() -> bool:
 
 
 async def _main(args: argparse.Namespace) -> int:
-    dataset = json.loads(args.dataset.read_text(encoding="utf-8"))
+    dataset, dataset_hash = _load_evaluation_dataset(args.dataset)
     unknown = set(PROFILE_ORDER) - set(PIPELINE_PROFILES)
     if unknown:
         raise RuntimeError(f"Runtime does not implement profiles: {sorted(unknown)}")
@@ -648,7 +744,8 @@ async def _main(args: argparse.Namespace) -> int:
     artifact = build_selection_artifact(
         profile_results=profile_results,
         commit_sha=_commit_sha(),
-        dataset_hash=_dataset_hash(args.dataset),
+        research_input_hash=compute_research_input_hash(PROJECT_ROOT),
+        dataset_hash=dataset_hash,
         generated_at=datetime.now(timezone.utc).isoformat(),
         working_tree_dirty=_working_tree_dirty(),
     )

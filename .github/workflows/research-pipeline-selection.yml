@@ -23,6 +23,16 @@ jobs:
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
       LLM_MODEL: oc/deepseek-v4-flash-free
+      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      # Keep all non-profile controls identical to staging/production.  A
+      # selection artifact is invalid if it was measured with a shorter
+      # request window or different generation policy than the deployed AI.
+      LLM_TIMEOUT_SECONDS: "30"
+      AI_REQUEST_BUDGET_SECONDS: "45"
+      AI_MAX_RETRY: "0"
+      AI_MAX_TOKENS: "700"
+      AI_REASONING_EFFORT: low
       RAG_TOP_K: "5"
       RAG_RETRIEVAL_METHOD: hybrid
     steps:
@@ -69,6 +79,135 @@ jobs:
               raise SystemExit("9router SSH tunnel did not become ready")
           PY
 
+      - name: Diagnose 9router origin
+        # Keep the gateway key off the command line and out of logs.  This
+        # direct request distinguishes a broken router/upstream from a broken
+        # SSH forwarding path when the runner sees a transport reset.
+        run: |
+          emit_router_origin_probe() {
+            # The first stdin line is the key; the remainder is the remote
+            # script.  This avoids both command-line exposure and nested shell
+            # quoting of a JSON request.
+            printf '%s\n' "$LLM_API_KEY"
+            cat <<'REMOTE_SCRIPT'
+          set -eu
+          if command -v ss >/dev/null 2>&1 && ss -ltnH | awk '$4 ~ /:20128$/ {found=1} END {exit !found}'; then
+            echo "9router origin listener=present"
+          else
+            echo "9router origin listener=absent"
+          fi
+          if command -v docker >/dev/null 2>&1 && docker ps -a >/dev/null 2>&1; then
+            docker_candidates="$(docker ps -a --format '{{.Names}}={{.Status}}={{.Ports}}' | awk 'tolower($0) ~ /9router|router/ || $0 ~ /20128/')"
+            if [ -n "$docker_candidates" ]; then
+              printf '9router docker candidates=%s\n' "$docker_candidates"
+            else
+              echo "9router docker candidates=none"
+            fi
+          else
+            echo "9router docker candidates=unavailable"
+          fi
+          systemd_candidates="$(systemctl list-units --type=service --all --no-legend --plain 2>/dev/null | awk 'tolower($1) ~ /9router|router/ {print $1}')"
+          if [ -n "$systemd_candidates" ]; then
+            printf '9router systemd candidates=%s\n' "$systemd_candidates"
+          else
+            echo "9router systemd candidates=none"
+          fi
+          set +e
+          status="$(
+            curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 15 \
+              -H "Authorization: Bearer ${ROUTER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              --data @- \
+              http://127.0.0.1:20128/v1/chat/completions <<'JSON'
+          {"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
+          JSON
+          )"
+          curl_exit=$?
+          set -e
+          printf "9router origin primary preflight curl_exit=%s status=%s\n" "$curl_exit" "$status"
+          REMOTE_SCRIPT
+          }
+          emit_router_origin_probe | ssh \
+            -i "${ROUTER_TUNNEL_DIR}/deploy-key" \
+            -o UserKnownHostsFile="${ROUTER_TUNNEL_DIR}/known-hosts" \
+            -o StrictHostKeyChecking=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            'IFS= read -r ROUTER_API_KEY; export ROUTER_API_KEY; bash -s'
+
+      - name: Preflight 9router HTTP readiness
+        # A TCP connection alone does not prove that the router can serve the
+        # configured model.  Fail before the controlled evaluation when the
+        # HTTP route is reset or rejects the model; never print the API key or
+        # response body.  Luna is attempted only after an actual primary 429.
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          import httpx
+
+          base_url = os.environ["LLM_BASE_URL"].rstrip("/")
+          primary = os.environ["LLM_MODEL"]
+          fallback = os.environ["LLM_RATE_LIMIT_FALLBACK_MODEL"]
+          headers = {
+              "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
+              "Content-Type": "application/json",
+          }
+          payload = {
+              "model": primary,
+              "messages": [{"role": "user", "content": "Reply exactly: OK"}],
+              "max_tokens": 8,
+              "temperature": 0,
+          }
+
+          def request(model: str) -> httpx.Response:
+              try:
+                  with httpx.Client(timeout=15.0) as client:
+                      return client.post(
+                          f"{base_url}/chat/completions",
+                          headers=headers,
+                          json={**payload, "model": model},
+                      )
+              except httpx.HTTPError as exc:
+                  raise SystemExit(
+                      f"9router HTTP preflight transport failure for {model}: "
+                      f"{type(exc).__name__}"
+                  ) from exc
+
+          response = request(primary)
+          print(f"9router primary preflight status={response.status_code}")
+          if response.status_code == 429:
+              fallback_response = request(fallback)
+              print(
+                  "9router fallback preflight "
+                  f"model={fallback} status={fallback_response.status_code}"
+              )
+              if not fallback_response.is_success:
+                  raise SystemExit(
+                      "9router fallback preflight failed after primary HTTP 429; "
+                      f"status={fallback_response.status_code}"
+                  )
+          elif not response.is_success:
+              raise SystemExit(
+                  "9router primary preflight failed without HTTP 429; "
+                  f"status={response.status_code}"
+              )
+
+          try:
+              models_response = httpx.get(
+                  f"{base_url}/models", headers=headers, timeout=10.0
+              )
+          except httpx.HTTPError as exc:
+              raise SystemExit(
+                  f"9router /v1/models transport failure: {type(exc).__name__}"
+              ) from exc
+          print(f"9router /v1/models status={models_response.status_code}")
+          if not models_response.is_success:
+              raise SystemExit(
+                  f"9router /v1/models preflight failed; status={models_response.status_code}"
+              )
+          PY
+
       - name: Compare all pipeline profiles with DeepSeek
         env:
           PYTHONPATH: ai
@@ -90,7 +229,10 @@ jobs:
         with:
           name: pipeline-selection-research-${{ github.sha }}
           path: ai/evaluation/results/pipeline_selection.json
-          if-no-files-found: error
+          # A preflight failure occurs before evaluation and therefore has no
+          # selection artifact.  Preserve the primary diagnostic instead of
+          # obscuring it with an unrelated upload failure.
+          if-no-files-found: ignore
 
       - name: Research summary
         if: success()

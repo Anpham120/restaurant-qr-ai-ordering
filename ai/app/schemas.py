@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ChatHistorySuggestedAction(BaseModel):
@@ -198,7 +198,17 @@ class SessionUpdates(BaseModel):
     conversation_frame: ConversationFrame = Field(default_factory=ConversationFrame)
 
 
+class ModelAttemptTrace(BaseModel):
+    model: str
+    role: Literal["primary", "rate_limit_fallback"]
+    outcome: str
+    status_code: int | None = None
+    latency_ms: float
+
+
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     contract_version: str = "v2"
     content: str
     provider_available: bool
@@ -220,3 +230,8 @@ class ChatResponse(BaseModel):
     pipeline_profile: str = "llm_first_v1"
     resolved_menu_item_ids: list[str] = Field(default_factory=list)
     verifier_result: str = "not_applicable"
+    primary_model: str | None = None
+    fallback_model: str | None = None
+    fallback_used: bool = False
+    fallback_reason: str | None = None
+    model_attempts: list[ModelAttemptTrace] = Field(default_factory=list)

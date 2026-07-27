@@ -13,6 +13,10 @@ public sealed class DbChatStore : IChatStore
     {
         "suggested", "rejected", "accepted", "added_to_cart"
     };
+    private static readonly HashSet<string> RecommendationExclusionStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "rejected", "accepted", "added_to_cart"
+    };
 
     private readonly RestaurantDbContext dbContext;
     private static readonly Dictionary<string, object> SessionLocks = new(StringComparer.OrdinalIgnoreCase);
@@ -198,7 +202,11 @@ public sealed class DbChatStore : IChatStore
         }
 
         return session.Recommendations
-            .Where(r => ExclusionStatuses.Contains(r.Status))
+            // A suggested card remains live menu evidence: the guest can ask
+            // its price, ingredients, or refer to it by ordinal on the next turn.
+            // Typed session state still carries suggested ids so recommendation
+            // policy can avoid repeating them when the guest asks for more.
+            .Where(r => RecommendationExclusionStatuses.Contains(r.Status))
             .Select(r => r.MenuItemId)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
