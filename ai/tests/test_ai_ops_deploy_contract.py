@@ -135,7 +135,12 @@ class AiOpsDeployContractTests(unittest.TestCase):
             "LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review",
             workflow,
         )
-        self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"', workflow)
+        # Single-model deployment: no fallback is configured (DeepSeek was
+        # dropped after its 9router route rejected response_format:json_object;
+        # see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md). The fallback model
+        # env var above is kept only because health-check.sh requires it to be
+        # set — it is never used while disabled.
+        self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"', workflow)
         self.assertIn('LLM_TIMEOUT_SECONDS: "30"', workflow)
         self.assertIn('AI_REQUEST_BUDGET_SECONDS: "45"', workflow)
         self.assertNotIn("GEMINI", workflow.upper())
@@ -147,10 +152,12 @@ class AiOpsDeployContractTests(unittest.TestCase):
             self.assertIn("--verify-current-research-inputs", deploy_workflow)
             self.assertIn("--verify-current-canonical-dataset", deploy_workflow)
             self.assertIn("--expected-primary-model", deploy_workflow)
-            self.assertIn("--expected-fallback-model", deploy_workflow)
-            self.assertIn("--expected-fallback-trigger", deploy_workflow)
-            self.assertIn("--expected-max-fallbacks", deploy_workflow)
-            self.assertIn("--require-fallback-enabled", deploy_workflow)
+            # No fallback flags: verify_pipeline_selection.py only enforces
+            # fallback-shape checks when the artifact has a fallback enabled
+            # or --require-fallback-enabled is passed explicitly (see
+            # evaluation/verify_pipeline_selection.py::validate_artifact).
+            self.assertNotIn("--expected-fallback-model", deploy_workflow)
+            self.assertNotIn("--require-fallback-enabled", deploy_workflow)
             self.assertNotIn("Open secure 9router tunnel", deploy_workflow)
             self.assertIn('LLM_TIMEOUT_SECONDS: "30"', deploy_workflow)
             self.assertIn('AI_REQUEST_BUDGET_SECONDS: "45"', deploy_workflow)
@@ -169,13 +176,14 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("9router systemd candidates=", research_workflow)
         self.assertIn("Preflight 9router HTTP readiness", research_workflow)
         self.assertIn("/v1/models", research_workflow)
-        self.assertIn("oc/deepseek-v4-flash-free", research_workflow)
+        self.assertIn("cx/gpt-5.6-luna-review", research_workflow)
+        self.assertNotIn("oc/deepseek-v4-flash-free", research_workflow)
         self.assertIn("run_pipeline_profile_eval.py", research_workflow)
         self.assertIn(
             "LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review",
             research_workflow,
         )
-        self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"', research_workflow)
+        self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"', research_workflow)
         self.assertIn("if-no-files-found: ignore", research_workflow)
         # The research result is eligible to select production only when every
         # non-profile runtime control is identical to the deployed service.

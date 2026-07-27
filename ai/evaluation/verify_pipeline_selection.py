@@ -48,28 +48,35 @@ def validate_artifact(
             f"artifact={model_policy.get('primary_model')!r}, "
             f"expected={expected_primary_model!r}"
         )
-    if model_policy.get("fallback_model") != expected_fallback_model:
-        raise ValueError(
-            "fallback model drift: "
-            f"artifact={model_policy.get('fallback_model')!r}, "
-            f"expected={expected_fallback_model!r}"
-        )
-    if model_policy.get("fallback_trigger") != expected_fallback_trigger:
-        raise ValueError(
-            "fallback trigger drift: "
-            f"artifact={model_policy.get('fallback_trigger')!r}, "
-            f"expected={expected_fallback_trigger!r}"
-        )
-    if int(model_policy.get("max_fallbacks_per_operation") or 0) != int(
-        expected_max_fallbacks
-    ):
-        raise ValueError(
-            "max fallback drift: "
-            f"artifact={model_policy.get('max_fallbacks_per_operation')!r}, "
-            f"expected={expected_max_fallbacks!r}"
-        )
-    if require_fallback_enabled and not bool(model_policy.get("fallback_enabled")):
+    fallback_enabled_in_artifact = bool(model_policy.get("fallback_enabled"))
+    if require_fallback_enabled and not fallback_enabled_in_artifact:
         raise ValueError("fallback must be enabled for this deployment")
+    # Fallback-shape checks (model/trigger/max) only apply when a fallback is
+    # actually part of the deployment — either the artifact has one enabled,
+    # or the caller explicitly demands one via --require-fallback-enabled. A
+    # single-model deployment (fallback disabled, no fallback configured) is a
+    # valid, deliberate configuration and must not be rejected as "drift".
+    if require_fallback_enabled or fallback_enabled_in_artifact:
+        if model_policy.get("fallback_model") != expected_fallback_model:
+            raise ValueError(
+                "fallback model drift: "
+                f"artifact={model_policy.get('fallback_model')!r}, "
+                f"expected={expected_fallback_model!r}"
+            )
+        if model_policy.get("fallback_trigger") != expected_fallback_trigger:
+            raise ValueError(
+                "fallback trigger drift: "
+                f"artifact={model_policy.get('fallback_trigger')!r}, "
+                f"expected={expected_fallback_trigger!r}"
+            )
+        if int(model_policy.get("max_fallbacks_per_operation") or 0) != int(
+            expected_max_fallbacks
+        ):
+            raise ValueError(
+                "max fallback drift: "
+                f"artifact={model_policy.get('max_fallbacks_per_operation')!r}, "
+                f"expected={expected_max_fallbacks!r}"
+            )
     if artifact.get("working_tree_dirty") is True:
         raise ValueError("dirty source tree cannot be deployed from a selection artifact")
     winner = str(artifact.get("winner") or "")

@@ -52,12 +52,21 @@ class LlmIntentClassifierTests(unittest.TestCase):
         policy = build_conversation_policy(message, [], "", [])
         self.assertTrue(is_ambiguous(intent, constraints, policy, message=message))
 
-    def test_is_not_ambiguous_for_wifi_query(self) -> None:
+    def test_wifi_query_with_borderline_confidence_gets_llm_assist(self) -> None:
+        # The rule classifier assigns "wifi mat khau gi" the correct intent
+        # (restaurant_info) but with confidence 0.3 — just under
+        # AMBIGUITY_CONFIDENCE_THRESHOLD (0.35). It used to be treated as
+        # "not ambiguous" only because "wifi" was on a generic keyword
+        # shortlist, not because the classification was actually confident.
+        # Removing that shortlist means borderline-confidence classifications
+        # now correctly get the cheap LLM-assist double-check.
         message = "wifi mat khau gi"
         intent = classify_intent(message)
+        self.assertEqual("restaurant_info", intent.intent)
+        self.assertLess(intent.confidence, 0.35)
         constraints = extract_constraints(message, [])
         policy = build_conversation_policy(message, [], "", [])
-        self.assertFalse(is_ambiguous(intent, constraints, policy, message=message))
+        self.assertTrue(is_ambiguous(intent, constraints, policy, message=message))
 
     def test_is_not_ambiguous_for_explicit_party_size(self) -> None:
         message = "8 nguoi an gi"

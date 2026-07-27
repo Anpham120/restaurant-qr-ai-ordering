@@ -6,7 +6,9 @@ import argparse
 import json
 import sys
 
-ALLOWED_MODELS = frozenset({"cx/gpt-5.5", "oc/deepseek-v4-flash-free"})
+ALLOWED_MODELS = frozenset(
+    {"cx/gpt-5.5", "cx/gpt-5.6-luna-review", "oc/deepseek-v4-flash-free"}
+)
 
 
 def build_smoke_messages() -> list[dict[str, str]]:
@@ -28,7 +30,7 @@ def parse_smoke_response(raw: str) -> str:
 
 def parse_smoke_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="9router smoke")
-    parser.add_argument("--model", default="oc/deepseek-v4-flash-free")
+    parser.add_argument("--model", default="cx/gpt-5.6-luna-review")
     args = parser.parse_args(argv)
     if args.model not in ALLOWED_MODELS:
         print(f"Unsupported model: {args.model}", file=sys.stderr)

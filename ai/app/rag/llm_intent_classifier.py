@@ -10,7 +10,6 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from app.rag.constraint_extractor import CATALOG_TERMS, RECOMMENDATION_TERMS
 from app.rag.conversation_policy import ConversationPolicy
 from app.rag.intent_classifier import INTENT_RULES, IntentResult, classify_intent_with_history
 from app.rag.vietnamese_normalizer import normalize_query_text
@@ -19,25 +18,6 @@ AMBIGUITY_CONFIDENCE_THRESHOLD = 0.35
 
 INTENT_NAMES: tuple[str, ...] = tuple(
     dict.fromkeys([name for name, *_ in INTENT_RULES] + ["general"])
-)
-
-INFO_MARKER_TERMS = (
-    "dia chi",
-    "o dau",
-    "hotline",
-    "lien he",
-    "wifi",
-    "mo cua",
-    "gio",
-    "gui xe",
-    "vip",
-    "thanh toan",
-    "hoa don",
-    "khuyen mai",
-    "faq",
-    "bao nhieu",
-    "tinh tien",
-    "tra tien",
 )
 
 EXPLICIT_PARTY_PATTERN = re.compile(
@@ -96,14 +76,13 @@ def is_ambiguous(
         return False
     if constraints.get("is_catalog_only"):
         return False
-    if any(term in normalized for term in INFO_MARKER_TERMS):
-        return False
     if EXPLICIT_PARTY_PATTERN.search(normalized):
         return False
-    if any(term in normalized for term in CATALOG_TERMS):
-        return False
-    if any(term in normalized for term in RECOMMENDATION_TERMS):
-        return False
+    # A topic keyword alone is not evidence the rule-based classification was
+    # correct — only its confidence score is. Deliberately no keyword-based
+    # short-circuit here: that previously let low-confidence misclassifications
+    # skip the LLM-assist safety net whenever the message happened to contain a
+    # generic word (e.g. "wifi", "gio", "goi y").
     if intent_result.intent == "general" and intent_result.confidence < AMBIGUITY_CONFIDENCE_THRESHOLD:
         return True
     if not policy.wants_recommendations and constraints.get("party_size") is None:

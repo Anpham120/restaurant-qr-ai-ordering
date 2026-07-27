@@ -33,6 +33,7 @@ from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
 from app.rag.pairing_recommendation_fast_path import try_pairing_recommendation_fast_path
 from app.rag.menu_exclusions import (
+    build_suggestion_reason,
     detect_excluded_category_ids,
     filter_items_by_excluded_categories,
     recommendation_intro,
@@ -77,6 +78,7 @@ FAQ_POLICY_INTENTS = frozenset(
     }
 )
 RECOMMEND_INTENTS = frozenset({"recommend", "dietary", "budget"})
+MAX_CATALOG_CART_SUGGESTIONS = 4
 
 
 def _should_use_deterministic_fast_paths(config: AiServiceConfig) -> bool:
@@ -2201,6 +2203,18 @@ def _try_catalog_fast_path(
         + "\n".join(lines)
     )
     cited_items = matched[:12]
+    catalog_suggested_actions = [
+        {
+            "menu_item_id": _item_id(item),
+            "name": str(item.get("name") or "Món").strip(),
+            "price_vnd": item.get("price_vnd") or item.get("price"),
+            "quantity": 1,
+            "reason": build_suggestion_reason(item, seed=_item_id(item)),
+            "requires_customer_confirmation": True,
+        }
+        for item in cited_items[:MAX_CATALOG_CART_SUGGESTIONS]
+        if _item_id(item)
+    ]
     return ChatResponse(
         content=content,
         provider_available=False,
@@ -2228,7 +2242,7 @@ def _try_catalog_fast_path(
             ]
         ),
         guardrail_flags=[],
-        suggested_cart_actions=[],
+        suggested_cart_actions=catalog_suggested_actions,
         follow_up=FollowUp(
             can_show_more=len(matched) > 12,
             remaining_count=max(len(matched) - 12, 0),

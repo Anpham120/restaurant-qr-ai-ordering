@@ -28,6 +28,12 @@ class MenuPresencePolicyTests(unittest.TestCase):
         self.assertIsNotNone(response)
         assert response is not None
         self.assertIn("Phở", response["content"])
+        # Listing an existing dish should still let the customer add it to
+        # their cart, not just read about it in prose.
+        self.assertTrue(response["suggested_cart_actions"])
+        self.assertEqual(
+            "m_001", response["suggested_cart_actions"][0]["menu_item_id"]
+        )
 
 
 if __name__ == "__main__":

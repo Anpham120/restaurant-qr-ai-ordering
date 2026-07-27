@@ -1,21 +1,21 @@
 {
   "manifest_version": "knowledge-index-v2",
-  "built_at": "2026-07-24T16:46:13.888668+00:00",
+  "built_at": "2026-07-27T13:03:58.393313+00:00",
   "document_count": 26,
   "chunk_count": 213,
-  "corpus_sha256": "0652376c5ad36ee6ffdad650a8d2cd72c77d0088e97e0563412d9b1ee568cdb0",
-  "index_sha256": "a56395c3fb8c486c9f0c061afdf2a9e55dd383f63d2aa890748a8cddbb5861bd",
+  "corpus_sha256": "37fdab90c5a421815850588818e4bb52edb1ea057fa7c8cf58fa80ef0de5cf3a",
+  "index_sha256": "244ade25b7b34fe8e752e2d8a8cc4b558d627da701318cba5e59e8efcc29081c",
   "knowledge_source_sha256": {
     "allergy-dietary.md": "523d83617909b2232f6574b5daa00d9b6756dc9e3c9abe3dade856362f2690bb",
     "allergy-disclaimer.md": "d88ed6eb79395d8862c796903f584b5d78daa3e01c64bb7cb4cbee0b64412081",
     "beverage-pairing.md": "41ed4d1df500be9258dc94d7957606bd0cae71e9ceda12914b8b094ebde7e412",
     "brand-voice.md": "d5766fb100a7f2637fe667429b5906d68113b93af0dbaa641a193b1dea62d6f1",
     "combo-pairing.md": "912db1e6643bdfc1cf58ed5e9441158755ff7994ea659c0600fb74472fae0351",
-    "context-disambiguation.md": "f2d186ae8da2f5a127ad5f4dffc027a61c4d2b4ffe74f91a99dad2b28ad2b18a",
+    "context-disambiguation.md": "01d368457821183104f68ba9a1320fe15c59cd68f8a9def31057fb7706ee3a4f",
     "cooking-methods.md": "8b926a5f6656b5e8a662d7f02bbd6f79df6fed416c2d80d084a24fc8369f7e88",
     "cross-contamination-detail.md": "32eb9ca582829d58d7adbf2f2bae5a9315e9caf97cdda8a716aa3cd55380ab8c",
     "data-mining-insights.md": "e63ec5aa7581b9846f193cffaedab0bb24961c580119b542cf12042c2dbad2f9",
-    "faq.md": "cfe70134b649966882d19aff7d19472984799d21c7f0e8b46cd1efbf3d54ab21",
+    "faq.md": "0b18a902d4545d927a18ab40061c262e345715a7a7e22c2396ead95691804e5b",
     "ingredient-nutrition.md": "c2ca5757df66c5bef409023a798e6413a0ae51bd97120e218c89352b4e3edd3e",
     "kids-elderly.md": "c82c952ef7796d928376c79d785591ee5d1b3c2282981824ee8417ee0f84421c",
     "lunch-dinner-sets.md": "def6b79618e8f798f7bd79feda2e537d5faaa0b94f5aab5ba6e0d57895fe8281",
@@ -44,7 +44,7 @@
       "ordinal"
     ]
   },
-  "git_sha": "1fc5bbd7cc2b21ecde2bcf7612d4c7aa0aa89a81",
+  "git_sha": "91fd66e01954a72f297cc029d739aaf390b77145",
   "retrieval_method": "hybrid",
   "embedding_key": "e5_small",
   "embedding_model": "intfloat/multilingual-e5-small",
@@ -53,13 +53,13 @@
   "pipeline": "v2",
   "seed": 20260713,
   "runtime": {
-    "python": "3.13.7",
+    "python": "3.12.10",
     "platform": "Windows-11-10.0.26200-SP0",
     "machine": "AMD64"
   },
   "hardware": {
-    "cpu_count": 16,
-    "processor": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "cpu_count": 8,
+    "processor": "Intel64 Family 6 Model 154 Stepping 4, GenuineIntel",
     "machine": "AMD64"
   },
   "chunks": [
@@ -3735,5 +3735,5 @@
   ],
   "validation_error_count": 0,
   "validation_errors": [],
-  "build_duration_ms": 287.2
+  "build_duration_ms": 1623.4
 }

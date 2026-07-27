@@ -172,6 +172,42 @@ class ConversationPolicyTests(unittest.TestCase):
         self.assertFalse(policy.wants_recommendations)
         self.assertFalse(policy.surface_prior_suggestion_cards)
 
+    def test_category_listing_with_recommendation_cue_still_wants_recommendations(
+        self,
+    ) -> None:
+        seafood_menu = [
+            {
+                "id": "m_101",
+                "name": "Tôm nướng muối ớt",
+                "category_name": "Hải sản",
+                "category_id": "cat_hai_san",
+                "price_vnd": 180000,
+                "is_available": True,
+            },
+            {
+                "id": "m_102",
+                "name": "Mực hấp gừng",
+                "category_name": "Hải sản",
+                "category_id": "cat_hai_san",
+                "price_vnd": 160000,
+                "is_available": True,
+            },
+        ]
+        message = "có món hải sản nào ngon không"
+        constraints = extract_constraints(message, [])
+        policy = build_conversation_policy(
+            message,
+            [],
+            "",
+            seafood_menu,
+            category=constraints.get("category"),
+        )
+
+        # The customer is both naming a category ("có món hải sản") and
+        # asking to be recommended one ("nào ngon") — the recommendation
+        # cue must win so a suggestion card is still produced.
+        self.assertTrue(policy.wants_recommendations)
+
     def test_party_of_eight_prefers_shared_dishes_in_fill(self) -> None:
         group_menu = [
             {

@@ -9,6 +9,18 @@ from app.rag.vietnamese_normalizer import normalize_query_text
 
 NUMBER_PATTERN = re.compile(r"\d[\d.,:]*")
 
+# NOTE on a mechanism deliberately NOT used here: an embedding cosine-similarity
+# fallback (multilingual-e5-small) was prototyped to rescue faithful paraphrases
+# that fail this lexical check. It was rejected after calibration: for short
+# Vietnamese claim/evidence pairs in this domain, cosine similarity did not
+# reliably separate faithful paraphrases from fabricated claims — an adversarial
+# fabricated claim ("đóng cửa lúc nửa đêm" against evidence that only states an
+# opening time) scored *higher* (0.91) than a genuine faithful paraphrase (0.87).
+# See the report for the calibration data. The actual fix for the
+# paraphrase-vs-verification contradiction is at the generation layer
+# (prompts.py) — keep claims[].text evidence-anchored, paraphrase only in the
+# customer-facing `content` field — not by loosening this verifier.
+
 
 def verify_claims(
     claims: Sequence[dict[str, Any]],
