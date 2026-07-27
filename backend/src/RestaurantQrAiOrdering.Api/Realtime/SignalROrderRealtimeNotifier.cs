@@ -60,6 +60,23 @@ public sealed class SignalROrderRealtimeNotifier : IOrderRealtimeNotifier
             cancellationToken);
     }
 
+    public async Task TableInvoicePaymentConfirmedAsync(
+        TableInvoicePaymentConfirmedEvent payload,
+        string? tableCode,
+        CancellationToken cancellationToken)
+    {
+        await hubContext.Clients
+            .Group(OrderRealtimeGroups.Operations)
+            .SendAsync(OrderRealtimeEvents.TableInvoicePaymentConfirmed, payload, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(tableCode))
+        {
+            await hubContext.Clients
+                .Group(OrderRealtimeGroups.Table(tableCode))
+                .SendAsync(OrderRealtimeEvents.TableInvoicePaymentConfirmed, payload, cancellationToken);
+        }
+    }
+
     public async Task NotifyCartUpdatedAsync(CartUpdatedEvent payload, CancellationToken cancellationToken)
     {
         await hubContext.Clients

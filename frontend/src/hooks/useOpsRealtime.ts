@@ -62,8 +62,10 @@ export function useOpsRealtime({
   }, [appRealtime, enabled]);
 
   useEffect(() => {
-    if (!enabled || connectionStatus === "connected") return;
-    const interval = window.setInterval(() => void refreshRef.current(), pollIntervalMs);
+    if (!enabled) return;
+    const interval = window.setInterval(() => {
+      void refreshRef.current();
+    }, pollIntervalMs);
     return () => window.clearInterval(interval);
   }, [connectionStatus, pollIntervalMs, enabled]);
 
