@@ -41,7 +41,7 @@ export function OpsRealtimeProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       void disconnectOrderRealtime();
     };
-  }, [loading, user?.id]);
+  }, [loading, user?.userId]);
 
   const value = useMemo(() => ({ connectionStatus }), [connectionStatus]);
   return <OpsRealtimeContext.Provider value={value}>{children}</OpsRealtimeContext.Provider>;
