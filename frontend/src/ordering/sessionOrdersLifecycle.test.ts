@@ -13,7 +13,7 @@ describe("session orders lifecycle", () => {
     expect(source).not.toContain("context, refresh");
     expect(source).toContain("getTableSessionOrders(context.sessionId, context.sessionToken)");
     expect(source).toContain("watchTableSessionRealtime(context.sessionId, context.sessionToken)");
-    expect(source).toContain("subscribeOrderRealtime(refresh)");
+    expect(source).toContain("subscribeOrderRealtime(handleRealtime)");
     expect(source).toContain("window.setInterval");
     expect(source).toContain('searchParams.get("focus") === "invoice"');
     expect(source).toContain('hubState === "ReadyForPayment"');

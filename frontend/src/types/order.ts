@@ -277,11 +277,20 @@ export type MenuAvailabilityChangedRealtimeEvent = {
   };
 };
 
+export type TableInvoicePaymentConfirmedRealtimeEvent = {
+  event: "tableInvoice.paymentConfirmed";
+  payload: {
+    invoice: TableInvoice;
+    paidAt: string;
+  };
+};
+
 export type OrderRealtimeEvent =
   | OrderCreatedRealtimeEvent
   | OrderStatusChangedRealtimeEvent
   | OrderItemStatusChangedRealtimeEvent
   | PaymentRequestedRealtimeEvent
+  | TableInvoicePaymentConfirmedRealtimeEvent
   | CartUpdatedRealtimeEvent
   | AssistanceRequestedRealtimeEvent
   | MenuAvailabilityChangedRealtimeEvent;

@@ -1,11 +1,14 @@
 namespace RestaurantQrAiOrdering.Api.Realtime;
 
+using RestaurantQrAiOrdering.Api.Tables;
+
 public static class OrderRealtimeEvents
 {
     public const string OrderCreated = "order.created";
     public const string OrderStatusChanged = "order.statusChanged";
     public const string OrderItemStatusChanged = "order.itemStatusChanged";
     public const string PaymentRequested = "payment.requested";
+    public const string TableInvoicePaymentConfirmed = "tableInvoice.paymentConfirmed";
     public const string CartUpdated = "cart.updated";
     public const string AssistanceRequested = "assistance.requested";
     public const string MenuAvailabilityChanged = "menu.availabilityChanged";
@@ -75,3 +78,7 @@ public sealed record MenuAvailabilityChangedEvent(
     string Name,
     bool IsAvailable,
     DateTimeOffset UpdatedAt);
+
+public sealed record TableInvoicePaymentConfirmedEvent(
+    TableInvoiceResponse Invoice,
+    DateTimeOffset PaidAt);

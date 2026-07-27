@@ -418,7 +418,13 @@ public static class TableInvoiceEndpoints
             }
 
             var orderRounds = await LoadOrderRoundsAsync(db, sessionId, cancellationToken);
-            return Results.Ok(CreateInvoiceResponse(invoice.TableSession, invoice, orderRounds, CreateVietQrPayload(invoice, vietQrProvider)));
+            var invoiceResponse = CreateInvoiceResponse(invoice.TableSession, invoice, orderRounds, CreateVietQrPayload(invoice, vietQrProvider));
+            await realtime.TableInvoicePaymentConfirmedAsync(
+                new TableInvoicePaymentConfirmedEvent(invoiceResponse, now),
+                invoice.TableSession.TableCode,
+                cancellationToken);
+
+            return Results.Ok(invoiceResponse);
         })
         .RequireAuthorization(policy => policy.RequireRole(UserRole.CounterStaff, UserRole.Staff, UserRole.Admin))
         .WithName("ConfirmTableInvoicePayment")

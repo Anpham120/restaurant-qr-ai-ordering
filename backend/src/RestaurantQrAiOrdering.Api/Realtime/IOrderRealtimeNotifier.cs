@@ -10,6 +10,11 @@ public interface IOrderRealtimeNotifier
 
     Task PaymentRequestedAsync(PaymentRequestedEvent payload, string? tableCode, CancellationToken cancellationToken);
 
+    Task TableInvoicePaymentConfirmedAsync(
+        TableInvoicePaymentConfirmedEvent payload,
+        string? tableCode,
+        CancellationToken cancellationToken);
+
     Task NotifyCartUpdatedAsync(CartUpdatedEvent payload, CancellationToken cancellationToken);
 
     Task NotifyAssistanceRequestedAsync(
