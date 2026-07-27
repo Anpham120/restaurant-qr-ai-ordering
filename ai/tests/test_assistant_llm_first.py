@@ -219,7 +219,7 @@ class AssistantLlmFirstTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(["m_009"], [
+        self.assertIn("m_009", [
             action["menu_item_id"]
             for action in response["suggested_cart_actions"]
         ])

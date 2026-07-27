@@ -1342,7 +1342,16 @@ def _apply_parsed_response(
         menu_items=evidence_menu_items,
     )
     context["claims"] = verified_claims
-    if not claims_verified:
+    if not claims_verified and suggested_actions:
+        # The model prose/claim can be unsafe even when the returned cards are
+        # valid live-menu records. Replace only the unsafe model claim with
+        # deterministic menu evidence; do not discard a safe result.
+        content = format_grounded_recommendation_content(suggested_actions)
+        context["claims"] = _claims_from_menu_actions(suggested_actions)
+        merged_flags = _dedupe(
+            [*merged_flags, "MODEL_CLAIM_REPLACED_WITH_LIVE_MENU_EVIDENCE"]
+        )
+    elif not claims_verified:
         content = (
             "Mình chưa đủ bằng chứng để xác nhận câu trả lời đó. "
             "Bạn có thể nói rõ món/thông tin cần kiểm tra, hoặc nhờ nhân viên xác nhận giúp."
