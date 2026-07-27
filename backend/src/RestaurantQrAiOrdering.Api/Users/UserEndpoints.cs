@@ -5,7 +5,7 @@ namespace RestaurantQrAiOrdering.Api.Users;
 
 public static class UserEndpoints
 {
-    private static readonly string[] AssignableRoles = UserRole.All;
+    private static readonly string[] AssignableRoles = UserRole.AdminAssignable;
 
     public static IEndpointRouteBuilder MapUserEndpoints(this IEndpointRouteBuilder app)
     {
@@ -118,6 +118,13 @@ public static class UserEndpoints
                 return AuthApiResults.NotFound("USER_NOT_FOUND", "User account was not found.");
             }
 
+            if (result.Outcome == DeleteUserOutcome.HasDependencies)
+            {
+                return AuthApiResults.Conflict(
+                    "USER_HAS_DEPENDENCIES",
+                    "Cannot delete this account because it is referenced by counter shift history. Reassign or close shifts first.");
+            }
+
             var logger = loggerFactory.CreateLogger("RestaurantQrAiOrdering.Api.Users.UserEndpoints");
             logger.LogInformation("Admin deleted a user account.");
             return Results.NoContent();
@@ -177,7 +184,7 @@ public static class UserEndpoints
 
         if (string.IsNullOrWhiteSpace(request.Role) || !IsAssignableRole(request.Role, roleCatalog))
         {
-            return AuthApiResults.BadRequest("ROLE_INVALID", "Role must be Staff, Kitchen, or Admin.");
+            return AuthApiResults.BadRequest("ROLE_INVALID", "Role must be Admin, CounterStaff, or Kitchen.");
         }
 
         return null;

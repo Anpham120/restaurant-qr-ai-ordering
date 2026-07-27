@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { TableFloorRow } from "./floorMapUtils";
 import { ArrowLeft, X } from "lucide-react";
 import { TableQrCode } from "../qr/TableQrCode";
+import { buildTableOrdersLink } from "../../components/operations/opsDeepLinkUtils";
 import { buildOrderingLink } from "../../utils/tableOrderingLink";
 import "../operations/operations.css";
 import "./floor-map.css";
@@ -195,7 +196,10 @@ export function TableDetailDrawer({
                   Quầy thu ngân
                 </Link>
               ) : null}
-              <Link className="ops-btn ops-btn--ghost" to={`/orders?tab=kanban&table=${table.tableCode}`}>
+              <Link
+                className="ops-btn ops-btn--ghost"
+                to={`${buildTableOrdersLink(table.tableCode)}?name=${encodeURIComponent(table.displayName)}`}
+              >
                 Xem đơn bàn
               </Link>
             </div>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCounterPaymentsLink,
   buildOrdersKanbanLink,
+  buildTableOrdersLink,
   matchesTableFilter,
   normalizeTableCode,
 } from "./opsDeepLinkUtils";
@@ -30,5 +31,10 @@ describe("opsDeepLinkUtils", () => {
   it("builds orders kanban link with optional table filter", () => {
     expect(buildOrdersKanbanLink()).toBe("/orders?tab=kanban");
     expect(buildOrdersKanbanLink("T12")).toBe("/orders?tab=kanban&table=T12");
+  });
+
+  it("builds table-scoped orders page link", () => {
+    expect(buildTableOrdersLink()).toBe("/tables");
+    expect(buildTableOrdersLink(" t01 ")).toBe("/tables/T01/orders");
   });
 });

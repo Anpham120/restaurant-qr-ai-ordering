@@ -22,6 +22,7 @@ import { MenuHubPage } from "../../../src/pages/admin/MenuHubPage";
 import { OrdersHubPage } from "../../../src/pages/admin/OrdersHubPage";
 import { RoleLandingPage } from "../../../src/pages/admin/RoleLandingPage";
 import { TableHubPage } from "../../../src/pages/admin/TableHubPage";
+import { TableOrdersPage } from "../../../src/pages/admin/TableOrdersPage";
 import { AdminUserManagementPage } from "../../../src/pages/admin/AdminUserManagementPage";
 import { AdminPromotionsPage } from "../../../src/pages/admin/AdminPromotionsPage";
 import { AdminLoyaltyPage } from "../../../src/pages/admin/AdminLoyaltyPage";
@@ -161,6 +162,7 @@ const router = createBrowserRouter([
       { path: "reports", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminReportsPage /></ProtectedRoute> },
       { path: "access", element: <Navigate to="/users" replace /> },
       { path: "sessions", element: <Navigate to="/tables?tab=sessions" replace /> },
+      { path: "tables/:tableCode/orders", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><TableOrdersPage /></ProtectedRoute> },
       { path: "tables", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><TableHubPage /></ProtectedRoute> },
       { path: "users", element: <ProtectedRoute allowedRoles={["Admin"]}><AdminUserManagementPage /></ProtectedRoute> },
       { path: "counter", element: <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff"]}><CounterHubPage /></ProtectedRoute> },
