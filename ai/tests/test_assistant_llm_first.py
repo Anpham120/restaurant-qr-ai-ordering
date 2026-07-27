@@ -102,6 +102,26 @@ class _OrdinalRecommendationClient:
         )
 
 
+class _UnsafeClaimRecommendationClient:
+    async def complete(self, _messages: list[dict[str, str]]) -> str:
+        return json.dumps(
+            {
+                "content": "Phở gà ta có giá 1 đồng.",
+                "suggested_cart_actions": [
+                    {"menu_item_id": "m_009", "name": "Phở gà ta", "quantity": 1},
+                ],
+                "claims": [
+                    {
+                        "text": "Phở gà ta có giá 1 đồng.",
+                        "evidence_ids": ["m_009"],
+                    }
+                ],
+                "guardrail_flags": [],
+            },
+            ensure_ascii=False,
+        )
+
+
 def _menu() -> list[dict]:
     return [
         {
@@ -182,6 +202,35 @@ def _llm_first_config(*, llm_first: bool = True) -> AiServiceConfig:
 
 
 class AssistantLlmFirstTests(unittest.TestCase):
+    def test_grounded_recommendation_survives_an_unverified_model_claim(self) -> None:
+        service = AiAssistantService(
+            _llm_first_config(),
+            llm_client=_UnsafeClaimRecommendationClient(),
+        )
+
+        response = asyncio.run(
+            service.chat(
+                {
+                    "message": "goi y mon pho",
+                    "history": [],
+                    "menu_items": _ordinal_menu(),
+                    "table_code": "T01",
+                }
+            )
+        )
+
+        self.assertEqual(["m_009"], [
+            action["menu_item_id"]
+            for action in response["suggested_cart_actions"]
+        ])
+        self.assertIn("70.000", response["content"])
+        self.assertNotIn("EVIDENCE_INSUFFICIENT", response["guardrail_flags"])
+        self.assertIn(
+            "MODEL_CLAIM_REPLACED_WITH_LIVE_MENU_EVIDENCE",
+            response["guardrail_flags"],
+        )
+        self.assertTrue(all(claim["verified"] for claim in response["claims"]))
+
     def test_price_for_second_suggested_dish_uses_second_item_in_order(self) -> None:
         service = AiAssistantService(
             _llm_first_config(),
