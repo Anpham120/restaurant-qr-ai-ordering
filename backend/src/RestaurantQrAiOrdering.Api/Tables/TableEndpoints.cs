@@ -386,10 +386,20 @@ public static partial class TableEndpoints
                     await db.SaveChangesAsync(cancellationToken);
                 }
 
-                return ApiErrorFactory.Result(
-                    StatusCodes.Status410Gone,
-                    "TABLE_SESSION_INACTIVE",
-                    "Table session is closed or expired. Please scan QR again.");
+                var hasSettledInvoice = await db.TableInvoices
+                    .AsNoTracking()
+                    .AnyAsync(
+                        invoice =>
+                            invoice.TableSessionId == tableSession.Id &&
+                            (invoice.Status == PaymentStatus.Confirmed || invoice.Status == PaymentStatus.Paid),
+                        cancellationToken);
+                if (!hasSettledInvoice)
+                {
+                    return ApiErrorFactory.Result(
+                        StatusCodes.Status410Gone,
+                        "TABLE_SESSION_INACTIVE",
+                        "Table session is closed or expired. Please scan QR again.");
+                }
             }
 
             var orders = await db.Orders

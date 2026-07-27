@@ -15,6 +15,7 @@ let connectionStatus: RealtimeConnectionStatus = "disconnected";
  * - order.statusChanged
  * - order.itemStatusChanged
  * - payment.requested
+ * - tableInvoice.paymentConfirmed
  * - cart.updated
  * - assistance.requested
  * - menu.availabilityChanged (reserved; may not be emitted on all deployments)
@@ -26,6 +27,23 @@ const client = createOrderHubClient({
     onOrderStatusChanged: payload => notifyRealtimeListeners({ event: "order.statusChanged", payload }),
     onOrderItemStatusChanged: payload => notifyRealtimeListeners({ event: "order.itemStatusChanged", payload }),
     onPaymentRequested: payload => notifyRealtimeListeners({ event: "payment.requested", payload }),
+    onTableInvoicePaymentConfirmed: payload =>
+      notifyRealtimeListeners({
+        event: "tableInvoice.paymentConfirmed",
+        payload: {
+          invoice: {
+            ...payload.invoice,
+            status: payload.invoice.status as import("../types").PaymentStatus,
+            method: payload.invoice.method as import("../types").PaymentMethod,
+            orderRounds: payload.invoice.orderRounds.map(round => ({
+              ...round,
+              status: round.status as import("../types").OrderStatus,
+            })),
+            vietQr: payload.invoice.vietQr as import("../types").TableInvoice["vietQr"],
+          },
+          paidAt: payload.paidAt,
+        },
+      }),
     onCartUpdated: payload => notifyRealtimeListeners({ event: "cart.updated", payload }),
     onAssistanceRequested: payload => notifyRealtimeListeners({ event: "assistance.requested", payload }),
     onMenuAvailabilityChanged: payload => notifyRealtimeListeners({ event: "menu.availabilityChanged", payload }),

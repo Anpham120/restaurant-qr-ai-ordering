@@ -23,11 +23,32 @@ export type MenuAvailabilityChangedEvent = {
   updatedAt: string;
 };
 
+/** Backend event: tableInvoice.paymentConfirmed */
+export type TableInvoicePaymentConfirmedEvent = {
+  invoice: {
+    tableSessionId: string;
+    invoiceCode: string | null;
+    tableCode: string | null;
+    status: string;
+    subtotalAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    promotionCode: string | null;
+    customerPhoneNumber: string | null;
+    method: string;
+    orderRounds: Array<{ orderCode: string; status: string; subtotalAmount: number; createdAt: string }>;
+    items: Array<{ menuItemId: string; name: string; unitPrice: number; quantity: number; lineTotal: number }>;
+    vietQr: unknown;
+  };
+  paidAt: string;
+};
+
 export type OrderRealtimeHandlers = {
   onOrderCreated?: (event: OrderCreatedEvent) => void;
   onOrderStatusChanged?: (event: OrderStatusChangedEvent) => void;
   onOrderItemStatusChanged?: (event: OrderItemStatusChangedEvent) => void;
   onPaymentRequested?: (event: PaymentRequestedEvent) => void;
+  onTableInvoicePaymentConfirmed?: (event: TableInvoicePaymentConfirmedEvent) => void;
   onCartUpdated?: (event: CartUpdatedEvent) => void;
   onAssistanceRequested?: (event: AssistanceRequestedEvent) => void;
   onMenuAvailabilityChanged?: (event: MenuAvailabilityChangedEvent) => void;
@@ -64,6 +85,7 @@ export function createOrderHubClient(options: { hubUrl?: string; accessTokenFact
     connection.on("order.statusChanged", event => handlers.onOrderStatusChanged?.(event));
     connection.on("order.itemStatusChanged", event => handlers.onOrderItemStatusChanged?.(event));
     connection.on("payment.requested", event => handlers.onPaymentRequested?.(event));
+    connection.on("tableInvoice.paymentConfirmed", event => handlers.onTableInvoicePaymentConfirmed?.(event));
     connection.on("cart.updated", event => handlers.onCartUpdated?.(event));
     connection.on("assistance.requested", event => handlers.onAssistanceRequested?.(event));
     connection.on("menu.availabilityChanged", event => handlers.onMenuAvailabilityChanged?.(event));
