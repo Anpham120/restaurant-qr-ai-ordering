@@ -117,6 +117,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<OrderListResponse>(`/table-sessions/${encodeURIComponent(sessionId)}/orders`, {
           headers: { "X-Table-Session-Token": sessionToken },
         }),
+      requestAssistance: (sessionId: string, sessionToken: string, payload: { note?: string | null } = {}) =>
+        request<{ ok: boolean; tableCode: string }>(
+          `/table-sessions/${encodeURIComponent(sessionId)}/assistance`,
+          {
+            method: "POST",
+            headers: { "X-Table-Session-Token": sessionToken },
+            body: JSON.stringify(payload),
+          },
+        ),
       closeSession: (sessionId: string) =>
         request<TableSession>(`/table-sessions/${encodeURIComponent(sessionId)}/close`, { method: "POST" }),
     },

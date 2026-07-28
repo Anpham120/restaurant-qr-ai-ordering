@@ -3,6 +3,7 @@ import { LanguageSwitcher, useI18n } from "@cmc/i18n";
 import { NavLink, Outlet, useParams } from "react-router-dom";
 import { OrderingSessionProvider, useOrderingSession, useOrderingSessionBoundary } from "./OrderingSessionProvider";
 import { orderingNavigation } from "./orderingRoutes";
+import { OrderingCallStaffFab } from "./OrderingCallStaffFab";
 import "./ordering-layout.css";
 
 type UnavailableSessionState = "missing" | "invalid" | "expired" | "error";
@@ -63,6 +64,7 @@ function OrderingShell() {
           ))}
         </nav>
       </div>
+      <OrderingCallStaffFab />
       <main className="ordering-main"><Outlet /></main>
     </div>
   );

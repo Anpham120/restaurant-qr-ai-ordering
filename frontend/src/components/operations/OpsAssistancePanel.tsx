@@ -24,8 +24,9 @@ export function OpsAssistancePanel({
           {items.map((item) => (
             <li key={item.id}>
               <Link to={`/tables?tab=sessions&table=${encodeURIComponent(item.tableCode)}`}>
-                Bàn {item.tableCode}
-                {item.note ? ` · ${item.note}` : ""}
+                Bàn {item.tableCode} · yêu cầu gọi nhân viên
+                {item.note && item.note !== "Yêu cầu gọi nhân viên" ? ` (${item.note})` : ""}
+                <small>{new Date(item.requestedAt).toLocaleTimeString("vi-VN")}</small>
               </Link>
             </li>
           ))}

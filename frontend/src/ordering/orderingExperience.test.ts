@@ -48,4 +48,12 @@ describe("ordering experience", () => {
     expect(cart).toContain("Tổng sau khi gửi");
     expect(cart).toContain("summary.projectedTotal");
   });
+
+  it("exposes call-staff from the ordering shell", () => {
+    const orderingLayout = read("./OrderingLayout.tsx");
+    const orderService = read("../services/orderService.ts");
+
+    expect(orderingLayout).toContain("OrderingCallStaffFab");
+    expect(orderService).toContain("requestTableAssistance");
+  });
 });
