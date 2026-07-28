@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# LLM_RATE_LIMIT_FALLBACK_MODEL is deliberately absent from required_vars: a
+# single-model deployment has no fallback, and the loop below rejects empty
+# values, so listing it would force naming a model that is never called.
+#
+# Keep this note outside the array.  frontend/src/utils/deploymentWorkflowEnv.test.ts
+# extracts the required_vars block and splits it on whitespace to check that both
+# deploy workflows supply every name, so a comment inside the parentheses becomes
+# a list of bogus variable names — bash ignores it, that test does not.
 required_vars=(
   DEPLOY_ENV
   SSH_HOST
@@ -26,9 +34,6 @@ required_vars=(
   LLM_PROVIDER
   LLM_API_KEY
   LLM_MODEL
-  # LLM_RATE_LIMIT_FALLBACK_MODEL is deliberately absent: a single-model
-  # deployment has no fallback, and the required-vars loop below rejects empty
-  # values, so listing it would force naming a model that is never called.
   LLM_RATE_LIMIT_FALLBACK_ENABLED
   AI_PIPELINE_PROFILE
 )
