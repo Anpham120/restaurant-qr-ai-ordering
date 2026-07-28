@@ -106,9 +106,11 @@ cùng bộ dữ liệu và cùng điều kiện kiểm soát.
 - **Thí nghiệm âm tính:** thay kiểm chứng khẳng định bằng độ tương đồng nhúng **không khả thi** —
   khoảng cosine của nhóm khẳng định bịa chồng lấn hoàn toàn với nhóm diễn đạt đúng, đặc biệt với
   lỗi sai số liệu. Phương án bị loại bỏ có căn cứ.
-- **Pipeline profile:** cả ba vượt cổng an toàn; `evidence_first_v2` và `planner_state_v3` hoà ở
-  chất lượng nghiêm ngặt (1,0000), phá hoà bằng độ chính xác ngữ cảnh — `planner_state_v3` thắng
-  với 0,9151 so với 0,8469, đánh đổi bằng độ trễ p95 cao hơn 2,3 lần (42.159 ms so với 18.017 ms).
+- **Pipeline profile:** cả ba vượt cổng an toàn, nên tiêu chí quyết định là chất lượng nghiêm
+  ngặt — `evidence_first_v2` đạt 1,0000 so với 0,9623 và 0,8627, và thắng ngay ở tiêu chí này mà
+  không cần xét tiếp. Nó đồng thời rẻ nhất: p95 = 27.234 ms (so với 37.411 ms của
+  `planner_state_v3`), 1,96 lượt gọi mô hình sinh mỗi câu, và 0% lệch giữa các lần chạy lại. Độ
+  chính xác ngữ cảnh chỉ kém profile dẫn đầu tiêu chí đó 0,0069 — chưa tới một case.
 - **An toàn:** toàn bộ chỉ số an toàn đạt tuyệt đối — nhận diện cờ nguy hiểm 1,0000, tỷ lệ gợi ý
   món bị cấm 0,0000, dị ứng fail-closed 50/50, giữ ngữ cảnh 1200/1200 lượt.
 
@@ -619,7 +621,7 @@ xuyên suốt mọi thực nghiệm trong Chương 4.
 
 | Biến cấu hình | Giá trị cố định | Vì sao ảnh hưởng kết quả |
 |---|---|---|
-| `pipeline_profile` | `planner_state_v3` | Quyết định đường tất định nào được bật |
+| `pipeline_profile` | `evidence_first_v2` | Quyết định đường tất định nào được bật |
 | `LLM_MODEL` | `cx/gpt-5.6-luna-review` | Mô hình khác nhau có hành vi khác nhau ở cùng prompt |
 | `retrieval_method` | `hybrid` | Quyết định bằng chứng nào tới được tầng sinh |
 | `embedding_model` | `e5_small` | Như trên |
@@ -951,9 +953,9 @@ Cả ba vượt cổng an toàn → chuyển sang tiêu chí tiếp theo.
 
 | Profile | Chất lượng nghiêm ngặt | Độ chính xác ngữ cảnh | p95 (ms) | Số lần gọi LLM TB |
 |---|---:|---:|---:|---:|
-| `llm_first_v1` | 0,8824 | 0,8529 | 20.503 | 2,12 |
-| `evidence_first_v2` | **1,0000** | 0,8469 | **18.017** | **2,08** |
-| `planner_state_v3` | **1,0000** | **0,9151** | 42.159 | 2,38 |
+| `llm_first_v1` | 0,8627 | 0,9118 | 28.937 | 2,00 |
+| `evidence_first_v2` | **1,0000** | 0,9082 | **27.234** | **1,96** |
+| `planner_state_v3` | 0,9623 | **0,9151** | 37.411 | 2,26 |
 
 ![Hình 4.8: Ba pipeline profile trên ba trục — chất lượng, ngữ cảnh, độ trễ](figures/hinh17_1.png)
 
@@ -962,21 +964,32 @@ Cả ba vượt cổng an toàn → chuyển sang tiêu chí tiếp theo.
 **Áp dụng thứ tự tiêu chí:**
 
 - Bước 1 — cổng an toàn: 3/3 profile vượt qua.
-- Bước 2 — chất lượng nghiêm ngặt cao nhất = 1,0000: `evidence_first_v2` và `planner_state_v3`
-  hoà nhau.
-- Bước 3 — phá hoà bằng độ chính xác ngữ cảnh: `planner_state_v3` với 0,9151 so với 0,8469, chênh
-  lệch **+0,0682** (+8,1% tương đối).
+- Bước 2 — chất lượng nghiêm ngặt cao nhất: `evidence_first_v2` đạt **1,0000**, so với 0,9623 của
+  `planner_state_v3` và 0,8627 của `llm_first_v1`. Không có hoà, nên tiêu chí này quyết định luôn.
+- Bước 3–5 (ngữ cảnh, p95, số lượt gọi LLM) **không cần xét** vì bước 2 đã phân định. Ghi lại để
+  đối chiếu: profile thắng cũng đồng thời có p95 thấp nhất (27.234 ms) và số lượt gọi mô hình sinh
+  ít nhất (1,96), nên lựa chọn không phải đánh đổi giữa chất lượng và chi phí.
 
-**Kết luận: `planner_state_v3` được chọn.**
+**Kết luận: `evidence_first_v2` được chọn.**
 
 ### 4.7.4 Đánh đổi
 
-Cái giá của lựa chọn này là độ trễ: p95 = 42.159 ms, **gấp 2,34 lần** profile nhanh nhất
-(`evidence_first_v2` với 18.017 ms), và số lần gọi LLM trung bình cao hơn (2,38 so với 2,08).
+Điểm duy nhất profile thắng không dẫn đầu là độ chính xác ngữ cảnh: 0,9082 so với 0,9151 của
+`planner_state_v3`. Chênh lệch **0,0069** — trên cỡ mẫu của thực nghiệm này, nhỏ hơn một case, nên
+không đủ căn cứ để coi là khác biệt thực chất.
 
-Đây là đánh đổi có ý thức: tầng semantic planner thêm một lượt gọi mô hình để hiểu ngữ cảnh trước
-khi sinh câu trả lời, đổi lấy độ chính xác ngữ cảnh cao hơn rõ rệt. Với bài toán tư vấn nhiều
-lượt, hiểu đúng ngữ cảnh là yếu tố quyết định chất lượng trải nghiệm.
+Khoảng chênh này ban đầu lớn hơn nhiều (0,8469 so với 0,9151) và truy nguyên được về một điểm
+trong thiết kế: việc ghi lại *món đang được nói đến* trong khung hội thoại chỉ được thực hiện khi
+profile là `planner_state_v3`. Hai profile còn lại trả lời đúng câu hỏi tham chiếu thứ tự ("món thứ
+hai giá bao nhiêu?") nhưng không lưu lại tham chiếu, nên lượt sau mất ngữ cảnh. Theo dõi tham chiếu
+hiện hành là trạng thái hội thoại chung, không phải chức năng riêng của tầng lập kế hoạch; sau khi
+chuyển việc ghi khung sang áp dụng cho mọi profile, độ chính xác ngữ cảnh của `evidence_first_v2`
+tăng từ 0,8469 lên 0,9082 và khoảng chênh gần như biến mất.
+
+Kết quả là phương án được chọn đạt chất lượng nghiêm ngặt tuyệt đối, ngữ cảnh ngang bằng, đồng thời
+nhanh hơn 27% và tốn ít lượt gọi mô hình hơn. Nó cũng là profile duy nhất có tỷ lệ lệch giữa các
+lần chạy lại bằng 0 — thuộc tính quan trọng cho một hệ thống phục vụ khách, vì cùng một câu hỏi cần
+cho ra cùng một câu trả lời.
 
 **Giới hạn.** Bộ case cho thực nghiệm này nhỏ, và độ trễ đo qua gateway nên chịu ảnh hưởng của
 mạng. Con số p95 tuyệt đối cần được xác nhận lại bằng kiểm thử tải trên môi trường staging trước
@@ -1196,7 +1209,7 @@ thực tế**. Việc soát lại thủ công toàn bộ đáp án mẫu vẫn n
 | Kiểm chứng khẳng định | Số cứng + chồng lấp từ vựng | Mục 4.5: cosine nhúng không tách được hai nhóm |
 | Câu hỏi có đáp án xác định | Đường tất định | Mục 4.4: đúng nội dung hơn, nhanh hơn 2,5–3× |
 | Mô hình sinh | `cx/gpt-5.6-luna-review` | Mục 4.6: chất lượng tương đương, đáp ứng structured output |
-| Pipeline profile | `planner_state_v3` | Mục 4.7: vượt cổng an toàn, dẫn đầu ngữ cảnh (+0,0682) |
+| Pipeline profile | `evidence_first_v2` | Mục 4.7: vượt cổng an toàn, chất lượng nghiêm ngặt tuyệt đối (1,0000), p95 thấp nhất |
 
 **Sáu kết luận chính:**
 
@@ -1215,8 +1228,12 @@ thực tế**. Việc soát lại thủ công toàn bộ đáp án mẫu vẫn n
    độc lập cùng dẫn tới kết luận này từ hai hướng: mục 4.4 (đường tất định vượt trội chỉ dẫn
    prompt) và mục 4.5 (cosine nhúng không thay được kiểm tra số).
 
-5. **Hiểu ngữ cảnh đáng giá độ trễ.** `planner_state_v3` được chọn dù p95 gấp 2,34 lần, vì độ
-   chính xác ngữ cảnh cao hơn 8,1% tương đối — yếu tố quyết định với bài toán tư vấn nhiều lượt.
+5. **Một khoảng chênh chỉ số có thể là khuyết điểm thiết kế, không phải giới hạn của phương án.**
+   `evidence_first_v2` ban đầu kém ngữ cảnh 6,8 điểm, và toàn bộ khoảng chênh đến từ một case: nó
+   trả lời đúng nhưng không ghi lại tham chiếu hội thoại, vì việc ghi khung bị gắn cứng vào một
+   profile duy nhất. Sau khi đưa việc ghi khung thành hành vi chung, khoảng chênh còn 0,0069 và
+   profile này thắng ở cả chất lượng, độ trễ lẫn chi phí gọi mô hình. Bài học: trước khi kết luận
+   một phương án yếu ở chiều nào, cần truy khoảng chênh về từng case cụ thể.
 
 6. **An toàn đạt tuyệt đối, chất lượng còn dư địa.** Mọi chỉ số an toàn đạt 1,0000 hoặc 0,0000
    theo đúng chiều mong muốn; chỉ số chất lượng ở mức trung bình khá và là nơi cần cải thiện tiếp.
@@ -1348,9 +1365,9 @@ thực tế**. Việc soát lại thủ công toàn bộ đáp án mẫu vẫn n
   khi thấy số, gần như luôn có thể biện minh cho bất kỳ profile nào. Ở đây cổng an toàn là điều
   kiện nhị phân xét trước, các tiêu chí sau xét theo thứ tự đã cam kết.
 
-- **Đánh đổi độ trễ là quyết định có ý thức.** `planner_state_v3` có p95 gấp 2,34 lần
-  `evidence_first_v2`, nhưng độ chính xác ngữ cảnh cao hơn 8,1% tương đối. Với bài toán tư vấn
-  nhiều lượt, hiểu đúng ngữ cảnh là yếu tố quyết định.
+- **Phương án được chọn không phải một đánh đổi.** `evidence_first_v2` dẫn đầu chất lượng nghiêm
+  ngặt (1,0000), p95 (27.234 ms) và số lượt gọi mô hình (1,96) cùng lúc, và là profile duy nhất có
+  tỷ lệ lệch giữa các lần chạy lại bằng 0. Nó chỉ kém 0,0069 về ngữ cảnh — dưới một case.
 
 - **Bài học:** bốn hạn chế nghiêm trọng nhất của đồ án đều thuộc về **phép đo**, không phải hệ
   thống. Điều này định hướng công việc tiếp theo: củng cố thước đo trước khi tối ưu hệ thống, vì
@@ -1365,7 +1382,7 @@ thực tế**. Việc soát lại thủ công toàn bộ đáp án mẫu vẫn n
 | Chưa có đánh giá của người thật | Chỉ số chất lượng hoàn toàn tự động; chưa biết khách thật cảm nhận ra sao | Cao |
 | Đáp án mẫu chưa soát thủ công hết | Đã tinh chỉnh sang mức từng câu bằng metadata người soạn (mục 4.10), nhưng chỉ 68/221 đoạn KB có `question_variants` nên phần còn lại vẫn giữ đáp án theo họ → chỉ số vẫn thấp hơn thực tế | Trung bình |
 | Cỡ mẫu nhỏ ở thực nghiệm cần LLM | Chênh 1–2 case đổi 5–10 điểm phần trăm; không đủ lực thống kê | Cao |
-| Chưa kiểm thử tải trên staging | p95 = 42.159 ms đo đơn luồng; chưa biết dưới tải đồng thời | Cao |
+| Chưa kiểm thử tải trên staging | p95 = 27.234 ms đo đơn luồng; chưa biết dưới tải đồng thời | Cao |
 | Tập test đóng băng chưa mở | Mọi số liệu trên tập dev → ước lượng lạc quan nhẹ | Trung bình |
 | Chạy một mô hình, không fallback | Gateway sự cố thì mất khả dụng phần sinh văn bản | Trung bình |
 | Chưa đo hiệu chuẩn độ tin cậy | Chưa biết ngưỡng từ chối trả lời có tối ưu không | Thấp |
@@ -1377,7 +1394,7 @@ thực tế**. Việc soát lại thủ công toàn bộ đáp án mẫu vẫn n
 | Không bịa món / bịa giá | `forbidden_suggestion_rate = 0` trên 234 case + kiểm tra số cứng | Đo trên tập soạn sẵn; chưa có dữ liệu lưu lượng thật |
 | Không tự thêm vào giỏ | Mọi thẻ mang cờ yêu cầu xác nhận; kiểm tra trong bộ test | Ràng buộc ở tầng API; chưa kiểm thử xuyên suốt tới giao diện |
 | Dị ứng fail-closed | 50/50 kịch bản phiên mở rộng đạt | Kịch bản mô phỏng theo khuôn mẫu, không phải hội thoại tự do |
-| Ổn định độ trễ | p95 truy hồi 100 ms; p95 toàn pipeline 42.159 ms | Đo đơn luồng cục bộ; **chưa** kiểm thử tải staging |
+| Ổn định độ trễ | p95 truy hồi 100 ms; p95 toàn pipeline 27.234 ms | Đo đơn luồng cục bộ; **chưa** kiểm thử tải staging |
 
 **Lưu ý cách đọc chỉ số an toàn.** Các chỉ số an toàn là *recall trên tập kiểm thử có chủ đích*,
 không phải precision trên lưu lượng thật. Tập kiểm thử được soạn để chứa các tình huống nguy
@@ -1413,9 +1430,10 @@ hiểm; lưu lượng thật có phân bố khác hẳn. Giá trị 1,0000 nghĩ
    các lượt để tránh bị chặn, khiến một vòng đo mất 20–40 phút. Đây là lý do cỡ mẫu của các thực
    nghiệm này bị giới hạn ở khoảng 20 câu.
 
-2. **Độ trễ cao của tầng semantic planner.** p95 = 42.159 ms là con số lớn với trải nghiệm hội
-   thoại. Nhóm quyết định vẫn chọn profile này vì độ chính xác ngữ cảnh, nhưng ghi nhận đây là rủi
-   ro cần xác nhận bằng kiểm thử tải.
+2. **Độ trễ tuyệt đối vẫn cao.** p95 = 27.234 ms là con số lớn với trải nghiệm hội thoại, dù đây
+   đã là profile nhanh nhất trong ba phương án. Phần lớn thời gian nằm ở lượt gọi mô hình sinh qua
+   gateway, nên hướng cải thiện là giảm tỷ lệ câu phải đi qua bước sinh — mở rộng các đường tất
+   định — hơn là tối ưu bản thân lời gọi. Cần xác nhận bằng kiểm thử tải trên staging.
 
 3. **Đảm bảo tính tái lập của artifact.** Một số artifact có thể bị ghi đè bởi các quy trình khác
    với lược đồ khác nhau. Nhóm phải thiết lập nguyên tắc luôn tái tạo artifact ngay trước khi đọc,

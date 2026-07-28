@@ -59,7 +59,7 @@ md(
 > mã tạo ra nó. Nếu một artifact vắng mặt, ô mã báo lỗi rõ ràng thay vì âm thầm dùng số cũ.
 
 > **Điều kiện kiểm soát.** Toàn bộ kết quả đo dưới một cấu hình runtime duy nhất:
-> `pipeline_profile = planner_state_v3`, `LLM_MODEL = cx/gpt-5.6-luna-review`,
+> `pipeline_profile = evidence_first_v2`, `LLM_MODEL = cx/gpt-5.6-luna-review`,
 > `RAG_RETRIEVAL_METHOD = hybrid`, `AI_EMBEDDING_MODEL = e5_small`. Artifact đo dưới cấu hình
 > khác **không** so sánh trực tiếp được với số trong báo cáo này; mục 13 trình bày cách kiểm
 > chứng điều kiện đo.
@@ -2170,9 +2170,11 @@ if con_lai:
 md(
     "#### Nhận xét — Mục 17\n\n"
     + narrative(
-        "Cả ba profile vượt toàn bộ cổng an toàn. Hai profile hoà nhau ở chất lượng nghiêm ngặt, "
-        "và tiêu chí phá hoà là độ chính xác ngữ cảnh — nơi `planner_state_v3` dẫn đầu rõ rệt. "
-        "Cái giá là độ trễ p95 cao hơn nhiều lần.",
+        "Cả ba profile vượt toàn bộ cổng an toàn, nên tiêu chí quyết định là chất lượng nghiêm "
+        "ngặt — nơi `evidence_first_v2` đạt điểm tuyệt đối, cao hơn hai profile còn lại. Nó đồng "
+        "thời rẻ hơn: p95 thấp nhất, ít lượt gọi mô hình sinh nhất, và không lệch giữa các lần "
+        "chạy lại. Độ chính xác ngữ cảnh gần như bằng profile dẫn đầu ở tiêu chí đó, chênh dưới "
+        "một case.",
         "Việc cố định thứ tự tiêu chí *trước* khi xem số là điều làm kết luận này đáng tin: nếu "
         "chọn tiêu chí sau khi thấy kết quả, gần như luôn có thể biện minh cho bất kỳ profile nào. "
         "Ở đây tiêu chí an toàn là cổng nhị phân, còn các tiêu chí sau xét theo thứ tự cố định.",
@@ -2188,8 +2190,9 @@ md(
 
 **Bốn kết quả.** (1) Điều kiện đo được cố định và ghi lại đầy đủ. (2) Với nhóm câu hỏi có đáp án
 xác định, đường tất định vượt trội đường qua mô hình sinh. (3) Độ tương đồng nhúng **không** thay
-được kiểm tra số trong bộ kiểm chứng. (4) Trong ba profile, `planner_state_v3` thắng theo thứ tự
-tiêu chí đã cố định trước.
+được kiểm tra số trong bộ kiểm chứng. (4) Trong ba profile, `evidence_first_v2` thắng theo thứ tự
+tiêu chí đã cố định trước — đạt chất lượng nghiêm ngặt tuyệt đối với độ trễ và chi phí gọi mô
+hình thấp nhất.
 
 **Nguyên tắc chung rút ra từ mục 14 và 15.** Thuộc tính nào cần đảm bảo chắc chắn thì phải được
 thực thi bằng cơ chế tất định; các cơ chế "mềm" (chỉ dẫn prompt, độ tương đồng ngữ nghĩa) phù
