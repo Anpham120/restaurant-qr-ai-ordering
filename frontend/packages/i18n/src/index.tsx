@@ -121,6 +121,8 @@ export const EN_COPY: Record<string, string> = {
   "Gọi nhân viên": "Call staff",
   "Gọi nhân viên hỗ trợ": "Ask a staff member for help",
   "Gọi nhân viên ngay": "Call staff now",
+  "Yêu cầu gọi nhân viên": "Request staff assistance",
+  "Đã gọi nhân viên": "Staff notified",
   "Gợi ý cần xác nhận": "Suggestion awaiting confirmation",
   "Gợi ý món": "Dish suggestions",
   "Gợi ý nhanh": "Quick suggestions",

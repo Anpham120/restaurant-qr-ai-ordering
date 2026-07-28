@@ -4,7 +4,7 @@ import { subscribeOrderRealtime } from "../../services/realtimeOrderService";
 import type { OrderRealtimeEvent } from "../../types";
 import { useOpsAssistance } from "./OpsAssistanceProvider";
 import { useOpsNavBadges } from "./OpsNavBadgesProvider";
-import { buildCounterPaymentsLink, buildOrdersKanbanLink } from "./opsDeepLinkUtils";
+import { buildCounterPaymentsLink, buildOrdersKanbanLink, buildTableOrdersLink } from "./opsDeepLinkUtils";
 import "./operations.css";
 
 type OpsToast = {
@@ -51,15 +51,19 @@ export function OpsToastProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (event.event === "order.created") {
-        pushToast(label, buildOrdersKanbanLink(event.payload.tableCode));
+        const tableCode = event.payload.tableCode;
+        pushToast(
+          label,
+          tableCode ? buildTableOrdersLink(tableCode) : buildOrdersKanbanLink(),
+        );
         return;
       }
       if (event.event === "assistance.requested") {
         const { tableCode, tableSessionId, note, requestedAt } = event.payload;
         recordAssistance({ tableCode, tableSessionId, note, requestedAt });
         pushToast(
-          `Khách bàn ${tableCode} cần hỗ trợ`,
-          `/tables?tab=sessions&table=${encodeURIComponent(tableCode)}`,
+          `Bàn ${tableCode} · yêu cầu gọi nhân viên`,
+          `/counter?tab=assistance`,
         );
         return;
       }

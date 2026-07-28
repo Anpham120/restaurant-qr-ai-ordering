@@ -232,6 +232,14 @@ export async function getTableInvoice(
   return invoice;
 }
 
+export async function requestTableAssistance(
+  sessionId: string,
+  sessionToken: string,
+  payload: { note?: string | null } = {},
+): Promise<{ ok: boolean; tableCode: string }> {
+  return api.tableSessions.requestAssistance(sessionId, sessionToken, payload);
+}
+
 export async function listTableInvoices(status?: PaymentStatus): Promise<TableInvoice[]> {
   return api.tableInvoices.list(status) as Promise<TableInvoice[]>;
 }

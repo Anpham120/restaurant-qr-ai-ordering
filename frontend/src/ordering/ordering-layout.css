@@ -64,6 +64,53 @@
 }
 
 .ordering-nav a.active { background: var(--brand-chestnut); color: #fff; }
+
+.ordering-call-staff-wrap {
+  bottom: calc(4.85rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: .45rem;
+  justify-items: end;
+  pointer-events: none;
+  position: fixed;
+  right: max(.75rem, env(safe-area-inset-right));
+  z-index: 45;
+}
+
+.ordering-call-staff-notice {
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid var(--brand-clay-line);
+  border-radius: .75rem;
+  box-shadow: 0 8px 24px rgba(76, 41, 31, .12);
+  color: var(--brand-chestnut);
+  font-size: .78rem;
+  line-height: 1.35;
+  margin: 0;
+  max-width: min(16rem, 72vw);
+  padding: .55rem .7rem;
+  pointer-events: auto;
+}
+
+.ordering-call-staff-fab {
+  align-items: center;
+  background: var(--brand-chestnut);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(76, 41, 31, .28);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: 800 .82rem/1 var(--brand-font-utility);
+  gap: .45rem;
+  min-height: 3rem;
+  padding: .65rem 1rem;
+  pointer-events: auto;
+}
+
+.ordering-call-staff-fab:disabled {
+  cursor: not-allowed;
+  opacity: .72;
+}
+
 .ordering-main { margin: 0 auto; max-width: 1180px; }
 
 .ordering-state {

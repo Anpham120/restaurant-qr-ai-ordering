@@ -1,9 +1,11 @@
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@cmc/auth";
 import { AdminOrderManager } from "../../components/admin/AdminOrderManager";
 import { StaffOrderBoard } from "../../components/staff/StaffOrderBoard";
 import { OpsHubShell } from "../../components/operations/OpsHubShell";
 import { useOpsHubTab } from "../../components/operations/OpsHubTabs";
 import { useOpsConnectionStatus } from "../../components/operations/OpsRealtimeProvider";
+import { buildTableOrdersLink, normalizeTableCode } from "../../components/operations/opsDeepLinkUtils";
 import "../../components/operations/operations.css";
 
 const ORDER_TABS = [
@@ -13,9 +15,17 @@ const ORDER_TABS = [
 
 export function OrdersHubPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const isAdmin = user?.role === "Admin";
+  const tableFromQuery = normalizeTableCode(searchParams.get("table"));
   const { activeTab } = useOpsHubTab(ORDER_TABS, "tab", isAdmin, isAdmin ? "table" : "kanban");
   const connectionStatus = useOpsConnectionStatus();
+
+  if (isAdmin && tableFromQuery) {
+    const name = searchParams.get("name")?.trim();
+    const suffix = name ? `?name=${encodeURIComponent(name)}` : "";
+    return <Navigate replace to={`${buildTableOrdersLink(tableFromQuery)}${suffix}`} />;
+  }
 
   return (
     <OpsHubShell

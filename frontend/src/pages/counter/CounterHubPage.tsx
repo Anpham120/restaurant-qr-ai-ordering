@@ -5,6 +5,8 @@ import { AdminInvoicesPanel } from "../AdminInvoicesPage";
 import { StaffPaymentsPage } from "../StaffPaymentsPage";
 import { CounterShiftPanel } from "./CounterShiftPanel";
 import { OpsHubShell } from "../../components/operations/OpsHubShell";
+import { OpsAssistancePanel } from "../../components/operations/OpsAssistancePanel";
+import { useOpsAssistance } from "../../components/operations/OpsAssistanceProvider";
 import { useOpsHubTab } from "../../components/operations/OpsHubTabs";
 import { useOpsConnectionStatus } from "../../components/operations/OpsRealtimeProvider";
 import { hasPendingCounterPayments } from "../../services/opsSummaryService";
@@ -13,6 +15,7 @@ import "./counter-hub.css";
 
 const COUNTER_STAFF_TABS = [
   { id: "shift", label: "Ca làm việc" },
+  { id: "assistance", label: "Gọi nhân viên" },
   { id: "payments", label: "Chờ thanh toán" },
   { id: "invoices", label: "Lịch sử hóa đơn" },
 ];
@@ -29,6 +32,7 @@ export function CounterHubPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeTab } = useOpsHubTab(counterTabs);
   const connectionStatus = useOpsConnectionStatus();
+  const { recentAssistance } = useOpsAssistance();
 
   useEffect(() => {
     if (isSupervisor || searchParams.get("tab")) return;
@@ -55,6 +59,13 @@ export function CounterHubPage() {
       connectionStatus={connectionStatus}
     >
       {activeTab === "shift" ? <CounterShiftPanel embedded supervisorMode={isSupervisor} /> : null}
+      {activeTab === "assistance" ? (
+        <OpsAssistancePanel
+          emptyLabel="Chưa có bàn nào gọi nhân viên trong phiên này."
+          title="Yêu cầu gọi nhân viên"
+          items={recentAssistance}
+        />
+      ) : null}
       {activeTab === "payments" ? <StaffPaymentsPage embedded /> : null}
       {activeTab === "invoices" ? <AdminInvoicesPanel embedded /> : null}
     </OpsHubShell>
