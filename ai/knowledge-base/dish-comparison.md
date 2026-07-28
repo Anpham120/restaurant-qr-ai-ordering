@@ -9,14 +9,19 @@ reviewed_by: restaurant_manager
 reviewed_at: 2026-07-28
 expires_at: 2027-01-28
 safety_level: medium
+audience: ai
 ---
 
 # Hướng Dẫn So Sánh Món
+
+<!-- audience: ai -->
 
 Khách thường không hỏi "món X là gì" mà hỏi "nên chọn X hay Y". Tài liệu này quy định cách trả
 lời nhóm câu hỏi so sánh: dùng trục nào, lấy số liệu ở đâu, và tuyệt đối không được làm gì.
 
 ## Nguyên Tắc Chung Khi So Sánh
+
+<!-- audience: ai -->
 <!-- question_variants: so sanh, so sanh mon, nen chon mon nao, khac nhau the nao, khac gi nhau, mon nao ngon hon, chon cai nao -->
 
 - So sánh phải dựa trên **dữ liệu có thật trong thực đơn và tài liệu dinh dưỡng**: giá, nguyên
@@ -78,6 +83,8 @@ Không kết luận thay khách. Không nói "món A ngon hơn món B".
   đó, thay vì cố liệt kê tất cả.
 
 ## Lưu Ý Cho AI
+
+<!-- audience: ai -->
 <!-- question_variants: luu y so sanh, gioi han so sanh -->
 
 - Mọi con số nêu ra (giá, calo, đạm) **phải trích từ dữ liệu**, không được ước lượng. Nếu thiếu số

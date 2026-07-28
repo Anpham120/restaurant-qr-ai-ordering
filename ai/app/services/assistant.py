@@ -245,6 +245,11 @@ class AiAssistantService:
 
     def search(self, query: str, top_k: int | None = None) -> list[dict]:
         results = self._retriever.search(query, top_k or self._config.top_k)
+        # Guidance sections must not reach the model as *evidence*: the claim
+        # verifier grounds claims against evidence, so a claim quoting brand-voice
+        # would verify successfully and be shown to the guest.  The behaviour they
+        # describe is already carried by the system prompt.
+        results = [item for item in results if item.chunk.is_customer_facing]
         return [
             {
                 "source": item.chunk.source,

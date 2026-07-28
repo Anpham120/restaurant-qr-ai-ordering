@@ -62,6 +62,9 @@ STOPWORDS = frozenset(
 # Variant ngắn hơn ngưỡng này dễ khớp bừa (ví dụ "wifi" trong "wifi pass").
 MIN_VARIANT_LEN = 4
 
+# Số token đặc trưng tối thiểu để tin một lần khớp tiêu đề.
+MIN_TITLE_TOKENS = 2
+
 
 def significant_tokens(text: str) -> set[str]:
     return {
@@ -103,7 +106,11 @@ def matching_chunks(query: str, kb_meta: list[tuple]) -> tuple[set[str], dict[st
             matched.add(key)
             reasons[key] = f"question_variants: '{hit_variant}'"
             continue
-        if title_tokens and title_tokens <= query_tokens:
+        # Hai token trở lên. Một token là bằng chứng quá yếu, và tiếng Việt bỏ dấu
+        # làm nó thành sai: tiêu đề "Ăn Chay" cho đúng một token `chay`, khớp luôn
+        # câu "món bán chạy nhất"; "Gợi ý món" cho `goi`, khớp cả "gọi" và "gợi".
+        # Hai lỗi đó tạo ra 29 và 28 khóa sai trong lần chạy trước.
+        if len(title_tokens) >= MIN_TITLE_TOKENS and title_tokens <= query_tokens:
             matched.add(key)
             reasons[key] = f"tiêu đề khớp toàn phần: {sorted(title_tokens)}"
     return matched, reasons
@@ -125,6 +132,10 @@ def main() -> int:
     args = parser.parse_args()
 
     chunks = load_markdown_knowledge_base(args.kb)
+    # Đoạn viết cho AI (giọng văn, "Lưu Ý Cho AI", ví dụ phản hồi sai) không bao
+    # giờ là câu trả lời cho khách, nên cũng không được làm đáp án mẫu. Lần chạy
+    # trước có 96 khóa trỏ vào nhóm này, riêng `brand-voice.md::Gợi ý món` 29 lần.
+    chunks = [chunk for chunk in chunks if chunk.is_customer_facing]
     kb_meta = [
         (chunk, author_written_variants(chunk), significant_tokens(chunk.title))
         for chunk in chunks

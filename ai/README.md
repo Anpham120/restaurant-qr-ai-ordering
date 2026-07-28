@@ -72,11 +72,15 @@ curl -H "Authorization: Bearer $env:AI_INTERNAL_TOKEN" -H "Content-Type: applica
 
 ## Notebook nghiên cứu RAG
 
-- Notebook: `notebooks/rag_retrieval_research.ipynb` (5 phần, artifact JSON trong `evaluation/results/`).
-- Build + validate: `py scripts/build_research_notebook.py`
-- Execute (Part II → `notebook_retrieval_screening.json`): `py scripts/build_research_notebook.py --execute`
-- Live JSON (cần 9router): `py scripts/build_research_notebook.py --regen-live --execute`
-- Thứ tự khuyến nghị: `--execute` → `--regen-live` → `--execute` lần 2.
+- Notebook duy nhất: `notebooks/rag_llm_system_research.ipynb` (5 phần, mọi số liệu đọc từ
+  artifact JSON trong `evaluation/results/`).
+- Dựng lại: `py scripts/build_rag_llm_research.py`
+- Thực thi để sinh số và biểu đồ: `py -m nbconvert --to notebook --inplace --execute
+  notebooks/rag_llm_system_research.ipynb --ExecutePreprocessor.timeout=900`
+- Cần `requirements-notebook.txt`. Artifact live (`notebook_live_test.json`) sinh bằng
+  `py scripts/_run_live_tests.py` và cần 9router.
+- Hợp đồng: `tests/test_research_notebook.py` kiểm tra thứ tự 5 phần, mọi artifact bắt buộc có
+  mặt, mọi code cell đã chạy và không cell nào lỗi.
 
 Artifact release (§16): `dev_retrieval_summary.v3.json`, `session_e2e_eval.json`, `knowledge_manifest.json` — tái tạo bằng script trong `evaluation/` (xem `docs/ai/AI_STAGING_READINESS.md`).
 

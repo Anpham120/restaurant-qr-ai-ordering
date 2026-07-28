@@ -9,6 +9,7 @@ reviewed_by: ai_lead
 reviewed_at: 2026-07-19
 expires_at: 2027-01-19
 safety_level: medium
+audience: ai
 ---
 
 # Hướng Dẫn Phân Biệt Ngữ Cảnh Câu Hỏi

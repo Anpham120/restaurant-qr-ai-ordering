@@ -9,6 +9,7 @@ reviewed_by: restaurant_manager
 reviewed_at: 2026-07-13
 expires_at: 2027-01-13
 safety_level: low
+audience: ai
 ---
 
 # Phong Cách Trả Lời CMC Restaurant AI
