@@ -1,10 +1,10 @@
 {
   "manifest_version": "knowledge-index-v2",
-  "built_at": "2026-07-27T13:03:58.393313+00:00",
-  "document_count": 26,
-  "chunk_count": 213,
-  "corpus_sha256": "37fdab90c5a421815850588818e4bb52edb1ea057fa7c8cf58fa80ef0de5cf3a",
-  "index_sha256": "244ade25b7b34fe8e752e2d8a8cc4b558d627da701318cba5e59e8efcc29081c",
+  "built_at": "2026-07-28T06:25:38.405348+00:00",
+  "document_count": 27,
+  "chunk_count": 221,
+  "corpus_sha256": "4cb85ff55618a809a02ab7e37c23269fa3aded578c67de2b718058e3ed320c5c",
+  "index_sha256": "6040d7a64fa2d8536b0d1c2c2d0812cf88b1c6ed6300c7b826c18d50028e59d9",
   "knowledge_source_sha256": {
     "allergy-dietary.md": "523d83617909b2232f6574b5daa00d9b6756dc9e3c9abe3dade856362f2690bb",
     "allergy-disclaimer.md": "d88ed6eb79395d8862c796903f584b5d78daa3e01c64bb7cb4cbee0b64412081",
@@ -15,6 +15,7 @@
     "cooking-methods.md": "8b926a5f6656b5e8a662d7f02bbd6f79df6fed416c2d80d084a24fc8369f7e88",
     "cross-contamination-detail.md": "32eb9ca582829d58d7adbf2f2bae5a9315e9caf97cdda8a716aa3cd55380ab8c",
     "data-mining-insights.md": "e63ec5aa7581b9846f193cffaedab0bb24961c580119b542cf12042c2dbad2f9",
+    "dish-comparison.md": "5156846132e263897be53edc38bb3b34207705562e0b0e0f778168bfc2594d8e",
     "faq.md": "0b18a902d4545d927a18ab40061c262e345715a7a7e22c2396ead95691804e5b",
     "ingredient-nutrition.md": "c2ca5757df66c5bef409023a798e6413a0ae51bd97120e218c89352b4e3edd3e",
     "kids-elderly.md": "c82c952ef7796d928376c79d785591ee5d1b3c2282981824ee8417ee0f84421c",
@@ -44,7 +45,7 @@
       "ordinal"
     ]
   },
-  "git_sha": "91fd66e01954a72f297cc029d739aaf390b77145",
+  "git_sha": "5f2e62a34be0e4c1c224622d798d4868d85938d2",
   "retrieval_method": "hybrid",
   "embedding_key": "e5_small",
   "embedding_model": "intfloat/multilingual-e5-small",
@@ -1846,6 +1847,141 @@
       "risk_tier": "medium",
       "valid_from": "2026-07-19",
       "valid_to": "2027-01-19"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-cach-trinh-bay-cau-tra-loi-so-sanh:3f7bc6e1f9",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Cách Trình Bày Câu Trả Lời So Sánh"
+      ],
+      "content_hash": "611b4a8f851e72f934296258546051294377c911ab403ae502dccd3b7e99c2b9",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-khi-khach-so-sanh-nhieu-hon-hai-mon:5e7634087f",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Khi Khách So Sánh Nhiều Hơn Hai Món"
+      ],
+      "content_hash": "c39b08d57429a9f76eadae615776193528a55b56e173c4c032addf456d15ca49",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-luu-y-cho-ai:d2c54549c2",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Lưu Ý Cho AI"
+      ],
+      "content_hash": "c33f6bf769a5264dcba5b70434fae39c4530a7c44f3667f1fd317647f17776c7",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-nguyen-tac-chung-khi-so-sanh:4ea5fa71fd",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Nguyên Tắc Chung Khi So Sánh"
+      ],
+      "content_hash": "a8c4e49c6bfeb239705b0a4fa69d3fded293c99cdfbe7cb8f20720fcbaf27b5d",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-sau-truc-so-sanh-chuan:3a51041ced",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Sáu Trục So Sánh Chuẩn"
+      ],
+      "content_hash": "0d93350420a2afaa17895cac66651e04e28a64eed66f82a4ceac0374178aebf9",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-vi-du-so-sanh-mon-chien-va-mon-hap:a6b899660f",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Ví Dụ So Sánh Món Chiên Và Món Hấp"
+      ],
+      "content_hash": "d251483cce46fe28f0c9de72c02302f5fbc41ef4e010f37a489bfad883508bff",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon-vi-du-so-sanh-pho-bo-va-pho-ga:fb51685a1b",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món",
+        "Ví Dụ So Sánh Phở Bò Và Phở Gà"
+      ],
+      "content_hash": "a819ac4316be6da814aacaa5fec468f1608b59e3f0a9c2849d39b469bb2948fa",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
+    },
+    {
+      "chunk_id": "kb:kb.guide.dish-comparison.v1:huong-dan-so-sanh-mon:4fb72e5d12",
+      "document_id": "kb.guide.dish-comparison.v1",
+      "section_path": [
+        "Hướng Dẫn So Sánh Món"
+      ],
+      "content_hash": "0dba7bc4c98c4c7944bda9ce7c7f264468a4e7036532916390db1cc0eabd6e37",
+      "tags": [
+        "comparison",
+        "decision-support",
+        "menu"
+      ],
+      "risk_tier": "medium",
+      "valid_from": "2026-07-28",
+      "valid_to": "2027-01-28"
     },
     {
       "chunk_id": "kb:kb.guide.service.v1:huong-dan-su-dung-dich-vu-cach-at-mon-qua-qr:a29f766f52",
@@ -3735,5 +3871,5 @@
   ],
   "validation_error_count": 0,
   "validation_errors": [],
-  "build_duration_ms": 1623.4
+  "build_duration_ms": 187.8
 }

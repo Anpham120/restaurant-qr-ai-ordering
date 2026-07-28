@@ -39,11 +39,14 @@ from app.rag.menu_exclusions import (
     recommendation_intro,
 )
 from app.rag.menu_grounding import MenuCandidateRetriever
+from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import filter_items_by_kind
 from app.rag.menu_query_filters import (
     has_allergy_avoidance_context,
+    has_child_dining_context,
     infer_allergen_excluded_menu_item_ids,
+    infer_child_unsuitable_menu_item_ids,
 )
 from app.rag.output_parser import parse_model_response
 from app.rag.kb_info_fast_path import try_kb_info_fast_path
@@ -604,6 +607,33 @@ class AiAssistantService:
             policy = replace(policy, party_size=int(constraints["party_size"]))
         intent_result = classify_intent_for_message(message, history)
         intent_flags: list[str] = []
+
+        # So sánh món là tra bảng, không phải suy luận. Đặt trước live-data vì
+        # live-data chỉ tra được MỘT món và sẽ chiếm câu hỏi hai món trước khi
+        # tới đây. Chỉ kích hoạt khi khách đã nêu tên từ hai món trở lên, nên
+        # câu một món hoặc câu mơ hồ vẫn đi đúng đường cũ.
+        comparison_response = try_dish_comparison_fast_path(message, menu_items)
+        if comparison_response is not None:
+            comparison_response["latency_ms"] = {**stages, "path": "dish_comparison"}
+            available = [item for item in menu_items if bool(item.get("is_available", True))]
+            return {
+                "early_response": comparison_response,
+                "stages": stages,
+                "policy": policy,
+                "available_menu_items": available,
+                "message": message,
+                "history": history,
+                "rolling_summary": rolling_summary,
+                "facts": facts,
+                "session_state": session_state,
+                "constraints": constraints,
+                "intent": intent_result.intent,
+                "pipeline_version": self._config.pipeline_version,
+                "pipeline_profile": self._config.pipeline_profile,
+                "model": self._config.model,
+                "retriever_runtime": self.retriever_runtime,
+            }
+
         live_response = _try_live_data_response(
             message,
             history,
@@ -802,7 +832,21 @@ class AiAssistantService:
             if allergen_context
             else frozenset()
         )
-        excluded_ids = policy.excluded_menu_item_ids | payload_excluded | allergen_excluded
+        # Food for a young child: keep only dishes the catalogue marks as
+        # child-friendly.  Without this the assistant will happily suggest an
+        # adult dish (rare beef, heavy spice) for a toddler.
+        child_context = has_child_dining_context(message)
+        child_excluded = (
+            frozenset(infer_child_unsuitable_menu_item_ids(menu_items))
+            if child_context
+            else frozenset()
+        )
+        excluded_ids = (
+            policy.excluded_menu_item_ids
+            | payload_excluded
+            | allergen_excluded
+            | child_excluded
+        )
         exclusion_list = sorted(excluded_ids)
         available_menu_items = [
             item
@@ -2225,7 +2269,15 @@ def _try_catalog_fast_path(
             not constraints.get("is_recommendation")
             and any(
                 marker in normalized
-                for marker in ("xem", "cac mon", "co nhung mon", "menu", "thuc don")
+                # "co gi"/"gom gi" ("what do you have") is one of the most common
+                # ways to browse a category and was missing, so those questions
+                # fell through to the LLM and came back as a counter-question.
+                # Safe to add: a category must still be detected below, so a
+                # bare "có gì không?" (no category) never reaches this path.
+                for marker in (
+                    "xem", "cac mon", "co nhung mon", "menu", "thuc don",
+                    "co gi", "gom gi", "gom nhung gi", "danh sach",
+                )
             )
         )
         if not browse_category:
@@ -2241,6 +2293,16 @@ def _try_catalog_fast_path(
     if not has_allergy_avoidance_context(message):
         # Browsing "món hải sản" names a category; it is not an allergy request.
         effective_constraints["allergens"] = []
+    if str(constraints.get("category") or "") == "mon chay":
+        # Same idea for diet: "món chay có gì" states the category being browsed,
+        # it is not an extra filter to apply on top of it.  Listing the Món chay
+        # category is exactly what a vegetarian/vegan browse asks for, so these
+        # diet tags must not disqualify the deterministic listing.
+        effective_constraints["diet"] = [
+            value
+            for value in (effective_constraints.get("diet") or [])
+            if value not in {"vegetarian", "vegan"}
+        ]
     if has_hard_dietary_constraints(effective_constraints):
         return None
 
@@ -2333,6 +2395,13 @@ def _matches_category(
     )
     if not active_aliases:
         active_aliases = list(aliases)
+    elif category not in active_aliases:
+        # The alias that matched the *question* is not necessarily the one that
+        # matches the *menu*: a guest writing "chay thuan" or "seafood" still
+        # means the "mon chay"/"hai san" category, whose category_name in the
+        # live menu is the canonical term.  Keep the matched alias (it decides
+        # relevance) but always allow the canonical one for the menu-side match.
+        active_aliases = [*active_aliases, category]
     for alias in active_aliases:
         needle = normalize_query_text(alias)
         if not needle:

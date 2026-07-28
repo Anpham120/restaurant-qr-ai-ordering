@@ -1,10 +1,10 @@
 {
   "protocol_version": "session-e2e-v2",
-  "generated_at": "2026-07-27T13:49:32.455113+00:00",
+  "generated_at": "2026-07-28T02:31:04.441246+00:00",
   "tier": "multi_turn",
   "use_llm": false,
   "provenance": {
-    "commit_sha": "91fd66e01954a72f297cc029d739aaf390b77145",
+    "commit_sha": "5f2e62a34be0e4c1c224622d798d4868d85938d2",
     "corpus_sha256": "37fdab90c5a421815850588818e4bb52edb1ea057fa7c8cf58fa80ef0de5cf3a",
     "session_matrix_sha256": "b957a128e595135eb8068f7673eea4b3667ea23173d3b862d4e05a650d26236d",
     "retrieval_method": "bm25"
@@ -86,7 +86,7 @@
       "pass_no_duplicate": true,
       "pass_rolling_summary": true,
       "paths": [
-        "fallback",
+        "kb_fast_path",
         "fallback",
         "fallback"
       ],
@@ -201,7 +201,7 @@
       "has_rolling_summary": true,
       "pass_no_duplicate": true,
       "pass_rolling_summary": true,
-      "path": "fallback",
+      "path": "kb_fast_path",
       "use_llm": false,
       "scripted": false
     },
@@ -318,7 +318,7 @@
       "has_rolling_summary": true,
       "pass_no_duplicate": true,
       "pass_rolling_summary": true,
-      "path": "fallback",
+      "path": "kb_fast_path",
       "use_llm": false,
       "scripted": false
     },
@@ -331,7 +331,7 @@
       "has_rolling_summary": true,
       "pass_no_duplicate": true,
       "pass_rolling_summary": true,
-      "path": "fallback",
+      "path": "kb_fast_path",
       "use_llm": false,
       "scripted": false
     },
@@ -902,7 +902,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -1345,7 +1345,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -1788,7 +1788,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -2231,7 +2231,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -2674,7 +2674,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -3117,7 +3117,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -3560,7 +3560,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -4003,7 +4003,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -4446,7 +4446,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -4889,7 +4889,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -5332,7 +5332,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -5775,7 +5775,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -6218,7 +6218,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -6661,7 +6661,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -7104,7 +7104,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -7547,7 +7547,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -7990,7 +7990,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -8433,7 +8433,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -8876,7 +8876,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -9319,7 +9319,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -9762,7 +9762,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -10205,7 +10205,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -10648,7 +10648,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -11091,7 +11091,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -11534,7 +11534,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -11977,7 +11977,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -12420,7 +12420,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -12863,7 +12863,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -13306,7 +13306,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -13749,7 +13749,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -14192,7 +14192,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -14635,7 +14635,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -15078,7 +15078,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -15521,7 +15521,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -15964,7 +15964,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -16407,7 +16407,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -16850,7 +16850,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -17293,7 +17293,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -17736,7 +17736,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -18179,7 +18179,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -18622,7 +18622,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -19065,7 +19065,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -19508,7 +19508,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -19951,7 +19951,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -20394,7 +20394,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 650.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -20837,7 +20837,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 4 người\nTránh: peanut\nNgân sách: 700.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -21280,7 +21280,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 5 người\nTránh: peanut\nNgân sách: 750.000đ\nĐã gợi ý: Gà xào sả ớt, Cá lóc nướng trui, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -21723,7 +21723,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 6 người\nTránh: peanut\nNgân sách: 800.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Dạ, em gợi ý vài đồ uống phù hợp từ thực đơn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi tươi…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -22166,7 +22166,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 7 người\nTránh: peanut\nNgân sách: 550.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Em chọn giúp bạn vài đồ uống đang có sẵn: 1. Nước ép cam tươi (40.000đ) — Nước ép cam tươi ngọt tự…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,
@@ -22609,7 +22609,7 @@
         "accepted_menu_item_ids": [],
         "added_to_cart_menu_item_ids": [],
         "rolling_summary": "Số khách: 8 người\nTránh: peanut\nNgân sách: 600.000đ\nĐã gợi ý: Gà xào sả ớt, Cánh gà chiên nước mắm, Gà nướng muối ớt xanh, Gà tiềm thuốc bắc, Nước ép cam tươi, Trà đào cam sả, Bạc xỉu Sài Gòn, Cà phê sữa đá\nLượt gần đây:\n- Khách: Không lấy món vừa rồi → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Gợi ý đồ uống khác → Bot: Theo thực đơn hiện tại, đây là vài đồ uống bạn có thể thử: 1. Nước ép cam tươi (40.000đ) — Nước ép…\n- Khách: Nhà hàng có wifi không? → Bot: Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát, hoặc xem tab Thực đơn để chọn món trực…\n- Khách: Quay lại món đó, bao nhiêu tiền? → Bot: Cà phê sữa đá có giá 35.000 đồng và hiện còn bán.",
-        "memory_version": "v1"
+        "memory_version": "v2"
       },
       "use_llm": false,
       "scripted": true,

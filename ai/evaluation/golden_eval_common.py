@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from collections import Counter
@@ -157,6 +158,10 @@ def load_menu_items() -> list[dict[str, Any]]:
 
 
 def build_offline_service(retrieval_method: str, embedding_model: str) -> AiAssistantService:
+    # The provider is stubbed out (this path never calls an LLM), but the
+    # pipeline profile must still match the deployment: it decides which
+    # deterministic paths run, so leaving it at the dataclass default measured a
+    # pipeline shape the service does not actually serve.
     config = AiServiceConfig(
         provider="none",
         base_url="",
@@ -171,6 +176,7 @@ def build_offline_service(retrieval_method: str, embedding_model: str) -> AiAssi
         top_k=5,
         retrieval_method=retrieval_method,
         embedding_model=embedding_model,
+        pipeline_profile=load_config().pipeline_profile,
     )
     return AiAssistantService(config, llm_client=None)
 
@@ -183,38 +189,18 @@ def build_llm_service(
     max_retry: int | None = None,
 ) -> AiAssistantService:
     config = load_config()
-    if retrieval_method is not None or max_retry is not None:
-        config = AiServiceConfig(
-            provider=config.provider,
-            base_url=config.base_url,
-            api_key=config.api_key,
-            model=config.model,
-            llm_timeout_seconds=config.llm_timeout_seconds,
-            request_budget_seconds=config.request_budget_seconds,
-            max_retry=config.max_retry if max_retry is None else max_retry,
-            max_tokens=config.max_tokens,
-            reasoning_effort=config.reasoning_effort,
-            knowledge_base_path=AI_ROOT / "knowledge-base",
-            top_k=config.top_k,
-            retrieval_method=retrieval_method or config.retrieval_method,
-            embedding_model=embedding_model or config.embedding_model,
-        )
-    elif embedding_model is not None:
-        config = AiServiceConfig(
-            provider=config.provider,
-            base_url=config.base_url,
-            api_key=config.api_key,
-            model=config.model,
-            llm_timeout_seconds=config.llm_timeout_seconds,
-            request_budget_seconds=config.request_budget_seconds,
-            max_retry=config.max_retry,
-            max_tokens=config.max_tokens,
-            reasoning_effort=config.reasoning_effort,
-            knowledge_base_path=AI_ROOT / "knowledge-base",
-            top_k=config.top_k,
-            retrieval_method=config.retrieval_method,
-            embedding_model=embedding_model,
-        )
+    # Only override what the caller asked for.  Rebuilding AiServiceConfig
+    # field-by-field silently dropped every field not listed, so pipeline_profile
+    # and llm_first fell back to their dataclass defaults ("llm_first_v1"/True)
+    # and the whole eval measured a pipeline the deployment does not run.
+    overrides: dict[str, Any] = {"knowledge_base_path": AI_ROOT / "knowledge-base"}
+    if retrieval_method is not None:
+        overrides["retrieval_method"] = retrieval_method
+    if embedding_model is not None:
+        overrides["embedding_model"] = embedding_model
+    if max_retry is not None:
+        overrides["max_retry"] = max_retry
+    config = dataclasses.replace(config, **overrides)
     if not config.llm_enabled and llm_client is None:
         raise RuntimeError(
             "LLM evaluation requires LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL in ai/.env "

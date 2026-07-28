@@ -71,24 +71,46 @@ _QUERY_STOPWORDS = frozenset(
 _SHORT_DOMAIN_TOKENS = frozenset({"xe", "mo", "an", "com", "bo", "ga", "nuoc", "bia"})
 
 # Map normalized query phrases -> substring expected in faq.md section title.
+# English phrasings are listed alongside the Vietnamese ones: guests do ask in
+# English ("payment methods?", "opening hours?"), and without these the query
+# misses the deterministic path and falls through to the LLM, which then tends
+# to abstain even though the KB has the answer.
 _FAQ_TOPIC_ROUTES: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("gio mo cua", "mo cua", "dong cua", "gio hoat dong"), "gio mo cua"),
-    (("gui xe", "dau xe", "do xe", "bai xe", "cho dau", "cho gui", "gui oto"), "dau xe"),
-    (("thanh toan", "vietqr", "tien mat", "chuyen khoan"), "thanh toan"),
-    (("dat ban", "dat truoc"), "dat ban"),
-    (("phong vip", "phong rieng"), "phong rieng"),
-    (("san thuong", "ngoai troi"), "san thuong"),
-    (("tre em", "tre con", "highchair"), "tre em"),
+    (
+        (
+            "gio mo cua", "mo cua", "dong cua", "gio hoat dong",
+            "opening hour", "opening time", "open time", "closing time", "business hour",
+        ),
+        "gio mo cua",
+    ),
+    (
+        (
+            "gui xe", "dau xe", "do xe", "bai xe", "cho dau", "cho gui", "gui oto",
+            "parking", "car park",
+        ),
+        "dau xe",
+    ),
+    (
+        (
+            "thanh toan", "vietqr", "tien mat", "chuyen khoan",
+            "payment method", "payment option", "how to pay", "pay by card", "credit card",
+        ),
+        "thanh toan",
+    ),
+    (("dat ban", "dat truoc", "reservation", "book a table", "reserve a table"), "dat ban"),
+    (("phong vip", "phong rieng", "private room", "vip room"), "phong rieng"),
+    (("san thuong", "ngoai troi", "rooftop", "outdoor seating", "terrace"), "san thuong"),
+    (("tre em", "tre con", "highchair", "high chair"), "tre em"),
     (("children portion", "child portion", "kids portion", "kid friendly"), "tre em"),
     (("office lunch", "quick lunch", "business lunch", "an trua nhanh"), "an trua nhanh"),
     (("sinh nhat", "tiec sinh nhat"), "sinh nhat"),
     (("dia chi", "o dau", "nam o dau"), "o dau"),
-    (("mang ve", "takeaway", "giao hang"), "mang ve"),
-    (("huy don", "huy mon"), "huy don"),
-    (("cho mon", "thoi gian cho"), "thoi gian cho"),
-    (("khuyen tat", "xe lan"), "khuyet tat"),
-    (("nuoc mien phi", "nuoc loc"), "nuoc uong"),
-    (("khuyen mai", "uu dai", "giam gia", "happy hour"), "happy hour"),
+    (("mang ve", "takeaway", "take away", "giao hang", "delivery"), "mang ve"),
+    (("huy don", "huy mon", "cancel order", "cancel my order"), "huy don"),
+    (("cho mon", "thoi gian cho", "waiting time", "how long"), "thoi gian cho"),
+    (("khuyen tat", "xe lan", "wheelchair", "accessible"), "khuyet tat"),
+    (("nuoc mien phi", "nuoc loc", "free water"), "nuoc uong"),
+    (("khuyen mai", "uu dai", "giam gia", "happy hour", "promotion", "discount"), "happy hour"),
     (("loi thanh toan", "thanh toan loi", "khong thanh toan duoc"), "thanh toan"),
 )
 
@@ -164,7 +186,11 @@ def _find_faq_by_topic(normalized_query: str, candidates: list[Any]) -> Any | No
     return None
 
 
-def _find_topic_chunk_any_source(normalized_query: str, candidates: list[Any]) -> Any | None:
+def _find_topic_chunk_any_source(
+    normalized_query: str,
+    candidates: list[Any],
+    preferred_sources: tuple[str, ...] = (),
+) -> Any | None:
     """Fallback for topics whose real content lives outside faq.md (e.g. "Phòng
     VIP" under restaurant-info.md answers the "phong rieng" topic route, but
     its title uses the "phong vip" synonym, not the route's canonical needle).
@@ -172,6 +198,13 @@ def _find_topic_chunk_any_source(normalized_query: str, candidates: list[Any]) -
     Only called once a topic is already confidently detected (see call site),
     so this widens WHERE we look, not WHETHER we're confident a real FAQ topic
     was asked — it does not loosen any confidence threshold.
+
+    Candidates are ranked by how well their *content* answers the question, not
+    just by title: a topic word in the title is a weak signal on its own (the
+    payment topic matches "Xử Lý Sự Cố Thanh Toán", a troubleshooting section,
+    while the section that actually lists the payment methods is titled
+    "Tổng Quan"). Chunks whose body is only a `question_variants` marker are
+    skipped — they render as an empty answer.
     """
     terms = _topic_terms_for_query(normalized_query)
     if terms is None:
@@ -179,11 +212,35 @@ def _find_topic_chunk_any_source(normalized_query: str, candidates: list[Any]) -
     hits = [
         item
         for item in candidates
-        if any(term in _normalize(item.chunk.title) for term in terms)
+        if (
+            any(term in _normalize(item.chunk.title) for term in terms)
+            or any(term in _normalize(item.chunk.content) for term in terms)
+        )
+        and _format_chunk_answer(item.chunk.content)
     ]
-    if hits:
-        return max(hits, key=lambda item: float(item.score))
-    return None
+    if not hits:
+        return None
+    # The topic words themselves carry no signal here — every candidate matched
+    # the same topic — and _relevance_score's title bonus actively rewards
+    # sections that merely repeat them ("Xử Lý Sự Cố Thanh Toán"), which are the
+    # meta/troubleshooting ones.  Rank on the *remaining* query words instead:
+    # for "thanh toan bang the" those are "bang"/"the", which pick the card
+    # section over the troubleshooting section.
+    topic_words = {word for term in terms for word in term.split()}
+    distinguishing = [
+        token for token in _query_tokens(normalized_query) if token not in topic_words
+    ]
+
+    def rank(item: Any) -> tuple[int, float, float]:
+        content = _normalize(item.chunk.title) + " " + _normalize(item.chunk.content)
+        matched = sum(1 for token in distinguishing if token in content)
+        return (
+            matched,
+            _relevance_score(normalized_query, item, preferred_sources),
+            float(item.score),
+        )
+
+    return max(hits, key=rank)
 
 
 def _title_overlap(normalized_query: str, title: str) -> int:
@@ -279,7 +336,11 @@ def _format_chunk_answer(content: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
     paragraphs = [part.strip() for part in text.split("\n\n") if part.strip()]
     if not paragraphs:
-        return content.strip()
+        # A heading whose body lives entirely in its subsections holds nothing
+        # but its `<!-- question_variants: ... -->` marker.  Returning the raw
+        # content here used to show that HTML comment to the customer; return
+        # empty so callers fall through to the next candidate chunk instead.
+        return ""
 
     body = paragraphs[0]
     table_text = _flatten_markdown_table(body)
@@ -468,7 +529,7 @@ def try_kb_info_fast_path(
         )
         topic_faq = _find_faq_by_topic(normalized, faq_candidates)
     if topic_faq is None:
-        topic_faq = _find_topic_chunk_any_source(normalized, retrieved)
+        topic_faq = _find_topic_chunk_any_source(normalized, retrieved, preferred)
     if topic_faq is not None:
         content = _format_chunk_answer(topic_faq.chunk.content)
         if content:

@@ -67,7 +67,10 @@ class ResearchBaselineTests(unittest.TestCase):
         self.assertEqual("bm25", result["method"])
         self.assertEqual("dev", result["split"])
         self.assertEqual(125, result["dataset"]["case_count"])
-        self.assertEqual(304, result["corpus"]["document_count"])
+        # 221 đoạn tri thức + 91 mục thực đơn.  Con số tăng khi thêm tài liệu KB
+        # mới (dish-comparison.md bổ sung 8 đoạn) — đây là thay đổi hợp lệ, chỉ
+        # cần cập nhật kỳ vọng cùng lúc với việc dựng lại chỉ mục.
+        self.assertEqual(312, result["corpus"]["document_count"])
         self.assertFalse(result["frozen_test_opened"])
         self.assertEqual(110, result["per_query_count"])
         self.assertEqual(110, result["latency_ms"]["samples"])

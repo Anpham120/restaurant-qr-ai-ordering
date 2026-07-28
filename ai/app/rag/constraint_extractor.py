@@ -94,11 +94,17 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
 }
 
 DIET_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "vegetarian": ("an chay", "mon chay", "thuan chay", "vegetarian"),
-    "vegan": ("vegan", "thuan chay", "khong sua", "khong trung"),
+    # "chay thuan" is the same request as "thuan chay" with the words swapped —
+    # both orders occur naturally in Vietnamese, so list both.
+    "vegetarian": ("an chay", "mon chay", "thuan chay", "chay thuan", "vegetarian"),
+    "vegan": ("vegan", "thuan chay", "chay thuan", "khong sua", "khong trung"),
     "halal": ("halal", "haram"),
     "keto": ("keto", "low carb", "it carb", "low-carb"),
-    "low_calorie": ("it calo", "giam can", "an kieng", "low calorie", "diet"),
+    # Bare "diet" is NOT a low-calorie signal: Vietnamese customers write it for
+    # any dietary requirement at all ("diet chay thuan" = vegan diet), so it used
+    # to tag vegan/halal/keto questions as calorie-restricted. Only the explicit
+    # weight-loss phrasings below count.
+    "low_calorie": ("it calo", "giam can", "an kieng", "low calorie", "low-calorie", "diet food"),
 }
 
 SPICE_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -162,7 +168,8 @@ CATEGORY_ALIASES: dict[str, tuple[str, ...]] = {
     "lau": ("lau", "hot pot"),
     "mon ga": ("mon ga", "chicken"),
     "dac san": ("dac san", "regional"),
-    "mon chay": ("mon chay", "vegetarian dish"),
+    # "chay thuan"/"thuan chay" (vegan) name the same menu category as "mon chay".
+    "mon chay": ("mon chay", "chay thuan", "thuan chay", "vegetarian dish", "vegan dish"),
     "ca phe tra": ("ca phe", "tra", "coffee", "tea"),
     "nuoc ep": ("nuoc ep", "sinh to", "smoothie", "juice"),
     "trang mieng": ("trang mieng", "dessert", "che"),

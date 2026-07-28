@@ -76,8 +76,15 @@ class ResearchNotebookContractTests(unittest.TestCase):
         notebooks = sorted(AI_ROOT.rglob("*.ipynb"))
         canonical_report = AI_ROOT / "notebooks" / "restaurant_ai_research_report.ipynb"
         # The old report stays as a reference until the owner explicitly
-        # approves cleanup; the new canonical report is the active replacement.
-        self.assertEqual([NOTEBOOK_PATH, canonical_report], notebooks)
+        # approves cleanup; the canonical report is its replacement; and the
+        # system research report covers the architecture-selection experiments
+        # (retrieval vs deterministic routing, model choice, pipeline profile)
+        # that neither of the other two addresses — see its Appendix E.
+        system_research = AI_ROOT / "notebooks" / "rag_llm_system_research.ipynb"
+        self.assertEqual(
+            sorted([NOTEBOOK_PATH, canonical_report, system_research]),
+            notebooks,
+        )
 
 
 if __name__ == "__main__":
