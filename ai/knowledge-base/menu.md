@@ -150,6 +150,8 @@ Nhóm khai vị gồm các món nhẹ ăn đầu bữa hoặc ăn vặt:
 
 ## Quy Tắc Gợi Ý Món
 
+
+<!-- audience: ai -->
 1. AI chỉ gợi ý từ món đang còn hàng trong menu runtime.
 2. Mặc định gợi ý 3 món, tối đa 8 món nếu khách yêu cầu.
 3. Ưu tiên đa dạng category.

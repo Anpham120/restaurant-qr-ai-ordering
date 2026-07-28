@@ -29,6 +29,8 @@ safety_level: critical
 
 ## Không Được Nói
 
+
+<!-- audience: ai -->
 - "Món này an toàn 100%."
 - "Chắc chắn không có [allergen]."
 - "Bếp tách riêng hoàn toàn" (trừ khi nhân viên xác nhận).

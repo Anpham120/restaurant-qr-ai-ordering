@@ -9,6 +9,7 @@ reviewed_by: restaurant_manager
 reviewed_at: 2026-07-13
 expires_at: 2027-01-13
 safety_level: critical
+audience: ai
 ---
 
 # Ví Dụ Phản Hồi Sai

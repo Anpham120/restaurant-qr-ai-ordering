@@ -83,4 +83,6 @@ Không cần mã giảm giá, hệ thống tự áp dụng.
 
 ## Lưu Ý Cho AI
 
+
+<!-- audience: ai -->
 AI chỉ thông báo chương trình đang hiệu lực. Không hứa giảm giá nếu không chắc chắn. Nếu khách hỏi về KM mà AI không có thông tin, hướng dẫn hỏi nhân viên hoặc gọi hotline. Giá hiển thị trên menu là giá gốc, hệ thống tự tính giảm giá khi đủ điều kiện.

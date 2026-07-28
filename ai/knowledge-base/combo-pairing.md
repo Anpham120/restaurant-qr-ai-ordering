@@ -156,4 +156,6 @@ Dựa trên phân tích 1000 đơn hàng, các cặp món thường được g�
 
 ## Lưu Ý Cho AI
 
+
+<!-- audience: ai -->
 AI chỉ gợi ý combo từ các món đang còn hàng (isAvailable = true). Nếu món trong combo hết hàng, AI phải đề xuất thay thế phù hợp cùng category hoặc cùng khẩu vị. Giá combo là giá tổng các món đơn lẻ, không giảm giá combo. Combo chỉ là gợi ý, khách tự chọn và xác nhận.

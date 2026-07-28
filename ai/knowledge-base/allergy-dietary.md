@@ -132,4 +132,6 @@ Tag "giau protein" có 30 món trong menu, bao gồm:
 
 ## Lưu Ý Cho AI
 
+
+<!-- audience: ai -->
 AI không phải bác sĩ dinh dưỡng. Nếu khách hỏi sâu về y tế hoặc dinh dưỡng, nên khuyên khách tham khảo chuyên gia và chỉ cung cấp thông tin menu có sẵn. AI chỉ gợi ý dựa trên tag và mô tả món, không đảm bảo thành phần chính xác. Khách có dị ứng nghiêm trọng nên xác nhận trực tiếp với nhân viên.

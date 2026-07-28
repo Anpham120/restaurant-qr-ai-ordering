@@ -449,6 +449,16 @@ def try_kb_info_fast_path(
     if intent not in INFO_INTENTS:
         return None
 
+    # Sections written for the assistant are never quotable.  Without this a guest
+    # asking about the head chef received brand-voice.md's answer-structure
+    # template verbatim ("1. Mở đầu ngắn (1 câu): xác nhận hiểu yêu cầu.").  They
+    # stay in the corpus as guidance; they just cannot become the answer.
+    retrieved = [
+        item
+        for item in retrieved
+        if getattr(getattr(item, "chunk", None), "is_customer_facing", True)
+    ]
+
     history = history or []
     normalized = _normalize(message)
     if (
@@ -522,11 +532,17 @@ def try_kb_info_fast_path(
 
     topic_faq = _find_faq_by_topic(normalized, retrieved)
     if topic_faq is None and retriever is not None and _topic_needle_for_query(normalized):
-        faq_candidates = retriever.search(
-            message,
-            top_k=30,
-            filters=RetrievalFilters(allowed_source_ids=frozenset({"faq.md"})),
-        )
+        faq_candidates = [
+            item
+            for item in retriever.search(
+                message,
+                top_k=30,
+                filters=RetrievalFilters(allowed_source_ids=frozenset({"faq.md"})),
+            )
+            # This second lookup bypasses the filter applied to `retrieved` above,
+            # so it needs the same guard.
+            if getattr(getattr(item, "chunk", None), "is_customer_facing", True)
+        ]
         topic_faq = _find_faq_by_topic(normalized, faq_candidates)
     if topic_faq is None:
         topic_faq = _find_topic_chunk_any_source(normalized, retrieved, preferred)

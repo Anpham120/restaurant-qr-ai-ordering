@@ -9,6 +9,10 @@ from pathlib import Path
 
 from app.rag.knowledge_schema import parse_frontmatter
 
+# Section-level marker, following the existing `<!-- question_variants: ... -->`
+# convention in the knowledge base.
+_AUDIENCE_AI_MARKER = re.compile(r"<!--\s*audience:\s*ai\s*-->", re.IGNORECASE)
+
 
 @dataclass(frozen=True)
 class KnowledgeChunk:
@@ -24,6 +28,17 @@ class KnowledgeChunk:
     risk_tier: str = "standard"
     valid_from: str | None = None
     valid_to: str | None = None
+    # Who the section is written for.  The knowledge base holds two kinds of
+    # content in one corpus: facts a guest may be told, and instructions written
+    # for the assistant itself ("Giọng Văn", "Lưu Ý Cho AI", "Không Được Nói").
+    # Nothing separated them, so a guest asking about the head chef received the
+    # answer-structure template verbatim.  Sections marked `<!-- audience: ai -->`
+    # stay retrievable as guidance but must never be quoted back to a guest.
+    audience: str = "customer"
+
+    @property
+    def is_customer_facing(self) -> bool:
+        return self.audience != "ai"
 
     def __post_init__(self) -> None:
         content_hash = self.content_hash or _content_hash(self.content)
@@ -71,6 +86,12 @@ def _split_markdown_file(file_path: Path) -> list[KnowledgeChunk]:
     current_tags = tuple(str(tag) for tag in metadata.get("tags", [])) or _tags_from_filename(file_path)
     document_id = str(metadata.get("id") or file_path.name)
     risk_tier = str(metadata.get("safety_level") or "standard").casefold()
+    # Three documents are guidance from front matter to last line (brand voice,
+    # negative examples, context disambiguation).  Declaring the audience once
+    # per file beats repeating a marker in every section — and catches the
+    # sections whose titles do not sound like instructions ("Mẫu Trả Lời Tốt",
+    # "Độ Dài Khuyến Nghị"), which is exactly where a title-pattern rule fails.
+    file_audience = str(metadata.get("audience") or "customer").casefold()
     valid_from = str(metadata.get("reviewed_at") or "") or None
     valid_to = str(metadata.get("expires_at") or "") or None
     path_occurrences: dict[tuple[str, ...], int] = {}
@@ -79,6 +100,14 @@ def _split_markdown_file(file_path: Path) -> list[KnowledgeChunk]:
     def flush() -> None:
         content = "\n".join(line.strip() for line in current_lines).strip()
         if content:
+            # Declared per section, not inferred from the heading: "Nguyên Tắc
+            # Chung" is guest-facing in one document and AI-only in another, so
+            # the author states it rather than a pattern guessing.
+            audience = (
+                "ai"
+                if file_audience == "ai" or _AUDIENCE_AI_MARKER.search(content)
+                else "customer"
+            )
             content_hash = _content_hash(content)
             resolved_path = tuple(current_path)
             occurrence = path_occurrences.get(resolved_path, 0) + 1
@@ -103,6 +132,7 @@ def _split_markdown_file(file_path: Path) -> list[KnowledgeChunk]:
                     risk_tier=risk_tier,
                     valid_from=valid_from,
                     valid_to=valid_to,
+                    audience=audience,
                 )
             )
             chunk_ids_by_path[resolved_path] = chunk_id

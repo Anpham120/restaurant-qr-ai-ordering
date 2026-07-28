@@ -9,6 +9,7 @@ reviewed_by: data_team
 reviewed_at: 2026-07-13
 expires_at: 2027-01-13
 safety_level: low
+audience: ai
 ---
 
 # Insight Từ Học Máy Và Khai Phá Dữ Liệu
