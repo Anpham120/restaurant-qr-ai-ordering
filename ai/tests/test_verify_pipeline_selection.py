@@ -218,6 +218,51 @@ class VerifyPipelineSelectionTests(unittest.TestCase):
         )
         self.assertIn("LLM_RATE_LIMIT_FALLBACK_ENABLED=true", exported)
 
+    def test_cli_exports_no_fallback_model_when_the_artifact_has_none(self) -> None:
+        """A single-model artifact must not export a fallback model.
+
+        GITHUB_ENV overrides the job-level env, the deploy workflows do not pass
+        --expected-fallback-model, and its default is a real model name.  Exporting
+        that default handed the staging deploy a fallback the approved policy does
+        not have; the service reports fallback_model=null and health-check.sh then
+        failed comparing the two.  The export has to come from the artifact.
+        """
+        artifact = _artifact()
+        artifact["model"] = "cx/gpt-5.6-luna-review"
+        artifact["model_policy"] = {
+            "primary_model": "cx/gpt-5.6-luna-review",
+            "fallback_model": None,
+            "fallback_enabled": False,
+            "fallback_trigger": "http_429",
+            "max_fallbacks_per_operation": 1,
+        }
+        with tempfile.TemporaryDirectory(prefix="verify-pipeline-nofb-") as temp_dir:
+            artifact_path = Path(temp_dir) / "pipeline_selection.json"
+            env_path = Path(temp_dir) / "github.env"
+            artifact_path.write_text(
+                json.dumps(artifact, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [
+                    "python",
+                    "evaluation/verify_pipeline_selection.py",
+                    str(artifact_path),
+                    "--expected-primary-model",
+                    "cx/gpt-5.6-luna-review",
+                    "--github-env",
+                    str(env_path),
+                ],
+                cwd=Path(__file__).resolve().parents[1],
+                check=True,
+                env={"PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+            )
+            exported = env_path.read_text(encoding="utf-8")
+
+        self.assertIn("LLM_RATE_LIMIT_FALLBACK_MODEL=\n", exported)
+        self.assertIn("LLM_RATE_LIMIT_FALLBACK_ENABLED=false", exported)
+        self.assertNotIn("LLM_RATE_LIMIT_FALLBACK_MODEL=cx/", exported)
+
 
 if __name__ == "__main__":
     unittest.main()
