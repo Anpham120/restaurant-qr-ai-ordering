@@ -1645,11 +1645,16 @@ def _finalize_response_payload(
     updates.setdefault("facts", list(context.get("facts") or state.get("facts") or []))
     updates["constraints"] = dict(context.get("constraints") or state.get("constraints") or {})
     frame = dict(state.get("conversation_frame") or {})
-    if response.get("pipeline_profile") == "planner_state_v3":
-        resolved_ids = list(response.get("resolved_menu_item_ids") or [])
-        if resolved_ids and frame.get("pending_clarification") is None:
-            frame["focus_menu_item_ids"] = resolved_ids
-        updates["conversation_frame"] = frame
+    # Which dish the conversation is currently about is ordinary conversational
+    # state, not a planner feature.  Gating this on planner_state_v3 left the
+    # other two profiles with an empty frame, so an ordinal follow-up ("món thứ
+    # hai giá bao nhiêu?", then "thêm món đó vào giỏ") answered correctly but
+    # resolved "món đó" against nothing on the next turn.  resolved_menu_item_ids
+    # is computed above for every profile, so every profile can carry the frame.
+    resolved_ids = list(response.get("resolved_menu_item_ids") or [])
+    if resolved_ids and frame.get("pending_clarification") is None:
+        frame["focus_menu_item_ids"] = resolved_ids
+    updates["conversation_frame"] = frame
     updates["referenced_menu_item_ids"] = _merge_id_lists(
         state.get("referenced_menu_item_ids") or [],
         updates.get("referenced_menu_item_ids") or [],
