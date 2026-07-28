@@ -8,6 +8,7 @@ using RestaurantQrAiOrdering.Api.Chat;
 using RestaurantQrAiOrdering.Api.Data;
 using RestaurantQrAiOrdering.Api.Errors;
 using RestaurantQrAiOrdering.Api.Orders;
+using RestaurantQrAiOrdering.Api.Realtime;
 using RestaurantQrAiOrdering.Api.Users;
 using RestaurantQrAiOrdering.Entities;
 using RestaurantQrAiOrdering.Enums;
@@ -417,6 +418,63 @@ public static partial class TableEndpoints
         })
         .WithName("GetTableSessionOrders")
         .WithTags("Tables", "Orders");
+
+        app.MapPost("/api/table-sessions/{sessionId}/assistance", async (
+            string sessionId,
+            TableAssistanceRequest? request,
+            HttpRequest httpRequest,
+            RestaurantDbContext db,
+            IOptions<JwtOptions> jwtOptions,
+            IOrderRealtimeNotifier realtime,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TableSessionCapability.TryRead(httpRequest, out var suppliedToken))
+            {
+                return TableSessionCapability.Unauthorized();
+            }
+
+            var tableSession = await db.TableSessions
+                .Include(session => session.RestaurantTable)
+                .FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
+            if (tableSession is null)
+            {
+                return ApiResults.NotFound("TABLE_SESSION_NOT_FOUND", "Table session was not found.");
+            }
+
+            if (!TableSessionCapability.IsValid(tableSession, suppliedToken, jwtOptions.Value.SigningKey))
+            {
+                return TableSessionCapability.Unauthorized();
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            if (!tableSession.IsActiveAt(now))
+            {
+                if (tableSession.ExpireIfPast(now))
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+
+                return ApiErrorFactory.Result(
+                    StatusCodes.Status410Gone,
+                    "TABLE_SESSION_INACTIVE",
+                    "Table session is closed or expired. Please scan QR again.");
+            }
+
+            var tableCode = tableSession.RestaurantTable?.TableCode ?? "unknown";
+            var note = string.IsNullOrWhiteSpace(request?.Note)
+                ? "Yêu cầu gọi nhân viên"
+                : request!.Note!.Trim();
+
+            await realtime.NotifyAssistanceRequestedAsync(
+                tableCode,
+                tableSession.Id,
+                note,
+                cancellationToken);
+
+            return Results.Ok(new TableAssistanceResponse(true, tableCode));
+        })
+        .WithName("RequestTableSessionAssistance")
+        .WithTags("Tables");
 
         app.MapPost("/api/table-sessions/{sessionId}/close", async (
             string sessionId,

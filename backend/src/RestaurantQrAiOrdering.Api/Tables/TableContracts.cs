@@ -70,3 +70,10 @@ public sealed record CreateTableRequest(
 public sealed record UpdateTableRequest(
     string? DisplayName,
     bool? IsActive);
+
+public sealed record TableAssistanceRequest(
+    string? Note);
+
+public sealed record TableAssistanceResponse(
+    bool Ok,
+    string TableCode);
