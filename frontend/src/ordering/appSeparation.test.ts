@@ -72,4 +72,12 @@ describe("marketing and ordering app separation", () => {
     expect(qrManager).not.toContain("VITE_CUSTOMER_BASE_URL");
     expect(qrManager).not.toContain("https://customer.cmcrestaurant.app");
   });
+
+  it("mounts ops toast inside the admin router so toast links do not crash the shell", () => {
+    const adminEntry = read("apps/admin-web/src/main.tsx");
+
+    expect(adminEntry).toContain("<OpsToastProvider>");
+    expect(adminEntry).toContain("<RoleAwareOpsShell />");
+    expect(adminEntry).not.toMatch(/OpsToastProvider[\s\S]{0,120}<RouterProvider/);
+  });
 });
