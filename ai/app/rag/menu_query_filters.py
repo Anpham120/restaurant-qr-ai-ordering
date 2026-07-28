@@ -181,18 +181,77 @@ def infer_child_unsuitable_menu_item_ids(
     return excluded
 
 
+# Nhãn khai báo trên thực đơn — tín hiệu có thẩm quyền, không phải suy luận.
+ALLERGEN_DECLARED_TAGS: dict[str, tuple[str, ...]] = {
+    "seafood": ("co hai san",),
+    "peanut": ("co dau phong",),
+    "gluten": ("co gluten",),
+    "egg": ("co trung",),
+    "dairy": ("co sua",),
+    "soy": ("co dau nanh",),
+}
+
+# Term mà dạng rút dấu trùng với từ khác thật sự có trong thực đơn này. Sáu trường
+# hợp đo được, mỗi trường hợp loại oan ít nhất một món:
+#   trứng (egg)    vs  miền Trung, tầm trung        43/91 món bị loại, chỉ 7 đúng
+#   bơ    (butter) vs  bò (thịt bò)                 Phở bò, Bún bò Huế, Cơm bò...
+#   cua   (crab)   vs  của, cửa                     "phiên bản chay của Bún bò Huế"
+#   mực   (squid)  vs  mức                          "chọn mức đường" (trà sữa)
+#   lạc   (peanut) vs  lắc                          "bò lúc lắc"
+#   sò    (clam)   vs  so, số                       -
+ALLERGEN_AMBIGUOUS_TERMS: dict[str, tuple[str, ...]] = {
+    "trung": ("trứng",),
+    "bo": ("bơ",),
+    "cua": ("cua",),
+    "muc": ("mực",),
+    "lac": ("lạc",),
+    "so": ("sò",),
+}
+
+# "Không thịt, không hải sản" là lời khẳng định KHÔNG chứa, nhưng khớp chuỗi đọc nó
+# thành có: Gỏi cuốn chay từng bị loại khỏi thực đơn cho người dị ứng hải sản vì
+# chính câu nói nó không có hải sản.
+_ALLERGEN_NEGATIONS: tuple[str, ...] = ("khong ", "ko ", "no ", "without ", "free of ")
+
+
 def infer_allergen_excluded_menu_item_ids(
     allergens: Sequence[str],
     menu_items: Sequence[dict[str, Any]],
 ) -> set[str]:
-    """Exclude items whose name/description/tags mention a detected allergen."""
+    """Exclude items that declare, or read as containing, a detected allergen.
 
-    patterns = [
+    The catalogue carries explicit `co <allergen>` labels, and those are the
+    authoritative signal.  Matching the allergen's *name* against diacritic-
+    stripped text is only a supplement, because the stripped forms collide: an egg
+    allergy matched `trung` inside "miền Trung" and "tầm trung" and excluded 43 of
+    91 dishes when only 7 carry `co trung`, and a dairy allergy matched `bo`
+    ("bơ", butter) against "bò" (beef) and took out Phở bò, Bún bò Huế, Cơm bò lúc
+    lắc and Lẩu bò nhúng giấm.  84% of the egg exclusions were wrong.
+
+    Terms listed as ambiguous are matched against accented text instead, and the
+    rest keep the stripped match so genuine mentions in free-text descriptions are
+    still caught.
+    """
+
+    declared_tags = {
+        tag
+        for allergen in allergens
+        for tag in ALLERGEN_DECLARED_TAGS.get(str(allergen), ())
+    }
+    plain_patterns = [
         re.compile(rf"\b{re.escape(term)}\b")
         for allergen in allergens
         for term in ALLERGEN_ITEM_TERMS.get(str(allergen), ())
+        if term not in ALLERGEN_AMBIGUOUS_TERMS
     ]
-    if not patterns:
+    accented_patterns = [
+        re.compile(rf"\b{re.escape(accented)}\b")
+        for allergen in allergens
+        for term in ALLERGEN_ITEM_TERMS.get(str(allergen), ())
+        if term in ALLERGEN_AMBIGUOUS_TERMS
+        for accented in ALLERGEN_AMBIGUOUS_TERMS[term]
+    ]
+    if not declared_tags and not plain_patterns and not accented_patterns:
         return set()
 
     excluded: set[str] = set()
@@ -200,18 +259,38 @@ def infer_allergen_excluded_menu_item_ids(
         item_id = _item_id(item)
         if not item_id:
             continue
-        haystack = normalize_query_text(
-            " ".join(
-                [
-                    str(item.get("name") or ""),
-                    str(item.get("description") or ""),
-                    " ".join(str(tag) for tag in _tags(item)),
-                ]
-            )
-        )
-        if any(pattern.search(haystack) for pattern in patterns):
+        tags = [str(tag) for tag in _tags(item)]
+        if declared_tags & {normalize_query_text(tag) for tag in tags}:
             excluded.add(item_id)
+            continue
+        parts = [
+            str(item.get("name") or ""),
+            str(item.get("description") or ""),
+            " ".join(tags),
+        ]
+        haystack = normalize_query_text(" ".join(parts))
+        if any(
+            _mentions_allergen(haystack, pattern) for pattern in plain_patterns
+        ):
+            excluded.add(item_id)
+            continue
+        if accented_patterns:
+            accented = " ".join(parts).casefold()
+            if any(
+                _mentions_allergen(accented, pattern) for pattern in accented_patterns
+            ):
+                excluded.add(item_id)
     return excluded
+
+
+def _mentions_allergen(haystack: str, pattern: re.Pattern[str]) -> bool:
+    """True only for a mention that is not immediately negated."""
+    for match in pattern.finditer(haystack):
+        window = haystack[max(0, match.start() - 12) : match.start()]
+        if any(negation in window for negation in _ALLERGEN_NEGATIONS):
+            continue
+        return True
+    return False
 
 
 def infer_allowed_menu_item_ids(
