@@ -39,6 +39,7 @@ from app.rag.menu_exclusions import (
     recommendation_intro,
 )
 from app.rag.menu_grounding import MenuCandidateRetriever
+from app.rag.allergy_safe_menu_fast_path import try_allergy_safe_menu_fast_path
 from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import filter_items_by_kind
@@ -889,6 +890,35 @@ class AiAssistantService:
             "retriever_runtime": self.retriever_runtime,
             "available_menu_items": available_menu_items,
         }
+
+        # Allergy was the only family the evaluation set answered 0% deterministically,
+        # and it is the one where being wrong matters most.  Which dishes record an
+        # allergen is a catalogue lookup, so it runs here rather than being left to
+        # the generation step — which, asked "Tôi dị ứng hải sản, món nào an toàn?",
+        # replied by asking the guest to send the menu it was already holding.
+        #
+        # Placed ahead of menu_presence because "có món nào không có hải sản không?"
+        # is both questions at once, and the allergy answer is the useful one.
+        # Non-allergen exclusions only: excluded_ids already holds the allergen
+        # exclusions, and passing those would empty the "dishes to avoid" list.
+        if allergen_context:
+            allergy_response = try_allergy_safe_menu_fast_path(
+                message,
+                menu_items,
+                allergens=list(constraints.get("allergens") or []),
+                excluded_ids=frozenset(
+                    policy.excluded_menu_item_ids | payload_excluded | child_excluded
+                ),
+            )
+            if allergy_response is not None:
+                allergy_response["latency_ms"] = {**stages, "path": "allergy_menu"}
+                return _early_context_response(
+                    allergy_response,
+                    stages,
+                    policy,
+                    available_menu_items,
+                    context=fast_path_context,
+                )
 
         menu_presence_response = try_menu_presence_fast_path(
             message,

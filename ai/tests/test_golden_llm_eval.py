@@ -83,7 +83,15 @@ class GoldenLlmEvalTests(unittest.TestCase):
         self.assertRegex(summary["case_order_sha256"], r"^[0-9a-f]{64}$")
 
     def test_evaluate_cases_with_mock_llm(self) -> None:
-        cases = [case for case in load_golden_cases("dev", limit=5) if case.get("family") == "allergy"]
+        # `recommend`, not `allergy`: allergy is now answered by
+        # app/rag/allergy_safe_menu_fast_path.py without calling the model, so an
+        # allergy case can no longer exercise the LLM leg of the harness.  That is
+        # the point of the fast path — see the companion assertion below.
+        cases = [
+            case
+            for case in load_golden_cases("dev")
+            if case.get("family") == "recommend"
+        ]
         self.assertTrue(cases)
 
         result = asyncio.run(
@@ -112,6 +120,31 @@ class GoldenLlmEvalTests(unittest.TestCase):
             },
             result["llm"]["generation_config"],
         )
+
+    def test_allergy_cases_are_answered_without_the_model(self) -> None:
+        # Allergy was the only family answered 0% deterministically, and it is the
+        # family where a model's improvisation is least acceptable.
+        cases = [
+            case
+            for case in load_golden_cases("dev")
+            if case.get("family") == "allergy"
+        ]
+        self.assertTrue(cases)
+
+        result = asyncio.run(
+            evaluate_cases(
+                cases[:1],
+                retrieval_method="bm25",
+                embedding_model="e5_small",
+                with_judge=False,
+                llm_client=_MockRouterClient(),
+            )
+        )
+        self.assertFalse(result["cases"][0]["llm_success"])
+        self.assertTrue(result["cases"][0]["forbidden_pass"])
+        # Không có bước sinh thì không có input để băm — đó là bằng chứng đường
+        # tất định đã trả lời, không phải thiếu dữ liệu.
+        self.assertIsNone(result["cases"][0]["generation_input_sha256"])
 
 
 if __name__ == "__main__":
