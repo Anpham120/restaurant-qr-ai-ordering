@@ -98,12 +98,31 @@ export function KitchenRealtimePage() {
     refresh: loadOrders,
     pollIntervalMs: 5_000,
     onEvent: (event: OrderRealtimeEvent) => {
-      if (event.event === "order.statusChanged") {
-        setOrders((current) => mergeOrderStatusChanged(current, event.payload));
-        return;
-      }
-      if (event.event === "order.itemStatusChanged") {
-        setOrders((current) => mergeOrderItemStatusChanged(current, event.payload));
+      try {
+        if (event.event === "order.statusChanged") {
+          setOrders((current) => mergeOrderStatusChanged(current, event.payload));
+          return;
+        }
+        if (event.event === "order.itemStatusChanged") {
+          setOrders((current) => mergeOrderItemStatusChanged(current, event.payload));
+        }
+      } catch (error) {
+        // #region agent log
+        fetch("http://127.0.0.1:7639/ingest/45c610dd-1025-4f92-a068-a057f791be7f", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "613762" },
+          body: JSON.stringify({
+            sessionId: "613762",
+            hypothesisId: "D",
+            location: "KitchenRealtimePage.tsx:onEvent",
+            message: "kitchen merge error",
+            data: { event: event.event, detail: error instanceof Error ? error.message : "unknown" },
+            timestamp: Date.now(),
+            runId: "ops-realtime",
+          }),
+        }).catch(() => {});
+        // #endregion
+        void loadOrders();
       }
     },
   });
