@@ -58,11 +58,11 @@ jobs:
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
       LLM_MODEL: cx/gpt-5.6-luna-review
-      # No fallback configured (single-model deployment); kept equal to
-      # LLM_MODEL only because deploy/scripts/health-check.sh requires the
-      # variable to be set. LLM_RATE_LIMIT_FALLBACK_ENABLED=false means it is
-      # never used.
-      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      # Single-model deployment: there is no fallback model.  Leave this empty —
+      # the AI service reports fallback_model=null whenever fallback is disabled,
+      # so naming a model here makes the deployment claim a fallback it will never
+      # call and fails the readiness contract in deploy/scripts/health-check.sh.
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
       LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
       LLM_TIMEOUT_SECONDS: "30"
       AI_REQUEST_BUDGET_SECONDS: "45"

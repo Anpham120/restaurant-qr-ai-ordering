@@ -23,9 +23,11 @@ jobs:
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
       LLM_MODEL: cx/gpt-5.6-luna-review
-      # No fallback configured (single-model deployment); kept equal to
-      # LLM_MODEL for consistency with deploy-staging.yml/deploy-production.yml.
-      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
+      # Single-model deployment: there is no fallback model.  Leave this empty —
+      # the AI service reports fallback_model=null whenever fallback is disabled,
+      # so naming a model here makes the deployment claim a fallback it will never
+      # call and fails the readiness contract in deploy/scripts/health-check.sh.
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
       LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
       # Keep all non-profile controls identical to staging/production.  A
       # selection artifact is invalid if it was measured with a shorter
@@ -150,7 +152,9 @@ jobs:
 
           base_url = os.environ["LLM_BASE_URL"].rstrip("/")
           primary = os.environ["LLM_MODEL"]
-          fallback = os.environ["LLM_RATE_LIMIT_FALLBACK_MODEL"]
+          # Empty means single-model: a rate-limited primary has nowhere to fall
+          # back to, so report that instead of probing the model name "".
+          fallback = os.environ.get("LLM_RATE_LIMIT_FALLBACK_MODEL", "").strip()
           headers = {
               "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
               "Content-Type": "application/json",
@@ -179,6 +183,11 @@ jobs:
           response = request(primary)
           print(f"9router primary preflight status={response.status_code}")
           if response.status_code == 429:
+              if not fallback:
+                  raise SystemExit(
+                      "9router primary preflight returned HTTP 429 and no fallback "
+                      "model is configured; rerun when the rate limit clears"
+                  )
               fallback_response = request(fallback)
               print(
                   "9router fallback preflight "
