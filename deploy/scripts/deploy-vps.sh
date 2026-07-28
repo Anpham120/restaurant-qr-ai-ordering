@@ -26,7 +26,9 @@ required_vars=(
   LLM_PROVIDER
   LLM_API_KEY
   LLM_MODEL
-  LLM_RATE_LIMIT_FALLBACK_MODEL
+  # LLM_RATE_LIMIT_FALLBACK_MODEL is deliberately absent: a single-model
+  # deployment has no fallback, and the required-vars loop below rejects empty
+  # values, so listing it would force naming a model that is never called.
   LLM_RATE_LIMIT_FALLBACK_ENABLED
   AI_PIPELINE_PROFILE
 )
@@ -109,7 +111,7 @@ LLM_PROVIDER=$(env_quote "${LLM_PROVIDER:-9router}")
 LLM_BASE_URL=$(env_quote "${LLM_BASE_URL:-}")
 LLM_API_KEY=$(env_quote "$LLM_API_KEY")
 LLM_MODEL=$(env_quote "$LLM_MODEL")
-LLM_RATE_LIMIT_FALLBACK_MODEL=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_MODEL")
+LLM_RATE_LIMIT_FALLBACK_MODEL=$(env_quote "${LLM_RATE_LIMIT_FALLBACK_MODEL:-}")
 LLM_RATE_LIMIT_FALLBACK_ENABLED=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_ENABLED")
 AI_PIPELINE_PROFILE=$(env_quote "$AI_PIPELINE_PROFILE")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")

@@ -100,9 +100,12 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-9router}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:20128/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-oc/deepseek-v4-flash-free}
-      LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-cx/gpt-5.6-luna-review}
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-true}
+      LLM_MODEL: ${LLM_MODEL:-cx/gpt-5.6-luna-review}
+      # Single-model deployment: no fallback model, fallback off.  The previous
+      # defaults still described the retired DeepSeek-primary policy, so a compose
+      # run without explicit env picked up a model the deployment no longer uses.
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-}
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-false}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
       AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}

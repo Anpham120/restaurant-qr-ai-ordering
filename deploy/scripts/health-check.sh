@@ -7,8 +7,15 @@ set -euo pipefail
 : "${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}"
 : "${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}"
 : "${LLM_MODEL:?LLM_MODEL is required}"
-: "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required}"
 : "${LLM_RATE_LIMIT_FALLBACK_ENABLED:?LLM_RATE_LIMIT_FALLBACK_ENABLED is required}"
+# A single-model deployment has no fallback model, and the service reports
+# fallback_model=null whenever fallback is disabled.  Demanding a non-empty value
+# here forced deployments to name a fallback they would never call, which then
+# failed the readiness assertion below.  Require it only when it can be used.
+if [ "$(printf '%s' "${LLM_RATE_LIMIT_FALLBACK_ENABLED}" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
+  : "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required when fallback is enabled}"
+fi
+LLM_RATE_LIMIT_FALLBACK_MODEL="${LLM_RATE_LIMIT_FALLBACK_MODEL:-}"
 
 primary_frontend_domain="$(printf '%s\n' "$FRONTEND_SERVER_NAMES" | awk '{print $1}')"
 frontend_url="${FRONTEND_HEALTH_URL:-https://${primary_frontend_domain}/}"
@@ -38,7 +45,10 @@ import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model, expected_fallback_model = sys.argv[2], sys.argv[3], sys.argv[4]
+expected_profile, expected_model = sys.argv[2], sys.argv[3]
+# The service reports fallback_model=null when fallback is disabled, so an empty
+# configured value means "no fallback model" rather than "unchecked".
+expected_fallback_model = sys.argv[4].strip() or None
 expected_fallback_enabled = sys.argv[5].strip().lower() == "true"
 policy = dict(payload.get("model_policy") or {})
 assert payload.get("ready") is True, payload
@@ -117,7 +127,10 @@ import sys
 import unicodedata
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-menu_source, probe_name, expected_profile, expected_model, expected_fallback_model = sys.argv[2:7]
+menu_source, probe_name, expected_profile, expected_model = sys.argv[2:6]
+# Empty means the deployment runs a single model, and the response then reports
+# fallback_model=null; see the readiness assertions above.
+expected_fallback_model = sys.argv[6].strip() or None
 content = str(payload.get("content") or "").casefold()
 assert payload.get("pipeline_profile") == expected_profile, payload
 assert payload.get("primary_model") == expected_model, payload
@@ -128,7 +141,10 @@ model = str(payload.get("model") or "")
 # verifier has grounded every claim in the supplied menu; do not turn that
 # valid no-LLM route into a false deployment failure.
 is_deterministic = model.startswith("deterministic-")
-assert model in {expected_model, expected_fallback_model} or is_deterministic, payload
+allowed_models = {expected_model}
+if expected_fallback_model:
+    allowed_models.add(expected_fallback_model)
+assert model in allowed_models or is_deterministic, payload
 if is_deterministic:
     assert payload.get("provider_status") == "not_called", payload
 else:

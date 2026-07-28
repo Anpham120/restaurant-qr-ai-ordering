@@ -34,13 +34,25 @@ class AiOpsDeployContractTests(unittest.TestCase):
 
         self.assertIn(': "${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}"', script)
         self.assertIn(
-            ': "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required}"',
-            script,
-        )
-        self.assertIn(
             ': "${LLM_RATE_LIMIT_FALLBACK_ENABLED:?LLM_RATE_LIMIT_FALLBACK_ENABLED is required}"',
             script,
         )
+        # A single-model deployment has no fallback model and the service reports
+        # fallback_model=null, so demanding a non-empty value made the readiness
+        # assertion below unsatisfiable.  Require it only where it can be used.
+        self.assertIn(
+            ': "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required'
+            ' when fallback is enabled}"',
+            script,
+        )
+        self.assertNotIn(
+            ': "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required}"',
+            script,
+        )
+        # Empty configured fallback must be read as "no fallback model", which is
+        # what the service reports, rather than compared against the empty string.
+        self.assertIn('expected_fallback_model = sys.argv[4].strip() or None', script)
+        self.assertIn('expected_fallback_model = sys.argv[6].strip() or None', script)
         self.assertIn("/health/ready", script)
         self.assertIn("/ready", script)
         self.assertIn("model_policy", script)
@@ -77,10 +89,9 @@ class AiOpsDeployContractTests(unittest.TestCase):
         # does not need an LLM response.  The deploy probe must accept that
         # deterministic path while still rejecting unknown model routes.
         self.assertIn('model.startswith("deterministic-")', script)
-        self.assertIn(
-            'assert model in {expected_model, expected_fallback_model} or is_deterministic, payload',
-            script,
-        )
+        self.assertIn('assert model in allowed_models or is_deterministic, payload', script)
+        self.assertIn("if expected_fallback_model:", script)
+        self.assertIn("allowed_models.add(expected_fallback_model)", script)
         self.assertIn(
             'assert payload.get("provider_status") == "not_called", payload',
             script,
@@ -97,16 +108,23 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn('run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"', script)
         self.assertIn('run_semantic_probe "nhau" "Mình có món nhậu không?"', script)
 
-    def test_deploy_vps_requires_and_writes_fallback_model_policy(self) -> None:
+    def test_deploy_vps_writes_fallback_model_policy_and_allows_no_fallback(self) -> None:
         script = (REPO_ROOT / "deploy" / "scripts" / "deploy-vps.sh").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("LLM_RATE_LIMIT_FALLBACK_MODEL", script)
         self.assertIn("LLM_RATE_LIMIT_FALLBACK_ENABLED", script)
+        # The required-vars loop rejects empty values, so a single-model
+        # deployment must not be forced to name a fallback it never calls.
         self.assertIn(
-            'LLM_RATE_LIMIT_FALLBACK_MODEL=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_MODEL")',
+            'LLM_RATE_LIMIT_FALLBACK_MODEL=$(env_quote "${LLM_RATE_LIMIT_FALLBACK_MODEL:-}")',
             script,
+        )
+        required_block = script.split("required_vars=(", 1)[1].split(")", 1)[0]
+        self.assertIn("LLM_RATE_LIMIT_FALLBACK_ENABLED", required_block)
+        self.assertNotIn(
+            "\n  LLM_RATE_LIMIT_FALLBACK_MODEL\n", required_block
         )
         self.assertIn(
             'LLM_RATE_LIMIT_FALLBACK_ENABLED=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_ENABLED")',
@@ -131,15 +149,12 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("AI_INTERNAL_TOKEN: ${{ secrets.AI_INTERNAL_TOKEN }}", workflow)
         self.assertIn("LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}", workflow)
         self.assertIn("LLM_PROVIDER: 9router", workflow)
-        self.assertIn(
-            "LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review",
-            workflow,
-        )
         # Single-model deployment: no fallback is configured (DeepSeek was
         # dropped after its 9router route rejected response_format:json_object;
-        # see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md). The fallback model
-        # env var above is kept only because health-check.sh requires it to be
-        # set — it is never used while disabled.
+        # see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md).  The fallback model
+        # must stay empty: the service reports fallback_model=null while fallback
+        # is disabled, so naming a model here fails the readiness contract.
+        self.assertIn('LLM_RATE_LIMIT_FALLBACK_MODEL: ""', workflow)
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"', workflow)
         self.assertIn('LLM_TIMEOUT_SECONDS: "30"', workflow)
         self.assertIn('AI_REQUEST_BUDGET_SECONDS: "45"', workflow)
@@ -179,10 +194,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("cx/gpt-5.6-luna-review", research_workflow)
         self.assertNotIn("oc/deepseek-v4-flash-free", research_workflow)
         self.assertIn("run_pipeline_profile_eval.py", research_workflow)
-        self.assertIn(
-            "LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review",
-            research_workflow,
-        )
+        self.assertIn('LLM_RATE_LIMIT_FALLBACK_MODEL: ""', research_workflow)
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"', research_workflow)
         self.assertIn("if-no-files-found: ignore", research_workflow)
         # The research result is eligible to select production only when every
