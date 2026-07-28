@@ -77,7 +77,9 @@ describe("marketing and ordering app separation", () => {
     const adminEntry = read("apps/admin-web/src/main.tsx");
 
     expect(adminEntry).toContain("<OpsToastProvider>");
-    expect(adminEntry).toContain("<RoleAwareOpsShell />");
-    expect(adminEntry).not.toMatch(/OpsToastProvider[\s\S]{0,120}<RouterProvider/);
+    expect(adminEntry).toContain("<OpsErrorBoundary");
+    const toast = read("src/components/operations/OpsToastProvider.tsx");
+    expect(toast).toContain('<a key={toast.id} className="ops-toast" href={toast.href}');
+    expect(toast).not.toContain("from \"react-router-dom\"");
   });
 });

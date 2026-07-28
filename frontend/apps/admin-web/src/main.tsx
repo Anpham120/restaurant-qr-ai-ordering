@@ -33,6 +33,7 @@ import { OpsNavBadgesProvider, useOpsNavBadges } from "../../../src/components/o
 import { OpsToastProvider } from "../../../src/components/operations/OpsToastProvider";
 import { OpsRealtimeProvider } from "../../../src/components/operations/OpsRealtimeProvider";
 import { OpsAssistanceProvider } from "../../../src/components/operations/OpsAssistanceProvider";
+import { OpsErrorBoundary } from "../../../src/components/operations/OpsErrorBoundary";
 import { CounterMobileShell } from "../../../src/components/operations/CounterMobileShell";
 import { getOrderingBaseUrl } from "../../../src/utils/tableOrderingLink";
 import {
@@ -150,7 +151,9 @@ const router = createBrowserRouter([
       <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff", "Kitchen"]}>
         <OpsNavBadgesProvider>
           <OpsToastProvider>
-            <RoleAwareOpsShell />
+            <OpsErrorBoundary scope="ops-shell">
+              <RoleAwareOpsShell />
+            </OpsErrorBoundary>
           </OpsToastProvider>
         </OpsNavBadgesProvider>
       </ProtectedRoute>

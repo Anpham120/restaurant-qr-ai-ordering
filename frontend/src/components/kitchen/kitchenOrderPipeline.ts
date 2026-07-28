@@ -28,7 +28,7 @@ const URGENT_WAIT_MS = 20 * 60_000;
 const WARNING_WAIT_MS = 12 * 60_000;
 
 export function getActiveKitchenItems(order: Order) {
-  return order.items.filter((item) => item.status !== "Cancelled");
+  return (order.items ?? []).filter((item) => item.status !== "Cancelled");
 }
 
 export function getKitchenWaitMs(order: Order, now = Date.now()) {

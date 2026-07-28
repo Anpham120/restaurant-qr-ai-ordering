@@ -32,7 +32,7 @@ export function mergeOrderItemStatusChanged(orders: Order[], event: OrderItemSta
     return {
       ...order,
       updatedAt: event.updatedAt,
-      items: order.items.map((item) =>
+      items: (order.items ?? []).map((item) =>
         item.orderItemId === event.orderItemId
           ? { ...item, status: event.status, updatedAt: event.updatedAt }
           : item,
