@@ -44,6 +44,7 @@ from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import filter_items_by_kind
 from app.rag.menu_query_filters import (
+    filter_items_by_spice,
     has_allergy_avoidance_context,
     has_child_dining_context,
     infer_allergen_excluded_menu_item_ids,
@@ -871,6 +872,14 @@ class AiAssistantService:
         available_menu_items = filter_items_by_excluded_categories(
             available_menu_items,
             excluded_category_ids,
+        )
+        # The spice constraint was already extracted, already carried across turns in
+        # the rolling summary, and already used by intent classification — but no
+        # filter consumed it, so "Món nào không cay?" narrowed nothing even though 68
+        # dishes carry `khong cay`.
+        available_menu_items = filter_items_by_spice(
+            available_menu_items,
+            constraints.get("spice"),
         )
 
         fast_path_context = {

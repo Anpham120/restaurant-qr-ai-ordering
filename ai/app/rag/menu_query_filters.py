@@ -602,3 +602,45 @@ def _contains_phrase(query: str, phrase: str) -> bool:
 def _surface_text(value: str) -> str:
     normalized = unicodedata.normalize("NFC", str(value or "").casefold())
     return " ".join(re.findall(r"[^\W_]+", normalized, flags=re.UNICODE))
+
+
+# Nhãn độ cay trên thực đơn, xếp từ nhẹ tới nặng. 88 món có một trong các nhãn này.
+SPICE_TAG_ORDER: tuple[str, ...] = ("khong cay", "cay nhe", "cay vua", "cay", "rat cay")
+
+# Mức khách nêu -> các nhãn được coi là thoả. Khách xin "ít cay" vẫn nhận món không
+# cay, vì không cay thoả yêu cầu ít cay; ngược lại thì không.
+SPICE_LEVEL_TO_TAGS: dict[str, tuple[str, ...]] = {
+    "none": ("khong cay",),
+    "mild": ("khong cay", "cay nhe"),
+    "medium": ("cay nhe", "cay vua"),
+    "hot": ("cay vua", "cay", "rat cay"),
+}
+
+
+def filter_items_by_spice(
+    menu_items: Sequence[dict[str, Any]],
+    spice: str | None,
+) -> list[dict[str, Any]]:
+    """Giữ các món khớp mức cay khách nêu.
+
+    Ràng buộc `spice` đã được trích từ câu hỏi, ghi vào bộ nhớ phiên và dùng trong
+    phân loại ý định từ trước — nhưng chưa có chỗ nào dùng nó để lọc thực đơn. Nên
+    câu "Món nào không cay?" không được lọc gì cả, dù 68 món mang nhãn `khong cay`.
+
+    Món chưa ghi nhãn độ cay được **giữ lại**: thiếu nhãn là thiếu dữ liệu, không
+    phải bằng chứng món đó cay. Với dị nguyên thì fail-closed là đúng, còn độ cay
+    không gây nguy hiểm — loại bỏ món chưa gán nhãn chỉ làm khách mất lựa chọn.
+    """
+    if not spice or spice == "unknown":
+        return list(menu_items)
+    allowed = SPICE_LEVEL_TO_TAGS.get(str(spice))
+    if not allowed:
+        return list(menu_items)
+
+    kept: list[dict[str, Any]] = []
+    for item in menu_items:
+        tags = {normalize_query_text(str(tag)) for tag in _tags(item)}
+        recorded = tags & set(SPICE_TAG_ORDER)
+        if not recorded or recorded & set(allowed):
+            kept.append(item)
+    return kept
