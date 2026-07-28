@@ -143,6 +143,13 @@ def _topic_needle_for_query(normalized_query: str) -> str | None:
     return None
 
 
+def _topic_terms_for_query(normalized_query: str) -> tuple[str, ...] | None:
+    for query_terms, _title_needle in _FAQ_TOPIC_ROUTES:
+        if any(term in normalized_query for term in query_terms):
+            return query_terms
+    return None
+
+
 def _find_faq_by_topic(normalized_query: str, candidates: list[Any]) -> Any | None:
     title_needle = _topic_needle_for_query(normalized_query)
     if title_needle is None:
@@ -151,6 +158,28 @@ def _find_faq_by_topic(normalized_query: str, candidates: list[Any]) -> Any | No
         item
         for item in candidates
         if item.chunk.source == "faq.md" and title_needle in _normalize(item.chunk.title)
+    ]
+    if hits:
+        return max(hits, key=lambda item: float(item.score))
+    return None
+
+
+def _find_topic_chunk_any_source(normalized_query: str, candidates: list[Any]) -> Any | None:
+    """Fallback for topics whose real content lives outside faq.md (e.g. "Phòng
+    VIP" under restaurant-info.md answers the "phong rieng" topic route, but
+    its title uses the "phong vip" synonym, not the route's canonical needle).
+
+    Only called once a topic is already confidently detected (see call site),
+    so this widens WHERE we look, not WHETHER we're confident a real FAQ topic
+    was asked — it does not loosen any confidence threshold.
+    """
+    terms = _topic_terms_for_query(normalized_query)
+    if terms is None:
+        return None
+    hits = [
+        item
+        for item in candidates
+        if any(term in _normalize(item.chunk.title) for term in terms)
     ]
     if hits:
         return max(hits, key=lambda item: float(item.score))
@@ -215,6 +244,35 @@ def _relevance_score(normalized_query: str, item: Any, preferred_sources: tuple[
     return overlap + source_bonus + title_bonus + faq_title_bonus + retrieval_bonus
 
 
+def _flatten_markdown_table(block: str) -> str | None:
+    """Turn a "| header | ... |" markdown table into a natural sentence list.
+
+    Raw pipe-table syntax reads as machine output in a chat bubble; customers
+    should get the same facts as a normal sentence.
+    """
+    lines = [line.strip() for line in block.strip().split("\n") if line.strip()]
+    if len(lines) < 3 or not lines[0].startswith("|"):
+        return None
+    if not re.fullmatch(r"[\s|:\-]+", lines[1]):
+        return None
+    headers = [cell.strip() for cell in lines[0].strip("|").split("|")]
+    rows: list[str] = []
+    for line in lines[2:]:
+        if not line.startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        pairs = [
+            f"{header} {value}" if header.casefold() in {"ngày", "tiện nghi"} else f"{header}: {value}"
+            for header, value in zip(headers, cells)
+            if value and value not in {"—", "-"}
+        ]
+        if pairs:
+            rows.append(", ".join(pairs))
+    if not rows:
+        return None
+    return "; ".join(rows) + "."
+
+
 def _format_chunk_answer(content: str) -> str:
     text = re.sub(r"<!--.*?-->", "", content.strip(), flags=re.DOTALL)
     text = re.sub(r"^#+\s*", "", text.strip(), flags=re.MULTILINE)
@@ -224,6 +282,9 @@ def _format_chunk_answer(content: str) -> str:
         return content.strip()
 
     body = paragraphs[0]
+    table_text = _flatten_markdown_table(body)
+    if table_text is not None:
+        return table_text
     if len(body) > 420 and ". " in body:
         sentences = body.split(". ")
         body = ". ".join(sentences[:2]).strip()
@@ -366,23 +427,32 @@ def try_kb_info_fast_path(
         return None
 
     # Bare "general" queries without info markers must not dump restaurant-info.
-    if intent == "general" and not any(
-        term in normalized
-        for term in (
-            "dia chi",
-            "o dau",
-            "hotline",
-            "lien he",
-            "wifi",
-            "mo cua",
-            "gio",
-            "gui xe",
-            "vip",
-            "thanh toan",
-            "hoa don",
-            "khuyen mai",
-            "faq",
+    # A query matching a recognised FAQ topic route (see _FAQ_TOPIC_ROUTES) is
+    # always a legitimate info marker too — checking it here (instead of only
+    # this hand-maintained keyword list) keeps this gate in sync with every
+    # topic that table already knows how to answer, so new/renamed topics
+    # don't silently fall through to the LLM and risk an unnecessary abstain.
+    if (
+        intent == "general"
+        and not any(
+            term in normalized
+            for term in (
+                "dia chi",
+                "o dau",
+                "hotline",
+                "lien he",
+                "wifi",
+                "mo cua",
+                "gio",
+                "gui xe",
+                "vip",
+                "thanh toan",
+                "hoa don",
+                "khuyen mai",
+                "faq",
+            )
         )
+        and _topic_needle_for_query(normalized) is None
     ):
         return None
 
@@ -397,6 +467,8 @@ def try_kb_info_fast_path(
             filters=RetrievalFilters(allowed_source_ids=frozenset({"faq.md"})),
         )
         topic_faq = _find_faq_by_topic(normalized, faq_candidates)
+    if topic_faq is None:
+        topic_faq = _find_topic_chunk_any_source(normalized, retrieved)
     if topic_faq is not None:
         content = _format_chunk_answer(topic_faq.chunk.content)
         if content:

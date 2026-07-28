@@ -55,6 +55,24 @@ CONSTRAINT_SCHEMA: dict[str, Any] = {
     ],
 }
 
+# "cua" and "muc" are diacritic-stripped ASCII forms shared by real seafood
+# words ("cua" = crab, "mực" = squid) AND extremely common unrelated words
+# ("cửa" = door/store as in "mở cửa"/"đóng cửa", "của" = possessive "of",
+# "mức" = level/degree as in "mức giá"). Word-boundary matching alone cannot
+# tell these apart once diacritics are stripped, so any question mentioning
+# opening hours or using "của" would otherwise be wrongly tagged as a seafood
+# allergy. These are matched against diacritic-preserving text instead (see
+# _term_matches / _match_terms), using the pattern below rather than the bare
+# term: "cua" (crab) has no correct diacritics of its own, so requiring the
+# literal unaccented spelling is enough to exclude "cửa"/"của". "mực" (squid)
+# DOES have its own correct diacritics, so its pattern also accepts that exact
+# accented spelling — otherwise a customer who correctly typed "dị ứng mực"
+# would be missed — while still excluding "mức" (a different accent).
+_DIACRITIC_SENSITIVE_PATTERNS: dict[str, str] = {
+    "cua": r"\bcua\b",
+    "muc": r"\b(?:muc|mực)\b",
+}
+
 ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
     "seafood": (
         "hai san",
@@ -167,11 +185,24 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         if str(turn.get("role") or "").casefold() == "user"
     ]
     combined_text = " ".join(user_turn_texts + [normalized])
+    # Diacritic-preserving counterpart, used only for _DIACRITIC_SENSITIVE_TERMS:
+    # "cua"/"muc" must appear literally unaccented to count as the seafood
+    # word, not as the accented "cửa"/"của"/"mức" that collide with it once
+    # diacritics are stripped. normalize_vietnamese() also strips diacritics
+    # internally (only restoring a fixed domain list that doesn't cover these
+    # words), so it cannot be reused here — this needs the user's literal
+    # original characters, untouched.
+    accented_user_turns = [
+        _casefold_preserve_diacritics(str(turn.get("content") or ""))
+        for turn in history[-6:]
+        if str(turn.get("role") or "").casefold() == "user"
+    ]
+    combined_text_accented = " ".join(accented_user_turns + [_casefold_preserve_diacritics(message)])
 
     intent_result = classify_intent_with_history(message, history)
     language = _detect_language(message)
-    allergens = _match_terms(combined_text, ALLERGEN_KEYWORDS)
-    diet = _match_terms(combined_text, DIET_KEYWORDS)
+    allergens = _match_terms(combined_text, ALLERGEN_KEYWORDS, accented_text=combined_text_accented)
+    diet = _match_terms(combined_text, DIET_KEYWORDS, accented_text=combined_text_accented)
     spice = _detect_spice(combined_text)
     budget_vnd = _extract_budget(normalized)
     party_size = _extract_party_size(combined_text)
@@ -269,18 +300,33 @@ def _detect_language(message: str) -> str:
     return "vi"
 
 
-def _match_terms(text: str, mapping: dict[str, tuple[str, ...]]) -> list[str]:
+def _match_terms(
+    text: str,
+    mapping: dict[str, tuple[str, ...]],
+    *,
+    accented_text: str | None = None,
+) -> list[str]:
     matched: list[str] = []
     for label, terms in mapping.items():
-        if any(_term_matches(text, term) for term in terms):
+        if any(
+            _term_matches(
+                accented_text if term in _DIACRITIC_SENSITIVE_PATTERNS and accented_text is not None else text,
+                term,
+            )
+            for term in terms
+        ):
             matched.append(label)
     return matched
 
 
 def _term_matches(text: str, term: str) -> bool:
     # Word-boundary match: bare substrings misfire on normalized Vietnamese
-    # ("cua" in "chua"/"cua(của)", "oc" in "duoc", "lac" in "lau").
-    return re.search(rf"\b{re.escape(term)}\b", text) is not None
+    # ("cua" in "chua"/"cua(của)", "oc" in "duoc", "lac" in "lau"). Terms in
+    # _DIACRITIC_SENSITIVE_PATTERNS are matched against diacritic-preserving
+    # text using their dedicated pattern instead (see call site), so
+    # "cửa"/"của"/"mức" no longer collide with "cua"/"muc".
+    pattern = _DIACRITIC_SENSITIVE_PATTERNS.get(term, rf"\b{re.escape(term)}\b")
+    return re.search(pattern, text) is not None
 
 
 def _detect_spice(text: str) -> str:
@@ -353,3 +399,13 @@ def _has_any(text: str, terms: tuple[str, ...]) -> bool:
 
 def _normalize(value: str) -> str:
     return normalize_query_text(value)
+
+
+def _casefold_preserve_diacritics(value: str) -> str:
+    """Lowercase and collapse whitespace only — keep every original character.
+
+    Used for _DIACRITIC_SENSITIVE_TERMS, where the presence/absence of a
+    diacritic is the only thing that distinguishes the real keyword from an
+    unrelated common word (see ALLERGEN_KEYWORDS comment).
+    """
+    return " ".join(value.casefold().split())

@@ -965,7 +965,13 @@ class AiAssistantService:
         )
 
         kb_fast_path = None
-        if use_deterministic_fast_paths and not _should_skip_kb_fast_path:
+        if not _should_skip_kb_fast_path:
+            # Deterministic FAQ/policy answers (hours, wifi, parking, payment, ...)
+            # are never a hallucination risk and never need cross-turn context, so
+            # — like menu_presence_fast_path above — they run regardless of
+            # llm_first. Recommendation-type intents are already excluded inside
+            # try_kb_info_fast_path, so this does not affect llm_first's context
+            # handling for recommendation flows.
             kb_fast_path = try_kb_info_fast_path(
                 message,
                 retrieved,
@@ -1452,6 +1458,22 @@ def _finalize_response_payload(
         claims = _claims_from_menu_actions(response["suggested_cart_actions"])
     response["claims"] = claims
 
+    policy = context.get("policy")
+    wants_recommendations_this_turn = bool(getattr(policy, "wants_recommendations", False))
+    if wants_recommendations_this_turn and not response.get("suggested_cart_actions"):
+        # Only ever backfill on a turn the policy already flagged as wanting a
+        # fresh recommendation — never on a follow-up/confirmation turn, where
+        # a claim may cite a previously-suggested dish just to verify a fact
+        # (e.g. its price) without re-recommending it (would break the
+        # duplicate-free-suggestion session guarantee).
+        backfilled_actions = _backfill_cart_actions_from_verified_claims(
+            claims,
+            context.get("available_menu_items") or [],
+            excluded_ids=context.get("excluded_ids") or frozenset(),
+        )
+        if backfilled_actions:
+            response["suggested_cart_actions"] = backfilled_actions
+
     evidence = list(response.get("evidence") or [])
     evidence = _merge_verified_claim_evidence(
         evidence,
@@ -1663,6 +1685,48 @@ def _merge_verified_claim_evidence(
             )
             existing_ids.add(evidence_id)
     return result
+
+
+def _backfill_cart_actions_from_verified_claims(
+    claims: list[dict[str, Any]],
+    menu_items: list[dict[str, Any]],
+    *,
+    excluded_ids: frozenset[str] | set[str] = frozenset(),
+) -> list[dict[str, Any]]:
+    """Attach a cart-suggestion card whenever the model already verified a claim
+    about a real, available dish but forgot to add suggested_cart_actions.
+
+    Without this, an LLM answer can name/discuss a specific menu item (e.g. when
+    confirming availability or describing a dish) without giving the customer an
+    actionable way to add it to the cart — every real-dish mention should be.
+    Only called on turns already flagged as wanting a fresh recommendation, and
+    skips anything already suggested/rejected (HARD EXCLUSION) this session.
+    """
+    menu_by_id = {_item_id(item): item for item in menu_items if _item_id(item)}
+    actions: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for claim in claims:
+        if not claim.get("verified"):
+            continue
+        for raw_id in claim.get("evidence_ids") or []:
+            item_id = str(raw_id).strip()
+            if not item_id or item_id in seen or item_id in excluded_ids:
+                continue
+            item = menu_by_id.get(item_id)
+            if not item or not bool(item.get("is_available", True)):
+                continue
+            seen.add(item_id)
+            actions.append(
+                {
+                    "menu_item_id": item_id,
+                    "name": str(item.get("name") or "Món"),
+                    "price_vnd": item.get("price_vnd") or item.get("price"),
+                    "quantity": 1,
+                    "reason": "Được nhắc đến trong câu trả lời",
+                    "requires_customer_confirmation": True,
+                }
+            )
+    return actions[:MAX_CATALOG_CART_SUGGESTIONS]
 
 
 def _claims_from_menu_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
