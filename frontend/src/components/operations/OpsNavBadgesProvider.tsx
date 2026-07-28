@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useAuth } from "@cmc/auth";
 import type { OpsNavBadges } from "../../services/opsSummaryService";
 import { fetchOpsNavBadges } from "../../services/opsSummaryService";
 import { subscribeOrderRealtime } from "../../services/realtimeOrderService";
@@ -17,8 +18,12 @@ const OpsNavBadgesContext = createContext<OpsNavBadgesContextValue>({
 
 export function OpsNavBadgesProvider({ children }: { children: ReactNode }) {
   const [badges, setBadges] = useState<OpsNavBadges>(DEFAULT_BADGES);
+  const { user } = useAuth();
 
   const refreshBadges = useCallback(async () => {
+    if (user?.role === "Kitchen") {
+      return;
+    }
     if (typeof document !== "undefined" && document.visibilityState !== "visible") {
       return;
     }
@@ -27,9 +32,12 @@ export function OpsNavBadgesProvider({ children }: { children: ReactNode }) {
     } catch {
       /* keep previous badges */
     }
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
+    if (user?.role === "Kitchen") {
+      return;
+    }
     void refreshBadges();
     const interval = window.setInterval(() => void refreshBadges(), 20_000);
     const unsubscribe = subscribeOrderRealtime(() => void refreshBadges());
@@ -44,7 +52,7 @@ export function OpsNavBadgesProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [refreshBadges]);
+  }, [refreshBadges, user?.role]);
 
   const value = useMemo(() => ({ badges, refreshBadges }), [badges, refreshBadges]);
   return <OpsNavBadgesContext.Provider value={value}>{children}</OpsNavBadgesContext.Provider>;

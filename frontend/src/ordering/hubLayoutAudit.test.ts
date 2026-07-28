@@ -39,7 +39,9 @@ describe("hub layout audit (no sticky tab scroll gap)", () => {
   it("orders hub sends admin table deep links to the scoped table orders page", () => {
     const ordersHub = read("pages/admin/OrdersHubPage.tsx");
     expect(ordersHub).toContain("buildTableOrdersLink(tableFromQuery)");
+    const toastRouting = read("components/operations/opsToastRouting.ts");
+    expect(toastRouting).toContain("buildTableOrdersLink(tableCode)");
     const toast = read("components/operations/OpsToastProvider.tsx");
-    expect(toast).toContain("buildTableOrdersLink(tableCode)");
+    expect(toast).toContain("buildOrderCreatedToastHref");
   });
 });
