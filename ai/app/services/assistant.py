@@ -249,7 +249,9 @@ class AiAssistantService:
         # verifier grounds claims against evidence, so a claim quoting brand-voice
         # would verify successfully and be shown to the guest.  The behaviour they
         # describe is already carried by the system prompt.
-        results = [item for item in results if item.chunk.is_customer_facing]
+        results = [
+            item for item in results if getattr(item.chunk, "is_customer_facing", True)
+        ]
         return [
             {
                 "source": item.chunk.source,
@@ -981,7 +983,19 @@ class AiAssistantService:
         rag_top_k = 5 if intent.intent in RECOMMEND_INTENTS or intent.intent in FAQ_POLICY_INTENTS else 3
 
         retrieval_started = time.perf_counter()
-        retrieved = self._retriever.search(search_query, rag_top_k)
+        # This calls the retriever directly rather than through the wrapper above,
+        # so it needs the audience filter of its own.  Without it an allergy
+        # question came back with three of five evidence slots filled by guidance
+        # ("Lưu Ý Cho AI", brand-voice "Trả lời dị ứng", "Không Được Nói"), leaving
+        # the model with instructions instead of facts — it then asked the guest to
+        # supply the menu it already had.
+        retrieved = [
+            item
+            for item in self._retriever.search(search_query, rag_top_k)
+            # getattr: test doubles supply their own chunk type, and a chunk with
+            # no declared audience is a guest-facing fact, not guidance.
+            if getattr(item.chunk, "is_customer_facing", True)
+        ]
         if intent.source_hints and intent.confidence >= 0.1:
             retrieved = _rerank_by_intent(retrieved, intent.source_hints)
         stages["rag_retrieval"] = round((time.perf_counter() - retrieval_started) * 1000, 1)

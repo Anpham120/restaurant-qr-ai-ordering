@@ -208,7 +208,11 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
 
     intent_result = classify_intent_with_history(message, history)
     language = _detect_language(message)
-    allergens = _match_terms(combined_text, ALLERGEN_KEYWORDS, accented_text=combined_text_accented)
+    allergens = (
+        _match_terms(combined_text, ALLERGEN_KEYWORDS, accented_text=combined_text_accented)
+        if _has_allergy_context(combined_text)
+        else []
+    )
     diet = _match_terms(combined_text, DIET_KEYWORDS, accented_text=combined_text_accented)
     spice = _detect_spice(combined_text)
     budget_vnd = _extract_budget(normalized)
@@ -220,6 +224,16 @@ def extract_constraints(message: str, history: list[dict[str, Any]] | None = Non
         if str(turn.get("role") or "").casefold() == "user"
     )
     category = _detect_category(normalized)
+    # A category the guest is allergic to is not a category they are asking for.
+    # "Tôi dị ứng hải sản, món nào an toàn?" set allergens=['seafood'] *and*
+    # category='hai san', and the two then cancelled out: filtering the menu to
+    # seafood while excluding every seafood dish left nothing, so the model was
+    # handed no dishes at all and asked the guest to supply the menu it already
+    # had — on a safety-critical question.  _is_negated does not catch this
+    # because "dị ứng" is a statement of harm, not a negation word.
+    if category is not None and category in _ALLERGEN_CATEGORIES_TO_DROP:
+        if _ALLERGEN_CATEGORIES_TO_DROP[category] in allergens:
+            category = None
     recommendation_thread = _was_recommendation_thread(history, "")
     wants_more_dishes = _is_more_dishes_request(normalized) and not _is_context_only_follow_up(normalized)
     is_recommendation = (
@@ -307,6 +321,34 @@ def _detect_language(message: str) -> str:
     return "vi"
 
 
+# Nhắc tên một món không phải là lời khai dị ứng. Không có cổng này thì
+# "Cho xem menu hải sản" đặt allergens=['seafood'] và loại đúng cả 24 món hải sản
+# — khách xin xem menu hải sản thì hệ thống xóa sạch món hải sản.
+# Danh sách lấy từ 13 câu họ `allergy` trong tập đánh giá; cả 13 đều khớp, còn
+# "Cho xem menu hai san" / "Browse seafood menu" thì không khớp dấu nào.
+ALLERGY_CONTEXT_TERMS: tuple[str, ...] = (
+    "di ung",
+    "allergic",
+    "allergy",
+    "khong an duoc",
+    "khong the an",
+    "khong an",
+    "tranh",
+    "khong co",
+    "bo qua",
+    "khong goi",
+    "loai bo",
+    "avoid",
+    "without",
+    "free of",
+    "intolerant",
+)
+
+
+def _has_allergy_context(text: str) -> bool:
+    return any(term in text for term in ALLERGY_CONTEXT_TERMS)
+
+
 def _match_terms(
     text: str,
     mapping: dict[str, tuple[str, ...]],
@@ -377,6 +419,11 @@ def _extract_requested_count(normalized: str) -> int | None:
     if match:
         return min(max(int(match.group(1)), 1), 8)
     return None
+
+
+# Danh mục thực đơn trùng miền với một dị nguyên. Nếu khách khai dị ứng đúng miền
+# đó thì danh mục là thứ cần TRÁNH, không phải thứ cần lọc tới.
+_ALLERGEN_CATEGORIES_TO_DROP: dict[str, str] = {"hai san": "seafood"}
 
 
 def _detect_category(normalized: str) -> str | None:

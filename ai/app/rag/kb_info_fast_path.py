@@ -67,6 +67,13 @@ _QUERY_STOPWORDS = frozenset(
     }
 )
 
+# Phần token đặc trưng của câu hỏi phải xuất hiện trong đoạn mới coi là đoạn đó
+# trả lời câu hỏi. Ngưỡng cũ 0.4 đo được là đang đoán: trên tập dev, các ca dừng ở
+# coverage 0,4–0,6 chỉ trả đúng đáp án mẫu 14–17%, còn từ 0,7 trở lên là 37–51%.
+# Ca dưới ngưỡng không thành "không trả lời" — chúng chuyển sang bước sinh, vốn
+# phù hợp hơn với câu bằng chứng yếu.
+MIN_TOKEN_COVERAGE = 0.7
+
 # Vietnamese domain tokens are often 2 chars (xe, mo, com) but carry FAQ intent.
 _SHORT_DOMAIN_TOKENS = frozenset({"xe", "mo", "an", "com", "bo", "ga", "nuoc", "bia"})
 
@@ -288,9 +295,8 @@ def _relevance_score(normalized_query: str, item: Any, preferred_sources: tuple[
         return 0.0
 
     overlap = sum(1 for token in tokens if token in content or token in title)
-    # Require minimum token coverage — at least 40% of query tokens must appear
     coverage = overlap / len(tokens) if tokens else 0.0
-    if coverage < 0.4:
+    if coverage < MIN_TOKEN_COVERAGE:
         return overlap * 0.5  # Heavily penalise low-coverage matches
 
     source_bonus = 3.0 if item.chunk.source in preferred_sources else 0.0
