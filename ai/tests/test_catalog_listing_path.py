@@ -74,6 +74,11 @@ class CatalogListingPathTests(unittest.TestCase):
         self.assertNotIn("Goi xoai", content)
         self.assertNotIn("Với 2 người", content)
         self.assertNotIn("Bun bo Hue", content)
+        # Listing a category should still let the customer add a dish to
+        # their cart directly from the answer instead of a text-only list.
+        cart_ids = [action["menu_item_id"] for action in catalog["suggested_cart_actions"]]
+        self.assertIn("m_008", cart_ids)
+        self.assertIn("m_009", cart_ids)
 
     def test_order_request_skips_catalog_fast_path(self) -> None:
         for message in ("Ban dat com suon nhe", "Order pho bo for me"):

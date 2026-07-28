@@ -15,12 +15,12 @@ class RouterConfigTests(unittest.TestCase):
         ):
             return load_config()
 
-    def test_defaults_to_9router_deepseek_profile_without_enabling_missing_key(self) -> None:
+    def test_defaults_to_9router_luna_profile_without_enabling_missing_key(self) -> None:
         config = self._load_config({})
 
         self.assertEqual("9router", config.provider)
         self.assertEqual(DEFAULT_ROUTER_BASE_URL, config.base_url)
-        self.assertEqual("oc/deepseek-v4-flash-free", config.model)
+        self.assertEqual("cx/gpt-5.6-luna-review", config.model)
         self.assertFalse(config.llm_enabled)
 
     def test_blank_pipeline_profile_uses_default_for_unconfigured_ci_variable(self) -> None:
@@ -110,27 +110,6 @@ class RouterConfigTests(unittest.TestCase):
         )
         self.assertTrue(config.llm_intent_classification_enabled)
         self.assertEqual(2.5, config.intent_classification_timeout_seconds)
-
-    def test_load_config_enables_exact_luna_429_fallback(self) -> None:
-        config = self._load_config(
-            {
-                "LLM_PROVIDER": "9router",
-                "LLM_API_KEY": "router-test-key",
-                "LLM_MODEL": ai_config.DEFAULT_LLM_MODEL,
-                "LLM_RATE_LIMIT_FALLBACK_MODEL": (
-                    ai_config.DEFAULT_RATE_LIMIT_FALLBACK_MODEL
-                ),
-                "LLM_RATE_LIMIT_FALLBACK_ENABLED": "true",
-            }
-        )
-
-        self.assertEqual(ai_config.DEFAULT_LLM_MODEL, config.model)
-        self.assertEqual(
-            ai_config.DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
-            config.rate_limit_fallback_model,
-        )
-        self.assertTrue(config.rate_limit_fallback_enabled)
-        self.assertTrue(config.model_policy_valid)
 
     def test_enabled_fallback_rejects_unapproved_model_roles(self) -> None:
         invalid_pairs = (

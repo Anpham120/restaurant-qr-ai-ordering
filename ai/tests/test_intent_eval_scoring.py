@@ -104,8 +104,11 @@ class IntentEvalScoringTests(unittest.TestCase):
             self.assertIn(required, categories)
         self.assertIn("multi_turn", tiers)
 
-    def test_wifi_is_not_ambiguous(self) -> None:
-        self.assertFalse(predict_ambiguous("wifi mat khau gi"))
+    def test_wifi_borderline_confidence_now_routes_to_llm_assist(self) -> None:
+        # Rule confidence for this query is 0.3 (< 0.35 threshold) despite the
+        # correct intent; it now gets the LLM-assist safety net instead of
+        # being waved through by a generic "wifi" keyword shortcut.
+        self.assertTrue(predict_ambiguous("wifi mat khau gi"))
 
     def test_solo_slang_is_not_ambiguous_after_deterministic_routing(self) -> None:
         self.assertFalse(predict_ambiguous("di an solo toi nay"))

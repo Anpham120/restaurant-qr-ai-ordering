@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.rag.menu_exclusions import build_suggestion_reason
 from app.rag.menu_query_filters import infer_allowed_menu_item_ids
 from app.rag.vietnamese_normalizer import normalize_query_text
 
+
+MAX_CART_SUGGESTIONS = 4
 
 _MENU_PRESENCE_TERMS = ("co mon", "mon nao", "co gi an", "co nhung mon", "ban co mon")
 
@@ -197,6 +200,22 @@ def try_menu_presence_fast_path(
                 "reason": None,
             }
         )
+    suggested_cart_actions = []
+    for item in cited_items[:MAX_CART_SUGGESTIONS]:
+        item_id = str(item.get("id") or item.get("menu_item_id") or "").strip()
+        if not item_id:
+            continue
+        suggested_cart_actions.append(
+            {
+                "menu_item_id": item_id,
+                "name": str(item.get("name") or "Món").strip(),
+                "price_vnd": item.get("price_vnd") or item.get("price"),
+                "quantity": 1,
+                "reason": build_suggestion_reason(item, seed=item_id),
+                "requires_customer_confirmation": True,
+            }
+        )
+
     return {
         "content": content,
         "provider_available": False,
@@ -205,7 +224,7 @@ def try_menu_presence_fast_path(
         "evidence": evidence,
         "claims": claims,
         "guardrail_flags": [],
-        "suggested_cart_actions": [],
+        "suggested_cart_actions": suggested_cart_actions,
         "follow_up": {"can_show_more": len(matched) > 8, "remaining_count": max(len(matched) - 8, 0)},
         "suggest_staff_handoff": "tre em" in normalized or "tre con" in normalized,
     }

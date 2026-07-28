@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Compare cx/gpt-5.5 vs cx/gpt-5.6-luna — 20 queries, comprehensive eval."""
+"""Compare cx/gpt-5.5 vs cx/gpt-5.6-luna-review — 20 queries, comprehensive eval."""
 import asyncio, json, sys, os, time
+from pathlib import Path
 sys.path.insert(0, '.')
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-os.chdir('d:/01_Projects/Fable/restaurant-qr-ai-ordering/ai')
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 import app.config as app_cfg
 app_cfg.is_supported_router_model = lambda m: True
@@ -45,7 +46,10 @@ queries = [
     ("cảm ơn nhé", "Chitchat"),
 ]
 
-models = ["cx/gpt-5.5", "cx/gpt-5.6-luna", "oc/deepseek-v4-flash-free"]
+# DeepSeek dropped: the 9router route serving oc/deepseek-v4-flash-free in this
+# account rejects response_format=json_object (see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md).
+# cx/gpt-5.6-luna-review is now the configured runtime primary (app/config.py).
+models = ["cx/gpt-5.5", "cx/gpt-5.6-luna-review"]
 all_results = {}
 
 for model_name in models:
@@ -122,7 +126,6 @@ for model_name in models:
     print(f"\n  Summary: {ok}/{len(queries)} OK")
 
 # Save
-from pathlib import Path
 out = {
     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
     "models": models,

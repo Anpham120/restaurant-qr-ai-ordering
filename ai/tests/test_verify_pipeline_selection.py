@@ -154,6 +154,30 @@ class VerifyPipelineSelectionTests(unittest.TestCase):
                 require_fallback_enabled=True,
             )
 
+    def test_accepts_single_model_deployment_with_fallback_disabled(self) -> None:
+        # A deliberate single-model deployment (fallback disabled, no fallback
+        # configured) must not be rejected as "fallback model drift" just
+        # because --expected-fallback-model doesn't match — the fallback shape
+        # is irrelevant when no fallback is in play.
+        artifact = _artifact()
+        artifact["model"] = "cx/gpt-5.6-luna-review"
+        artifact["model_policy"] = {
+            "primary_model": "cx/gpt-5.6-luna-review",
+            "fallback_model": None,
+            "fallback_enabled": False,
+            "fallback_trigger": "http_429",
+            "max_fallbacks_per_operation": 1,
+        }
+
+        winner = validate_artifact(
+            artifact,
+            expected_profile="evidence_first_v2",
+            expected_primary_model="cx/gpt-5.6-luna-review",
+            expected_fallback_model="cx/gpt-5.6-luna-review",
+            expected_research_input_hash="sha256:research",
+        )
+        self.assertEqual("evidence_first_v2", winner)
+
     def test_cli_exports_primary_and_fallback_env(self) -> None:
         artifact = _artifact()
         with tempfile.TemporaryDirectory(prefix="verify-pipeline-env-") as temp_dir:

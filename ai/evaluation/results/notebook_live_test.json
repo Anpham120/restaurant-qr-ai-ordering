@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-07-24T22:59:42",
-  "model": "cx/gpt-5.5",
+  "timestamp": "2026-07-28T06:37:33",
+  "model": "cx/gpt-5.6-luna-review",
   "provider": "9router",
   "retrieval_method": "hybrid",
   "intent_results": [
@@ -272,13 +272,13 @@
       "query": "nhà hàng có wifi không?",
       "intent": "restaurant_info",
       "route": "kb_rag",
-      "content": "| Tiện nghi | Chi tiết |",
+      "content": "Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.",
       "flags": [],
       "cart_actions": [],
       "evidence": [
         "restaurant-info.md"
       ],
-      "latency_ms": 157.1,
+      "latency_ms": 2792.7,
       "path": "kb_fast_path",
       "success_availability": true,
       "success_strict": true
@@ -293,7 +293,7 @@
       "evidence": [
         "restaurant-info.md"
       ],
-      "latency_ms": 41.4,
+      "latency_ms": 2239.4,
       "path": "kb_fast_path",
       "success_availability": true,
       "success_strict": true
@@ -308,7 +308,7 @@
       "evidence": [
         "restaurant-info.md"
       ],
-      "latency_ms": 54.9,
+      "latency_ms": 2169.5,
       "path": "kb_fast_path",
       "success_availability": true,
       "success_strict": true
@@ -317,13 +317,13 @@
       "query": "giờ mở cửa là mấy giờ?",
       "intent": "restaurant_info",
       "route": "kb_rag",
-      "content": "| Ngày | Giờ mở cửa | Giờ đóng cửa | Order cuối |\n|---|---|---|---|\n| Thứ 2 – Thứ 6 | 10:00 | 22:00 | 21:30 |\n| Thứ 7 | 09:00 | 22:30 | 22:00 |\n| Chủ nhật | Nghỉ | Nghỉ | Nghỉ |\n| Lễ, Tết | Thông báo ",
+      "content": "Ngày Thứ 2 – Thứ 6, Giờ mở cửa: 10:00, Giờ đóng cửa: 22:00, Order cuối: 21:30; Ngày Thứ 7, Giờ mở cửa: 09:00, Giờ đóng cửa: 22:30, Order cuối: 22:00; Ngày Chủ nhật, Giờ mở cửa: Nghỉ, Giờ đóng cửa: Ngh",
       "flags": [],
       "cart_actions": [],
       "evidence": [
         "restaurant-info.md"
       ],
-      "latency_ms": 53.4,
+      "latency_ms": 2305.0,
       "path": "kb_fast_path",
       "success_availability": true,
       "success_strict": true
@@ -338,7 +338,7 @@
       "evidence": [
         "payment-methods.md"
       ],
-      "latency_ms": 56.6,
+      "latency_ms": 2596.2,
       "path": "kb_fast_path",
       "success_availability": true,
       "success_strict": true
@@ -347,7 +347,7 @@
       "query": "nhà hàng có phòng riêng không?",
       "intent": null,
       "route": null,
-      "content": "Mình chưa có thông tin xác nhận về phòng riêng của nhà hàng. Bạn vui lòng hỏi nhân viên tại nhà hàng hoặc cho mình biết nhu cầu số người để mình hỗ trợ hướng dẫn tiếp nhé.",
+      "content": "Mình chưa có thông tin xác nhận về phòng riêng của nhà hàng. Bạn muốn hỏi phòng riêng để dùng bữa hay tổ chức sự kiện ạ?",
       "flags": [
         "INTENT_CLASSIFICATION_DEGRADED",
         "LOW_RETRIEVAL_CONFIDENCE"
@@ -357,7 +357,7 @@
         "restaurant-info.md",
         "faq.md"
       ],
-      "latency_ms": 10208.9,
+      "latency_ms": 5825.3,
       "path": "llm",
       "success_availability": true,
       "success_strict": false
@@ -366,7 +366,7 @@
       "query": "chính sách hủy đơn thế nào?",
       "intent": null,
       "route": null,
-      "content": "Mình chưa có thông tin chính sách hủy đơn trong dữ liệu hiện tại. Bạn vui lòng liên hệ nhân viên nhà hàng để được xác nhận chính xác theo trạng thái đơn của mình nhé.",
+      "content": "Bạn đang muốn hỏi chính sách hủy đơn đặt món online hay hủy đặt bàn ạ? Mình chưa có đủ thông tin để trả lời chính xác.",
       "flags": [
         "INTENT_CLASSIFICATION_DEGRADED",
         "LOW_RETRIEVAL_CONFIDENCE"
@@ -376,7 +376,7 @@
         "restaurant-info.md",
         "ordering-policy.md"
       ],
-      "latency_ms": 7893.0,
+      "latency_ms": 7700.9,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -385,8 +385,9 @@
       "query": "có món nào không cay không?",
       "intent": null,
       "route": null,
-      "content": "Hiện mình chưa có dữ liệu thực đơn để xác định món nào không cay. Bạn có thể gửi danh sách món hoặc mở thực đơn trong giao diện để mình gợi ý các món phù hợp nhé.\n\n1. Bún bò Huế (60.000đ) — Bún bò Huế",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Bún bò Huế (60.000đ) — Bún bò Huế là lựa chọn an toàn từ menu hiện có.\n2. Combo gia đình 4 người (250.000đ) — Combo gia đình 4 người là lựa chọn",
       "flags": [
+        "INTENT_CLASSIFICATION_DEGRADED",
         "LOW_RETRIEVAL_CONFIDENCE",
         "CUSTOMER_CONFIRMATION_REQUIRED"
       ],
@@ -425,10 +426,10 @@
         }
       ],
       "evidence": [
-        "spice-flavor-scale.md",
-        "spice-flavor-scale.md"
+        "live_menu",
+        "live_menu"
       ],
-      "latency_ms": 5491.3,
+      "latency_ms": 5426.2,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -437,7 +438,7 @@
       "query": "gợi ý món ngon đi",
       "intent": null,
       "route": null,
-      "content": "Bạn muốn mình gợi ý món theo khẩu vị nào: món no, món nhậu, món chay, ít cay hay theo ngân sách?\n\n1. Combo gia đình 4 người (250.000đ) — Combo gia đình 4 người là lựa chọn an toàn từ menu hiện có.\n2. ",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Combo gia đình 4 người (250.000đ) — Combo gia đình 4 người là lựa chọn an toàn từ menu hiện có.\n2. Gỏi cuốn tôm thịt (35.000đ) — Gỏi cuốn tôm th",
       "flags": [
         "LOW_RETRIEVAL_CONFIDENCE",
         "CUSTOMER_CONFIRMATION_REQUIRED"
@@ -477,10 +478,10 @@
         }
       ],
       "evidence": [
-        "combo-pairing.md",
-        "menu.md"
+        "live_menu",
+        "live_menu"
       ],
-      "latency_ms": 4531.5,
+      "latency_ms": 5431.7,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -497,7 +498,7 @@
       "evidence": [
         "live_menu"
       ],
-      "latency_ms": 2.3,
+      "latency_ms": 2.6,
       "path": "live_data",
       "success_availability": true,
       "success_strict": false
@@ -506,34 +507,45 @@
       "query": "có món chay không?",
       "intent": "general",
       "route": "kb_rag",
-      "content": "Theo thực đơn hiện tại, nhà hàng có các món liên quan:\n- Cơm chiên chay (40.000đ)",
+      "content": "Theo thực đơn hiện tại, nhà hàng có các món liên quan:\n- Đậu hũ sốt cà (30.000đ)\n- Cơm chiên chay (40.000đ)",
       "flags": [],
-      "cart_actions": [],
+      "cart_actions": [
+        {
+          "menu_item_id": "dau-hu",
+          "name": "Đậu hũ sốt cà",
+          "price_vnd": 30000,
+          "quantity": 1,
+          "reason": "Đậu hũ sốt cà phù hợp với yêu cầu hiện tại.",
+          "requires_customer_confirmation": true
+        },
+        {
+          "menu_item_id": "com-chay",
+          "name": "Cơm chiên chay",
+          "price_vnd": 40000,
+          "quantity": 1,
+          "reason": "Cơm chiên chay là lựa chọn an toàn từ menu hiện có.",
+          "requires_customer_confirmation": true
+        }
+      ],
       "evidence": [
+        "live_menu",
         "live_menu"
       ],
-      "latency_ms": 2543.6,
-      "path": "kb_fast_path",
+      "latency_ms": 2507.5,
+      "path": "menu_presence",
       "success_availability": true,
       "success_strict": true
     },
     {
       "query": "combo cho 4 người?",
-      "intent": "recommend",
-      "route": "live_data",
-      "content": "Với nhóm 4 người, mình ưu tiên món chia sẻ hoặc lẩu nhỏ thay vì chỉ gợi ý phần ăn cá nhân.\n\n1. Canh chua cá (65.000đ) — Canh chua cá là lựa chọn an toàn từ menu hiện có.\n2. Chả giò (30.000đ) — Chả giò",
+      "intent": null,
+      "route": null,
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Chả giò (30.000đ) — Chả giò là lựa chọn an toàn từ menu hiện có.\n2. Combo gia đình 4 người (250.000đ) — Combo gia đình 4 người là lựa chọn an to",
       "flags": [
+        "LOW_RETRIEVAL_CONFIDENCE",
         "CUSTOMER_CONFIRMATION_REQUIRED"
       ],
       "cart_actions": [
-        {
-          "menu_item_id": "canh-chua",
-          "name": "Canh chua cá",
-          "price_vnd": 65000,
-          "quantity": 1,
-          "reason": "Canh chua cá là lựa chọn an toàn từ menu hiện có.",
-          "requires_customer_confirmation": true
-        },
         {
           "menu_item_id": "cha-gio",
           "name": "Chả giò",
@@ -551,11 +563,19 @@
           "requires_customer_confirmation": true
         },
         {
-          "menu_item_id": "com-chay",
-          "name": "Cơm chiên chay",
-          "price_vnd": 40000,
+          "menu_item_id": "ga-nuong",
+          "name": "Gà nướng mật ong",
+          "price_vnd": 120000,
           "quantity": 1,
-          "reason": "Cơm chiên chay là lựa chọn an toàn từ menu hiện có.",
+          "reason": "Gà nướng mật ong là lựa chọn an toàn từ menu hiện có.",
+          "requires_customer_confirmation": true
+        },
+        {
+          "menu_item_id": "goi-cuon",
+          "name": "Gỏi cuốn tôm thịt",
+          "price_vnd": 35000,
+          "quantity": 1,
+          "reason": "Gỏi cuốn tôm thịt là lựa chọn an toàn từ menu hiện có.",
           "requires_customer_confirmation": true
         }
       ],
@@ -563,8 +583,8 @@
         "live_menu",
         "live_menu"
       ],
-      "latency_ms": 13.8,
-      "path": "party_fast_path",
+      "latency_ms": 3963.1,
+      "path": "llm",
       "success_availability": true,
       "success_strict": true
     },
@@ -574,9 +594,9 @@
       "route": null,
       "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Rau muống xào tỏi (25.000đ) — Rau muống xào tỏi đang có sẵn trong thực đơn.\n2. Chả giò (30.000đ) — Chả giò đang có sẵn trong thực đơn.\n3. Combo ",
       "flags": [
-        "INTENT_CLASSIFICATION_DEGRADED",
         "ALLERGY_DISCLAIMER",
         "LOW_RETRIEVAL_CONFIDENCE",
+        "ALLERGY_CAUTION",
         "CUSTOMER_CONFIRMATION_REQUIRED"
       ],
       "cart_actions": [
@@ -614,10 +634,10 @@
         }
       ],
       "evidence": [
-        "allergy-dietary.md",
-        "brand-voice.md"
+        "live_menu",
+        "live_menu"
       ],
-      "latency_ms": 9159.7,
+      "latency_ms": 6804.4,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -626,17 +646,52 @@
       "query": "có món nào không có đậu phộng?",
       "intent": null,
       "route": null,
-      "content": "Bạn đang quan tâm món nào trong thực đơn ạ? Mình cần tên món cụ thể để kiểm tra thành phần đậu phộng; nếu bạn dị ứng nặng, vui lòng xác nhận thêm với nhân viên trước khi gọi món.",
+      "content": "Dựa trên thực đơn hiện tại, mình gợi ý các món sau:\n\n1. Đậu hũ sốt cà (30.000đ) — Đậu hũ sốt cà đang có sẵn trong thực đơn.\n2. Combo gia đình 4 người (250.000đ) — Combo gia đình 4 người đang có sẵn tr",
       "flags": [
         "ALLERGY_DISCLAIMER",
-        "LOW_RETRIEVAL_CONFIDENCE"
+        "LOW_RETRIEVAL_CONFIDENCE",
+        "ALLERGEN_CONFIRMATION_REQUIRED",
+        "CUSTOMER_CONFIRMATION_REQUIRED"
       ],
-      "cart_actions": [],
+      "cart_actions": [
+        {
+          "menu_item_id": "dau-hu",
+          "name": "Đậu hũ sốt cà",
+          "price_vnd": 30000,
+          "quantity": 1,
+          "reason": "Đậu hũ sốt cà đang có sẵn trong thực đơn.",
+          "requires_customer_confirmation": true
+        },
+        {
+          "menu_item_id": "combo-4",
+          "name": "Combo gia đình 4 người",
+          "price_vnd": 250000,
+          "quantity": 1,
+          "reason": "Combo gia đình 4 người đang có sẵn trong thực đơn.",
+          "requires_customer_confirmation": true
+        },
+        {
+          "menu_item_id": "pho-bo",
+          "name": "Phở bò",
+          "price_vnd": 55000,
+          "quantity": 1,
+          "reason": "Phở bò đang có sẵn trong thực đơn.",
+          "requires_customer_confirmation": true
+        },
+        {
+          "menu_item_id": "pho-ga",
+          "name": "Phở gà",
+          "price_vnd": 50000,
+          "quantity": 1,
+          "reason": "Phở gà đang có sẵn trong thực đơn.",
+          "requires_customer_confirmation": true
+        }
+      ],
       "evidence": [
-        "menu.md",
-        "menu.md"
+        "live_menu",
+        "live_menu"
       ],
-      "latency_ms": 7310.7,
+      "latency_ms": 7098.9,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -651,7 +706,7 @@
       ],
       "cart_actions": [],
       "evidence": [],
-      "latency_ms": 1.2,
+      "latency_ms": 3.2,
       "path": "clarify",
       "success_availability": true,
       "success_strict": true
@@ -660,15 +715,18 @@
       "query": "đặt 2 phần phở bò",
       "intent": null,
       "route": null,
-      "content": "Đây là các món thuộc nhóm pho bun đang còn phục vụ:\n- Phở bò (pho bun)\n- Phở gà (pho bun)",
-      "flags": [],
+      "content": "Bạn muốn đặt 2 phần phở bò đúng không? Vui lòng xác nhận để mình hỗ trợ tiếp nhé.",
+      "flags": [
+        "LOW_RETRIEVAL_CONFIDENCE",
+        "CUSTOMER_CONFIRMATION_REQUIRED"
+      ],
       "cart_actions": [],
       "evidence": [
-        "live_menu",
-        "live_menu"
+        "menu.md",
+        "brand-voice.md"
       ],
-      "latency_ms": 18.4,
-      "path": "catalog_fast_path",
+      "latency_ms": 5546.6,
+      "path": "llm",
       "success_availability": true,
       "success_strict": true
     },
@@ -676,14 +734,27 @@
       "query": "thêm 1 trà đá",
       "intent": null,
       "route": null,
-      "content": "Đây là các món thuộc nhóm ca phe tra đang còn phục vụ:\n- Trà đá (ca phe tra)",
-      "flags": [],
-      "cart_actions": [],
-      "evidence": [
-        "live_menu"
+      "content": "Mình chưa thể tự thêm món vào đơn. Bạn vui lòng xác nhận “thêm 1 trà đá” trên giao diện giúp mình nhé.",
+      "flags": [
+        "LOW_RETRIEVAL_CONFIDENCE",
+        "CUSTOMER_CONFIRMATION_REQUIRED"
       ],
-      "latency_ms": 14.2,
-      "path": "catalog_fast_path",
+      "cart_actions": [
+        {
+          "menu_item_id": "tra-da",
+          "name": "Trà đá",
+          "price_vnd": 5000,
+          "quantity": 1,
+          "reason": "Trà đá phù hợp với yêu cầu hiện tại.",
+          "requires_customer_confirmation": true
+        }
+      ],
+      "evidence": [
+        "menu.md",
+        "data-mining-insights.md"
+      ],
+      "latency_ms": 4204.9,
+      "path": "llm",
       "success_availability": true,
       "success_strict": true
     },
@@ -691,7 +762,7 @@
       "query": "thời tiết hôm nay?",
       "intent": null,
       "route": null,
-      "content": "Mình chưa thể xem thời tiết theo thời gian thực. Bạn cho mình biết khu vực/thành phố, mình có thể hướng dẫn cách kiểm tra nhanh nhé.",
+      "content": "Bạn muốn xem thời tiết ở khu vực nào ạ?",
       "flags": [
         "OUT_OF_SCOPE",
         "INTENT_CLASSIFICATION_DEGRADED"
@@ -701,7 +772,7 @@
         "restaurant-info.md",
         "data-mining-insights.md"
       ],
-      "latency_ms": 8886.8,
+      "latency_ms": 4973.6,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -716,7 +787,7 @@
       ],
       "cart_actions": [],
       "evidence": [],
-      "latency_ms": 1.5,
+      "latency_ms": 2.9,
       "path": "clarify",
       "success_availability": true,
       "success_strict": true
@@ -725,7 +796,7 @@
       "query": "cảm ơn nhé",
       "intent": null,
       "route": null,
-      "content": "Rất vui được hỗ trợ bạn ạ!",
+      "content": "Rất vui được hỗ trợ bạn! Khi cần xem thực đơn hoặc gợi ý món, cứ nhắn CMC Restaurant nhé.",
       "flags": [
         "INTENT_CLASSIFICATION_DEGRADED",
         "LOW_RETRIEVAL_CONFIDENCE"
@@ -735,7 +806,7 @@
         "menu.md",
         "data-mining-insights.md"
       ],
-      "latency_ms": 5869.1,
+      "latency_ms": 5349.1,
       "path": "llm",
       "success_availability": true,
       "success_strict": true
@@ -747,8 +818,8 @@
       "query": "nhà hàng có wifi không?",
       "intent": "restaurant_info",
       "route": "kb_rag",
-      "content": "| Tiện nghi | Chi tiết |",
-      "rolling_summary": "Lượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: | Tiện nghi | Chi tiết |",
+      "content": "Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.",
+      "rolling_summary": "Lượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.",
       "session_updates_keys": [
         "facts",
         "constraints",
@@ -767,7 +838,7 @@
       "intent": "restaurant_info",
       "route": "kb_rag",
       "content": "WiFi miễn phí tại nhà hàng: mạng CMC_Restaurant_Guest, mật khẩu cmcfood2026. Mật khẩu cũng được dán tại mỗi bàn.",
-      "rolling_summary": "Lượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: | Tiện nghi | Chi tiết |\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nhà hàng: mạng CMC_Restaurant_Guest, mật khẩu cmcfood2026. Mật khẩ",
+      "rolling_summary": "Lượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nhà hàng: mạng CM",
       "session_updates_keys": [
         "facts",
         "constraints",
@@ -785,8 +856,8 @@
       "query": "mấy giờ đóng cửa?",
       "intent": "restaurant_info",
       "route": "kb_rag",
-      "content": "| Ngày | Giờ mở cửa | Giờ đóng cửa | Order cuối |\n|---|---|---|---|\n| Thứ 2 – Thứ 6 | 10:00 | 22:00 | 21:30 |\n| Thứ 7 | 09:00 | 22:30 | 22:00 |\n| Chủ nhật | Nghỉ | Nghỉ | Nghỉ |\n| Lễ, Tết | Thông báo ",
-      "rolling_summary": "Tránh: seafood\nLượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: | Tiện nghi | Chi tiết |\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nhà hàng: mạng CMC_Restaurant_Guest, mật khẩu cmcfo",
+      "content": "Ngày Thứ 2 – Thứ 6, Giờ mở cửa: 10:00, Giờ đóng cửa: 22:00, Order cuối: 21:30; Ngày Thứ 7, Giờ mở cửa: 09:00, Giờ đóng cửa: 22:30, Order cuối: 22:00; Ngày Chủ nhật, Giờ mở cửa: Nghỉ, Giờ đóng cửa: Ngh",
+      "rolling_summary": "Tránh: seafood\nLượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nh",
       "session_updates_keys": [
         "facts",
         "constraints",
@@ -805,7 +876,7 @@
       "intent": null,
       "route": "abstain",
       "content": "Mình chưa đủ bằng chứng đã kiểm chứng để trả lời chắc chắn. Bạn vui lòng nói rõ thông tin cần kiểm tra hoặc nhờ nhân viên xác nhận giúp.",
-      "rolling_summary": "Tránh: seafood\nLượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: | Tiện nghi | Chi tiết |\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nhà hàng: mạng CMC_Restaurant_Guest, mật khẩu cmcfo",
+      "rolling_summary": "Tránh: seafood\nLượt gần đây:\n- Khách: nhà hàng có wifi không? → Bot: Nhà hàng có Wifi miễn phí, SSID: CMC_Restaurant_Guest, pass: cmcfood2026.\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nh",
       "session_updates_keys": [
         "facts",
         "constraints",
@@ -815,15 +886,16 @@
         "accepted_menu_item_ids",
         "added_to_cart_menu_item_ids",
         "rolling_summary",
-        "memory_version"
+        "memory_version",
+        "conversation_frame"
       ]
     },
     {
       "turn": 5,
       "query": "có chỗ đậu xe không?",
-      "intent": null,
-      "route": null,
-      "content": "| Câu hỏi | Ý nghĩa | Intent đúng |\n|---|---|---|\n| \"Có món chay không?\" | Hỏi menu có loại món | dietary |\n| \"Có wifi không?\" | Hỏi dịch vụ | restaurant_info |\n| \"Có nhận đặt bàn trước?\" | Hỏi chính ",
+      "intent": "general",
+      "route": "kb_rag",
+      "content": "- **Xe máy**: bãi giữ miễn phí trước cửa, ~30 chỗ.\n- **Ô tô**: bãi xe công cộng cách 50m, phí 20.000đ/lượt.\n- **Taxi/Grab**: dừng trước cửa, nói địa chỉ \"123 Nguyễn Huệ, Q1\".\n- **Metro**: ga Nhà hát T",
       "rolling_summary": "Tránh: seafood\nLượt gần đây:\n- Khách: mật khẩu wifi là gì? → Bot: WiFi miễn phí tại nhà hàng: mạng CMC_Restaurant_Guest, mật khẩu cmcfood2026. Mật khẩu cũng được dán…\n- Khách: mấy giờ đóng cửa? → Bot:",
       "session_updates_keys": [
         "facts",
@@ -833,8 +905,8 @@
         "rejected_menu_item_ids",
         "accepted_menu_item_ids",
         "added_to_cart_menu_item_ids",
-        "rolling_summary",
-        "memory_version"
+        "memory_version",
+        "rolling_summary"
       ]
     }
   ]

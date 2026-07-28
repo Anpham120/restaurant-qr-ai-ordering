@@ -26,6 +26,7 @@ sys.path.insert(0, str(AI_ROOT))
 
 from app.clients.router import RouterClient  # noqa: E402
 from app.config import (  # noqa: E402
+    DEFAULT_LLM_MODEL,
     DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
     AiServiceConfig,
     PIPELINE_PROFILES,
@@ -40,6 +41,11 @@ from evaluation.canonical_research_data import (  # noqa: E402
 from evaluation.pipeline_selection import select_winner  # noqa: E402
 from evaluation.research_inputs import compute_research_input_hash  # noqa: E402
 
+# Historical primary model for this experiment (kept as the default value for
+# aggregate_profile()/build_selection_artifact() so old artifacts and existing
+# tests stay interpretable). Real runs should pass --model explicitly; it
+# defaults to config.DEFAULT_LLM_MODEL (the runtime's actual primary model),
+# not this constant.
 DEEPSEEK_MODEL = "oc/deepseek-v4-flash-free"
 PROFILE_ORDER = ("llm_first_v1", "evidence_first_v2", "planner_state_v3")
 DATASET_PATH = AI_ROOT / "evaluation" / "datasets" / "canonical_research_manifest.v1.json"
@@ -61,7 +67,7 @@ def create_eval_router_client(config: AiServiceConfig) -> RouterClient:
 
 
 def required_runs(llm_calls: int) -> int:
-    """Factual deterministic paths run once; any DeepSeek path runs three times."""
+    """Factual deterministic paths run once; any LLM-calling path runs three times."""
 
     return 1 if llm_calls == 0 else 3
 
@@ -240,6 +246,7 @@ def aggregate_profile(
     *,
     session_isolation_passed: bool,
     availability_passed: bool,
+    primary_model: str = DEEPSEEK_MODEL,
 ) -> dict[str, Any]:
     scores = [run["score"] for run in runs]
     by_case: dict[str, list[dict[str, Any]]] = {}
@@ -304,12 +311,12 @@ def aggregate_profile(
         "logical_llm_operations": total_llm_calls,
     }
     deepseek_calls_attempted = (
-        attempts_by_model.get(DEEPSEEK_MODEL, 0)
+        attempts_by_model.get(primary_model, 0)
         if model_attempts
         else total_llm_calls
     )
     deepseek_calls_successful = (
-        successes_by_model.get(DEEPSEEK_MODEL, 0)
+        successes_by_model.get(primary_model, 0)
         if model_attempts
         else successful_llm_calls
     )
@@ -379,15 +386,18 @@ def build_selection_artifact(
     dataset_hash: str,
     generated_at: str,
     working_tree_dirty: bool = False,
+    model: str = DEEPSEEK_MODEL,
+    fallback_model: str | None = DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
+    fallback_enabled: bool = True,
 ) -> dict[str, Any]:
     selection = select_winner(profile_results)
     return {
         "schema_version": "pipeline-selection-v3",
-        "model": DEEPSEEK_MODEL,
+        "model": model,
         "model_policy": {
-            "primary_model": DEEPSEEK_MODEL,
-            "fallback_model": DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
-            "fallback_enabled": True,
+            "primary_model": model,
+            "fallback_model": fallback_model,
+            "fallback_enabled": fallback_enabled,
             "fallback_trigger": "http_429",
             "max_fallbacks_per_operation": 1,
         },
@@ -639,13 +649,19 @@ def _session_isolation(runs: list[dict[str, Any]]) -> bool:
     )
 
 
-async def evaluate_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
+async def evaluate_profiles(
+    dataset: dict[str, Any],
+    *,
+    model: str = DEFAULT_LLM_MODEL,
+    fallback_model: str | None = None,
+    fallback_enabled: bool = False,
+) -> list[dict[str, Any]]:
     base_config = replace(
         load_config(),
-        model=DEEPSEEK_MODEL,
+        model=model,
         knowledge_base_path=AI_ROOT / "knowledge-base",
-        rate_limit_fallback_model=DEFAULT_RATE_LIMIT_FALLBACK_MODEL,
-        rate_limit_fallback_enabled=True,
+        rate_limit_fallback_model=fallback_model,
+        rate_limit_fallback_enabled=fallback_enabled,
     )
     if not base_config.api_key:
         raise RuntimeError("LLM_API_KEY is required for controlled pipeline selection")
@@ -682,6 +698,7 @@ async def evaluate_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
             profile_runs,
             session_isolation_passed=_session_isolation(profile_runs),
             availability_passed=availability_passed,
+            primary_model=model,
         )
 
     # Profiles are independent experimental arms. Running them concurrently
@@ -740,7 +757,12 @@ async def _main(args: argparse.Namespace) -> int:
     unknown = set(PROFILE_ORDER) - set(PIPELINE_PROFILES)
     if unknown:
         raise RuntimeError(f"Runtime does not implement profiles: {sorted(unknown)}")
-    profile_results = await evaluate_profiles(dataset)
+    profile_results = await evaluate_profiles(
+        dataset,
+        model=args.model,
+        fallback_model=args.fallback_model,
+        fallback_enabled=args.enable_fallback,
+    )
     artifact = build_selection_artifact(
         profile_results=profile_results,
         commit_sha=_commit_sha(),
@@ -748,6 +770,9 @@ async def _main(args: argparse.Namespace) -> int:
         dataset_hash=dataset_hash,
         generated_at=datetime.now(timezone.utc).isoformat(),
         working_tree_dirty=_working_tree_dirty(),
+        model=args.model,
+        fallback_model=args.fallback_model,
+        fallback_enabled=args.enable_fallback,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -766,9 +791,26 @@ async def _main(args: argparse.Namespace) -> int:
 
 
 def parse_args() -> argparse.Namespace:
+    env_config = load_config()
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=Path, default=DATASET_PATH)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
+    parser.add_argument(
+        "--model",
+        default=env_config.model,
+        help="Primary model under test (default: the runtime's configured primary model).",
+    )
+    parser.add_argument(
+        "--fallback-model",
+        default=env_config.rate_limit_fallback_model,
+        help="Rate-limit fallback model, or omit for a single-model run (default: .env).",
+    )
+    parser.add_argument(
+        "--enable-fallback",
+        action=argparse.BooleanOptionalAction,
+        default=env_config.rate_limit_fallback_enabled,
+        help="Enable HTTP-429 fallback to --fallback-model (default: .env).",
+    )
     return parser.parse_args()
 
 

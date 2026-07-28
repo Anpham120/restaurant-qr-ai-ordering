@@ -1,4 +1,4 @@
-# AI Chatbot: 9router, DeepSeek, Python RAG Và Guardrails
+# AI Chatbot: 9router, GPT-5.6 Luna, Python RAG Và Guardrails
 
 Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng cấp lên kiến trúc Python RAG service. Mục tiêu là để AI trong app không chỉ là một ô chat gọi model, mà có dữ liệu, luật an toàn, đánh giá và ranh giới nghiệp vụ rõ ràng.
 
@@ -6,7 +6,7 @@ Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng c
 
 Hệ thống sử dụng:
 
-- **Model triển khai:** DeepSeek (`oc/deepseek-v4-flash-free`) qua 9router; GPT-5.5 (`cx/gpt-5.5`) vẫn dùng cho quality gate / paired eval khi cần.
+- **Model triển khai:** GPT-5.6 Luna (`cx/gpt-5.6-luna-review`) qua 9router; GPT-5.5 (`cx/gpt-5.5`) vẫn dùng cho quality gate / paired eval khi cần. DeepSeek (`oc/deepseek-v4-flash-free`) không còn là model chính thức — route của nó trong 9router từ chối `response_format:json_object`, field mọi request thật đều cần (xem `docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`).
 - **Cách truy cập model:** duy nhất qua gateway 9router tương thích OpenAI.
 - **AI service:** Python FastAPI service trong thư mục `ai/`.
 - **Knowledge grounding:** hybrid RAG (BM25 + multilingual E5 + RRF) từ `ai/knowledge-base/` và thực đơn live 91 món, bao gồm đồ uống.
@@ -14,7 +14,7 @@ Hệ thống sử dụng:
 
 Mô tả cách gọi model:
 
-> CMC Restaurant gọi **DeepSeek** (mặc định staging/production) qua 9router, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
+> CMC Restaurant gọi **GPT-5.6 Luna** (mặc định staging/production) qua 9router, kết hợp RAG và guardrails để tư vấn món ăn an toàn.
 
 ## 2. Luồng Kiến Trúc
 
@@ -25,7 +25,7 @@ Customer Web
       -> RAG retriever
         -> BM25 + multilingual E5 + reciprocal-rank fusion
       -> 9router (OpenAI-compatible)
-        -> DeepSeek (mặc định) hoặc GPT-5.5 (eval)
+        -> GPT-5.6 Luna (mặc định) hoặc GPT-5.5 (eval)
 ```
 
 Frontend chỉ gọi API chat của backend. Backend đặt `CHAT_AI_PROVIDER=python-rag` để chuyển phần AI sang service Python; chỉ service Python giữ khóa gateway và gọi 9router.
@@ -46,7 +46,7 @@ Python AI service:
 LLM_PROVIDER=9router
 LLM_BASE_URL=http://localhost:20128/v1
 LLM_API_KEY=<9router-gateway-secret>
-LLM_MODEL=oc/deepseek-v4-flash-free
+LLM_MODEL=cx/gpt-5.6-luna-review
 LLM_TIMEOUT_SECONDS=60
 AI_MAX_RETRY=1
 RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
@@ -56,7 +56,7 @@ AI_EMBEDDING_MODEL=e5_small
 AI_LLM_FIRST=true
 ```
 
-`AI_LLM_FIRST=true` (mặc định staging/production): mọi lượt hội thoại/gợi ý đi qua DeepSeek; hybrid RAG và menu live được đưa vào prompt để model quyết dùng nguồn nào. **Ngoại lệ không gọi LLM:** guardrail bảo mật; tra **giá / calo / dị ứng** một món đã resolve (`live_data`); khi `AI_LLM_FIRST=false` các fast-path deterministic legacy (KB, party, pairing, budget) vẫn có thể trả lời sớm (lab).
+`AI_LLM_FIRST=true` (mặc định staging/production): mọi lượt hội thoại/gợi ý đi qua GPT-5.6 Luna; hybrid RAG và menu live được đưa vào prompt để model quyết dùng nguồn nào. **Ngoại lệ không gọi LLM:** guardrail bảo mật; tra **giá / calo / dị ứng** một món đã resolve (`live_data`); khi `AI_LLM_FIRST=false` các fast-path deterministic legacy (KB, party, pairing, budget) vẫn có thể trả lời sớm (lab).
 
 Cấu hình trên khớp Part II notebook (Hybrid RRF + `intfloat/multilingual-e5-small`). Docker staging/production: xem `deploy/docker-compose.yml` service `ai-service`.
 
@@ -89,7 +89,7 @@ Backend luôn là lớp kiểm tra cuối cùng. Dù Python service trả về g
 
 ## 6. Ranh Giới Với Fine-Tune
 
-Nhóm không fine-tune GPT-5.5 hoặc DeepSeek. Hướng triển khai hiện tại là:
+Nhóm không fine-tune GPT-5.5 hoặc GPT-5.6 Luna. Hướng triển khai hiện tại là:
 
 - RAG để kiểm soát tri thức;
 - prompt engineering để kiểm soát hành vi;

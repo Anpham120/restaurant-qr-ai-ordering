@@ -77,9 +77,21 @@ def _format_wifi_answer(chunk_content: str, *, include_password: bool) -> str:
     # Strip HTML comments (e.g. <!-- question_variants: ... -->) before extracting
     cleaned = re.sub(r"<!--.*?-->", "", chunk_content, flags=re.DOTALL).strip()
     if "wifi miễn phí" in cleaned.casefold() or "cung cấp wifi" in cleaned.casefold():
-        first_sentence = cleaned.split("\n")[0].strip()
-        if first_sentence:
-            return first_sentence
+        # Content may be a markdown table (line 0 is just the header row), so
+        # find the line that actually mentions wifi instead of blindly taking
+        # the first line, and turn a "| label | value |" row into a sentence.
+        wifi_line = next(
+            (
+                line
+                for line in cleaned.split("\n")
+                if "wifi" in line.casefold() and line.strip()
+            ),
+            "",
+        )
+        if wifi_line:
+            cells = [cell.strip() for cell in wifi_line.split("|") if cell.strip()]
+            detail = ", ".join(cells) if cells else wifi_line.strip()
+            return f"Nhà hàng có {detail}."
 
     return (
         "Nhà hàng có WiFi miễn phí cho khách. "

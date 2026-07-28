@@ -56,9 +56,13 @@ jobs:
       LLM_PROVIDER: 9router
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
-      LLM_MODEL: oc/deepseek-v4-flash-free
+      LLM_MODEL: cx/gpt-5.6-luna-review
+      # No fallback configured (single-model deployment); kept equal to
+      # LLM_MODEL only because deploy/scripts/health-check.sh requires the
+      # variable to be set. LLM_RATE_LIMIT_FALLBACK_ENABLED=false means it is
+      # never used.
       LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
       LLM_TIMEOUT_SECONDS: "30"
       AI_REQUEST_BUDGET_SECONDS: "45"
       AI_PIPELINE_PROFILE: ${{ vars.AI_PIPELINE_PROFILE }}
@@ -88,11 +92,7 @@ jobs:
           fi
           python ai/evaluation/verify_pipeline_selection.py \
             ai/evaluation/approved/pipeline_selection.json \
-            --expected-primary-model oc/deepseek-v4-flash-free \
-            --expected-fallback-model cx/gpt-5.6-luna-review \
-            --expected-fallback-trigger http_429 \
-            --expected-max-fallbacks 1 \
-            --require-fallback-enabled \
+            --expected-primary-model cx/gpt-5.6-luna-review \
             --verify-current-research-inputs \
             --verify-current-canonical-dataset \
             --repository-root . \

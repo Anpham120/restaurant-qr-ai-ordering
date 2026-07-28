@@ -22,9 +22,11 @@ jobs:
       LLM_PROVIDER: 9router
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
-      LLM_MODEL: oc/deepseek-v4-flash-free
+      LLM_MODEL: cx/gpt-5.6-luna-review
+      # No fallback configured (single-model deployment); kept equal to
+      # LLM_MODEL for consistency with deploy-staging.yml/deploy-production.yml.
       LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
       # Keep all non-profile controls identical to staging/production.  A
       # selection artifact is invalid if it was measured with a shorter
       # request window or different generation policy than the deployed AI.
@@ -119,7 +121,7 @@ jobs:
               -H "Content-Type: application/json" \
               --data @- \
               http://127.0.0.1:20128/v1/chat/completions <<'JSON'
-          {"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
+          {"model":"cx/gpt-5.6-luna-review","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
           JSON
           )"
           curl_exit=$?
@@ -208,7 +210,7 @@ jobs:
               )
           PY
 
-      - name: Compare all pipeline profiles with DeepSeek
+      - name: Compare all pipeline profiles
         env:
           PYTHONPATH: ai
         run: python ai/evaluation/run_pipeline_profile_eval.py
@@ -239,7 +241,7 @@ jobs:
         run: |
           {
             echo "## Controlled pipeline research"
-            echo "- Model: oc/deepseek-v4-flash-free"
+            echo "- Model: ${LLM_MODEL}"
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Raw artifact uploaded for review"
             echo "- Production remains bound to the approved artifact until a reviewed PR replaces it"
