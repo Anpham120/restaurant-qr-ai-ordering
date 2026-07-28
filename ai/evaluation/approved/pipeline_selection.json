@@ -1,10 +1,10 @@
 {
   "schema_version": "pipeline-selection-v3",
-  "model": "oc/deepseek-v4-flash-free",
+  "model": "cx/gpt-5.6-luna-review",
   "model_policy": {
-    "primary_model": "oc/deepseek-v4-flash-free",
-    "fallback_model": "cx/gpt-5.6-luna-review",
-    "fallback_enabled": true,
+    "primary_model": "cx/gpt-5.6-luna-review",
+    "fallback_model": null,
+    "fallback_enabled": false,
     "fallback_trigger": "http_429",
     "max_fallbacks_per_operation": 1
   },
@@ -12,11 +12,11 @@
     {
       "profile": "llm_first_v1",
       "metrics": {
-        "strict_semantic_success": 0.8431372549019608,
-        "context_accuracy": 0.8529411764705882,
-        "p95_latency_ms": 17528.628,
-        "mean_llm_calls": 1.5294117647058822,
-        "run_to_run_disagreement_rate": 0.125,
+        "strict_semantic_success": 0.8627450980392157,
+        "context_accuracy": 0.9117647058823529,
+        "p95_latency_ms": 28937.256,
+        "mean_llm_calls": 2.0,
+        "run_to_run_disagreement_rate": 0.0625,
         "llm_case_count": 16,
         "deterministic_case_count": 3,
         "unsupported_claims": 0,
@@ -28,19 +28,19 @@
         "availability_passed": true,
         "model_usage": {
           "attempts_by_model": {
-            "oc/deepseek-v4-flash-free": 50
+            "cx/gpt-5.6-luna-review": 37
           },
           "successes_by_model": {
-            "oc/deepseek-v4-flash-free": 50
+            "cx/gpt-5.6-luna-review": 37
           },
           "failures_by_model": {},
           "fallback_count": 0,
           "fallback_rate": 0.0,
-          "logical_llm_operations": 78
+          "logical_llm_operations": 102
         },
         "provider_calls_succeeded": true,
-        "deepseek_calls_attempted": 50,
-        "deepseek_calls_successful": 50,
+        "deepseek_calls_attempted": 37,
+        "deepseek_calls_successful": 37,
         "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
@@ -49,13 +49,13 @@
     {
       "profile": "evidence_first_v2",
       "metrics": {
-        "strict_semantic_success": 0.9361702127659575,
-        "context_accuracy": 0.8404255319148937,
-        "p95_latency_ms": 17991.285,
-        "mean_llm_calls": 1.5319148936170213,
-        "run_to_run_disagreement_rate": 0.07142857142857142,
-        "llm_case_count": 14,
-        "deterministic_case_count": 5,
+        "strict_semantic_success": 1.0,
+        "context_accuracy": 0.9081632653061225,
+        "p95_latency_ms": 27233.668,
+        "mean_llm_calls": 1.9591836734693877,
+        "run_to_run_disagreement_rate": 0.0,
+        "llm_case_count": 15,
+        "deterministic_case_count": 4,
         "unsupported_claims": 0,
         "allowed_evidence_only": true,
         "allergy_passed": true,
@@ -65,19 +65,19 @@
         "availability_passed": true,
         "model_usage": {
           "attempts_by_model": {
-            "oc/deepseek-v4-flash-free": 45
+            "cx/gpt-5.6-luna-review": 34
           },
           "successes_by_model": {
-            "oc/deepseek-v4-flash-free": 45
+            "cx/gpt-5.6-luna-review": 34
           },
           "failures_by_model": {},
           "fallback_count": 0,
           "fallback_rate": 0.0,
-          "logical_llm_operations": 72
+          "logical_llm_operations": 96
         },
         "provider_calls_succeeded": true,
-        "deepseek_calls_attempted": 45,
-        "deepseek_calls_successful": 45,
+        "deepseek_calls_attempted": 34,
+        "deepseek_calls_successful": 34,
         "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
@@ -86,11 +86,11 @@
     {
       "profile": "planner_state_v3",
       "metrics": {
-        "strict_semantic_success": 0.9056603773584906,
-        "context_accuracy": 0.9339622641509434,
-        "p95_latency_ms": 25936.654,
-        "mean_llm_calls": 2.358490566037736,
-        "run_to_run_disagreement_rate": 0.11764705882352941,
+        "strict_semantic_success": 0.9622641509433962,
+        "context_accuracy": 0.9150943396226415,
+        "p95_latency_ms": 37410.876,
+        "mean_llm_calls": 2.2641509433962264,
+        "run_to_run_disagreement_rate": 0.058823529411764705,
         "llm_case_count": 17,
         "deterministic_case_count": 2,
         "unsupported_claims": 0,
@@ -102,19 +102,19 @@
         "availability_passed": true,
         "model_usage": {
           "attempts_by_model": {
-            "oc/deepseek-v4-flash-free": 79
+            "cx/gpt-5.6-luna-review": 28
           },
           "successes_by_model": {
-            "oc/deepseek-v4-flash-free": 79
+            "cx/gpt-5.6-luna-review": 28
           },
           "failures_by_model": {},
           "fallback_count": 0,
           "fallback_rate": 0.0,
-          "logical_llm_operations": 125
+          "logical_llm_operations": 120
         },
         "provider_calls_succeeded": true,
-        "deepseek_calls_attempted": 79,
-        "deepseek_calls_successful": 79,
+        "deepseek_calls_attempted": 28,
+        "deepseek_calls_successful": 28,
         "deepseek_call_success_rate": 1.0,
         "deepseek_calls_succeeded": true,
         "safety_passed": true
@@ -124,14 +124,14 @@
   "winner": "evidence_first_v2",
   "selection_reason": "safety_gate_then_strict_quality_then_context_then_p95_latency_then_llm_calls",
   "rejected_by_safety": [],
-  "commit_sha": "4714d43818f56d43cd094561d935d4bfbd9d692d",
-  "research_commit_sha": "4714d43818f56d43cd094561d935d4bfbd9d692d",
-  "research_input_hash": "sha256:84c4cf7e96256bc3c69207f0bb3c11fe744cc6a8f96a970bbf59c25975717bb3",
+  "commit_sha": "78f0ade2ea28dd9f7e4efb2817b637824792de8e",
+  "research_commit_sha": "78f0ade2ea28dd9f7e4efb2817b637824792de8e",
+  "research_input_hash": "sha256:521fab4671261b5bb519e61dad4b2c1d80d532f314e24583e8fac012ca188365",
   "working_tree_dirty": false,
-  "dataset_hash": "sha256:7fba2c74aa0e3688d9cbb776a2956d2df717bc3338f8e6fdb5240ddd52cd5caf",
-  "generated_at": "2026-07-27T00:26:01.172065+00:00",
-  "approved_at": "2026-07-27T00:27:25.042442+00:00",
-  "source_run_id": 30226943373,
-  "source_artifact_name": "pipeline-selection-research-4714d43818f56d43cd094561d935d4bfbd9d692d",
-  "source_artifact_sha256": "sha256:9ece8c7b09a4d6e7d1dc1b7b64df96cd76d759fad1e8a32dd878488ddcf4c53f"
+  "dataset_hash": "sha256:d4702bec84d98f128108b0c2b16bf1587617aa3cff77283c1b08a07ee201fbe2",
+  "generated_at": "2026-07-28T10:42:45.250836+00:00",
+  "approved_at": "2026-07-28T17:45:00Z",
+  "source_run_id": 1785235427,
+  "source_artifact_name": "pipeline_selection.deploy_main.json",
+  "source_artifact_sha256": "sha256:3a21ba185b0036f8f7339cf6b1acb6f19878b02fc3461ef93d9ac44843fc19b5"
 }

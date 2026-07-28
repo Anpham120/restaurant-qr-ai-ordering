@@ -22,8 +22,6 @@ sys.path.insert(0, str(AI_ROOT))
 from evaluation.intent_eval_common import (  # noqa: E402
     CASES_PATH,
     DEFAULT_MODELS,
-    GPT55_MODEL,
-    DEEPSEEK_MODEL,
     RESULTS_DIR,
     model_slug,
     run_intent_eval,
@@ -123,7 +121,7 @@ def main() -> None:
         "--models",
         nargs="+",
         default=list(DEFAULT_MODELS),
-        help=f"Models to compare (default: {GPT55_MODEL} {DEEPSEEK_MODEL})",
+        help=f"Models to compare (default: {', '.join(DEFAULT_MODELS)})",
     )
     parser.add_argument(
         "--cases",
