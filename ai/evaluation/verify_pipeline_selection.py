@@ -171,7 +171,17 @@ def main() -> int:
         with args.github_env.open("a", encoding="utf-8") as handle:
             handle.write(f"AI_PIPELINE_PROFILE={winner}\n")
             handle.write(f"LLM_MODEL={args.expected_primary_model}\n")
-            handle.write(f"LLM_RATE_LIMIT_FALLBACK_MODEL={args.expected_fallback_model}\n")
+            # Read the fallback model from the artifact, not from the CLI default.
+            # The default is a model name, GITHUB_ENV overrides the job-level env,
+            # and the deploy workflows do not pass --expected-fallback-model — so
+            # writing the default handed the deploy a fallback model the approved
+            # policy does not have.  The service then reports fallback_model=null
+            # and health-check.sh fails comparing the two.  fallback_enabled below
+            # already reads the artifact; these two must agree.
+            handle.write(
+                "LLM_RATE_LIMIT_FALLBACK_MODEL="
+                f"{model_policy.get('fallback_model') or ''}\n"
+            )
             handle.write(
                 "LLM_RATE_LIMIT_FALLBACK_ENABLED="
                 f"{str(bool(model_policy.get('fallback_enabled'))).lower()}\n"
