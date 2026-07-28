@@ -28,7 +28,7 @@
     "preview": "npm run preview -w @cmc/customer-web"
   },
   "dependencies": {
-    "@fontsource/dancing-script": "^5.2.8",
+    "@fontsource/dancing-script": "^5.3.0",
     "@fontsource/karla": "^5.2.8",
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
