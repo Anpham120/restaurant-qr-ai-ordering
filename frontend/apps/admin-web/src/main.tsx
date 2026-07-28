@@ -148,7 +148,11 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute allowedRoles={["Admin", "CounterStaff", "Staff", "Kitchen"]}>
-        <RoleAwareOpsShell />
+        <OpsNavBadgesProvider>
+          <OpsToastProvider>
+            <RoleAwareOpsShell />
+          </OpsToastProvider>
+        </OpsNavBadgesProvider>
       </ProtectedRoute>
     ),
     children: [
@@ -181,11 +185,7 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <OpsRealtimeProvider>
         <OpsAssistanceProvider>
-          <OpsNavBadgesProvider>
-            <OpsToastProvider>
-              <RouterProvider router={router} />
-            </OpsToastProvider>
-          </OpsNavBadgesProvider>
+          <RouterProvider router={router} />
         </OpsAssistanceProvider>
       </OpsRealtimeProvider>
     </AuthProvider>
