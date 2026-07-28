@@ -47,7 +47,7 @@ queries = [
 ]
 
 # DeepSeek dropped: the 9router route serving oc/deepseek-v4-flash-free in this
-# account rejects response_format=json_object (see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md).
+# account rejects response_format=json_object (see docs/ai/AI_DECISION_HISTORY.md).
 # cx/gpt-5.6-luna-review is now the configured runtime primary (app/config.py).
 models = ["cx/gpt-5.5", "cx/gpt-5.6-luna-review"]
 all_results = {}

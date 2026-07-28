@@ -6,7 +6,7 @@ Tài liệu này chốt hướng AI chatbot của CMC Restaurant sau khi nâng c
 
 Hệ thống sử dụng:
 
-- **Model triển khai:** GPT-5.6 Luna (`cx/gpt-5.6-luna-review`) qua 9router; GPT-5.5 (`cx/gpt-5.5`) vẫn dùng cho quality gate / paired eval khi cần. DeepSeek (`oc/deepseek-v4-flash-free`) không còn là model chính thức — route của nó trong 9router từ chối `response_format:json_object`, field mọi request thật đều cần (xem `docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`).
+- **Model triển khai:** GPT-5.6 Luna (`cx/gpt-5.6-luna-review`) qua 9router; GPT-5.5 (`cx/gpt-5.5`) vẫn dùng cho quality gate / paired eval khi cần. DeepSeek (`oc/deepseek-v4-flash-free`) không còn là model chính thức — route của nó trong 9router từ chối `response_format:json_object`, field mọi request thật đều cần (xem `docs/ai/AI_DECISION_HISTORY.md` §1).
 - **Cách truy cập model:** duy nhất qua gateway 9router tương thích OpenAI.
 - **AI service:** Python FastAPI service trong thư mục `ai/`.
 - **Knowledge grounding:** hybrid RAG (BM25 + multilingual E5 + RRF) từ `ai/knowledge-base/` và thực đơn live 91 món, bao gồm đồ uống.
@@ -70,7 +70,7 @@ RAG là cơ chế cho AI tra cứu tài liệu nhà hàng trước khi trả l�
 - chính sách đặt món, mang về, thanh toán;
 - FAQ nhà hàng;
 - phong cách trả lời CMC Restaurant;
-- insight từ notebook nghiên cứu `ai/notebooks/rag_retrieval_research.ipynb` (không còn thư mục coursework riêng).
+- insight từ notebook nghiên cứu `ai/notebooks/rag_llm_system_research.ipynb` (notebook duy nhất của dự án).
 
 Nếu context không đủ, AI phải nói chưa có đủ thông tin thay vì bịa.
 

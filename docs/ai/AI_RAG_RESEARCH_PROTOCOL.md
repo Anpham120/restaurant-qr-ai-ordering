@@ -12,7 +12,7 @@ Production LLM stack: **GPT-5.6 Luna only through 9router**, model
 `cx/gpt-5.6-luna-review`. DeepSeek (`oc/deepseek-v4-flash-free`) is no longer
 the primary model — the 9router route serving it rejects
 `response_format:json_object`, which every real request requires (see
-`docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`). The old GPT/DeepSeek comparison
+`docs/ai/AI_DECISION_HISTORY.md`). The old GPT/DeepSeek comparison
 remains a historical model experiment; it is not the architecture-selection
 gate.
 

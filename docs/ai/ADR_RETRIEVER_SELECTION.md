@@ -5,7 +5,7 @@
 **Date:** 2026-07-14 (updated 2026-07-17)
 
 **Decision owners:** AI/RAG engineering
-**Related plan:** `docs/AI_LLM_RAG_REFACTOR_PLAN.md` §5.5
+**Related history:** `docs/ai/AI_DECISION_HISTORY.md` §2 (luật chọn đăng ký trước)
 
 ## Context
 
@@ -13,11 +13,12 @@ Phase 3 evaluation required a registered, reproducible retriever choice before t
 frozen test split was opened. Dev experiments on the selector-backed golden set
 (`ai/evaluation/golden/cases.jsonl`) compared 7 methods (BM25, 3 dense encoders,
 3 hybrid RRF variants) with paired statistical tests
-(`docs/AI_RETRIEVAL_DEV_RESULTS.md`).
+(`docs/ai/AI_DECISION_HISTORY.md` §2).
 
-The original 17-section notebook protocol (`llm_rag_retrieval_study.ipynb`) was
-superseded by `ai/notebooks/rag_retrieval_research.ipynb`, which has been executed
-end-to-end against the v3 artifacts.
+The original 17-section notebook protocol (`llm_rag_retrieval_study.ipynb`) and its
+successor (`rag_retrieval_research.ipynb`) were both retired; the retrieval
+comparison now lives in Part II of `ai/notebooks/rag_llm_system_research.ipynb`,
+executed end-to-end against the v3 artifacts.
 
 ## Decision
 
@@ -48,7 +49,7 @@ single frozen-test run with production menu filters applied
 | Experiment entrypoint | `ai/evaluation/run_retrieval_experiment.py` |
 | E2E behavior eval | `ai/evaluation/run_golden_chat_eval.py` |
 | Legacy smoke eval | `ai/evaluation/run_evaluation.py` (hybrid default) |
-| Research notebook | `ai/notebooks/rag_retrieval_research.ipynb` |
+| Research notebook | `ai/notebooks/rag_llm_system_research.ipynb` |
 
 ## Consequences
 

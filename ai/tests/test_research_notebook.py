@@ -1,3 +1,18 @@
+"""Contract for the single research notebook the project ships.
+
+The repository used to carry three notebooks — an early retrieval study, a
+canonical report meant to replace it, and this system study — plus five build
+scripts and two contract tests between them.  Readers had no way to tell which
+one held the current numbers.  There is now exactly one notebook, and this file
+pins the properties that make it trustworthy: the parts appear in order, the
+numbers come from named artifacts, no retired configuration is presented as
+current, and every code cell actually ran.
+
+The notebook is checked against the committed file rather than by importing its
+builder: `scripts/build_rag_llm_research.py` writes the notebook as a top-level
+side effect, so importing it would regenerate a 147-cell notebook during the test
+run and prove nothing about what is committed.
+"""
 from __future__ import annotations
 
 import tempfile
@@ -6,85 +21,102 @@ from pathlib import Path
 
 import nbformat
 
-from scripts.build_research_notebook import (
-    AI_ROOT,
-    NOTEBOOK_PATH,
-    PART_HEADERS,
-    build_notebook,
-    validate_notebook,
+AI_ROOT = Path(__file__).resolve().parents[1]
+NOTEBOOK_PATH = AI_ROOT / "notebooks" / "rag_llm_system_research.ipynb"
+
+PART_HEADERS = (
+    "PHẦN I — BÀI TOÁN, TRI THỨC VÀ TẬP ĐÁNH GIÁ",
+    "PHẦN II — THỰC NGHIỆM SO SÁNH CÁC PHƯƠNG PHÁP TRUY HỒI",
+    "PHẦN III — TỪ TRUY HỒI ĐẾN TRỢ LÝ CÓ NGỮ CẢNH",
+    "PHẦN IV — THỰC NGHIỆM TOÀN HỆ THỐNG",
+    "PHẦN V — CHỐT PHƯƠNG ÁN PRODUCTION",
+)
+
+# Artifacts the notebook must read rather than restate from memory.  A number in
+# the narrative with no artifact behind it is the failure mode this guards.
+REQUIRED_ARTIFACTS = (
+    "knowledge_manifest.json",
+    "dev_retrieval_summary.v3.json",
+    "retrieval_ablation_summary.json",
+    "golden_chat_e2e.json",
+    "session_e2e_eval.json",
+    "intent_classification_eval_comparison.json",
+    "pipeline_selection.json",
+)
+
+# Configuration that was retired.  Presenting any of it as the current setup is
+# the mistake that made the older notebooks untrustworthy.
+FORBIDDEN = (
+    "composite_pass=100",
+    "DeepSeek dẫn đầu 50%",
+    "85% Hit@5",
 )
 
 
-def _notebook_text(notebook: dict) -> str:
+def _notebook() -> nbformat.NotebookNode:
+    return nbformat.read(str(NOTEBOOK_PATH), as_version=4)
+
+
+def _text(notebook: nbformat.NotebookNode) -> str:
     return "\n".join("".join(cell["source"]) for cell in notebook["cells"])
 
 
 class ResearchNotebookContractTests(unittest.TestCase):
-    def test_checked_in_notebook_matches_five_part_pipeline(self) -> None:
-        if not NOTEBOOK_PATH.is_file():
-            self.skipTest("Notebook not present; run build_notebook() in CI with full tree")
-        notebook = nbformat.read(str(NOTEBOOK_PATH), as_version=4)
-        text = _notebook_text(notebook)
+    def test_repository_ships_exactly_one_research_notebook(self) -> None:
+        self.assertEqual([NOTEBOOK_PATH], sorted(AI_ROOT.rglob("*.ipynb")))
+
+    def test_five_parts_appear_in_order(self) -> None:
+        text = _text(_notebook())
         positions = [text.index(part) for part in PART_HEADERS]
         self.assertEqual(sorted(positions), positions)
-        self.assertEqual([], validate_notebook(notebook))
 
-    def test_notebook_loads_shared_result_artifacts(self) -> None:
-        text = _notebook_text(nbformat.read(str(NOTEBOOK_PATH), as_version=4))
-        self.assertIn("notebook_live_test.json", text)
-        self.assertIn("dual_model_test.json", text)
+    def test_every_number_is_read_from_a_named_artifact(self) -> None:
+        text = _text(_notebook())
+        for artifact in REQUIRED_ARTIFACTS:
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, text)
+
+    def test_states_the_deployed_model_and_the_approved_winner(self) -> None:
+        text = _text(_notebook())
         self.assertIn("cx/gpt-5.6-luna-review", text)
-        self.assertIn("http_429", text)
-        self.assertIn("fallback", text.casefold())
-        self.assertIn("Bảng thuật ngữ metric", text)
-        self.assertIn("Bản đồ bằng chứng (staging)", text)
-        self.assertIn("format_part12_narrative", text)
-        self.assertIn("format_part13_narrative", text)
-        self.assertIn("Hit@5: screening notebook vs release gate", text)
-        self.assertIn("## 18. Đưa vào production — kết luận báo cáo", text)
-        self.assertIn("Tính năng từ notebook", text)
-        self.assertGreater(
-            text.index("## 18. Đưa vào production — kết luận báo cáo"),
-            text.index("## 17. Kết luận"),
-        )
-        self.assertIn("format_artifact_provenance_table", text)
+        self.assertIn("evidence_first_v2", text)
 
-    def test_notebook_has_no_fabricated_release_headline(self) -> None:
-        text = _notebook_text(nbformat.read(str(NOTEBOOK_PATH), as_version=4))
-        self.assertNotIn("composite_pass=100", text)
-        self.assertNotIn("DeepSeek dẫn đầu 50%", text)
-        self.assertNotIn("85% Hit@5", text)
+    def test_presents_no_retired_configuration_as_current(self) -> None:
+        text = _text(_notebook())
+        for phrase in FORBIDDEN:
+            with self.subTest(phrase=phrase):
+                self.assertNotIn(phrase, text)
 
-    def test_notebook_keeps_code_visible(self) -> None:
-        notebook = nbformat.read(str(NOTEBOOK_PATH), as_version=4)
-        for cell in notebook.cells:
+    def test_keeps_code_visible(self) -> None:
+        for cell in _notebook().cells:
             if cell.cell_type != "code":
                 continue
             metadata = cell.get("metadata") or {}
             self.assertFalse(metadata.get("hide_input"))
             self.assertFalse(metadata.get("source_hidden"))
 
-    def test_validator_accepts_nbformat_round_trip(self) -> None:
-        notebook = nbformat.read(str(NOTEBOOK_PATH), as_version=4)
-        with tempfile.TemporaryDirectory(prefix="fable-notebook-roundtrip-") as temp_dir:
-            path = Path(temp_dir) / "research.ipynb"
+    def test_every_code_cell_ran_and_none_raised(self) -> None:
+        # A notebook committed without outputs looks identical to one whose cells
+        # all failed silently: both report zero error cells.  Assert both halves.
+        code_cells = [c for c in _notebook().cells if c.cell_type == "code"]
+        self.assertTrue(code_cells)
+        without_output = [i for i, c in enumerate(code_cells) if not c.get("outputs")]
+        self.assertEqual([], without_output)
+        errored = [
+            i
+            for i, c in enumerate(code_cells)
+            if any(o.get("output_type") == "error" for o in c.get("outputs") or [])
+        ]
+        self.assertEqual([], errored)
+
+    def test_survives_an_nbformat_round_trip(self) -> None:
+        notebook = _notebook()
+        with tempfile.TemporaryDirectory(prefix="research-notebook-roundtrip-") as tmp:
+            path = Path(tmp) / "research.ipynb"
             nbformat.write(notebook, path)
             reloaded = nbformat.read(path, as_version=4)
-        self.assertEqual([], validate_notebook(reloaded))
-
-    def test_repository_keeps_only_the_active_and_legacy_reference_notebooks(self) -> None:
-        notebooks = sorted(AI_ROOT.rglob("*.ipynb"))
-        canonical_report = AI_ROOT / "notebooks" / "restaurant_ai_research_report.ipynb"
-        # The old report stays as a reference until the owner explicitly
-        # approves cleanup; the canonical report is its replacement; and the
-        # system research report covers the architecture-selection experiments
-        # (retrieval vs deterministic routing, model choice, pipeline profile)
-        # that neither of the other two addresses — see its Appendix E.
-        system_research = AI_ROOT / "notebooks" / "rag_llm_system_research.ipynb"
-        self.assertEqual(
-            sorted([NOTEBOOK_PATH, canonical_report, system_research]),
-            notebooks,
-        )
+        self.assertEqual(len(notebook.cells), len(reloaded.cells))
+        self.assertEqual(_text(notebook), _text(reloaded))
 
 
 if __name__ == "__main__":

@@ -99,11 +99,10 @@ jobs:
       - name: Install AI service dependencies
         run: python -m pip install -r ai/requirements.txt nbformat
 
-      - name: Validate research notebook build contract
-        env:
-          PYTHONPATH: ai
-        working-directory: ai
-        run: python scripts/build_research_notebook.py
+      # The notebook contract is enforced by ai/tests/test_research_notebook.py in
+      # the unittest step below, against the committed notebook.  Re-running the
+      # builder here would overwrite that executed notebook with an output-free
+      # rebuild — and prove nothing about what is committed.
 
       - name: Compile Python service
         env:

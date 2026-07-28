@@ -17,7 +17,7 @@ cùng VPS (mặc định `http://127.0.0.1:20128/v1`).
   `cx/gpt-5.6-luna-review`.
 - Không cấu hình fallback (single-model; DeepSeek đã bị bỏ vì route của nó
   trong 9router từ chối `response_format:json_object` — xem
-  `docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`).
+  `docs/ai/AI_DECISION_HISTORY.md`).
 
 ### 2. GitHub Environment `staging`
 

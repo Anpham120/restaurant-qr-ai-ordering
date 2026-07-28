@@ -151,7 +151,7 @@ class AiOpsDeployContractTests(unittest.TestCase):
         self.assertIn("LLM_PROVIDER: 9router", workflow)
         # Single-model deployment: no fallback is configured (DeepSeek was
         # dropped after its 9router route rejected response_format:json_object;
-        # see docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md).  The fallback model
+        # see docs/ai/AI_DECISION_HISTORY.md).  The fallback model
         # must stay empty: the service reports fallback_model=null while fallback
         # is disabled, so naming a model here fails the readiness contract.
         self.assertIn('LLM_RATE_LIMIT_FALLBACK_MODEL: ""', workflow)

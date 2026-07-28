@@ -4,7 +4,7 @@
 
 Runbook này quy định cách audit dataset/corpus, chạy baseline và bảo vệ frozen
 test split trước khi so sánh BM25, neural embedding và hybrid. Thiết kế nghiên
-cứu đầy đủ nằm trong `AI_LLM_RAG_REFACTOR_PLAN.md`.
+cứu đầy đủ nằm trong `docs/ai/AI_DECISION_HISTORY.md`.
 
 ## Nguồn dữ liệu
 
