@@ -37,6 +37,10 @@ PROFILES = {
         "model": "oc/deepseek-v4-flash-free",
         "file": "deepseek.json",
     },
+    "luna": {
+        "model": "cx/gpt-5.6-luna-review",
+        "file": "luna.json",
+    },
 }
 
 

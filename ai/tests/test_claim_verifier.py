@@ -55,6 +55,30 @@ class ClaimVerifierTests(unittest.TestCase):
         self.assertFalse(all_verified)
         self.assertEqual("unknown_evidence_id", claims[0]["reason"])
 
+    def test_loose_paraphrase_is_rejected_by_design(self) -> None:
+        # A claim sharing almost no surface tokens with its evidence is
+        # rejected here by design, even if it happens to be faithful. An
+        # embedding-similarity fallback was evaluated and rejected — see
+        # claim_verifier.py's module docstring note — because it could not
+        # reliably tell faithful paraphrases apart from fabricated claims for
+        # short Vietnamese text in this domain. The actual fix for legitimate
+        # paraphrases is at generation time (prompts.py): claims[].text should
+        # stay evidence-anchored even when the customer-facing `content` is
+        # paraphrased freely.
+        claims, all_verified = verify_claims(
+            [
+                {
+                    "text": "Quý khách hoàn toàn có thể ghé quán dùng bữa ngay từ đầu buổi sáng.",
+                    "evidence_ids": ["faq.md::Giờ mở cửa"],
+                }
+            ],
+            chunks=[self.chunk],
+            menu_items=self.menu,
+        )
+
+        self.assertFalse(all_verified)
+        self.assertEqual("insufficient_lexical_support", claims[0]["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

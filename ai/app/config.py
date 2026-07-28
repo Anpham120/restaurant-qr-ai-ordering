@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 DEFAULT_ROUTER_BASE_URL = "http://localhost:20128/v1"
-DEFAULT_LLM_MODEL = "oc/deepseek-v4-flash-free"
+DEFAULT_LLM_MODEL = "cx/gpt-5.6-luna-review"
 DEFAULT_RATE_LIMIT_FALLBACK_MODEL = "cx/gpt-5.6-luna-review"
 DEFAULT_PIPELINE_PROFILE = "llm_first_v1"
 PIPELINE_PROFILES = frozenset(
@@ -26,6 +26,7 @@ def is_supported_router_model(model: str) -> bool:
     normalized = model.strip().casefold()
     return (
         "gpt-5.5" in normalized
+        or "gpt-5.6" in normalized
         or "deepseek" in normalized
         or normalized == DEFAULT_RATE_LIMIT_FALLBACK_MODEL
     )

@@ -48,28 +48,35 @@ def validate_artifact(
             f"artifact={model_policy.get('primary_model')!r}, "
             f"expected={expected_primary_model!r}"
         )
-    if model_policy.get("fallback_model") != expected_fallback_model:
-        raise ValueError(
-            "fallback model drift: "
-            f"artifact={model_policy.get('fallback_model')!r}, "
-            f"expected={expected_fallback_model!r}"
-        )
-    if model_policy.get("fallback_trigger") != expected_fallback_trigger:
-        raise ValueError(
-            "fallback trigger drift: "
-            f"artifact={model_policy.get('fallback_trigger')!r}, "
-            f"expected={expected_fallback_trigger!r}"
-        )
-    if int(model_policy.get("max_fallbacks_per_operation") or 0) != int(
-        expected_max_fallbacks
-    ):
-        raise ValueError(
-            "max fallback drift: "
-            f"artifact={model_policy.get('max_fallbacks_per_operation')!r}, "
-            f"expected={expected_max_fallbacks!r}"
-        )
-    if require_fallback_enabled and not bool(model_policy.get("fallback_enabled")):
+    fallback_enabled_in_artifact = bool(model_policy.get("fallback_enabled"))
+    if require_fallback_enabled and not fallback_enabled_in_artifact:
         raise ValueError("fallback must be enabled for this deployment")
+    # Fallback-shape checks (model/trigger/max) only apply when a fallback is
+    # actually part of the deployment — either the artifact has one enabled,
+    # or the caller explicitly demands one via --require-fallback-enabled. A
+    # single-model deployment (fallback disabled, no fallback configured) is a
+    # valid, deliberate configuration and must not be rejected as "drift".
+    if require_fallback_enabled or fallback_enabled_in_artifact:
+        if model_policy.get("fallback_model") != expected_fallback_model:
+            raise ValueError(
+                "fallback model drift: "
+                f"artifact={model_policy.get('fallback_model')!r}, "
+                f"expected={expected_fallback_model!r}"
+            )
+        if model_policy.get("fallback_trigger") != expected_fallback_trigger:
+            raise ValueError(
+                "fallback trigger drift: "
+                f"artifact={model_policy.get('fallback_trigger')!r}, "
+                f"expected={expected_fallback_trigger!r}"
+            )
+        if int(model_policy.get("max_fallbacks_per_operation") or 0) != int(
+            expected_max_fallbacks
+        ):
+            raise ValueError(
+                "max fallback drift: "
+                f"artifact={model_policy.get('max_fallbacks_per_operation')!r}, "
+                f"expected={expected_max_fallbacks!r}"
+            )
     if artifact.get("working_tree_dirty") is True:
         raise ValueError("dirty source tree cannot be deployed from a selection artifact")
     winner = str(artifact.get("winner") or "")
@@ -164,7 +171,17 @@ def main() -> int:
         with args.github_env.open("a", encoding="utf-8") as handle:
             handle.write(f"AI_PIPELINE_PROFILE={winner}\n")
             handle.write(f"LLM_MODEL={args.expected_primary_model}\n")
-            handle.write(f"LLM_RATE_LIMIT_FALLBACK_MODEL={args.expected_fallback_model}\n")
+            # Read the fallback model from the artifact, not from the CLI default.
+            # The default is a model name, GITHUB_ENV overrides the job-level env,
+            # and the deploy workflows do not pass --expected-fallback-model — so
+            # writing the default handed the deploy a fallback model the approved
+            # policy does not have.  The service then reports fallback_model=null
+            # and health-check.sh fails comparing the two.  fallback_enabled below
+            # already reads the artifact; these two must agree.
+            handle.write(
+                "LLM_RATE_LIMIT_FALLBACK_MODEL="
+                f"{model_policy.get('fallback_model') or ''}\n"
+            )
             handle.write(
                 "LLM_RATE_LIMIT_FALLBACK_ENABLED="
                 f"{str(bool(model_policy.get('fallback_enabled'))).lower()}\n"

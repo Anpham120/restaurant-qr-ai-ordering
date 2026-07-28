@@ -7,15 +7,17 @@ tạo `ai/evaluation/results/pipeline_selection.json`, rồi bind
 
 ## Điều kiện trước khi deploy
 
-### 1. DeepSeek qua 9router
+### 1. GPT-5.6 Luna qua 9router
 
 `ai-service` dùng `network_mode: host`. `LLM_BASE_URL` phải trỏ tới 9router trên
 cùng VPS (mặc định `http://127.0.0.1:20128/v1`).
 
 - GitHub secret: `NINE_ROUTER_API_KEY`.
 - Model cố định cho thí nghiệm và runtime:
-  `oc/deepseek-v4-flash-free`.
-- Không cấu hình GPT fallback.
+  `cx/gpt-5.6-luna-review`.
+- Không cấu hình fallback (single-model; DeepSeek đã bị bỏ vì route của nó
+  trong 9router từ chối `response_format:json_object` — xem
+  `docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`).
 
 ### 2. GitHub Environment `staging`
 
@@ -55,7 +57,7 @@ Health check gửi menu thật trong `backend/data/menu-dataset.json` và kiểm
 
 Mỗi response phải:
 
-- ghi đúng `pipeline_profile` và model `oc/deepseek-v4-flash-free`;
+- ghi đúng `pipeline_profile` và model `cx/gpt-5.6-luna-review`;
 - không trả fallback “Mình chưa đủ bằng chứng…”;
 - có `resolved_menu_item_ids` và `evidence`;
 - không có claim chưa verify;

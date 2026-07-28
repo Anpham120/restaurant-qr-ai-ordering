@@ -293,7 +293,12 @@ def build_conversation_policy(
         category
         and is_category_listing_query(normalized_message)
         and not _is_explicit_order(normalized_message)
+        and not any(_contains_term(normalized_message, term) for term in RECOMMENDATION_TERMS)
+        and not any(_contains_term(normalized_message, term) for term in GROUP_RECOMMENDATION_TERMS)
     ):
+        # "co mon X" alone is a pure category-listing question, but pairing it
+        # with a recommendation cue ("nao ngon", "goi y"...) means the customer
+        # is also asking to be recommended something from that category.
         wants_recommendations = False
     elif _is_non_recommendation_info(normalized_message):
         wants_recommendations = False

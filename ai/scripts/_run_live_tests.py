@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """Run real pipeline tests, save results for notebook."""
 import asyncio, json, sys, os, time
+from pathlib import Path
 sys.path.insert(0, '.')
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-os.chdir('d:/01_Projects/Fable/restaurant-qr-ai-ordering/ai')
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 from app.config import load_config
 from app.services.assistant import AiAssistantService
@@ -14,7 +15,6 @@ from app.rag.intent_classifier import classify_intent
 from app.rag.guardrails import detect_guardrail_flags
 from app.rag.claim_verifier import verify_claims
 from app.rag.knowledge_base import load_markdown_knowledge_base
-from pathlib import Path
 from scripts.notebook_metrics import enrich_pipeline_row
 
 config = load_config()

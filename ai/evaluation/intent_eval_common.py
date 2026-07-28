@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app.clients.router import RouterClient
-from app.config import AiServiceConfig, load_config
+from app.config import AiServiceConfig, DEFAULT_LLM_MODEL, load_config
 from app.rag.constraint_extractor import extract_constraints
 from app.rag.conversation_policy import build_conversation_policy
 from app.rag.intent_classifier import classify_intent_with_history
@@ -26,8 +26,11 @@ CASES_PATH = AI_ROOT / "evaluation" / "intent_classification_cases.jsonl"
 RESULTS_DIR = AI_ROOT / "evaluation" / "results"
 
 GPT55_MODEL = "cx/gpt-5.5"
+# Historical primary model; kept importable for manual/legacy comparison runs.
 DEEPSEEK_MODEL = "oc/deepseek-v4-flash-free"
-DEFAULT_MODELS = (GPT55_MODEL, DEEPSEEK_MODEL)
+# Current runtime primary model — replaces DEEPSEEK_MODEL in the default pair
+# now that DeepSeek is no longer the configured primary (see app/config.py).
+DEFAULT_MODELS = (GPT55_MODEL, DEFAULT_LLM_MODEL)
 
 
 def load_intent_cases(path: Path | None = None) -> list[dict[str, Any]]:

@@ -33,16 +33,20 @@ from app.rag.guardrails import detect_guardrail_flags
 from app.rag.knowledge_base import load_markdown_knowledge_base
 from app.rag.pairing_recommendation_fast_path import try_pairing_recommendation_fast_path
 from app.rag.menu_exclusions import (
+    build_suggestion_reason,
     detect_excluded_category_ids,
     filter_items_by_excluded_categories,
     recommendation_intro,
 )
 from app.rag.menu_grounding import MenuCandidateRetriever
+from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import filter_items_by_kind
 from app.rag.menu_query_filters import (
     has_allergy_avoidance_context,
+    has_child_dining_context,
     infer_allergen_excluded_menu_item_ids,
+    infer_child_unsuitable_menu_item_ids,
 )
 from app.rag.output_parser import parse_model_response
 from app.rag.kb_info_fast_path import try_kb_info_fast_path
@@ -77,6 +81,7 @@ FAQ_POLICY_INTENTS = frozenset(
     }
 )
 RECOMMEND_INTENTS = frozenset({"recommend", "dietary", "budget"})
+MAX_CATALOG_CART_SUGGESTIONS = 4
 
 
 def _should_use_deterministic_fast_paths(config: AiServiceConfig) -> bool:
@@ -602,6 +607,33 @@ class AiAssistantService:
             policy = replace(policy, party_size=int(constraints["party_size"]))
         intent_result = classify_intent_for_message(message, history)
         intent_flags: list[str] = []
+
+        # So sánh món là tra bảng, không phải suy luận. Đặt trước live-data vì
+        # live-data chỉ tra được MỘT món và sẽ chiếm câu hỏi hai món trước khi
+        # tới đây. Chỉ kích hoạt khi khách đã nêu tên từ hai món trở lên, nên
+        # câu một món hoặc câu mơ hồ vẫn đi đúng đường cũ.
+        comparison_response = try_dish_comparison_fast_path(message, menu_items)
+        if comparison_response is not None:
+            comparison_response["latency_ms"] = {**stages, "path": "dish_comparison"}
+            available = [item for item in menu_items if bool(item.get("is_available", True))]
+            return {
+                "early_response": comparison_response,
+                "stages": stages,
+                "policy": policy,
+                "available_menu_items": available,
+                "message": message,
+                "history": history,
+                "rolling_summary": rolling_summary,
+                "facts": facts,
+                "session_state": session_state,
+                "constraints": constraints,
+                "intent": intent_result.intent,
+                "pipeline_version": self._config.pipeline_version,
+                "pipeline_profile": self._config.pipeline_profile,
+                "model": self._config.model,
+                "retriever_runtime": self.retriever_runtime,
+            }
+
         live_response = _try_live_data_response(
             message,
             history,
@@ -800,7 +832,21 @@ class AiAssistantService:
             if allergen_context
             else frozenset()
         )
-        excluded_ids = policy.excluded_menu_item_ids | payload_excluded | allergen_excluded
+        # Food for a young child: keep only dishes the catalogue marks as
+        # child-friendly.  Without this the assistant will happily suggest an
+        # adult dish (rare beef, heavy spice) for a toddler.
+        child_context = has_child_dining_context(message)
+        child_excluded = (
+            frozenset(infer_child_unsuitable_menu_item_ids(menu_items))
+            if child_context
+            else frozenset()
+        )
+        excluded_ids = (
+            policy.excluded_menu_item_ids
+            | payload_excluded
+            | allergen_excluded
+            | child_excluded
+        )
         exclusion_list = sorted(excluded_ids)
         available_menu_items = [
             item
@@ -963,7 +1009,13 @@ class AiAssistantService:
         )
 
         kb_fast_path = None
-        if use_deterministic_fast_paths and not _should_skip_kb_fast_path:
+        if not _should_skip_kb_fast_path:
+            # Deterministic FAQ/policy answers (hours, wifi, parking, payment, ...)
+            # are never a hallucination risk and never need cross-turn context, so
+            # — like menu_presence_fast_path above — they run regardless of
+            # llm_first. Recommendation-type intents are already excluded inside
+            # try_kb_info_fast_path, so this does not affect llm_first's context
+            # handling for recommendation flows.
             kb_fast_path = try_kb_info_fast_path(
                 message,
                 retrieved,
@@ -1450,6 +1502,22 @@ def _finalize_response_payload(
         claims = _claims_from_menu_actions(response["suggested_cart_actions"])
     response["claims"] = claims
 
+    policy = context.get("policy")
+    wants_recommendations_this_turn = bool(getattr(policy, "wants_recommendations", False))
+    if wants_recommendations_this_turn and not response.get("suggested_cart_actions"):
+        # Only ever backfill on a turn the policy already flagged as wanting a
+        # fresh recommendation — never on a follow-up/confirmation turn, where
+        # a claim may cite a previously-suggested dish just to verify a fact
+        # (e.g. its price) without re-recommending it (would break the
+        # duplicate-free-suggestion session guarantee).
+        backfilled_actions = _backfill_cart_actions_from_verified_claims(
+            claims,
+            context.get("available_menu_items") or [],
+            excluded_ids=context.get("excluded_ids") or frozenset(),
+        )
+        if backfilled_actions:
+            response["suggested_cart_actions"] = backfilled_actions
+
     evidence = list(response.get("evidence") or [])
     evidence = _merge_verified_claim_evidence(
         evidence,
@@ -1577,11 +1645,16 @@ def _finalize_response_payload(
     updates.setdefault("facts", list(context.get("facts") or state.get("facts") or []))
     updates["constraints"] = dict(context.get("constraints") or state.get("constraints") or {})
     frame = dict(state.get("conversation_frame") or {})
-    if response.get("pipeline_profile") == "planner_state_v3":
-        resolved_ids = list(response.get("resolved_menu_item_ids") or [])
-        if resolved_ids and frame.get("pending_clarification") is None:
-            frame["focus_menu_item_ids"] = resolved_ids
-        updates["conversation_frame"] = frame
+    # Which dish the conversation is currently about is ordinary conversational
+    # state, not a planner feature.  Gating this on planner_state_v3 left the
+    # other two profiles with an empty frame, so an ordinal follow-up ("món thứ
+    # hai giá bao nhiêu?", then "thêm món đó vào giỏ") answered correctly but
+    # resolved "món đó" against nothing on the next turn.  resolved_menu_item_ids
+    # is computed above for every profile, so every profile can carry the frame.
+    resolved_ids = list(response.get("resolved_menu_item_ids") or [])
+    if resolved_ids and frame.get("pending_clarification") is None:
+        frame["focus_menu_item_ids"] = resolved_ids
+    updates["conversation_frame"] = frame
     updates["referenced_menu_item_ids"] = _merge_id_lists(
         state.get("referenced_menu_item_ids") or [],
         updates.get("referenced_menu_item_ids") or [],
@@ -1661,6 +1734,48 @@ def _merge_verified_claim_evidence(
             )
             existing_ids.add(evidence_id)
     return result
+
+
+def _backfill_cart_actions_from_verified_claims(
+    claims: list[dict[str, Any]],
+    menu_items: list[dict[str, Any]],
+    *,
+    excluded_ids: frozenset[str] | set[str] = frozenset(),
+) -> list[dict[str, Any]]:
+    """Attach a cart-suggestion card whenever the model already verified a claim
+    about a real, available dish but forgot to add suggested_cart_actions.
+
+    Without this, an LLM answer can name/discuss a specific menu item (e.g. when
+    confirming availability or describing a dish) without giving the customer an
+    actionable way to add it to the cart — every real-dish mention should be.
+    Only called on turns already flagged as wanting a fresh recommendation, and
+    skips anything already suggested/rejected (HARD EXCLUSION) this session.
+    """
+    menu_by_id = {_item_id(item): item for item in menu_items if _item_id(item)}
+    actions: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for claim in claims:
+        if not claim.get("verified"):
+            continue
+        for raw_id in claim.get("evidence_ids") or []:
+            item_id = str(raw_id).strip()
+            if not item_id or item_id in seen or item_id in excluded_ids:
+                continue
+            item = menu_by_id.get(item_id)
+            if not item or not bool(item.get("is_available", True)):
+                continue
+            seen.add(item_id)
+            actions.append(
+                {
+                    "menu_item_id": item_id,
+                    "name": str(item.get("name") or "Món"),
+                    "price_vnd": item.get("price_vnd") or item.get("price"),
+                    "quantity": 1,
+                    "reason": "Được nhắc đến trong câu trả lời",
+                    "requires_customer_confirmation": True,
+                }
+            )
+    return actions[:MAX_CATALOG_CART_SUGGESTIONS]
 
 
 def _claims_from_menu_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2159,7 +2274,15 @@ def _try_catalog_fast_path(
             not constraints.get("is_recommendation")
             and any(
                 marker in normalized
-                for marker in ("xem", "cac mon", "co nhung mon", "menu", "thuc don")
+                # "co gi"/"gom gi" ("what do you have") is one of the most common
+                # ways to browse a category and was missing, so those questions
+                # fell through to the LLM and came back as a counter-question.
+                # Safe to add: a category must still be detected below, so a
+                # bare "có gì không?" (no category) never reaches this path.
+                for marker in (
+                    "xem", "cac mon", "co nhung mon", "menu", "thuc don",
+                    "co gi", "gom gi", "gom nhung gi", "danh sach",
+                )
             )
         )
         if not browse_category:
@@ -2175,6 +2298,16 @@ def _try_catalog_fast_path(
     if not has_allergy_avoidance_context(message):
         # Browsing "món hải sản" names a category; it is not an allergy request.
         effective_constraints["allergens"] = []
+    if str(constraints.get("category") or "") == "mon chay":
+        # Same idea for diet: "món chay có gì" states the category being browsed,
+        # it is not an extra filter to apply on top of it.  Listing the Món chay
+        # category is exactly what a vegetarian/vegan browse asks for, so these
+        # diet tags must not disqualify the deterministic listing.
+        effective_constraints["diet"] = [
+            value
+            for value in (effective_constraints.get("diet") or [])
+            if value not in {"vegetarian", "vegan"}
+        ]
     if has_hard_dietary_constraints(effective_constraints):
         return None
 
@@ -2201,6 +2334,18 @@ def _try_catalog_fast_path(
         + "\n".join(lines)
     )
     cited_items = matched[:12]
+    catalog_suggested_actions = [
+        {
+            "menu_item_id": _item_id(item),
+            "name": str(item.get("name") or "Món").strip(),
+            "price_vnd": item.get("price_vnd") or item.get("price"),
+            "quantity": 1,
+            "reason": build_suggestion_reason(item, seed=_item_id(item)),
+            "requires_customer_confirmation": True,
+        }
+        for item in cited_items[:MAX_CATALOG_CART_SUGGESTIONS]
+        if _item_id(item)
+    ]
     return ChatResponse(
         content=content,
         provider_available=False,
@@ -2228,7 +2373,7 @@ def _try_catalog_fast_path(
             ]
         ),
         guardrail_flags=[],
-        suggested_cart_actions=[],
+        suggested_cart_actions=catalog_suggested_actions,
         follow_up=FollowUp(
             can_show_more=len(matched) > 12,
             remaining_count=max(len(matched) - 12, 0),
@@ -2255,6 +2400,13 @@ def _matches_category(
     )
     if not active_aliases:
         active_aliases = list(aliases)
+    elif category not in active_aliases:
+        # The alias that matched the *question* is not necessarily the one that
+        # matches the *menu*: a guest writing "chay thuan" or "seafood" still
+        # means the "mon chay"/"hai san" category, whose category_name in the
+        # live menu is the canonical term.  Keep the matched alias (it decides
+        # relevance) but always allow the canonical one for the menu-side match.
+        active_aliases = [*active_aliases, category]
     for alias in active_aliases:
         needle = normalize_query_text(alias)
         if not needle:

@@ -117,6 +117,21 @@ def faithfulness_score(content: str, context: str) -> float:
     return overlap / len(content_tokens)
 
 
+def _is_clarification_only(content: str, suggested: Sequence[Any]) -> bool:
+    """True when the answer only asks the guest something and asserts nothing.
+
+    Such a turn has no verifiable statement to back with a claim.  Digits are
+    the carrier of checkable facts in this domain (prices, hours, quantities),
+    so their presence means the answer did assert something and must cite it.
+    """
+    if suggested:
+        return False
+    text = (content or "").strip()
+    if "?" not in text:
+        return False
+    return not any(char.isdigit() for char in text)
+
+
 def _allergy_disclaimer_pass(content: str) -> bool:
     normalized = normalize_query_text(content)
     return any(term in normalized for term in ALLERGY_DISCLAIMER_TERMS)
@@ -208,6 +223,12 @@ def score_llm_case(
     claims_required = (
         latency_path not in {"smalltalk", "guardrail", "clarify"}
         and decision.get("evidence_sufficient") is not False
+        # A clarifying question asserts nothing, so it has nothing to cite, and
+        # the system prompt explicitly mandates claims=[] for it.  Requiring
+        # claims here would fail the model for obeying its own contract — the
+        # runtime finalizer already treats empty claims as valid.  The answer
+        # still has to pass evidence/source/menu gates separately.
+        and not _is_clarification_only(content, suggested)
     )
     claims_verified = (
         all(

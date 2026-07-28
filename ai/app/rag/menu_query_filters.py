@@ -118,6 +118,69 @@ def has_allergy_avoidance_context(query: str) -> bool:
     return any(term in normalized for term in ALLERGY_CONTEXT_TERMS)
 
 
+# Phrases that mean the food is for a young child. "be"/"chau"/"con" alone are
+# too ambiguous in Vietnamese ("bé" also = small, "con" also = classifier), so
+# they only count next to an eating/age word.
+_CHILD_CONTEXT_TERMS: tuple[str, ...] = (
+    "tre em",
+    "tre nho",
+    "tre con",
+    "em be",
+    "cho be",
+    "be an",
+    "chau an",
+    "con an",
+    "cho chau",
+    "tre an",
+    "kid",
+    "child",
+    "toddler",
+    "for my son",
+    "for my daughter",
+)
+
+_CHILD_AGE_PATTERN = re.compile(r"\b(\d{1,2})\s*tuoi\b")
+# Above this age the general menu is appropriate; below it, only dishes the
+# catalogue marks as child-friendly should be suggested.
+CHILD_AGE_CEILING = 12
+
+
+def has_child_dining_context(query: str) -> bool:
+    """True when the guest is asking what a young child should eat.
+
+    Recommending an adult dish (rare beef, strong spice, bones, whole nuts) to a
+    toddler is a real safety problem, so this is deliberately conservative: an
+    explicit young age ("bé 3 tuổi") or an unambiguous child phrase is required.
+    """
+    normalized = normalize_query_text(query)
+    age_match = _CHILD_AGE_PATTERN.search(normalized)
+    if age_match and int(age_match.group(1)) <= CHILD_AGE_CEILING:
+        return True
+    return any(term in normalized for term in _CHILD_CONTEXT_TERMS)
+
+
+def infer_child_unsuitable_menu_item_ids(
+    menu_items: Sequence[dict[str, Any]],
+) -> set[str]:
+    """Exclude everything the catalogue does not mark as child-friendly.
+
+    Fail-closed on purpose: an unlabelled dish is treated as unsuitable rather
+    than assumed safe, mirroring how allergen exclusion errs on the safe side.
+    """
+    excluded: set[str] = set()
+    for item in menu_items:
+        item_id = str(item.get("id") or item.get("menu_item_id") or "").strip()
+        if not item_id:
+            continue
+        tags = item.get("tags") or []
+        tag_text = normalize_query_text(
+            " ".join(str(tag) for tag in tags) if not isinstance(tags, str) else tags
+        )
+        if "tre em" not in tag_text and "tre nho" not in tag_text:
+            excluded.add(item_id)
+    return excluded
+
+
 def infer_allergen_excluded_menu_item_ids(
     allergens: Sequence[str],
     menu_items: Sequence[dict[str, Any]],

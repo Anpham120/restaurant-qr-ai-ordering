@@ -22,9 +22,13 @@ jobs:
       LLM_PROVIDER: 9router
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
-      LLM_MODEL: oc/deepseek-v4-flash-free
-      LLM_RATE_LIMIT_FALLBACK_MODEL: cx/gpt-5.6-luna-review
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "true"
+      LLM_MODEL: cx/gpt-5.6-luna-review
+      # Single-model deployment: there is no fallback model.  Leave this empty —
+      # the AI service reports fallback_model=null whenever fallback is disabled,
+      # so naming a model here makes the deployment claim a fallback it will never
+      # call and fails the readiness contract in deploy/scripts/health-check.sh.
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
       # Keep all non-profile controls identical to staging/production.  A
       # selection artifact is invalid if it was measured with a shorter
       # request window or different generation policy than the deployed AI.
@@ -119,7 +123,7 @@ jobs:
               -H "Content-Type: application/json" \
               --data @- \
               http://127.0.0.1:20128/v1/chat/completions <<'JSON'
-          {"model":"oc/deepseek-v4-flash-free","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
+          {"model":"cx/gpt-5.6-luna-review","messages":[{"role":"user","content":"Reply exactly: OK"}],"max_tokens":8,"temperature":0}
           JSON
           )"
           curl_exit=$?
@@ -148,7 +152,9 @@ jobs:
 
           base_url = os.environ["LLM_BASE_URL"].rstrip("/")
           primary = os.environ["LLM_MODEL"]
-          fallback = os.environ["LLM_RATE_LIMIT_FALLBACK_MODEL"]
+          # Empty means single-model: a rate-limited primary has nowhere to fall
+          # back to, so report that instead of probing the model name "".
+          fallback = os.environ.get("LLM_RATE_LIMIT_FALLBACK_MODEL", "").strip()
           headers = {
               "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
               "Content-Type": "application/json",
@@ -177,6 +183,11 @@ jobs:
           response = request(primary)
           print(f"9router primary preflight status={response.status_code}")
           if response.status_code == 429:
+              if not fallback:
+                  raise SystemExit(
+                      "9router primary preflight returned HTTP 429 and no fallback "
+                      "model is configured; rerun when the rate limit clears"
+                  )
               fallback_response = request(fallback)
               print(
                   "9router fallback preflight "
@@ -208,7 +219,7 @@ jobs:
               )
           PY
 
-      - name: Compare all pipeline profiles with DeepSeek
+      - name: Compare all pipeline profiles
         env:
           PYTHONPATH: ai
         run: python ai/evaluation/run_pipeline_profile_eval.py
@@ -239,7 +250,7 @@ jobs:
         run: |
           {
             echo "## Controlled pipeline research"
-            echo "- Model: oc/deepseek-v4-flash-free"
+            echo "- Model: ${LLM_MODEL}"
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Raw artifact uploaded for review"
             echo "- Production remains bound to the approved artifact until a reviewed PR replaces it"

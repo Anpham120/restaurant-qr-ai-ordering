@@ -8,8 +8,14 @@
   - `LLM_PROVIDER=9router`
   - `LLM_BASE_URL=http://localhost:20128/v1` (or deployed gateway URL)
   - `LLM_API_KEY=<9router gateway key>`
-  - `LLM_MODEL=cx/gpt-5.5` (production quality gate)
-  - Cheap regression sweep: `LLM_MODEL=oc/deepseek-v4-flash-free`
+  - `LLM_MODEL=cx/gpt-5.6-luna-review` (production default; see
+    `ai/app/config.py:DEFAULT_LLM_MODEL`)
+  - Alternate quality gate: `LLM_MODEL=cx/gpt-5.5`
+  - DeepSeek (`oc/deepseek-v4-flash-free`) is no longer the default — dropped
+    after the 9router route serving it rejected `response_format:json_object`,
+    which every real chat request requires. Historical research artifacts
+    (`ai/evaluation/approved/pipeline_selection.json`) still reference it as the
+    model tested at that time.
 - `LLM_TIMEOUT_SECONDS=12` (Python-to-9router) and `BACKEND_AI_TIMEOUT_SECONDS=12` (.NET-to-Python)
 - `AI_MAX_RETRY=0`–`1`
 
