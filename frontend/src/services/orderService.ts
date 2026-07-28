@@ -237,7 +237,7 @@ export async function requestTableAssistance(
   sessionToken: string,
   payload: { note?: string | null } = {},
 ): Promise<{ ok: boolean; tableCode: string }> {
-  return api.tableSessions.requestAssistance(sessionId, sessionToken, payload);
+  return api.tables.requestAssistance(sessionId, sessionToken, payload);
 }
 
 export async function listTableInvoices(status?: PaymentStatus): Promise<TableInvoice[]> {
