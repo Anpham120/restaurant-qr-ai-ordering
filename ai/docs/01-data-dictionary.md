@@ -209,6 +209,22 @@ Bảy nhãn này đã được bổ sung (`allergen:seafood` 20→26, `gluten` 6
 nguyên 39→44). Chỉ bổ sung theo chiều **làm chặt hơn**, không bao giờ bớt nhãn, vì căn cứ
 là mô tả trên thực đơn — **không phải kiểm tra bếp**.
 
+**Phép thử tìm ra bảy lỗ đó, ban đầu chính nó cũng sai** — đúng lớp lỗi mà nó đi tìm:
+`ốc` khớp vào "cốc 330ml" (Bia hơi), `cá` khớp vào "các loại rau" (Gỏi cuốn chay), và tôi
+xếp `bánh tráng` vào gluten dù bánh tráng làm từ **gạo**. Nên nay có bản rà riêng,
+`scripts/audit_allergen_tags.py`, làm ba việc bản đầu không làm:
+
+1. khớp theo **biên từ**, không khớp chuỗi con;
+2. bỏ qua **câu phủ định** — Gỏi cuốn chay ghi rõ "không hải sản" và Cơm chiên chay ngũ sắc
+   ghi "không trứng", nên chúng đúng khi không mang nhãn;
+3. giữ một danh sách **từ nghe giống dị nguyên nhưng không phải** (11 từ: `bánh tráng`,
+   `bún`, `phở`, `hủ tiếu` đều là bột gạo; `bơ Đắk Lắk` là quả bơ; `kem` trong "thịt vàng
+   kem" là màu của sầu riêng), để lỗi cũ không lặp lại.
+
+Bản rà mở rộng lên hơn 40 từ khóa cho cả 5 loại dị nguyên và **không tìm thêm lỗ nào** —
+tức bảy nhãn bổ sung đã phủ hết những gì phần mô tả tiết lộ. Nó chạy trong CI, và **không
+tự sửa dữ liệu**: gán nhãn dị nguyên ảnh hưởng sức khỏe nên phải có người xét.
+
 **Ba kết luận bắt buộc cho thiết kế:**
 
 1. Lọc dị nguyên phải **fail-closed**: loại món khi có nhãn, và loại cả khi mô tả nêu

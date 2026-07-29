@@ -10,7 +10,7 @@
   "dev_families": [
     "ambiguous_clarify",
     "category_browse",
-    "compare_two",
+    "compare_fact",
     "drink_request",
     "extremes",
     "ingredient_filter",
@@ -23,11 +23,13 @@
     "spice_filter"
   ],
   "test_families": [
+    "ambiguous_scope",
     "budget_filter",
-    "compare_fact",
+    "compare_two",
     "diet_filter",
     "food_only",
     "nutrition_no_data",
+    "off_topic_request",
     "price_lookup",
     "recommend_party",
     "region_filter"

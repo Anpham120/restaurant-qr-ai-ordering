@@ -8,7 +8,7 @@ Ba tệp:
 
 | Tệp | Việc |
 |---|---|
-| `evaluation/cases.json` | 73 ca đánh giá, mỗi ca có tiêu chí đúng/sai và lý do |
+| `evaluation/cases.json` | 77 ca đánh giá, mỗi ca có tiêu chí đúng/sai và lý do |
 | `evaluation/menu_selectors.py` | ngôn ngữ viết khóa đáp án dưới dạng truy vấn |
 | `evaluation/validate_cases.py` | kiểm chính tập ca — bắt ca viết sai |
 | `evaluation/build_split.py` → `split.json` | chia ba nhóm, tất định |
@@ -68,13 +68,13 @@ không sai, nên ca đó chỉ có `forbid: $drink`. Dùng danh sách trắng �
 
 ## 3. Thành phần tập ca
 
-73 ca, 25 họ câu hỏi.
+77 ca, 27 họ câu hỏi.
 
 | Loại | Số ca | Nghĩa |
 |---|---|---|
 | A — tra cứu thực đơn | 42 | đáp án nằm sẵn trong dữ liệu, **không được để mô hình sinh trả lời** |
-| B — tri thức nhà hàng / ngoài phạm vi | 12 | chưa có kho tri thức, nên đáp án đúng là nói thẳng chưa có dữ liệu |
-| C — phán đoán, diễn đạt | 19 | không có đáp án đúng duy nhất; chỗ mô hình sinh có giá trị thật |
+| B — tri thức nhà hàng / ngoài phạm vi | 14 | chưa có kho tri thức, nên đáp án đúng là nói thẳng chưa có dữ liệu |
+| C — phán đoán, diễn đạt | 21 | không có đáp án đúng duy nhất; chỗ mô hình sinh có giá trị thật |
 
 | Dạng đáp án | Số ca |
 |---|---|
@@ -82,8 +82,8 @@ không sai, nên ca đó chỉ có `forbid: $drink`. Dùng danh sách trắng �
 | `fact` — một dữ kiện | 12 |
 | `no_data` — nói thẳng chưa có dữ liệu | 12 |
 | `compare` — so hai món | 4 |
-| `refuse` — từ chối ngắn gọn | 3 |
-| `clarify` — hỏi lại | 2 |
+| `refuse` — từ chối ngắn gọn | 5 |
+| `clarify` — hỏi lại | 4 |
 
 Vài họ đáng nói riêng:
 
@@ -112,7 +112,7 @@ Vài họ đáng nói riêng:
 |---|---|---|---|
 | **chốt** | 13 | 4 | luôn phải xanh ở mọi lần chạy; một ca đỏ là chặn |
 | **phát triển** | 38 | 13 | dùng để chỉnh sửa và so trước/sau |
-| **niêm phong** | 22 | 8 | chỉ mở khi cần kết luận |
+| **niêm phong** | 26 | 10 | chỉ mở khi cần kết luận |
 
 Ca an toàn (dị ứng, bịa món, rò rỉ chỉ dẫn nội bộ) **không phải số liệu để so**. Đưa vào
 tập phát triển thì tỷ lệ chung che mất một ca dị ứng đỏ; đưa vào tập niêm phong thì một
@@ -142,12 +142,14 @@ Thành phần sau khi chia:
 |---|---|---|
 | chốt | A=11 B=2 | fact=2 list=6 no_data=3 refuse=2 |
 | phát triển | A=19 B=8 C=11 | clarify=2 compare=2 fact=6 list=20 no_data=7 refuse=1 |
-| niêm phong | A=12 B=2 C=8 | compare=2 fact=4 list=14 no_data=2 |
+| niêm phong | A=12 B=4 C=10 | clarify=2 compare=2 fact=4 list=14 no_data=2 refuse=2 |
 
-**Khoảng trống còn lại, nói ra chứ không che:** `clarify` (2 ca) và `refuse` (1 ca) chỉ có
-ở tập phát triển, nên tập niêm phong không đo được hai dạng đó. Vì họ câu hỏi không được
-nằm hai phía, sửa việc này cần thêm ca — chưa làm. Bộ chia in ra dòng lưu ý này mỗi lần
-chạy, để nó không nằm ẩn.
+**Một khoảng trống đã được lấp.** Lần chia đầu, `clarify` và `refuse` chỉ có ở tập phát
+triển, nên tập niêm phong không đo được hai dạng đó. Vì họ câu hỏi không được nằm hai phía,
+cách sửa là thêm một họ nữa cho mỗi dạng: `ambiguous_scope` ("Cho mình 2 món" — có một phần
+thông tin cụ thể nên câu hỏi lại phải giữ lấy phần đó) và `off_topic_request` ("Gọi taxi
+giúp mình" — là yêu cầu *hành động*, nên dễ khiến hệ thống hứa làm việc nó không làm được).
+Nay cả hai dạng đều có ở hai phía, và bộ chia không còn in cảnh báo nào.
 
 Lần chạy đầu, bộ chia bắt được một lỗi thật: dạng `compare` chỉ có ở tập niêm phong. Đã
 sửa bằng cách thêm họ `compare_fact` (2 ca) để mỗi phía có một họ so sánh.

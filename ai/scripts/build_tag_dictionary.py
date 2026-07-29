@@ -449,6 +449,20 @@ def merge_seed_tags(
     return added, rejected
 
 
+def seed_tags_differ(menu: dict) -> bool:
+    """Tệp seed C# có khác bộ nhãn đã hợp nhất không — dùng cho chế độ `--check`."""
+    by_name = {m["name"]: m for m in menu["items"]}
+    source = SEED_PATH.read_text(encoding="utf-8-sig")
+    for match in SEED_ITEM_RE.finditer(source):
+        item = by_name.get(match.group("name"))
+        if item is None:
+            continue
+        want = ", ".join(f'"{t}"' for t in item["tags"])
+        if match.group("tags") != want:
+            return True
+    return False
+
+
 def write_seed_tags(menu: dict) -> int:
     """Ghi nhãn đã hợp nhất trở lại tệp seed C#, để khách và AI thấy cùng một thứ.
 
@@ -572,8 +586,26 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {line}")
 
     if args.check:
-        print("\n--check: không ghi tệp nào.")
-        return 1 if problems else 0
+        # So kết quả sinh lại với tệp đang có trên đĩa. Đây mới là phép kiểm hữu ích
+        # trong CI: nó bắt trường hợp có người sửa tay dữ liệu mà không chạy lại bộ sinh —
+        # và khi đó dữ liệu không còn giải thích được bằng bộ sinh nữa.
+        stale: list[str] = []
+        want_dict = json.dumps(dictionary, ensure_ascii=False, indent=2) + "\n"
+        if DICT_PATH.read_text(encoding="utf-8-sig") != want_dict:
+            stale.append(str(DICT_PATH.relative_to(REPO_ROOT)))
+        want_menu = json.dumps(menu, ensure_ascii=False, indent=2) + "\n"
+        if MENU_PATH.read_text(encoding="utf-8-sig") != want_menu:
+            stale.append(str(MENU_PATH.relative_to(REPO_ROOT)))
+        if seed_tags_differ(menu):
+            stale.append(str(SEED_PATH.relative_to(REPO_ROOT)))
+        if stale:
+            print(f"\nTỆP ĐÃ COMMIT KHÁC KẾT QUẢ SINH LẠI ({len(stale)}):")
+            for path in stale:
+                print(f"  - {path}")
+            print("Chạy `python ai/scripts/build_tag_dictionary.py` để cập nhật.")
+        else:
+            print("\n--check: tệp đã commit khớp kết quả sinh lại.")
+        return 1 if (problems or stale) else 0
 
     DICT_PATH.write_text(
         json.dumps(dictionary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

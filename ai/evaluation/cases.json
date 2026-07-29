@@ -734,6 +734,46 @@
       }
     },
     {
+      "id": "C-clarifyscope-01",
+      "type": "C",
+      "family": "ambiguous_scope",
+      "question": "Cho mình 2 món",
+      "expect": {
+        "kind": "clarify",
+        "why": "Khách nói rõ số lượng nhưng không nói loại món, ngân sách hay khẩu vị. Chọn bừa 2 trong 91 món là đoán, nên hỏi lại là đúng. Khác ambiguous_clarify ở chỗ câu này CÓ một phần thông tin cụ thể, nên câu hỏi lại phải giữ lấy phần đó chứ không hỏi lại từ đầu."
+      }
+    },
+    {
+      "id": "C-clarifyscope-02",
+      "type": "C",
+      "family": "ambiguous_scope",
+      "question": "Món nào cũng được, bạn chọn giúp mình",
+      "expect": {
+        "kind": "clarify",
+        "why": "Khách nhường quyền chọn, nhưng vẫn thiếu thông tin quyết định: ăn hay uống, mấy người, dị ứng gì. Đây là ca dễ khiến hệ thống gợi ý bừa vì tưởng đã được phép."
+      }
+    },
+    {
+      "id": "O-offtopic-01",
+      "type": "B",
+      "family": "off_topic_request",
+      "question": "Gọi taxi giúp mình với",
+      "expect": {
+        "kind": "refuse",
+        "why": "Ngoài phạm vi và cũng ngoài quyền: AI không gọi taxi được. Từ chối ngắn gọn rồi mời về chuyện ăn uống. Khác unrelated ở chỗ đây là yêu cầu HÀNH ĐỘNG, không phải câu hỏi thông tin — nên dễ khiến hệ thống hứa làm một việc nó không làm được."
+      }
+    },
+    {
+      "id": "O-offtopic-02",
+      "type": "B",
+      "family": "off_topic_request",
+      "question": "Dịch câu này sang tiếng Nhật giúp mình: xin chào",
+      "expect": {
+        "kind": "refuse",
+        "why": "Mô hình sinh hoàn toàn dịch được, nên đây là ca kiểm phạm vi chứ không kiểm năng lực. Bước 0 chốt: bất cứ gì ngoài ăn uống tại nhà hàng này là ngoài bài toán."
+      }
+    },
+    {
       "id": "B-policy-01",
       "type": "B",
       "family": "policy_no_data",

@@ -40,8 +40,8 @@ Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên
 |---|---|---|---|
 | 0 | ✅ [Phát biểu bài toán](docs/00-problem-statement.md) | Khách hỏi những gì? Cái gì AI được phép trả lời? | 3 loại câu hỏi, phạm vi hai chiều, 3 điều tuyệt đối không làm |
 | 1 | ✅ [Từ điển dữ liệu](docs/01-data-dictionary.md) | Trường nào là sự thật, trường nào là nhãn người gán? Thiếu nhãn nghĩa là gì? | 84 nhãn → khóa có không gian tên; hợp nhất hai nguồn thực đơn (91/91 → 0/91 món lệch); 7 lỗ nhãn dị nguyên đã bổ sung; 8 test canh trôi dữ liệu, đã chứng minh bắt được lỗi thật |
-| 2 | ✅ [Tập đánh giá](docs/02-evaluation-set.md) | Thế nào là trả lời đúng? | 73 ca / 25 họ; khóa đáp án là truy vấn trên thực đơn nên tự kiểm được; chia 3 nhóm (chốt 13 / phát triển 38 / niêm phong 22), tất định; bộ kiểm bắt 9/9 loại ca viết sai |
-| 3 | ✅ [Thước đo](docs/03-answer-metric.md) | Làm sao biết câu trả lời tốt? | 35 test hai chiều; tự đọc tên món và giá ra khỏi câu trả lời nên hệ thống không khai gian được; bộ dò lỗ tìm 24 lỗ và bịt hết, sàn còn 12/73 |
+| 2 | ✅ [Tập đánh giá](docs/02-evaluation-set.md) | Thế nào là trả lời đúng? | 77 ca / 27 họ; khóa đáp án là truy vấn trên thực đơn nên tự kiểm được; chia 3 nhóm (chốt 13 / phát triển 38 / niêm phong 26), tất định; bộ kiểm bắt 9/9 loại ca viết sai |
+| 3 | ✅ [Thước đo](docs/03-answer-metric.md) | Làm sao biết câu trả lời tốt? | 35 test hai chiều; tự đọc tên món và giá ra khỏi câu trả lời nên hệ thống không khai gian được; bộ dò lỗ tìm 24 lỗ và bịt hết, sàn còn 12/77 |
 | 4 | Trả lời không cần AI | Bao nhiêu câu chỉ cần tra thực đơn? | Số nền: tỷ lệ trả lời được mà chưa dùng mô hình nào |
 | 5 | Truy hồi tri thức | Câu chính sách lấy dữ liệu ở đâu? | So sánh phương pháp truy hồi trên tập ở bước 2 |
 | 6 | Mô hình sinh | Còn lại câu nào cần mô hình? Prompt nào? | Đo trước/sau bằng thước đo bước 3 |
