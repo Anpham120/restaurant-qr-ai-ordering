@@ -34,12 +34,12 @@ mình đúng.** Bản dựng lại vì thế bắt đầu từ dữ liệu và t
 
 ## Lộ trình — mỗi bước có kiểm chứng riêng
 
-Chưa bước nào được làm. Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên.
+Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên. Bước 0 và 1 đã xong.
 
 | # | Bước | Câu hỏi cần trả lời trước khi viết mã | Kiểm chứng |
 |---|---|---|---|
-| 0 | Phát biểu bài toán | Khách hỏi những gì? Cái gì AI được phép trả lời? | Danh sách loại câu hỏi + phạm vi, viết ra giấy trước |
-| 1 | Dữ liệu nhà hàng | Thực đơn có những trường nào? Trường nào là sự thật, trường nào là nhãn suy ra? | Từ điển dữ liệu — bản cũ **không có**, và đó là lý do nhãn `toi` không ai biết là "tối" hay "tỏi" |
+| 0 | ✅ [Phát biểu bài toán](docs/00-problem-statement.md) | Khách hỏi những gì? Cái gì AI được phép trả lời? | 3 loại câu hỏi, phạm vi hai chiều, 3 điều tuyệt đối không làm |
+| 1 | ✅ [Từ điển dữ liệu](docs/01-data-dictionary.md) | Trường nào là sự thật, trường nào là nhãn người gán? Thiếu nhãn nghĩa là gì? | 80 nhãn → khóa có không gian tên; 7 lỗ nhãn dị nguyên đã bổ sung; 7 test canh trôi dữ liệu, đã chứng minh bắt được lỗi thật |
 | 2 | Tập đánh giá | Câu hỏi thật của khách trông thế nào? Thế nào là trả lời đúng? | Mỗi ca có tiêu chí đúng/sai rõ ràng, chia dev/test theo tầng để dev dự báo được test |
 | 3 | Thước đo | Làm sao biết câu trả lời tốt? | Thước đo tự có test hai chiều: bắt được lỗi thật, không bịa lỗi |
 | 4 | Trả lời không cần AI | Bao nhiêu câu chỉ cần tra thực đơn? | Số nền: tỷ lệ trả lời được mà chưa dùng mô hình nào |
@@ -49,8 +49,13 @@ Chưa bước nào được làm. Thứ tự này là thứ tự phụ thuộc, 
 
 ## Vẫn còn ngoài thư mục này
 
-- `backend/data/menu-dataset.json` — danh mục 91 món. **Không phải phần AI**: frontend
-  và luồng đặt món đang dùng, xóa là sập app QR. Bước 1 sẽ đọc lại nó từ đầu.
+- `backend/data/menu-dataset.json` — danh mục 91 món, **nguồn AI dùng**. Bước 1 đã đọc
+  lại từ đầu và phát hiện: khách **không** thấy tệp này. `/api/menu` đọc cơ sở dữ liệu,
+  chỉ có 1,7 nhãn/món so với 15 ở đây. Hai nguồn lệch nhau, chưa hợp nhất — xem
+  `docs/01-data-dictionary.md` mục 1.
+- `backend/data/menu-tags.json` — từ điển 80 nhãn (khóa, nhãn Việt, nhãn Anh, tên cũ),
+  sinh bởi `scripts/build_tag_dictionary.py`. Nguồn sự thật duy nhất, dùng chung với hai
+  bảng nhãn ở frontend.
 - Backend .NET gọi 6 endpoint (`/v1/chat`, `/v1/chat/stream`, `/ready`, `/health`,
   `/v1/rag/search`, `/v1/cache/invalidate`). Hợp đồng này sẽ được thiết kế lại và
   backend sửa theo, nên trong lúc dựng lại thì luồng chat trên nhánh này chưa chạy.

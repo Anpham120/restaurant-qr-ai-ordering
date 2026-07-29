@@ -18,7 +18,11 @@ hàng**. Điều này định hình mọi thứ:
 
 ## 2. Dữ liệu đang có — và giới hạn của nó
 
-Chỉ có **một** nguồn: `backend/data/menu-dataset.json`.
+> **Sửa sau khi làm bước 1.** Mục này ban đầu viết "chỉ có một nguồn". Sai. Có **hai**
+> nguồn và chúng lệch nhau: `/api/menu` đọc cơ sở dữ liệu (1,7 nhãn/món), còn AI đọc
+> `menu-dataset.json` (15 nhãn/món). Chi tiết và hệ quả: `01-data-dictionary.md` mục 1.
+
+Nguồn AI dùng: `backend/data/menu-dataset.json`.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -42,7 +46,8 @@ Chỉ có **một** nguồn: `backend/data/menu-dataset.json`.
 
 3. **80 nhãn, không từ điển.** Nhãn `toi` có trên 64/91 món. Nó là "tối" (bữa tối)
    hay "tỏi" (gia vị)? Bản cũ đoán là "tỏi", và câu "Món nào có tỏi?" trả về 36 món mà
-   chỉ 11 món thật sự có tỏi. Bước 1 phải giải quyết việc này trước mọi thứ khác.
+   chỉ 11 món thật sự có tỏi. **Đã giải quyết ở bước 1**: `toi` = "Tối", và toàn bộ 80
+   nhãn nay là khóa có không gian tên (`meal:dinner`) nên không thể trùng từ thường nữa.
 
 Không có kho tri thức nào. Câu hỏi về giờ mở cửa, thanh toán, đỗ xe hiện **không có
 nguồn dữ liệu** — sẽ được xử lý ở bước 5, và cho tới lúc đó AI phải nói thẳng là chưa
@@ -153,8 +158,10 @@ Ghi lại để không lặp lại. Đo trên 338 câu hỏi trước khi xóa:
 
 Những điều dưới đây dữ liệu không nói, và tôi không nên đoán:
 
-1. **Nhãn `toi` nghĩa là gì?** Quyết định cách xử lý 64/91 món. Tương tự với vài nhãn
-   nhập nhằng khác mà bước 1 sẽ liệt kê đầy đủ.
+1. ~~**Nhãn `toi` nghĩa là gì?**~~ Đã trả lời ở bước 1: "Tối". Thay vào đó là hai câu
+   mới mà bước 1 phát hiện: **hợp nhất hai nguồn thực đơn theo hướng nào**, và **nhãn dị
+   nguyên còn thiếu bao nhiêu** (bảy lỗ đã tìm được bằng cách đọc mô tả; phần còn lại chỉ
+   nhà hàng biết).
 2. **Phạm vi tư vấn mong muốn** — chỉ tư vấn món, hay cả chính sách nhà hàng (giờ,
    thanh toán, đỗ xe)? Nếu có thì bước 5 cần nội dung do nhà hàng cung cấp.
 3. **Giọng điệu** — gọi khách là "bạn" hay "anh/chị"? Tự gọi mình là "mình" hay "em"?
