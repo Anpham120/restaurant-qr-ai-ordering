@@ -3,22 +3,28 @@
 
 Vì sao cần chia đoạn
 --------------------
-Kho tri thức hiện có (`backend/data/restaurant-facts.json`) là 24 chủ đề, mỗi chủ đề một đoạn
-ngắn, tra bằng **khóa chính xác**. Cách đó hoạt động tốt và đạt 112/112 — nhưng nó chỉ dùng
-được khi mỗi câu hỏi ứng đúng một khóa.
+Hệ thống có HAI lớp tri thức, và ranh giới giữa chúng là quyết định quan trọng nhất của tệp
+này. Ranh giới đó **không phải** "tra khóa vs truy hồi xếp hạng" — cả 60 tài liệu ở lớp 2 đều
+có đúng một `topic_keys`, nên lớp 2 cũng tra khóa được. Ranh giới thật là **chế độ trả lời**:
 
-Có loại nội dung không ứng khóa nào: "gợi ý kết hợp món", "món miền Trung có gì đặc trưng",
-"gọi bao nhiêu món cho 6 người". Chúng dài, nhiều mặt, và một câu hỏi có thể cần đoạn giữa
-tài liệu. Đó là lúc cần **truy hồi**, và truy hồi cần **đoạn**.
+    Lớp 1 — restaurant-facts.json : trả NGUYÊN VĂN. Mô hình không chạm vào chữ.
+    Lớp 2 — ai/knowledge/*.md     : là ĐẦU VÀO cho mô hình viết câu trả lời.
 
-Nên hệ thống có HAI lớp tri thức, và đây là quyết định quan trọng nhất của tệp này:
+Vì sao phải hai chế độ chứ không một:
 
-    Lớp 1 — restaurant-facts.json   : 24 chủ đề, tra khóa chính xác, ĐANG CHẠY TỐT
-    Lớp 2 — ai/knowledge/*.md       : nội dung dài, cần truy hồi xếp hạng
+- Gộp tất cả về lớp 2 → "mấy giờ đóng cửa" sẽ do mô hình viết, và nó **có thể** viết 22h30.
+  Giờ đóng cửa, giá, và nhãn dị nguyên là loại thông tin **không được phép diễn đạt lại**. Mất
+  bảo đảm không-bóp-méo mà không được gì.
+- Gộp tất cả về lớp 1 → phải nén "món miền Trung có gì đặc trưng" vào một câu nguyên văn viết
+  tay, nhưng câu trả lời thật là danh sách nhiều món kèm ghi chú dị nguyên. Nén là mất nội
+  dung, và mất luôn khả năng trả lời loại câu hỏi nhiều mặt.
 
-**Không thay lớp 1 bằng lớp 2.** Tra khóa chính xác đúng 100% và tái lập được; truy hồi xếp
-hạng thì không đảm bảo cả hai. Thay một đường đúng chắc chắn bằng một đường xếp hạng là đánh
-đổi mà không được gì — lớp 2 chỉ phụ trách phần lớp 1 **không** trả lời được.
+Số **kho lưu trữ** thì gộp được (đưa 24 chủ đề vào markdown kèm `answer_mode: verbatim` là một
+cải tiến gọn gàng hợp lệ). Số **chế độ trả lời** thì không, vì nó là chuyện an toàn.
+
+Hệ quả phải canh: `answer.py` tra lớp 1 **trước**, nên một chủ đề có ở cả hai lớp thì tài liệu
+lớp 2 không bao giờ tới lượt mà vẫn chiếm chỗ trong chỉ mục. Bất biến rời-nhau được ép trong
+`test_chunker.HaiKhoTriThucKhongDuocTRUNGCHUDE`.
 
 Ba quy tắc chia đoạn
 --------------------
