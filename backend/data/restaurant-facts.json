@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "_huong_dan": [
+    "Mỗi mục dưới đây ứng với MỘT chủ đề mà hệ thống đã nhận diện đúng 100% từ câu hỏi của",
+    "khách. Chỉ cần điền trường `answer_vi`. Không cần viết văn dài — một hai câu là đủ, vì",
+    "AI sẽ đọc nguyên văn phần đó cho khách.",
+    "",
+    "QUAN TRỌNG: để trống thì AN TOÀN. Mục nào `answer_vi` còn rỗng thì AI vẫn trả lời 'mình",
+    "chưa có dữ liệu về việc này' và chuyển nhân viên — đúng như hiện tại. Nó KHÔNG bao giờ",
+    "đoán. Nên bạn điền được bao nhiêu thì dùng bấy nhiêu, không phải điền hết mới chạy được.",
+    "",
+    "Điền sai còn tệ hơn để trống: AI sẽ đọc nguyên văn cho khách. Nếu chưa chắc thì để trống."
+  ],
+  "topics": {
+    "hours": {
+      "label_vi": "Giờ mở cửa",
+      "cau_khach_hay_hoi": [
+        "Nhà hàng mấy giờ mở cửa?",
+        "Mấy giờ đóng cửa?",
+        "Chủ nhật có mở không?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Nhà hàng mở 10h00–22h00 mỗi ngày, kể cả cuối tuần và ngày lễ."
+    },
+    "payment": {
+      "label_vi": "Thanh toán",
+      "cau_khach_hay_hoi": [
+        "Thanh toán bằng thẻ được không?",
+        "Có nhận chuyển khoản không?",
+        "Quét mã QR trả tiền được chứ?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Nhà hàng nhận tiền mặt, thẻ ngân hàng, và chuyển khoản qua mã QR VietQR ngay trên hoá đơn."
+    },
+    "parking": {
+      "label_vi": "Chỗ đỗ xe",
+      "cau_khach_hay_hoi": [
+        "Có chỗ đỗ xe không?",
+        "Gửi xe máy ở đâu?",
+        "Đỗ ô tô có mất phí không?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Có bãi gửi xe máy miễn phí trước cửa. Ô tô đỗ ở lòng đường bên cạnh, nhân viên hỗ trợ trông xe."
+    },
+    "wifi": {
+      "label_vi": "Wifi",
+      "cau_khach_hay_hoi": [
+        "Wifi mật khẩu gì?",
+        "Có wifi miễn phí không?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Có wifi miễn phí. Tên mạng và mật khẩu ghi trên tấm thẻ để ở mỗi bàn."
+    },
+    "booking": {
+      "label_vi": "Đặt bàn",
+      "cau_khach_hay_hoi": [
+        "Mình muốn đặt bàn cho tối mai",
+        "Đặt bàn cho 10 người được không?",
+        "Có cần đặt trước không?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Nhà hàng nhận đặt bàn qua số điện thoại của quán. Nhóm từ 8 người nên đặt trước ít nhất 2 tiếng.",
+      "_luu_y": "Dù điền mục này, AI vẫn KHÔNG tự tạo đặt bàn — nó chỉ nói cách đặt rồi chuyển nhân viên. Đó là một trong ba điều AI tuyệt đối không làm (xem docs/00-problem-statement.md)."
+    },
+    "delivery": {
+      "label_vi": "Giao hàng và mang về",
+      "cau_khach_hay_hoi": [
+        "Có giao hàng không?",
+        "Mua mang về được chứ?",
+        "Đặt qua app giao đồ ăn được không?"
+      ],
+      "answer_vi": "",
+      "vi_du": "Nhà hàng có bán mang về tại quầy. Giao hàng thì qua các ứng dụng giao đồ ăn, không nhận giao trực tiếp.",
+      "_luu_y": "Nhãn `serving:takeaway` trên món chỉ nói món ĐÓ mang đi được, KHÔNG nói nhà hàng có giao hàng. Hai việc khác nhau, và lẫn hai thứ này là một cách bịa."
+    }
+  },
+  "_khong_bao_gio_tra_loi": {
+    "_vi_sao": [
+      "Bốn nhóm dưới đây KHÔNG thuộc kho tri thức, và cố tình không có chỗ để điền.",
+      "Chúng nằm đây để giải thích vì sao, chứ không phải để bổ sung sau."
+    ],
+    "dinh_duong": "Số calo, natri, thành phần định lượng. Thực đơn chỉ có mô tả bằng chữ, không có số đo. Nhãn `health:high_protein` là đánh giá cảm quan của người nhập liệu, không phải kết quả phân tích — dùng nó để trả lời calo là bịa.",
+    "noi_bo": "Doanh thu, lợi nhuận, lương nhân viên. Không có dữ liệu, và cũng không nên có trong kênh chat khách hàng.",
+    "nhan_su": "Tên bếp trưởng, ai nấu món nào. Không có dữ liệu nhân sự.",
+    "ngoai_bai_toan": "Thời tiết, gọi taxi, dịch thuật, prompt hệ thống. Ngoài phạm vi — AI từ chối ngắn gọn rồi mời về chuyện ăn uống."
+  }
+}

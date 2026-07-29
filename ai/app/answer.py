@@ -29,7 +29,45 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import json
+from pathlib import Path
+
 from understand import DRINK_CATEGORIES, FOOD_CATEGORIES, Request
+
+FACTS_PATH = Path(__file__).resolve().parents[2] / "backend" / "data" / "restaurant-facts.json"
+
+
+def load_facts() -> dict[str, str]:
+    """Sự thật về nhà hàng, theo chủ đề. Chỉ nhận mục đã được điền.
+
+    Đây là toàn bộ "kho tri thức" của hệ thống, và nó nhỏ có chủ ý. Bản cũ dựng 26 tài
+    liệu, 213 đoạn, so sánh 7 phương pháp truy hồi có embedding (~3GB RAM) — cho đúng 6
+    chủ đề mà phần nhận diện câu hỏi đã xử lý chính xác 100%. Máy móc hạng nặng cho một
+    bài toán nhỏ, và nó còn gây một lỗi thật: 47/221 đoạn là hướng dẫn dành cho AI đọc
+    nhưng lại được trích cho khách.
+
+    Ở đây truy hồi là **tra khóa**: chủ đề đã nhận ra ở bước hiểu câu hỏi chính là khóa.
+    Không có xếp hạng, không có ngưỡng tương đồng, nên không có chỗ nào để chệch.
+
+    Mục để trống bị BỎ QUA, không phải trả về chuỗi rỗng. Nhờ vậy một tệp chưa điền gì
+    hành xử đúng như khi chưa có tệp: hệ thống nói chưa có dữ liệu và chuyển nhân viên.
+    Điền được bao nhiêu thì dùng bấy nhiêu.
+    """
+    if not FACTS_PATH.exists():
+        return {}
+    try:
+        data = json.loads(FACTS_PATH.read_text(encoding="utf-8-sig"))
+    except (ValueError, OSError):
+        # Tệp hỏng thì coi như chưa có — không được làm sập luồng trả lời khách.
+        return {}
+    out: dict[str, str] = {}
+    for topic, entry in (data.get("topics") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        answer = entry.get("answer_vi")
+        if isinstance(answer, str) and answer.strip():
+            out[topic] = answer.strip()
+    return out
 
 # Số món nêu ra trong một câu liệt kê. Thước đo chặn ở 12 món ("đổ cả thực đơn ra không
 # phải tư vấn"), còn ca đòi nhiều nhất là 5 món — nên 6 vừa đủ rộng mà vẫn gọn.
@@ -141,6 +179,13 @@ def respond(request: Request, items: list[dict]) -> Reply:
                 items=[item["id"]] if item is not None else [],
                 kind="no_data",
                 branch="no_size",
+            )
+        known = load_facts().get(request.policy_topic)
+        if known:
+            return Reply(
+                text=f"{known} Nếu cần rõ hơn, bạn hỏi nhân viên giúp mình nhé.",
+                kind="fact",
+                branch=f"facts:{request.policy_topic}",
             )
         return Reply(
             text=(
