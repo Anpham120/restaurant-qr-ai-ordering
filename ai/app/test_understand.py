@@ -270,3 +270,56 @@ class TuVungTuNhatQuan(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
+    """Mọi chủ đề trong kho tri thức phải truy xuất được, và ngược lại.
+
+    Một chủ đề có nội dung mà không cụm nào nhận diện được thì nội dung đó **không bao giờ
+    tới tay khách** — im lặng, không lỗi, không ai biết. Đây đúng loại trôi mà bản cũ mắc
+    (47/221 đoạn tri thức dành cho AI đọc lại được trích cho khách, nhiều tháng không ai
+    thấy). Test này chặn cả hai chiều.
+    """
+
+    def _facts(self):
+        path = REPO_ROOT / "backend" / "data" / "restaurant-facts.json"
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+
+    def _detectable(self):
+        from understand import VOCAB
+        return {value for kind, value in VOCAB.values() if kind == "policy"}
+
+    def test_moi_chu_de_co_noi_dung_deu_nhan_dien_duoc(self):
+        topics = set(self._facts()["topics"])
+        missing = sorted(topics - self._detectable())
+        self.assertEqual(missing, [], f"có nội dung nhưng không câu nào tới được: {missing}")
+
+    def test_chu_de_nhan_dien_duoc_ma_khong_co_noi_dung_deu_la_co_y(self):
+        # Bốn chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
+        # restaurant-facts.json mục `_khong_bao_gio_tra_loi`. Chúng phải được nêu tên ở đây
+        # chứ không phải bỏ qua bằng một ngưỡng số.
+        deliberately_empty = {"nutrition", "internal", "staff_identity", "no_size"}
+        topics = set(self._facts()["topics"])
+        extra = self._detectable() - topics
+        self.assertEqual(
+            extra,
+            deliberately_empty,
+            "chủ đề nhận diện được mà không có nội dung phải đúng bằng nhóm cố ý để trống",
+        )
+
+    def test_cau_hoi_meta_khac_cau_loc_mon(self):
+        # Cặp đôi quan trọng nhất của phần tri thức. Gộp hai loại thì câu lọc sẽ trả về một
+        # đoạn văn thay vì danh sách món.
+        meta = ask("Có mấy mức cay?")
+        self.assertEqual(meta.policy_topic, "spice_levels")
+        self.assertEqual(meta.require_tags, [])
+
+        loc = ask("Món nào không cay?")
+        self.assertIsNone(loc.policy_topic)
+        self.assertIn("spice:none", loc.require_tags)
+
+    def test_ghe_cho_be_la_tien_nghi_khong_phai_mon_an(self):
+        # Ghế cao là đồ đạc, không phải món ăn — bản cũ xử nó như câu hỏi về món.
+        request = ask("Có ghế ăn cho em bé không?")
+        self.assertEqual(request.policy_topic, "high_chair")
+        self.assertNotIn("audience:child", request.require_tags)

@@ -139,6 +139,12 @@
     "require": [],
     "wants": "food"
   },
+  "d5e058d130adf1950729c5681e7ea8b7": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
   "dca49961b0965368efee82fc047bb35c": {
     "avoid": [],
     "prefer": [

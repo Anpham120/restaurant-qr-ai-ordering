@@ -113,6 +113,11 @@ jobs:
       - name: Kiểm migration nhãn khớp thực đơn
         run: python ai/scripts/build_tag_migration.py --check
 
+      # Kho tri thức có 8/24 chủ đề tính từ thực đơn, nên nó phải sinh lại được — nếu
+      # thực đơn đổi mà tri thức không đổi theo thì con số trong câu trả lời sẽ sai.
+      - name: Kiểm kho tri thức sinh lại được
+        run: python ai/scripts/build_restaurant_facts.py --check
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên

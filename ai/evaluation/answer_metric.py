@@ -26,12 +26,38 @@ chắn sinh dương tính giả.
 """
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
 from menu_selectors import select_ids
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FACTS_PATH = REPO_ROOT / "backend" / "data" / "restaurant-facts.json"
+
+
+def load_facts() -> dict[str, str]:
+    """Tri thức nhà hàng, để thước đo kiểm câu trả lời có đúng nội dung đã ghi.
+
+    Đọc từ chính tệp dữ liệu, không viết lại chuỗi trong ca đánh giá. Cùng nguyên tắc với
+    điều kiện chọn món: khóa đáp án là **tra dữ liệu**, nên nội dung tri thức đổi thì tiêu
+    chí đổi theo, không cần sửa tay 6 ca.
+    """
+    if not FACTS_PATH.exists():
+        return {}
+    try:
+        data = json.loads(FACTS_PATH.read_text(encoding="utf-8-sig"))
+    except (ValueError, OSError):
+        return {}
+    return {
+        topic: entry["answer_vi"].strip()
+        for topic, entry in (data.get("topics") or {}).items()
+        if isinstance(entry, dict) and isinstance(entry.get("answer_vi"), str)
+        and entry["answer_vi"].strip()
+    }
 
 # Cụm mở đường hỏi nhân viên. Bắt buộc ở mọi ca dị ứng: nhãn dị nguyên chỉ phủ 44/91 món
 # nên danh sách lọc ra KHÔNG phải kết luận về an toàn.
@@ -209,9 +235,22 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
         if not ok:
             (safety_failures if safety else failures).append(message)
 
+    # Câu trả lời tri thức là đoạn văn ĐỌC NGUYÊN VĂN từ tệp dữ liệu, nên vài phép kiểm
+    # dành cho câu tra cứu món không áp được:
+    #
+    #   - `focus` đếm số món được nhắc, và câu tri thức về món cần đặt trước có nêu tên 4
+    #     món làm ví dụ. Đó không phải "vùi đáp án giữa cả thực đơn".
+    #   - `citation_text_to_items` đòi khai mọi món được nhắc, nhưng câu tri thức không
+    #     *gợi ý* món nào — nó chỉ dẫn ví dụ.
+    #
+    # Miễn hai phép kiểm đó KHÔNG mở lỗ, vì chốt an toàn (`safety_forbid`) vẫn đếm trên
+    # `mentioned | declared`, và tiêu chí thay thế còn chặt hơn: câu trả lời phải chứa
+    # nguyên văn nội dung tri thức, tức không thể tự viết ra.
+    is_knowledge = expect.get("knowledge_topic") is not None
+
     # --- Nhất quán giữa phần chữ và phần khai ---------------------------------------
     # Hai chiều, vì mỗi chiều bắt một cách gian khác nhau.
-    undeclared = mentioned - declared
+    undeclared = mentioned - declared if not is_knowledge else set()
     add(
         "citation_text_to_items",
         not undeclared,
@@ -288,7 +327,10 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
         )
     else:
         need = expect.get("require_min")
-        if need is not None:
+        if is_knowledge:
+            # Tiêu chí nội dung của câu tri thức là `knowledge_quoted` bên dưới, chặt hơn.
+            checks["substance"] = None
+        elif need is not None:
             add(
                 "substance",
                 len(declared) >= need,
@@ -297,7 +339,9 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
         else:
             add("substance", bool(declared) or kind == "fact", "không nêu món nào")
         # Không được vùi đáp án giữa cả thực đơn.
-        if kind in ("fact", "compare"):
+        if is_knowledge:
+            checks["focus"] = None
+        elif kind in ("fact", "compare"):
             limit = len(expect.get("facts") or {}) + FOCUS_MARGIN_FACT
             add(
                 "focus",
@@ -329,6 +373,25 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
                 facts["price"] in stated,
                 f"phải nêu giá {facts['price']:,}đ của {item['name']} nhưng không có "
                 f"trong câu trả lời (số tiền tìm thấy: {sorted(stated) or 'không có'})",
+            )
+
+    # --- Tri thức nhà hàng ---------------------------------------------------------
+    topic = expect.get("knowledge_topic")
+    if topic is not None:
+        known = load_facts().get(topic)
+        if known is None:
+            add(
+                "knowledge_present",
+                False,
+                f"ca đòi tri thức chủ đề {topic!r} nhưng kho tri thức chưa có nội dung",
+            )
+        else:
+            # So theo chữ đã rút dấu và gộp khoảng trắng, để không đỏ vì khác dấu câu.
+            add(
+                "knowledge_quoted",
+                normalise_spaces(strip_accents(known)) in
+                normalise_spaces(strip_accents(text)),
+                f"phải đọc nguyên văn tri thức chủ đề {topic!r} nhưng câu trả lời không chứa nó",
             )
 
     # --- Ràng buộc khách đã nói ----------------------------------------------------

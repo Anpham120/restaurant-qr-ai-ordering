@@ -1,0 +1,167 @@
+# Bước 5 — Kho tri thức nhà hàng
+
+Câu hỏi mở đầu bước này là "có phải xây lại kho tri thức không". Đo trước khi trả lời:
+
+| | Con số |
+|---|---|
+| Ca cần kho tri thức | 6/94 khi bắt đầu |
+| Chủ đề phần hiểu câu hỏi đã nhận diện đúng | **6/6 (100%)** từ bước 4 |
+| Kho tri thức bản cũ | 26 tài liệu, 213 đoạn, so 7 phương pháp truy hồi, ~3GB RAM |
+| Thư viện nặng bản dựng lại đang dùng | **0** |
+
+Nên câu trả lời là: **cần nội dung, không cần hệ truy hồi.** Phần truy hồi đã xong từ bước
+4 — thiếu duy nhất là câu trả lời cho các chủ đề đã nhận ra.
+
+| Tệp | Việc |
+|---|---|
+| `scripts/build_restaurant_facts.py` | sinh kho tri thức, hai loại nguồn |
+| `backend/data/restaurant-facts.json` | 24 chủ đề |
+| `app/answer.py` → `load_facts()` | tra khóa |
+
+## 1. Truy hồi là tra khóa, không phải xếp hạng
+
+Chủ đề đã được nhận diện ở bước hiểu câu hỏi, nên nó **chính là khóa**. Không có embedding,
+không có xếp hạng, không có ngưỡng tương đồng — nên không có chỗ nào để chệch.
+
+Bản cũ dựng cả một hệ so sánh 7 phương pháp truy hồi cho bài toán tra 24 khóa. Và nó có
+giá thật: 47/221 đoạn tri thức là hướng dẫn dành cho AI đọc, nhưng lại được trích cho
+khách, nhiều tháng không ai thấy.
+
+## 2. Hai loại tri thức, hai mức độ tin được
+
+Một kho tri thức trộn "sự thật tính được từ dữ liệu" với "chính sách do người viết" là kho
+tri thức không ai biết tin phần nào. Nên mỗi mục khai rõ nguồn:
+
+| Nguồn | Số chủ đề | Tin được đến đâu |
+|---|---|---|
+| `derived` | 8 | tính từ `menu-dataset.json` mỗi lần sinh lại, **không thể lệch khỏi thực đơn** |
+| `demo` | 16 | chính sách nhà hàng, giá trị mẫu cho dự án demo |
+
+Phần `derived` là chỗ đáng giá nhất, vì nó **không thể sai**: nó *là* thực đơn được diễn
+đạt lại. Tám chủ đề:
+
+`menu_size` (91 món / 13 nhóm) · `price_range` (12.000–890.000đ) · `preorder` (12 món) ·
+`takeaway_items` (11 món) · `children` (43 món trẻ em, 29 món người lớn tuổi) ·
+`vegetarian` (17 món) · `spice_levels` (68 món không cay) · `allergen_labelling`
+
+Mục cuối là mục quan trọng nhất cả kho, và là mục duy nhất nói về **giới hạn của dữ liệu**:
+
+> Hiện 44/91 món có ghi nhận dị nguyên, nghĩa là món KHÔNG có ghi nhận thì chỉ có nghĩa
+> thực đơn chưa ghi, chứ không có nghĩa món đó không chứa.
+
+Đó là sự thật khó nói nhưng phải nói, và nó tính từ dữ liệu nên con số luôn đúng.
+
+Cùng nhóm đó là `kitchen_allergy` — bếp xử lý dị ứng thế nào. Câu trả lời cố ý viết theo
+hướng **thận trọng**: bếp dùng chung khu chế biến nên không loại bỏ hoàn toàn nguy cơ. Trả
+lời lạc quan ở đây là nguy hiểm thật, không phải chuyện diễn đạt.
+
+## 3. Để trống thì an toàn — đã chứng minh, không chỉ khẳng định
+
+Bất biến quan trọng nhất của tệp dữ liệu này. Mục để trống bị **bỏ qua**, không phải trả về
+chuỗi rỗng. Chứng minh hai chiều:
+
+| Thử | Kết quả |
+|---|---|
+| tệp để trống hoàn toàn | 83/94 — **y hệt** trước khi có tệp; hệ thống vẫn nói "chưa có dữ liệu" và chuyển nhân viên |
+| điền thử một mục (`hours`) | trả lời đúng nội dung đã điền; `parking` còn trống thì vẫn nói chưa có dữ liệu |
+| tệp hỏng (JSON sai) | coi như chưa có — không làm sập luồng trả lời khách |
+
+## 4. Chỗ khó nhất: câu hỏi META khác câu lọc món
+
+Mở rộng từ vựng cho 24 chủ đề có một cái bẫy:
+
+| Câu khách | Phải làm gì |
+|---|---|
+| "Món nào không cay?" | **lọc thực đơn**, trả danh sách món |
+| "Có mấy mức cay?" | **trả lời tri thức**, vì khách hỏi về cách thực đơn tổ chức |
+| "Có món chay nào không?" | lọc thực đơn |
+| "Có bao nhiêu món chay?" | trả lời tri thức |
+
+Gộp hai loại thì câu lọc sẽ trả về một đoạn văn thay vì danh sách món — tức mở rộng tri
+thức làm hệ thống **tệ đi**. Nên các chủ đề meta chỉ dùng cụm hỏi *về* thực đơn.
+
+Có hai ca chốt chiều ngược (`K-meta-03`, `K-meta-05`): nếu việc mở rộng từ vựng âm thầm
+biến câu lọc thành câu tri thức thì chúng đỏ. Không có chúng thì tập đánh giá vẫn xanh
+trong khi khách nhận đoạn văn thay cho món.
+
+## 5. An toàn không được phụ thuộc mô hình sinh
+
+Đây là phát hiện quan trọng nhất của bước này, và nó lộ ra từ mã thoát của CI.
+
+Sau khi thêm 14 ca cách nói lạ ở bước 6, mã tất định một mình còn **2 lỗi an toàn**:
+
+- "Mình không ăn được **đồ tanh**" — không hiểu "đồ tanh" là cá/hải sản
+- "Bé nhà mình **uống sữa là bị đau bụng**, có món nào **không sữa** không?" — không hiểu
+
+Mô hình sinh sửa được cả hai, và tôi đã ghi nhận đó là giá trị của nó ở bước 6. Nhưng nghĩ
+lại thì điều đó nghĩa là **an toàn của hệ thống phụ thuộc một thành phần không tất định**:
+proxy chết, mô hình trả lời sai, hay hết hạn mức là **mất bảo vệ dị ứng**.
+
+Không chấp nhận được. Nên hai lớp nhận diện được đưa về mã tất định:
+
+1. **Cách nói dân dã cho dị nguyên**: `đồ tanh`, `mùi tanh` → `allergen:seafood`.
+2. **Mẫu "không ⟨chủ đề⟩"** bắt bằng biểu thức chính quy thay vì liệt kê từng tổ hợp:
+   `không sữa`, `không trứng`, `không hải sản`, `không đậu phộng`, `không gluten`.
+3. **Triệu chứng cũng là cách khai dị ứng**: `bị đau bụng`, `bị ngứa`, `bị nổi mề đay`,
+   `ăn vào là bị`.
+
+Kết quả: **lỗi an toàn 0 ở cả hai chế độ**. Mô hình vẫn có giá trị (+7 ca về hương vị, sức
+khỏe, ngân sách) nhưng **không còn nằm trên đường an toàn**.
+
+Có ba test chốt điều này, gồm một test chiều ngược: ngoại lệ gọi mô hình khi gặp hạn chế
+chưa hiểu **vẫn cần thiết** — ví dụ "đồ có vỏ" thì mã tất định vẫn không hiểu.
+
+## 6. Kết quả
+
+| | Qua | Lỗi an toàn |
+|---|---|---|
+| chỉ mã tất định | **98/107 (91,6%)** | **0** |
+| có mô hình | **105/107 (98,1%)** | **0** |
+
+Tập ca lên 107 (thêm 13 ca tri thức, 5 họ mới). Sàn của thước đo: 6/107 — thấp hơn trước
+vì 6 ca chính sách nay có đáp án thật thay vì "chưa có dữ liệu".
+
+## 7. Tập đánh giá và dữ liệu ràng buộc nhau — nói ra trước khi bị bất ngờ
+
+Khi tôi điền nội dung cho `hours`, ca `B-policy-01` **chuyển đỏ**. Không phải lỗi: 6 ca
+chính sách trước đây *mã hoá việc chưa có dữ liệu* (`kind: no_data`). Có nội dung rồi thì
+kỳ vọng phải thành `fact`.
+
+Cách sửa giữ đúng nguyên tắc của bước 2 — **khóa đáp án là tra dữ liệu, không phải chuỗi
+viết tay**. Thêm tiêu chí `knowledge_topic`: thước đo đọc nội dung từ chính tệp tri thức và
+đòi câu trả lời chứa nguyên văn. Nên sửa nội dung tri thức thì tiêu chí đổi theo, không
+phải sửa tay 6 ca.
+
+Tiêu chí này còn **chặt hơn** phép kiểm nó thay thế: hệ thống không thể tự viết ra nội dung
+đúng. Có test hai chiều — đọc nguyên văn thì xanh, tự viết "mở từ 8h sáng đến nửa đêm" dù
+nghe hợp lý vẫn đỏ.
+
+Câu tri thức được **miễn** ba phép kiểm dành cho câu tra cứu món (`focus`, `substance`,
+`citation_text_to_items`), vì câu tri thức về món cần đặt trước có nêu tên 4 món làm ví dụ
+— đó không phải "vùi đáp án giữa cả thực đơn". Miễn không mở lỗ: chốt an toàn vẫn đếm trên
+mọi món được nhắc, và tiêu chí thay thế chặt hơn.
+
+## 8. Giới hạn phải nói ra
+
+1. **16/24 chủ đề là giá trị mẫu.** Dự án này là demo nên điều đó ổn, nhưng nếu đưa vào
+   dùng thật thì chủ nhà hàng phải thay — và đổi `source` thành `restaurant` để nó không
+   còn bị đếm là mẫu.
+2. **`diet:vegan` và `diet:vegetarian` gắn trên đúng cùng 17 món**, nên một trong hai nhãn
+   không phân biệt được gì trong bộ dữ liệu này. Câu trả lời nói ra điều đó thay vì để
+   khách tự đoán.
+3. **Không có tri thức nào về thời gian.** "Hôm nay có món gì đặc biệt?" hay "giờ này còn
+   món gì?" thì hệ thống không trả lời được, vì dữ liệu không có khái niệm thời gian.
+4. **Bốn nhóm cố tình không trả lời** — dinh dưỡng, nội bộ, nhân sự, ngoài bài toán. Lý do
+   ghi trong `restaurant-facts.json` mục `_khong_bao_gio_tra_loi`, để chúng không bị hiểu
+   là chỗ trống cần bổ sung sau.
+5. **Dạng `no_data` chỉ còn ở nhóm chốt và tập phát triển**, không có ở tập niêm phong —
+   hệ quả của việc 6 ca chính sách đã có đáp án. Bộ chia in ra lưu ý này mỗi lần chạy.
+
+## 9. Cách chạy lại
+
+```
+python ai/scripts/build_restaurant_facts.py --check   # kiểm tệp khớp kết quả sinh lại
+python ai/scripts/build_restaurant_facts.py           # sinh lại
+python ai/evaluation/run_baseline.py --all            # chỉ mã tất định
+python ai/evaluation/run_with_model.py               # có mô hình
+```

@@ -176,10 +176,31 @@ class ChiGoiMoHinhKhiCanThiet(unittest.TestCase):
         self.assertEqual(fake.calls, 1)
         self.assertIn("flavour:sour", request.prefer_tags)
 
-    def test_van_goi_khi_khach_neu_han_che_ma_khong_hieu_han_che_gi(self):
-        # Ngoại lệ vì lý do an toàn: câu này CÓ chữ "món ăn" nên mã tất định hiểu được
-        # phần đó, nhưng phần quan trọng nhất — "không ăn được đồ tanh" — thì không.
+    def test_an_toan_khong_phu_thuoc_mo_hinh(self):
+        # Câu "không ăn được đồ tanh" từng CHỈ mô hình hiểu được, nghĩa là an toàn của hệ
+        # thống phụ thuộc một thành phần không tất định — proxy chết là mất bảo vệ. Nay mã
+        # tất định hiểu được, và test này chốt điều đó: không gọi mô hình mà vẫn đủ ràng buộc.
         request = ask("Mình không ăn được đồ tanh, gợi ý món ăn giúp mình")
+        self.assertIn("allergen:seafood", request.avoid_tags)
+        self.assertTrue(request.asks_allergy)
+        self.assertFalse(request.unparsed_restriction)
+        with FakeModel({"require": [], "prefer": [], "avoid": [], "wants": "any"}) as fake:
+            llm.enrich(request, ENV, use_cache=False)
+        self.assertEqual(fake.calls, 0)
+
+    def test_trieu_chung_cung_la_cach_khai_di_ung(self):
+        # Khách kể triệu chứng thay vì nói "dị ứng". Mẫu "không <chủ đề>" và danh sách
+        # triệu chứng đều nằm ở mã tất định, nên đây cũng không cần mô hình.
+        request = ask("Bé nhà mình uống sữa là bị đau bụng, có món nào không sữa không?")
+        self.assertIn("allergen:dairy", request.avoid_tags)
+        self.assertTrue(request.asks_allergy)
+
+    def test_van_goi_khi_khach_neu_han_che_ma_khong_hieu_han_che_gi(self):
+        # Ngoại lệ vì lý do an toàn vẫn cần thiết: có những cách nói mã tất định không
+        # hiểu, ví dụ "đồ có vỏ" (giáp xác, nhuyễn thể). Câu này CÓ chữ "món ăn" nên mã
+        # hiểu được phần đó, nhưng phần quan trọng nhất thì không.
+        request = ask("Mình không ăn được đồ có vỏ, gợi ý món ăn giúp mình")
+        self.assertEqual(request.avoid_tags, [])
         self.assertTrue(request.unparsed_restriction)
         with FakeModel({
             "require": [], "prefer": [],

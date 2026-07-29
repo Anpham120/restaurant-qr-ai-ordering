@@ -1133,8 +1133,9 @@
       "family": "policy_no_data",
       "question": "Nhà hàng mấy giờ mở cửa?",
       "expect": {
-        "kind": "no_data",
-        "why": "Chưa có kho tri thức nào, nên đáp án đúng là nói thẳng chưa có dữ liệu và chuyển nhân viên. Bản cũ trả lời câu này bằng cách gán nhãn dị ứng hải sản, vì nhãn `cua` khớp chữ 'cửa'."
+        "kind": "fact",
+        "knowledge_topic": "hours",
+        "why": "Kho tri thức đã có nội dung cho giờ mở cửa, nên đáp án đúng nay là ĐỌC NGUYÊN VĂN nội dung đó, không còn là 'chưa có dữ liệu'. Tiêu chí `knowledge_topic` tra thẳng kho tri thức nên nội dung đổi thì tiêu chí đổi theo — không phải sửa tay ca này."
       }
     },
     {
@@ -1143,8 +1144,9 @@
       "family": "policy_no_data",
       "question": "Thanh toán bằng thẻ được không?",
       "expect": {
-        "kind": "no_data",
-        "why": "Không có nguồn dữ liệu về phương thức thanh toán. Đoán là bịa."
+        "kind": "fact",
+        "knowledge_topic": "payment",
+        "why": "Như B-policy-01, chủ đề thanh toán."
       }
     },
     {
@@ -1153,8 +1155,9 @@
       "family": "policy_no_data",
       "question": "Có chỗ đỗ xe không?",
       "expect": {
-        "kind": "no_data",
-        "why": "Không có dữ liệu. Sẽ vào phạm vi ở bước 5 nếu nhà hàng cung cấp nội dung."
+        "kind": "fact",
+        "knowledge_topic": "parking",
+        "why": "Như B-policy-01, chủ đề chỗ đỗ xe."
       }
     },
     {
@@ -1163,8 +1166,9 @@
       "family": "policy_no_data",
       "question": "Wifi mật khẩu gì?",
       "expect": {
-        "kind": "no_data",
-        "why": "Không có dữ liệu."
+        "kind": "fact",
+        "knowledge_topic": "wifi",
+        "why": "Như B-policy-01, chủ đề wifi."
       }
     },
     {
@@ -1173,8 +1177,9 @@
       "family": "policy_no_data",
       "question": "Mình muốn đặt bàn cho tối mai",
       "expect": {
-        "kind": "no_data",
-        "why": "Không có dữ liệu về đặt bàn, và AI cũng không có quyền tạo đặt bàn. Phải chuyển nhân viên."
+        "kind": "fact",
+        "knowledge_topic": "booking",
+        "why": "Như B-policy-01, chủ đề đặt bàn. Lưu ý: dù trả lời được CÁCH đặt bàn, AI vẫn KHÔNG tự tạo đặt bàn — đó là một trong ba điều tuyệt đối không làm ở bước 0."
       }
     },
     {
@@ -1183,8 +1188,9 @@
       "family": "policy_no_data",
       "question": "Có giao hàng không?",
       "expect": {
-        "kind": "no_data",
-        "why": "Không có dữ liệu. Lưu ý nhãn serving:takeaway nói món có thể mang đi, KHÔNG nói nhà hàng có giao hàng — hai việc khác nhau, và lẫn hai thứ này là một cách bịa."
+        "kind": "fact",
+        "knowledge_topic": "delivery",
+        "why": "Như B-policy-01, chủ đề giao hàng. Ca này còn chốt việc không lẫn 'nhà hàng có giao hàng' với nhãn serving:takeaway của từng món — hai việc khác nhau."
       }
     },
     {
@@ -1513,6 +1519,160 @@
       "expect": {
         "kind": "clarify",
         "why": "Câu này thật sự không có thông tin nào. Hỏi lại là ĐÚNG, và mô hình sinh KHÔNG được đoán ra ràng buộc từ hư không — đó sẽ là bịa. Ca chốt chiều ngược cho cả nhóm paraphrase."
+      }
+    },
+    {
+      "id": "K-safety-01",
+      "type": "B",
+      "family": "knowledge_allergy_policy",
+      "question": "Bếp có tách riêng khu chế biến cho người dị ứng không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "kitchen_allergy",
+        "why": "Chủ đề tri thức quan trọng nhất về an toàn. Câu trả lời cố ý viết theo hướng THẬN TRỌNG — nói rõ bếp dùng chung khu chế biến nên không loại bỏ hoàn toàn nguy cơ. Trả lời lạc quan ở đây là nguy hiểm thật, không phải chuyện diễn đạt."
+      }
+    },
+    {
+      "id": "K-safety-02",
+      "type": "B",
+      "family": "knowledge_allergy_policy",
+      "question": "Thực đơn có ghi dị ứng không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "allergen_labelling",
+        "why": "Đây là mục duy nhất trong kho tri thức nói về GIỚI HẠN của dữ liệu: nhãn dị nguyên chỉ phủ 44/91 món, nên món không có nhãn KHÔNG có nghĩa là không chứa. Nội dung tính từ dữ liệu nên con số luôn đúng."
+      }
+    },
+    {
+      "id": "K-policy-01",
+      "type": "B",
+      "family": "knowledge_operations",
+      "question": "Nhà hàng có xuất hoá đơn VAT không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "invoice",
+        "why": "Chủ đề mới, không có trong 6 chủ đề ban đầu. Khách đi tiếp khách công ty hay hỏi câu này."
+      }
+    },
+    {
+      "id": "K-policy-02",
+      "type": "B",
+      "family": "knowledge_operations",
+      "question": "Có phải trả thêm phí phục vụ không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "service_charge",
+        "why": "Câu về tiền, nên trả lời sai là khách mất tiền oan. Kho tri thức phải nói rõ giá trên thực đơn là giá cuối."
+      }
+    },
+    {
+      "id": "K-policy-03",
+      "type": "B",
+      "family": "knowledge_operations",
+      "question": "Nhà hàng có phòng riêng để tổ chức tiệc không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "private_room",
+        "why": "Chủ đề mới. Lưu ý AI vẫn không tự đặt phòng — nó nói cách liên hệ."
+      }
+    },
+    {
+      "id": "K-facility-01",
+      "type": "B",
+      "family": "knowledge_facility",
+      "question": "Có ghế ăn cho em bé không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "high_chair",
+        "why": "Ca này từng là ví dụ cho một lỗi bản cũ: ghế cao là ĐỒ ĐẠC, không phải món ăn, nhưng bản cũ xử nó như câu hỏi về món. Chốt việc phân biệt tiện nghi với thực đơn."
+      }
+    },
+    {
+      "id": "K-facility-02",
+      "type": "B",
+      "family": "knowledge_facility",
+      "question": "Nhà hàng có lối đi cho xe lăn không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "accessibility",
+        "why": "Chủ đề mới. Câu hỏi về khả năng tiếp cận, không phải về món."
+      }
+    },
+    {
+      "id": "K-facility-03",
+      "type": "B",
+      "family": "knowledge_facility",
+      "question": "Mình mang bánh sinh nhật vào được không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "outside_food",
+        "why": "Chủ đề mới, và dễ bị hiểu thành câu hỏi về món tráng miệng trong thực đơn."
+      }
+    },
+    {
+      "id": "K-meta-01",
+      "type": "B",
+      "family": "knowledge_menu_meta",
+      "question": "Thực đơn có bao nhiêu món?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "menu_size",
+        "why": "Câu hỏi META: khách hỏi về cách thực đơn tổ chức, không hỏi món nào. Nội dung tính từ dữ liệu nên con số 91 món / 13 nhóm luôn đúng."
+      }
+    },
+    {
+      "id": "K-meta-02",
+      "type": "B",
+      "family": "knowledge_menu_meta",
+      "question": "Có mấy mức cay?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "spice_levels",
+        "why": "Cặp đôi quan trọng nhất của nhóm này. Câu 'Có mấy mức cay?' hỏi VỀ thực đơn nên trả lời tri thức; còn 'Món nào không cay?' phải LỌC món — xem ca K-meta-03. Gộp hai loại thì câu lọc sẽ trả về một đoạn văn thay vì danh sách món."
+      }
+    },
+    {
+      "id": "K-meta-04",
+      "type": "B",
+      "family": "knowledge_menu_meta",
+      "question": "Món nào cần đặt trước?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "preorder",
+        "why": "Nội dung tính từ dữ liệu: 12 món mang nhãn serving:preorder. Con số này không thể lệch khỏi thực đơn."
+      }
+    },
+    {
+      "id": "K-meta-03",
+      "type": "A",
+      "family": "knowledge_not_a_topic",
+      "question": "Món nào không cay?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "spice:none"
+          ]
+        },
+        "require_min": 4,
+        "forbid": "$spicy",
+        "why": "Chiều ngược của K-meta-02, và là ca chốt cho toàn bộ nhóm tri thức. Câu này PHẢI lọc thực đơn và trả về danh sách món, KHÔNG được trả về đoạn văn về mức cay. Nếu không có ca này thì việc mở rộng từ vựng tri thức có thể âm thầm biến mọi câu lọc thành câu tri thức, và tập đánh giá vẫn xanh."
+      }
+    },
+    {
+      "id": "K-meta-05",
+      "type": "A",
+      "family": "knowledge_not_a_topic",
+      "question": "Có món chay nào không?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "category_in": [
+            "cat_vegetarian"
+          ]
+        },
+        "require_min": 4,
+        "why": "Cùng chiều ngược với K-meta-03: khách hỏi CÓ MÓN NÀO nên phải trả danh sách món, khác với 'Có bao nhiêu món chay?' là câu hỏi META."
       }
     }
   ]

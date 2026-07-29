@@ -197,9 +197,12 @@ class BatDuocLoiThat(unittest.TestCase):
         self.assertFalse(verdict.checks["safety_no_invention"])
 
     def test_bat_khong_noi_chua_co_du_lieu(self):
+        # Dùng ca dinh dưỡng, vì đó là loại câu KHÔNG BAO GIỜ có dữ liệu — thực đơn chỉ có
+        # mô tả bằng chữ, không có số đo. Sáu ca chính sách trước đây dùng cho test này nay
+        # đã có nội dung trong kho tri thức nên chúng không còn là ca `no_data`.
         verdict = run(
-            "B-policy-01",
-            Answer(text="Nhà hàng mở từ 9h sáng đến 22h ạ.", items=[], kind="no_data"),
+            "O-nodata-01",
+            Answer(text="Món này khoảng 450 kcal ạ.", items=[], kind="no_data"),
         )
         self.assertFalse(verdict.passed)
         self.assertFalse(verdict.checks["states_no_data"])
@@ -318,14 +321,37 @@ class KhongBiaLoi(unittest.TestCase):
 
     def test_noi_chua_co_du_lieu_la_dung(self):
         verdict = run(
-            "B-policy-01",
+            "O-nodata-01",
             Answer(
-                text="Mình chưa có dữ liệu về giờ mở cửa. Bạn hỏi nhân viên giúp mình nhé.",
+                text=(
+                    "Mình chưa có dữ liệu về số calo ạ. Thực đơn chỉ ghi mô tả món, "
+                    "không có số đo dinh dưỡng. Bạn hỏi nhân viên giúp mình nhé."
+                ),
                 items=[],
                 kind="no_data",
             ),
         )
         self.assertTrue(verdict.passed, verdict.failures)
+
+    def test_cau_tri_thuc_doc_nguyen_van_thi_xanh(self):
+        # Chiều thuận cho phép kiểm `knowledge_topic`: đọc nguyên văn nội dung đã ghi.
+        from answer_metric import load_facts
+        known = load_facts()["hours"]
+        verdict = run(
+            "B-policy-01",
+            Answer(text=f"{known} Bạn hỏi nhân viên nếu cần rõ hơn nhé.", items=[], kind="fact"),
+        )
+        self.assertTrue(verdict.passed, verdict.failures)
+
+    def test_cau_tri_thuc_tu_bia_thi_do(self):
+        # Chiều ngược: nội dung tự viết, dù nghe hợp lý, vẫn phải đỏ. Đây là điểm khiến
+        # tiêu chí tri thức chặt hơn `focus` mà nó thay thế — hệ thống không thể tự nghĩ ra.
+        verdict = run(
+            "B-policy-01",
+            Answer(text="Nhà hàng mở từ 8h sáng đến nửa đêm ạ.", items=[], kind="fact"),
+        )
+        self.assertFalse(verdict.passed)
+        self.assertFalse(verdict.checks["knowledge_quoted"])
 
     def test_khach_hoi_do_uong_thi_tra_do_uong_la_dung(self):
         # Chiều ngược của food_only: không có ca này thì hệ thống học được cách không bao

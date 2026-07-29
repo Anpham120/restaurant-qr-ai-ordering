@@ -114,7 +114,9 @@ def _add(phrases: str, kind: str, value: object) -> None:
 #
 # Nên chủ đề và cách hỏi được tách ra, nhưng vẫn dùng CHUNG một vòng khớp: giá trị là
 # (nhãn dị nguyên, danh mục tương ứng nếu có). Cách hỏi quyết định đọc theo nghĩa nào.
-_add("hai san|do bien", "allergen_topic", ("allergen:seafood", "cat_seafood"))
+# "đồ tanh", "mùi tanh" là cách người Việt nói về cá và hải sản. Thiếu chúng thì lời
+# khai dị ứng "mình không ăn được đồ tanh" không được hiểu — và đó là lỗi AN TOÀN.
+_add("hai san|do bien|do tanh|mui tanh|thuc pham tanh", "allergen_topic", ("allergen:seafood", "cat_seafood"))
 _add("dau phong|lac", "allergen_topic", ("allergen:peanut", None))
 _add("trung", "allergen_topic", ("allergen:egg", None))
 _add("sua|lactose", "allergen_topic", ("allergen:dairy", None))
@@ -227,13 +229,53 @@ _add("re nhat|thap nhat", "flag", "cheapest")
 # So sánh.
 _add("hay|hoac|khac nhau the nao|nen chon|so voi|voi", "flag", "comparison")
 
-# Chính sách nhà hàng — chưa có kho tri thức nên chỉ để nhận diện và nói thẳng.
-_add("may gio mo cua|gio mo cua|mo cua luc nao|may gio dong cua", "policy", "hours")
-_add("thanh toan|tra tien|quet the|chuyen khoan", "policy", "payment")
-_add("do xe|bai xe|gui xe", "policy", "parking")
-_add("wifi|mat khau wifi", "policy", "wifi")
-_add("dat ban|dat cho", "policy", "booking")
-_add("giao hang|ship|giao den nha", "policy", "delivery")
+# --- Tri thức nhà hàng ----------------------------------------------------------------
+#
+# Mỗi chủ đề ứng một khóa trong `backend/data/restaurant-facts.json`. Truy hồi ở đây là
+# TRA KHÓA: chủ đề nhận ra từ câu hỏi chính là khóa, không có xếp hạng hay ngưỡng tương
+# đồng nên không có chỗ nào để chệch.
+#
+# Chỗ khó nhất là phân biệt **câu hỏi về thực đơn** với **câu hỏi meta về thực đơn**:
+#
+#   "Món nào không cay?"      -> LỌC thực đơn, trả về danh sách món (hữu ích hơn)
+#   "Có mấy mức cay?"          -> trả lời tri thức, vì khách hỏi về cách thực đơn tổ chức
+#
+# Nên các chủ đề meta chỉ dùng cụm hỏi VỀ thực đơn, không dùng từ mà câu lọc cũng chứa.
+# Gộp hai loại thì câu "món nào không cay" sẽ trả về một đoạn văn thay vì danh sách món.
+
+# Chính sách vận hành.
+_add("may gio mo cua|gio mo cua|mo cua luc nao|may gio dong cua|gio dong cua|mo cua den may gio", "policy", "hours")
+_add("thanh toan|tra tien|quet the|chuyen khoan|tra bang the|cach tra tien", "policy", "payment")
+_add("hoa don|xuat hoa don|vat|hoa don do", "policy", "invoice")
+_add("do xe|bai xe|gui xe|cho dau xe|dau o to", "policy", "parking")
+_add("wifi|mat khau wifi|pass wifi", "policy", "wifi")
+_add("dat ban|dat cho|giu ban|book ban", "policy", "booking")
+_add("giao hang|ship|giao den nha|giao tan noi|mang ve|mua mang ve|dat qua app", "policy", "delivery")
+_add("dia chi|o dau|duong di|cho nao|toi day the nao", "policy", "location")
+_add("so dien thoai|lien he|goi cho quan|hotline", "policy", "contact")
+_add("phu phi|phi phuc vu|tien tip|tip bao nhieu|co phai tra them", "policy", "service_charge")
+_add("phong rieng|phong vip|to chuc tiec|khu rieng|dat tiec sinh nhat", "policy", "private_room")
+# Cụm phải dài hơn "em be" (đã là nhãn audience:child) để thắng ở vòng khớp dài-trước.
+# Bản đầu thiếu biến thể "ghe an cho em be", nên câu "Có ghế ăn cho em bé không?" bị
+# hiểu thành câu lọc món cho trẻ em thay vì câu hỏi về tiện nghi.
+_add("ghe an cho em be|ghe an cho be|ghe cho em be|ghe cho be|ghe em be|ghe tre em|ghe cao cho be", "policy", "high_chair")
+_add("xe lan|nguoi khuyet tat|loi di cho xe lan", "policy", "accessibility")
+_add("hut thuoc|khu hut thuoc|thuoc la", "policy", "smoking")
+_add("mang do tu ngoai vao|mang banh vao|mang banh sinh nhat|do tu ben ngoai", "policy", "outside_food")
+
+# An toàn dị ứng: bếp xử lý thế nào. Đây là chủ đề tri thức quan trọng nhất, vì nó nói ra
+# GIỚI HẠN của những gì hệ thống biết.
+_add("bep co tach rieng|nhiem cheo|lan thanh phan|bep xu ly di ung|co dam bao khong di ung", "policy", "kitchen_allergy")
+_add("thuc don co ghi di nguyen|co ghi di ung khong|ghi nhan di ung the nao", "policy", "allergen_labelling")
+
+# Câu hỏi META về thực đơn — hỏi về cách thực đơn tổ chức, không phải hỏi món cụ thể.
+_add("menu co bao nhieu mon|thuc don co bao nhieu mon|bao nhieu mon|co nhung nhom nao|thuc don gom nhung gi", "policy", "menu_size")
+_add("gia ca the nao|tam gia bao nhieu|khoang gia|gia tu bao nhieu|co dat khong|dat khong", "policy", "price_range")
+_add("mon nao can dat truoc|dat truoc bao lau|co mon nao lau khong", "policy", "preorder")
+_add("mon nao mang di duoc|mon nao mang ve duoc", "policy", "takeaway_items")
+_add("co may muc cay|muc cay the nao|chia may muc cay|do cay tinh the nao", "policy", "spice_levels")
+_add("co bao nhieu mon chay|bao nhieu mon chay|menu chay co may mon", "policy", "vegetarian")
+_add("co menu tre em|menu cho tre em|phan an tre em", "policy", "children")
 _add("bao nhieu calo|calo|natri|dinh duong|bao nhieu duong", "policy", "nutrition")
 # Doanh thu, lợi nhuận, lương: không trả lời ở kênh chat khách hàng.
 _add("doanh thu|loi nhuan|luong nhan vien|chi phi nguyen lieu", "policy", "internal")
@@ -336,6 +378,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #    Chỉ dùng chữ CÒN LẠI sau khi đã ăn tên món, để "Bún đậu mắm tôm" không tự sinh
     #    ra chủ đề tôm.
     wants_to_avoid = any(f" {f} " in working for f in AVOID_FRAMING)
+    # "không sữa", "không trứng", "không hải sản" — mẫu "không <chủ đề>" là cách nói tránh
+    # phổ biến nhất, và liệt kê từng tổ hợp thì vừa dài vừa dễ sót. Bắt bằng mẫu.
+    #
+    # Đây là chỗ AN TOÀN không được phụ thuộc mô hình sinh: câu "Bé nhà mình uống sữa là bị
+    # đau bụng, có món nào không sữa không?" trước đây chỉ mô hình hiểu được, nghĩa là an
+    # toàn của hệ thống phụ thuộc một thành phần không tất định. Nay mã tất định hiểu được.
+    wants_to_avoid = wants_to_avoid or bool(
+        re.search(r"khong (?:co )?(?:hai san|do bien|do tanh|dau phong|lac|trung|sua|gluten|bot mi)", working)
+    )
+    # Triệu chứng cũng là cách khai dị ứng, không chỉ chữ "dị ứng".
+    wants_to_avoid = wants_to_avoid or any(
+        f" {p} " in working for p in ("bi dau bung", "bi di ung", "bi ngua", "bi noi me day", "an vao la bi")
+    )
     asks_about_named = bool(request.named_items) and " co " in working and " khong" in working
     request.asks_about_named_dish = asks_about_named
 
