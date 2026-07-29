@@ -132,6 +132,17 @@ jobs:
       - name: Dò lỗ trong thước đo
         run: python ai/evaluation/probe_metric_holes.py
 
+      - name: Test phần hiểu câu hỏi
+        run: python -m unittest discover -s ai/app -p "test_*.py" -v
+
+      # run_baseline trả về mã khác 0 khi có LỖI AN TOÀN, nên bước này là chốt fail-closed
+      # cho dị ứng, bịa món và rò rỉ — không phải chỉ theo dõi tỷ lệ.
+      - name: Số nền — trả lời chỉ bằng tra thực đơn
+        run: python ai/evaluation/run_baseline.py --all
+
+      - name: Giá trị từng cơ chế (ablation)
+        run: python ai/evaluation/run_ablation.py
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest

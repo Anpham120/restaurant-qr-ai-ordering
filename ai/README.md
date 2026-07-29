@@ -34,7 +34,7 @@ mình đúng.** Bản dựng lại vì thế bắt đầu từ dữ liệu và t
 
 ## Lộ trình — mỗi bước có kiểm chứng riêng
 
-Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên. Bước 0–3 đã xong.
+Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên. Bước 0–4 đã xong.
 
 | # | Bước | Câu hỏi cần trả lời trước khi viết mã | Kiểm chứng |
 |---|---|---|---|
@@ -42,7 +42,7 @@ Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên
 | 1 | ✅ [Từ điển dữ liệu](docs/01-data-dictionary.md) | Trường nào là sự thật, trường nào là nhãn người gán? Thiếu nhãn nghĩa là gì? | 84 nhãn → khóa có không gian tên; hợp nhất hai nguồn thực đơn (91/91 → 0/91 món lệch); 7 lỗ nhãn dị nguyên đã bổ sung; 8 test canh trôi dữ liệu, đã chứng minh bắt được lỗi thật |
 | 2 | ✅ [Tập đánh giá](docs/02-evaluation-set.md) | Thế nào là trả lời đúng? | 80 ca / 27 họ; khóa đáp án là truy vấn trên thực đơn nên tự kiểm được; chia 3 nhóm (chốt 14 / phát triển 39 / niêm phong 27), tất định; bộ kiểm bắt 9/9 loại ca viết sai |
 | 3 | ✅ [Thước đo](docs/03-answer-metric.md) | Làm sao biết câu trả lời tốt? | 35 test hai chiều; tự đọc tên món và giá ra khỏi câu trả lời nên hệ thống không khai gian được; bộ dò lỗ tìm 24 lỗ và bịt hết, sàn còn 12/80 |
-| 4 | Trả lời không cần AI | Bao nhiêu câu chỉ cần tra thực đơn? | Số nền: tỷ lệ trả lời được mà chưa dùng mô hình nào |
+| 4 | ✅ [Trả lời không cần mô hình](docs/04-answers-without-a-model.md) | Bao nhiêu câu chỉ cần tra thực đơn? | **23/27 (85,2%)** trên tập niêm phong lần mở đầu — con số held-out thật; sau khi sửa 3 lỗi nó chỉ ra thì 80/80 nhưng không còn là held-out. 9 cơ chế, cả 9 đều có ca chứng minh giá trị, 5 ngăn lỗi an toàn |
 | 5 | Truy hồi tri thức | Câu chính sách lấy dữ liệu ở đâu? | So sánh phương pháp truy hồi trên tập ở bước 2 |
 | 6 | Mô hình sinh | Còn lại câu nào cần mô hình? Prompt nào? | Đo trước/sau bằng thước đo bước 3 |
 | 7 | Chốt an toàn | Điều gì tuyệt đối không được sai? | Kiểm chứng fail-closed cho dị ứng và trẻ em |

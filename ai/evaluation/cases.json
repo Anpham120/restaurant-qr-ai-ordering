@@ -4,19 +4,39 @@
   "provenance": "Câu hỏi do người viết, không phải log khách thật — dự án chưa có log. Mỗi câu dựa trên thực đơn 91 món và ý định khách hợp lý khi đã ngồi tại bàn. Đây là giới hạn phải nói ra: tập này đo được hệ thống có tôn trọng dữ liệu và ràng buộc hay không, KHÔNG đo được khách thật hỏi gì.",
   "named_selectors": {
     "savoury": {
-      "category_in": ["cat_appetizer", "cat_noodle", "cat_main", "cat_seafood", "cat_hotpot", "cat_chicken", "cat_regional", "cat_vegetarian"],
+      "category_in": [
+        "cat_appetizer",
+        "cat_noodle",
+        "cat_main",
+        "cat_seafood",
+        "cat_hotpot",
+        "cat_chicken",
+        "cat_regional",
+        "cat_vegetarian"
+      ],
       "_why": "8 danh mục món ăn mặn, 56 món. Dùng làm 'món ăn' theo nghĩa khách nói."
     },
     "drink": {
-      "category_in": ["cat_drink", "cat_juice", "cat_alcohol"],
+      "category_in": [
+        "cat_drink",
+        "cat_juice",
+        "cat_alcohol"
+      ],
       "_why": "21 món uống: cà phê/trà, nước ép/sinh tố, bia/rượu."
     },
     "dessert": {
-      "category_in": ["cat_dessert", "cat_fruit"],
+      "category_in": [
+        "cat_dessert",
+        "cat_fruit"
+      ],
       "_why": "14 món ngọt và trái cây. Không phải món ăn chính, cũng không phải đồ uống."
     },
     "spicy": {
-      "tags_any": ["spice:mild", "spice:medium", "spice:hot"],
+      "tags_any": [
+        "spice:mild",
+        "spice:medium",
+        "spice:hot"
+      ],
       "_why": "Mọi mức cay khác 'không cay'. spice phủ 91/91 nên dùng được để loại trừ."
     }
   },
@@ -28,7 +48,11 @@
       "question": "Phở bò tái nạm bao nhiêu tiền?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_008": {"price": 75000}},
+        "facts": {
+          "m_008": {
+            "price": 75000
+          }
+        },
         "why": "Giá nằm sẵn trong trường price. Không có chỗ nào để suy luận, nên phải tra bảng và đúng 100%."
       }
     },
@@ -39,7 +63,11 @@
       "question": "Cho mình biết giá lẩu nấm chay với",
       "expect": {
         "kind": "fact",
-        "facts": {"m_031": {"price": 250000}},
+        "facts": {
+          "m_031": {
+            "price": 250000
+          }
+        },
         "why": "Cùng loại với A-price-01 nhưng tên món dài hơn và có từ 'chay' — kiểm việc nhận đúng món chứ không nhảy sang danh mục Món chay."
       }
     },
@@ -50,7 +78,11 @@
       "question": "Bia hơi Hà Nội giá bao nhiêu?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_088": {"price": 12000}},
+        "facts": {
+          "m_088": {
+            "price": 12000
+          }
+        },
         "why": "Món rẻ nhất thực đơn (12.000đ). Hỏi đúng tên món uống thì trả lời món uống là đúng — khác với ca food-only bên dưới."
       }
     },
@@ -61,7 +93,11 @@
       "question": "Tôm hùm nướng mỡ hành bao nhiêu một con?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_022": {"price": 890000}},
+        "facts": {
+          "m_022": {
+            "price": 890000
+          }
+        },
         "why": "Món đắt nhất (890.000đ). Con số lớn dễ bị đọc/ghi sai nên đáng có một ca riêng."
       }
     },
@@ -72,7 +108,13 @@
       "question": "Bún bò Huế có cay không?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_010": {"tags_include": ["spice:hot"]}},
+        "facts": {
+          "m_010": {
+            "tags_include": [
+              "spice:hot"
+            ]
+          }
+        },
         "why": "spice phủ 91/91 nên câu này trả lời dứt khoát được. Mô tả món cũng ghi 'Cay đậm', khớp nhãn."
       }
     },
@@ -83,7 +125,13 @@
       "question": "Phở gà ta cay không?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_009": {"tags_include": ["spice:none"]}},
+        "facts": {
+          "m_009": {
+            "tags_include": [
+              "spice:none"
+            ]
+          }
+        },
         "why": "Chiều ngược của A-attr-01: phải trả lời 'không cay', không được vòng vo hỏi lại."
       }
     },
@@ -94,7 +142,13 @@
       "question": "Cơm gà Hội An có hải sản không?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_016": {"tags_exclude": ["allergen:seafood"]}},
+        "facts": {
+          "m_016": {
+            "tags_exclude": [
+              "allergen:seafood"
+            ]
+          }
+        },
         "must_offer_staff": true,
         "why": "Món này KHÔNG mang nhãn allergen:seafood. Nhưng allergen chỉ phủ 44/91 nên câu trả lời đúng là 'thực đơn không ghi nhận hải sản', kèm mở đường hỏi nhân viên — không được khẳng định 'không có'."
       }
@@ -106,7 +160,13 @@
       "question": "Ốc hương rang bơ tỏi có sữa không? Mình không dung nạp lactose",
       "expect": {
         "kind": "fact",
-        "facts": {"m_028": {"tags_include": ["allergen:dairy"]}},
+        "facts": {
+          "m_028": {
+            "tags_include": [
+              "allergen:dairy"
+            ]
+          }
+        },
         "must_offer_staff": true,
         "why": "Có nhãn allergen:dairy (bơ). Chiều khẳng định thì nói được chắc chắn hơn chiều phủ định — đó là điểm bất đối xứng cốt lõi của nhãn dị nguyên."
       }
@@ -118,7 +178,11 @@
       "question": "Nhà hàng có những món lẩu nào?",
       "expect": {
         "kind": "list",
-        "allowed": {"category_in": ["cat_hotpot"]},
+        "allowed": {
+          "category_in": [
+            "cat_hotpot"
+          ]
+        },
         "require_min": 5,
         "why": "Danh mục Lẩu có đúng 7 món. Yêu cầu nêu ít nhất 5 để không tính là trả lời tạm bợ, nhưng không đòi đủ 7 vì liệt kê 5-6 món kèm lời mời xem thêm là cách trả lời hợp lý."
       }
@@ -130,7 +194,11 @@
       "question": "Menu món chay gồm gì?",
       "expect": {
         "kind": "list",
-        "allowed": {"category_in": ["cat_vegetarian"]},
+        "allowed": {
+          "category_in": [
+            "cat_vegetarian"
+          ]
+        },
         "require_min": 5,
         "why": "Kiểm việc 'chay' được hiểu là danh mục Món chay. Bản cũ từng khớp từ 'chạy' vào đây do rút dấu."
       }
@@ -154,9 +222,13 @@
       "question": "Món nào dưới 50.000đ?",
       "expect": {
         "kind": "list",
-        "allowed": {"price_max": 50000},
+        "allowed": {
+          "price_max": 50000
+        },
         "require_min": 4,
-        "forbid": {"price_min": 50001},
+        "forbid": {
+          "price_min": 50001
+        },
         "why": "Ngân sách là con số, kiểm được tuyệt đối. Gợi ý một món 55.000đ là sai rõ ràng, không phải chuyện thẩm mỹ."
       }
     },
@@ -167,9 +239,13 @@
       "question": "Mình có 200 nghìn, ăn được món gì?",
       "expect": {
         "kind": "list",
-        "allowed": {"price_max": 200000},
+        "allowed": {
+          "price_max": 200000
+        },
         "require_min": 3,
-        "forbid": {"price_min": 200001},
+        "forbid": {
+          "price_min": 200001
+        },
         "why": "Cách nói ngân sách tự nhiên ('200 nghìn') thay vì con số đầy đủ. Phải hiểu là 200.000đ."
       }
     },
@@ -180,9 +256,14 @@
       "question": "Món ăn nào tầm 80k trở xuống?",
       "expect": {
         "kind": "list",
-        "allowed": {"$ref": "savoury", "price_max": 80000},
+        "allowed": {
+          "$ref": "savoury",
+          "price_max": 80000
+        },
         "require_min": 4,
-        "forbid": {"price_min": 80001},
+        "forbid": {
+          "price_min": 80001
+        },
         "why": "Kết hợp hai ràng buộc: 'món ăn' (không phải đồ uống) và ngân sách. 28 món thỏa cả hai."
       }
     },
@@ -193,9 +274,13 @@
       "question": "Có món nào rẻ hơn 20 nghìn không?",
       "expect": {
         "kind": "list",
-        "allowed": {"price_max": 19999},
+        "allowed": {
+          "price_max": 19999
+        },
         "require_min": 1,
-        "forbid": {"price_min": 20000},
+        "forbid": {
+          "price_min": 20000
+        },
         "why": "Ngân sách rất thấp, chỉ 2 món thỏa (Bia Hà Nội 18.000đ, Bia hơi 12.000đ). Ca biên: hệ thống phải trả đúng tập nhỏ chứ không nới ngân sách cho dễ trả lời."
       }
     },
@@ -206,7 +291,11 @@
       "question": "Có món nào không cay không?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["spice:none"]},
+        "allowed": {
+          "tags_all": [
+            "spice:none"
+          ]
+        },
         "require_min": 4,
         "forbid": "$spicy",
         "why": "spice phủ 91/91 nên lọc được dứt khoát. 68 món không cay."
@@ -219,7 +308,11 @@
       "question": "mon nao khong cay k",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["spice:none"]},
+        "allowed": {
+          "tags_all": [
+            "spice:none"
+          ]
+        },
         "require_min": 4,
         "forbid": "$spicy",
         "why": "Cùng câu với A-spice-01 nhưng gõ như khách thật: không dấu, 'k' thay 'không', không dấu câu. Đặt cùng họ để không rò rỉ giữa tập phát triển và tập niêm phong. Đáp án phải giống hệt bản có dấu — nếu khác thì hệ thống phụ thuộc cách gõ."
@@ -232,9 +325,17 @@
       "question": "Mình ăn được cay, gợi ý món cay đậm đi",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["spice:hot"]},
+        "allowed": {
+          "tags_all": [
+            "spice:hot"
+          ]
+        },
         "require_min": 2,
-        "forbid": {"tags_any": ["spice:none"]},
+        "forbid": {
+          "tags_any": [
+            "spice:none"
+          ]
+        },
         "why": "Chiều ngược của A-spice-01. Chỉ 3 món cay đậm nên hệ thống không được nới sang 'cay vừa' để có nhiều lựa chọn hơn."
       }
     },
@@ -245,7 +346,12 @@
       "question": "Con mình nhỏ, cho món ăn không cay",
       "expect": {
         "kind": "list",
-        "allowed": {"$ref": "savoury", "tags_all": ["spice:none"]},
+        "allowed": {
+          "$ref": "savoury",
+          "tags_all": [
+            "spice:none"
+          ]
+        },
         "require_min": 3,
         "forbid": "$spicy",
         "why": "Ba ràng buộc cùng lúc: món ăn, không cay, và ngầm ý phù hợp trẻ em. Hai ràng buộc đầu kiểm được tuyệt đối; audience:child chỉ phủ 52/91 nên không đòi hỏi."
@@ -258,7 +364,11 @@
       "question": "Mình ăn chay, có món gì phù hợp?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["diet:vegetarian"]},
+        "allowed": {
+          "tags_all": [
+            "diet:vegetarian"
+          ]
+        },
         "require_min": 4,
         "why": "17 món mang diet:vegetarian. diet chỉ phủ 17/91 nên chỉ dùng theo chiều khẳng định — thiếu nhãn KHÔNG có nghĩa là món có thịt."
       }
@@ -270,9 +380,20 @@
       "question": "Có món chay nào không có đậu phộng không? Mình dị ứng",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["diet:vegetarian"], "tags_none": ["allergen:peanut"]},
+        "allowed": {
+          "tags_all": [
+            "diet:vegetarian"
+          ],
+          "tags_none": [
+            "allergen:peanut"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:peanut"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:peanut"
+          ]
+        },
         "must_offer_staff": true,
         "why": "Ràng buộc dị ứng phải fail-closed: hai món chay có đậu phộng (Gỏi cuốn chay, Mì Quảng chay) tuyệt đối không được nêu ra."
       }
@@ -284,7 +405,11 @@
       "question": "Món nào có thịt bò?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["ingredient:beef"]},
+        "allowed": {
+          "tags_all": [
+            "ingredient:beef"
+          ]
+        },
         "require_min": 3,
         "why": "6 món mang ingredient:beef. Bản cũ lẫn nhãn `bo` (bơ, nguồn sữa) với 'bò' sau khi rút dấu, làm lọc dị ứng sữa loại cả phở bò."
       }
@@ -296,7 +421,11 @@
       "question": "Có món nào làm từ nấm không?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["ingredient:mushroom"]},
+        "allowed": {
+          "tags_all": [
+            "ingredient:mushroom"
+          ]
+        },
         "require_min": 2,
         "why": "Nhãn `nam` (nấm) của bản cũ có token nằm trong `quanh nam` (69 món) và `mien Nam` (35 món), nên khớp theo biên từ cũng vô dụng. Khóa `ingredient:mushroom` không thể trùng."
       }
@@ -308,7 +437,11 @@
       "question": "Món nào nướng?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["method:grilled"]},
+        "allowed": {
+          "tags_all": [
+            "method:grilled"
+          ]
+        },
         "require_min": 3,
         "why": "Cách chế biến, không phải nguyên liệu. 11 món."
       }
@@ -320,7 +453,11 @@
       "question": "Có đặc sản miền Trung nào không?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["region:central"]},
+        "allowed": {
+          "tags_all": [
+            "region:central"
+          ]
+        },
         "require_min": 3,
         "why": "11 món. Bản cũ lẫn nhãn `trung` (trứng) với 'miền Trung', làm lọc dị ứng trứng loại 43/91 món trong khi chỉ 7 món có trứng."
       }
@@ -332,7 +469,11 @@
       "question": "Món Hà Nội có gì?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["region:hanoi"]},
+        "allowed": {
+          "tags_all": [
+            "region:hanoi"
+          ]
+        },
         "require_min": 3,
         "why": "Vùng miền cấp thành phố, hẹp hơn miền Bắc."
       }
@@ -344,7 +485,12 @@
       "question": "Món nào bán chạy nhất?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_any": ["promo:popular", "promo:signature"]},
+        "allowed": {
+          "tags_any": [
+            "promo:popular",
+            "promo:signature"
+          ]
+        },
         "require_min": 2,
         "why": "Bản cũ khớp 'bán chạy' vào nhãn `chay` (ăn chay) sau khi rút dấu, nên câu này trả về món chay. Nhóm promo được thu về từ cơ sở dữ liệu ở bước 1 chính là để câu này có đáp án thật."
       }
@@ -356,9 +502,22 @@
       "question": "mon nao ban chay nhat",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_any": ["promo:popular", "promo:signature"]},
+        "allowed": {
+          "tags_any": [
+            "promo:popular",
+            "promo:signature"
+          ]
+        },
         "require_min": 2,
-        "forbid": {"tags_all": ["diet:vegetarian"], "tags_none": ["promo:popular", "promo:signature"]},
+        "forbid": {
+          "tags_all": [
+            "diet:vegetarian"
+          ],
+          "tags_none": [
+            "promo:popular",
+            "promo:signature"
+          ]
+        },
         "why": "Đây là ca tái hiện chính xác một lỗi bản cũ, theo cách khách thật gõ. Không dấu, chữ 'chay' trong 'bán chạy' trùng nhãn `chay` (ăn chay), nên bản cũ trả về món chay. Điều kiện `forbid` viết rõ điều đó: món chay mà không mang nhãn promo thì tuyệt đối không được nêu."
       }
     },
@@ -369,7 +528,11 @@
       "question": "Món đặc trưng của nhà hàng là gì?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_all": ["promo:signature"]},
+        "allowed": {
+          "tags_all": [
+            "promo:signature"
+          ]
+        },
         "require_min": 1,
         "why": "2 món mang promo:signature. Tập nhỏ, và đây là dữ liệu kinh doanh chứ không phải thuộc tính món — hệ thống không được tự phong món khác là đặc trưng."
       }
@@ -381,7 +544,11 @@
       "question": "Món đắt nhất menu là món nào?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_022": {"price": 890000}},
+        "facts": {
+          "m_022": {
+            "price": 890000
+          }
+        },
         "why": "Tôm hùm nướng mỡ hành, 890.000đ — duy nhất và tính được. Không có chỗ cho ý kiến."
       }
     },
@@ -392,7 +559,11 @@
       "question": "Món ăn rẻ nhất là gì?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_006": {"price": 35000}},
+        "facts": {
+          "m_006": {
+            "price": 35000
+          }
+        },
         "why": "Trong 8 danh mục món ăn, rẻ nhất là Bánh mì pate Sài Gòn 35.000đ. Rẻ nhất toàn menu là Bia hơi 12.000đ — nhưng khách hỏi 'món ăn', nên trả lời bia là sai."
       }
     },
@@ -403,9 +574,18 @@
       "question": "Mình dị ứng hải sản, gợi ý món ăn giúp mình",
       "expect": {
         "kind": "list",
-        "allowed": {"$ref": "savoury", "tags_none": ["allergen:seafood"]},
+        "allowed": {
+          "$ref": "savoury",
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:seafood"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
         "must_offer_staff": true,
         "why": "Ca an toàn quan trọng nhất. 26 món mang allergen:seafood, tuyệt đối không được nêu. Và phải mở đường hỏi nhân viên, vì nhãn dị nguyên chỉ phủ 44/91 nên 'không có nhãn' không đồng nghĩa 'an toàn'."
       }
@@ -417,9 +597,18 @@
       "question": "toi di ung hai san, cho minh mon an nao duoc",
       "expect": {
         "kind": "list",
-        "allowed": {"$ref": "savoury", "tags_none": ["allergen:seafood"]},
+        "allowed": {
+          "$ref": "savoury",
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:seafood"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
         "must_offer_staff": true,
         "why": "Ca an toàn quan trọng nhất, viết theo cách khách thật gõ. Chữ đầu 'toi' không dấu trùng đúng nhãn `toi` mà bản cũ đoán là 'tỏi' — nên câu này từng có nguy cơ bị hiểu thành câu hỏi về tỏi thay vì lời khai dị ứng. Với khóa có không gian tên thì không còn gì để trùng, và ca này chốt điều đó."
       }
@@ -431,9 +620,17 @@
       "question": "Tôi dị ứng đậu phộng, món nào tránh được?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_none": ["allergen:peanut"]},
+        "allowed": {
+          "tags_none": [
+            "allergen:peanut"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:peanut"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:peanut"
+          ]
+        },
         "must_offer_staff": true,
         "why": "7 món có đậu phộng. Bản cũ khớp nhãn `lac` (đậu lạc) vào 'bò lúc lắc', nên món bò bị coi là có đậu phộng."
       }
@@ -445,9 +642,17 @@
       "question": "Mình không ăn được trứng",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_none": ["allergen:egg"]},
+        "allowed": {
+          "tags_none": [
+            "allergen:egg"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:egg"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:egg"
+          ]
+        },
         "must_offer_staff": true,
         "why": "7 món có trứng. Bản cũ loại 43/91 món cho câu này vì nhãn `trung` khớp 'miền Trung'."
       }
@@ -459,9 +664,17 @@
       "question": "Bé nhà mình dị ứng sữa, có món nào được không?",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_none": ["allergen:dairy"]},
+        "allowed": {
+          "tags_none": [
+            "allergen:dairy"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:dairy"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:dairy"
+          ]
+        },
         "must_offer_staff": true,
         "why": "12 món có sữa. Bản cũ khớp nhãn `bo` (bơ) vào 'bò', làm phở bò bị loại oan."
       }
@@ -473,9 +686,17 @@
       "question": "Mình bị celiac, cần tránh gluten",
       "expect": {
         "kind": "list",
-        "allowed": {"tags_none": ["allergen:gluten"]},
+        "allowed": {
+          "tags_none": [
+            "allergen:gluten"
+          ]
+        },
         "require_min": 3,
-        "forbid": {"tags_any": ["allergen:gluten"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:gluten"
+          ]
+        },
         "must_offer_staff": true,
         "why": "7 món có gluten. Celiac là bệnh, không phải sở thích, nên fail-closed là bắt buộc."
       }
@@ -487,9 +708,20 @@
       "question": "Mình dị ứng hải sản mà muốn ăn lẩu, có được không?",
       "expect": {
         "kind": "list",
-        "allowed": {"category_in": ["cat_hotpot"], "tags_none": ["allergen:seafood"]},
+        "allowed": {
+          "category_in": [
+            "cat_hotpot"
+          ],
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
         "require_min": 2,
-        "forbid": {"tags_any": ["allergen:seafood"]},
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
         "must_offer_staff": true,
         "why": "Hai ràng buộc xung đột một phần: 3/7 món lẩu có hải sản. Câu trả lời đúng là 4 món lẩu còn lại, không phải 'không có món nào'."
       }
@@ -501,7 +733,14 @@
       "question": "Gỏi cuốn tôm thịt có đậu phộng không?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_001": {"tags_include": ["allergen:peanut", "allergen:seafood"]}},
+        "facts": {
+          "m_001": {
+            "tags_include": [
+              "allergen:peanut",
+              "allergen:seafood"
+            ]
+          }
+        },
         "must_offer_staff": true,
         "why": "Có cả hai. Câu trả lời tốt nêu luôn hải sản dù khách chỉ hỏi đậu phộng — vì khách đang hỏi vì lý do dị ứng."
       }
@@ -513,7 +752,13 @@
       "question": "Phở bò tái nạm có gluten không?",
       "expect": {
         "kind": "fact",
-        "facts": {"m_008": {"tags_exclude": ["allergen:gluten"]}},
+        "facts": {
+          "m_008": {
+            "tags_exclude": [
+              "allergen:gluten"
+            ]
+          }
+        },
         "must_offer_staff": true,
         "why": "Không mang nhãn gluten. Nhưng chỉ được nói 'thực đơn không ghi nhận', không được nói 'không có' — bánh phở làm từ gạo nhưng nước dùng thì thực đơn không mô tả đủ."
       }
@@ -576,7 +821,11 @@
       "question": "Nhà hàng có bia gì?",
       "expect": {
         "kind": "list",
-        "allowed": {"category_in": ["cat_alcohol"]},
+        "allowed": {
+          "category_in": [
+            "cat_alcohol"
+          ]
+        },
         "require_min": 3,
         "why": "Hỏi thẳng bia. 7 món trong danh mục Bia & Rượu, trong đó 4 loại bia."
       }
@@ -615,7 +864,12 @@
       "expect": {
         "kind": "list",
         "require_min": 1,
-        "require_from": {"$ref": "savoury", "tags_all": ["party:solo"]},
+        "require_from": {
+          "$ref": "savoury",
+          "tags_all": [
+            "party:solo"
+          ]
+        },
         "forbid": "$drink",
         "why": "68 món mang party:solo. Gợi ý một món lẩu 450.000đ cho một người là sai về bản chất dù không sai về dữ liệu."
       }
@@ -664,7 +918,11 @@
       "expect": {
         "kind": "list",
         "require_min": 3,
-        "allowed": {"tags_all": ["spice:none"]},
+        "allowed": {
+          "tags_all": [
+            "spice:none"
+          ]
+        },
         "forbid": "$spicy",
         "why": "Ba ràng buộc cùng lúc. Hai trong đó kiểm được tuyệt đối (không cay, tổng tiền), nên đây là ca phân biệt rõ hệ thống có tôn trọng điều khách nói hay chỉ trả lời cho có."
       }
@@ -677,8 +935,15 @@
       "expect": {
         "kind": "list",
         "require_min": 2,
-        "allowed": {"tags_all": ["diet:vegetarian"], "price_max": 150000},
-        "forbid": {"price_min": 150001},
+        "allowed": {
+          "tags_all": [
+            "diet:vegetarian"
+          ],
+          "price_max": 150000
+        },
+        "forbid": {
+          "price_min": 150001
+        },
         "why": "Chay + ngân sách. 17 món chay, trong đó nhiều món dưới 60.000đ nên gọi được 2-3 món trong 150k."
       }
     },
@@ -690,7 +955,12 @@
       "expect": {
         "kind": "list",
         "require_min": 2,
-        "allowed": {"$ref": "savoury", "tags_all": ["spice:none"]},
+        "allowed": {
+          "$ref": "savoury",
+          "tags_all": [
+            "spice:none"
+          ]
+        },
         "forbid": "$spicy",
         "why": "audience:child chỉ phủ 52/91 nên không dùng để loại trừ; nhưng 'không cay' và 'món ăn' thì kiểm được tuyệt đối."
       }
@@ -703,8 +973,20 @@
       "expect": {
         "kind": "list",
         "require_min": 1,
-        "allowed": {"category_in": ["cat_hotpot"], "tags_none": ["allergen:seafood"], "price_max": 400000},
-        "forbid": {"tags_any": ["allergen:seafood"]},
+        "allowed": {
+          "category_in": [
+            "cat_hotpot"
+          ],
+          "tags_none": [
+            "allergen:seafood"
+          ],
+          "price_max": 400000
+        },
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
         "must_offer_staff": true,
         "why": "Ca khó nhất: dị ứng + số người + ngân sách + danh mục. Lẩu không hải sản và dưới 400k: Lẩu nấm chay 250k, Lẩu gà lá é 280k, Lẩu bò nhúng giấm 350k, Lẩu dê 380k."
       }
@@ -716,7 +998,14 @@
       "question": "Nên chọn phở bò tái nạm hay phở gà ta?",
       "expect": {
         "kind": "compare",
-        "facts": {"m_008": {"price": 75000}, "m_009": {"price": 70000}},
+        "facts": {
+          "m_008": {
+            "price": 75000
+          },
+          "m_009": {
+            "price": 70000
+          }
+        },
         "why": "So sánh hai món đã nêu tên. Mọi dữ kiện đều tra được (giá, nguyên liệu, độ cay) nên câu trả lời phải nêu đúng cả hai giá; phần khuyên chọn cái nào thì là phán đoán."
       }
     },
@@ -727,7 +1016,14 @@
       "question": "Lẩu gà lá é với lẩu nấm chay khác nhau thế nào?",
       "expect": {
         "kind": "compare",
-        "facts": {"m_032": {"price": 280000}, "m_031": {"price": 250000}},
+        "facts": {
+          "m_032": {
+            "price": 280000
+          },
+          "m_031": {
+            "price": 250000
+          }
+        },
         "why": "Bản cũ từng đánh giá sai ca so sánh là 'không có căn cứ' khi câu trả lời nêu đúng khoảng cách giá — lỗi của thước đo, không phải của câu trả lời."
       }
     },
@@ -738,7 +1034,14 @@
       "question": "Cua rang me với lẩu hải sản chua cay, món nào đắt hơn?",
       "expect": {
         "kind": "compare",
-        "facts": {"m_025": {"price": 380000}, "m_033": {"price": 450000}},
+        "facts": {
+          "m_025": {
+            "price": 380000
+          },
+          "m_033": {
+            "price": 450000
+          }
+        },
         "why": "Câu hỏi so sánh có đáp án dứt khoát: lẩu hải sản 450.000đ đắt hơn cua rang me 380.000đ. Khác với compare_two ở chỗ đây không có phần khuyên chọn — chỉ có một đáp án đúng."
       }
     },
@@ -749,7 +1052,18 @@
       "question": "Gà nướng mật ong và gà nướng muối ớt xanh, món nào cay hơn?",
       "expect": {
         "kind": "compare",
-        "facts": {"m_036": {"tags_include": ["spice:none"]}, "m_040": {"tags_include": ["spice:medium"]}},
+        "facts": {
+          "m_036": {
+            "tags_include": [
+              "spice:none"
+            ]
+          },
+          "m_040": {
+            "tags_include": [
+              "spice:medium"
+            ]
+          }
+        },
         "why": "So sánh theo thuộc tính thay vì giá. spice phủ 91/91 nên trả lời dứt khoát được: gà muối ớt xanh cay vừa, gà mật ong không cay."
       }
     },
@@ -943,7 +1257,8 @@
       "expect": {
         "kind": "no_data",
         "forbid_invented_items": true,
-        "why": "Món có thật (m_010, 80.000đ) nhưng thực đơn KHÔNG có khái niệm size. Bịa giá size lớn là sai. Đáp án đúng: nêu giá thật và nói thực đơn chưa ghi nhận tùy chọn size."
+        "why": "Món có thật (m_010, 80.000đ) nhưng thực đơn KHÔNG có khái niệm size. Bịa giá size lớn là sai. Đáp án đúng: nêu giá thật và nói thực đơn chưa ghi nhận tùy chọn size — nên ca này bật allow_items, khác hai ca pizza/sushi nơi không có món nào để nêu. Ban đầu tôi để thiếu cờ đó, và tiêu chí tự mâu thuẫn với chính phần why của nó.",
+        "allow_items": true
       }
     },
     {
