@@ -1674,6 +1674,77 @@
         "require_min": 4,
         "why": "Cùng chiều ngược với K-meta-03: khách hỏi CÓ MÓN NÀO nên phải trả danh sách món, khác với 'Có bao nhiêu món chay?' là câu hỏi META."
       }
+    },
+    {
+      "id": "T-time-01",
+      "type": "B",
+      "family": "time_based_no_data",
+      "question": "Hôm nay có món gì đặc biệt không?",
+      "expect": {
+        "kind": "no_data",
+        "why": "Thực đơn không có trường nào về thời gian: không có món theo ngày, không có món đặc biệt hôm nay. Nhãn `promo:signature` nói món đặc trưng của nhà hàng — thứ không đổi theo ngày — nên dùng nó để trả lời câu này là bịa. Đây cũng là giới hạn đã nêu ở bước 5."
+      }
+    },
+    {
+      "id": "T-time-02",
+      "type": "B",
+      "family": "time_based_no_data",
+      "question": "Giờ này còn món gì không?",
+      "expect": {
+        "kind": "no_data",
+        "why": "Hai thứ hệ thống không biết cùng lúc: giờ hiện tại, và món nào còn hàng. Cả 91 món đều `isAvailable = true` nên không kiểm chứng được hành vi khi hết món — trả lời 'còn tất cả' là khẳng định một điều dữ liệu không hỗ trợ."
+      }
+    },
+    {
+      "id": "P-audience-02",
+      "type": "C",
+      "family": "paraphrase_audience",
+      "question": "Có cụ già đi cùng, cần món dễ tiêu",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "audience:elderly"
+          ]
+        },
+        "require_min": 2,
+        "why": "Cách nói khác của 'người lớn tuổi'. Ca thứ hai cho họ này — một họ một ca thì phép chia không cân được và một ca đỏ kéo cả họ xuống 0%."
+      }
+    },
+    {
+      "id": "P-method-02",
+      "type": "C",
+      "family": "paraphrase_method",
+      "question": "Mình muốn ăn gì đó có khói, thơm mùi than",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "method:grilled",
+            "flavour:smoky"
+          ]
+        },
+        "require_min": 2,
+        "why": "'thơm mùi than' và 'có khói' ứng với món nướng. Hai nhãn đều hợp lý nên dùng tags_any — ép đúng một nhãn là tiêu chí quá chặt."
+      }
+    },
+    {
+      "id": "P-season-02",
+      "type": "C",
+      "family": "paraphrase_season",
+      "question": "Trời lạnh thế này ăn gì cho ấm",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "season:cold_season",
+            "method:simmered",
+            "method:stewed"
+          ]
+        },
+        "require_min": 2,
+        "why": "Chiều ngược của P-season-01 (trời nóng). Không có nó thì hệ thống có thể học cách luôn gợi món giải nhiệt mà ca kia vẫn xanh."
+      }
     }
   ]
 }

@@ -1,11 +1,20 @@
+# Phụ thuộc của dịch vụ AI.
+#
+# Bản dựng lại (xem README.md) không dùng embedding, nên đã bỏ toàn bộ nhóm thư viện học
+# máy mà bản cũ cần: sentence-transformers, transformers, tokenizers, huggingface-hub,
+# numpy, scipy, scikit-learn.
+#
+# Chúng kéo theo torch và chiếm khoảng 2–3GB. Đã kiểm: không tệp nào trong `ai/` import bất
+# kỳ thư viện nào trong nhóm đó. Chúng còn nằm ở đây chỉ vì bản cũ dùng chúng cho truy hồi
+# bằng embedding — thứ mà bước 5 chứng minh là không cần: truy hồi tri thức ở đây là tra
+# khóa trên 24 chủ đề, không phải xếp hạng theo độ tương đồng.
+#
+# Giữ chúng lại thì ảnh Docker phình ra, cài lâu, và người đọc tưởng hệ thống có một tầng
+# embedding không tồn tại.
+#
+# Phần dữ liệu, thước đo và tập đánh giá chỉ dùng thư viện chuẩn của Python — không cần cài
+# gì để chạy chúng. Bốn gói dưới đây là cho tầng HTTP.
 fastapi>=0.115,<1.0
 uvicorn[standard]>=0.30,<1.0
 httpx>=0.27,<1.0
 pydantic>=2.8,<3.0
-sentence-transformers==5.5.1
-transformers==5.13.1
-tokenizers==0.22.2
-huggingface-hub==1.23.0
-numpy==2.3.5
-scipy==1.18.0
-scikit-learn==1.9.0

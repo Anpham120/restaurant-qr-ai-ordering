@@ -237,8 +237,13 @@ def enrich(request: Request, env: dict[str, str], *, use_cache: bool = True) -> 
         or request.asks_extreme is not None
         or request.is_comparison
         or request.asks_allergy
-        or request.wants != "any"
     )
+    # Chú ý KHÔNG có `request.wants` ở danh sách trên. Biết khách "muốn món ăn" chỉ thu hẹp
+    # còn 56/91 món — gần như không phải bộ lọc, nên nó KHÔNG đủ để coi là đã hiểu câu hỏi.
+    #
+    # Bản đầu tính `wants` vào đây, và câu "Trời nóng quá, ăn gì cho mát người" bị chặn vì
+    # chữ "ăn gì" đặt wants=food. Mô hình đọc được `season:cooling` cho câu đó, nhưng không
+    # bao giờ được gọi để nói ra.
     # Ngoại lệ, và là ngoại lệ vì lý do an toàn: khách đã nêu một hạn chế mà mã tất định
     # không hiểu là hạn chế gì. Lúc đó "đã hiểu đủ" là ảo — hệ thống hiểu phần khác của
     # câu nhưng bỏ sót đúng phần quan trọng nhất.

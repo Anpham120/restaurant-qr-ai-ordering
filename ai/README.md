@@ -43,8 +43,8 @@ Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên
 | 2 | ✅ [Tập đánh giá](docs/02-evaluation-set.md) | Thế nào là trả lời đúng? | 80 ca / 27 họ; khóa đáp án là truy vấn trên thực đơn nên tự kiểm được; chia 3 nhóm (chốt 14 / phát triển 39 / niêm phong 27), tất định; bộ kiểm bắt 9/9 loại ca viết sai |
 | 3 | ✅ [Thước đo](docs/03-answer-metric.md) | Làm sao biết câu trả lời tốt? | 35 test hai chiều; tự đọc tên món và giá ra khỏi câu trả lời nên hệ thống không khai gian được; bộ dò lỗ tìm 24 lỗ và bịt hết, sàn còn 12/80 |
 | 4 | ✅ [Trả lời không cần mô hình](docs/04-answers-without-a-model.md) | Bao nhiêu câu chỉ cần tra thực đơn? | **23/27 (85,2%)** trên tập niêm phong lần mở đầu — con số held-out thật. 9 cơ chế, cả 9 đều có ca chứng minh giá trị, 5 ngăn lỗi an toàn |
-| 5 | ✅ [Kho tri thức](docs/05-knowledge-base.md) | Câu chính sách lấy dữ liệu ở đâu? | 24 chủ đề, **truy hồi là tra khóa** — không embedding, không xếp hạng. 8 chủ đề tính từ thực đơn nên không thể lệch. Để trống thì an toàn (chứng minh 2 chiều). An toàn dị ứng đưa về mã tất định, **0 lỗi an toàn ở cả hai chế độ** |
-| 6 | ✅ [Mô hình sinh](docs/06-generative-model.md) | Còn lại câu nào cần mô hình? | Mô hình chỉ HIỂU câu hỏi, không CHỌN món. **98→105/107 (+7 ca)**, **0 ca bị tụt**, chỉ gọi ở 13% ca. Không nằm trên đường an toàn — 19 test bất biến |
+| 5 | ✅ [Kho tri thức](docs/05-knowledge-base.md) | Câu chính sách lấy dữ liệu ở đâu? | 24 chủ đề, **truy hồi là tra khóa** — không embedding, không xếp hạng. 8 chủ đề tính từ thực đơn nên không thể lệch. Để trống thì an toàn (chứng minh 2 chiều). An toàn dị ứng đưa về mã tất định, **0 lỗi an toàn ở cả hai chế độ**; bỏ 7 thư viện nặng bản cũ cần mà bản mới không import |
+| 6 | ✅ [Mô hình sinh](docs/06-generative-model.md) | Còn lại câu nào cần mô hình? | Mô hình chỉ HIỂU câu hỏi, không CHỌN món. **101→112/112 (+11 ca)**, **0 ca bị tụt**, chỉ gọi ở 20% ca. Không nằm trên đường an toàn — 19 test bất biến |
 | 7 | Chốt an toàn | Điều gì tuyệt đối không được sai? | Kiểm chứng fail-closed cho dị ứng và trẻ em |
 
 ## Vẫn còn ngoài thư mục này

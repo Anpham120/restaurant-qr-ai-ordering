@@ -83,9 +83,16 @@ def main(argv: list[str] | None = None) -> int:
 
     total = len(results)
     passed = sum(1 for _c, _r, _p, v in results if v.passed)
+    # Sàn phải TÍNH, không được viết cứng. Bản đầu ghi "12/80" và con số đó lạc hậu ngay khi
+    # tập ca đổi — đúng loại số cứng làm người đọc tin sai. Sàn là số ca mà cách lách "luôn
+    # nói chưa có dữ liệu" qua được, tức số ca dạng `no_data`.
+    floor = sum(1 for c in cases if c["expect"]["kind"] == "no_data")
     print(f"SỐ NỀN — trả lời chỉ bằng tra thực đơn, không dùng mô hình nào\n")
     print(f"  qua {passed}/{total} ca  ({passed / total:.1%})")
-    print(f"  sàn để so: 12/80 (cách lách 'luôn nói chưa có dữ liệu')\n")
+    print(
+        f"  sàn để so: {floor}/{total} — cách lách 'luôn nói chưa có dữ liệu' qua được "
+        f"bấy nhiêu ca\n"
+    )
 
     print("theo nhóm:")
     for group in ("chốt", "phát triển", "niêm phong"):

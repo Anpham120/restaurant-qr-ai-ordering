@@ -9,7 +9,7 @@ Có. Đó chính là giới hạn số 3 tôi đã nêu ở bước 4.
 | Tệp | Việc |
 |---|---|
 | `app/llm_understand.py` | gọi mô hình để đọc câu hỏi thành ràng buộc |
-| `app/test_llm_understand.py` | 17 test, chủ yếu là bất biến an toàn |
+| `app/test_llm_understand.py` | 19 test, chủ yếu là bất biến an toàn |
 | `evaluation/run_with_model.py` | đo trước/sau, và bắt ca bị làm tụt |
 | `app/llm_cache.json` | cache để phép đo tái lập được |
 
@@ -55,20 +55,21 @@ Mô hình còn bị chặn thêm hai lớp:
 Mã tất định trả lời được phần lớn câu hỏi. Gọi mô hình cho những câu đó là thêm độ trễ,
 thêm chi phí, thêm một nguồn **không tất định** — mà không được gì.
 
-Thực tế: mô hình chỉ được gọi ở **15/94 ca (16%)**. 84% câu hỏi không chạm tới mô hình.
+Thực tế: mô hình chỉ được gọi ở **22/112 ca (20%)**. 80% câu hỏi không chạm tới mô hình.
 
 ## 3. Kết quả
 
 | | Qua | Lỗi an toàn |
 |---|---|---|
-| chỉ mã tất định | 83/94 (88,3%) | **2** |
-| có mô hình | **92/94 (97,9%)** | **0** |
-| chênh | **+9 ca** | **−2** |
+| chỉ mã tất định | 101/112 (90,2%) | **0** |
+| có mô hình | **112/112 (100%)** | **0** |
+| chênh | **+11 ca** | 0 |
 
 **0 ca bị làm tụt.** Đây là cột tôi quan tâm nhất, vì bản cũ chính là ví dụ thêm cơ chế mà
 không đo phần bị phá.
 
-Chín ca mô hình cứu được, tất cả đều là cách nói ngoài từ vựng viết tay:
+Mười một ca mô hình cứu được, tất cả đều là cách nói ngoài từ vựng viết tay. Chín ca tiêu
+biểu:
 
 | Ca | Câu khách | Mô hình đọc thành |
 |---|---|---|
@@ -82,9 +83,12 @@ Chín ca mô hình cứu được, tất cả đều là cách nói ngoài từ 
 | `P-budget-01` | "**Sinh viên** nên mình hơi **ít tiền**" | `price:budget` |
 | `P-budget-02` | "muốn **ăn sang** một bữa" | `price:high` |
 
-Hai ca đầu là quan trọng nhất: chúng là **lỗi an toàn**. Mã tất định gặp "đồ tanh" thì
-không hiểu, nên nó hỏi lại hoặc trả lời như thể khách không nêu hạn chế nào. Mô hình đọc
-được, và ràng buộc dị nguyên được áp fail-closed như mọi ca khác.
+> **Cập nhật quan trọng sau bước 5.** Hai ca dị ứng trong bảng trên (`P-allergy-01`,
+> `P-allergy-02`) từng là lỗi an toàn mà chỉ mô hình cứu được — nghĩa là **an toàn phụ thuộc
+> một thành phần không tất định**. Bước 5 đã đưa chúng về mã tất định, nên mô hình **không
+> còn nằm trên đường an toàn**: lỗi an toàn nay là 0 ở cả hai chế độ. Chi tiết ở
+> `05-knowledge-base.md` mục 5. Mô hình vẫn giữ giá trị ở phần hương vị, sức khỏe, ngân
+> sách, dịp ăn — những thứ sai thì bất tiện, không nguy hiểm.
 
 ## 4. Ba lần tôi tự làm tụt kết quả, và mỗi lần học được gì
 
@@ -131,27 +135,28 @@ nhưng "hiếm khi" trong một hệ thống chạy thật là "sẽ xảy ra".
 ## 6. Phép đo phải tái lập được, nên có cache
 
 Mô hình sinh **không tất định**, mà cả dự án này dựa trên tính chất "chạy lại cho cùng kết
-quả". Nên mỗi câu hỏi có kết quả lưu trên đĩa (`llm_cache.json`, 24 mục). Xóa tệp đó là đo
+quả". Nên mỗi câu hỏi có kết quả lưu trên đĩa (`llm_cache.json`, 28 mục). Xóa tệp đó là đo
 lại từ đầu; `--no-cache` gọi mô hình thật.
 
 CI chạy trên cache đã commit và **không** gọi mô hình thật — CI không có proxy, và một bước
 CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan gì đến mã.
 
-Bù lại phải nói rõ: **con số 92/94 đo trên 24 câu trả lời mô hình đã lưu**, không phải trên
-mọi lần mô hình có thể trả lời. Mô hình khác, hoặc cùng mô hình ở lần gọi khác, có thể cho
+Bù lại phải nói rõ: **con số 112/112 đo trên 28 câu trả lời mô hình đã lưu**, không
+phải trên mọi lần mô hình có thể trả lời. Mô hình khác, hoặc cùng mô hình ở lần gọi khác, có thể cho
 kết quả khác.
 
 ## 7. Giới hạn phải nói ra
 
 1. **Cache làm phép đo tái lập được, nhưng cũng làm nó hẹp lại.** Xem mục 6.
-2. **Độ trễ thật ~6 giây mỗi lần gọi** (đo ở lần chạy đầu, trước khi có cache). Với 16% câu
-   hỏi thì trung bình mỗi câu tăng khoảng 1 giây — nhưng câu nào bị gọi thì khách chờ đủ 6
-   giây. Chưa đo trên mạng thật của khách.
+2. **Độ trễ thật ~8,6 giây mỗi lần gọi** (đo bằng `--no-cache`, tức gọi mô hình thật). Với
+   20% câu hỏi thì trung bình mỗi câu tăng khoảng 1,7 giây — nhưng câu nào bị gọi thì khách
+   chờ đủ 8,6 giây. Đây là con số đáng lo nhất của bước này, và chưa đo trên mạng thật của
+   khách.
 3. **Chưa có fallback khi proxy chết.** Hiện nếu gọi thất bại thì hệ thống giữ nguyên câu
    trả lời tất định — đúng hướng, nhưng nghĩa là những ca ở mục 3 sẽ tụt lại về hỏi lại.
    Đó là suy giảm êm, không phải sập, và đã có test.
-4. **2 ca vẫn đỏ** ở cả hai chế độ. Chúng là khoảng trống của mã tất định, không phải của
-   mô hình.
+4. ~~2 ca vẫn đỏ ở cả hai chế độ.~~ Đã hết: 112/112 với mô hình. Nhưng con số 100% chỉ có
+   nghĩa trong phạm vi 112 ca đã viết — nó **không** nói gì về câu hỏi chưa từng nghĩ tới.
 5. **Mô hình chưa được dùng để VIẾT câu trả lời.** Câu trả lời hiện do mã sinh ra nên đúng
    nhưng khô. Cho mô hình viết sẽ hay hơn, nhưng khi đó nó lại có thể bịa — và thước đo
    hiện tại chỉ chặn được việc bịa **món** và bịa **giá**, chưa chặn được việc bịa một lời

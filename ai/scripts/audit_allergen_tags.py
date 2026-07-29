@@ -136,6 +136,43 @@ def hits(text: str, signs: dict[str, str]) -> dict[str, str]:
     return found
 
 
+def check_diet_consistency(items: list[dict]) -> list[str]:
+    """Nhãn chế độ ăn có tự mâu thuẫn với nhãn dị nguyên không.
+
+    Ba bất biến, và cả ba đều là chuyện an toàn chứ không phải chuyện sạch dữ liệu:
+
+    1. **Thuần chay không được có sữa hay trứng.** Một món mang `diet:vegan` cùng
+       `allergen:dairy` thì một trong hai nhãn sai, và khách ăn thuần chay tin nhãn đầu.
+    2. **Thuần chay phải kéo theo chay.** Người ăn chay hỏi món chay mà một món thuần chay
+       không mang nhãn `diet:vegetarian` thì nó bị bỏ sót khỏi câu trả lời.
+    3. **Hai nhãn không được trùng hoàn toàn.** Hiện `diet:vegan` và `diet:vegetarian` gắn
+       trên đúng cùng 17 món, nên một trong hai không phân biệt được gì. Với món chay Việt
+       thì điều đó hợp lý (chay Phật giáo vốn không dùng sữa, trứng), nên đây là **cảnh
+       báo** chứ không phải lỗi — nhưng nó phải hiện ra, vì nếu sau này có món chay dùng
+       sữa mà vẫn bị gắn thuần chay thì cảnh báo này biến mất và không ai để ý.
+    """
+    problems: list[str] = []
+    vegan = {m["id"] for m in items if "diet:vegan" in m["tags"]}
+    vegetarian = {m["id"] for m in items if "diet:vegetarian" in m["tags"]}
+    by_id = {m["id"]: m for m in items}
+
+    for item_id in sorted(vegan):
+        item = by_id[item_id]
+        for tag in ("allergen:dairy", "allergen:egg"):
+            if tag in item["tags"]:
+                problems.append(
+                    f"{item['name']}: mang diet:vegan nhưng cũng mang {tag} — "
+                    "một trong hai nhãn sai"
+                )
+
+    for item_id in sorted(vegan - vegetarian):
+        problems.append(
+            f"{by_id[item_id]['name']}: mang diet:vegan mà không mang diet:vegetarian — "
+            "người ăn chay sẽ không thấy món này"
+        )
+    return problems
+
+
 def main() -> int:
     menu = json.loads(MENU_PATH.read_text(encoding="utf-8-sig"))
     items = menu["items"]
@@ -182,12 +219,30 @@ def main() -> int:
     else:
         print("\nKhông còn lỗ nào theo các từ khóa trên.")
 
+    diet_problems = check_diet_consistency(items)
+    if diet_problems:
+        print(f"\nNHÃN CHẾ ĐỘ ĂN TỰ MÂU THUẪN ({len(diet_problems)}):")
+        for line in diet_problems:
+            print(f"  - {line}")
+    else:
+        vegan = sum(1 for m in items if "diet:vegan" in m["tags"])
+        vegetarian = sum(1 for m in items if "diet:vegetarian" in m["tags"])
+        print(f"\nNhãn chế độ ăn nhất quán: {vegan} thuần chay ⊆ {vegetarian} chay, "
+              "không món thuần chay nào mang nhãn sữa hoặc trứng.")
+        if vegan == vegetarian:
+            print(
+                "  Lưu ý: hai nhãn gắn trên đúng cùng một tập món, nên một trong hai không\n"
+                "  phân biệt được gì trong bộ dữ liệu này. Với món chay Việt thì hợp lý\n"
+                "  (chay Phật giáo vốn không dùng sữa, trứng), nhưng câu trả lời nên nói ra\n"
+                "  điều đó thay vì để khách tự đoán."
+            )
+
     print(
         "\nGiới hạn: căn cứ duy nhất là câu giới thiệu món, không phải bảng thành phần và\n"
         "không phải kiểm tra bếp. Món không mang nhãn KHÔNG có nghĩa là không chứa dị\n"
         "nguyên — chỉ nhà hàng trả lời được phần còn lại."
     )
-    return 1 if gaps else 0
+    return 1 if (gaps or diet_problems) else 0
 
 
 if __name__ == "__main__":

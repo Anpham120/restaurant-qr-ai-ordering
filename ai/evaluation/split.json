@@ -22,7 +22,7 @@
     "nutrition_no_data",
     "paraphrase_allergy",
     "paraphrase_audience",
-    "paraphrase_budget",
+    "paraphrase_flavour",
     "paraphrase_health",
     "paraphrase_method",
     "paraphrase_still_vague",
@@ -41,10 +41,11 @@
     "knowledge_menu_meta",
     "knowledge_not_a_topic",
     "off_topic_request",
-    "paraphrase_flavour",
+    "paraphrase_budget",
     "paraphrase_season",
     "price_lookup",
     "promo_lookup",
-    "recommend_occasion"
+    "recommend_occasion",
+    "time_based_no_data"
   ]
 }

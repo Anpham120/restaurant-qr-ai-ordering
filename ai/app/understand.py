@@ -165,7 +165,10 @@ _add("dau hu|tau hu", "require", "ingredient:tofu")
 # Chế biến.
 _add("nuong|do nuong", "require", "method:grilled")
 _add("hap", "require", "method:steamed")
-_add("chien", "require", "method:fried")
+# "giòn", "giòn giòn" là cách khách mô tả KẾT CẤU, và trong thực đơn này ứng với món chiên.
+# Mô hình sinh không map được cụm này (đã kiểm trên cache), nên để mã tất định lo — thứ gì
+# một danh sách cụm xử lý được thì đừng nhờ một thành phần không tất định.
+_add("chien|gion gion|do gion|an gion", "require", "method:fried")
 _add("xao", "require", "method:stir_fried")
 
 # Vùng miền — "mien Trung" dài hơn "trung" (trứng) nên tự thắng.
@@ -277,6 +280,22 @@ _add("co may muc cay|muc cay the nao|chia may muc cay|do cay tinh the nao", "pol
 _add("co bao nhieu mon chay|bao nhieu mon chay|menu chay co may mon", "policy", "vegetarian")
 _add("co menu tre em|menu cho tre em|phan an tre em", "policy", "children")
 _add("bao nhieu calo|calo|natri|dinh duong|bao nhieu duong", "policy", "nutrition")
+
+# Thời gian và tình trạng còn hàng. Thực đơn KHÔNG có trường nào về thời gian, và cả 91 món
+# đều `isAvailable = true` nên không kiểm chứng được hành vi khi hết món.
+#
+# Phải nhận diện ở đây, không để rơi xuống nhánh hỏi lại: hỏi lại thì khách tưởng câu hỏi
+# chưa đủ rõ, còn sự thật là hệ thống KHÔNG CÓ dữ liệu đó. Và nếu để nó rơi xuống nhánh lọc
+# thì tệ hơn nữa — trả về danh sách món là ngầm khẳng định chúng còn hàng.
+#
+# Nhãn `promo:signature` nói món đặc trưng của nhà hàng, thứ không đổi theo ngày, nên dùng
+# nó để trả lời "hôm nay có món gì đặc biệt" là bịa.
+_add(
+    "hom nay co mon gi|mon dac biet hom nay|mon moi hom nay|hom nay an gi dac biet|"
+    "gio nay con mon gi|con mon gi khong|con hang khong|het mon chua|mon nao con",
+    "policy",
+    "time_or_availability",
+)
 # Doanh thu, lợi nhuận, lương: không trả lời ở kênh chat khách hàng.
 _add("doanh thu|loi nhuan|luong nhan vien|chi phi nguyen lieu", "policy", "internal")
 # Bếp trưởng, nhân sự: KHÁC loại trên — đây là thiếu dữ liệu, không phải từ chối.

@@ -27,6 +27,15 @@
     ],
     "wants": "food"
   },
+  "61ed9f8c73ceb85d84e6af908db7c729": {
+    "avoid": [],
+    "prefer": [
+      "season:cold_season",
+      "serving:hot"
+    ],
+    "require": [],
+    "wants": "food"
+  },
   "698a99603a9840042a6167fede3e839c": {
     "avoid": [],
     "prefer": [
@@ -89,6 +98,14 @@
     "require": [],
     "wants": "food"
   },
+  "a687dd37c6024ab64d03719eee081c83": {
+    "avoid": [],
+    "prefer": [
+      "flavour:smoky"
+    ],
+    "require": [],
+    "wants": "food"
+  },
   "afbc4653e1cb3b5826a8849d68be7e77": {
     "avoid": [],
     "prefer": [],
@@ -137,6 +154,16 @@
       "flavour:sour"
     ],
     "require": [],
+    "wants": "food"
+  },
+  "d18bdff96e9ab3f19fb7d2c57b5f097d": {
+    "avoid": [],
+    "prefer": [
+      "health:light"
+    ],
+    "require": [
+      "audience:elderly"
+    ],
     "wants": "food"
   },
   "d5e058d130adf1950729c5681e7ea8b7": {

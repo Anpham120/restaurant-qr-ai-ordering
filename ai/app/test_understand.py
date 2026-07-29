@@ -298,7 +298,16 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
         # Bốn chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
         # restaurant-facts.json mục `_khong_bao_gio_tra_loi`. Chúng phải được nêu tên ở đây
         # chứ không phải bỏ qua bằng một ngưỡng số.
-        deliberately_empty = {"nutrition", "internal", "staff_identity", "no_size"}
+        deliberately_empty = {
+            "nutrition",
+            "internal",
+            "staff_identity",
+            "no_size",
+            # Thực đơn không có trường nào về thời gian, và cả 91 món đều `isAvailable =
+            # true`. Nên câu "hôm nay có món gì đặc biệt" và "giờ này còn món gì" phải nói
+            # thẳng chưa có dữ liệu — điền nội dung cho chúng sẽ là bịa.
+            "time_or_availability",
+        }
         topics = set(self._facts()["topics"])
         extra = self._detectable() - topics
         self.assertEqual(

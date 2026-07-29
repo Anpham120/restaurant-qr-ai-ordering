@@ -62,7 +62,7 @@ chuỗi rỗng. Chứng minh hai chiều:
 
 | Thử | Kết quả |
 |---|---|
-| tệp để trống hoàn toàn | 83/94 — **y hệt** trước khi có tệp; hệ thống vẫn nói "chưa có dữ liệu" và chuyển nhân viên |
+| tệp để trống hoàn toàn | **y hệt** kết quả trước khi có tệp (83/94 ở thời điểm đo); hệ thống vẫn nói "chưa có dữ liệu" và chuyển nhân viên |
 | điền thử một mục (`hours`) | trả lời đúng nội dung đã điền; `parking` còn trống thì vẫn nói chưa có dữ liệu |
 | tệp hỏng (JSON sai) | coi như chưa có — không làm sập luồng trả lời khách |
 
@@ -105,8 +105,9 @@ Không chấp nhận được. Nên hai lớp nhận diện được đưa về 
 3. **Triệu chứng cũng là cách khai dị ứng**: `bị đau bụng`, `bị ngứa`, `bị nổi mề đay`,
    `ăn vào là bị`.
 
-Kết quả: **lỗi an toàn 0 ở cả hai chế độ**. Mô hình vẫn có giá trị (+7 ca về hương vị, sức
-khỏe, ngân sách) nhưng **không còn nằm trên đường an toàn**.
+Kết quả: **lỗi an toàn 0 ở cả hai chế độ**. Mô hình vẫn có giá trị (+11 ca về hương vị, sức
+khỏe, ngân sách, dịp ăn) nhưng **không còn nằm trên đường an toàn** — proxy chết thì khách
+mất phần gợi ý tinh, không mất bảo vệ dị ứng.
 
 Có ba test chốt điều này, gồm một test chiều ngược: ngoại lệ gọi mô hình khi gặp hạn chế
 chưa hiểu **vẫn cần thiết** — ví dụ "đồ có vỏ" thì mã tất định vẫn không hiểu.
@@ -115,11 +116,12 @@ chưa hiểu **vẫn cần thiết** — ví dụ "đồ có vỏ" thì mã tấ
 
 | | Qua | Lỗi an toàn |
 |---|---|---|
-| chỉ mã tất định | **98/107 (91,6%)** | **0** |
-| có mô hình | **105/107 (98,1%)** | **0** |
+| chỉ mã tất định | **101/112 (90,2%)** | **0** |
+| có mô hình | **112/112 (100%)** | **0** |
 
-Tập ca lên 107 (thêm 13 ca tri thức, 5 họ mới). Sàn của thước đo: 6/107 — thấp hơn trước
-vì 6 ca chính sách nay có đáp án thật thay vì "chưa có dữ liệu".
+Tập ca lên 112 (thêm 13 ca tri thức và 5 ca lấp khoảng trống, 6 họ mới). Sàn của thước
+đo: 8/112, và nay được **tính** thay vì viết cứng — bản đầu ghi "12/80" và con số đó lạc
+hậu ngay khi tập ca đổi.
 
 ## 7. Tập đánh giá và dữ liệu ràng buộc nhau — nói ra trước khi bị bất ngờ
 
@@ -147,15 +149,23 @@ mọi món được nhắc, và tiêu chí thay thế chặt hơn.
    dùng thật thì chủ nhà hàng phải thay — và đổi `source` thành `restaurant` để nó không
    còn bị đếm là mẫu.
 2. **`diet:vegan` và `diet:vegetarian` gắn trên đúng cùng 17 món**, nên một trong hai nhãn
-   không phân biệt được gì trong bộ dữ liệu này. Câu trả lời nói ra điều đó thay vì để
-   khách tự đoán.
-3. **Không có tri thức nào về thời gian.** "Hôm nay có món gì đặc biệt?" hay "giờ này còn
-   món gì?" thì hệ thống không trả lời được, vì dữ liệu không có khái niệm thời gian.
+   không phân biệt được gì trong bộ dữ liệu này. Câu trả lời nói ra điều đó thay vì để khách
+   tự đoán, và `audit_allergen_tags.py` nay kiểm ba bất biến để chỗ này không âm thầm hỏng:
+   món thuần chay không được mang nhãn sữa hay trứng; thuần chay phải kéo theo chay; và nếu
+   hai nhãn trùng hoàn toàn thì in cảnh báo — vì khi có món chay dùng sữa mà vẫn bị gắn thuần
+   chay thì cảnh báo đó biến mất và không ai để ý.
+3. **Không có tri thức nào về thời gian**, và đó là điều hệ thống nay **nói thẳng** thay vì
+   hỏi lại. Chủ đề `time_or_availability` nhận diện "Hôm nay có món gì đặc biệt?" và "Giờ
+   này còn món gì?" rồi trả lời chưa có dữ liệu — vì thực đơn không có trường thời gian, và
+   cả 91 món đều `isAvailable = true` nên trả về danh sách món là ngầm khẳng định chúng còn
+   hàng.
 4. **Bốn nhóm cố tình không trả lời** — dinh dưỡng, nội bộ, nhân sự, ngoài bài toán. Lý do
    ghi trong `restaurant-facts.json` mục `_khong_bao_gio_tra_loi`, để chúng không bị hiểu
    là chỗ trống cần bổ sung sau.
-5. **Dạng `no_data` chỉ còn ở nhóm chốt và tập phát triển**, không có ở tập niêm phong —
-   hệ quả của việc 6 ca chính sách đã có đáp án. Bộ chia in ra lưu ý này mỗi lần chạy.
+5. ~~Dạng `no_data` vắng ở tập niêm phong~~ — **đã lấp** bằng họ `time_based_no_data`:
+   "Hôm nay có món gì đặc biệt?" và "Giờ này còn món gì?". Hai câu đó lấp đúng giới hạn số 3
+   ở trên, và phải xử lý **tất định** chứ không để rơi xuống nhánh hỏi lại: hỏi lại thì khách
+   tưởng câu hỏi chưa đủ rõ, còn trả về danh sách món thì ngầm khẳng định chúng còn hàng.
 
 ## 9. Cách chạy lại
 
