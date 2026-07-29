@@ -682,3 +682,32 @@ def filter_items_by_spice(
         if not recorded or recorded & set(allowed):
             kept.append(item)
     return kept
+
+
+def filter_items_by_budget(
+    menu_items: Sequence[dict[str, Any]],
+    budget_vnd: int | None,
+) -> list[dict[str, Any]]:
+    """Bỏ các món đắt hơn toàn bộ ngân sách khách nêu.
+
+    `budget_vnd` được trích từ câu hỏi từ trước nhưng không đường nào dùng nó để lọc
+    thực đơn, nên "2 người budget 250k" nhận gợi ý lẩu 350.000đ và "có món nào dưới
+    50000 không?" nhận gỏi cuốn 65.000đ.
+
+    Ngưỡng cố ý đặt lỏng: một món **đắt hơn cả ngân sách** thì không thể vừa dù đọc
+    ngân sách theo nghĩa cho cả bàn hay cho từng món, nên loại nó đúng ở cả hai
+    cách hiểu. Phần chia suất cho nhiều người là việc của bộ giải ngân sách, không
+    phải của bộ lọc này.
+
+    Món chưa có giá được giữ lại: thiếu giá là thiếu dữ liệu, không phải bằng chứng
+    món đó đắt.
+    """
+    if not budget_vnd or budget_vnd <= 0:
+        return list(menu_items)
+
+    kept: list[dict[str, Any]] = []
+    for item in menu_items:
+        price = item.get("price_vnd") or item.get("price")
+        if not isinstance(price, (int, float)) or int(price) <= int(budget_vnd):
+            kept.append(item)
+    return kept

@@ -44,6 +44,7 @@ from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
 from app.rag.menu_item_kind import detect_requested_item_kind, filter_items_by_kind
 from app.rag.menu_query_filters import (
+    filter_items_by_budget,
     filter_items_by_spice,
     infer_allowed_menu_item_ids,
     has_allergy_avoidance_context,
@@ -882,6 +883,13 @@ class AiAssistantService:
             available_menu_items,
             constraints.get("spice"),
         )
+        # Same shape as the spice constraint: budget_vnd was extracted and never used
+        # to filter, so "2 người budget 250k" was offered a 350.000đ hotpot and "có
+        # món nào dưới 50000 không?" a 65.000đ roll.
+        available_menu_items = filter_items_by_budget(
+            available_menu_items,
+            constraints.get("budget_vnd"),
+        )
 
         fast_path_context = {
             "message": message,
@@ -952,6 +960,20 @@ class AiAssistantService:
             excluded_ids=excluded_ids,
             requested_item_kind=policy.requested_item_kind,
             excluded_category_ids=excluded_category_ids,
+        )
+        # The candidate list the generation step sees is selected from the full menu
+        # with only exclusions, item kind and category applied — so the spice and
+        # budget filters applied to available_menu_items above never reached it.
+        # That is why "có món nào dưới 50000 không?" was offered a 165.000đ dish and
+        # "budget 200k cho 2 người" a 380.000đ crab: the model was shown dishes the
+        # guest had already ruled out.  Both lists must carry the same constraints.
+        candidate_menu_items = filter_items_by_spice(
+            candidate_menu_items,
+            constraints.get("spice"),
+        )
+        candidate_menu_items = filter_items_by_budget(
+            candidate_menu_items,
+            constraints.get("budget_vnd"),
         )
         party_size = policy.party_size or constraints.get("party_size")
         if party_size and party_size >= 4:
