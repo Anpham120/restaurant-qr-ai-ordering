@@ -42,9 +42,10 @@ from app.rag.menu_grounding import MenuCandidateRetriever
 from app.rag.allergy_safe_menu_fast_path import try_allergy_safe_menu_fast_path
 from app.rag.dish_comparison_fast_path import try_dish_comparison_fast_path
 from app.rag.menu_presence_fast_path import try_menu_presence_fast_path
-from app.rag.menu_item_kind import filter_items_by_kind
+from app.rag.menu_item_kind import detect_requested_item_kind, filter_items_by_kind
 from app.rag.menu_query_filters import (
     filter_items_by_spice,
+    infer_allowed_menu_item_ids,
     has_allergy_avoidance_context,
     has_child_dining_context,
     infer_allergen_excluded_menu_item_ids,
@@ -2345,8 +2346,24 @@ def _try_catalog_fast_path(
         )
         if not browse_category:
             return None
+    # A category is one way to name a selection; a catalogue label is another.
+    # "Bữa sáng có gì?" names `sang` and resolves to a concrete dish set through
+    # infer_allowed_menu_item_ids, but this path required a *category* and returned
+    # None — so the question reached the model and came back as a counter-question
+    # while the dishes sat right there.
+    #
+    # A browse marker is still required above.  Without one, any question that
+    # brushes a label would get a flat deterministic list, which is too aggressive:
+    # "Tôi thích món ngọt" is not a request to enumerate the desserts.
+    tag_selection: set[str] | None = None
     if not constraints.get("category"):
-        return None
+        tag_selection = infer_allowed_menu_item_ids(
+            message,
+            menu_items,
+            requested_item_kind=detect_requested_item_kind(message),
+        )
+        if not tag_selection:
+            return None
     # Session party_size / prior soft criteria must not block category listing.
     if constraints.get("is_recommendation") or constraints.get("budget_vnd"):
         return None
@@ -2369,7 +2386,7 @@ def _try_catalog_fast_path(
     if has_hard_dietary_constraints(effective_constraints):
         return None
 
-    category = str(constraints["category"])
+    category = str(constraints.get("category") or "")
     normalized_message = normalize_query_text(message)
     matched = [
         item
@@ -2377,7 +2394,11 @@ def _try_catalog_fast_path(
         if bool(item.get("is_available", True))
         and _item_id(item)
         and _item_id(item) not in excluded_ids
-        and _matches_category(item, category, normalized_message)
+        and (
+            _item_id(item) in tag_selection
+            if tag_selection is not None
+            else _matches_category(item, category, normalized_message)
+        )
     ]
     if not matched:
         return None
@@ -2386,11 +2407,14 @@ def _try_catalog_fast_path(
         f"- {item.get('name') or 'Món'} ({item.get('category_name') or category.replace('_', ' ')})"
         for item in matched[:12]
     ]
-    display_category = str(matched[0].get("category_name") or category.replace("_", " "))
-    content = (
-        f"Đây là các món thuộc nhóm {display_category} đang còn phục vụ:\n"
-        + "\n".join(lines)
-    )
+    if tag_selection is not None:
+        content = "Đây là các món phù hợp đang còn phục vụ:\n" + "\n".join(lines)
+    else:
+        display_category = str(matched[0].get("category_name") or category.replace("_", " "))
+        content = (
+            f"Đây là các món thuộc nhóm {display_category} đang còn phục vụ:\n"
+            + "\n".join(lines)
+        )
     cited_items = matched[:12]
     catalog_suggested_actions = [
         {

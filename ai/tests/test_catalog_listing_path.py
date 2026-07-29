@@ -92,3 +92,73 @@ class CatalogListingPathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CatalogTagSelectionTests(unittest.TestCase):
+    """A catalogue label names a selection just as a category does.
+
+    "Bữa sáng có gì?" names `sang` and resolves to a concrete dish set, but this
+    path required a *category*, so the question reached the model and came back as
+    a counter-question while the dishes sat right there.
+    """
+
+    @staticmethod
+    def _menu() -> list[dict]:
+        return [
+            {
+                "id": "m_pho",
+                "name": "Phở bò tái nạm",
+                "category_id": "cat_pho",
+                "category_name": "Phở & Bún",
+                "price_vnd": 75000,
+                "tags": ["sang", "trua", "khong cay"],
+                "is_available": True,
+            },
+            {
+                "id": "m_banh",
+                "name": "Bánh cuốn Thanh Trì",
+                "category_id": "cat_appetiser",
+                "category_name": "Khai vị",
+                "price_vnd": 55000,
+                "tags": ["sang", "khong cay"],
+                "is_available": True,
+            },
+            {
+                "id": "m_lau",
+                "name": "Lẩu bò nhúng giấm",
+                "category_id": "cat_hotpot",
+                "category_name": "Lẩu",
+                "price_vnd": 250000,
+                "tags": ["toi", "nhom ban"],
+                "is_available": True,
+            },
+        ]
+
+    def _run(self, message: str):
+        return _try_catalog_fast_path(
+            message,
+            extract_constraints(message),
+            self._menu(),
+            frozenset(),
+        )
+
+    def test_a_label_with_a_browse_marker_lists_dishes(self) -> None:
+        response = self._run("Bua sang co gi?")
+        self.assertIsNotNone(response)
+        content = response["content"]
+        self.assertIn("Bánh cuốn Thanh Trì", content)
+        self.assertIn("Phở bò tái nạm", content)
+        self.assertNotIn("Lẩu bò nhúng giấm", content)
+
+    def test_a_bare_browse_question_names_nothing_and_is_left_alone(self) -> None:
+        # Without this the path would enumerate the whole menu for "có gì không?".
+        self.assertIsNone(self._run("Co gi khong?"))
+
+    def test_a_preference_without_a_browse_marker_is_left_alone(self) -> None:
+        # "Tôi thích món ngọt" brushes a label but is not a request to enumerate.
+        self.assertIsNone(self._run("Toi thich mon ngot"))
+
+    def test_category_browsing_still_uses_the_category_wording(self) -> None:
+        response = self._run("Cho xem mon lau")
+        self.assertIsNotNone(response)
+        self.assertIn("nhóm", response["content"])
