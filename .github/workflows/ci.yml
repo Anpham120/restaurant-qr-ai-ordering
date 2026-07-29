@@ -124,6 +124,13 @@ jobs:
       - name: Kiểm kho tri thức markdown + chia đoạn
         run: python ai/scripts/build_knowledge.py --check
 
+      # Ảnh Docker là môi trường DUY NHẤT nơi tệp dữ liệu có thể thiếu, và không test nào chạy
+      # ở đó. Bước này đọc ai/Dockerfile rồi đối chiếu với đường dẫn mã lúc chạy thật sự dùng,
+      # nên nó bắt được lỗi đóng gói mà không phải dựng container.
+      - name: Kiểm dữ liệu lúc chạy có trong ảnh Docker
+        run: python -m unittest test_packaging
+        working-directory: ai/app
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên
