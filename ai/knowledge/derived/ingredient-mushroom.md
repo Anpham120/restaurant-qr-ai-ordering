@@ -4,6 +4,7 @@ title: Món nấm
 topic_keys: [ingredient_mushroom]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món nấm

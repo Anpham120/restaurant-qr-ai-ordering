@@ -26,8 +26,8 @@ chắn sinh dương tính giả.
 """
 from __future__ import annotations
 
-import json
 import re
+import sys
 import unicodedata
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -36,28 +36,27 @@ from typing import Any
 from menu_selectors import clean_selector, select_ids
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FACTS_PATH = REPO_ROOT / "backend" / "data" / "restaurant-facts.json"
+KNOWLEDGE_PATH = REPO_ROOT / "ai" / "knowledge"
+
+sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
+from rag.chunker import KnowledgeError, verbatim_answers  # noqa: E402
 
 
 def load_facts() -> dict[str, str]:
     """Tri thức nhà hàng, để thước đo kiểm câu trả lời có đúng nội dung đã ghi.
 
-    Đọc từ chính tệp dữ liệu, không viết lại chuỗi trong ca đánh giá. Cùng nguyên tắc với
+    Đọc từ chính kho tri thức, không viết lại chuỗi trong ca đánh giá. Cùng nguyên tắc với
     điều kiện chọn món: khóa đáp án là **tra dữ liệu**, nên nội dung tri thức đổi thì tiêu
     chí đổi theo, không cần sửa tay 6 ca.
+
+    Chỉ lấy tài liệu `answer_mode: verbatim` — đó là loại nội dung phải tới khách nguyên văn,
+    nên thước đo so được từng chữ. Tài liệu `synthesize` thì mô hình được diễn đạt lại, và so
+    từng chữ với nó sẽ chấm đỏ cả câu trả lời đúng.
     """
-    if not FACTS_PATH.exists():
-        return {}
     try:
-        data = json.loads(FACTS_PATH.read_text(encoding="utf-8-sig"))
-    except (ValueError, OSError):
+        return verbatim_answers(KNOWLEDGE_PATH)
+    except (KnowledgeError, OSError):
         return {}
-    return {
-        topic: entry["answer_vi"].strip()
-        for topic, entry in (data.get("topics") or {}).items()
-        if isinstance(entry, dict) and isinstance(entry.get("answer_vi"), str)
-        and entry["answer_vi"].strip()
-    }
 
 # Cụm mở đường hỏi nhân viên. Bắt buộc ở mọi ca dị ứng: nhãn dị nguyên chỉ phủ 44/91 món
 # nên danh sách lọc ra KHÔNG phải kết luận về an toàn.

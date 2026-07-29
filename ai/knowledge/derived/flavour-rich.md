@@ -4,6 +4,7 @@ title: Món đậm đà
 topic_keys: [flavour_rich]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món đậm đà

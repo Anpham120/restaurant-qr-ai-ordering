@@ -4,6 +4,7 @@ title: Set bữa trưa và bữa tối
 topic_keys: [meal_sets]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Set bữa trưa và bữa tối

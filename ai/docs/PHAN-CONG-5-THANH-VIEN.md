@@ -52,10 +52,10 @@ Nói cách khác: **dây chuyền cho phần nội dung, song song cho phần ki
 
 ### Việc còn lại
 
-> **Đã xong** — xem `ai/docs/07-knowledge-corpus.md`. Kho hiện có **60 tài liệu /
-> 303 đoạn** (48 sinh
-> từ thực đơn, 12 người viết). Việc của TV1 nay là **đọc
-> để hiểu và bảo vệ**, và mở rộng thêm khi có nhu cầu thật.
+> **Đã xong** — xem `ai/docs/05-knowledge-base.md`. Kho hiện có **84 tài liệu /
+> 327 đoạn** trong MỘT kho, hai chế độ trả lời (24 `verbatim` + 60 `synthesize`; 56 sinh từ
+> thực đơn, 28 người viết). Việc của TV1 nay là **đọc để hiểu và bảo vệ**, và mở rộng thêm khi
+> có nhu cầu thật.
 
 Nếu cần thêm tài liệu:
 1. Thêm nhóm nhãn vào `DERIVED_GROUPS` trong `build_knowledge.py` — nhưng chỉ khi nhóm đó có câu
@@ -64,7 +64,7 @@ Nếu cần thêm tài liệu:
 3. Chạy lại `build_knowledge.py` và xác nhận 112 ca không tụt.
 
 ### Sở hữu tệp
-`ai/knowledge/*` · `ai/scripts/build_knowledge.py` · `build_restaurant_facts.py` ·
+`ai/knowledge/*` · `ai/scripts/build_knowledge.py` ·
 `build_tag_dictionary.py` · `audit_allergen_tags.py` · `backend/data/menu-tags.json`
 
 ### Tự đo bằng
@@ -72,6 +72,7 @@ Nếu cần thêm tài liệu:
 python ai/scripts/build_knowledge.py --check
 python ai/scripts/build_tag_dictionary.py --check
 python ai/scripts/audit_allergen_tags.py
+python -m unittest test_chunker test_packaging   # trong ai/app
 ```
 
 ### Bàn giao cho TV2

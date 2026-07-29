@@ -4,6 +4,7 @@ title: Món rau
 topic_keys: [ingredient_vegetable]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món rau

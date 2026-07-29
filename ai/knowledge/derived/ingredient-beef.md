@@ -4,6 +4,7 @@ title: Món bò
 topic_keys: [ingredient_beef]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món bò

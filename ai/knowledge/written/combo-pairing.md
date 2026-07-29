@@ -4,6 +4,7 @@ title: Gợi ý kết hợp món
 topic_keys: [combo_pairing]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Gợi ý kết hợp món

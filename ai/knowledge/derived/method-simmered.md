@@ -4,6 +4,7 @@ title: Món nấu
 topic_keys: [method_simmered]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món nấu

@@ -4,6 +4,7 @@ title: Món hấp
 topic_keys: [method_steamed]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món hấp

@@ -4,6 +4,7 @@ title: Ăn chia chung kiểu Việt
 topic_keys: [sharing_etiquette]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Ăn chia chung kiểu Việt

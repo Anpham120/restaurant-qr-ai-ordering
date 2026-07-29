@@ -4,6 +4,7 @@ title: Món tôm
 topic_keys: [ingredient_shrimp]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món tôm

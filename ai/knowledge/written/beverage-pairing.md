@@ -4,6 +4,7 @@ title: Gợi ý ghép đồ uống
 topic_keys: [beverage_pairing]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Gợi ý ghép đồ uống

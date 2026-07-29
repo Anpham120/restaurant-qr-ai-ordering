@@ -4,6 +4,7 @@ title: Khẩu phần và thời gian chờ
 topic_keys: [portion_timing]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Khẩu phần và thời gian chờ

@@ -4,6 +4,7 @@ title: Món đà nẵng
 topic_keys: [region_danang]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món đà nẵng

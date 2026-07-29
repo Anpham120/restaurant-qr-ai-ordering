@@ -4,6 +4,7 @@ title: Món rang
 topic_keys: [method_roasted]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món rang

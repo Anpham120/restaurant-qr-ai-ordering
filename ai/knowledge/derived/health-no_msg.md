@@ -4,6 +4,7 @@ title: Món không msg
 topic_keys: [health_no_msg]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món không msg

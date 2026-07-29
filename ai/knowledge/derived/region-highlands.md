@@ -4,6 +4,7 @@ title: Món tây nguyên
 topic_keys: [region_highlands]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món tây nguyên

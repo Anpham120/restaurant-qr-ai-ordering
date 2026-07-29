@@ -4,6 +4,7 @@ title: Hướng dẫn gọi món cho nhóm
 topic_keys: [ordering_guide]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Hướng dẫn gọi món cho nhóm

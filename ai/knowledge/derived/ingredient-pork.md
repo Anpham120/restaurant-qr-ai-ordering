@@ -4,6 +4,7 @@ title: Món heo
 topic_keys: [ingredient_pork]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món heo

@@ -4,6 +4,7 @@ title: Cách dùng ứng dụng gọi món qua mã QR
 topic_keys: [qr_ordering]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Cách dùng ứng dụng gọi món qua mã QR

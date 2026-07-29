@@ -4,6 +4,7 @@ title: Món thanh nhẹ
 topic_keys: [health_light]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món thanh nhẹ

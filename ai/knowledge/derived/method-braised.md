@@ -4,6 +4,7 @@ title: Món kho
 topic_keys: [method_braised]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món kho

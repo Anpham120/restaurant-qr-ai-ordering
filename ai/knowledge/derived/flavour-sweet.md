@@ -4,6 +4,7 @@ title: Món ngọt
 topic_keys: [flavour_sweet]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món ngọt

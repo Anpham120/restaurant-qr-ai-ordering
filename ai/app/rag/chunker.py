@@ -3,28 +3,38 @@
 
 Vì sao cần chia đoạn
 --------------------
-Hệ thống có HAI lớp tri thức, và ranh giới giữa chúng là quyết định quan trọng nhất của tệp
-này. Ranh giới đó **không phải** "tra khóa vs truy hồi xếp hạng" — cả 60 tài liệu ở lớp 2 đều
-có đúng một `topic_keys`, nên lớp 2 cũng tra khóa được. Ranh giới thật là **chế độ trả lời**:
+Kho tri thức là MỘT kho (`ai/knowledge/`) với HAI chế độ trả lời, khai bằng `answer_mode`:
 
-    Lớp 1 — restaurant-facts.json : trả NGUYÊN VĂN. Mô hình không chạm vào chữ.
-    Lớp 2 — ai/knowledge/*.md     : là ĐẦU VÀO cho mô hình viết câu trả lời.
+    verbatim    trả NGUYÊN VĂN cho khách. Mô hình không chạm vào chữ.
+    synthesize  là ĐẦU VÀO cho mô hình viết câu trả lời.
+
+Trước đây đây là hai KHO riêng: `backend/data/restaurant-facts.json` tra khóa, và
+`ai/knowledge/*.md` truy hồi. Lý do tôi từng viết cho việc tách — "tra khóa vs truy hồi xếp
+hạng" — hóa ra SAI: cả 60 tài liệu markdown đều có đúng một `topic_keys` nên chúng cũng tra
+khóa được. Ranh giới thật luôn là chế độ trả lời, và nó không cần hai kho.
 
 Vì sao phải hai chế độ chứ không một:
 
-- Gộp tất cả về lớp 2 → "mấy giờ đóng cửa" sẽ do mô hình viết, và nó **có thể** viết 22h30.
-  Giờ đóng cửa, giá, và nhãn dị nguyên là loại thông tin **không được phép diễn đạt lại**. Mất
-  bảo đảm không-bóp-méo mà không được gì.
-- Gộp tất cả về lớp 1 → phải nén "món miền Trung có gì đặc trưng" vào một câu nguyên văn viết
-  tay, nhưng câu trả lời thật là danh sách nhiều món kèm ghi chú dị nguyên. Nén là mất nội
+- Gộp tất cả về `synthesize` → "mấy giờ đóng cửa" sẽ do mô hình viết, và nó **có thể** viết
+  22h30. Giờ đóng cửa, giá, và nhãn dị nguyên là loại thông tin **không được phép diễn đạt
+  lại**. Mất bảo đảm không-bóp-méo mà không được gì.
+- Gộp tất cả về `verbatim` → phải nén "món miền Trung có gì đặc trưng" vào một câu nguyên văn
+  viết tay, nhưng câu trả lời thật là danh sách nhiều món kèm ghi chú dị nguyên. Nén là mất nội
   dung, và mất luôn khả năng trả lời loại câu hỏi nhiều mặt.
 
-Số **kho lưu trữ** thì gộp được (đưa 24 chủ đề vào markdown kèm `answer_mode: verbatim` là một
-cải tiến gọn gàng hợp lệ). Số **chế độ trả lời** thì không, vì nó là chuyện an toàn.
+Nói cách khác: số **kho lưu trữ** là chuyện gọn gàng nên gộp được; số **chế độ trả lời** là
+chuyện an toàn nên không.
 
-Hệ quả phải canh: `answer.py` tra lớp 1 **trước**, nên một chủ đề có ở cả hai lớp thì tài liệu
-lớp 2 không bao giờ tới lượt mà vẫn chiếm chỗ trong chỉ mục. Bất biến rời-nhau được ép trong
-`test_chunker.HaiKhoTriThucKhongDuocTRUNGCHUDE`.
+Việc gộp còn xóa được một lớp lỗi. Khi còn hai kho, `answer.py` tra kho thứ nhất trước, nên một
+chủ đề có ở cả hai thì tài liệu ở kho thứ hai **không bao giờ tới lượt** mà vẫn chiếm chỗ trong
+chỉ mục truy hồi — im lặng, không lỗi. Bất biến rời-nhau khi đó phải do một test đối chiếu hai
+nguồn khác định dạng. Một kho thì một chủ đề **không thể** nằm hai chỗ, và phép kiểm còn lại chỉ
+là kiểm trùng khóa bình thường trong `load_all()`.
+
+Hai bộ đọc cho hai phía dùng, để không ai lấy lẫn:
+
+    verbatim_answers()    {khóa chủ đề: chuỗi} — `answer.py::load_facts()` dùng
+    retrievable_chunks()  chỉ đoạn `synthesize` — bộ truy hồi dùng
 
 Ba quy tắc chia đoạn
 --------------------
@@ -71,6 +81,27 @@ MIN_WORDS_PER_CHUNK = 12
 ALLOWED_AUDIENCE = "guest"
 ALLOWED_SOURCES = ("derived", "demo", "restaurant")
 
+# `answer_mode` là trường quyết định MÔ HÌNH ĐƯỢC TIN BAO NHIÊU với tài liệu này. Nó là ranh
+# giới an toàn của cả kho, nên nó bắt buộc và chỉ nhận đúng hai giá trị.
+#
+#   verbatim    Nội dung đi tới khách NGUYÊN VĂN, mô hình không chạm vào chữ. Dùng cho thông
+#               tin không được phép diễn đạt lại: giờ mở cửa, cách thanh toán, phụ phí, cách
+#               khai dị ứng. Một chữ số bị mô hình viết lệch ở đây là sai sự thật về nhà hàng.
+#
+#   synthesize  Nội dung là ĐẦU VÀO cho mô hình viết câu trả lời. Dùng cho nội dung dài, nhiều
+#               mặt, không nén được vào một câu: "đặc sản miền Trung có gì", "gọi bao nhiêu món
+#               cho 6 người".
+#
+# Vì sao phải hai chế độ chứ không một — cả hai chiều gộp đều mất thật:
+#   gộp về synthesize → "mấy giờ đóng cửa" do mô hình viết, và nó CÓ THỂ viết 22h30
+#   gộp về verbatim   → phải nén danh sách 12 món kèm ghi chú dị nguyên vào một câu viết tay
+#
+# Số KHO lưu trữ thì gộp được, và đã gộp: cả hai chế độ nằm chung `ai/knowledge/`. Số CHẾ ĐỘ
+# TRẢ LỜI thì không, vì nó là chuyện an toàn chứ không phải chuyện gọn gàng.
+VERBATIM = "verbatim"
+SYNTHESIZE = "synthesize"
+ALLOWED_ANSWER_MODES = (VERBATIM, SYNTHESIZE)
+
 
 class KnowledgeError(ValueError):
     """Tài liệu tri thức viết sai. Là lỗi nội dung, không phải lỗi hệ thống."""
@@ -86,6 +117,7 @@ class KnowledgeChunk:
     heading: str           # tiêu đề mục, "" nếu là đoạn mở đầu
     topic_keys: tuple[str, ...]
     source: str            # derived | demo | restaurant
+    answer_mode: str       # verbatim | synthesize
     text: str              # đã kèm tiêu đề tài liệu
 
     @property
@@ -99,9 +131,27 @@ class KnowledgeDoc:
     title: str
     topic_keys: tuple[str, ...]
     source: str
+    answer_mode: str
     path: Path
     body: str
     chunks: list[KnowledgeChunk] = field(default_factory=list)
+
+    @property
+    def verbatim_answer(self) -> str:
+        """Câu trả lời nguyên văn của tài liệu `verbatim`, đã bỏ dòng `# Tiêu đề`.
+
+        Khoảng trắng được thu về một dấu cách, nên tài liệu có thể **ngắt dòng thoải mái** mà
+        chuỗi trả ra không đổi. Điều này quan trọng: một câu trả lời 68 từ thì người sửa sẽ ngắt
+        dòng cho dễ đọc, và nếu ngắt dòng làm đổi chuỗi thì câu trả lời tới khách sẽ có ký tự
+        xuống dòng ở giữa.
+        """
+        if self.answer_mode != VERBATIM:
+            raise KnowledgeError(
+                f"{self.path.name}: chỉ tài liệu `answer_mode: {VERBATIM}` có câu trả lời "
+                f"nguyên văn, tài liệu này là {self.answer_mode!r}"
+            )
+        lines = [l for l in self.body.splitlines() if not l.startswith("# ")]
+        return " ".join(" ".join(lines).split())
 
 
 _FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.S)
@@ -111,7 +161,7 @@ def parse_frontmatter(text: str, path: Path) -> tuple[dict[str, str], str]:
     """Tách frontmatter YAML tối giản khỏi phần thân.
 
     Chỉ đọc `khóa: giá trị` một dòng và danh sách dạng `[a, b]` — không dùng thư viện YAML,
-    vì kho tri thức chỉ cần đúng bốn khóa và thêm một phụ thuộc cho việc đó là quá đắt.
+    vì kho tri thức chỉ cần đúng năm khóa và thêm một phụ thuộc cho việc đó là quá đắt.
     """
     match = _FRONTMATTER.match(text)
     if match is None:
@@ -132,7 +182,7 @@ def load_doc(path: Path) -> KnowledgeDoc:
     text = path.read_text(encoding="utf-8-sig")
     meta, body = parse_frontmatter(text, path)
 
-    for required in ("id", "title", "source", "audience"):
+    for required in ("id", "title", "source", "audience", "answer_mode"):
         if not meta.get(required):
             raise KnowledgeError(f"{path.name}: thiếu khóa frontmatter bắt buộc `{required}`")
 
@@ -150,18 +200,40 @@ def load_doc(path: Path) -> KnowledgeDoc:
             f"{ALLOWED_SOURCES}"
         )
 
+    if meta["answer_mode"] not in ALLOWED_ANSWER_MODES:
+        raise KnowledgeError(
+            f"{path.name}: answer_mode={meta['answer_mode']!r} không hợp lệ, phải là một trong "
+            f"{ALLOWED_ANSWER_MODES}. Xem giải thích ở đầu tệp chunker.py — trường này quyết "
+            "định mô hình có được diễn đạt lại nội dung hay không, nên không có giá trị mặc định."
+        )
+
     raw_keys = meta.get("topic_keys", "").strip().strip("[]")
     keys = tuple(k.strip() for k in raw_keys.split(",") if k.strip())
+
+    # Tài liệu `verbatim` phải là MỘT khối, không có mục `##`. Có mục thì không xác định được
+    # phần nào đi tới khách — và câu trả lời nguyên văn thì phải xác định được chính xác.
+    if meta["answer_mode"] == VERBATIM and any(
+        line.startswith("## ") for line in body.splitlines()
+    ):
+        raise KnowledgeError(
+            f"{path.name}: tài liệu `answer_mode: {VERBATIM}` không được có mục `##` — câu trả "
+            "lời nguyên văn phải là một khối duy nhất. Nội dung nhiều mục thì dùng "
+            f"`answer_mode: {SYNTHESIZE}`."
+        )
 
     doc = KnowledgeDoc(
         doc_id=meta["id"],
         title=meta["title"],
         topic_keys=keys,
         source=meta["source"],
+        answer_mode=meta["answer_mode"],
         path=path,
         body=body,
     )
     doc.chunks = chunk_doc(doc)
+
+    if doc.answer_mode == VERBATIM and not doc.verbatim_answer:
+        raise KnowledgeError(f"{path.name}: tài liệu `verbatim` không có câu trả lời nào")
     return doc
 
 
@@ -254,8 +326,14 @@ def chunk_doc(doc: KnowledgeDoc) -> list[KnowledgeChunk]:
     for heading, text in _split_sections(doc.body):
         pieces.extend(_split_long(heading, text))
 
+    # Ngưỡng đoạn tối thiểu tồn tại vì đoạn ngắn chiếm chỗ trong top-k mà không mang tín hiệu.
+    # Tài liệu `verbatim` không đi qua xếp hạng nên lý do đó không áp dụng — và câu trả lời
+    # nguyên văn thì NGẮN LÀ ĐÚNG ("Có wifi miễn phí..." đúng 16 từ).
+    if doc.answer_mode == SYNTHESIZE:
+        pieces = _merge_short(pieces)
+
     chunks: list[KnowledgeChunk] = []
-    for index, (heading, text) in enumerate(_merge_short(pieces)):
+    for index, (heading, text) in enumerate(pieces):
         # Quy tắc 2: kèm tiêu đề tài liệu, để đoạn tự đủ nghĩa khi trích rời.
         prefix = doc.title if not heading else f"{doc.title} — {heading}"
         chunks.append(
@@ -266,6 +344,7 @@ def chunk_doc(doc: KnowledgeDoc) -> list[KnowledgeChunk]:
                 heading=heading,
                 topic_keys=doc.topic_keys,
                 source=doc.source,
+                answer_mode=doc.answer_mode,
                 text=f"{prefix}\n{text}",
             )
         )
@@ -284,8 +363,48 @@ def load_all(root: Path) -> list[KnowledgeDoc]:
                 f"{doc.path.name}: id {doc.doc_id!r} trùng với {seen[doc.doc_id].name}"
             )
         seen[doc.doc_id] = doc.path
+
+    # Khóa chủ đề phải duy nhất trong CẢ kho. Trước khi gộp, kho tri thức nằm ở hai chỗ và bất
+    # biến này là "hai kho không được trùng chủ đề" — một test phải nhớ đối chiếu hai nguồn. Gộp
+    # về một kho biến nó thành phép kiểm trùng lặp bình thường, và đó là cả điểm của việc gộp:
+    # lớp lỗi bị chặn bằng cấu trúc, không bằng việc ai đó nhớ kiểm.
+    owner: dict[str, str] = {}
+    for doc in sorted(docs, key=lambda d: d.doc_id):
+        for key in doc.topic_keys:
+            if key in owner:
+                raise KnowledgeError(
+                    f"{doc.path.name}: khóa chủ đề {key!r} đã thuộc {owner[key]!r}. Mỗi chủ đề "
+                    "chỉ được một tài liệu phụ trách — hai tài liệu cùng khóa thì tài liệu tra "
+                    "sau không bao giờ tới lượt mà vẫn chiếm chỗ trong chỉ mục."
+                )
+            owner[key] = doc.doc_id
     return sorted(docs, key=lambda d: d.doc_id)
 
 
 def all_chunks(root: Path) -> list[KnowledgeChunk]:
     return [c for doc in load_all(root) for c in doc.chunks]
+
+
+def retrievable_chunks(root: Path) -> list[KnowledgeChunk]:
+    """Đoạn mà bộ truy hồi được phép xếp hạng — chỉ tài liệu `synthesize`.
+
+    Đoạn của tài liệu `verbatim` bị loại khỏi chỉ mục vì chúng đã có đường tới khách riêng
+    (tra khóa, trả nguyên văn). Để chúng trong chỉ mục thì có hai đường tới cùng một nội dung,
+    và đường xếp hạng có thể trích một câu chính sách ra giữa câu tư vấn món.
+    """
+    return [c for c in all_chunks(root) if c.answer_mode == SYNTHESIZE]
+
+
+def verbatim_answers(root: Path) -> dict[str, str]:
+    """{khóa chủ đề: câu trả lời nguyên văn} cho mọi tài liệu `verbatim`.
+
+    Đây là thứ `answer.py::load_facts()` dùng. Trả chuỗi nguyên văn, không qua mô hình, không
+    qua xếp hạng — nên không có chỗ nào để chệch.
+    """
+    out: dict[str, str] = {}
+    for doc in load_all(root):
+        if doc.answer_mode != VERBATIM:
+            continue
+        for key in doc.topic_keys:
+            out[key] = doc.verbatim_answer
+    return out

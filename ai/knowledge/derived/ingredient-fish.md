@@ -4,6 +4,7 @@ title: Món cá
 topic_keys: [ingredient_fish]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món cá

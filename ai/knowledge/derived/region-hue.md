@@ -4,6 +4,7 @@ title: Món huế
 topic_keys: [region_hue]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món huế

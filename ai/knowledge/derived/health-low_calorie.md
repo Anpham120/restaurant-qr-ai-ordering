@@ -4,6 +4,7 @@ title: Món ít calo
 topic_keys: [health_low_calorie]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món ít calo

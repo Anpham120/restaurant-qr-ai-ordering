@@ -4,6 +4,7 @@ title: Món chua
 topic_keys: [flavour_sour]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món chua

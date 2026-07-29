@@ -4,6 +4,7 @@ title: Món béo
 topic_keys: [flavour_fatty]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món béo

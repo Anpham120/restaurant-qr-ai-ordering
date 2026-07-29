@@ -4,6 +4,7 @@ title: Món healthy
 topic_keys: [health_healthy]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món healthy

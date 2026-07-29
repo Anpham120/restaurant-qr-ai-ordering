@@ -4,6 +4,7 @@ title: Món miền tây
 topic_keys: [region_mekong]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món miền tây

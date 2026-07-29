@@ -4,6 +4,7 @@ title: Món hội an
 topic_keys: [region_hoian]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món hội an

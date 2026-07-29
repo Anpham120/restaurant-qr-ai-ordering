@@ -4,6 +4,7 @@ title: Món đậu hũ
 topic_keys: [ingredient_tofu]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món đậu hũ

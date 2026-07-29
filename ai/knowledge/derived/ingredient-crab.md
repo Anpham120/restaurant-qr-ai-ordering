@@ -4,6 +4,7 @@ title: Món cua
 topic_keys: [ingredient_crab]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món cua

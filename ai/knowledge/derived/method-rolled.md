@@ -4,6 +4,7 @@ title: Món cuốn
 topic_keys: [method_rolled]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món cuốn

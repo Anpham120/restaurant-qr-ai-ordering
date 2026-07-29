@@ -4,6 +4,7 @@ title: Chọn món theo ngân sách
 topic_keys: [budget_planning]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Chọn món theo ngân sách

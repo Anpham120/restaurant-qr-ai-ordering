@@ -281,23 +281,29 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
     thấy). Test này chặn cả hai chiều.
     """
 
-    def _facts(self):
-        path = REPO_ROOT / "backend" / "data" / "restaurant-facts.json"
-        return json.loads(path.read_text(encoding="utf-8-sig"))
+    def _topics_with_content(self) -> set[str]:
+        """Chủ đề có nội dung trả lời, đọc từ kho tri thức đã gộp.
+
+        Trước đây đọc `backend/data/restaurant-facts.json`. Kho gộp về `ai/knowledge/` nên
+        nguồn đổi, nhưng bất biến không đổi: chủ đề có nội dung phải có đường tới từ câu khách.
+        """
+        from rag.chunker import verbatim_answers
+
+        return set(verbatim_answers(REPO_ROOT / "ai" / "knowledge"))
 
     def _detectable(self):
         from understand import VOCAB
         return {value for kind, value in VOCAB.values() if kind == "policy"}
 
     def test_moi_chu_de_co_noi_dung_deu_nhan_dien_duoc(self):
-        topics = set(self._facts()["topics"])
+        topics = self._topics_with_content()
         missing = sorted(topics - self._detectable())
         self.assertEqual(missing, [], f"có nội dung nhưng không câu nào tới được: {missing}")
 
     def test_chu_de_nhan_dien_duoc_ma_khong_co_noi_dung_deu_la_co_y(self):
-        # Bốn chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
-        # restaurant-facts.json mục `_khong_bao_gio_tra_loi`. Chúng phải được nêu tên ở đây
-        # chứ không phải bỏ qua bằng một ngưỡng số.
+        # Năm chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
+        # `ai/docs/05-knowledge-base.md` mục "Bốn nhóm không bao giờ trả lời". Chúng phải được
+        # nêu tên ở đây chứ không phải bỏ qua bằng một ngưỡng số.
         deliberately_empty = {
             "nutrition",
             "internal",
@@ -308,7 +314,7 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
             # thẳng chưa có dữ liệu — điền nội dung cho chúng sẽ là bịa.
             "time_or_availability",
         }
-        topics = set(self._facts()["topics"])
+        topics = self._topics_with_content()
         extra = self._detectable() - topics
         self.assertEqual(
             extra,

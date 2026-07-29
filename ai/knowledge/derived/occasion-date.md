@@ -4,6 +4,7 @@ title: Món hẹn hò
 topic_keys: [occasion_date]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món hẹn hò

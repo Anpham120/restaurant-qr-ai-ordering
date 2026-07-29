@@ -4,6 +4,7 @@ title: Món tiệc
 topic_keys: [occasion_banquet]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món tiệc

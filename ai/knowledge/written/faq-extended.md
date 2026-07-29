@@ -4,6 +4,7 @@ title: Câu hỏi thường gặp
 topic_keys: [faq_extended]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Câu hỏi thường gặp

@@ -4,6 +4,7 @@ title: Món luộc
 topic_keys: [method_boiled]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món luộc

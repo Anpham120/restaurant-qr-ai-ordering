@@ -23,10 +23,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from rag.chunker import (  # noqa: E402
     MIN_WORDS_PER_CHUNK,
+    SYNTHESIZE,
     KnowledgeError,
     all_chunks,
     load_all,
     load_doc,
+    retrievable_chunks,
+    verbatim_answers,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +47,8 @@ GOOD_FM = (
     "title: Tài liệu thử\n"
     "topic_keys: [test_topic]\n"
     "source: demo\n"
-    "audience: guest"
+    "audience: guest\n"
+    "answer_mode: synthesize"
 )
 GOOD_BODY = (
     "# Tài liệu thử\n\n"
@@ -166,56 +170,124 @@ class KhoTriThucThatPhaiHopLe(unittest.TestCase):
         )
 
 
-class HaiKhoTriThucKhongDuocTRUNGCHUDE(unittest.TestCase):
-    """Bất biến nối HAI lớp tri thức, và nó tồn tại vì lớp 1 luôn thắng khi cả hai có.
+class MotChuDeMotTaiLieu(unittest.TestCase):
+    """Mỗi chủ đề đúng một tài liệu phụ trách, và mỗi tài liệu đúng một chủ đề.
 
-    Hai lớp khác nhau ở **chế độ trả lời**, không ở cách lấy:
+    Bất biến này từng là chuyện khó hơn nhiều. Kho tri thức trước đây nằm ở **hai chỗ**
+    (`restaurant-facts.json` tra khóa, và `ai/knowledge/*.md` truy hồi), nên bất biến là "hai
+    kho không được trùng chủ đề" — một phép kiểm phải nhớ đối chiếu hai nguồn khác định dạng.
+    Nó cần thiết vì `answer.py` tra kho thứ nhất trước: chủ đề có ở cả hai thì tài liệu ở kho
+    thứ hai không bao giờ tới lượt mà vẫn chiếm chỗ trong chỉ mục truy hồi.
 
-        lớp 1  restaurant-facts.json  → trả NGUYÊN VĂN, mô hình không chạm vào chữ
-        lớp 2  ai/knowledge/*.md      → là ĐẦU VÀO cho mô hình viết câu trả lời
-
-    Chia như vậy là có lý: giờ đóng cửa không được phép diễn đạt lại, còn "đặc sản miền Trung"
-    không nén được vào một câu nguyên văn. Nhưng nó sinh ra một cái bẫy.
-
-    `answer.py` tra lớp 1 TRƯỚC. Nên nếu một chủ đề có mặt ở CẢ HAI lớp, lớp 1 trả nguyên văn và
-    lớp 2 **không bao giờ tới lượt** — tài liệu ở lớp 2 thành xác chết: nó chiếm một chỗ trong
-    chỉ mục truy hồi, đẩy đoạn có ích ra khỏi top-k, và không ai gọi nó. Im lặng, không lỗi.
-
-    Hôm viết test này hai lớp rỗng giao nhau, nhưng chỉ vì tôi tự nhớ khi chọn `DERIVED_GROUPS`
-    (loại `diet` vì lớp 1 đã có chủ đề `vegetarian`). Kỷ luật con người thì hỏng lúc người khác
-    thêm tài liệu. Test này thay chỗ đó.
-
-    Khi test này đỏ, cách sửa là **chọn một lớp cho chủ đề đó**, không phải nới test:
-      - câu trả lời ngắn, một sự thật, không được diễn đạt lại  → giữ ở lớp 1, xóa tài liệu
-      - câu trả lời dài, nhiều mặt, cần dẫn nhiều món           → xóa chủ đề lớp 1, giữ tài liệu
+    Gộp về một kho làm nó thành phép kiểm trùng lặp bình thường, và **đó là cả điểm của việc
+    gộp**: lớp lỗi bị chặn bằng cấu trúc thay vì bằng việc ai đó nhớ kiểm. Ranh giới thật giữa
+    hai loại nội dung không mất đi — nó chuyển thành trường `answer_mode` trong cùng một kho.
     """
 
-    def test_khoa_chu_de_hai_lop_roi_nhau(self):
-        import json
+    def test_khoa_chu_de_khong_trung_trong_ca_kho(self):
+        owner: dict[str, str] = {}
+        for doc in load_all(KNOWLEDGE):
+            for key in doc.topic_keys:
+                self.assertNotIn(
+                    key, owner,
+                    f"khóa {key!r} có ở cả {owner.get(key)!r} và {doc.doc_id!r} — tài liệu tra "
+                    "sau không bao giờ tới lượt mà vẫn chiếm chỗ trong chỉ mục",
+                )
+                owner[key] = doc.doc_id
 
-        facts = json.loads(
-            (REPO_ROOT / "backend" / "data" / "restaurant-facts.json").read_text(
-                encoding="utf-8-sig"
-            )
-        )
-        layer1 = set(facts["topics"])
-        layer2 = {k for doc in load_all(KNOWLEDGE) for k in doc.topic_keys}
-        overlap = sorted(layer1 & layer2)
-        self.assertEqual(
-            overlap, [],
-            f"chủ đề có ở cả hai lớp: {overlap}. Lớp 1 tra trước nên tài liệu lớp 2 sẽ không "
-            "bao giờ được dùng — chọn một lớp, đừng để cả hai",
-        )
-
-    def test_moi_tai_lieu_lop_2_tra_khoa_duoc_bang_dung_mot_khoa(self):
-        # Mỗi tài liệu đúng MỘT khóa chủ đề, nên lớp 2 vẫn tra khóa được như lớp 1 — khác biệt
-        # giữa hai lớp là chế độ trả lời, không phải cách lấy. Nhiều khóa cho một tài liệu thì
-        # bất biến rời nhau ở trên trở nên nhập nhằng.
+    def test_moi_tai_lieu_dung_mot_khoa_chu_de(self):
         for doc in load_all(KNOWLEDGE):
             self.assertEqual(
                 len(doc.topic_keys), 1,
                 f"{doc.doc_id}: có {len(doc.topic_keys)} khóa chủ đề, phải đúng 1",
             )
+
+
+class HaiCheDoTraLoiTrongMOTKho(unittest.TestCase):
+    """`answer_mode` là ranh giới an toàn của kho, nên nó phải được ép chặt.
+
+    Số **kho** gộp được và đã gộp. Số **chế độ trả lời** thì không, vì hai chiều gộp đều mất:
+
+        gộp về synthesize → "mấy giờ đóng cửa" do mô hình viết, và nó CÓ THỂ viết 22h30
+        gộp về verbatim   → phải nén danh sách 12 món kèm ghi chú dị nguyên vào một câu
+
+    Nên trường này bắt buộc, không có giá trị mặc định, và chỉ nhận đúng hai giá trị.
+    """
+
+    def test_tu_choi_thieu_answer_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fm = "\n".join(l for l in GOOD_FM.splitlines() if not l.startswith("answer_mode"))
+            path = write_doc(Path(tmp), "thieu-mode.md", fm, GOOD_BODY)
+            with self.assertRaises(KnowledgeError) as ctx:
+                load_doc(path)
+        self.assertIn("answer_mode", str(ctx.exception))
+
+    def test_tu_choi_answer_mode_la(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write_doc(
+                Path(tmp), "la-mode.md",
+                GOOD_FM.replace("answer_mode: synthesize", "answer_mode: paraphrase"), GOOD_BODY,
+            )
+            with self.assertRaises(KnowledgeError):
+                load_doc(path)
+
+    def test_verbatim_khong_duoc_co_muc(self):
+        # Có mục `##` thì không xác định được phần nào đi tới khách nguyên văn.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write_doc(
+                Path(tmp), "verbatim-nhieu-muc.md",
+                GOOD_FM.replace("answer_mode: synthesize", "answer_mode: verbatim"), GOOD_BODY,
+            )
+            with self.assertRaises(KnowledgeError) as ctx:
+                load_doc(path)
+        self.assertIn("##", str(ctx.exception))
+
+    def test_verbatim_tra_dung_chuoi_bat_ke_ngat_dong(self):
+        """Ngắt dòng trong tài liệu KHÔNG được làm đổi chuỗi tới khách.
+
+        Đây là chiều dễ bỏ sót: một câu trả lời 68 từ thì người sửa sẽ ngắt dòng cho dễ đọc, và
+        nếu ngắt dòng lọt vào chuỗi thì câu tới khách có ký tự xuống dòng ở giữa.
+        """
+        fm = GOOD_FM.replace("answer_mode: synthesize", "answer_mode: verbatim")
+        want = "Nhà hàng mở 10h00–22h00 tất cả các ngày, kể cả cuối tuần và ngày lễ."
+        with tempfile.TemporaryDirectory() as tmp:
+            one_line = write_doc(Path(tmp), "mot-dong.md", fm, f"# Giờ mở cửa\n\n{want}")
+            wrapped = write_doc(
+                Path(tmp), "nhieu-dong.md", fm,
+                "# Giờ mở cửa\n\nNhà hàng mở 10h00–22h00 tất cả các ngày,\n"
+                "kể cả cuối tuần và ngày lễ.",
+            )
+            self.assertEqual(load_doc(one_line).verbatim_answer, want)
+            self.assertEqual(load_doc(wrapped).verbatim_answer, want)
+
+    def test_synthesize_khong_co_cau_tra_loi_nguyen_van(self):
+        # Gọi `verbatim_answer` trên tài liệu `synthesize` phải LỖI, không phải trả về gì đó.
+        # Trả về im lặng thì một chỗ dùng sai sẽ đưa nửa tài liệu ra cho khách nguyên văn.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write_doc(Path(tmp), "tong-hop.md", GOOD_FM, GOOD_BODY)
+            with self.assertRaises(KnowledgeError):
+                _ = load_doc(path).verbatim_answer
+
+    def test_chi_doan_synthesize_duoc_xep_hang(self):
+        """Đoạn `verbatim` bị loại khỏi chỉ mục truy hồi.
+
+        Chúng đã có đường tới khách riêng (tra khóa, trả nguyên văn). Để trong chỉ mục thì có
+        hai đường tới cùng nội dung, và đường xếp hạng có thể trích một câu chính sách ra giữa
+        câu tư vấn món.
+        """
+        every = all_chunks(KNOWLEDGE)
+        ranked = retrievable_chunks(KNOWLEDGE)
+        self.assertTrue(all(c.answer_mode == SYNTHESIZE for c in ranked))
+        self.assertLess(len(ranked), len(every), "phải có đoạn verbatim bị loại, nếu không thì "
+                                                 "phép lọc này không kiểm được gì")
+        self.assertGreaterEqual(len(ranked), 250, "còn đủ đoạn để so BM25/embedding có nghĩa")
+
+    def test_moi_chu_de_verbatim_tra_ra_mot_chuoi_khong_rong(self):
+        answers = verbatim_answers(KNOWLEDGE)
+        self.assertTrue(answers, "kho phải có tài liệu verbatim — đó là đường trả lời chính sách")
+        for topic, text in answers.items():
+            self.assertTrue(text.strip(), f"{topic}: câu trả lời nguyên văn rỗng")
+            self.assertNotIn("\n", text, f"{topic}: chuỗi tới khách không được có xuống dòng")
 
 
 if __name__ == "__main__":

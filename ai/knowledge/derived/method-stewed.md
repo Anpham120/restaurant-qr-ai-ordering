@@ -4,6 +4,7 @@ title: Món tiềm
 topic_keys: [method_stewed]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món tiềm

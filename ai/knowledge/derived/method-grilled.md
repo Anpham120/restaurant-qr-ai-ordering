@@ -4,6 +4,7 @@ title: Món nướng
 topic_keys: [method_grilled]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món nướng

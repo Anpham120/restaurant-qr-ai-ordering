@@ -4,6 +4,7 @@ title: Lần đầu đến nhà hàng
 topic_keys: [first_visit]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Lần đầu đến nhà hàng

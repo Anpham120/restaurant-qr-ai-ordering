@@ -4,6 +4,7 @@ title: Món chiên
 topic_keys: [method_fried]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món chiên

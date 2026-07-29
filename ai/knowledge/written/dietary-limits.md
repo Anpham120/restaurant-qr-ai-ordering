@@ -4,6 +4,7 @@ title: Chế độ ăn — điều thực đơn ghi nhận và không ghi nhận
 topic_keys: [dietary_limits]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Chế độ ăn — điều thực đơn ghi nhận và không ghi nhận

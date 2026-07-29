@@ -4,6 +4,7 @@ title: Món sài gòn
 topic_keys: [region_saigon]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món sài gòn

@@ -4,6 +4,7 @@ title: Món nhậu
 topic_keys: [occasion_drinking]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món nhậu

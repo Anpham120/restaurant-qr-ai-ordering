@@ -4,6 +4,7 @@ title: Món tiếp khách
 topic_keys: [occasion_business]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món tiếp khách

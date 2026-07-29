@@ -14,11 +14,47 @@ Nên câu trả lời là: **cần nội dung, không cần hệ truy hồi.** P
 
 | Tệp | Việc |
 |---|---|
-| `scripts/build_restaurant_facts.py` | sinh kho tri thức, hai loại nguồn |
-| `backend/data/restaurant-facts.json` | 24 chủ đề |
-| `app/answer.py` → `load_facts()` | tra khóa |
+| `ai/knowledge/policy/` | 24 tài liệu `verbatim` — chính sách, trả nguyên văn |
+| `ai/knowledge/derived/` | 48 tài liệu `synthesize` — sinh từ nhãn thực đơn |
+| `ai/knowledge/written/` | 12 tài liệu `synthesize` — người viết |
+| `ai/scripts/build_knowledge.py` | sinh 56 tài liệu `derived`, kiểm cả kho |
+| `ai/app/rag/chunker.py` | nạp, chia đoạn, ép `audience` và `answer_mode` |
+| `app/answer.py` → `load_facts()` | tra khóa trên tài liệu `verbatim` |
 
-## 1. Truy hồi là tra khóa, không phải xếp hạng
+**Trạng thái hiện tại: 84 tài liệu / 327 đoạn** — 24 `verbatim` + 60 `synthesize`; theo nguồn
+56 `derived` + 28 `demo`. Bộ truy hồi chỉ xếp hạng **303 đoạn `synthesize`**.
+
+## 0. MỘT kho, HAI chế độ trả lời
+
+Kho này từng nằm ở **hai chỗ**, và tôi từng biện minh việc tách bằng lý do *"tra khóa vs truy
+hồi xếp hạng"*. Lý do đó **sai**: cả 60 tài liệu markdown đều có đúng một `topic_keys` nên
+chúng cũng tra khóa được. Cách lấy không phân biệt được gì.
+
+Ranh giới thật luôn là **chế độ trả lời** — mô hình được tin bao nhiêu:
+
+| `answer_mode` | Nội dung tới khách | Dùng cho | Số tài liệu |
+|---|---|---|---|
+| `verbatim` | **nguyên văn**, mô hình không chạm vào chữ | giờ mở cửa, thanh toán, phụ phí, cách khai dị ứng | 24 |
+| `synthesize` | **đầu vào** cho mô hình viết câu trả lời | "đặc sản miền Trung có gì", "gọi bao nhiêu món cho 6 người" | 60 |
+
+Và ranh giới đó **không cần hai kho**. Gộp về một kho được ba thứ:
+
+1. **Xóa một lớp lỗi bằng cấu trúc.** Khi còn hai kho, `answer.py` tra kho thứ nhất trước, nên
+   một chủ đề có ở cả hai thì tài liệu kho thứ hai **không bao giờ tới lượt** mà vẫn chiếm chỗ
+   trong chỉ mục — im lặng, không lỗi. Một kho thì điều đó *không thể xảy ra*.
+2. **Xóa một lỗi đóng gói.** `ai/knowledge/` nằm trong `ai/`, tức trong phạm vi `COPY` của
+   Dockerfile. Kho cũ ở `backend/data/` thì không — và trong container cả 24 chủ đề chính sách
+   trả "chưa có dữ liệu", im lặng. Xem `ai/app/test_packaging.py`.
+3. Một bộ nạp, một bộ kiểm, một bước CI, một chỗ để thêm tri thức.
+
+Điều **không** được gộp là số chế độ trả lời. Cả hai chiều gộp đều mất thật:
+
+- Về `synthesize` → "mấy giờ đóng cửa" do mô hình viết, và nó **có thể** viết 22h30.
+- Về `verbatim` → phải nén danh sách nhiều món kèm ghi chú dị nguyên vào một câu viết tay.
+
+Nói gọn: **số kho là chuyện gọn gàng, số chế độ trả lời là chuyện an toàn.**
+
+## 1. Với tài liệu `verbatim`, truy hồi là tra khóa, không phải xếp hạng
 
 Chủ đề đã được nhận diện ở bước hiểu câu hỏi, nên nó **chính là khóa**. Không có embedding,
 không có xếp hạng, không có ngưỡng tương đồng — nên không có chỗ nào để chệch.
@@ -32,13 +68,14 @@ khách, nhiều tháng không ai thấy.
 Một kho tri thức trộn "sự thật tính được từ dữ liệu" với "chính sách do người viết" là kho
 tri thức không ai biết tin phần nào. Nên mỗi mục khai rõ nguồn:
 
-| Nguồn | Số chủ đề | Tin được đến đâu |
+| Nguồn | Số tài liệu | Tin được đến đâu |
 |---|---|---|
-| `derived` | 8 | tính từ `menu-dataset.json` mỗi lần sinh lại, **không thể lệch khỏi thực đơn** |
-| `demo` | 16 | chính sách nhà hàng, giá trị mẫu cho dự án demo |
+| `derived` | 56 | tính từ `menu-dataset.json` mỗi lần sinh lại, **không thể lệch khỏi thực đơn** |
+| `demo` | 28 | chính sách nhà hàng và lời khuyên, giá trị mẫu cho dự án demo |
 
 Phần `derived` là chỗ đáng giá nhất, vì nó **không thể sai**: nó *là* thực đơn được diễn
-đạt lại. Tám chủ đề:
+đạt lại. Trong 56 tài liệu `derived` thì 48 là tài liệu nhóm nhãn (`synthesize`), còn **8 là
+tài liệu chính sách `verbatim`** — chúng chứa con số nên tuyệt đối không được viết tay:
 
 `menu_size` (91 món / 13 nhóm) · `price_range` (12.000–890.000đ) · `preorder` (12 món) ·
 `takeaway_items` (11 món) · `children` (43 món trẻ em, 29 món người lớn tuổi) ·
@@ -159,9 +196,8 @@ mọi món được nhắc, và tiêu chí thay thế chặt hơn.
    này còn món gì?" rồi trả lời chưa có dữ liệu — vì thực đơn không có trường thời gian, và
    cả 91 món đều `isAvailable = true` nên trả về danh sách món là ngầm khẳng định chúng còn
    hàng.
-4. **Bốn nhóm cố tình không trả lời** — dinh dưỡng, nội bộ, nhân sự, ngoài bài toán. Lý do
-   ghi trong `restaurant-facts.json` mục `_khong_bao_gio_tra_loi`, để chúng không bị hiểu
-   là chỗ trống cần bổ sung sau.
+4. **Bốn nhóm cố tình không trả lời** — dinh dưỡng, nội bộ, nhân sự, ngoài bài toán. Lý do ghi
+   ở mục 10 dưới đây, để chúng không bị hiểu là chỗ trống cần bổ sung sau.
 5. ~~Dạng `no_data` vắng ở tập niêm phong~~ — **đã lấp** bằng họ `time_based_no_data`:
    "Hôm nay có món gì đặc biệt?" và "Giờ này còn món gì?". Hai câu đó lấp đúng giới hạn số 3
    ở trên, và phải xử lý **tất định** chứ không để rơi xuống nhánh hỏi lại: hỏi lại thì khách
@@ -170,8 +206,39 @@ mọi món được nhắc, và tiêu chí thay thế chặt hơn.
 ## 9. Cách chạy lại
 
 ```
-python ai/scripts/build_restaurant_facts.py --check   # kiểm tệp khớp kết quả sinh lại
-python ai/scripts/build_restaurant_facts.py           # sinh lại
+python ai/scripts/build_knowledge.py --check   # kiểm tài liệu derived khớp kết quả sinh lại
+python ai/scripts/build_knowledge.py           # sinh lại 56 tài liệu derived
 python ai/evaluation/run_baseline.py --all            # chỉ mã tất định
 python ai/evaluation/run_with_model.py               # có mô hình
 ```
+
+## 10. Bốn nhóm KHÔNG BAO GIỜ trả lời, và vì sao
+
+Bốn nhóm dưới đây **không thuộc kho tri thức** và cố tình không có chỗ điền. Chúng ghi ở đây để
+giải thích **vì sao**, không phải để bổ sung sau. Ai thấy chúng trống mà đi điền vào là đang mở
+đường cho AI bịa.
+
+| Nhóm | Nội dung | Vì sao không trả lời |
+|---|---|---|
+| **Dinh dưỡng** | số calo, natri, thành phần định lượng | Thực đơn chỉ có mô tả bằng chữ. Nhãn `health:high_protein` là **đánh giá cảm quan của người nhập liệu**, không phải kết quả phân tích — dùng nó để trả lời calo là bịa |
+| **Nội bộ** | doanh thu, lợi nhuận, lương nhân viên | Không có dữ liệu, và cũng không nên có trong kênh chat khách hàng |
+| **Nhân sự** | tên bếp trưởng, ai nấu món nào | Không có dữ liệu nhân sự |
+| **Ngoài bài toán** | thời tiết, gọi taxi, dịch thuật, prompt hệ thống | Ngoài phạm vi — AI từ chối ngắn gọn rồi mời về chuyện ăn uống |
+
+Năm chủ đề ứng với chúng (`nutrition`, `internal`, `staff_identity`, `no_size`,
+`time_or_availability`) **nhận diện được** ở bước hiểu câu hỏi nhưng **không có tài liệu**, nên
+hệ thống nói thẳng chưa có dữ liệu rồi chuyển nhân viên. Đó là hành vi đúng, không phải thiếu
+sót — và `test_understand.KhoTriThucVaTuVungPhaiKhopNhau` ép danh sách này phải **nêu tên**, chứ
+không được bỏ qua bằng một ngưỡng số.
+
+## 11. Thêm tri thức mới thế nào
+
+1. **Nội dung không suy được từ thực đơn** (chính sách, lời khuyên) → tệp tay trong
+   `ai/knowledge/policy/` (`verbatim`) hoặc `ai/knowledge/written/` (`synthesize`).
+2. **Nội dung có số tính từ thực đơn** → thêm vào `build_knowledge.py`, đừng viết tay. Văn xuôi
+   kể lại dữ liệu thì luôn trôi khỏi dữ liệu.
+3. Frontmatter bắt buộc đủ **5 khóa**: `id`, `title`, `topic_keys`, `source`, `audience`,
+   `answer_mode`. Bộ nạp **từ chối** tệp thiếu, không bỏ qua im lặng.
+4. Thêm cụm nhận diện cho `topic_keys` mới vào `understand.py` — không có cụm thì nội dung
+   **không bao giờ tới tay khách**, và test bất biến sẽ đỏ để nhắc.
+5. Chạy `build_knowledge.py`, rồi `run_baseline.py --all` xác nhận 112 ca không tụt.

@@ -29,45 +29,37 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import json
 from pathlib import Path
 
+from rag.chunker import KnowledgeError, verbatim_answers
 from understand import DRINK_CATEGORIES, FOOD_CATEGORIES, Request
 
-FACTS_PATH = Path(__file__).resolve().parents[2] / "backend" / "data" / "restaurant-facts.json"
+# Kho tri thức nằm TRONG `ai/`, nên nó luôn có mặt trong ảnh Docker. Trước đây nó là
+# `backend/data/restaurant-facts.json`, ngoài phạm vi `COPY` của `ai/Dockerfile` — nên trong
+# container mọi chủ đề chính sách trả "chưa có dữ liệu", im lặng. Xem `test_packaging.py`.
+KNOWLEDGE_PATH = Path(__file__).resolve().parents[1] / "knowledge"
 
 
 def load_facts() -> dict[str, str]:
-    """Sự thật về nhà hàng, theo chủ đề. Chỉ nhận mục đã được điền.
+    """Sự thật về nhà hàng theo chủ đề, trả NGUYÊN VĂN — mô hình không chạm vào chữ.
 
-    Đây là toàn bộ "kho tri thức" của hệ thống, và nó nhỏ có chủ ý. Bản cũ dựng 26 tài
-    liệu, 213 đoạn, so sánh 7 phương pháp truy hồi có embedding (~3GB RAM) — cho đúng 6
-    chủ đề mà phần nhận diện câu hỏi đã xử lý chính xác 100%. Máy móc hạng nặng cho một
-    bài toán nhỏ, và nó còn gây một lỗi thật: 47/221 đoạn là hướng dẫn dành cho AI đọc
-    nhưng lại được trích cho khách.
+    Nguồn là các tài liệu `answer_mode: verbatim` trong `ai/knowledge/`. Kho tri thức có hai
+    chế độ trả lời, và đây là chế độ tin mô hình **0%**:
 
-    Ở đây truy hồi là **tra khóa**: chủ đề đã nhận ra ở bước hiểu câu hỏi chính là khóa.
-    Không có xếp hạng, không có ngưỡng tương đồng, nên không có chỗ nào để chệch.
+        verbatim    giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng — thông tin KHÔNG
+                    được phép diễn đạt lại. Một chữ số lệch ở đây là sai sự thật về nhà hàng.
+        synthesize  nội dung dài nhiều mặt, là đầu vào cho mô hình viết. Không đi qua hàm này.
 
-    Mục để trống bị BỎ QUA, không phải trả về chuỗi rỗng. Nhờ vậy một tệp chưa điền gì
-    hành xử đúng như khi chưa có tệp: hệ thống nói chưa có dữ liệu và chuyển nhân viên.
-    Điền được bao nhiêu thì dùng bấy nhiêu.
+    Ở đây truy hồi là **tra khóa**: chủ đề đã nhận ra ở bước hiểu câu hỏi chính là khóa. Không
+    xếp hạng, không ngưỡng tương đồng, nên không có chỗ nào để chệch.
+
+    Kho hỏng thì coi như chưa có — trả `{}` và hệ thống nói chưa có dữ liệu rồi chuyển nhân
+    viên. Không được để một tài liệu viết sai làm sập luồng trả lời khách.
     """
-    if not FACTS_PATH.exists():
-        return {}
     try:
-        data = json.loads(FACTS_PATH.read_text(encoding="utf-8-sig"))
-    except (ValueError, OSError):
-        # Tệp hỏng thì coi như chưa có — không được làm sập luồng trả lời khách.
+        return verbatim_answers(KNOWLEDGE_PATH)
+    except (KnowledgeError, OSError):
         return {}
-    out: dict[str, str] = {}
-    for topic, entry in (data.get("topics") or {}).items():
-        if not isinstance(entry, dict):
-            continue
-        answer = entry.get("answer_vi")
-        if isinstance(answer, str) and answer.strip():
-            out[topic] = answer.strip()
-    return out
 
 # Số món nêu ra trong một câu liệt kê. Thước đo chặn ở 12 món ("đổ cả thực đơn ra không
 # phải tư vấn"), còn ca đòi nhiều nhất là 5 món — nên 6 vừa đủ rộng mà vẫn gọn.

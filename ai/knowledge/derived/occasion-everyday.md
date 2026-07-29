@@ -4,6 +4,7 @@ title: Món hàng ngày
 topic_keys: [occasion_everyday]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món hàng ngày

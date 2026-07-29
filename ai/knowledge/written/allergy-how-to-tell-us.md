@@ -4,6 +4,7 @@ title: Cách cho nhà hàng biết bạn bị dị ứng
 topic_keys: [allergy_guidance]
 source: demo
 audience: guest
+answer_mode: synthesize
 ---
 
 # Cách cho nhà hàng biết bạn bị dị ứng

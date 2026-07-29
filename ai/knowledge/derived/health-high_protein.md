@@ -4,6 +4,7 @@ title: Món giàu protein
 topic_keys: [health_high_protein]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món giàu protein

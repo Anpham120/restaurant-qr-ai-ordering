@@ -115,9 +115,6 @@ jobs:
 
       # Kho tri thức có 8/24 chủ đề tính từ thực đơn, nên nó phải sinh lại được — nếu
       # thực đơn đổi mà tri thức không đổi theo thì con số trong câu trả lời sẽ sai.
-      - name: Kiểm kho tri thức sinh lại được
-        run: python ai/scripts/build_restaurant_facts.py --check
-
       # 48/60 tài liệu tri thức được SINH từ thực đơn, nên chúng phải sinh lại được — nếu
       # thực đơn đổi mà tài liệu không đổi theo thì con số trong đó sai. Bước này cũng kiểm
       # bất biến của kho: audience, mã đoạn liên tục, đoạn tự đủ nghĩa.

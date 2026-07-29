@@ -8,7 +8,7 @@ Vì sao có tệp này
     COPY --chown=app:app ai ./ai      # chỉ có ai/, KHÔNG có backend/
     WORKDIR /app/ai
 
-Nhưng `answer.py` đọc kho tri thức bằng đường dẫn ra ngoài `ai/`:
+Nhưng mã lúc chạy từng đọc kho tri thức bằng đường dẫn ra ngoài `ai/`:
 
     FACTS_PATH = Path(__file__).parents[2] / "backend" / "data" / "restaurant-facts.json"
     #            /app/ai/app/answer.py → parents[2] = /app → /app/backend/data/...
@@ -16,6 +16,10 @@ Nhưng `answer.py` đọc kho tri thức bằng đường dẫn ra ngoài `ai/`:
 `/app/backend/` không tồn tại trong ảnh. Và `load_facts()` xử lý thiếu tệp bằng `return {}`,
 nên trong container **cả 24 chủ đề chính sách trả "chưa có dữ liệu"** — không lỗi, không log,
 không ai biết. Khách hỏi giờ mở cửa và AI nói không biết, dù dữ liệu nằm trong repo.
+
+Chỗ đọc đó nay đã hết: kho tri thức gộp về `ai/knowledge/`, tức NẰM TRONG phạm vi `COPY`. Đó
+là cách sửa số 1 dưới đây — sửa cấu trúc. `menu-dataset.json` và `menu-tags.json` thì vẫn thuộc
+backend thật (chúng seed cơ sở dữ liệu qua migration EF) nên chúng đi theo cách sửa số 2.
 
 Đây đúng loại thoái hóa im lặng đã bắt được hai lần trong dự án này (`Request` nằm ngoài `try`
 làm mọi lần gọi mô hình sập thay vì giữ câu trả lời tất định; kho tri thức bản cũ trích đoạn

@@ -4,6 +4,7 @@ title: Món mực
 topic_keys: [ingredient_squid]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món mực

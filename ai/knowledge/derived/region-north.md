@@ -4,6 +4,7 @@ title: Món miền bắc
 topic_keys: [region_north]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món miền bắc

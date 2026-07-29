@@ -4,6 +4,7 @@ title: Món miền trung
 topic_keys: [region_central]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món miền trung

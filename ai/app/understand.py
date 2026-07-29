@@ -234,7 +234,8 @@ _add("hay|hoac|khac nhau the nao|nen chon|so voi|voi", "flag", "comparison")
 
 # --- Tri thức nhà hàng ----------------------------------------------------------------
 #
-# Mỗi chủ đề ứng một khóa trong `backend/data/restaurant-facts.json`. Truy hồi ở đây là
+# Mỗi chủ đề ứng một `topic_keys` của tài liệu `answer_mode: verbatim` trong `ai/knowledge/`,
+# và `answer.py::load_facts()` tra bằng đúng khóa đó. Truy hồi ở đây là
 # TRA KHÓA: chủ đề nhận ra từ câu hỏi chính là khóa, không có xếp hạng hay ngưỡng tương
 # đồng nên không có chỗ nào để chệch.
 #

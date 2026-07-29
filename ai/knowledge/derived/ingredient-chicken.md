@@ -4,6 +4,7 @@ title: Món gà
 topic_keys: [ingredient_chicken]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món gà

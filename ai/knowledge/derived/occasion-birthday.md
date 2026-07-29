@@ -4,6 +4,7 @@ title: Món sinh nhật
 topic_keys: [occasion_birthday]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món sinh nhật

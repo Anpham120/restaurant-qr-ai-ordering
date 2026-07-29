@@ -4,6 +4,7 @@ title: Món miền nam
 topic_keys: [region_south]
 source: derived
 audience: guest
+answer_mode: synthesize
 ---
 
 # Món miền nam
