@@ -51,11 +51,17 @@ Nói cách khác: **dây chuyền cho phần nội dung, song song cho phần ki
   nhóm không phủ hết thì thiếu nhãn là *chưa ghi nhận*, **không** phải *không có*.
 
 ### Việc còn lại
-1. Mở rộng kho tri thức lên **~60 tài liệu / ~350 đoạn** (`ai/knowledge/*.md`), giữ phân biệt
-   `derived` (tính từ thực đơn) và `demo` (nội dung mẫu).
-2. Ép `audience: guest` trong frontmatter, và bộ nạp **từ chối** tệp khác — bản cũ có 5/27 tệp
-   là hướng dẫn cho AI, và 47/221 đoạn bị trích cho khách đọc.
-3. Viết `ai/scripts/build_knowledge.py` sinh phần `derived`, có `--check`.
+
+> **Đã xong** — xem `ai/docs/07-knowledge-corpus.md`. Kho hiện có **60 tài liệu /
+> 303 đoạn** (48 sinh
+> từ thực đơn, 12 người viết). Việc của TV1 nay là **đọc
+> để hiểu và bảo vệ**, và mở rộng thêm khi có nhu cầu thật.
+
+Nếu cần thêm tài liệu:
+1. Thêm nhóm nhãn vào `DERIVED_GROUPS` trong `build_knowledge.py` — nhưng chỉ khi nhóm đó có câu
+   hỏi mà **lớp tra khóa không trả lời được**.
+2. Thêm tài liệu người viết vào `ai/knowledge/written/`, bắt buộc `audience: guest`.
+3. Chạy lại `build_knowledge.py` và xác nhận 112 ca không tụt.
 
 ### Sở hữu tệp
 `ai/knowledge/*` · `ai/scripts/build_knowledge.py` · `build_restaurant_facts.py` ·

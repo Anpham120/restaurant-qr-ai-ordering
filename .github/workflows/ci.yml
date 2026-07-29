@@ -118,6 +118,12 @@ jobs:
       - name: Kiểm kho tri thức sinh lại được
         run: python ai/scripts/build_restaurant_facts.py --check
 
+      # 48/60 tài liệu tri thức được SINH từ thực đơn, nên chúng phải sinh lại được — nếu
+      # thực đơn đổi mà tài liệu không đổi theo thì con số trong đó sai. Bước này cũng kiểm
+      # bất biến của kho: audience, mã đoạn liên tục, đoạn tự đủ nghĩa.
+      - name: Kiểm kho tri thức markdown + chia đoạn
+        run: python ai/scripts/build_knowledge.py --check
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên
