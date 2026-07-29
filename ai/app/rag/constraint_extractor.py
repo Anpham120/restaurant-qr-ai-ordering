@@ -427,14 +427,27 @@ _ALLERGEN_CATEGORIES_TO_DROP: dict[str, str] = {"hai san": "seafood"}
 
 
 def _detect_category(normalized: str) -> str | None:
+    """Longest whole-phrase match wins.
+
+    A raw substring test made "tráng miệng menu" resolve to `ca phe tra`, because the
+    tea alias `tra` sits inside "trang".  The assistant then filtered correctly for
+    the wrong category and answered a dessert question with four teas.
+
+    Matching on whole tokens fixes that; taking the longest match keeps a two-word
+    alias from losing to a one-word alias that also happens to fit.
+    """
+    padded = f" {normalized} "
+    best: tuple[int, str] | None = None
     for category, aliases in CATEGORY_ALIASES.items():
         for alias in aliases:
-            if alias not in normalized:
+            if f" {alias} " not in padded:
                 continue
             if _is_negated(normalized, alias):
                 continue
-            return category
-    return None
+            length = len(alias.split())
+            if best is None or length > best[0]:
+                best = (length, category)
+    return best[1] if best else None
 
 
 def _is_negated(text: str, term: str) -> bool:

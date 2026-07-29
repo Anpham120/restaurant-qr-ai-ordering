@@ -2422,6 +2422,19 @@ def _try_catalog_fast_path(
             else _matches_category(item, category, normalized_message)
         )
     ]
+    # The requested item kind was never applied here, so "hải sản uống gì cho hợp?"
+    # listed the seafood dishes when the guest asked what to *drink*, and "tráng
+    # miệng menu" mixed in a pork roll and three teas.  Only narrow when a kind is
+    # asked for and something survives: an empty list would be worse than a slightly
+    # broad one, so fall back to the unnarrowed match.
+    requested_kind = detect_requested_item_kind(message, category=category or None)
+    if requested_kind is not None:
+        # If nothing in the selection is the kind asked for, decline.  "Hải sản uống
+        # gì cho hợp?" selects the seafood category and asks for a drink; listing the
+        # seafood is a worse answer than letting the pairing question reach a step
+        # that can actually reason about it.
+        matched = filter_items_by_kind(matched, requested_kind)
+
     if not matched:
         return None
 
