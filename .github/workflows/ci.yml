@@ -148,6 +148,14 @@ jobs:
       - name: Giá trị từng cơ chế (ablation)
         run: python ai/evaluation/run_ablation.py
 
+      # So NGUỒN của từng ô notebook với bộ sinh, bỏ qua kết quả chạy. Bắt trường hợp ai đó
+      # sửa tay notebook — khi đó notebook không còn sinh lại được và mọi số trong báo cáo
+      # mất đường truy về mã. Chỉ cần nbformat, không cần chạy notebook.
+      - name: Kiểm notebook báo cáo sinh lại được
+        run: |
+          python -m pip install -q "nbformat>=5.10,<6.0"
+          python ai/notebooks/build_teaching_notebook.py --check
+
       # Chạy trên cache đã commit, KHÔNG gọi mô hình thật: CI không có proxy 9router, và
       # một bước CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan. Bước này trả mã
       # khác 0 nếu mô hình làm tụt ca nào hoặc gây lỗi an toàn mới.

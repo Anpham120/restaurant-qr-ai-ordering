@@ -647,7 +647,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     nb = build()
-    text = nbformat.writes(nb, version=4)
     n_md = sum(1 for c in nb.cells if c.cell_type == "markdown")
     n_code = sum(1 for c in nb.cells if c.cell_type == "code")
     print(f"ô markdown : {n_md}")
@@ -655,16 +654,36 @@ def main(argv: list[str] | None = None) -> int:
     print(f"tỷ lệ md:mã: {n_md / max(n_code, 1):.1f}:1")
 
     if args.check:
-        current = OUT_PATH.read_text(encoding="utf-8") if OUT_PATH.exists() else ""
-        if current != text:
-            print("\nNOTEBOOK ĐÃ COMMIT KHÁC KẾT QUẢ SINH LẠI.")
-            print("Chạy `python ai/notebooks/build_teaching_notebook.py` để cập nhật.")
+        # So NGUỒN của từng ô, bỏ qua kết quả chạy và số thứ tự thực thi.
+        #
+        # Bản đầu của tôi so nguyên tệp, và nó luôn đỏ: notebook đã commit là bản **đã chạy**
+        # nên mang theo kết quả, còn bộ sinh tạo bản chưa chạy. So nguyên tệp thì `--check`
+        # buộc phải commit bản không có kết quả — tức notebook báo cáo mất hết bảng số, đúng
+        # thứ nó tồn tại để trưng ra.
+        if not OUT_PATH.exists():
+            print("\nCHƯA CÓ NOTEBOOK. Chạy bộ sinh trước.")
             return 1
-        print("\n--check: notebook đã commit khớp kết quả sinh lại.")
+        current = nbformat.read(OUT_PATH, as_version=4)
+        want = [(c.cell_type, c.source) for c in nb.cells]
+        have = [(c.cell_type, c.source) for c in current.cells]
+        if want != have:
+            print("\nNỘI DUNG Ô TRONG NOTEBOOK ĐÃ COMMIT KHÁC KẾT QUẢ SINH LẠI.")
+            print(f"  bộ sinh tạo {len(want)} ô, notebook đã commit có {len(have)} ô")
+            for i, (w, h) in enumerate(zip(want, have)):
+                if w != h:
+                    print(f"  ô đầu tiên khác nhau: {i} ({w[0]})")
+                    break
+            print("Chạy `python ai/notebooks/build_teaching_notebook.py` rồi chạy lại notebook.")
+            return 1
+        executed = sum(1 for c in current.cells if c.get("outputs"))
+        print(f"\n--check: {len(have)} ô khớp bộ sinh; {executed}/{n_code} ô mã đã có kết quả.")
         return 0
 
-    OUT_PATH.write_text(text, encoding="utf-8")
-    print(f"\nĐã ghi {OUT_PATH.relative_to(REPO_ROOT)}")
+    OUT_PATH.write_text(nbformat.writes(nb, version=4), encoding="utf-8")
+    print(f"\nĐã ghi {OUT_PATH.relative_to(REPO_ROOT)} (chưa chạy)")
+    print("Chạy tiếp để có kết quả trong notebook:")
+    print("  python -m jupyter nbconvert --to notebook --execute --inplace \\")
+    print(f"    {OUT_PATH.relative_to(REPO_ROOT)}")
     return 0
 
 
