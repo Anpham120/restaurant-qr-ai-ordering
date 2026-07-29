@@ -1,89 +1,56 @@
-# CMC Restaurant Python AI Service
+# Trợ lý AI tư vấn đặt món — dựng lại từ đầu
 
-Thư mục này chứa lớp AI viết bằng Python cho CMC Restaurant. Service này tách khỏi backend .NET để phần AI/RAG có thể phát triển, kiểm thử và trình bày độc lập cho học phần Học máy và Khai phá dữ liệu.
+Thư mục này vừa được xóa trắng. Bản cũ (250 tệp, ~116.500 dòng) vẫn còn nguyên trong
+git history và đang chạy trên production ở nhánh `main`; nhánh này dựng lại từ số
+không để mỗi cơ chế đều được hiểu trước khi được viết.
 
-## Vai Trò
+## Vì sao dựng lại
 
-- Nhận câu hỏi của khách từ backend.
-- Truy xuất tri thức nhà hàng từ `ai/knowledge-base/`.
-- Dựng prompt an toàn và gọi **DeepSeek** (mặc định) qua 9router; GPT-5.5 cho paired eval khi cần.
-- Trả về câu trả lời, nguồn RAG đã dùng và guardrail flags.
-- Không tự tạo đơn hàng, không tự thêm món vào giỏ và không tự thanh toán.
+Bản cũ hoạt động được nhưng không còn giải thích được. Đo trên tập 338 câu hỏi:
 
-## Luồng
+| Quan sát | Số liệu |
+|---|---|
+| Đường xử lý tất định chồng lên nhau | 8 đường, 2 trong số đó bị một cờ legacy tắt mà vẫn hoạt động tốt |
+| Câu trả lời do mã tất định sinh ra | 33% — phần còn lại phụ thuộc mô hình sinh |
+| Một lớp lỗi lặp lại | 7 lần: rút dấu tiếng Việt làm hai từ khác nghĩa trùng nhau |
+| Thước đo chất lượng | sai 3 lần trước khi hệ thống sai |
 
-```text
-Customer Web
-  -> .NET Backend API
-    -> Python AI Service
-      -> RAG retriever
-      -> 9router (OpenAI-compatible API)
-        -> DeepSeek (mặc định triển khai)
-```
+Bài học lớn nhất: **thước đo cũng là một phương pháp và cũng phải chứng minh được
+mình đúng.** Bản dựng lại vì thế bắt đầu từ dữ liệu và thước đo, không từ mô hình.
 
-## Chạy Local
+## Nguyên tắc cho bản dựng lại
 
-```bash
-cd ai
-python -m venv .venv
-. .venv/Scripts/activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
-```
+1. **Không thêm cơ chế nào chưa đo được.** Mỗi bước phải kèm cách kiểm chứng và một
+   con số trước/sau.
+2. **Ít cơ chế, mỗi cơ chế một việc.** Bản cũ có 8 đường tất định che nhau; nếu hai
+   cơ chế cùng trả lời một loại câu hỏi thì một trong hai là dư.
+3. **Rút dấu để khớp cách khách gõ, không để quyết định nội dung.** Đây là gốc của
+   7 lỗi trong bản cũ (`cua`/`của`, `chay`/`chạy`, `trứng`/`Trung`, `bơ`/`bò`,
+   `mực`/`mức`, `lạc`/`lắc`, `trà`/`tráng`).
+4. **Nguồn có thẩm quyền phải rõ ràng.** Thực đơn trực tiếp là sự thật về món; kho
+   tri thức là sự thật về chính sách. Không trộn hai loại.
+5. **Việc gì tra được thì không đoán.** Món nào có dị nguyên là tra bảng, không phải
+   suy luận.
 
-Biến môi trường khuyến nghị (khớp notebook Part II + Docker):
+## Lộ trình — mỗi bước có kiểm chứng riêng
 
-```env
-LLM_PROVIDER=9router
-LLM_BASE_URL=http://localhost:20128/v1
-LLM_MODEL=oc/deepseek-v4-flash-free
-LLM_API_KEY=replace-with-your-9router-key
-AI_INTERNAL_TOKEN=replace-with-a-long-random-internal-token
-RAG_KNOWLEDGE_BASE_PATH=ai/knowledge-base
-RAG_TOP_K=5
-RAG_RETRIEVAL_METHOD=hybrid
-AI_EMBEDDING_MODEL=e5_small
-```
+Chưa bước nào được làm. Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên.
 
-Backend (.NET): `CHAT_AI_PROVIDER=python-rag`, `AI_SERVICE_URL=http://127.0.0.1:8001`, `AI_INTERNAL_TOKEN` trùng với service Python.
+| # | Bước | Câu hỏi cần trả lời trước khi viết mã | Kiểm chứng |
+|---|---|---|---|
+| 0 | Phát biểu bài toán | Khách hỏi những gì? Cái gì AI được phép trả lời? | Danh sách loại câu hỏi + phạm vi, viết ra giấy trước |
+| 1 | Dữ liệu nhà hàng | Thực đơn có những trường nào? Trường nào là sự thật, trường nào là nhãn suy ra? | Từ điển dữ liệu — bản cũ **không có**, và đó là lý do nhãn `toi` không ai biết là "tối" hay "tỏi" |
+| 2 | Tập đánh giá | Câu hỏi thật của khách trông thế nào? Thế nào là trả lời đúng? | Mỗi ca có tiêu chí đúng/sai rõ ràng, chia dev/test theo tầng để dev dự báo được test |
+| 3 | Thước đo | Làm sao biết câu trả lời tốt? | Thước đo tự có test hai chiều: bắt được lỗi thật, không bịa lỗi |
+| 4 | Trả lời không cần AI | Bao nhiêu câu chỉ cần tra thực đơn? | Số nền: tỷ lệ trả lời được mà chưa dùng mô hình nào |
+| 5 | Truy hồi tri thức | Câu chính sách lấy dữ liệu ở đâu? | So sánh phương pháp truy hồi trên tập ở bước 2 |
+| 6 | Mô hình sinh | Còn lại câu nào cần mô hình? Prompt nào? | Đo trước/sau bằng thước đo bước 3 |
+| 7 | Chốt an toàn | Điều gì tuyệt đối không được sai? | Kiểm chứng fail-closed cho dị ứng và trẻ em |
 
-Nếu không có `LLM_API_KEY`, service vẫn trả về fallback có kiểm soát để demo RAG và guardrails, nhưng sẽ không gọi 9router.
+## Vẫn còn ngoài thư mục này
 
-## Endpoint
-
-- `GET /health`: kiểm tra service.
-- `POST /v1/rag/search`: truy xuất context từ knowledge base.
-- `POST /v1/chat`: tạo trả lời AI dựa trên RAG và optional LLM call.
-
-## Kiểm Thử Core RAG
-
-```bash
-python -m compileall ai/app
-python -m unittest discover -s ai/tests
-```
-
-Smoke thật (9router): `py scripts/smoke_9router.py` — không in secret.
-
-Smoke chat (giống deploy health-check):
-
-```powershell
-curl -H "Authorization: Bearer $env:AI_INTERNAL_TOKEN" -H "Content-Type: application/json" -d "{\"message\":\"Xin chào\"}" http://127.0.0.1:8001/v1/chat
-```
-
-## Notebook nghiên cứu RAG
-
-- Notebook duy nhất: `notebooks/rag_llm_system_research.ipynb` (5 phần, mọi số liệu đọc từ
-  artifact JSON trong `evaluation/results/`).
-- Dựng lại: `py scripts/build_rag_llm_research.py`
-- Thực thi để sinh số và biểu đồ: `py -m nbconvert --to notebook --inplace --execute
-  notebooks/rag_llm_system_research.ipynb --ExecutePreprocessor.timeout=900`
-- Cần `requirements-notebook.txt`. Artifact live (`notebook_live_test.json`) sinh bằng
-  `py scripts/_run_live_tests.py` và cần 9router.
-- Hợp đồng: `tests/test_research_notebook.py` kiểm tra thứ tự 5 phần, mọi artifact bắt buộc có
-  mặt, mọi code cell đã chạy và không cell nào lỗi.
-
-Artifact release (§16): `dev_retrieval_summary.v3.json`, `session_e2e_eval.json`, `knowledge_manifest.json` — tái tạo bằng script trong `evaluation/` (xem `docs/ai/AI_STAGING_READINESS.md`).
-
-## Deploy staging
-
-Xem [`docs/ai/VPS_STAGING_AI_RUNBOOK.md`](../docs/ai/VPS_STAGING_AI_RUNBOOK.md) và workflow GitHub **Deploy Staging**.
+- `backend/data/menu-dataset.json` — danh mục 91 món. **Không phải phần AI**: frontend
+  và luồng đặt món đang dùng, xóa là sập app QR. Bước 1 sẽ đọc lại nó từ đầu.
+- Backend .NET gọi 6 endpoint (`/v1/chat`, `/v1/chat/stream`, `/ready`, `/health`,
+  `/v1/rag/search`, `/v1/cache/invalidate`). Hợp đồng này sẽ được thiết kế lại và
+  backend sửa theo, nên trong lúc dựng lại thì luồng chat trên nhánh này chưa chạy.
