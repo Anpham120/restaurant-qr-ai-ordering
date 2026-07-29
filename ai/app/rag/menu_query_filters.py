@@ -19,6 +19,16 @@ TAG_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
         "ngan sach thap",
         "gia mem",
         "chi tieu vua phai",
+        # Cách khách nói ngắn gọn hơn, và bản tiếng Anh.
+        "gia re",
+        "mon re",
+        "gia thap",
+        "re nhat",
+        "thap nhat",
+        "cheap",
+        "affordable",
+        "inexpensive",
+        "budget friendly",
     ),
     "2 3 nguoi": (
         "hai nguoi",
@@ -27,12 +37,37 @@ TAG_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
         "cap doi",
         "ban ba nguoi",
     ),
+    # Nhãn bữa ăn, mức giá và đối tượng đã có trên thực đơn (129 + 90 + 71 nhãn)
+    # nhưng chỉ khớp khi khách gõ đúng tên nhãn. Khách viết "buổi tối", "món rẻ",
+    # "ông bà" thì không khớp gì, nên các nhãn đó nằm không.
+    "trua": ("buoi trua", "bua trua", "an trua", "lunch", "business lunch", "midday"),
+    "sang": ("buoi sang", "bua sang", "an sang", "breakfast", "morning"),
+    "an khuya": ("khuya", "dem muon", "late night", "midnight"),
+    "cao cap": ("sang trong", "dat tien", "premium", "high end", "luxury", "fine dining"),
+    "nguoi gia": (
+        "ong ba",
+        "nguoi cao tuoi",
+        "cao tuoi",
+        "de nhai",
+        "mem de an",
+        "elderly",
+        "senior",
+        "grandparent",
+    ),
+    "gia dinh": ("ca nha", "family", "family meal"),
+    "nhom ban": ("nhom", "dong nguoi", "nhieu nguoi", "group", "party of", "team"),
 }
 
 # The menu dataset stores ASCII tags.  These two tags collide with common
 # Vietnamese words after diacritic stripping (tôi -> toi, mức -> muc), so they
 # are only hard-filtered when the user writes the intended accented entity.
 TAG_SURFACE_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    # CHƯA GIẢI QUYẾT: nhãn `toi` nhập nhằng và thực đơn không có tài liệu định
+    # nghĩa nhãn. 64/91 món mang nhãn này — hợp với "tối" (bộ bữa ăn sang 22 /
+    # trua 39 / toi 64 / an khuya 4 liền mạch) và cũng hợp với "tỏi" (gia vị phổ
+    # biến nhất). Chỉ 17% món có nhãn đó nhắc tỏi trong mô tả, nhưng mô tả ngắn
+    # nên không kết luận được. Giữ nguyên cách hiểu "tỏi" như mã gốc cho tới khi
+    # chủ dữ liệu xác nhận; đoán sai chiều nào cũng làm một loại câu hỏi trả sai.
     "toi": ("tỏi",),
     "muc": ("mực",),
 }
