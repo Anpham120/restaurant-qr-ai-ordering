@@ -141,6 +141,14 @@ lại từ đầu; `--no-cache` gọi mô hình thật.
 CI chạy trên cache đã commit và **không** gọi mô hình thật — CI không có proxy, và một bước
 CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan gì đến mã.
 
+Để cache dùng được ở CI thì CI phải khai `LLM_MODEL`, vì khóa cache gồm tên mô hình. Thiếu
+nó thì mọi lần tra đều trượt và cache đã commit thành vô dụng — đúng điều đã xảy ra ở lần
+CI đầu tiên. Tên mô hình không phải bí mật; khóa và URL thì **không** khai ở CI, nên nếu có
+câu hỏi thiếu cache thì bước đó suy giảm êm chứ không gọi mạng.
+
+Đã kiểm bằng cách bỏ `ai/.env` đi và chỉ đặt `LLM_MODEL`: kết quả 112/112 từ cache, độ trễ
+0ms, exit 0 — tức CI xác minh được cả con số +11, không chỉ "không làm tụt".
+
 Bù lại phải nói rõ: **con số 112/112 đo trên 28 câu trả lời mô hình đã lưu**, không
 phải trên mọi lần mô hình có thể trả lời. Mô hình khác, hoặc cùng mô hình ở lần gọi khác, có thể cho
 kết quả khác.
@@ -152,9 +160,12 @@ kết quả khác.
    20% câu hỏi thì trung bình mỗi câu tăng khoảng 1,7 giây — nhưng câu nào bị gọi thì khách
    chờ đủ 8,6 giây. Đây là con số đáng lo nhất của bước này, và chưa đo trên mạng thật của
    khách.
-3. **Chưa có fallback khi proxy chết.** Hiện nếu gọi thất bại thì hệ thống giữ nguyên câu
-   trả lời tất định — đúng hướng, nhưng nghĩa là những ca ở mục 3 sẽ tụt lại về hỏi lại.
-   Đó là suy giảm êm, không phải sập, và đã có test.
+3. **Proxy chết thì suy giảm êm, và điều này nay đã ĐÚNG.** Bản đầu tôi khẳng định như vậy
+   nhưng nó **sai**: `urllib.request.Request(...)` nằm ngoài khối `try`, nên khi thiếu cấu
+   hình, URL rỗng thành `/chat/completions` và ném `ValueError: unknown url type` làm sập cả
+   bước. CI tìm ra vì CI là nơi duy nhất không có `ai/.env` — tệp đó chứa khóa nên bị
+   gitignore. Nay có phép kiểm cấu hình trước khi gọi, toàn bộ phần gọi mạng nằm trong
+   `try`, và 6 test chốt việc thiếu cấu hình phải trả về `None` chứ không ném.
 4. ~~2 ca vẫn đỏ ở cả hai chế độ.~~ Đã hết: 112/112 với mô hình. Nhưng con số 100% chỉ có
    nghĩa trong phạm vi 112 ca đã viết — nó **không** nói gì về câu hỏi chưa từng nghĩ tới.
 5. **Mô hình chưa được dùng để VIẾT câu trả lời.** Câu trả lời hiện do mã sinh ra nên đúng

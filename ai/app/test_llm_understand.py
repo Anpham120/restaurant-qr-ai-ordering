@@ -119,6 +119,37 @@ class MoHinhKhongDuocBia(unittest.TestCase):
         self.assertTrue(outcome.used)
         self.assertEqual(request.require_tags, [])
 
+    def test_thieu_cau_hinh_thi_khong_sap(self):
+        """Đây là lỗi CI tìm ra, và nó chứng minh một khẳng định của tôi là sai.
+
+        `ai/.env` chứa khóa nên bị gitignore, tức **CI không bao giờ có cấu hình mô hình**.
+        Bản đầu không kiểm điều đó, và `urllib.request.Request(...)` lại nằm ngoài khối try,
+        nên URL rỗng thành "/chat/completions" và ném `ValueError: unknown url type` — làm
+        sập cả bước CI thay vì suy giảm êm về câu trả lời tất định.
+
+        Ba cấu hình thiếu, ba lần phải trả về None chứ không ném.
+        """
+        for label, env in [
+            ("không có gì", {}),
+            ("thiếu URL", {"LLM_MODEL": "m", "LLM_API_KEY": "k"}),
+            ("thiếu khóa", {"LLM_MODEL": "m", "LLM_BASE_URL": "http://x/v1"}),
+            ("thiếu tên mô hình", {"LLM_BASE_URL": "http://x/v1", "LLM_API_KEY": "k"}),
+            ("URL chỉ có khoảng trắng", {"LLM_MODEL": "m", "LLM_BASE_URL": "   ", "LLM_API_KEY": "k"}),
+        ]:
+            with self.subTest(label):
+                self.assertIsNone(
+                    llm.call_model("Cho mình gì đó chua chua", env, use_cache=False),
+                    f"{label}: phải trả về None, không được ném lỗi",
+                )
+
+    def test_thieu_cau_hinh_thi_cau_tra_loi_tat_dinh_con_nguyen(self):
+        request = ask("Cho mình gì đó chua chua")
+        outcome = llm.enrich(request, {}, use_cache=False)
+        self.assertTrue(outcome.used)
+        self.assertFalse(outcome.ok)
+        self.assertEqual(request.require_tags, [])
+        self.assertEqual(request.prefer_tags, [])
+
     def test_goi_that_bai_thi_giu_nguyen_cau_tra_loi_tat_dinh(self):
         request = ask("Cho mình gì đó lạ lạ")
         with FakeModel(None):

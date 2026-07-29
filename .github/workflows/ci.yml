@@ -151,7 +151,14 @@ jobs:
       # Chạy trên cache đã commit, KHÔNG gọi mô hình thật: CI không có proxy 9router, và
       # một bước CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan. Bước này trả mã
       # khác 0 nếu mô hình làm tụt ca nào hoặc gây lỗi an toàn mới.
+      #
+      # LLM_MODEL là bắt buộc để cache dùng được: khóa cache gồm tên mô hình, nên thiếu nó
+      # thì mọi lần tra đều trượt và cache đã commit thành vô dụng. Tên mô hình không phải
+      # bí mật; KHÓA và URL thì không khai ở đây, nên nếu có câu hỏi thiếu cache thì bước
+      # này suy giảm êm chứ không gọi mạng.
       - name: Mô hình sinh không được làm tụt ca nào
+        env:
+          LLM_MODEL: cx/gpt-5.6-luna-review
         run: python ai/evaluation/run_with_model.py
 
   docker-compose-config:

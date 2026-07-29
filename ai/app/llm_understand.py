@@ -103,17 +103,40 @@ class LlmOutcome:
                 setattr(self, name, [])
 
 
+# Các khóa cấu hình được đọc từ biến môi trường của tiến trình nếu có.
+ENV_KEYS = (
+    "LLM_MODEL",
+    "LLM_BASE_URL",
+    "LLM_API_KEY",
+    "LLM_TIMEOUT_SECONDS",
+)
+
+
 def load_env(path: Path | None = None) -> dict[str, str]:
-    env_path = path or (REPO_ROOT / "ai" / ".env")
+    """Cấu hình mô hình: tệp `ai/.env` làm nền, biến môi trường ghi đè lên.
+
+    Đọc cả biến môi trường là bắt buộc, vì hai lý do:
+
+    1. **Dịch vụ chạy thật lấy cấu hình từ biến môi trường**, không từ tệp trong repo —
+       `ai/.env` chứa khóa nên bị gitignore.
+    2. **CI cần `LLM_MODEL` để dùng được cache.** Khóa cache gồm tên mô hình, nên không có
+       tên mô hình thì mọi lần tra cache đều trượt, và cache đã commit trở thành vô dụng.
+       Đó chính là điều đã xảy ra: CI đọc được cache nhưng không khớp khóa nào. Tên mô hình
+       không phải bí mật nên CI khai trực tiếp được.
+    """
     out: dict[str, str] = {}
-    if not env_path.exists():
-        return out
-    for line in env_path.read_text(encoding="utf-8-sig").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        out[key.strip()] = value.strip()
+    env_path = path or (REPO_ROOT / "ai" / ".env")
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8-sig").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            out[key.strip()] = value.strip()
+    for key in ENV_KEYS:
+        value = os.environ.get(key)
+        if value is not None and value.strip():
+            out[key] = value.strip()
     return out
 
 
@@ -168,6 +191,18 @@ def call_model(question: str, env: dict[str, str], *, use_cache: bool = True) ->
     if use_cache and key in _cache():
         return _cache()[key]
 
+    # Thiếu cấu hình thì KHÔNG thử gọi. Đây là trạng thái bình thường ở CI: `ai/.env` chứa
+    # khóa nên bị gitignore, tức CI không bao giờ có cấu hình mô hình.
+    #
+    # Bản đầu không có phép kiểm này, và `urllib.request.Request(...)` lại nằm NGOÀI khối
+    # try — nên URL rỗng thành "/chat/completions" và ném `ValueError: unknown url type`,
+    # làm sập cả bước CI. Tức lời khẳng định "gọi thất bại thì giữ nguyên câu trả lời tất
+    # định" là SAI ở đúng trường hợp hay xảy ra nhất. CI tìm ra vì CI là nơi duy nhất không
+    # có tệp cấu hình.
+    base_url = env.get("LLM_BASE_URL", "").strip()
+    if not base_url or not env.get("LLM_API_KEY", "").strip() or not model:
+        return None
+
     vocabulary, _ = build_vocabulary()
     body = json.dumps(
         {
@@ -180,20 +215,22 @@ def call_model(question: str, env: dict[str, str], *, use_cache: bool = True) ->
             "max_tokens": 300,
         }
     ).encode()
-    request = urllib.request.Request(
-        env.get("LLM_BASE_URL", "").rstrip("/") + "/chat/completions",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {env.get('LLM_API_KEY', '')}",
-        },
-    )
-    timeout = float(env.get("LLM_TIMEOUT_SECONDS", "30"))
+    # Toàn bộ phần gọi mạng nằm TRONG try, kể cả việc dựng Request — dựng Request cũng ném
+    # được lỗi, và ném ở ngoài try thì không có gì bắt.
     try:
+        request = urllib.request.Request(
+            base_url.rstrip("/") + "/chat/completions",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {env['LLM_API_KEY'].strip()}",
+            },
+        )
+        timeout = float(env.get("LLM_TIMEOUT_SECONDS", "30"))
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.load(response)
         content = payload["choices"][0]["message"]["content"]
-    except (urllib.error.URLError, OSError, KeyError, ValueError, TimeoutError):
+    except (urllib.error.URLError, OSError, KeyError, ValueError, TypeError, TimeoutError):
         return None
 
     # Mô hình hay bọc JSON trong ```json ... ``` — lấy khối ngoặc nhọn đầu tiên.
@@ -206,9 +243,11 @@ def call_model(question: str, env: dict[str, str], *, use_cache: bool = True) ->
         return None
     if not isinstance(parsed, dict):
         return None
-    if use_cache:
-        _cache()[key] = parsed
-        _save_cache()
+    # Ghi cache dù `use_cache=False`. `--no-cache` nghĩa là "đừng ĐỌC bản đã lưu", không
+    # phải "đừng ghi lại" — bản đầu hiểu sai điều này, nên lần đo `--no-cache` không lưu câu
+    # trả lời cho 5 câu hỏi mới, và CI (chạy trên cache, không có mạng) thiếu đúng chúng.
+    _cache()[key] = parsed
+    _save_cache()
     return parsed
 
 

@@ -62,10 +62,10 @@
   },
   "8ff56f58543f91d374435d6d47fb66a2": {
     "avoid": [],
-    "prefer": [
+    "prefer": [],
+    "require": [
       "meal:lunch"
     ],
-    "require": [],
     "wants": "food"
   },
   "90ea31c77a9b71e6f76c1bf4b353a083": {
@@ -128,7 +128,7 @@
     "avoid": [],
     "prefer": [],
     "require": [],
-    "wants": "food"
+    "wants": "any"
   },
   "c4940e37a1a7b02ed4f0b5d4a97a6e09": {
     "avoid": [],
@@ -143,7 +143,8 @@
   "c9db1d7a6de32fe1d42db8a6eab24ae4": {
     "avoid": [],
     "prefer": [
-      "health:low_calorie"
+      "health:low_calorie",
+      "health:low_fat"
     ],
     "require": [],
     "wants": "food"
@@ -190,10 +191,10 @@
   },
   "e95fdd7275600cd85fa6f6388058d756": {
     "avoid": [],
-    "prefer": [
+    "prefer": [],
+    "require": [
       "meal:lunch"
     ],
-    "require": [],
     "wants": "food"
   },
   "f8873b9411cc5c8881bdaa346f707b72": {
