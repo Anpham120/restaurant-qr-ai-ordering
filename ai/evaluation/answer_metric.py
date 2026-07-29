@@ -33,7 +33,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
-from menu_selectors import select_ids
+from menu_selectors import clean_selector, select_ids
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FACTS_PATH = REPO_ROOT / "backend" / "data" / "restaurant-facts.json"
@@ -201,12 +201,10 @@ class Verdict:
 
 def resolve_selector(value: Any, named: dict) -> dict:
     if isinstance(value, str):
-        return {k: v for k, v in named[value[1:]].items() if not k.startswith("_")}
+        return clean_selector(named[value[1:]])
     merged: dict = {}
     if "$ref" in value:
-        merged.update(
-            {k: v for k, v in named[value["$ref"]].items() if not k.startswith("_")}
-        )
+        merged.update(clean_selector(named[value["$ref"]]))
     for key, val in value.items():
         if key == "$ref" or key.startswith("_"):
             continue

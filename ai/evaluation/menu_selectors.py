@@ -53,6 +53,24 @@ class SelectorError(ValueError):
     """Điều kiện chọn viết sai. Là lỗi của ca đánh giá, không phải của hệ thống AI."""
 
 
+def clean_selector(selector: dict[str, Any]) -> dict[str, Any]:
+    """Bỏ các khóa tài liệu (bắt đầu bằng `_`) khỏi một điều kiện chọn.
+
+    Mục trong `named_selectors` mang thêm khóa `_why` giải thích tập đó là gì — bắt buộc, vì
+    một điều kiện không giải thích được thì không ai xét lại được nó. Nhưng `validate_selector`
+    từ chối khóa lạ, nên mọi nơi dùng phải lọc trước.
+
+    Trước khi có hàm này, đoạn lọc đó **bị lặp ở ba chỗ** (`validate_cases.py`,
+    `answer_metric.py`, và notebook báo cáo), và chỗ thứ ba đã quên lọc rồi ném
+    `SelectorError: khóa điều kiện không có: '_why'`. Một cạnh sắc mà ba nơi phải tự nhớ thì
+    sớm muộn có nơi quên — nên nó thành một hàm.
+
+    Cố ý KHÔNG cho `validate_selector` tự bỏ qua khóa `_`: làm vậy thì `_tags_all` gõ sai sẽ
+    bị bỏ qua im lặng thay vì báo lỗi.
+    """
+    return {k: v for k, v in selector.items() if not k.startswith("_")}
+
+
 def validate_selector(selector: dict[str, Any]) -> None:
     if not isinstance(selector, dict) or not selector:
         raise SelectorError(f"điều kiện chọn phải là dict không rỗng: {selector!r}")

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from menu_selectors import (
     SelectorError,
+    clean_selector,
     select_ids,
     selector_tags,
     validate_selector,
@@ -50,16 +51,14 @@ def resolve(value, named: dict) -> dict:
         name = value[1:]
         if name not in named:
             raise SelectorError(f"không có điều kiện tên {name!r}")
-        return {k: v for k, v in named[name].items() if not k.startswith("_")}
+        return clean_selector(named[name])
     if isinstance(value, dict):
         merged: dict = {}
         ref = value.get("$ref")
         if ref is not None:
             if ref not in named:
                 raise SelectorError(f"không có điều kiện tên {ref!r}")
-            merged.update(
-                {k: v for k, v in named[ref].items() if not k.startswith("_")}
-            )
+            merged.update(clean_selector(named[ref]))
         for key, val in value.items():
             if key in ("$ref",) or key.startswith("_"):
                 continue
@@ -89,7 +88,7 @@ def main() -> int:
 
     # Điều kiện có tên phải tự đúng trước khi ca nào dùng nó.
     for name, selector in named.items():
-        clean = {k: v for k, v in selector.items() if not k.startswith("_")}
+        clean = clean_selector(selector)
         try:
             validate_selector(clean)
             hit = select_ids(items, clean)
