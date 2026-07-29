@@ -99,7 +99,7 @@ Test đơn lẻ chỉ kiểm những chỗ người viết đã nghĩ tới. L�
 được" của bản cũ tồn tại chính vì không ai nghĩ tới nó.
 
 `probe_metric_holes.py` làm việc khác: đưa **năm câu trả lời chắc chắn tệ** qua **toàn bộ
-77 ca**, rồi đòi thước đo đánh đỏ. Ca nào một câu trả lời tệ vẫn qua được thì đó là lỗ, và
+80 ca**, rồi đòi thước đo đánh đỏ. Ca nào một câu trả lời tệ vẫn qua được thì đó là lỗ, và
 nó được **nêu tên cụ thể** để xét, chứ không làm tròn thành một tỷ lệ.
 
 Lần chạy đầu tìm ra **24 lỗ thật**, ba lớp:
@@ -112,7 +112,7 @@ Lần chạy đầu tìm ra **24 lỗ thật**, ba lớp:
 | 3 ca `refuse` qua khi luôn đáp "chưa có dữ liệu" | tôi cho cụm đó vào danh sách cụm từ chối | tách hai dạng: "doanh thu bao nhiêu" là *không trả lời ở kênh này*, không phải *thiếu dữ liệu* |
 
 Sau khi sửa: **0 lỗ**. Cách lách duy nhất còn qua được là "luôn nói chưa có dữ liệu", và nó
-qua đúng **12/77 ca** — chính 12 ca mà đó là câu trả lời đúng. Con số 12/77 là **sàn** của
+qua đúng **12/80 ca** — chính 12 ca mà đó là câu trả lời đúng. Con số 12/80 là **sàn** của
 thước đo: mọi hệ thống thật phải hơn hẳn nó mới đáng nói.
 
 Mỗi lần siết đều kèm test chiều ngược, để không siết quá:

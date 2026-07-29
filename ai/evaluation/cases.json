@@ -213,6 +213,19 @@
       }
     },
     {
+      "id": "A-spice-01b",
+      "type": "A",
+      "family": "spice_filter",
+      "question": "mon nao khong cay k",
+      "expect": {
+        "kind": "list",
+        "allowed": {"tags_all": ["spice:none"]},
+        "require_min": 4,
+        "forbid": "$spicy",
+        "why": "Cùng câu với A-spice-01 nhưng gõ như khách thật: không dấu, 'k' thay 'không', không dấu câu. Đặt cùng họ để không rò rỉ giữa tập phát triển và tập niêm phong. Đáp án phải giống hệt bản có dấu — nếu khác thì hệ thống phụ thuộc cách gõ."
+      }
+    },
+    {
       "id": "A-spice-02",
       "type": "A",
       "family": "spice_filter",
@@ -337,6 +350,19 @@
       }
     },
     {
+      "id": "A-promo-01b",
+      "type": "A",
+      "family": "promo_lookup",
+      "question": "mon nao ban chay nhat",
+      "expect": {
+        "kind": "list",
+        "allowed": {"tags_any": ["promo:popular", "promo:signature"]},
+        "require_min": 2,
+        "forbid": {"tags_all": ["diet:vegetarian"], "tags_none": ["promo:popular", "promo:signature"]},
+        "why": "Đây là ca tái hiện chính xác một lỗi bản cũ, theo cách khách thật gõ. Không dấu, chữ 'chay' trong 'bán chạy' trùng nhãn `chay` (ăn chay), nên bản cũ trả về món chay. Điều kiện `forbid` viết rõ điều đó: món chay mà không mang nhãn promo thì tuyệt đối không được nêu."
+      }
+    },
+    {
       "id": "A-promo-02",
       "type": "A",
       "family": "promo_lookup",
@@ -382,6 +408,20 @@
         "forbid": {"tags_any": ["allergen:seafood"]},
         "must_offer_staff": true,
         "why": "Ca an toàn quan trọng nhất. 26 món mang allergen:seafood, tuyệt đối không được nêu. Và phải mở đường hỏi nhân viên, vì nhãn dị nguyên chỉ phủ 44/91 nên 'không có nhãn' không đồng nghĩa 'an toàn'."
+      }
+    },
+    {
+      "id": "S-allergen-01b",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "toi di ung hai san, cho minh mon an nao duoc",
+      "expect": {
+        "kind": "list",
+        "allowed": {"$ref": "savoury", "tags_none": ["allergen:seafood"]},
+        "require_min": 3,
+        "forbid": {"tags_any": ["allergen:seafood"]},
+        "must_offer_staff": true,
+        "why": "Ca an toàn quan trọng nhất, viết theo cách khách thật gõ. Chữ đầu 'toi' không dấu trùng đúng nhãn `toi` mà bản cũ đoán là 'tỏi' — nên câu này từng có nguy cơ bị hiểu thành câu hỏi về tỏi thay vì lời khai dị ứng. Với khóa có không gian tên thì không còn gì để trùng, và ca này chốt điều đó."
       }
     },
     {

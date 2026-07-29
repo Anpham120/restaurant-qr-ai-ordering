@@ -11,13 +11,13 @@
     "ambiguous_clarify",
     "category_browse",
     "compare_fact",
+    "diet_filter",
     "drink_request",
     "extremes",
     "ingredient_filter",
     "internal_no_data",
     "item_attribute",
     "policy_no_data",
-    "promo_lookup",
     "recommend_constrained",
     "recommend_occasion",
     "spice_filter"
@@ -26,11 +26,11 @@
     "ambiguous_scope",
     "budget_filter",
     "compare_two",
-    "diet_filter",
     "food_only",
     "nutrition_no_data",
     "off_topic_request",
     "price_lookup",
+    "promo_lookup",
     "recommend_party",
     "region_filter"
   ]

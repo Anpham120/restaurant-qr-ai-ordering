@@ -8,7 +8,7 @@ Ba tệp:
 
 | Tệp | Việc |
 |---|---|
-| `evaluation/cases.json` | 77 ca đánh giá, mỗi ca có tiêu chí đúng/sai và lý do |
+| `evaluation/cases.json` | 80 ca đánh giá, mỗi ca có tiêu chí đúng/sai và lý do |
 | `evaluation/menu_selectors.py` | ngôn ngữ viết khóa đáp án dưới dạng truy vấn |
 | `evaluation/validate_cases.py` | kiểm chính tập ca — bắt ca viết sai |
 | `evaluation/build_split.py` → `split.json` | chia ba nhóm, tất định |
@@ -68,17 +68,17 @@ không sai, nên ca đó chỉ có `forbid: $drink`. Dùng danh sách trắng �
 
 ## 3. Thành phần tập ca
 
-77 ca, 27 họ câu hỏi.
+80 ca, 27 họ câu hỏi.
 
 | Loại | Số ca | Nghĩa |
 |---|---|---|
-| A — tra cứu thực đơn | 42 | đáp án nằm sẵn trong dữ liệu, **không được để mô hình sinh trả lời** |
+| A — tra cứu thực đơn | 45 | đáp án nằm sẵn trong dữ liệu, **không được để mô hình sinh trả lời** |
 | B — tri thức nhà hàng / ngoài phạm vi | 14 | chưa có kho tri thức, nên đáp án đúng là nói thẳng chưa có dữ liệu |
 | C — phán đoán, diễn đạt | 21 | không có đáp án đúng duy nhất; chỗ mô hình sinh có giá trị thật |
 
 | Dạng đáp án | Số ca |
 |---|---|
-| `list` — nêu danh sách món | 40 |
+| `list` — nêu danh sách món | 43 |
 | `fact` — một dữ kiện | 12 |
 | `no_data` — nói thẳng chưa có dữ liệu | 12 |
 | `compare` — so hai món | 4 |
@@ -110,9 +110,9 @@ Vài họ đáng nói riêng:
 
 | Nhóm | Ca | Họ | Vai trò |
 |---|---|---|---|
-| **chốt** | 13 | 4 | luôn phải xanh ở mọi lần chạy; một ca đỏ là chặn |
-| **phát triển** | 38 | 13 | dùng để chỉnh sửa và so trước/sau |
-| **niêm phong** | 26 | 10 | chỉ mở khi cần kết luận |
+| **chốt** | 14 | 4 | luôn phải xanh ở mọi lần chạy; một ca đỏ là chặn |
+| **phát triển** | 39 | 13 | dùng để chỉnh sửa và so trước/sau |
+| **niêm phong** | 27 | 10 | chỉ mở khi cần kết luận |
 
 Ca an toàn (dị ứng, bịa món, rò rỉ chỉ dẫn nội bộ) **không phải số liệu để so**. Đưa vào
 tập phát triển thì tỷ lệ chung che mất một ca dị ứng đỏ; đưa vào tập niêm phong thì một
@@ -140,9 +140,9 @@ Thành phần sau khi chia:
 
 | Nhóm | Loại | Dạng đáp án |
 |---|---|---|
-| chốt | A=11 B=2 | fact=2 list=6 no_data=3 refuse=2 |
-| phát triển | A=19 B=8 C=11 | clarify=2 compare=2 fact=6 list=20 no_data=7 refuse=1 |
-| niêm phong | A=12 B=4 C=10 | clarify=2 compare=2 fact=4 list=14 no_data=2 refuse=2 |
+| chốt | A=12 B=2 | fact=2 list=7 no_data=3 refuse=2 |
+| phát triển | A=20 B=8 C=11 | clarify=2 compare=2 fact=6 list=21 no_data=7 refuse=1 |
+| niêm phong | A=13 B=4 C=10 | clarify=2 compare=2 fact=4 list=15 no_data=2 refuse=2 |
 
 **Một khoảng trống đã được lấp.** Lần chia đầu, `clarify` và `refuse` chỉ có ở tập phát
 triển, nên tập niêm phong không đo được hai dạng đó. Vì họ câu hỏi không được nằm hai phía,
@@ -181,14 +181,22 @@ không phải đo trạng thái hỏng còn sót.
 
 1. **Câu hỏi do người viết, không phải log khách thật.** Dự án chưa có log. Tập này đo
    được hệ thống có tôn trọng dữ liệu và ràng buộc hay không; **không** đo được khách thật
-   hỏi gì, hỏi bằng cách nào, hay hỏi sai chính tả ra sao.
+   hỏi gì hay hỏi vì lý do gì.
+
+   Phần *cách gõ* thì đã lấp một phần: ba ca viết đúng như khách thật gõ — không dấu, viết
+   tắt, không dấu câu — và đặt **cùng họ** với bản có dấu để không rò rỉ giữa hai tập.
+   Hai trong đó tái hiện chính xác hai vụ đụng chữ đã gây lỗi bản cũ: `mon nao ban chay`
+   (chữ "chay" trong "bán chạy" trùng nhãn ăn chay) và `toi di ung hai san` (chữ "toi"
+   trùng nhãn mà bản cũ đoán là "tỏi"). Đây là chỗ gần nhất có thể đến với khách thật khi
+   chưa có log.
 2. **Thực đơn là dữ liệu mẫu.** 13 danh mục × đúng 7 món = 91. Thực đơn thật không đều
    như vậy.
 3. **Ca loại C không có đáp án đúng duy nhất.** Tiêu chí chỉ kiểm được ràng buộc cứng
    (không cay, trong ngân sách, không phải đồ uống). Phần "gợi ý có hợp không" thì tập này
    không đo được, và tôi không giả vờ là đo được.
-4. **`must_offer_staff` hiện chỉ là cờ.** Bước 3 phải định nghĩa cách kiểm nó trên một câu
-   trả lời thật.
+4. ~~**`must_offer_staff` hiện chỉ là cờ.**~~ Bước 3 đã định nghĩa: phép kiểm
+   `safety_offers_staff` tìm cụm mở đường hỏi nhân viên trong phần chữ, và là chốt an toàn
+   chứ không phải điểm trừ.
 5. **Chưa có gì để chạy.** Tập ca đã xong, nhưng chưa có hệ thống nào để chấm — đó là bước
    3 (thước đo) và bước 4 (câu trả lời đầu tiên).
 

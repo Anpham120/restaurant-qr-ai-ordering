@@ -86,11 +86,12 @@ Ba tệp cùng được cập nhật để không còn chỗ nào trôi được
   nên EF theo dõi chúng; không cập nhật thì lần `dotnet ef migrations add` sau sẽ sinh
   lại đúng phần khác biệt này.
 
-> **Chưa kiểm chứng được ở máy này:** không có .NET SDK, nên migration **chưa được biên
-> dịch và chưa chạy thử**. Cần `dotnet build` và `dotnet ef database update` trên môi
-> trường có SDK trước khi triển khai. Phần đã kiểm bằng cách khác: 91 câu `UPDATE` mỗi
-> chiều, 91 mã món khác nhau, ngoặc cân, thụt lề hợp lệ cho chuỗi raw C#, và toàn bộ 154
-> nhãn cũ trong `Down()` đã đối chiếu khớp 91/91 với tệp seed ở commit trước khi sửa.
+> **Trạng thái kiểm chứng.** Máy phát triển không có .NET SDK, nên migration được kiểm qua
+> CI: job `backend-test` đã qua bước `dotnet build` với migration này (run 30429447987), tức
+> nó **biên dịch được**. Ngoài ra đã kiểm bằng cách khác: 91 câu `UPDATE` mỗi chiều, 91 mã
+> món khác nhau, ngoặc cân, thụt lề hợp lệ cho chuỗi raw C#, và toàn bộ 154 nhãn cũ trong
+> `Down()` đối chiếu khớp 91/91 với tệp seed ở commit trước khi sửa. **Chưa làm:** chạy
+> `dotnet ef database update` trên một cơ sở dữ liệu thật — CI không chạy migration.
 
 ## 2. Các trường của một món
 
@@ -275,10 +276,14 @@ chạy lại nhiều lần cho cùng kết quả.
 
 ## 7. Còn lại chưa giải quyết
 
-1. **Migration chưa được biên dịch** — máy này không có .NET SDK. Cần `dotnet build` và
-   `dotnet ef database update` trước khi triển khai (chi tiết ở cuối mục 1).
-2. **Nhãn dị nguyên vẫn có thể còn thiếu.** Bảy lỗ tìm được bằng cách đọc mô tả; mô tả
-   không phải bảng thành phần, nên còn thiếu bao nhiêu thì **không biết được từ dữ liệu
+1. **Migration đã biên dịch được, nhưng chưa chạy trên cơ sở dữ liệu nào.** CI
+   (`backend-test`) đã qua bước `dotnet build` với migration này, nên nó hợp lệ về mặt biên
+   dịch. Vẫn cần `dotnet ef database update` trên một cơ sở dữ liệu thật để biết 91 câu
+   `UPDATE` chạy đúng — CI không chạy migration.
+2. **Nhãn dị nguyên vẫn có thể còn thiếu.** Bản rà (`scripts/audit_allergen_tags.py`,
+   hơn 40 từ khóa cho 5 loại, khớp theo biên từ, xử câu phủ định) **không tìm thêm lỗ nào**
+   ngoài bảy lỗ đã bổ sung. Nhưng nó chỉ đọc được những gì phần mô tả nói ra, và mô tả
+   không phải bảng thành phần — nên còn thiếu bao nhiêu thì **không biết được từ dữ liệu
    này**. Chỉ nhà hàng trả lời được.
 3. **`isAvailable` toàn `true`** — hành vi khi hết món không kiểm chứng được.
 4. **Nhãn là do người gán, không phải đo.** `health:healthy`, `flavour:rich` là đánh giá
