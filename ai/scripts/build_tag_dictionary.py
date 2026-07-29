@@ -360,6 +360,51 @@ def read_seed_tags(dictionary: dict) -> dict[str, list[str]]:
     return out
 
 
+def read_seed_categories() -> dict[str, str]:
+    """Tên món -> mã danh mục trong cơ sở dữ liệu."""
+    source = SEED_PATH.read_text(encoding="utf-8-sig")
+    return {
+        match.group("name"): match.group("cat")
+        for match in SEED_ITEM_RE.finditer(source)
+    }
+
+
+def align_category_ids(menu: dict, seed_categories: dict[str, str]) -> list[str]:
+    """Đưa mã danh mục của tệp JSON về mã của cơ sở dữ liệu.
+
+    Đây là chỗ lệch thứ hai giữa hai nguồn, cùng loại với lệch nhãn: 12/13 mã danh mục
+    khác nhau hoàn toàn, dù ánh xạ 1:1 sạch (mỗi danh mục đúng 7 món, khớp hết). Chỉ
+    `cat_alcohol` trùng.
+
+    Cơ sở dữ liệu thắng, hai lý do:
+
+    - Mã của nó là thứ cả hệ thống đang dùng. `CATEGORY_EN` trong `packages/i18n` khóa
+      theo `cat_appetizer`, `cat_noodle`...; `menu_items.category_id` trong cơ sở dữ liệu
+      trỏ tới chúng. Chỉ `menu-dataset.json` là ngoại lệ.
+    - Mã của tệp JSON **có dấu** (`cat_khai_vị`, `cat_phở_bún`, `cat_nước_ép_sinh_tố`).
+      Một khóa máy đọc mang dấu là đúng loại mong manh vừa gây ra bảy lỗi ở phần nhãn:
+      hễ có bước rút dấu nào ở giữa là khóa vỡ.
+
+    Nếu không sửa, mọi suy luận của AI theo `categoryId` sẽ đúng trên tệp JSON và sai khi
+    nhận dữ liệu thật từ `/api/menu`.
+    """
+    changes: list[str] = []
+    id_map: dict[str, str] = {}
+    for item in menu["items"]:
+        new_id = seed_categories.get(item["name"])
+        if new_id is None or new_id == item["categoryId"]:
+            continue
+        id_map[item["categoryId"]] = new_id
+        item["categoryId"] = new_id
+    for category in menu["categories"]:
+        new_id = id_map.get(category["categoryId"])
+        if new_id is None:
+            continue
+        changes.append(f"{category['categoryId']} -> {new_id} ({category['name']})")
+        category["categoryId"] = new_id
+    return changes
+
+
 def merge_seed_tags(
     menu: dict, dictionary: dict, seed_tags: dict[str, list[str]]
 ) -> tuple[list[str], list[str]]:
@@ -497,6 +542,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{len(menu['items'])} món — mẫu đọc seed có thể đã lạc hậu"
         )
     merged, rejected = merge_seed_tags(menu, dictionary, seed_tags)
+    cat_changes = align_category_ids(menu, read_seed_categories())
     after = Counter(t for m in menu["items"] for t in (m.get("tags") or []))
 
     print(f"nhãn trong từ điển : {len(dictionary['tags'])}")
@@ -511,6 +557,10 @@ def main(argv: list[str] | None = None) -> int:
     if rejected:
         print(f"\nNHÃN DB BỊ BỎ ({len(rejected)}) — nhóm loại trừ, mô tả món xử JSON đúng:")
         for line in rejected:
+            print(f"  - {line}")
+    if cat_changes:
+        print(f"\nMÃ DANH MỤC ĐƯA VỀ MÃ CỦA CƠ SỞ DỮ LIỆU ({len(cat_changes)}):")
+        for line in cat_changes:
             print(f"  - {line}")
     if added:
         print(f"\nBổ SUNG NHÃN DỊ NGUYÊN ({len(added)}) — căn cứ mô tả món, không phải kiểm bếp:")

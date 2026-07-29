@@ -125,11 +125,16 @@ describe("từ điển nhãn thực đơn", () => {
     };
 
     const seedTags = new Map<string, string[]>();
+    const seedCategory = new Map<string, string>();
+    const seedPrice = new Map<string, number>();
     const itemPattern =
-      /Item\(\d+,\s*"[^"]+",\s*"([^"]+)",\s*\d+,\s*"[^"]*",\s*"[^"]+",\s*seededAt,\s*\[([^\]]*)\]\)/g;
+      /Item\(\d+,\s*"([^"]+)",\s*"([^"]+)",\s*(\d+),\s*"[^"]*",\s*"[^"]+",\s*seededAt,\s*\[([^\]]*)\]\)/g;
     for (const match of seed.matchAll(itemPattern)) {
-      const tags = [...match[2]!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
-      seedTags.set(match[1]!, tags.sort());
+      const name = match[2]!;
+      const tags = [...match[4]!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+      seedTags.set(name, tags.sort());
+      seedCategory.set(name, match[1]!);
+      seedPrice.set(name, Number(match[3]));
     }
 
     expect(seedTags.size, "số món đọc được từ tệp seed").toBe(menu.items.length);
@@ -138,6 +143,31 @@ describe("từ điển nhãn thực đơn", () => {
       expect([...item.tags].sort(), `${item.name}: nhãn hai nguồn lệch nhau`).toEqual(
         seedTags.get(item.name),
       );
+      // Mã danh mục cũng từng lệch — 12/13 khác nhau, và mã của tệp JSON còn mang dấu
+      // (`cat_khai_vị`), đúng loại mong manh đã gây ra bảy lỗi ở phần nhãn.
+      expect(item.categoryId, `${item.name}: mã danh mục hai nguồn lệch nhau`).toBe(
+        seedCategory.get(item.name),
+      );
+      expect(item.price, `${item.name}: giá hai nguồn lệch nhau`).toBe(
+        seedPrice.get(item.name),
+      );
+    }
+  });
+
+  it("mã danh mục là ASCII, không mang dấu", () => {
+    // Khóa máy đọc mang dấu vỡ ngay khi có bước rút dấu ở giữa. Toàn hệ thống dùng mã
+    // ASCII (`CATEGORY_EN` trong packages/i18n, `menu_items.category_id`); tệp JSON
+    // từng là ngoại lệ duy nhất.
+    const menu = JSON.parse(readFileSync(menuPath, "utf8")) as {
+      items: { name: string; categoryId: string }[];
+      categories: { categoryId: string }[];
+    };
+    const ids = [
+      ...menu.categories.map((c) => c.categoryId),
+      ...menu.items.map((i) => i.categoryId),
+    ];
+    for (const id of ids) {
+      expect(id, `mã danh mục không phải ASCII: ${id}`).toMatch(/^[a-z0-9_]+$/);
     }
   });
 

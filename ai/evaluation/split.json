@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "method": "Chia theo họ câu hỏi để không rò rỉ giữa hai tập; cân theo (loại câu hỏi, dạng đáp án) để tập phát triển dự báo được tập niêm phong. Tất định, không dùng số ngẫu nhiên — sinh lại bởi ai/evaluation/build_split.py.",
+  "gate_families": [
+    "allergen_avoid",
+    "allergen_named_dish",
+    "nonexistent_item",
+    "unrelated"
+  ],
+  "dev_families": [
+    "ambiguous_clarify",
+    "category_browse",
+    "compare_two",
+    "drink_request",
+    "extremes",
+    "ingredient_filter",
+    "internal_no_data",
+    "item_attribute",
+    "policy_no_data",
+    "promo_lookup",
+    "recommend_constrained",
+    "recommend_occasion",
+    "spice_filter"
+  ],
+  "test_families": [
+    "budget_filter",
+    "compare_fact",
+    "diet_filter",
+    "food_only",
+    "nutrition_no_data",
+    "price_lookup",
+    "recommend_party",
+    "region_filter"
+  ]
+}

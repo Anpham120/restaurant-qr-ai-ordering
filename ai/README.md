@@ -34,13 +34,13 @@ mình đúng.** Bản dựng lại vì thế bắt đầu từ dữ liệu và t
 
 ## Lộ trình — mỗi bước có kiểm chứng riêng
 
-Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên. Bước 0 và 1 đã xong.
+Thứ tự này là thứ tự phụ thuộc, không phải thứ tự ưu tiên. Bước 0, 1, 2 đã xong.
 
 | # | Bước | Câu hỏi cần trả lời trước khi viết mã | Kiểm chứng |
 |---|---|---|---|
 | 0 | ✅ [Phát biểu bài toán](docs/00-problem-statement.md) | Khách hỏi những gì? Cái gì AI được phép trả lời? | 3 loại câu hỏi, phạm vi hai chiều, 3 điều tuyệt đối không làm |
 | 1 | ✅ [Từ điển dữ liệu](docs/01-data-dictionary.md) | Trường nào là sự thật, trường nào là nhãn người gán? Thiếu nhãn nghĩa là gì? | 84 nhãn → khóa có không gian tên; hợp nhất hai nguồn thực đơn (91/91 → 0/91 món lệch); 7 lỗ nhãn dị nguyên đã bổ sung; 8 test canh trôi dữ liệu, đã chứng minh bắt được lỗi thật |
-| 2 | Tập đánh giá | Câu hỏi thật của khách trông thế nào? Thế nào là trả lời đúng? | Mỗi ca có tiêu chí đúng/sai rõ ràng, chia dev/test theo tầng để dev dự báo được test |
+| 2 | ✅ [Tập đánh giá](docs/02-evaluation-set.md) | Thế nào là trả lời đúng? | 73 ca / 25 họ; khóa đáp án là truy vấn trên thực đơn nên tự kiểm được; chia 3 nhóm (chốt 13 / phát triển 38 / niêm phong 22), tất định; bộ kiểm bắt 9/9 loại ca viết sai |
 | 3 | Thước đo | Làm sao biết câu trả lời tốt? | Thước đo tự có test hai chiều: bắt được lỗi thật, không bịa lỗi |
 | 4 | Trả lời không cần AI | Bao nhiêu câu chỉ cần tra thực đơn? | Số nền: tỷ lệ trả lời được mà chưa dùng mô hình nào |
 | 5 | Truy hồi tri thức | Câu chính sách lấy dữ liệu ở đâu? | So sánh phương pháp truy hồi trên tập ở bước 2 |
