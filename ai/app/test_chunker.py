@@ -166,5 +166,57 @@ class KhoTriThucThatPhaiHopLe(unittest.TestCase):
         )
 
 
+class HaiKhoTriThucKhongDuocTRUNGCHUDE(unittest.TestCase):
+    """Bất biến nối HAI lớp tri thức, và nó tồn tại vì lớp 1 luôn thắng khi cả hai có.
+
+    Hai lớp khác nhau ở **chế độ trả lời**, không ở cách lấy:
+
+        lớp 1  restaurant-facts.json  → trả NGUYÊN VĂN, mô hình không chạm vào chữ
+        lớp 2  ai/knowledge/*.md      → là ĐẦU VÀO cho mô hình viết câu trả lời
+
+    Chia như vậy là có lý: giờ đóng cửa không được phép diễn đạt lại, còn "đặc sản miền Trung"
+    không nén được vào một câu nguyên văn. Nhưng nó sinh ra một cái bẫy.
+
+    `answer.py` tra lớp 1 TRƯỚC. Nên nếu một chủ đề có mặt ở CẢ HAI lớp, lớp 1 trả nguyên văn và
+    lớp 2 **không bao giờ tới lượt** — tài liệu ở lớp 2 thành xác chết: nó chiếm một chỗ trong
+    chỉ mục truy hồi, đẩy đoạn có ích ra khỏi top-k, và không ai gọi nó. Im lặng, không lỗi.
+
+    Hôm viết test này hai lớp rỗng giao nhau, nhưng chỉ vì tôi tự nhớ khi chọn `DERIVED_GROUPS`
+    (loại `diet` vì lớp 1 đã có chủ đề `vegetarian`). Kỷ luật con người thì hỏng lúc người khác
+    thêm tài liệu. Test này thay chỗ đó.
+
+    Khi test này đỏ, cách sửa là **chọn một lớp cho chủ đề đó**, không phải nới test:
+      - câu trả lời ngắn, một sự thật, không được diễn đạt lại  → giữ ở lớp 1, xóa tài liệu
+      - câu trả lời dài, nhiều mặt, cần dẫn nhiều món           → xóa chủ đề lớp 1, giữ tài liệu
+    """
+
+    def test_khoa_chu_de_hai_lop_roi_nhau(self):
+        import json
+
+        facts = json.loads(
+            (REPO_ROOT / "backend" / "data" / "restaurant-facts.json").read_text(
+                encoding="utf-8-sig"
+            )
+        )
+        layer1 = set(facts["topics"])
+        layer2 = {k for doc in load_all(KNOWLEDGE) for k in doc.topic_keys}
+        overlap = sorted(layer1 & layer2)
+        self.assertEqual(
+            overlap, [],
+            f"chủ đề có ở cả hai lớp: {overlap}. Lớp 1 tra trước nên tài liệu lớp 2 sẽ không "
+            "bao giờ được dùng — chọn một lớp, đừng để cả hai",
+        )
+
+    def test_moi_tai_lieu_lop_2_tra_khoa_duoc_bang_dung_mot_khoa(self):
+        # Mỗi tài liệu đúng MỘT khóa chủ đề, nên lớp 2 vẫn tra khóa được như lớp 1 — khác biệt
+        # giữa hai lớp là chế độ trả lời, không phải cách lấy. Nhiều khóa cho một tài liệu thì
+        # bất biến rời nhau ở trên trở nên nhập nhằng.
+        for doc in load_all(KNOWLEDGE):
+            self.assertEqual(
+                len(doc.topic_keys), 1,
+                f"{doc.doc_id}: có {len(doc.topic_keys)} khóa chủ đề, phải đúng 1",
+            )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
