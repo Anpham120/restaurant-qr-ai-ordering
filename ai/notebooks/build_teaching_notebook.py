@@ -45,6 +45,37 @@ for p in (ROOT / "ai" / "app", ROOT / "ai" / "evaluation"):
 
 def load(name):
     return json.loads((ROOT / "backend" / "data" / name).read_text(encoding="utf-8-sig"))
+
+KNOWLEDGE = ROOT / "ai" / "knowledge"
+'''
+
+# Phần dựng biểu đồ, thêm vào những ô có vẽ hình. Tách khỏi SETUP để ô không vẽ không phải
+# nạp matplotlib — nạp mất ~1 giây và làm notebook chạy chậm hơn không cần thiết.
+#
+# Cấu hình font: DejaVu Sans là font mặc định của matplotlib và nó CÓ dấu tiếng Việt. Không
+# đặt thì nhãn trục hiện ra ô vuông, và biểu đồ dùng cho báo cáo thì không chấp nhận được.
+PLOT = '''
+import matplotlib
+
+# KHÔNG đặt backend khi đang ở trong Jupyter. Trong notebook, backend mặc định là `inline` và
+# nó nhúng hình PNG vào ô kết quả; ép sang "Agg" thì `plt.show()` chạy im lặng và notebook
+# **không có hình nào** — đã mắc đúng lỗi này một lần, 16/16 ô chạy sạch mà 0 biểu đồ.
+try:
+    get_ipython()                # chỉ tồn tại trong Jupyter
+except NameError:
+    matplotlib.use("Agg")        # chạy ngoài notebook thì không mở cửa sổ
+import matplotlib.pyplot as plt
+plt.rcParams.update({
+    "font.family": "DejaVu Sans",     # có dấu tiếng Việt
+    "figure.dpi": 110,
+    "axes.grid": True,
+    "axes.grid.axis": "y",
+    "grid.alpha": 0.25,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+})
+# Bảng màu dùng chung cả notebook, để biểu đồ trong báo cáo nhất quán.
+XANH, DO, XAM, CAM = "#2c6fbb", "#c0392b", "#95a5a6", "#e67e22"
 '''
 
 
@@ -54,6 +85,11 @@ def md(source: str) -> nbformat.NotebookNode:
 
 def code(source: str) -> nbformat.NotebookNode:
     return nbformat.v4.new_code_cell(SETUP + "\n" + source.strip())
+
+
+def plot_code(source: str) -> nbformat.NotebookNode:
+    """Ô mã có vẽ biểu đồ: nạp thêm phần cấu hình matplotlib."""
+    return nbformat.v4.new_code_cell(SETUP + PLOT + "\n" + source.strip())
 
 
 def raw_code(source: str) -> nbformat.NotebookNode:
@@ -343,12 +379,500 @@ print("   cho phép nói chúng không chứa dị nguyên.")
 - **Quyết định tiếp theo:** đã hiểu dữ liệu, sang phần đo lường.
 """))
 
+    # ============================================== MỤC 4 — RÚT DẤU MẤT THÔNG TIN
+    out.append(md(r"""
+## 4. Rút dấu tiếng Việt là phép MẤT thông tin
+
+### Kiến thức
+
+Để khớp câu khách gõ, hệ thống phải **rút dấu**: khách viết `"Không cay"`, `"khong cay"`,
+`"ko cay"` đều phải hiểu như nhau. Đó là việc bắt buộc, không tránh được.
+
+Nhưng rút dấu là **hàm không đơn ánh** — hai chuỗi khác nghĩa có thể cho cùng kết quả. Bảy lỗi
+của bản cũ đều sinh ra từ đúng chỗ này, và chúng không phải bảy lỗi độc lập: chúng là **một lớp
+lỗi** xuất hiện bảy lần.
+
+**Cách sửa không phải sửa từng lỗi.** Sửa từng lỗi thì lỗi thứ tám sẽ tới. Cách sửa là **đổi
+hình dạng dữ liệu** để lớp lỗi đó không còn khả năng tồn tại: nhãn mang **tiền tố nhóm**.
+
+| Bản cũ | Bản dựng lại |
+|---|---|
+| `"nong"` — món nóng hay vị nồng? | `serving:hot` / `spice:hot` |
+| `"chay"` — ăn chay hay bán chạy? | `diet:vegetarian` / `promo:popular` |
+
+Sau khi đổi, cụm chữ **vẫn** trùng — nhưng tiền tố phân biệt được, nên trùng **không còn là
+lỗi**. Đây là điểm cần hiểu: không phải làm cho lỗi biến mất, mà làm cho **lớp lỗi không còn
+khả năng tồn tại**.
+
+Cơ chế thứ hai bảo vệ phần còn lại: **khớp cụm dài trước, rồi ăn hết đoạn đã khớp** (thay đoạn
+đã khớp bằng khoảng trắng để nó không khớp lần nữa).
+"""))
+
+    out.append(code(r"""
+# 1) Rút dấu làm MẤT thông tin — chứng minh bằng chính hàm hệ thống dùng
+from understand import VOCAB, fold, understand
+from collections import defaultdict
+
+menu, d = load("menu-dataset.json"), load("menu-tags.json")
+items = menu["items"]
+
+print("Hai chữ khác nghĩa, sau khi rút dấu thành một:")
+for a, b in [("nóng", "nồng"), ("chay", "cháy"), ("mực", "mức"), ("tôi", "tỏi")]:
+    dau = "  <-- ĐỤNG NHAU" if fold(a) == fold(b) else ""
+    print(f"   {a!r:8} -> {fold(a)!r:8}   {b!r:8} -> {fold(b)!r:8}{dau}")
+
+# 2) Nhãn mang tiền tố nhóm: cụm chữ vẫn trùng, nhưng không còn là lỗi
+col = defaultdict(set)
+for tag in d["tags"]:
+    col[fold(tag.split(":", 1)[1].replace("_", " "))].add(tag)
+clash = {k: sorted(v) for k, v in col.items() if len(v) > 1}
+print(f"\nCụm chữ rút dấu còn trùng giữa các nhãn: {len(clash)}")
+for k, v in clash.items():
+    print(f"   {k!r} <- {v}   (tiền tố nhóm phân biệt được -> KHÔNG còn là lỗi)")
+
+# 3) Kiểm kê chỗ có nguy cơ — tính lại, không viết tay
+phrases = sorted(VOCAB)
+names = [fold(m["name"]) for m in items]
+in_other = {a for a in phrases for b in phrases if a != b and a in b}
+in_name = {p for p in phrases if any(p in n for n in names)}
+print(f"\nKiểm kê trên {len(phrases)} cụm từ vựng và {len(items)} tên món:")
+print(f"   bị chứa trong cụm từ vựng khác : {len(in_other)}")
+print(f"   nằm trong tên món              : {len(in_name)}")
+print(f"   thuộc cả hai                   : {len(in_other & in_name)}")
+print(f"   TỔNG cụm có nguy cơ            : {len(in_other | in_name)}")
+
+# 4) Cơ chế chặn, thử trên 4 câu từng làm bản cũ sai
+print("\nBốn câu từng làm bản cũ sai:")
+for q in ["Món nào bán chạy nhất?", "Có đặc sản miền Trung không?",
+          "Nhà hàng mấy giờ mở cửa?", "Gà nướng mật ong giá bao nhiêu?"]:
+    r = understand(q, items)
+    print(f"   {q}")
+    print(f"      require={r.require_tags}  avoid={r.avoid_tags}  "
+          f"topic={r.policy_topic}  món={r.named_items}")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 1 — quy mô lớp lỗi đụng chữ, và phần tập đánh giá phủ được
+from understand import VOCAB, fold
+menu = load("menu-dataset.json"); items = menu["items"]
+phrases = sorted(VOCAB); names = [fold(m["name"]) for m in items]
+in_other = {a for a in phrases for b in phrases if a != b and a in b}
+in_name = {p for p in phrases if any(p in n for n in names)}
+rui_ro = in_other | in_name
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
+
+nhan = ["Bị chứa trong\ncụm khác", "Nằm trong\ntên món", "Thuộc\ncả hai", "TỔNG\ncó nguy cơ"]
+gia_tri = [len(in_other), len(in_name), len(in_other & in_name), len(rui_ro)]
+mau = [XANH, XANH, XAM, DO]
+b = ax1.bar(nhan, gia_tri, color=mau)
+ax1.bar_label(b, padding=2, fontsize=10, fontweight="bold")
+ax1.set_ylabel("số cụm từ vựng")
+ax1.set_title(f"Chỗ có nguy cơ đụng chữ\n(trên {len(phrases)} cụm từ vựng)", fontsize=11)
+ax1.set_ylim(0, max(gia_tri) * 1.25)
+
+# Ablation đo "mất 1 ca" — nhưng cơ chế bảo vệ 61 chỗ. Đây là khoảng trống của TẬP ĐÁNH GIÁ.
+co_ca, khong_ca = 1, len(rui_ro) - 1
+ax2.barh(["Cơ chế bảo vệ"], [co_ca], color=DO, label=f"có ca đánh giá ({co_ca})")
+ax2.barh(["Cơ chế bảo vệ"], [khong_ca], left=[co_ca], color=XAM,
+         label=f"KHÔNG có ca đánh giá ({khong_ca})")
+ax2.set_xlabel("số cụm có nguy cơ")
+ax2.set_title("Vì sao ablation báo 'mất 1 ca' là CHẶN DƯỚI", fontsize=11)
+ax2.legend(loc="lower right", fontsize=9)
+ax2.grid(False)
+
+plt.tight_layout()
+plt.show()
+print(f"Cơ chế ăn đoạn bảo vệ {len(rui_ro)} chỗ; tập đánh giá chỉ chạm tới 1.")
+print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, không đo giá trị cơ chế.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 4
+
+- **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
+  chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
+  nó **không còn là lỗi**. Kiểm kê: **61 cụm có nguy cơ** (44 bị chứa trong cụm khác, 29 nằm
+  trong tên món, 12 thuộc cả hai).
+- **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
+  cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
+  không bao giờ hết.
+- **Giới hạn phải nói ra:** ablation báo cơ chế ăn đoạn "chỉ đáng 1 ca", nhưng nó bảo vệ 61 chỗ.
+  Chênh lệch đó là **khoảng trống của tập đánh giá**, không phải bằng chứng cơ chế vô dụng. Đã
+  lấp bằng 9 test riêng, và ba con số trên **được tính lại mỗi lần chạy test** —
+  `test_understand.collision_census()`. Bản trước của tài liệu ghi "32 cụm" và "90 cụm": hai số
+  đó đúng lúc đo, rồi từ vựng lớn lên 303 cụm mà không ai tính lại.
+- **Quyết định tiếp theo:** dữ liệu nhãn đã an toàn, sang phần tri thức không nằm trong nhãn.
+"""))
+
+    # ============================================ MỤC 5 — MỘT KHO, HAI CHẾ ĐỘ
+    out.append(md(r"""
+## 5. Kho tri thức: MỘT kho, HAI chế độ trả lời
+
+### Kiến thức
+
+Nhãn thực đơn trả lời được "món nào không cay". Nó **không** trả lời được "mấy giờ mở cửa" hay
+"đặc sản miền Trung là gì". Phần đó cần **kho tri thức**.
+
+Câu hỏi thiết kế đầu tiên: kho đó nên có mấy phần? Dự án này lúc đầu làm **hai kho** — một tệp
+JSON tra khóa, và một thư mục markdown cho truy hồi — với lý do *"tra khóa vs truy hồi xếp
+hạng"*. **Lý do đó sai**, và đo lại mới thấy: mọi tài liệu markdown đều có đúng một `topic_keys`
+nên chúng cũng tra khóa được. Cách *lấy* không phân biệt được gì.
+
+Ranh giới thật là **chế độ trả lời** — mô hình được tin bao nhiêu:
+
+| `answer_mode` | Nội dung tới khách | Dùng cho |
+|---|---|---|
+| `verbatim` | **nguyên văn**, mô hình không chạm vào chữ | giờ mở cửa, thanh toán, phụ phí, cách khai dị ứng |
+| `synthesize` | **đầu vào** cho mô hình viết câu trả lời | "đặc sản miền Trung có gì", "gọi bao nhiêu món cho 6 người" |
+
+Và ranh giới đó **không cần hai kho**. Phải phân biệt hai thứ dễ bị gộp lẫn:
+
+- Số **kho lưu trữ** là chuyện gọn gàng → **gộp được**, và gộp còn xóa được một lớp lỗi: khi
+  còn hai kho, chủ đề có ở cả hai thì tài liệu kho thứ hai *không bao giờ tới lượt* mà vẫn
+  chiếm chỗ trong chỉ mục truy hồi — im lặng, không lỗi.
+- Số **chế độ trả lời** là chuyện an toàn → **không gộp được**. Về `synthesize` thì "mấy giờ
+  đóng cửa" do mô hình viết và nó *có thể* viết 22h30. Về `verbatim` thì phải nén danh sách
+  nhiều món kèm ghi chú dị nguyên vào một câu viết tay.
+"""))
+
+    out.append(code(r"""
+# Kho tri thức: quy mô, hai chế độ, và điều mỗi chế độ đảm bảo
+from collections import Counter
+from rag.chunker import (VERBATIM, all_chunks, load_all, retrievable_chunks,
+                         verbatim_answers)
+
+docs = load_all(KNOWLEDGE)
+chunks = all_chunks(KNOWLEDGE)
+print(f"tài liệu                 : {len(docs)}")
+print(f"đoạn (chunk)             : {len(chunks)}")
+print(f"đoạn ĐƯỢC xếp hạng       : {len(retrievable_chunks(KNOWLEDGE))}")
+print(f"theo chế độ trả lời      : {dict(Counter(d.answer_mode for d in docs))}")
+print(f"theo nguồn tri thức      : {dict(Counter(d.source for d in docs))}")
+print(f"theo thư mục             : {dict(Counter(d.path.parent.name for d in docs))}")
+
+print("\n--- Một tài liệu `verbatim`: chuỗi này tới khách NGUYÊN VĂN ---")
+hours = next(d for d in docs if "hours" in d.topic_keys)
+print(f"   {hours.verbatim_answer}")
+
+print("\n--- Một đoạn `synthesize`: đây là ĐẦU VÀO cho mô hình viết ---")
+ch = next(c for c in retrievable_chunks(KNOWLEDGE) if "region.central" in c.doc_id)
+print("   " + ch.text.replace("\n", "\n   ")[:260])
+
+print("\n--- Ranh giới được ÉP, không phải quy ước ---")
+syn = next(d for d in docs if d.answer_mode != VERBATIM)
+try:
+    syn.verbatim_answer
+    print("   KHÔNG lỗi -> ranh giới hỏng")
+except Exception as e:
+    print(f"   Gọi verbatim_answer trên tài liệu synthesize -> {type(e).__name__}")
+    print(f"   {str(e)[:110]}")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 2 — cấu trúc kho tri thức: chế độ trả lời, nguồn, và độ dài đoạn
+from collections import Counter
+from rag.chunker import all_chunks, load_all, retrievable_chunks
+
+docs = load_all(KNOWLEDGE); chunks = all_chunks(KNOWLEDGE)
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(13.5, 4))
+
+# (a) chế độ trả lời — mô hình được tin bao nhiêu
+mode = Counter(d.answer_mode for d in docs)
+ax1.pie([mode["verbatim"], mode["synthesize"]],
+        labels=[f"verbatim\n{mode['verbatim']} tài liệu\n(mô hình tin 0%)",
+                f"synthesize\n{mode['synthesize']} tài liệu\n(mô hình viết)"],
+        colors=[DO, XANH], autopct="%1.0f%%", startangle=90,
+        textprops={"fontsize": 9})
+ax1.set_title("Chế độ trả lời\n(ranh giới AN TOÀN)", fontsize=11)
+
+# (b) nguồn tri thức — tin được đến đâu
+src = Counter(d.source for d in docs)
+b = ax2.bar(["derived\n(máy sinh)", "demo\n(người viết)"],
+            [src["derived"], src["demo"]], color=[XANH, CAM])
+ax2.bar_label(b, padding=2, fontweight="bold")
+ax2.set_ylabel("số tài liệu")
+ax2.set_title("Nguồn tri thức\n(derived KHÔNG THỂ lệch khỏi thực đơn)", fontsize=11)
+ax2.set_ylim(0, max(src.values()) * 1.2)
+
+# (c) phân bố độ dài đoạn — đoạn quá ngắn thì vô dụng khi truy hồi
+w = [c.word_count for c in chunks]
+ax3.hist(w, bins=28, color=XANH, edgecolor="white")
+ax3.axvline(12, color=DO, linestyle="--", linewidth=1.5, label="ngưỡng tối thiểu 12 từ")
+ax3.axvline(400, color=CAM, linestyle="--", linewidth=1.5, label="ngưỡng chia tiếp 400 từ")
+ax3.set_xlabel("số từ mỗi đoạn"); ax3.set_ylabel("số đoạn")
+ax3.set_title(f"Độ dài {len(chunks)} đoạn\n(min {min(w)}, trung vị "
+              f"{sorted(w)[len(w)//2]}, max {max(w)})", fontsize=11)
+ax3.legend(fontsize=8)
+
+plt.tight_layout(); plt.show()
+loai = len(chunks) - len(retrievable_chunks(KNOWLEDGE))
+print(f"{loai} đoạn `verbatim` bị LOẠI khỏi chỉ mục truy hồi — chúng đã có đường tới khách")
+print("riêng (tra khóa, trả nguyên văn). Để trong chỉ mục là hai đường tới cùng nội dung.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 5
+
+- **Quan sát:** 84 tài liệu / 327 đoạn trong **một** kho, chia 24 `verbatim` + 60 `synthesize`.
+  Bộ truy hồi chỉ xếp hạng **303 đoạn** — 24 đoạn `verbatim` bị loại vì chúng đã có đường tới
+  khách riêng.
+- **Diễn giải:** hai thứ tôi từng gộp lẫn là **kho lưu trữ** và **chế độ trả lời**. Chúng độc
+  lập: không có gì bắt buộc "lưu trong markdown thì phải qua mô hình". Nhận ra điều đó mới gộp
+  được kho mà không mất bảo đảm an toàn.
+- **Ranh giới được ÉP bằng mã, không phải quy ước:** gọi `verbatim_answer` trên tài liệu
+  `synthesize` thì **lỗi**, không phải trả về một chuỗi nào đó. Trả về im lặng thì một chỗ dùng
+  sai sẽ đưa nửa tài liệu ra cho khách nguyên văn.
+- **Giới hạn:** 28/84 tài liệu là `demo` — giá trị mẫu cho dự án demo. Dùng thật thì chủ nhà
+  hàng phải thay, và đổi `source` thành `restaurant` để không còn bị đếm là mẫu.
+"""))
+
+    # ==================================== MỤC 6 — CHIA ĐOẠN VÀ CỬA AUDIENCE
+    out.append(md(r"""
+## 6. Chia đoạn, và cửa `audience: guest`
+
+### Kiến thức
+
+Truy hồi không lấy cả tài liệu, nó lấy **đoạn**. Nên cách chia đoạn quyết định chất lượng truy
+hồi trước cả khi chọn phương pháp. Ba quy tắc, mỗi cái một lý do:
+
+1. **Chia theo heading `##`, không theo số ký tự.** Chia theo ký tự thì cắt ngang giữa câu, và
+   nửa ý nằm ở đoạn này nửa kia ở đoạn khác — không đoạn nào trả lời được. Heading là ranh giới
+   ý nghĩa mà người viết đã đặt sẵn; dùng nó là miễn phí.
+2. **Kèm tiêu đề tài liệu vào mỗi đoạn.** Đoạn bị trích ra **rời khỏi** tài liệu. Một đoạn viết
+   "Có 7 món, giá từ 189.000đ" mà không nói đang nói về cái gì thì vô dụng.
+3. **Gộp đoạn quá ngắn.** Đoạn chỉ có một dòng tiêu đề không mang tín hiệu nào, nhưng **vẫn
+   chiếm một chỗ trong top-k** và đẩy một đoạn có ích ra ngoài. Lấy 5 đoạn mà 1 đoạn là rác thì
+   thực chất chỉ còn 4.
+
+Chi tiết dễ sai: **gộp phải chạy TRƯỚC khi cấp mã đoạn**. Cấp mã rồi mới gộp thì dãy mã bị
+khuyết (`#0, #2, #3`) và tập đánh giá truy hồi trỏ vào mã không tồn tại.
+
+### Cửa `audience`: TỪ CHỐI, không phải lọc bỏ
+
+Bản cũ có 27 tài liệu tri thức, trong đó **5 tài liệu là hướng dẫn cho AI** — phong cách trả
+lời, ví dụ phản hồi sai. Cả 27 nằm **cùng một chỉ mục truy hồi**, nên **47/221 đoạn** bị trích
+ra cho khách đọc. Khách hỏi giờ mở cửa và nhận một đoạn dạy AI cách xin lỗi.
+
+Có hai cách sửa, và chúng khác nhau nhiều hơn vẻ ngoài:
+
+| Cách | Hôm nay | Tháng sau ai đó thêm tệp nội bộ |
+|---|---|---|
+| **lọc bỏ** | hết lỗi | tệp **im lặng** bị bỏ qua, người thêm tưởng đã vào kho |
+| **từ chối** | hết lỗi | việc thêm **bị chặn ngay**, kèm lý do |
+"""))
+
+    out.append(code(r"""
+# Ba bất biến của bộ chia đoạn, kiểm trên kho THẬT
+from rag.chunker import KnowledgeError, all_chunks, load_all, load_doc
+import tempfile
+from pathlib import Path as _P
+
+chunks = all_chunks(KNOWLEDGE)
+w = sorted(c.word_count for c in chunks)
+print(f"Bất biến 1 — mọi đoạn kèm tiêu đề tài liệu : "
+      f"{sum(1 for c in chunks if c.text.startswith(c.title))}/{len(chunks)}")
+ids = [c.chunk_id for c in chunks]
+print(f"Bất biến 2 — chunk_id không trùng          : {len(set(ids))}/{len(ids)}")
+print(f"Bất biến 3 — nạp hai lần cho cùng dãy mã   : "
+      f"{[c.chunk_id for c in all_chunks(KNOWLEDGE)] == ids}")
+
+khuyet = [d.doc_id for d in load_all(KNOWLEDGE)
+          if [int(c.chunk_id.split('#')[1]) for c in d.chunks] != list(range(len(d.chunks)))]
+print(f"Bất biến 4 — dãy mã liên tục từ 0          : {len(khuyet)} tài liệu khuyết")
+print(f"\nĐộ dài đoạn: min {w[0]}, trung vị {w[len(w)//2]}, max {w[-1]} từ")
+
+# Cửa audience — chứng minh việc TỪ CHỐI thật sự xảy ra
+FM = ("id: kb.thu.v1\ntitle: Thử\ntopic_keys: [thu_nghiem]\nsource: demo\n"
+      "audience: {aud}\nanswer_mode: synthesize")
+BODY = "# Thử\n\n## Mục\n\n" + " ".join(["từ"] * 30)
+print("\n--- Cửa audience, thử cả hai chiều ---")
+with tempfile.TemporaryDirectory() as tmp:
+    for aud in ("guest", "ai"):
+        p = _P(tmp) / f"{aud}.md"
+        p.write_text(f"---\n{FM.format(aud=aud)}\n---\n\n{BODY}\n", encoding="utf-8")
+        try:
+            load_doc(p)
+            print(f"   audience={aud!r}  -> NHẬN")
+        except KnowledgeError as e:
+            print(f"   audience={aud!r}     -> TỪ CHỐI")
+            print(f"      {str(e)[:105]}...")
+print("\nThử chiều ngược là bắt buộc: một bộ nạp từ chối MỌI THỨ cũng qua được")
+print("phép kiểm 'từ chối tệp ai'.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 6
+
+- **Quan sát:** 327/327 đoạn kèm tiêu đề tài liệu, 327 mã đoạn không trùng, nạp hai lần cho cùng
+  dãy mã, 0 tài liệu có dãy mã khuyết. Cửa `audience` từ chối `ai` và **nhận** `guest`.
+- **Diễn giải:** ba bất biến đầu là điều kiện để **tập đánh giá truy hồi tồn tại được**. Mã đoạn
+  đổi giữa hai lần sinh thì mọi ca đánh giá trỏ sai chỗ, và người ta sẽ đi sửa bộ truy hồi trong
+  khi lỗi nằm ở bộ chia đoạn.
+- **Một lỗi thật đã sửa ở đây:** đoạn từng chứa **hai lần** tiêu đề tài liệu (tiền tố `title`
+  cộng dòng `# H1` trong thân). Không phải chuyện thẩm mỹ — trùng tiêu đề **thổi phồng tần số
+  từ**, và BM25 xếp hạng theo tần số từ. Tức nó làm lệch chính phép so BM25/embedding sẽ chạy ở
+  bước sau: **một thiên lệch nằm trong dữ liệu**, nên đọc kết quả sẽ không thấy.
+- **Giới hạn:** 3 tài liệu từng sinh ra đoạn mở đầu chỉ có dòng tiêu đề. Đã sửa bằng cách gộp,
+  nhưng nó cho thấy bộ chia đoạn **phụ thuộc cách người viết đặt heading** — nên bất biến phải
+  do máy canh, không do người nhớ.
+"""))
+
+    # ===================================== MỤC 7 — SINH RA, KHÔNG VIẾT TAY
+    out.append(md(r"""
+## 7. Tri thức kể lại dữ liệu thì phải được SINH, không viết tay
+
+### Kiến thức
+
+Kho tri thức bản cũ có tệp `menu.md` dài 159 dòng, kể lại thực đơn bằng văn xuôi. Trong đó có
+câu: *"Nhà hàng có **hơn 90 món**..."* — trong khi thực đơn có **đúng 91 món**.
+
+Câu đó đúng về mặt kỹ thuật nhưng vô dụng, và tệ hơn: nó là **con số viết tay**. Thêm 10 món thì
+nó thành sai, và **không ai biết**, vì không có gì canh nó.
+
+Đây là một luật chung, không riêng dự án này:
+
+> **Văn xuôi kể lại dữ liệu thì luôn trôi khỏi dữ liệu.** Dữ liệu đổi, văn không đổi theo.
+
+Chỉ có hai cách xử lý:
+
+| Cách | Đánh giá |
+|---|---|
+| kỷ luật con người — sửa thực đơn thì sửa cả tài liệu | **luôn thất bại**, vì nó dựa vào việc người ta nhớ |
+| **tính lại mỗi lần** — tài liệu do máy sinh, CI kiểm sinh lại được | cách duy nhất chặn được |
+
+Nên `build_knowledge.py` sinh phần `derived`. Con số trong đó không thể sai, vì nó **được tính,
+không được viết**.
+
+Phần `demo` là cho nội dung **suy ra không được** ("bia đi với món nướng", "gọi bao nhiêu món cho
+4 người"). Nhưng ngay cả phần này, **mọi con số cũng lấy từ thực đơn thật** — nên văn người viết
+vẫn không nói sai về dữ liệu được.
+
+### Tiêu chí chọn nhóm để sinh tài liệu
+
+Đáng ra có thể sinh cho cả 16 nhóm nhãn, ra ~120 tài liệu, số nghe to hơn. Chỉ sinh cho **6
+nhóm**, theo một tiêu chí duy nhất:
+
+> *Nhóm này có câu hỏi nào mà **lớp tra khóa không trả lời được** không?*
+
+**Có** với `method`, `region`, `ingredient`, `occasion`, `flavour`, `health` → sinh tài liệu.
+**Không** với `spice`, `price`, `party`, `season` — bốn nhóm này phủ 91/91 món nên lọc theo nhãn
+đã đúng **100%**. Thêm tài liệu là tạo **đường thứ hai cho cùng một việc**, đúng bệnh 8 đường
+chồng nhau của bản cũ.
+"""))
+
+    out.append(code(r"""
+# Chứng minh phần `derived` KHÔNG THỂ lệch: sinh lại rồi so từng byte
+import sys as _sys
+from collections import Counter
+from rag.chunker import load_all
+_sys.path.insert(0, str(ROOT / "ai" / "scripts"))
+import build_knowledge as bk
+
+docs = load_all(KNOWLEDGE)
+src = Counter(d.source for d in docs)
+print(f"derived (máy sinh) : {src['derived']} tài liệu")
+print(f"demo (người viết)  : {src['demo']} tài liệu")
+
+wanted = bk.generate(load("menu-dataset.json"), load("menu-tags.json"))
+khop = sum(1 for p, t in wanted.items()
+           if p.exists() and p.read_text(encoding="utf-8-sig") == t)
+print(f"\nSinh lại và so từng byte: {khop}/{len(wanted)} tài liệu derived khớp")
+print("=> CI chạy `build_knowledge.py --check`, nên tài liệu KHÔNG THỂ trôi khỏi thực đơn.")
+
+# Truy một con số cụ thể về đúng thực đơn
+items = load("menu-dataset.json")["items"]
+veg = [m for m in items if "diet:vegetarian" in m["tags"]]
+doc = next(d for d in docs if "vegetarian" in d.topic_keys)
+print(f"\nTruy nguồn một con số:")
+print(f"   đếm trực tiếp trên thực đơn : {len(veg)} món chay")
+print(f"   tài liệu tri thức nói       : {doc.verbatim_answer[:64]}...")
+print(f"   con số {len(veg)} có trong chuỗi     : {str(len(veg)) in doc.verbatim_answer}")
+
+# Tiêu chí chọn nhóm, kiểm bằng độ phủ
+d = load("menu-tags.json")
+print(f"\nSáu nhóm ĐƯỢC sinh tài liệu: {sorted(bk.DERIVED_GROUPS)}")
+print("Bốn nhóm KHÔNG sinh, vì lớp lọc theo nhãn đã đúng 100%:")
+for g in ["spice", "price", "party", "season"]:
+    phu = len({m["id"] for m in items if any(t.startswith(g + ":") for t in m["tags"])})
+    print(f"   {g:8} phủ {phu}/{len(items)} món -> lọc dứt khoát, không cần tài liệu")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 3 — tiêu chí chọn nhóm sinh tài liệu, đặt cạnh độ phủ nhãn
+from collections import Counter
+from rag.chunker import load_all
+import sys as _sys
+_sys.path.insert(0, str(ROOT / "ai" / "scripts"))
+import build_knowledge as bk
+
+items = load("menu-dataset.json")["items"]
+d = load("menu-tags.json")
+groups = sorted({e["group"] for e in d["tags"].values()})
+sinh = set(bk.DERIVED_GROUPS)
+
+rows = []
+for g in groups:
+    phu = len({m["id"] for m in items if any(t.startswith(g + ":") for t in m["tags"])})
+    rows.append((phu, g, g in sinh))
+rows.sort()
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 4.6))
+
+ten = [g for _, g, _ in rows]
+phu = [p for p, _, _ in rows]
+mau = [XANH if s else XAM for _, _, s in rows]
+b = ax1.barh(ten, phu, color=mau)
+ax1.bar_label(b, labels=[f"{p}/91" for p in phu], padding=3, fontsize=8)
+ax1.axvline(len(items), color=DO, linestyle="--", linewidth=1.4)
+ax1.text(len(items) - 1, -0.6, "91/91 = lọc dứt khoát", color=DO, fontsize=8, ha="right")
+ax1.set_xlabel("số món có nhãn thuộc nhóm")
+ax1.set_title("Độ phủ nhãn, và nhóm nào được sinh tài liệu\n"
+              "(xanh = sinh tài liệu, xám = không)", fontsize=11)
+ax1.set_xlim(0, len(items) * 1.18)
+
+# Vì sao KHÔNG sinh cho nhóm phủ đủ: sẽ là đường thứ hai cho cùng một việc
+docs = load_all(KNOWLEDGE)
+thumuc = Counter(d_.path.parent.name for d_ in docs)
+nhan = [f"policy\n(verbatim)", f"derived\n(nhóm nhãn)", f"written\n(người viết)"]
+gia = [thumuc["policy"], thumuc["derived"], thumuc["written"]]
+b2 = ax2.bar(nhan, gia, color=[DO, XANH, CAM])
+ax2.bar_label(b2, padding=2, fontweight="bold")
+ax2.set_ylabel("số tài liệu")
+ax2.set_title(f"84 tài liệu chia theo vai trò\n"
+              f"(6/16 nhóm nhãn được sinh, không phải 16/16)", fontsize=11)
+ax2.set_ylim(0, max(gia) * 1.2)
+
+plt.tight_layout(); plt.show()
+print(f"Chỉ {len(sinh)}/{len(groups)} nhóm nhãn được sinh tài liệu. Tiêu chí: nhóm đó có câu")
+print("hỏi nào mà LỚP TRA KHÓA không trả lời được không. Bốn nhóm phủ 91/91 bị bỏ qua vì")
+print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đường thứ hai cho cùng một việc.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 7
+
+- **Quan sát:** 56/84 tài liệu là `derived`, và **56/56 khớp từng byte** khi sinh lại. Con số
+  "17 món chay" trong tài liệu truy được về đúng phép đếm trên thực đơn. Chỉ **6/16** nhóm nhãn
+  được sinh tài liệu.
+- **Diễn giải:** `--check` trong CI là thứ biến "tài liệu không thể lệch" từ một lời hứa thành
+  một **bất biến máy canh**. Không có bước đó thì `derived` chỉ là một cái tên.
+- **Tiêu chí chọn nhóm là tiêu chí thật, không phải "thêm cho đủ số đoạn":** 4 nhóm phủ 91/91
+  bị bỏ qua vì lọc theo nhãn đã đúng 100%. Thêm tài liệu cho chúng là tạo **đường thứ hai cho
+  cùng một việc** — và khi câu trả lời sai thì không ai biết đường nào sai. Bản cũ có 8 đường
+  chồng nhau, 2 trong số đó bị tắt mà hệ thống vẫn chạy đúng.
+- **Giới hạn:** `demo` vẫn là 28 tài liệu người viết. Chúng không thể nói sai về **con số** (số
+  lấy từ thực đơn), nhưng có thể nói sai về **chính sách** — và điều đó chỉ chủ nhà hàng biết.
+- **Quyết định tiếp theo:** dữ liệu và tri thức đã xong. Nhưng chưa có cách nào biết hệ thống
+  trả lời đúng hay sai — đó là Phần II.
+"""))
+
     # ================================================================= PHẦN II
     out.append(md(r"""
 ---
 # PHẦN II — ĐO LƯỜNG: TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
 
-## 4. Vì sao đo lường phải có trước thứ được đo
+## 8. Vì sao đo lường phải có trước thứ được đo
 
 ### Kiến thức
 
@@ -370,7 +894,7 @@ tức 99,6% kia gần như hoàn toàn là ảo.
 
 **Nguyên tắc:** thước đo cũng là một phương pháp, và **cũng phải chứng minh được mình đúng.**
 
-## 5. Khóa đáp án phải kiểm được — dùng truy vấn, không dùng danh sách
+## 9. Khóa đáp án phải kiểm được — dùng truy vấn, không dùng danh sách
 
 ### Kiến thức
 
@@ -405,7 +929,7 @@ print(f"Tổng                        : {len(allowed) + len(forbidden)}/{len(men
 '''))
 
     out.append(md(r"""
-#### Nhận xét — Mục 5
+#### Nhận xét — Mục 9
 
 - **Quan sát:** khóa đáp án là `{"tags_all": ["spice:none"]}`, và bộ chạy tính ra tập món. Hai
   tập `allowed` và `forbid` phủ trọn 91 món và **giao nhau bằng 0**.
@@ -464,7 +988,7 @@ for label, mutate in [
 '''))
 
     out.append(md(r"""
-#### Nhận xét — Mục 5 (tiếp)
+#### Nhận xét — Mục 9 (tiếp)
 
 - **Quan sát:** cả ba lỗi cố tình tạo ra đều bị bắt, và bắt đúng chỗ. Bản đầy đủ trong
   `ai/evaluation/validate_cases.py` kiểm **9 loại lỗi** và đã được chứng minh bắt cả 9.
@@ -476,7 +1000,7 @@ for label, mutate in [
 """))
 
     out.append(md(r"""
-## 6. Chia tập đánh giá: ba nhóm, không phải hai
+## 10. Chia tập đánh giá: ba nhóm, không phải hai
 
 ### Kiến thức
 
@@ -531,7 +1055,7 @@ print(f"Dạng chỉ có ở tập phát triển: {sorted(dev_kinds - test_kinds
 '''))
 
     out.append(md(r"""
-#### Nhận xét — Mục 6
+#### Nhận xét — Mục 10
 
 - **Quan sát:** 0 họ nằm ở hai tập, nên không rò rỉ. Bốn họ chốt ứng đúng ba điều "tuyệt đối
   không làm" ở Phần I.
@@ -545,7 +1069,7 @@ print(f"Dạng chỉ có ở tập phát triển: {sorted(dev_kinds - test_kinds
 """))
 
     out.append(md(r"""
-## 7. Thước đo: hai nguyên tắc và một bộ dò lỗ
+## 11. Thước đo: hai nguyên tắc và một bộ dò lỗ
 
 ### Kiến thức — nguyên tắc 1: đừng tin hệ thống tự khai
 
@@ -614,7 +1138,7 @@ print(r.stdout)
 '''))
 
     out.append(md(r"""
-#### Nhận xét — Mục 7
+#### Nhận xét — Mục 11
 
 - **Quan sát:** cả năm cách trả lời vô nghĩa đều bị bắt ở **mọi** ca. Cách duy nhất còn qua
   được là "luôn nói chưa có dữ liệu", và nó qua đúng số ca mà đó **là** câu trả lời đúng.

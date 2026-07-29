@@ -139,8 +139,9 @@ Tập đánh giá, khóa đáp án dạng truy vấn, chia ba nhóm, thước đ
 ### Kiến thức phải nắm
 - **Số nền** là mốc để mọi thứ sau so vào. Bản cũ chỉ 33% câu trả lời do mã tất định sinh, và
   không ai biết vì sao.
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này chặn 96 chỗ đụng chữ (32 cụm nằm
-  trong cụm khác, 90 cụm nằm trong tên món).
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **61 cụm có nguy cơ đụng
+  chữ** (44 cụm bị chứa trong cụm khác, 29 cụm nằm trong tên món, 12 cụm thuộc cả hai). Số này
+  do `test_understand.collision_census()` tính lại mỗi lần chạy, không viết tay.
 - **Ràng buộc khác ngữ cảnh.** "Tôi ăn chay" là ràng buộc (lọc cứng); "tôi đi hẹn hò" là ngữ
   cảnh (chỉ sắp thứ tự). Lẫn hai thứ thì câu hẹn hò chỉ còn **đúng một món**.
 - **Fail-closed cho dị nguyên**: không bao giờ nới, kể cả khi kết quả rỗng.

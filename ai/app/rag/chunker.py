@@ -238,11 +238,22 @@ def load_doc(path: Path) -> KnowledgeDoc:
 
 
 def _split_sections(body: str) -> list[tuple[str, str]]:
-    """(tiêu đề mục, nội dung) theo heading `##`. Đoạn trước heading đầu có tiêu đề rỗng."""
+    """(tiêu đề mục, nội dung) theo heading `##`. Đoạn trước heading đầu có tiêu đề rỗng.
+
+    Dòng `# Tiêu đề` (H1) bị BỎ khỏi nội dung, vì `chunk_doc` đã ghép `doc.title` vào đầu mỗi
+    đoạn — để nó lại thì tiêu đề xuất hiện HAI LẦN trong `text`.
+
+    Đây không phải chuyện thẩm mỹ. Trùng tiêu đề **thổi phồng tần số từ** của đúng những từ
+    trong tiêu đề, và BM25 xếp hạng theo tần số từ. Tức nó làm lệch chính phép so
+    BM25/embedding/hybrid mà bước sau sẽ chạy — một thiên lệch nằm trong dữ liệu, không nằm
+    trong phương pháp, nên đọc kết quả sẽ không thấy nó.
+    """
     parts: list[tuple[str, str]] = []
     current_heading = ""
     buffer: list[str] = []
     for line in body.splitlines():
+        if line.startswith("# "):
+            continue
         if line.startswith("## "):
             if "".join(buffer).strip():
                 parts.append((current_heading, "\n".join(buffer).strip()))

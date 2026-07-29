@@ -108,16 +108,62 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
         self.assertEqual(request.require_tags, [])
 
 
+def collision_census() -> dict[str, int]:
+    """Kiểm kê chỗ đụng chữ, TÍNH LẠI mỗi lần chạy thay vì viết số vào tài liệu.
+
+    Vì sao hàm này tồn tại: tài liệu từng ghi "32 cụm nằm trong cụm khác" và "90 cụm nằm trong
+    tên món". Hai số đó đúng lúc đo, rồi từ vựng lớn dần lên 303 cụm và **không ai tính lại** —
+    tới lúc tôi đo lại thì không cách đếm nào cho ra 32 hay 90 nữa.
+
+    Đó đúng lớp lỗi mà cả dự án này chống: **số viết tay thì trôi khỏi dữ liệu.** Nên số phải
+    được tính, và `test_kiem_ke_dung_chu_khop_con_so_da_ghi` dưới đây biến việc trôi thành test
+    đỏ chứ không phải một dòng tài liệu sai âm thầm.
+
+    Định nghĩa dùng ở đây — nêu rõ vì mỗi cách đếm cho một số khác:
+      trong_cum_khac  số CỤM bị chứa trong một cụm từ vựng khác (không đếm cặp)
+      trong_ten_mon   số CỤM xuất hiện trong ít nhất một tên món đã rút dấu
+      co_rui_ro       HỢP hai tập trên — tổng số cụm mà cơ chế ăn đoạn phải bảo vệ
+    """
+    from understand import VOCAB, fold
+
+    phrases = sorted(VOCAB)
+    names = [fold(item["name"]) for item in ITEMS]
+    in_other = {a for a in phrases for b in phrases if a != b and a in b}
+    in_name = {p for p in phrases if any(p in n for n in names)}
+    return {
+        "tu_vung": len(phrases),
+        "trong_cum_khac": len(in_other),
+        "trong_ten_mon": len(in_name),
+        "co_rui_ro": len(in_other | in_name),
+    }
+
+
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Đếm trên từ vựng và thực đơn: **32 cụm nằm trong cụm khác** (6 cặp khác nghĩa) và
-    **90 cụm nằm trong tên món**. Cơ chế ăn hết đoạn đã khớp chặn tất cả, nhưng tập đánh
-    giá chỉ có ca cho một trong số đó — nên phép đo ablation báo "mất 1 ca" là **chặn dưới**,
-    không phải giá trị thật của cơ chế.
+    Kiểm kê trên 303 cụm từ vựng và 91 tên món: **44 cụm bị chứa trong cụm khác**, **29 cụm nằm
+    trong tên món**, và hợp lại là **61 cụm có nguy cơ** (12 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 61 chỗ đó.
+
+    Nhưng tập đánh giá chỉ có ca cho **một** trong số đó — nên phép đo ablation báo "mất 1 ca"
+    là **chặn dưới**, không phải giá trị thật của cơ chế. Đây là phát hiện về *tập đánh giá*,
+    không phải về *cơ chế*.
 
     Những test dưới đây lấp đúng khoảng trống đó: mỗi cái chốt một chỗ đụng chữ cụ thể.
     """
+
+    def test_kiem_ke_dung_chu_khop_con_so_da_ghi(self):
+        """Chống trôi số: docstring ở trên và tài liệu nêu số nào thì số đó phải còn đúng.
+
+        Khi test này đỏ, cách sửa là **cập nhật con số** ở ba chỗ (docstring class này,
+        `ai/docs/04-answers-without-a-model.md`, và notebook) — chứ không phải nới test. Số trôi
+        là dấu hiệu từ vựng đã lớn lên, và đó là thông tin đáng biết.
+        """
+        self.assertEqual(
+            collision_census(),
+            {"tu_vung": 303, "trong_cum_khac": 44, "trong_ten_mon": 29, "co_rui_ro": 61},
+            "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
+        )
 
     def test_nam_nguoi_khong_thanh_nam_an(self):
         # "nam nguoi" (năm người) chứa "nam" (nấm).

@@ -141,12 +141,40 @@ class DoanTuDuNghiaKhiTrichRoi(unittest.TestCase):
     def test_doan_mo_dau_chi_co_tieu_de_thi_bi_gop(self):
         # Đây là ca thật đã xảy ra: 3 tài liệu mở đầu bằng `# Tiêu đề` rồi vào ngay `##`, nên
         # đoạn #0 chỉ có dòng tiêu đề.
-        body = "# Tiêu đề ngắn\n\n## Mục đầu\n\n" + " ".join(["từ"] * 40)
+        body = "# Tài liệu thử\n\n## Mục đầu\n\n" + " ".join(["từ"] * 40)
         with tempfile.TemporaryDirectory() as tmp:
             path = write_doc(Path(tmp), "gop.md", GOOD_FM, body)
             doc = load_doc(path)
         self.assertEqual(len(doc.chunks), 1, "đoạn tiêu đề phải được gộp, không đứng riêng")
-        self.assertIn("Tiêu đề ngắn", doc.chunks[0].text)
+        self.assertTrue(doc.chunks[0].text.startswith(doc.title))
+
+    def test_tieu_de_tai_lieu_chi_xuat_hien_MOT_lan_trong_doan(self):
+        """Dòng `# H1` phải bị bỏ khỏi thân, vì tiền tố đã mang tiêu đề.
+
+        Không phải chuyện thẩm mỹ: trùng tiêu đề **thổi phồng tần số từ** của đúng những từ
+        trong tiêu đề, và BM25 xếp hạng theo tần số từ. Nó làm lệch chính phép so
+        BM25/embedding/hybrid ở bước sau — một thiên lệch nằm trong DỮ LIỆU, nên đọc kết quả
+        sẽ không thấy nó.
+
+        Chạy trên kho thật, vì lỗi này xảy ra ở kho thật: 84/84 tài liệu đều mở đầu bằng `# H1`
+        trùng với `title` trong frontmatter.
+
+        Kiểm **dòng H1**, không kiểm "chuỗi tiêu đề có xuất hiện lại". Bản đầu của test này kiểm
+        chuỗi và nó **bịa ra một lỗi không có**: tài liệu tiêu đề "Món chay" có câu nội dung
+        "Nhóm Món chay riêng có 7 món" — tiêu đề xuất hiện lại một cách hoàn toàn hợp lệ. Một
+        thước đo chấm đỏ câu đúng thì tệ hơn không có thước đo, vì nó khiến người ta sửa thứ
+        vốn đã đúng.
+        """
+        for chunk in all_chunks(KNOWLEDGE):
+            h1 = [
+                line for line in chunk.text.splitlines()[1:]  # dòng 0 là tiền tố tiêu đề
+                if line.startswith("# ")
+            ]
+            self.assertEqual(
+                h1, [],
+                f"{chunk.chunk_id}: còn dòng H1 {h1} trong thân đoạn — tiêu đề đếm hai lần "
+                "sẽ làm lệch tần số từ khi xếp hạng BM25",
+            )
 
 
 class KhoTriThucThatPhaiHopLe(unittest.TestCase):

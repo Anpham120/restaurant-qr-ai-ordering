@@ -112,17 +112,24 @@ Hai điều bất ngờ đáng ghi lại:
   thì "mấy giờ mở cửa**?**" không khớp cụm `mo cua`, và 13 ca đổ — trong đó 5 ca an toàn.
   Sáu test đầu của `test_understand.py` đã đỏ đúng vì lý do này.
 - **Con số của "ăn hết đoạn đã khớp" là chặn dưới, không phải giá trị thật.** Kiểm kê trên
-  từ vựng và thực đơn cho thấy nó chặn **32 cụm nằm trong cụm khác** (6 cặp khác nghĩa:
+  303 cụm từ vựng và 91 tên món: **44 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
   `trung`⊂`mien trung`, `nam`⊂`mien nam`, `nam`⊂`nam nguoi`, `tra`⊂`tra tien`,
-  `trung`⊂`dac trung`, `ga`⊂`mon ga`) và **90 cụm nằm trong tên món** (`lac`⊂"Cơm bò lúc
-  lắc", `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá"). Tập đánh giá chỉ có ca cho một
-  trong 96 chỗ đó. **Đây là phát hiện về tập đánh giá, không phải về cơ chế** — và tôi đã
-  lấp bằng 9 test riêng thay vì để con số ablation nói sai.
+  `trung`⊂`dac trung`, `ga`⊂`mon ga`), **29 cụm nằm trong tên món** (`lac`⊂"Cơm bò lúc lắc",
+  `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá"), và hợp lại là **61 cụm có nguy cơ** — 12
+  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 61 chỗ đó. **Đây là phát hiện về
+  tập đánh giá, không phải về cơ chế** — và tôi đã lấp bằng 9 test riêng thay vì để con số
+  ablation nói sai.
+
+  Ba con số trên **được tính lại mỗi lần chạy test**, không viết tay. Bản trước của mục này ghi
+  "32 cụm" và "90 cụm"; hai số đó đúng lúc đo rồi từ vựng lớn dần lên 303 cụm mà không ai tính
+  lại, tới lúc kiểm thì không cách đếm nào cho ra 32 hay 90 nữa. Nay
+  `test_understand.collision_census()` tính, và `test_kiem_ke_dung_chu_khop_con_so_da_ghi` biến
+  việc trôi thành **test đỏ** thay vì một dòng tài liệu sai âm thầm.
 
 Cũng phải sửa một điều tôi nói trước đó: tôi từng bảo cơ chế ăn đoạn là thứ chặn lỗi
 "bán chạy → món chay". Kiểm lại thì **không phải**: từ vựng không có cụm `chay` đứng một
 mình (tôi tách thành `an chay` và `mon chay`), nên thứ chặn ca đó là **thiết kế từ vựng**.
-Cơ chế ăn đoạn chặn 96 chỗ khác.
+Cơ chế ăn đoạn chặn 61 chỗ khác.
 
 ## 5. Một cơ chế bị bỏ vì nó gây hại
 
