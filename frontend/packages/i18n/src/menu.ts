@@ -137,7 +137,7 @@ export const MENU_ITEM_EN: Record<string, MenuTranslation> = {
  * nên khách xem bằng tiếng Anh thấy khóa thô ("toi", "trua", "khong cay") ở 30
  * nhãn, và 4 mục trỏ vào nhãn đã bỏ. Sinh từ từ điển thì thiếu sót không lặp lại.
  *
- * Cập nhật bằng: python ai/scripts/build_tag_dictionary.py
+ * Cập nhật bằng: python ai/tools/build_tag_dictionary.py
  */
 const TAG_EN: Record<string, string> = {
   // allergen
@@ -212,11 +212,15 @@ const TAG_EN: Record<string, string> = {
   "price:high": "Premium",
   "price:mid": "Mid-range",
   "price:premium": "Premium plus",
+  // promo
+  "promo:popular": "Popular",
+  "promo:signature": "Signature",
   // region
   "region:central": "Central Vietnam",
   "region:danang": "Da Nang",
   "region:hanoi": "Hanoi",
   "region:highlands": "Central Highlands",
+  "region:hoian": "Hoi An",
   "region:hue": "Hue",
   "region:mekong": "Mekong Delta",
   "region:north": "Northern Vietnam",
@@ -228,10 +232,11 @@ const TAG_EN: Record<string, string> = {
   "season:cooling": "Refreshing",
   "season:hot_season": "Hot season",
   // serving
+  "serving:hot": "Served hot",
   "serving:preorder": "Pre-order",
   "serving:takeaway": "Takeaway",
   // spice
-  "spice:hot": "Very spicy",
+  "spice:hot": "Served hot",
   "spice:medium": "Medium spicy",
   "spice:mild": "Mild spicy",
   "spice:none": "Not spicy",
@@ -241,6 +246,7 @@ const TAG_EN: Record<string, string> = {
   "3-5 nguoi": "Serves 3-5",
   "Da Nang": "Da Nang",
   "Ha Noi": "Hanoi",
+  "Hoi An": "Hoi An",
   "Hue": "Hue",
   "Sai Gon": "Saigon",
   "Tay Nguyen": "Central Highlands",
@@ -251,7 +257,7 @@ const TAG_EN: Record<string, string> = {
   "ca": "Fish",
   "ca nhan": "For one",
   "cao cap": "Premium",
-  "cay dam": "Very spicy",
+  "cay dam": "Served hot",
   "cay nhe": "Mild spicy",
   "cay vua": "Medium spicy",
   "chay": "Vegetarian",
@@ -297,13 +303,16 @@ const TAG_EN: Record<string, string> = {
   "nguoi gia": "Seniors",
   "nhau": "Drinks pairing",
   "nhom ban": "Groups",
+  "nong": "Served hot",
   "nuong": "Grilled",
+  "pho bien": "Popular",
   "premium": "Premium plus",
   "quanh nam": "All year",
   "rang": "Roasted",
   "rau": "Vegetables",
   "sang": "Breakfast",
   "share": "Sharing",
+  "signature": "Signature",
   "sinh nhat": "Birthday",
   "tam trung": "Mid-range",
   "thanh nhe": "Delicate",

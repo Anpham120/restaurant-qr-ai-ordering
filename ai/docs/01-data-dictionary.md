@@ -6,10 +6,10 @@ trọng nhất — **khi một nhãn không có mặt thì kết luận được
 
 Nguồn máy đọc: `backend/data/menu-tags.json`, sinh bởi `ai/scripts/build_tag_dictionary.py`.
 
-## 1. Phát hiện phải nói trước: có hai nguồn thực đơn, và chúng khác nhau
+## 1. Hai nguồn thực đơn từng lệch nhau — đã hợp nhất
 
-Ở bước 0 tôi viết "chỉ có một nguồn: `menu-dataset.json`". **Điều đó sai.** Kiểm tra
-`/api/menu` cho thấy nó đọc `db.MenuItems`, tức cơ sở dữ liệu, không phải tệp JSON.
+Ở bước 0 tôi viết "chỉ có một nguồn: `menu-dataset.json`". **Điều đó sai.** `/api/menu`
+đọc `db.MenuItems`, tức cơ sở dữ liệu, không phải tệp JSON. Trạng thái trước khi sửa:
 
 | | Cơ sở dữ liệu (khách thấy) | `menu-dataset.json` (AI dùng) |
 |---|---|---|
@@ -20,23 +20,77 @@ Nguồn máy đọc: `backend/data/menu-tags.json`, sinh bởi `ai/scripts/build
 | Trung bình mỗi món | **1,7 nhãn** | **15,0 nhãn** |
 
 Không migration nào sau `20260707` chạm vào `Tags`, nên khoảng cách này là trạng thái
-hiện hành, không phải tạm thời.
+hiện hành suốt từ đó. **Hệ quả:** bản AI cũ suy luận trên tập nhãn dày gấp gần chín lần
+thứ ứng dụng thật phục vụ khách. Mọi con số đánh giá của nó đo trên dữ liệu giàu hơn
+thực tế. Đây là lỗ hổng về giá trị của kết quả, không phải lỗi mã, và không test nào bắt
+được vì hai nguồn chưa từng được so với nhau.
 
-**Hệ quả:** bản AI cũ suy luận trên tập nhãn dày gấp gần chín lần thứ mà ứng dụng thật
-phục vụ khách. Mọi con số đánh giá của nó đo trên dữ liệu giàu hơn thực tế. Đây là lỗ
-hổng về giá trị của kết quả, không phải lỗi mã, và không có test nào bắt được vì hai
-nguồn chưa từng được so với nhau.
+### Cách hợp nhất, và bằng chứng cho từng quyết định
 
-**Chưa quyết:** hợp nhất theo hướng nào. Hai lựa chọn, và đây là việc cần chủ dự án chọn
-vì nó đụng dữ liệu production:
+Không thể hợp thẳng: **12 chỗ hai nguồn nói khác nhau**, trong đó 6 chỗ thuộc nhóm loại
+trừ nên hợp lại sẽ tạo món có hai mức cay. Phải phân xử bằng nguồn thứ ba.
 
-- **Làm giàu cơ sở dữ liệu** theo tệp JSON (một migration cập nhật `Tags` cho 91 món).
-  AI và khách nhìn cùng một thứ; khách được lợi vì thẻ nhãn trên món đầy đủ hơn.
-- **Giữ nguyên**, và AI chỉ được dùng 54 nhãn mà DB thật có. Trung thực với production
-  nhưng bỏ mất phần lớn thông tin đã có sẵn.
+**Nhóm loại trừ (`spice`, `price`): tệp JSON thắng.** Phần mô tả món ghi thẳng độ cay
+("Cay đậm.", "Không cay.") ở 63/91 món, và nhãn JSON khớp mô tả **63/63** — không một
+ngoại lệ. Ba nhãn cay của cơ sở dữ liệu trái với mô tả:
 
-Tôi nghiêng về phương án thứ nhất, nhưng chưa làm: viết migration sửa dữ liệu production
-vượt quá phạm vi "gán nhãn lại".
+| Món | Mô tả ghi | JSON | Cơ sở dữ liệu |
+|---|---|---|---|
+| Bún bò Huế | "Cay đậm." | `spice:hot` ✅ | `spice:medium` ❌ |
+| Mực xào sa tế | "Cay đậm." | `spice:hot` ✅ | `spice:medium` ❌ |
+| Gà nướng muối ớt xanh | "Cay vừa." | `spice:medium` ✅ | `spice:mild` ❌ |
+
+Với `price` thì giá không phân xử được (dải chồng nhau: `mid` 35–280k, `high` 250–450k),
+nhưng dưới chính thang của JSON, cơ sở dữ liệu gán `price:high` cho món 95.000đ (Cơm bò
+lúc lắc) và 120.000đ (Sầu riêng Ri6) — trái thang đó. Và Tôm hùm 890.000đ, món đắt nhất
+thực đơn, cơ sở dữ liệu gán `high` còn JSON gán `premium`.
+
+**Nhóm còn lại: cộng thêm.** 14 nhãn từ cơ sở dữ liệu là thông tin thật mà JSON thiếu,
+ví dụ `region:mekong` cho Bưởi da xanh Bến Tre — Bến Tre thuộc miền Tây, và nhãn này
+cùng tồn tại với `region:south` được vì miền Tây nằm trong miền Nam.
+
+**Bốn nhãn chỉ cơ sở dữ liệu có** được thu về, nâng từ điển từ 80 lên 84 nhãn:
+
+| Nhãn cũ | Khóa mới | Nhóm | Món |
+|---|---|---|---|
+| `Hoi An` | `region:hoian` | vùng miền | Cơm gà Hội An, Cao lầu Hội An |
+| `nong` | `serving:hot` | phục vụ | Súp măng cua |
+| `pho bien` | `promo:popular` | **nhóm mới** | 3 món |
+| `signature` | `promo:signature` | **nhóm mới** | 2 món |
+
+`promo` là nhóm mới vì hai nhãn này thuộc **loại khác**: chúng nói cách nhà hàng giới
+thiệu món, không phải thuộc tính của món. Trộn chung sẽ khiến "phổ biến" bị đối xử như
+"cay vừa". Nhân đây, câu "món nào bán chạy" — thứ từng khớp sai vào nhãn `chay` (ăn
+chay) do rút dấu — nay có câu trả lời thật.
+
+Bốn nhãn này cũng chính là bốn mục "chết" trong bảng dịch tiếng Anh, dấu hiệu cho thấy
+bảng đó được viết theo cơ sở dữ liệu chứ không theo tệp JSON.
+
+### Trạng thái sau khi hợp nhất
+
+| | Trước | Sau |
+|---|---|---|
+| Nhãn trong từ điển | 80 | **84** |
+| Nhóm | 15 | **16** |
+| Lần gán nhãn — cơ sở dữ liệu | 154 | **1.383** |
+| Lần gán nhãn — tệp JSON | 1.369 | **1.383** |
+| Món hai nguồn lệch nhãn | **91/91** | **0/91** |
+
+Ba tệp cùng được cập nhật để không còn chỗ nào trôi được:
+
+- `RestaurantMenuSeed.cs` — cho cơ sở dữ liệu **tạo mới**.
+- `Migrations/20260729120000_RelabelsMenuTagsWithNamespacedKeys.cs` — cho cơ sở dữ liệu
+  **đang chạy**. Seed một mình không đủ: production đã chạy migration seed từ 07/2026 nên
+  nó giữ nhãn cũ tới khi có migration cập nhật. `Down()` trả lại đúng 154 nhãn cũ.
+- `Migrations/RestaurantDbContextModelSnapshot.cs` — bắt buộc, vì nhãn seed qua `HasData`
+  nên EF theo dõi chúng; không cập nhật thì lần `dotnet ef migrations add` sau sẽ sinh
+  lại đúng phần khác biệt này.
+
+> **Chưa kiểm chứng được ở máy này:** không có .NET SDK, nên migration **chưa được biên
+> dịch và chưa chạy thử**. Cần `dotnet build` và `dotnet ef database update` trên môi
+> trường có SDK trước khi triển khai. Phần đã kiểm bằng cách khác: 91 câu `UPDATE` mỗi
+> chiều, 91 mã món khác nhau, ngoặc cân, thụt lề hợp lệ cho chuỗi raw C#, và toàn bộ 154
+> nhãn cũ trong `Down()` đã đối chiếu khớp 91/91 với tệp seed ở commit trước khi sửa.
 
 ## 2. Các trường của một món
 
@@ -87,7 +141,7 @@ không có gì canh chúng khỏi trôi khỏi nhau.** Nay chỉ còn một ngu�
 Khóa mới xóa cả lớp lỗi này về mặt cấu trúc, chứ không vá từng ca: khách không bao giờ
 gõ chuỗi `meal:dinner`, nên không còn gì để trùng.
 
-## 4. Mười lăm nhóm nhãn
+## 4. Mười sáu nhóm nhãn
 
 Mọi khóa có dạng `nhóm:giá_trị`. Cột "Số món" đếm số món mang **ít nhất một** nhãn của
 nhóm đó — con số quan trọng nhất trong bảng, vì nó quyết định có được suy luận từ việc
@@ -100,16 +154,17 @@ thiếu nhãn hay không (mục 5).
 | `price` | 4 | **có** | **91/91** | `budget`, `mid`, `high`, `premium` |
 | `season` | 4 | — | **91/91** | `all_year`, `hot_season`, `cold_season`, `cooling` |
 | `spice` | 4 | **có** | **91/91** | `none`, `mild`, `medium`, `hot` |
-| `occasion` | 6 | — | 78/91 | `everyday`, `banquet`, `birthday`, `business`, `date`, `drinking` |
+| `occasion` | 6 | — | 79/91 | `everyday`, `banquet`, `birthday`, `business`, `date`, `drinking` |
 | `flavour` | 6 | — | 72/91 | `rich`, `fatty`, `sour`, `sweet`, `salty`, `smoky` |
 | `health` | 6 | — | 67/91 | `healthy`, `light`, `low_calorie`, `low_fat`, `high_protein`, `no_msg` |
-| `region` | 9 | — | 65/91 | `north`, `central`, `south`, `mekong`, `hanoi`, `hue`, `saigon`, `danang`, `highlands` |
+| `region` | 10 | — | 65/91 | `north`, `central`, `south`, `mekong`, `hanoi`, `hue`, `saigon`, `danang`, `highlands`, `hoian` |
 | `ingredient` | 10 | — | 57/91 | `beef`, `pork`, `chicken`, `fish`, `shrimp`, `squid`, `crab`, `tofu`, `mushroom`, `vegetable` |
 | `method` | 10 | — | 57/91 | `grilled`, `fried`, `steamed`, `stir_fried`, `braised`, `boiled`, `roasted`, `stewed`, `simmered`, `rolled` |
-| `audience` | 2 | — | 51/91 | `child`, `elderly` |
+| `audience` | 2 | — | 52/91 | `child`, `elderly` |
 | `allergen` | 5 | — | 44/91 | `seafood`, `peanut`, `egg`, `dairy`, `gluten` |
-| `serving` | 2 | — | 23/91 | `preorder`, `takeaway` |
+| `serving` | 3 | — | 24/91 | `preorder`, `takeaway`, `hot` |
 | `diet` | 2 | — | 17/91 | `vegetarian`, `vegan` |
+| `promo` | 2 | — | 4/91 | `popular`, `signature` |
 
 **Loại trừ** nghĩa là một món chỉ được mang đúng một giá trị của nhóm. Nếu một món vừa
 `spice:none` vừa `spice:hot` thì không câu trả lời nào về độ cay của nó đúng được. Đã
@@ -134,7 +189,7 @@ Mỗi nhãn có ba dạng, trong `menu-tags.json`:
 Năm nhóm phủ **91/91** — `meal`, `party`, `price`, `season`, `spice`. Với chúng, thiếu
 nhãn là **bất thường về dữ liệu**, không phải thông tin. Có thể lọc thẳng.
 
-Mười nhóm còn lại **không phủ hết**. Với chúng, thiếu nhãn nghĩa là *chưa ghi nhận*,
+Mười một nhóm còn lại **không phủ hết**. Với chúng, thiếu nhãn nghĩa là *chưa ghi nhận*,
 **không** phải *không có*. `allergen` chỉ phủ 44/91: bốn mươi bảy món không mang nhãn dị
 nguyên nào — và điều đó không cho phép nói chúng không chứa dị nguyên.
 
@@ -182,7 +237,7 @@ python ai/scripts/build_tag_dictionary.py --check   # chỉ kiểm, không ghi
 python ai/scripts/build_tag_dictionary.py           # ghi từ điển + gán nhãn lại
 ```
 
-`frontend/src/components/menu/menuTagDictionary.test.ts` canh phần dễ trôi nhất — bảy ca,
+`frontend/src/components/menu/menuTagDictionary.test.ts` canh phần dễ trôi nhất — tám ca,
 và đã được chứng minh bắt được lỗi thật, không chỉ xanh:
 
 | Ca | Chặn điều gì |
@@ -193,13 +248,19 @@ và đã được chứng minh bắt được lỗi thật, không chỉ xanh:
 | tên nhãn cũ vẫn hiển thị đúng | đã thử xóa alias `binh dan`, test đỏ |
 | nhãn lạ trả về nguyên văn | chiều ngược: chứng minh hàm thật sự tra bảng |
 | khóa không lồng vào nhau | chính lỗi `nam` ⊂ `quanh nam` của bản cũ |
+| **hai nguồn mang cùng bộ nhãn** | đã thử bỏ một nhãn khỏi tệp seed, test đỏ đúng món |
 | nhóm loại trừ chỉ một giá trị | món có hai mức cay |
 
-Trạng thái: 107 test frontend cũ vẫn xanh, typecheck sạch cả 12 workspace.
+Ca áp chót là quan trọng nhất, vì chính sự trôi âm thầm giữa hai nguồn đã gây ra toàn bộ
+vấn đề ở mục 1 — và trước đó không có gì so chúng với nhau.
+
+Trạng thái: 114 test frontend xanh, typecheck sạch cả 12 workspace, cả hai công cụ sinh
+chạy lại nhiều lần cho cùng kết quả.
 
 ## 7. Còn lại chưa giải quyết
 
-1. **Hai nguồn thực đơn lệch nhau** (mục 1) — cần quyết định hợp nhất.
+1. **Migration chưa được biên dịch** — máy này không có .NET SDK. Cần `dotnet build` và
+   `dotnet ef database update` trước khi triển khai (chi tiết ở cuối mục 1).
 2. **Nhãn dị nguyên vẫn có thể còn thiếu.** Bảy lỗ tìm được bằng cách đọc mô tả; mô tả
    không phải bảng thành phần, nên còn thiếu bao nhiêu thì **không biết được từ dữ liệu
    này**. Chỉ nhà hàng trả lời được.

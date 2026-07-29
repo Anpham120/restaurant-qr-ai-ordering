@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -48,6 +49,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
 DICT_PATH = REPO_ROOT / "backend" / "data" / "menu-tags.json"
+SEED_PATH = (
+    REPO_ROOT
+    / "backend"
+    / "src"
+    / "RestaurantQrAiOrdering.Api"
+    / "Data"
+    / "RestaurantMenuSeed.cs"
+)
+
+# Mẫu đọc một món trong tệp seed C#.
+SEED_ITEM_RE = re.compile(
+    r'Item\((?P<num>\d+),\s*"(?P<cat>[^"]+)",\s*"(?P<name>[^"]+)",\s*(?P<price>\d+),'
+    r'\s*"(?P<desc>[^"]*)",\s*"(?P<slug>[^"]+)",\s*seededAt,\s*\[(?P<tags>[^\]]*)\]\)'
+)
 
 # Mỗi nhóm: tên nhóm -> {khóa cũ: (giá trị mới, nhãn tiếng Việt)}.
 # Nhãn tiếng Việt lấy từ TAG_LABELS của frontend, không tự dịch lại.
@@ -151,6 +166,7 @@ GROUPS: dict[str, dict[str, tuple[str, str]]] = {
         "Sai Gon": ("saigon", "Sài Gòn"),
         "Da Nang": ("danang", "Đà Nẵng"),
         "Tay Nguyen": ("highlands", "Tây Nguyên"),
+        "Hoi An": ("hoian", "Hội An"),
     },
     "season": {
         "quanh nam": ("all_year", "Quanh năm"),
@@ -161,6 +177,15 @@ GROUPS: dict[str, dict[str, tuple[str, str]]] = {
     "serving": {
         "dat truoc": ("preorder", "Đặt trước"),
         "mang di": ("takeaway", "Mang đi"),
+        "nong": ("hot", "Nóng"),
+    },
+    # Cách nhà hàng giới thiệu món, KHÔNG phải thuộc tính của món. Tách nhóm riêng để
+    # không lẫn với sự thật về đồ ăn: "phổ biến" là dữ liệu kinh doanh, còn "cay vừa"
+    # là dữ liệu về món. Nhờ nhóm này mà câu "món nào bán chạy" có câu trả lời thật —
+    # trước đây nó khớp sai vào nhãn `chay` (ăn chay) do rút dấu.
+    "promo": {
+        "pho bien": ("popular", "Phổ biến"),
+        "signature": ("signature", "Đặc trưng"),
     },
 }
 
@@ -245,6 +270,11 @@ LABELS_EN: dict[str, str] = {
     "vegan": "Vegan",
     "vegetable": "Vegetables",
     "vegetarian": "Vegetarian",
+    # Bốn nhãn chỉ có trong cơ sở dữ liệu, thu về khi hợp nhất hai nguồn thực đơn.
+    "hoian": "Hoi An",
+    "hot": "Served hot",
+    "popular": "Popular",
+    "signature": "Signature",
 }
 
 
@@ -319,6 +349,93 @@ def resolve_map(dictionary: dict) -> dict[str, str]:
     return resolve
 
 
+def read_seed_tags(dictionary: dict) -> dict[str, list[str]]:
+    """Đọc nhãn từ tệp seed C# — nguồn nhãn mà khách thật đang thấy qua /api/menu."""
+    resolve = resolve_map(dictionary)
+    source = SEED_PATH.read_text(encoding="utf-8-sig")
+    out: dict[str, list[str]] = {}
+    for match in SEED_ITEM_RE.finditer(source):
+        tags = re.findall(r'"([^"]+)"', match.group("tags"))
+        out[match.group("name")] = [resolve[t] for t in tags if t in resolve]
+    return out
+
+
+def merge_seed_tags(
+    menu: dict, dictionary: dict, seed_tags: dict[str, list[str]]
+) -> tuple[list[str], list[str]]:
+    """Hợp nhất nhãn của cơ sở dữ liệu vào thực đơn AI dùng.
+
+    Hai nguồn từng chạy song song và lệch nhau: cơ sở dữ liệu 1,7 nhãn/món (khách
+    thấy), tệp JSON 15 nhãn/món (AI dùng). Cùng 91 món, cùng tên.
+
+    Quy tắc hợp nhất, và vì sao:
+
+    - **Nhóm loại trừ (`spice`, `price`): tệp JSON thắng.** Có bằng chứng độc lập —
+      63/91 món ghi thẳng độ cay trong phần mô tả ("Cay đậm.", "Không cay."), và nhãn
+      JSON khớp mô tả **63/63**, không một ngoại lệ. Ba nhãn cay của cơ sở dữ liệu trái
+      với mô tả nên chúng sai (Bún bò Huế và Mực xào sa tế mô tả ghi "Cay đậm" nhưng
+      cơ sở dữ liệu gán "cay vừa"; Gà nướng muối ớt xanh mô tả ghi "Cay vừa" nhưng cơ
+      sở dữ liệu gán "cay nhẹ"). Với `price`, thang của JSON tự nhất quán còn cơ sở dữ
+      liệu gán "cao cấp" cho món 95.000đ và 120.000đ, trái chính thang đó.
+    - **Nhóm còn lại: cộng thêm.** Cơ sở dữ liệu có thông tin thật mà JSON thiếu, ví dụ
+      `region:mekong` cho Bưởi da xanh Bến Tre — Bến Tre thuộc miền Tây, và nhãn này
+      cùng tồn tại với `region:south` được vì miền Tây nằm trong miền Nam.
+    - **Bốn nhãn chỉ cơ sở dữ liệu có** được thu về: `region:hoian`, `serving:hot`,
+      `promo:popular`, `promo:signature`. Chúng cũng chính là bốn mục "chết" trong bảng
+      dịch tiếng Anh — dấu hiệu cho thấy bảng đó được viết theo cơ sở dữ liệu, không
+      theo tệp JSON.
+    """
+    exclusive = set(dictionary["exclusive_groups"])
+    added: list[str] = []
+    rejected: list[str] = []
+    for item in menu["items"]:
+        current = list(item["tags"])
+        for key in seed_tags.get(item["name"], []):
+            if key in current:
+                continue
+            group = key.split(":", 1)[0]
+            if group in exclusive:
+                kept = next((t for t in current if t.startswith(f"{group}:")), None)
+                rejected.append(f"{item['name']}: bỏ {key} của DB, giữ {kept} của JSON")
+                continue
+            current.append(key)
+            added.append(f"{item['name']}: +{key}")
+        item["tags"] = sorted(current)
+    return added, rejected
+
+
+def write_seed_tags(menu: dict) -> int:
+    """Ghi nhãn đã hợp nhất trở lại tệp seed C#, để khách và AI thấy cùng một thứ.
+
+    Chỉ thay phần trong dấu ngoặc vuông của mỗi lệnh `Item(...)`; mọi thứ khác trong
+    tệp giữ nguyên từng ký tự. Sửa hẹp như vậy để một tệp seed 91 dòng không bị sinh
+    lại toàn bộ, và để diff đọc được.
+    """
+    by_name = {m["name"]: m for m in menu["items"]}
+    source = SEED_PATH.read_text(encoding="utf-8-sig")
+    changed = 0
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal changed
+        item = by_name.get(match.group("name"))
+        if item is None:
+            return match.group(0)
+        new_block = ", ".join(f'"{t}"' for t in item["tags"])
+        old_block = match.group("tags")
+        if old_block == new_block:
+            return match.group(0)
+        changed += 1
+        start, end = match.span("tags")
+        text = match.group(0)
+        offset = match.start()
+        return text[: start - offset] + new_block + text[end - offset :]
+
+    updated = SEED_ITEM_RE.sub(replace, source)
+    if changed:
+        SEED_PATH.write_text(updated, encoding="utf-8")
+    return changed
+
+
 def relabel(menu: dict, dictionary: dict) -> tuple[dict, list[str], list[str]]:
     resolve = resolve_map(dictionary)
     problems: list[str] = []
@@ -373,12 +490,28 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     menu, problems, added = relabel(menu, dictionary)
+    seed_tags = read_seed_tags(dictionary)
+    if len(seed_tags) != len(menu["items"]):
+        problems.append(
+            f"đọc được {len(seed_tags)} món từ tệp seed nhưng thực đơn có "
+            f"{len(menu['items'])} món — mẫu đọc seed có thể đã lạc hậu"
+        )
+    merged, rejected = merge_seed_tags(menu, dictionary, seed_tags)
     after = Counter(t for m in menu["items"] for t in (m.get("tags") or []))
 
     print(f"nhãn trong từ điển : {len(dictionary['tags'])}")
     print(f"nhóm               : {len(dictionary['groups'])}")
     print(f"nhãn trước gán lại : {len(before)} loại, {sum(before.values())} lần gán")
     print(f"nhãn sau gán lại   : {len(after)} loại, {sum(after.values())} lần gán")
+    print(f"món đọc từ tệp seed: {len(seed_tags)}")
+    if merged:
+        print(f"\nHỢP NHẤT TỪ CƠ SỞ DỮ LIỆU ({len(merged)} nhãn cộng thêm):")
+        for line in merged:
+            print(f"  - {line}")
+    if rejected:
+        print(f"\nNHÃN DB BỊ BỎ ({len(rejected)}) — nhóm loại trừ, mô tả món xử JSON đúng:")
+        for line in rejected:
+            print(f"  - {line}")
     if added:
         print(f"\nBổ SUNG NHÃN DỊ NGUYÊN ({len(added)}) — căn cứ mô tả món, không phải kiểm bếp:")
         for line in added:
@@ -398,8 +531,10 @@ def main(argv: list[str] | None = None) -> int:
     MENU_PATH.write_text(
         json.dumps(menu, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    seed_changed = write_seed_tags(menu)
     print(f"\nĐã ghi {DICT_PATH.relative_to(REPO_ROOT)}")
     print(f"Đã ghi {MENU_PATH.relative_to(REPO_ROOT)}")
+    print(f"Đã ghi {SEED_PATH.relative_to(REPO_ROOT)} ({seed_changed}/91 món đổi nhãn)")
     return 1 if problems else 0
 
 

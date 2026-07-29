@@ -108,6 +108,39 @@ describe("từ điển nhãn thực đơn", () => {
     }
   });
 
+  it("cơ sở dữ liệu và thực đơn AI mang cùng bộ nhãn", () => {
+    // Đây là chỗ trôi đã gây ra cả vấn đề: hai nguồn từng lệch nhau âm thầm — cơ sở dữ
+    // liệu 1,7 nhãn/món (khách thấy qua /api/menu), tệp JSON 15 nhãn/món (AI dùng) —
+    // suốt nhiều tháng, vì chưa từng có gì so chúng với nhau. AI vì thế suy luận trên
+    // dữ liệu dày gấp gần chín lần thứ khách thật nhìn thấy.
+    const seedPath = fileURLToPath(
+      new URL(
+        "../backend/src/RestaurantQrAiOrdering.Api/Data/RestaurantMenuSeed.cs",
+        frontendRoot,
+      ),
+    );
+    const seed = readFileSync(seedPath, "utf8");
+    const menu = JSON.parse(readFileSync(menuPath, "utf8")) as {
+      items: { id: string; name: string; tags: string[] }[];
+    };
+
+    const seedTags = new Map<string, string[]>();
+    const itemPattern =
+      /Item\(\d+,\s*"[^"]+",\s*"([^"]+)",\s*\d+,\s*"[^"]*",\s*"[^"]+",\s*seededAt,\s*\[([^\]]*)\]\)/g;
+    for (const match of seed.matchAll(itemPattern)) {
+      const tags = [...match[2]!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+      seedTags.set(match[1]!, tags.sort());
+    }
+
+    expect(seedTags.size, "số món đọc được từ tệp seed").toBe(menu.items.length);
+    for (const item of menu.items) {
+      expect(seedTags.get(item.name), `${item.name} không có trong tệp seed`).toBeDefined();
+      expect([...item.tags].sort(), `${item.name}: nhãn hai nguồn lệch nhau`).toEqual(
+        seedTags.get(item.name),
+      );
+    }
+  });
+
   it("nhóm loại trừ nhau thì mỗi món chỉ mang một giá trị", () => {
     const menu = JSON.parse(readFileSync(menuPath, "utf8")) as {
       items: { id: string; name: string; tags: string[] }[];

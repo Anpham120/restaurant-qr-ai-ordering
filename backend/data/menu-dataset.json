@@ -162,6 +162,8 @@
         "party:family",
         "party:solo",
         "price:budget",
+        "promo:popular",
+        "promo:signature",
         "region:south",
         "season:all_year",
         "spice:none"
@@ -252,6 +254,7 @@
         "price:mid",
         "region:south",
         "season:cold_season",
+        "serving:hot",
         "spice:none"
       ]
     },
@@ -422,6 +425,7 @@
         "party:family",
         "party:solo",
         "price:budget",
+        "promo:signature",
         "region:hanoi",
         "region:north",
         "season:all_year",
@@ -564,6 +568,7 @@
         "price:budget",
         "region:central",
         "region:danang",
+        "region:hoian",
         "season:all_year",
         "spice:none"
       ]
@@ -651,6 +656,7 @@
         "party:family",
         "party:solo",
         "price:budget",
+        "promo:popular",
         "region:saigon",
         "region:south",
         "season:all_year",
@@ -873,6 +879,7 @@
         "occasion:business",
         "party:family",
         "party:share",
+        "party:three_five",
         "party:two_three",
         "price:high",
         "region:south",
@@ -900,6 +907,7 @@
         "method:simmered",
         "party:family",
         "party:share",
+        "party:three_five",
         "party:two_three",
         "price:high",
         "region:north",
@@ -925,6 +933,7 @@
         "meal:dinner",
         "method:simmered",
         "method:stewed",
+        "occasion:drinking",
         "party:friends",
         "party:share",
         "party:three_five",
@@ -1060,6 +1069,7 @@
       "imageUrl": "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=600&h=400&fit=crop",
       "isAvailable": true,
       "tags": [
+        "audience:child",
         "flavour:rich",
         "flavour:salty",
         "flavour:sweet",
@@ -1318,6 +1328,7 @@
         "price:mid",
         "region:central",
         "region:danang",
+        "region:hoian",
         "season:all_year",
         "spice:none"
       ]
@@ -1709,6 +1720,7 @@
         "party:friends",
         "party:solo",
         "price:budget",
+        "promo:popular",
         "season:all_year",
         "serving:takeaway",
         "spice:none"
@@ -2193,6 +2205,7 @@
         "meal:dinner",
         "party:solo",
         "price:budget",
+        "region:mekong",
         "region:south",
         "season:all_year",
         "spice:none"
@@ -2483,6 +2496,7 @@
         "occasion:banquet",
         "occasion:business",
         "occasion:date",
+        "occasion:drinking",
         "party:solo",
         "price:mid",
         "region:hanoi",

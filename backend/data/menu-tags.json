@@ -13,6 +13,7 @@
     "occasion",
     "party",
     "price",
+    "promo",
     "region",
     "season",
     "serving",
@@ -51,7 +52,7 @@
       "group": "spice",
       "value": "hot",
       "label_vi": "Cay đậm",
-      "label_en": "Very spicy",
+      "label_en": "Served hot",
       "legacy_key": "cay dam",
       "exclusive": true
     },
@@ -615,6 +616,14 @@
       "legacy_key": "Tay Nguyen",
       "exclusive": false
     },
+    "region:hoian": {
+      "group": "region",
+      "value": "hoian",
+      "label_vi": "Hội An",
+      "label_en": "Hoi An",
+      "legacy_key": "Hoi An",
+      "exclusive": false
+    },
     "season:all_year": {
       "group": "season",
       "value": "all_year",
@@ -661,6 +670,30 @@
       "label_vi": "Mang đi",
       "label_en": "Takeaway",
       "legacy_key": "mang di",
+      "exclusive": false
+    },
+    "serving:hot": {
+      "group": "serving",
+      "value": "hot",
+      "label_vi": "Nóng",
+      "label_en": "Served hot",
+      "legacy_key": "nong",
+      "exclusive": false
+    },
+    "promo:popular": {
+      "group": "promo",
+      "value": "popular",
+      "label_vi": "Phổ biến",
+      "label_en": "Popular",
+      "legacy_key": "pho bien",
+      "exclusive": false
+    },
+    "promo:signature": {
+      "group": "promo",
+      "value": "signature",
+      "label_vi": "Đặc trưng",
+      "label_en": "Signature",
+      "legacy_key": "signature",
       "exclusive": false
     }
   }

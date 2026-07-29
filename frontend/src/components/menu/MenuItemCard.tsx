@@ -25,7 +25,7 @@ export function formatVnd(price: number) {
  * Nhận cả khóa mới (`meal:dinner`) và tên cũ (`toi`) vì hai nguồn đang cùng chạy:
  * /api/menu trả nhãn cũ từ cơ sở dữ liệu, thực đơn JSON và AI dùng khóa mới.
  *
- * Cập nhật bằng: python ai/scripts/build_tag_dictionary.py
+ * Cập nhật bằng: python ai/tools/build_tag_dictionary.py
  */
 const TAG_LABELS: Record<string, string> = {
   // allergen
@@ -100,11 +100,15 @@ const TAG_LABELS: Record<string, string> = {
   "price:high": "Cao cấp",
   "price:mid": "Tầm trung",
   "price:premium": "Premium",
+  // promo
+  "promo:popular": "Phổ biến",
+  "promo:signature": "Đặc trưng",
   // region
   "region:central": "Miền Trung",
   "region:danang": "Đà Nẵng",
   "region:hanoi": "Hà Nội",
   "region:highlands": "Tây Nguyên",
+  "region:hoian": "Hội An",
   "region:hue": "Huế",
   "region:mekong": "Miền Tây",
   "region:north": "Miền Bắc",
@@ -116,6 +120,7 @@ const TAG_LABELS: Record<string, string> = {
   "season:cooling": "Giải nhiệt",
   "season:hot_season": "Mùa nóng",
   // serving
+  "serving:hot": "Nóng",
   "serving:preorder": "Đặt trước",
   "serving:takeaway": "Mang đi",
   // spice
@@ -129,6 +134,7 @@ const TAG_LABELS: Record<string, string> = {
   "3-5 nguoi": "3-5 người",
   "Da Nang": "Đà Nẵng",
   "Ha Noi": "Hà Nội",
+  "Hoi An": "Hội An",
   "Hue": "Huế",
   "Sai Gon": "Sài Gòn",
   "Tay Nguyen": "Tây Nguyên",
@@ -185,13 +191,16 @@ const TAG_LABELS: Record<string, string> = {
   "nguoi gia": "Người già",
   "nhau": "Nhậu",
   "nhom ban": "Nhóm bạn",
+  "nong": "Nóng",
   "nuong": "Nướng",
+  "pho bien": "Phổ biến",
   "premium": "Premium",
   "quanh nam": "Quanh năm",
   "rang": "Rang",
   "rau": "Rau",
   "sang": "Sáng",
   "share": "Chia sẻ",
+  "signature": "Đặc trưng",
   "sinh nhat": "Sinh nhật",
   "tam trung": "Tầm trung",
   "thanh nhe": "Thanh nhẹ",
