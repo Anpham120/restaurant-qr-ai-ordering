@@ -17,9 +17,15 @@
     "ingredient_filter",
     "internal_no_data",
     "item_attribute",
+    "paraphrase_audience",
+    "paraphrase_budget",
+    "paraphrase_health",
+    "paraphrase_method",
+    "paraphrase_still_vague",
     "policy_no_data",
     "recommend_constrained",
-    "recommend_occasion",
+    "recommend_party",
+    "region_filter",
     "spice_filter"
   ],
   "test_families": [
@@ -29,9 +35,11 @@
     "food_only",
     "nutrition_no_data",
     "off_topic_request",
+    "paraphrase_allergy",
+    "paraphrase_flavour",
+    "paraphrase_season",
     "price_lookup",
     "promo_lookup",
-    "recommend_party",
-    "region_filter"
+    "recommend_occasion"
   ]
 }

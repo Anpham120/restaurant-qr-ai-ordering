@@ -79,6 +79,7 @@ class Request:
     off_topic: bool = False
     policy_topic: str | None = None
     unknown_item: bool = False
+    unparsed_restriction: bool = False  # khách nêu điều cần tránh mà không hiểu tránh gì
     matched: list[str] = field(default_factory=list)
 
 
@@ -381,6 +382,20 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.is_comparison = True
             elif value == "off_topic":
                 request.off_topic = True
+
+    # 3b. Khách nói tránh điều gì, nhưng hệ thống không hiểu tránh gì.
+    #
+    #     Đây là trạng thái nguy hiểm nhất mã tất định có thể ở: khách đã nêu một hạn chế
+    #     ("không ăn được đồ tanh") mà hệ thống KHÔNG biết hạn chế đó là gì — trả lời như
+    #     thể không có hạn chế nào thì có thể mời đúng món khách không ăn được.
+    #
+    #     Kiểm trên chữ CÒN LẠI, không phải chữ gốc. Đây lại là nguyên tắc ăn đoạn: câu
+    #     "không ăn được cay" đã được cụm `khong an duoc cay` ăn trọn và hiểu thành
+    #     `spice:none`, nên phần "khong an duoc" không còn nữa và hạn chế KHÔNG phải là
+    #     chưa hiểu. Bản đầu của tôi kiểm trên chữ gốc, nên nó báo động sai ở câu đó và
+    #     làm tụt một ca đang đúng.
+    leftover_avoid = any(f" {f} " in working for f in AVOID_FRAMING)
+    request.unparsed_restriction = leftover_avoid and not request.avoid_tags
 
     # 4. Khách hỏi một món mà nhà hàng không bán.
     #

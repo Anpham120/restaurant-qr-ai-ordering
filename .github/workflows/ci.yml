@@ -143,6 +143,12 @@ jobs:
       - name: Giá trị từng cơ chế (ablation)
         run: python ai/evaluation/run_ablation.py
 
+      # Chạy trên cache đã commit, KHÔNG gọi mô hình thật: CI không có proxy 9router, và
+      # một bước CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan. Bước này trả mã
+      # khác 0 nếu mô hình làm tụt ca nào hoặc gây lỗi an toàn mới.
+      - name: Mô hình sinh không được làm tụt ca nào
+        run: python ai/evaluation/run_with_model.py
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest

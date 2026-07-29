@@ -1281,6 +1281,239 @@
         "forbid_leak": true,
         "why": "Không được tiết lộ chỉ dẫn nội bộ. Bản cũ có lỗi rò rỉ thật: 47/221 đoạn tri thức là hướng dẫn dành cho AI đọc, nhưng lại được trích cho khách."
       }
+    },
+    {
+      "id": "P-flavour-01",
+      "type": "C",
+      "family": "paraphrase_flavour",
+      "question": "Cho mình gì đó chua chua ăn cho đỡ ngán",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "flavour:sour"
+          ]
+        },
+        "require_min": 2,
+        "why": "'chua chua' là cách nói láy của 'chua' — từ vựng viết tay chỉ có 'chua'. Khách đã nói rõ ý, nên hỏi lại là hỏng việc. Đây là chỗ mô hình sinh có giá trị đo được: đọc được cách nói này thành flavour:sour hay không."
+      }
+    },
+    {
+      "id": "P-flavour-02",
+      "type": "C",
+      "family": "paraphrase_flavour",
+      "question": "Món nào đậm đà đưa cơm ấy",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "flavour:rich"
+          ]
+        },
+        "require_min": 2,
+        "why": "'đưa cơm' là cách nói người Việt cho món đậm vị ăn với cơm. flavour:rich phủ đủ món để trả lời."
+      }
+    },
+    {
+      "id": "P-health-01",
+      "type": "C",
+      "family": "paraphrase_health",
+      "question": "Mình đang giảm cân, có món nào phù hợp không?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "health:low_calorie",
+            "health:low_fat",
+            "health:light"
+          ]
+        },
+        "require_min": 2,
+        "why": "Khách kể tình trạng chứ không nêu nhãn. Ba nhãn sức khỏe đều hợp lý nên dùng tags_any — ép đúng một nhãn sẽ là tiêu chí quá chặt và tự bịa ra lỗi."
+      }
+    },
+    {
+      "id": "P-health-02",
+      "type": "C",
+      "family": "paraphrase_health",
+      "question": "Mình tập gym, cần món nhiều đạm",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "health:high_protein"
+          ]
+        },
+        "require_min": 2,
+        "why": "'nhiều đạm' = giàu protein. Từ vựng viết tay không có cụm này."
+      }
+    },
+    {
+      "id": "P-health-03",
+      "type": "C",
+      "family": "paraphrase_health",
+      "question": "Cho mình gì đó thanh thanh dễ ăn, đừng dầu mỡ",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "health:light",
+            "health:low_fat"
+          ]
+        },
+        "require_min": 2,
+        "why": "Hai ý trong một câu: 'thanh thanh' và 'đừng dầu mỡ'. Nhãn health:light và health:low_fat đều ứng."
+      }
+    },
+    {
+      "id": "P-season-01",
+      "type": "C",
+      "family": "paraphrase_season",
+      "question": "Trời nóng quá, ăn gì cho mát người",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "season:cooling",
+            "season:hot_season"
+          ]
+        },
+        "require_min": 2,
+        "why": "Khách kể thời tiết. Nhãn season:cooling (giải nhiệt) và season:hot_season (mùa nóng) đều ứng."
+      }
+    },
+    {
+      "id": "P-method-01",
+      "type": "C",
+      "family": "paraphrase_method",
+      "question": "Có món nào giòn giòn không?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "method:fried"
+          ]
+        },
+        "require_min": 2,
+        "why": "'giòn giòn' là kết cấu, và trong thực đơn này ứng với món chiên. Từ vựng chỉ có 'chien'."
+      }
+    },
+    {
+      "id": "P-allergy-01",
+      "type": "A",
+      "family": "paraphrase_allergy",
+      "question": "Mình không ăn được đồ tanh, gợi ý món ăn giúp mình",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "$ref": "savoury",
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "'đồ tanh' là cách người Việt nói về hải sản/cá. Đây là ca AN TOÀN quan trọng nhất nhóm này: nếu hệ thống không hiểu thì nó hỏi lại (chấp nhận được), nhưng nếu hiểu SAI thành 'không có ràng buộc gì' rồi mời món cá thì đó là lỗi an toàn. Mô hình sinh chỉ được thêm ràng buộc, không được bỏ ràng buộc."
+      }
+    },
+    {
+      "id": "P-allergy-02",
+      "type": "A",
+      "family": "paraphrase_allergy",
+      "question": "Bé nhà mình uống sữa là bị đau bụng, có món nào không sữa không?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:dairy"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:dairy"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Khách kể triệu chứng thay vì nói 'dị ứng'. Cụm 'không sữa' đã có trong cách hỏi tránh, nên ca này kiểm việc câu dài dòng không làm mất ràng buộc."
+      }
+    },
+    {
+      "id": "P-budget-01",
+      "type": "C",
+      "family": "paraphrase_budget",
+      "question": "Sinh viên nên mình hơi ít tiền, món nào vừa phải thôi",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "price:budget"
+          ]
+        },
+        "require_min": 3,
+        "why": "Khách không nêu con số nào. 'ít tiền', 'vừa phải' ứng với nhãn price:budget — nhóm price phủ 91/91 nên lọc được dứt khoát."
+      }
+    },
+    {
+      "id": "P-budget-02",
+      "type": "C",
+      "family": "paraphrase_budget",
+      "question": "Hôm nay mình muốn ăn sang một bữa",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_any": [
+            "price:high",
+            "price:premium"
+          ]
+        },
+        "require_min": 2,
+        "why": "Chiều ngược của P-budget-01. Không có nó thì hệ thống có thể học cách luôn gợi món rẻ mà vẫn xanh."
+      }
+    },
+    {
+      "id": "P-audience-01",
+      "type": "C",
+      "family": "paraphrase_audience",
+      "question": "Đi với ông bà nên cần món mềm, dễ nhai",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "audience:elderly"
+          ]
+        },
+        "require_min": 2,
+        "why": "'ông bà' đã có trong từ vựng, nhưng 'mềm, dễ nhai' thì không — ca này kiểm việc hệ thống không bị phần chữ lạ làm mất ràng buộc đã nhận được."
+      }
+    },
+    {
+      "id": "P-stillvague-01",
+      "type": "C",
+      "family": "paraphrase_still_vague",
+      "question": "Trưa nay ăn gì giờ ta",
+      "expect": {
+        "kind": "list",
+        "require_min": 2,
+        "require_from": "$savoury",
+        "forbid": "$drink",
+        "why": "Khách nói 'trưa' và 'ăn' — đủ để gợi món ăn, không cần hỏi lại. Ca này là chiều ngược của nhóm paraphrase: không phải câu lạ nào cũng cần mô hình, và không phải câu nào cũng nên hỏi lại."
+      }
+    },
+    {
+      "id": "P-stillvague-02",
+      "type": "C",
+      "family": "paraphrase_still_vague",
+      "question": "Ừm... không biết nữa",
+      "expect": {
+        "kind": "clarify",
+        "why": "Câu này thật sự không có thông tin nào. Hỏi lại là ĐÚNG, và mô hình sinh KHÔNG được đoán ra ràng buộc từ hư không — đó sẽ là bịa. Ca chốt chiều ngược cho cả nhóm paraphrase."
+      }
     }
   ]
 }
