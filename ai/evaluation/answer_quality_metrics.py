@@ -272,6 +272,32 @@ def looks_like_deflection(response: dict[str, Any]) -> bool:
     return any(marker in folded for marker in DEFLECTION_MARKERS)
 
 
+def score_substance(response: dict[str, Any]) -> dict[str, Any]:
+    """Did the reply actually say something the guest can use?
+
+    Without this every other check passes vacuously for a reply that names nothing:
+    no dish cited means no constraint broken, nothing ungrounded, and actionability
+    trivially satisfied.  A method ablation then showed the deterministic paths as
+    having no measurable value — disabling one produced an empty reply that still
+    scored "usable".  A metric has to be able to fail an answer for saying nothing.
+    """
+    content = str(response.get("content") or "").strip()
+    cited = cited_menu_ids(response)
+    provider_excuse = any(
+        marker in content.casefold()
+        for marker in ("đang hơi chậm", "thử lại sau", "try again")
+    )
+    return {
+        "characters": len(content),
+        "cited": len(cited),
+        # Either it names dishes, or it gives a KB answer of some length.  The
+        # provider-unavailable message is neither.
+        "substantive": bool(content)
+        and not provider_excuse
+        and (bool(cited) or len(content) >= 40),
+    }
+
+
 def score_answer(
     query: str,
     constraints: dict[str, Any],
@@ -282,14 +308,17 @@ def score_answer(
     grounding = score_grounding(response, menu_items)
     containment = score_containment(response)
     actionability = score_actionability(response)
+    substance = score_substance(response)
     return {
         "constraint": constraint,
         "grounding": grounding,
         "containment": containment,
         "actionability": actionability,
+        "substance": substance,
         "deflected": looks_like_deflection(response),
         "usable": (
-            constraint["respected"]
+            substance["substantive"]
+            and constraint["respected"]
             and grounding["grounded"]
             and containment["contained"]
             and actionability["actionable"]

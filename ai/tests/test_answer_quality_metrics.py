@@ -213,3 +213,42 @@ class OverallScoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SubstanceTests(unittest.TestCase):
+    """A reply that says nothing must not pass.
+
+    Without this check every other one passes vacuously: nothing cited means nothing
+    over budget, nothing ungrounded, nothing unactionable.  The first method ablation
+    reported all five deterministic paths as having no measurable value, because
+    disabling one produced an empty reply that still scored usable.
+    """
+
+    def test_the_provider_excuse_is_not_an_answer(self) -> None:
+        response = _response(
+            content="Xin lỗi, trợ lý AI đang hơi chậm. Bạn thử lại sau giây lát nhé.",
+            evidence=[],
+            suggested_cart_actions=[],
+        )
+        score = score_answer("Goi y mon pho", {}, response, _menu())
+        self.assertFalse(score["substance"]["substantive"])
+        self.assertFalse(score["usable"])
+
+    def test_an_empty_reply_is_not_an_answer(self) -> None:
+        response = _response(content="", evidence=[], suggested_cart_actions=[])
+        self.assertFalse(score_answer("Goi y mon", {}, response, _menu())["usable"])
+
+    def test_citing_a_dish_is_substance(self) -> None:
+        score = score_answer("Goi y mon pho", {}, _response(), _menu())
+        self.assertTrue(score["substance"]["substantive"])
+
+    def test_a_policy_answer_without_dishes_is_substance(self) -> None:
+        response = _response(
+            content=(
+                "Nhà hàng mở cửa 10:00 - 22:00 từ thứ 2 đến thứ 6, "
+                "thứ 7 và chủ nhật mở sớm hơn từ 09:00."
+            ),
+            evidence=[],
+            suggested_cart_actions=[],
+        )
+        self.assertTrue(score_answer("May gio mo cua?", {}, response, _menu())["usable"])
