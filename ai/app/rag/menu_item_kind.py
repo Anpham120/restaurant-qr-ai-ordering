@@ -44,6 +44,10 @@ DRINK_QUERY_PHRASES = (
 DESSERT_QUERY_PHRASES = (
     "trang mieng",
     " mon che",
+    # "chè" on its own, not only "món chè": "Chè có gì?" returned kind=None and so
+    # was answered from the whole menu.  Matching is whole-token, so this does not
+    # catch "che" inside other words.
+    "che",
     "banh flan",
     "flan",
     "dessert",
@@ -115,6 +119,25 @@ FOOD_CONTEXT_PHRASES = (
     "mon de nhat",
     "mon nhat",
     "moi ",
+    # Thuộc tính chỉ mô tả món ăn. Không có nhóm này, "Không cay cho ông bà" trả về
+    # kind=None, không lọc loại, và câu hỏi về món ăn nhận lại đu đủ chín mật ong
+    # cùng một loại nước. Không ai gọi nước uống là "không cay".
+    "khong cay",
+    "khong an duoc cay",
+    "it cay",
+    "cay nhe",
+    "cay vua",
+    "khong qua man",
+    "de nhai",
+    "de tieu",
+    # Một bữa ăn là món ăn, không phải thức uống.
+    "bua sang",
+    "bua trua",
+    "bua toi",
+    "an sang",
+    "an trua",
+    "an toi",
+    "an khuya",
 )
 
 

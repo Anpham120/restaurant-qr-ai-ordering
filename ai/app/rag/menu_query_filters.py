@@ -166,6 +166,9 @@ _CHILD_CONTEXT_TERMS: tuple[str, ...] = (
     "chau an",
     "con an",
     "cho chau",
+    # "cho tre" đứng cạnh "cho be"/"cho chau" trong mọi cách nói tự nhiên nhưng bị
+    # thiếu, nên "ít cay cho trẻ" không kích hoạt bộ lọc an toàn cho trẻ em.
+    "cho tre",
     "tre an",
     "kid",
     "child",
