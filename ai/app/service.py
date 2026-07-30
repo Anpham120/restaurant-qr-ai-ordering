@@ -3,7 +3,7 @@
 
 Vì sao tệp này là LỚP VỎ, không phải một tầng nữa
 --------------------------------------------------
-Mọi con số của dự án (119/119 tất định, 119/119 có mô hình, 0 lỗi an toàn) đo trên `understand`
+Mọi con số của dự án (122/122 tất định, 122/122 có mô hình, 0 lỗi an toàn) đo trên `understand`
 → `session` → `answer`. Nếu `service.py` thêm bất kỳ quyết định nào về nội dung câu trả lời thì
 những con số đó **không còn nói về thứ khách nhận được**.
 

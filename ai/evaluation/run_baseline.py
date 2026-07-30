@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
 
 from answer import respond                      # noqa: E402
+from cart import build_cart                     # noqa: E402
 from answer_metric import Answer, score         # noqa: E402
 from understand import understand               # noqa: E402
 
@@ -44,11 +45,24 @@ def group_of(family: str) -> str:
     return "niêm phong"
 
 
+# Bảng tra tên danh mục, dùng cho lý do thẻ giỏ. Đọc từ thực đơn chứ không viết cứng.
+CATEGORY_NAMES = {c["categoryId"]: c["name"] for c in MENU.get("categories", [])}
+
+
 def run_case(case: dict):
     request = understand(case["question"], ITEMS)
     reply = respond(request, ITEMS)
+    # Sinh thẻ giỏ bằng ĐÚNG hàm dịch vụ thật dùng, và từ ĐÚNG danh sách món `respond()` đã chọn.
+    # Gọi lại `build_cart` ở đây là cách duy nhất để 119 ca đo được thẻ giỏ — trước bản này
+    # `cart.py` chỉ có test đơn vị của chính nó chứng minh, tức bất biến an toàn của một thành phần
+    # khách BẤM VÀO được chốt bằng lời chứ không bằng tập ca.
+    by_id = {i["id"]: i for i in ITEMS}
+    chosen = [by_id[i] for i in reply.items if i in by_id]
+    cart = [a.to_payload() for a in
+            build_cart(request, chosen, reply.branch, reply.kind, CATEGORY_NAMES)]
     answer = Answer(
-        text=reply.text, items=reply.items, kind=reply.kind, asks_back=reply.asks_back
+        text=reply.text, items=reply.items, kind=reply.kind, asks_back=reply.asks_back,
+        cart=cart,
     )
     verdict = score(case, answer, MENU, DATA["named_selectors"])
     return request, reply, verdict

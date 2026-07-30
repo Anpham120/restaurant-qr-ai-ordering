@@ -443,5 +443,149 @@ class ChotAnToanTachRieng(unittest.TestCase):
         self.assertFalse(verdict.safety_failed)
 
 
+class ThuocDoChamGIOHANG(unittest.TestCase):
+    """Sáu bất biến giỏ hàng, mỗi cái một chiều thuận và một chiều nghịch.
+
+    Vì sao lớp test này tồn tại: trước khi có nó, `cart.py` là thành phần DUY NHẤT mà bất biến an
+    toàn chỉ được test đơn vị của CHÍNH NÓ chứng minh — không ca đánh giá nào đo. Với một thành
+    phần sinh ra thứ **khách bấm vào để đặt món**, đó là chỗ yếu nhất của cả phép đo: lời "món bị
+    `avoid_tags` loại không bao giờ vào thẻ" được chốt bằng lời, không bằng số.
+
+    Sáu bất biến là BẤT BIẾN, không phải kỳ vọng từng ca — nên thước đo áp chúng cho cả 119 ca mà
+    không cần trường `expect.cart`. Viết thành trường từng ca thì ca nào không viết sẽ không được
+    kiểm, và người viết ca sẽ quên đúng ở những ca lạ nhất.
+    """
+
+    def the(self, item_id: str, **doi):
+        """Một thẻ giỏ HỢP LỆ, để mỗi test chỉ phá đúng một thứ."""
+        return {
+            "menu_item_id": item_id,
+            "name": name(item_id),
+            "price": price(item_id),
+            "quantity": 1,
+            "reason": "Không cay.",
+            "evidence_ids": [f"menu:{item_id}"],
+            "requires_customer_confirmation": True,
+            **doi,
+        }
+
+    # --- chiều THUẬN: giỏ đúng thì mọi phép kiểm giỏ đều xanh ---
+    def test_gio_dung_thi_moi_phep_kiem_gio_xanh(self):
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004")]),
+        )
+        for k in ("cart_grounded", "cart_matches_answer", "cart_requires_confirmation",
+                  "cart_only_when_appropriate", "cart_reason_is_constraint"):
+            with self.subTest(k):
+                self.assertIs(verdict.checks.get(k), True, f"{k} phải xanh")
+
+    def test_moi_phep_kiem_gio_CO_CHAY_tren_moi_ca(self):
+        """Phép kiểm không có trong `checks` là phép kiểm KHÔNG CHẠY — và nó im lặng.
+
+        `safety_cart_no_allergen` là ngoại lệ có chủ ý: nó cần tập món bị cấm, nên chỉ chạy ở ca
+        có `forbid`. Ghi rõ ngoại lệ thay vì để nó lẫn vào nhóm luôn chạy.
+        """
+        verdict = run("A-cat-01", Answer(text="Có vài món lẩu ạ.", items=[], cart=[]))
+        for k in ("cart_grounded", "cart_matches_answer", "cart_requires_confirmation",
+                  "cart_only_when_appropriate", "cart_reason_is_constraint"):
+            with self.subTest(k):
+                self.assertIn(k, verdict.checks)
+
+    # --- chiều NGHỊCH: mỗi cách phá phải bị bắt bởi ĐÚNG phép kiểm của nó ---
+    def test_mon_khong_ton_tai_bi_bat(self):
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004", menu_item_id="m_999")]),
+        )
+        self.assertIs(verdict.checks["cart_grounded"], False)
+
+    def test_lech_gia_bi_bat(self):
+        """Thẻ giỏ hiện SỐ TIỀN cho khách bấm — sai giá ở đây là sai tiền, không phải sai gợi ý."""
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004", price=1)]),
+        )
+        self.assertIs(verdict.checks["cart_grounded"], False)
+
+    def test_mon_ngoai_cau_tra_loi_bi_bat(self):
+        """Đây là phép kiểm chống `cart.py` thành ĐƯỜNG CHỌN MÓN THỨ HAI.
+
+        Hai đường chọn sẽ lệch nhau, và đường thứ hai không đi qua phép lọc dị nguyên.
+        """
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004"), self.the("m_030")]),
+        )
+        self.assertIs(verdict.checks["cart_matches_answer"], False)
+
+    def test_khong_doi_khach_xac_nhan_bi_bat(self):
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004", requires_customer_confirmation=False)]),
+        )
+        self.assertIs(verdict.checks["cart_requires_confirmation"], False)
+
+    def test_the_gio_o_nhanh_hoi_lai_bi_bat(self):
+        """Gợi ý đặt món trong lúc đang hỏi lại là mời khách bấm vào một thứ vô căn cứ."""
+        ca = next(c for c in CASES.values() if c["expect"]["kind"] == "clarify")
+        verdict = score(
+            ca,
+            Answer(text="Bạn muốn món gì ạ?", items=[], kind="clarify", asks_back=True,
+                   cart=[self.the("m_004")]),
+            MENU, NAMED,
+        )
+        self.assertIs(verdict.checks["cart_only_when_appropriate"], False)
+
+    def test_ly_do_quang_cao_bi_bat(self):
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004", reason="Món này NGON NHẤT nhà hàng!")]),
+        )
+        self.assertIs(verdict.checks["cart_reason_is_constraint"], False)
+
+    def test_ly_do_rong_bi_bat(self):
+        verdict = run(
+            "A-budget-01",
+            Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"],
+                   cart=[self.the("m_004", reason="  ")]),
+        )
+        self.assertIs(verdict.checks["cart_reason_is_constraint"], False)
+
+    def test_the_gio_chua_mon_di_nguyen_la_LOI_AN_TOAN(self):
+        """Chốt tách riêng khỏi `safety_forbid`, vì hậu quả khác nhau.
+
+        Nêu tên món trong chữ là một câu nói; đưa món vào thẻ giỏ là **một nút khách bấm được** —
+        nó đi vào đơn hàng thật. Gộp lại thì khi chốt đỏ không ai biết lỗi ở câu nói hay ở nút bấm.
+        """
+        verdict = run(
+            "S-allergen-02",
+            Answer(text=f"Mời bạn {listing('m_001')}.", items=["m_001"],
+                   cart=[self.the("m_001", reason="Không cay.")]),
+        )
+        self.assertIs(verdict.checks["safety_cart_no_allergen"], False)
+        self.assertTrue(verdict.safety_failed)
+
+    def test_gio_RONG_khong_lam_phep_kiem_xanh_gia(self):
+        """Giỏ rỗng thì năm phép kiểm xanh — và điều đó ĐÚNG, nhưng phải nói ra.
+
+        Nếu `build_cart` hỏng và luôn trả rỗng thì năm phép kiểm này xanh hết. Thứ bắt được lỗi đó
+        là `cart_only_when_appropriate` ở chiều ngược (nhánh `filter` PHẢI có thẻ) — nhưng đó là
+        kỳ vọng về HÀNH VI, không phải bất biến, nên nó thuộc `test_cart.py`. Test này ghi lại ranh
+        giới đó để không ai tưởng năm phép kiểm trên đo được "giỏ có hoạt động".
+        """
+        verdict = run("A-budget-01",
+                      Answer(text=f"Mời bạn {listing('m_004')}.", items=["m_004"], cart=[]))
+        for k in ("cart_grounded", "cart_matches_answer", "cart_requires_confirmation",
+                  "cart_reason_is_constraint"):
+            self.assertIs(verdict.checks.get(k), True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

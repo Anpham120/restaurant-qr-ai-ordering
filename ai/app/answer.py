@@ -148,11 +148,34 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
 
     Lọc cứng ở đây sẽ hỏng đúng ca thứ hai: khách hỏi thật, dữ liệu trả lời được, mà hệ thống nói
     "không có món nào phù hợp".
+
+    Tráng miệng và trái cây cũng phải xếp sau, KHÔNG chỉ đồ uống
+    -----------------------------------------------------------
+    Bản đầu chỉ đẩy `DRINK_CATEGORIES` xuống cuối, và bỏ sót một khoảng: `cat_dessert` và
+    `cat_fruit` không thuộc `FOOD_CATEGORIES` **cũng không thuộc** `DRINK_CATEGORIES` — 14 món nằm
+    ngoài cả hai nhóm. Chúng giá 30.000–45.000đ, còn món ăn rẻ nhất 35.000đ, nên chúng lên đầu y
+    như bia từng lên đầu.
+    
+    Đo được: câu "Cho mình vài món không cay" nêu **0/6 món mặn** — cả sáu là chè, bánh flan và
+    trái cây. Câu "Gợi ý vài món dưới 60 nghìn" nêu 1/6. Cả hai đều ĐÚNG về nhãn (chè không cay,
+    chè dưới 60 nghìn) nhưng khách đang chọn bữa ăn và không gọi được một bữa từ 5 món chè.
+    
+    Cùng một lớp lỗi với sáu chai bia, nên cùng một cách sửa: **xếp hạng, không lọc**. Ca
+    `P-savoury-03` ("có món tráng miệng nào không cay không?") là chốt cho điều đó — nó đỏ ngay
+    nếu ai sửa bằng cách bỏ tráng miệng khỏi kết quả.
     """
     def key(item: dict) -> tuple:
         matched = sum(1 for t in prefer_tags if t in item["tags"])
-        drink_last = 1 if (wants == "any" and item["categoryId"] in DRINK_CATEGORIES) else 0
-        return (-matched, drink_last, item["price"], item["id"])
+        # Ba bậc, không hai: món mặn trước, rồi tráng miệng/trái cây, rồi đồ uống. Bậc giữa tồn tại
+        # vì "món ăn phụ" gần với bữa ăn hơn đồ uống — khách hỏi "món gì" mà nhận chè thì còn hiểu
+        # được, nhận bia thì không.
+        if wants != "any" or item["categoryId"] in FOOD_CATEGORIES:
+            bac = 0
+        elif item["categoryId"] in DRINK_CATEGORIES:
+            bac = 2
+        else:
+            bac = 1
+        return (-matched, bac, item["price"], item["id"])
 
     return sorted(items, key=key)
 

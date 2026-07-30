@@ -329,7 +329,7 @@ có một số bịa thì mọi số còn lại mất giá trị. Tập niêm ph
   — hai đường sẽ lệch nhau, và lệch ở đây nghĩa là thẻ giỏ chứa món khách dị ứng.
 
 ### Đã xong
-`answer.py` — 6 nhánh, fail-closed, `prefer_tags` chỉ xếp thứ tự. 119/119 ca, 0 lỗi an toàn.
+`answer.py` — 6 nhánh, fail-closed, `prefer_tags` chỉ xếp thứ tự. 122/122 ca, 0 lỗi an toàn.
 
 ### Đã xong
 `answer.py` 6 nhánh loại trừ, fail-closed. `cart.py` với **5 bất biến**, 20 test — cộng
@@ -433,7 +433,7 @@ nhận **bộ nhớ đã mất**.
 | TV | Đã làm | Số đo | Còn lại |
 |---|---|---|---|
 | **1** | 119 ca trả lời · **138 ca truy hồi** / 14 họ · **25 kịch bản** / 65 lượt · thước đo · `analyze_failures.py` | bộ dò lỗ 0 lỗ; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn 2 kiểu ca LUÔN XANH | tập niêm phong truy hồi **đã dùng hết** → câu hỏi tiếp cần tập MỚI |
-| **2** | từ vựng: 20 cụm tên món dị nguyên · **23 cụm cách khách mô tả** · cụm chỉ vị trí | **119/119** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | — |
+| **2** | từ vựng: 20 cụm tên món dị nguyên · **23 cụm cách khách mô tả** · cụm chỉ vị trí | **122/122** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | — |
 | **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | đường `synthesize` chưa dựng nên embedding chưa vào ảnh Docker |
 | **4** | `cart.py` + 5 bất biến | 20 test; 0 món dị nguyên vào thẻ giỏ qua backend thật | — |
 | **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema | **65/65 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy | `last_listed_ids` chưa qua backend |
@@ -488,7 +488,7 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 | **4** | `answer.py` 6 nhánh · `cart.py` 5 bất biến · sửa lỗi "hỏi món trả toàn bia" | chỉnh theo ca giỏ hàng của TV1 |
 | **5** | 5 endpoint · `session.py` 3 quy tắc · hợp đồng schema | **chạy thật `docker compose`** |
 
-**Số đo hiện tại:** 119/119 (100%) chỉ bằng mã tất định · 119/119 khi có mô hình (mô hình đổi **0 ca**) · **0 lỗi an toàn
+**Số đo hiện tại:** 122/122 (100%) chỉ bằng mã tất định · 122/122 khi có mô hình (mô hình đổi **0 ca**) · **0 lỗi an toàn
 ở cả hai chế độ** · nhóm chốt 21/21 · 9/9 cơ chế ablation có giá trị, 5 là hàng rào an toàn ·
 **196 test `ai/app`** + 37 test `ai/evaluation`.
 

@@ -1246,7 +1246,7 @@ print(r.stdout)
 | **Đầu vào** | 119 ca, thước đo và từ điển nhãn — tất cả từ TV1 |
 | **Đầu ra bàn giao** | hợp đồng `Reply` cho TV5; số nền để mọi thứ sau so vào |
 | **Tự đo bằng** | `run_baseline.py --all` · `run_ablation.py` · `python -m unittest discover -s ai/app` |
-| **Trạng thái** | **xong phần trả lời** — 119/119, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
+| **Trạng thái** | **xong phần trả lời** — 122/122, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
 
 ### Vì sao phải đo số nền TRƯỚC khi thêm mô hình
 
@@ -1367,7 +1367,7 @@ print(f"Một ca chốt đỏ là CHẶN, kể cả khi tỷ lệ chung tăng.")
     out.append(md(r"""
 #### Nhận xét — Mục 12
 
-- **Quan sát:** 119/119 (100%) chỉ bằng mã tất định. Nhóm **chốt 21/21 (100%)**, phát triển
+- **Quan sát:** 122/122 (100%) chỉ bằng mã tất định. Nhóm **chốt 21/21 (100%)**, phát triển
   54/61, niêm phong 33/37. Sàn để so là 8/119 (6,7%). 13 nhánh đều được dùng thật.
 - **Diễn giải:** con số 90,2% chỉ có nghĩa vì có **sàn 7,1%** đặt cạnh. Một hệ thống luôn đáp
   "chưa có dữ liệu" cũng đạt 6,7% mà không trả lời gì — nếu không công bố sàn thì mọi tỷ lệ đều
@@ -1935,7 +1935,7 @@ filter**, không phải xếp hạng.
 | **Đầu vào** | `Reply` của TV4; kho tri thức của TV1 |
 | **Đầu ra bàn giao** | dịch vụ HTTP mà backend gọi được |
 | **Tự đo bằng** | `run_with_model.py` · `python -m unittest test_llm_understand test_packaging` |
-| **Trạng thái** | **xong phần mô hình** — 119/119, 0 lỗi an toàn. **Còn lại:** 5 endpoint HTTP |
+| **Trạng thái** | **xong phần mô hình** — 122/122, 0 lỗi an toàn |
 
 ### Nguyên tắc phân quyền: mô hình chỉ HIỂU, không CHỌN
 
@@ -2149,8 +2149,8 @@ print(f"Mô hình giải thêm {mod - det} ca, thuộc {len(theo_ho)} họ: {sor
 print(f"Mô hình còn được gọi ở {goi}/{n} ca, theo dạng đáp án: {dict(goi_theo_dang)}")
 print()
 print("So với lần đo trước:")
-print("  trước  mã tất định 108/119, mô hình giải thêm 11 ca -> 119/119")
-print("  nay    mã tất định 119/119, mô hình giải thêm  0 ca -> 119/119")
+print(f"  trước  mã tất định 108/119, mô hình giải thêm 11 ca -> 119/119  (tập 119 ca)")
+print(f"  nay    mã tất định {det}/{n}, mô hình giải thêm  {mod - det} ca -> {mod}/{n}")
 print("11 ca kia đỏ vì TỪ VỰNG thiếu cụm ('chua chua', 'tập gym', 'trời nóng'), không vì câu hỏi")
 print("khó. Thêm 23 cụm đã đo đưa cả 11 ca về mã tất định. Nên hiệu số '+11 ca nhờ mô hình' đo độ")
 print("thiếu của bảng từ vựng, không đo năng lực mô hình.")
@@ -2159,11 +2159,11 @@ print("thiếu của bảng từ vựng, không đo năng lực mô hình.")
     out.append(md(r"""
 #### Nhận xét — Mục 16
 
-- **Quan sát:** **119/119 chỉ bằng mã tất định**, và **119/119** khi có mô hình — tức mô hình
-  giải thêm **0 ca**. Nó còn được gọi ở **11/119 ca (9%)**, toàn bộ là câu không có gì để hiểu
+- **Quan sát:** **122/122 chỉ bằng mã tất định**, và **122/122** khi có mô hình — tức mô hình
+  giải thêm **0 ca**. Nó còn được gọi ở **11/122 ca (9%)**, toàn bộ là câu không có gì để hiểu
   ("Ừm... không biết nữa", "Gợi ý gì đó đi"). **0 lỗi an toàn ở cả hai chế độ.**
 - **Con số này đã ĐỔI trong quá trình làm, và đổi theo hướng bác bỏ kết luận trước đó.**
-  Trước đây tôi đo 108/119 tất định, mô hình giải thêm 11 ca, và ghi đó là **giá trị đo được của
+  Trước đây phép đo cho 108/119 tất định, mô hình giải thêm 11 ca, và ghi đó là **giá trị đo được của
   mô hình sinh**. Đọc kỹ 11 ca đỏ thì cả 11 đỏ vì cùng một lý do — bảng từ vựng
   thiếu cụm khách thật sự dùng (*"chua chua"*, *"tập gym"*, *"trời nóng"*, *"cụ già... dễ tiêu"*).
   Thêm **23 cụm** vào bảng thì cả 11 ca về mã tất định.
@@ -2308,8 +2308,8 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 
 | Con số | Giá trị | Điều nó **không** nói |
 |---|---|---|
-| tất định 119/119 | 100% | không nói khách thật hỏi gì — mọi ca do người viết |
-| có mô hình 119/119 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
+| tất định 122/122 | 100% | không nói khách thật hỏi gì — mọi ca do người viết |
+| có mô hình 122/122 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
 | lỗi an toàn 0 / 0 | trên 119 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
 | kho 84 tài liệu / 303 đoạn xếp hạng | đủ để so truy hồi | 28/84 tài liệu là `demo` |
 | truy hồi: embedding Hit@5 **0,921** | trên 40 ca NIÊM PHONG | tập đó **đã dùng hết** từ 2026-07-30 |

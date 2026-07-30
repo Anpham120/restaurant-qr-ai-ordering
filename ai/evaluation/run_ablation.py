@@ -42,6 +42,40 @@ NAMED = DATA["named_selectors"]
 ITEMS = MENU["items"]
 
 
+def measure_pool() -> int:
+    """Số ca mà TẬP LỌC còn chứa món bị cấm — không chỉ 6 món nêu ra.
+
+    Vì sao cần phép đo thứ hai: cột "lỗi an toàn" đếm món bị cấm **trong câu trả lời**, tức nó
+    phụ thuộc PHÉP XẾP HẠNG. Đo được: khi cách xếp hạng đổi (đẩy tráng miệng xuống sau món mặn),
+    cột đó tụt từ 10 xuống 5 ca — trong khi cơ chế lọc dị nguyên KHÔNG đổi một dòng nào.
+
+    Nguyên nhân truy được: cả 6 ca thôi nổ đều là dị ứng **sữa hoặc trứng**, và nhãn sữa/trứng
+    tập trung ở tráng miệng (bánh flan có cả trứng và sữa). Tráng miệng từng đứng đầu vì rẻ nhất;
+    sau khi bị đẩy xuống, chúng không còn lọt vào 6 món nêu ra.
+
+    Nên cột "lỗi an toàn" là **giới hạn dưới**: nó đo mức hại KHÁCH THẤY ĐƯỢC, và mức đó nhỏ hơn
+    mức cơ chế thật sự chặn. Phép đo này đo mức thứ hai — món bị cấm còn nằm trong tập ứng viên
+    hay không — và nó không đổi khi xếp hạng đổi.
+
+    Hai con số trả lời hai câu hỏi khác nhau, nên cần cả hai:
+
+        lỗi an toàn   "bao nhiêu khách sẽ NHÌN THẤY một món cần tránh?"
+        tập lọc       "cơ chế thật sự loại món ở bao nhiêu ca?"
+    """
+    from answer_metric import resolve_selector, select_ids
+
+    n = 0
+    for case in CASES:
+        if "forbid" not in case["expect"]:
+            continue
+        request = und.understand(case["question"], ITEMS)
+        pool = {i["id"] for i in answer_mod.select(request, ITEMS)}
+        cam = select_ids(ITEMS, resolve_selector(case["expect"]["forbid"], NAMED))
+        if pool & cam:
+            n += 1
+    return n
+
+
 def measure() -> tuple[int, int]:
     """(số ca qua, số ca lỗi an toàn)"""
     ok = unsafe = 0
@@ -207,29 +241,38 @@ ABLATIONS = [
 
 def main() -> int:
     base_ok, base_unsafe = measure()
-    print(f"bản đầy đủ: {base_ok}/{len(CASES)} ca qua, {base_unsafe} lỗi an toàn\n")
-    print(f"{'cơ chế bị tắt':44} {'qua':>7} {'mất':>5} {'lỗi an toàn':>12}")
-    print("-" * 72)
+    base_pool = measure_pool()
+    print(f"bản đầy đủ: {base_ok}/{len(CASES)} ca qua, {base_unsafe} lỗi an toàn, "
+          f"{base_pool} ca còn món cấm trong tập lọc\n")
+    print("Hai cột an toàn, trả lời HAI câu hỏi khác nhau:")
+    print("  lỗi an toàn  bao nhiêu khách NHÌN THẤY món cần tránh — PHỤ THUỘC phép xếp hạng")
+    print("  tập lọc      cơ chế thật sự loại món ở bao nhiêu ca — KHÔNG phụ thuộc xếp hạng")
+    print("Cột đầu là giới hạn DƯỚI: đổi cách xếp hạng từng làm nó tụt 10 -> 5 dù cơ chế lọc")
+    print("không đổi một dòng nào. Xem docstring `measure_pool`.\n")
+    print(f"{'cơ chế bị tắt':44} {'qua':>7} {'mất':>5} {'lỗi an toàn':>12} {'tập lọc':>9}")
+    print("-" * 82)
 
     rows = []
     for label, disable in ABLATIONS:
         restore = disable()
         try:
             ok, unsafe = measure()
+            pool = measure_pool()
         finally:
             restore()
-        rows.append((label, ok, base_ok - ok, unsafe))
+        rows.append((label, ok, base_ok - ok, unsafe, pool))
 
     rows.sort(key=lambda r: (-r[3], -r[2]))
-    for label, ok, lost, unsafe in rows:
+    for label, ok, lost, unsafe, pool in rows:
         mark = "  <-- lỗi an toàn" if unsafe else ""
-        print(f"{label:44} {ok:3}/{len(CASES):<3} {lost:5} {unsafe:12}{mark}")
+        them = f" (+{pool - base_pool})" if pool != base_pool else ""
+        print(f"{label:44} {ok:3}/{len(CASES):<3} {lost:5} {unsafe:12} {pool:>8}{them}{mark}")
 
     useless = [r for r in rows if r[2] == 0 and r[3] == 0]
     print()
     if useless:
         print("Cơ chế tắt mà KHÔNG mất ca nào và không sinh lỗi an toàn:")
-        for label, _ok, _lost, _unsafe in useless:
+        for label, _ok, _lost, _unsafe, _pool in useless:
             print(f"  - {label}")
         print(
             "  Hai khả năng, và bộ này không tự kết luận: cơ chế đó là dư, HOẶC tập đánh\n"

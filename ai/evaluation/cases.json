@@ -1899,6 +1899,54 @@
         "must_offer_staff": true,
         "why": "Cùng dạng với S-allergen-14 nhưng nhóm dị nguyên khác, để một nhóm hỏng không núp sau nhóm khác. Câu ngắn, không có chữ 'dị ứng' — đúng cách khách gõ nhanh. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
       }
+    },
+    {
+      "id": "P-savoury-01",
+      "type": "C",
+      "family": "savoury_first",
+      "question": "Cho mình vài món không cay",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_all": [
+            "spice:none"
+          ]
+        },
+        "require_from": "$savoury",
+        "require_min": 3,
+        "forbid": "$spicy",
+        "why": "Đo được trước khi sửa: 0/6 món nêu ra là món mặn — cả 6 đều là chè, bánh flan và trái cây. Khách hỏi món mà KHÔNG nói 'món ăn' hay 'đồ uống', nên `wants=any`. Tiêu chí `allowed` một mình không đủ: tráng miệng cũng mang `spice:none` và cũng dưới ngân sách, nên một câu trả lời gồm toàn chè và bánh flan vẫn qua. Nhưng khách đang chọn bữa ăn — họ không gọi được một bữa từ 5 món chè. `require_from: $savoury` là thứ tách 'đúng về nhãn' khỏi 'dùng được'. Đây là CÙNG LỚP LỖI với ca sáu chai bia trước đây: xếp hạng theo giá rẻ nhất kéo lên những món hợp nhãn mà không hợp nhu cầu. Sửa bằng XẾP HẠNG, không bằng lọc — lọc thì khách hỏi 'có tráng miệng gì' sẽ không còn tráng miệng."
+      }
+    },
+    {
+      "id": "P-savoury-02",
+      "type": "C",
+      "family": "savoury_first",
+      "question": "Gợi ý vài món dưới 60 nghìn",
+      "expect": {
+        "kind": "list",
+        "require_from": "$savoury",
+        "require_min": 3,
+        "why": "Đo được trước khi sửa: 1/6 món nêu ra là món mặn. Chiều thứ hai của cùng lớp lỗi, và nó KHÔNG có ràng buộc nhãn nào — chỉ có ngân sách. Nên nếu bản sửa chỉ đúng cho câu có nhãn `spice:none` thì ca này vẫn đỏ. Khách hỏi món mà KHÔNG nói 'món ăn' hay 'đồ uống', nên `wants=any`. Tiêu chí `allowed` một mình không đủ: tráng miệng cũng mang `spice:none` và cũng dưới ngân sách, nên một câu trả lời gồm toàn chè và bánh flan vẫn qua. Nhưng khách đang chọn bữa ăn — họ không gọi được một bữa từ 5 món chè. `require_from: $savoury` là thứ tách 'đúng về nhãn' khỏi 'dùng được'. Đây là CÙNG LỚP LỖI với ca sáu chai bia trước đây: xếp hạng theo giá rẻ nhất kéo lên những món hợp nhãn mà không hợp nhu cầu. Sửa bằng XẾP HẠNG, không bằng lọc — lọc thì khách hỏi 'có tráng miệng gì' sẽ không còn tráng miệng."
+      }
+    },
+    {
+      "id": "P-savoury-03",
+      "type": "C",
+      "family": "savoury_first",
+      "question": "Có món tráng miệng nào không cay không?",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "$ref": "dessert",
+          "tags_all": [
+            "spice:none"
+          ]
+        },
+        "require_min": 3,
+        "forbid": "$savoury",
+        "why": "CHIỀU NGƯỢC LẠI, và là chiều then chốt. Khách nói rõ 'tráng miệng' thì câu trả lời PHẢI là tráng miệng — nếu bản sửa hai ca trên dùng phép LỌC thay vì xếp hạng thì ca này đỏ ngay. Không có ca này thì cách sửa dễ nhất (bỏ tráng miệng khỏi kết quả) sẽ làm hai ca trên xanh và làm hỏng một câu hỏi hoàn toàn hợp lệ, mà tập đánh giá không thấy gì."
+      }
     }
   ]
 }

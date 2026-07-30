@@ -12,10 +12,11 @@ thuộc loại không làm chương trình lỗi và không làm test đỏ — 
 
 | Tập | Kết quả | Chốt an toàn |
 |---|---|---|
-| 119 ca trả lời (một lượt) | **119/119 (100%)** chỉ bằng mã tất định | 0 lỗi |
+| 122 ca trả lời (một lượt) | **122/122 (100%)** chỉ bằng mã tất định | 0 lỗi |
 | 82 lượt phiên (30 kịch bản / 6 nhóm) | **82/82 (100%)**, 0 khoảng cách | 0 lỗi |
 | 138 ca truy hồi | xem bảng dưới | nhóm chốt 8/8 abstain |
 | ablation trả lời | 9/9 cơ chế có ít nhất một ca chứng minh | 5 là hàng rào an toàn |
+| giỏ hàng gợi ý | 6 bất biến áp cho **cả 122 ca**, 217 thẻ sinh ra | `safety_cart_no_allergen` |
 
 **Mô hình sinh đổi 0 ca.** Trước bước này nó đổi +11 ca, và con số đó từng được ghi là giá trị đo
 được của mô hình. Đọc lại 11 ca đỏ thì cả 11 đỏ vì **bảng từ vựng thiếu cụm khách thật sự dùng**.
@@ -282,7 +283,7 @@ tái dùng nguyên ba nhánh đã có và đã đo (`price_lookup`, `item_detail
 vì thêm nhánh thứ bảy — thêm nhánh thì phải đo lại cả sáu nhánh cũ.
 
 Đo được: **9/9 lượt** chuyển từ khoảng cách sang đạt, `allergy_persists` giữ 25/25, 119 ca một lượt
-giữ 119/119.
+giữ 122/122.
 
 ### Cờ `aspirational` đã BỎ, và bỏ nó là bắt buộc
 
@@ -319,7 +320,7 @@ thống nói ra chỗ mình không biết — và vẫn nêu TÊN món để kh�
 
 ## 9. Bốn lỗi mà CHẠY THẬT tìm ra sau khi mọi test đã xanh
 
-Ở thời điểm 229 test xanh, 119/119 ca trả lời, 65/65 lượt phiên và 0 lỗi an toàn, việc chạy sáu lượt
+Ở thời điểm đó — 229 test xanh, 119/119 ca trả lời, 65/65 lượt phiên, 0 lỗi an toàn — việc chạy sáu lượt
 qua backend thật vẫn tìm ra **bốn lỗi**. Cả bốn đều nằm ngoài tầm của tập ca đang có, và mỗi lỗi đã
 trở thành một ca mới — nếu không nó sẽ quay lại.
 
@@ -514,7 +515,7 @@ Ba câu đo được sau khi sửa:
 | "Có nước gì giải nhiệt không?" | `cooling` | 5 đồ uống, tất cả đúng |
 | "Trời lạnh thế này ăn gì cho ấm" | `cold_season` | 6 món lẩu/cháo/tiềm |
 
-119/119 ca, 82/82 lượt phiên, 0 lỗi an toàn — không ca nào tụt. Bản rà nằm trong CI.
+122/122 ca, 82/82 lượt phiên, 0 lỗi an toàn — không ca nào tụt. Bản rà nằm trong CI.
 
 ---
 
