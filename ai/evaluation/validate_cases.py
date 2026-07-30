@@ -39,6 +39,16 @@ MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
 DICT_PATH = REPO_ROOT / "backend" / "data" / "menu-tags.json"
 
 VALID_KINDS = {"fact", "list", "compare", "no_data", "clarify", "refuse"}
+
+# Khóa con của `expect.facts` mà THƯỚC ĐO thật sự thực thi.
+#
+# Hàng rào này tồn tại vì đúng chuyện đã xảy ra: 8 ca khai `tags_include`/`tags_exclude` và thước đo
+# **bỏ qua hoàn toàn** — tiêu chí là mã chết im lặng suốt nhiều tháng, và các ca đó qua chỉ nhờ phép
+# kiểm "có nhắc tên món". Một tiêu chí không được thực thi tệ hơn không có tiêu chí: nó làm bảng kết
+# quả trông như đã kiểm.
+#
+# `run_session_eval.py` đã có hàng rào cùng loại cho khóa `expect` của nó. Chỗ này thiếu, nên thêm.
+FACT_KEYS_THE_METRIC_RUNS = {"price", "tags_include", "tags_exclude"}
 VALID_TYPES = {"A", "B", "C"}
 SELECTOR_FIELDS = ("allowed", "forbid", "require_from")
 
@@ -117,6 +127,14 @@ def main() -> int:
         expect = case.get("expect") or {}
         kind = expect.get("kind")
         check(problems, cid, f"kind lạ: {kind!r}", kind in VALID_KINDS)
+        for _mid, _facts in (expect.get("facts") or {}).items():
+            la = sorted(set(_facts) - FACT_KEYS_THE_METRIC_RUNS)
+            check(
+                problems, cid,
+                f"khóa `facts` thước đo KHÔNG thực thi: {la} — tiêu chí sẽ không bao giờ chạy "
+                "và ca lặng lẽ luôn xanh",
+                not la,
+            )
         check(
             problems,
             cid,

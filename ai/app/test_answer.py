@@ -174,6 +174,61 @@ class MoiMonNeuRaPhaiCoThatVaDungGia(unittest.TestCase):
         )
 
 
+class BangTenNhanPhaiPhuDU(unittest.TestCase):
+    """`_ALLERGEN_VI` và `_SPICE_VI` phải phủ ĐỦ nhãn của nhóm tương ứng trong từ điển.
+
+    Hai bảng này viết tay trong `answer.py`, nên chúng trôi được: thêm một nhãn dị nguyên vào từ
+    điển mà quên thêm ở đây thì câu trả lời gọi nó bằng phần sau dấu hai chấm — "CÓ shellfish" —
+    và khách đọc thấy chữ tiếng Anh giữa câu tiếng Việt.
+
+    Test này biến việc trôi thành lỗi thấy được. Không đọc thẳng `label_vi` trong `answer.py` là có
+    chủ ý: `label_vi` là nhãn hiển thị trên chip ("Có hải sản"), còn câu trả lời cần tên thuộc tính
+    để ghép vào câu ("hải sản") — hai dạng khác nhau, nên bảng riêng là đúng, chỉ cần chống trôi.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tags = json.loads(
+            (REPO_ROOT / "backend" / "data" / "menu-tags.json").read_text(encoding="utf-8-sig")
+        )["tags"]
+
+    def test_moi_nhan_di_nguyen_co_ten_tieng_viet(self):
+        from answer import _ALLERGEN_VI
+
+        thieu = sorted(t for t in self.tags if t.startswith("allergen:") and t not in _ALLERGEN_VI)
+        self.assertEqual(thieu, [], f"thiếu tên tiếng Việt cho {thieu} trong `_ALLERGEN_VI`")
+
+    def test_moi_muc_cay_co_ten_tieng_viet(self):
+        from answer import _SPICE_VI
+
+        thieu = sorted(t for t in self.tags if t.startswith("spice:") and t not in _SPICE_VI)
+        self.assertEqual(thieu, [], f"thiếu tên tiếng Việt cho {thieu} trong `_SPICE_VI`")
+
+    def test_khong_ten_nao_du(self):
+        """Chiều ngược: bảng có nhãn mà từ điển không có nghĩa là nhãn đã bị bỏ khỏi thực đơn."""
+        from answer import _ALLERGEN_VI, _SPICE_VI
+
+        du = sorted(set(_ALLERGEN_VI) | set(_SPICE_VI) - set(self.tags))
+        du = [t for t in du if t not in self.tags]
+        self.assertEqual(du, [], f"bảng còn nhãn không có trong từ điển: {du}")
+
+    def test_cau_tra_loi_di_nguyen_NEU_TEN_thanh_phan(self):
+        """Khách hỏi về sữa thì câu trả lời phải nói 'sữa', không nói 'thành phần bạn cần tránh'.
+
+        Ở câu về dị ứng, bắt khách tự suy ra thành phần nào là chỗ tệ nhất để tiết kiệm chữ.
+        """
+        r = understand("Ốc hương rang bơ tỏi có sữa không? Mình không dung nạp lactose", ITEMS)
+        reply = respond(r, ITEMS)
+        self.assertIn("sữa", reply.text.lower())
+
+    def test_cau_so_sanh_NEU_DO_CAY_khong_chi_gia(self):
+        """Câu "món nào cay hơn?" từng nhận về so sánh GIÁ — đúng dữ liệu, sai câu hỏi."""
+        r = understand("Gà nướng mật ong và gà nướng muối ớt xanh, món nào cay hơn?", ITEMS)
+        reply = respond(r, ITEMS)
+        self.assertIn("cay", reply.text.lower())
+        self.assertIn("cay vừa", reply.text.lower())
+
+
 class CauChuKHACHDOCTHAY(unittest.TestCase):
     """Lỗi CHỮ trong câu trả lời — thứ thước đo nội dung không bắt được.
 

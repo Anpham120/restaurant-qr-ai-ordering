@@ -26,6 +26,7 @@ chắn sinh dương tính giả.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 import unicodedata
@@ -40,6 +41,40 @@ KNOWLEDGE_PATH = REPO_ROOT / "ai" / "knowledge"
 
 sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
 from rag.chunker import KnowledgeError, retrievable_chunks, verbatim_answers  # noqa: E402
+
+
+def _tag_labels() -> dict[str, str]:
+    """Tên tiếng Việt của nhãn, đọc từ từ điển — không viết tay bảng nào.
+
+    Từ điển nhãn khai `source_of_meaning` là `TAG_LABELS` của giao diện, tức tên hiển thị cho khách.
+    Dùng đúng tên đó làm tiêu chí nghĩa là thước đo đòi câu trả lời nói **cùng một từ mà khách thấy
+    trên thực đơn**.
+    """
+    try:
+        d = json.loads(
+            (REPO_ROOT / "backend" / "data" / "menu-tags.json").read_text(encoding="utf-8-sig")
+        )
+        return {t: m["label_vi"] for t, m in d["tags"].items()}
+    except (OSError, KeyError, ValueError):
+        return {}
+
+
+_TAG_LABEL_VI = _tag_labels()
+
+
+def _tag_phrase(tag: str) -> str:
+    """Tên thuộc tính để KHỚP trong câu trả lời, bỏ tiền tố hiển thị của chip.
+
+    `label_vi` là nhãn hiện trên **chip thực đơn**, nên nhóm dị nguyên mang tiền tố "Có ": *"Có hải
+    sản"*, *"Có sữa"*. Câu trả lời thì viết thành câu — "Thực đơn ghi nhận … CÓ đậu phộng, hải sản"
+    — nên chuỗi "Có hải sản" không xuất hiện liền mạch dù câu trả lời nói đúng.
+
+    Chỉ bỏ tiền tố **"Có "**, không bỏ "Không ": nhãn `spice:none` là *"Không cay"*, và bỏ tiền tố ở
+    đó còn lại "cay" — chuỗi này khớp cả *"cay vừa"* và *"cay đậm"*, tức phép kiểm sẽ báo đúng cho
+    một câu trả lời nói ngược lại. Một phép kiểm nới sai chỗ tệ hơn một phép kiểm chặt sai chỗ.
+    """
+    nhan = _TAG_LABEL_VI.get(tag, tag)
+    return nhan[3:] if nhan.startswith("Có ") else nhan
 
 
 def load_facts() -> dict[str, str]:
@@ -397,6 +432,40 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
                 facts["price"] in stated,
                 f"phải nêu giá {facts['price']:,}đ của {item['name']} nhưng không có "
                 f"trong câu trả lời (số tiền tìm thấy: {sorted(stated) or 'không có'})",
+            )
+        # `tags_include` / `tags_exclude`: câu trả lời phải NÓI RA thuộc tính, không chỉ nhắc tên
+        # món. Khách hỏi "món này có sữa không?" thì "thực đơn có ghi nhận thành phần bạn cần
+        # tránh" chưa trả lời — nó buộc khách tự suy ra thành phần nào.
+        #
+        # Trước bản này thước đo **bỏ qua hoàn toàn** hai khóa này: 8 ca khai chúng và không ca nào
+        # được kiểm. Chúng qua chỉ nhờ `fact_cited_*`. Đây là tiêu chí MÃ CHẾT IM LẶNG — cùng lớp
+        # lỗi mà `run_session_eval.py` đã có hàng rào (khóa `expect` lạ là LỖI, không bị bỏ qua),
+        # còn thước đo này thì chưa. Hàng rào đó nay ở `validate_cases.py`.
+        #
+        # Tên tiếng Việt lấy từ `menu-tags.json` (`label_vi`), không viết tay: từ điển đổi thì tiêu
+        # chí đổi theo. Cùng nguyên tắc với `load_facts()`.
+        for tag in facts.get("tags_include", []):
+            nhan_vi = _tag_phrase(tag)
+            add(
+                f"fact_tag_{item_id}_{tag}",
+                normalise_spaces(strip_accents(nhan_vi)) in normalise_spaces(strip_accents(text)),
+                f"phải nói ra {nhan_vi!r} của {item['name']} — khách hỏi về thuộc tính đó, "
+                "nhắc tên món mà không nói thuộc tính thì chưa trả lời",
+            )
+        for tag in facts.get("tags_exclude", []):
+            nhan_vi = _tag_phrase(tag)
+            # Chiều phủ định: câu trả lời phải nói món KHÔNG có thuộc tính đó. Chấp nhận cả cách
+            # nói thẳng ("không có sữa") và cách nói của thực đơn ("thực đơn không ghi nhận").
+            sach = normalise_spaces(strip_accents(text))
+            loi_khang_dinh = normalise_spaces(strip_accents(nhan_vi)) in sach
+            noi_khong = any(
+                normalise_spaces(strip_accents(p_)) in sach
+                for p_ in ("không ghi nhận", "không có", "không chứa")
+            )
+            add(
+                f"fact_no_tag_{item_id}_{tag}",
+                noi_khong or not loi_khang_dinh,
+                f"phải nói rõ {item['name']} KHÔNG có {nhan_vi!r}",
             )
 
     # --- Tri thức nhà hàng ---------------------------------------------------------

@@ -97,6 +97,35 @@ def listing(items: list[dict]) -> str:
 #
 # Chỉ ba nhãn dưới đây nói về SỐ NGƯỜI. `party:share`, `party:friends`, `party:family` nói về DỊP
 # ĂN, không nói khẩu phần — trộn chúng vào thì câu trả lời thành "món này cho gia đình người ăn".
+# Tên tiếng Việt của nhãn dị nguyên và độ cay, để câu trả lời NÓI RA thuộc tính khách hỏi.
+#
+# Vì sao cần: câu "Ốc hương rang bơ tỏi có sữa không?" từng nhận "thực đơn có ghi nhận thành phần
+# bạn cần tránh trong Ốc hương rang bơ tỏi" — đúng nhưng **buộc khách tự suy ra thành phần nào**.
+# Khách hỏi về sữa thì câu trả lời phải nói "sữa".
+#
+# Hai bảng này bị `test_answer.py` ép phải phủ ĐỦ nhãn của nhóm tương ứng trong `menu-tags.json`,
+# nên thêm nhãn mới vào từ điển mà quên ở đây là test đỏ — không phải bảng viết tay rồi trôi.
+_ALLERGEN_VI = {
+    "allergen:seafood": "hải sản",
+    "allergen:peanut": "đậu phộng",
+    "allergen:egg": "trứng",
+    "allergen:dairy": "sữa",
+    "allergen:gluten": "gluten",
+}
+
+_SPICE_VI = {
+    "spice:none": "không cay",
+    "spice:mild": "cay nhẹ",
+    "spice:medium": "cay vừa",
+    "spice:hot": "cay đậm",
+}
+
+
+def _spice_of(item: dict) -> str:
+    tag = next((t for t in item["tags"] if t.startswith("spice:")), "")
+    return _SPICE_VI.get(tag, "")
+
+
 _SERVING_VI = {
     "party:solo": "một người",
     "party:two_three": "2–3 người",
@@ -391,10 +420,20 @@ def respond(request: Request, items: list[dict]) -> Reply:
         first, second = named
         gap = abs(first["price"] - second["price"])
         cheaper = first if first["price"] <= second["price"] else second
+        # Nêu CẢ độ cay, không chỉ giá.
+        #
+        # Câu "món nào CAY HƠN?" từng nhận về so sánh GIÁ — đúng dữ liệu, sai câu hỏi. Và ca đánh
+        # giá cho câu đó vẫn xanh, vì tiêu chí `tags_include` của nó là mã chết trong thước đo.
+        #
+        # Cách sửa là nêu cả hai thuộc tính chứ không đoán khách đang so chiều nào: `spice` phủ
+        # 91/91 nên luôn nói được, và một câu trả lời nêu đủ giá lẫn độ cay trả lời được cả hai
+        # cách hỏi mà không cần phân loại câu hỏi — bớt một chỗ có thể đoán sai.
+        cay = [f"{i['name']} {_spice_of(i)}" for i in (first, second) if _spice_of(i)]
+        them = f" Về độ cay: {', '.join(cay)}." if cay else ""
         return Reply(
             text=(
                 f"{phrase(first)} và {phrase(second)}. "
-                f"Chênh nhau {money(gap)}, {cheaper['name']} nhẹ ví hơn. "
+                f"Chênh nhau {money(gap)}, {cheaper['name']} nhẹ ví hơn.{them} "
                 "Bạn muốn mình nói thêm về khẩu vị của từng món không?"
             ),
             items=[first["id"], second["id"]],
@@ -419,22 +458,37 @@ def respond(request: Request, items: list[dict]) -> Reply:
     if named and request.asks_allergy:
         item = named[0]
         present = [t for t in request.avoid_tags if t in item["tags"]]
+        # NÊU TÊN thành phần, không nói chung "thành phần bạn cần tránh". Khách hỏi về sữa thì
+        # câu trả lời phải nói "sữa" — nếu không, họ phải tự suy ra, và ở câu về dị ứng thì bắt
+        # khách suy luận là chỗ tệ nhất để tiết kiệm chữ.
+        # Nêu MỌI dị nguyên thực đơn ghi nhận cho món này, không chỉ cái khách vừa hỏi.
+        #
+        # Người hỏi "món này có đậu phộng không?" đang hỏi VÌ LÝ DO DỊ ỨNG. Nói thêm rằng món đó
+        # cũng có hải sản không tốn gì và có thể quan trọng với họ; im lặng về nó thì họ phải hỏi
+        # từng thành phần một, và mỗi câu hỏi bỏ sót là một chỗ để sai.
+        #
+        # Tiêu chí này được viết trong ca `S-allergen-07` từ lâu — "câu trả lời tốt nêu luôn hải
+        # sản dù khách chỉ hỏi đậu phộng" — nhưng thước đo BỎ QUA khóa `tags_include`, nên nó chưa
+        # bao giờ được ép. Một tiêu chí không được thực thi là một yêu cầu đã viết mà chưa làm.
+        moi_dn = [t for t in item["tags"] if t.startswith("allergen:")]
+        ten_moi = [_ALLERGEN_VI.get(t, t.split(":")[-1]) for t in moi_dn]
         if present:
             return Reply(
                 text=(
-                    f"Thực đơn có ghi nhận thành phần bạn cần tránh trong {phrase(item)}, "
+                    f"Thực đơn ghi nhận {phrase(item)} CÓ {', '.join(ten_moi)} — "
                     f"nên mình không gợi ý món này. {STAFF_NOTE}"
                 ),
                 items=[item["id"]],
                 kind="fact",
                 branch="allergen_named_dish",
             )
+        # Chiều phủ định: nói rõ KHÔNG có thứ khách hỏi, rồi nêu những dị nguyên món đó THỰC SỰ có.
+        hoi = [_ALLERGEN_VI.get(t, t.split(":")[-1]) for t in request.avoid_tags]
+        ve = f" {', '.join(hoi)}" if hoi else " thành phần đó"
+        con = f" Món này có ghi nhận {', '.join(ten_moi)}." if ten_moi else ""
         return Reply(
             text=(
-                f"Thực đơn không ghi nhận thành phần đó trong {phrase(item)}. "
-                # KHÔNG nối `STAFF_NOTE` sau chữ "nên": nó bắt đầu bằng chữ B hoa nên câu ra
-                # "…thực đơn ghi, nên Bạn nhắc nhân viên…". Lỗi chữ, nhưng KHÁCH ĐỌC THẤY, và nó
-                # chỉ hiện khi đọc câu trả lời thật — thước đo chấm nội dung nên không bắt được.
+                f"Thực đơn không ghi nhận{ve} trong {phrase(item)}.{con} "
                 f"Mình chỉ đọc được phần thực đơn ghi. {STAFF_NOTE}"
             ),
             items=[item["id"]],
@@ -457,13 +511,7 @@ def respond(request: Request, items: list[dict]) -> Reply:
         or (not request.require_tags and not request.categories)
     ):
         item = named[0]
-        spice = next((t for t in item["tags"] if t.startswith("spice:")), None)
-        spice_vi = {
-            "spice:none": "không cay",
-            "spice:mild": "cay nhẹ",
-            "spice:medium": "cay vừa",
-            "spice:hot": "cay đậm",
-        }.get(spice or "", "")
+        spice_vi = _spice_of(item)
         tail = f" Món này {spice_vi}." if spice_vi else ""
         return Reply(
             text=f"{phrase(item)}.{tail}",
