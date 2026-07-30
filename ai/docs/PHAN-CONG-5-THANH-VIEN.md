@@ -57,13 +57,19 @@ bốn người còn lại nhận bốn khâu runtime thuần. Nhờ vậy:
 
 ### Cái giá phải biết trước
 
-**TV1 nằm trên đường tới hạn của hai người.** TV3 không đo được phép so truy hồi trước khi TV1 xong
-~120 ca truy hồi; TV5 không đo được bộ nhớ phiên trước khi TV1 xong ~25 kịch bản đa lượt. Nên thứ
-tự trong tuần 1 của TV1 là: **ca đánh giá trước, mở rộng kho sau.**
+**TV1 nằm trên đường tới hạn của hai người, và điều đó đã đúng.** TV3 không đo được phép so truy
+hồi trước khi TV1 xong ca truy hồi; TV5 không đo được bộ nhớ phiên trước khi TV1 xong kịch bản đa
+lượt. Thứ tự đã làm: **ca đánh giá trước, mở rộng kho sau** — và nó đúng.
 
-**Tải việc không đều.** TV2 gần như đã xong (hiểu câu hỏi đạt 0 lỗi an toàn), còn TV3 và TV5 phải
-xây từ số không. TV2 nên nhận thêm: hỗ trợ TV5 phần hợp nhất bộ nhớ (vì quy tắc hợp nhất đọc và ghi
-vào chính `Request` mà TV2 sở hữu).
+**Một chỗ phụ thuộc mà bảng phân công KHÔNG lường được.** `analyze_failures.py` (TV1) chỉ ra rằng 9
+lượt tham chiếu ngược thuộc lớp `capability_missing` — một khả năng chưa dựng, nằm giữa TV2 (từ vựng
+cụm chỉ vị trí), TV5 (`SessionState.last_listed_ids`) và TV4 (nhánh trả lời). Tức **công cụ phân
+tích lỗi của TV1 sinh ra việc cho ba người khác**, và không ai lường được việc đó khi chia. Bài học:
+phần phân tích lỗi phải xong **trước** khi chốt phân công, không phải sau.
+
+**Tải việc không đều.** TV2 gần như đã xong từ đầu (hiểu câu hỏi đạt 0 lỗi an toàn), còn TV3 và TV5
+xây từ số không. TV2 đã nhận thêm phần hợp nhất bộ nhớ (vì quy tắc hợp nhất đọc và ghi vào chính
+`Request` mà TV2 sở hữu) và cụm chỉ vị trí.
 
 ---
 
@@ -152,14 +158,14 @@ Kho tri thức **84 tài liệu / 327 đoạn** (24 `verbatim` + 60 `synthesize`
 **0 lỗ**.
 
 ### Việc còn lại — làm theo đúng thứ tự này
-Hai việc đầu **chặn người khác**, nên làm trước cả việc mở rộng kho:
+Hai việc đầu từng **chặn người khác**, và cả hai ĐÃ XONG:
 
-1. **~120 ca đánh giá truy hồi** (`retrieval_cases.json`) → **TV3 chờ cái này**. Khóa đáp án là
-   *điều kiện chọn*, và phải có `forbidden_selectors` — chỉ số **forbidden@5** quan trọng nhất vì nó
-   đo việc trích đoạn **sai chủ đề**.
-2. **~25 kịch bản đa lượt** (`session_scripts.json`) → **TV5 chờ cái này**. Bốn nhóm:
-   `allergy_persists` (5, **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5),
-   `context_reference` (9).
+1. **138 ca đánh giá truy hồi** (`retrieval_cases.json`), 14 họ, 12 ca `expect_nothing`. Khóa đáp án
+   là *điều kiện chọn* giải ra khi chạy, kèm `forbidden` — chỉ số **forbidden@5** quan trọng nhất vì
+   nó đo việc trích đoạn **sai chủ đề**, thứ mà Hit@5 = 1,0 vẫn cho qua.
+2. **25 kịch bản đa lượt** (`session_scripts.json`), 65 lượt. Bốn nhóm: `allergy_persists` (5,
+   **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5), `context_reference` (9).
+   Kết quả: **65/65**, 0 lỗi an toàn, 0 khoảng cách.
 3. **5 phép kiểm giỏ hàng** cho TV4, cộng chốt `safety_cart_no_allergen`.
 4. `analyze_failures.py` — phân loại mọi ca đỏ vào **6 lớp nguyên nhân**: `vocab_miss`,
    `retrieval_miss`, `constraint_conflict`, `data_gap`, `criterion_too_strict`, `model_error`.
@@ -191,7 +197,7 @@ python -m unittest test_chunker            # trong ai/app
 *Câu khách vừa gõ nêu ra những ràng buộc gì, và cái gì hệ thống KHÔNG hiểu?*
 
 ### Kiến thức phải nắm
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **74 cụm có nguy cơ** (55 bị
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **78 cụm có nguy cơ** (59 bị
   chứa trong cụm khác, 40 nằm trong tên món, 21 thuộc cả hai). Số này do
   `test_understand.collision_census()` tính lại mỗi lần chạy, **không viết tay**.
 - **Ràng buộc khác ngữ cảnh.** "Tôi ăn chay" là ràng buộc (lọc cứng); "tôi đi hẹn hò" là ngữ cảnh
@@ -260,35 +266,45 @@ Kho **303 đoạn `synthesize`** với 4 bất biến đã ép: mọi đoạn k�
 định và không trùng, dãy mã liên tục từ 0, cửa `audience: guest`. Đây là **hiện vật đã hoàn thành** —
 TV3 không phải soạn nội dung, chỉ làm cách lấy.
 
-### Việc còn lại
-1. `ai/app/rag/bm25.py`, `embedding.py`, `hybrid.py` — cùng một giao diện
-   `Retriever.search(query, k) -> list[RetrievedChunk]`.
-2. So ba phương pháp trên **hai bài toán** — đây là phần đáng báo cáo nhất:
+### Đã làm, và kết quả
 
-   | Bài toán | Ứng viên | Dự kiến |
-   |---|---|---|
-   | truy hồi tri thức | BM25 / embedding / hybrid | embedding thắng ở câu diễn đạt khác từ; BM25 thắng ở câu có tên riêng |
-   | chọn món | BM25 / embedding / **lọc theo nhãn** | **lọc theo nhãn thắng dứt khoát** |
+**1. Ba bộ truy hồi, một giao diện** — `base.Retriever.search(query, k) -> list[Hit]`. Giao diện chỉ
+xếp hạng: **không lọc, không ngưỡng**. Bản cũ trộn `RetrievalFilters` vào cùng lớp nên không ai nói
+được một đoạn lên đầu vì *nó liên quan* hay vì *các đoạn khác bị lọc mất*.
 
-   Bài toán thứ hai quan trọng vì nó chứng minh **bằng số** rằng không phải chỗ nào cũng nên dùng
-   RAG. Nếu hybrid không hơn BM25 thì đó là **kết quả**, phải báo đúng như vậy.
-3. Ablation: tắt rút dấu cho BM25, tắt chuẩn hóa vector cho embedding.
-4. Đưa lại `sentence-transformers`, `torch`, `numpy` vào `ai/requirements.txt`. Ảnh Docker lên
-   **~3GB** — đây là **quyết định có đánh đổi**, phải ghi vào tài liệu kèm con số, không phải mặc
-   định. Bước 5 đã **bỏ** chúng sau khi đo rằng 24 chủ đề tra khóa đúng 100%.
+**2. So trên hai bài toán** — và một nửa dự đoán SAI:
 
-### Chặn bởi
-Cần **~120 ca truy hồi của TV1** để đo. Tuần 1 làm được BM25 + hybrid trên **303 đoạn thật đã có**,
-kiểm bằng ví dụ nhỏ tính tay được (BM25 xếp đúng thứ tự; RRF khớp công thức trên 2 danh sách).
+| Bài toán | Dự đoán | ĐO ĐƯỢC |
+|---|---|---|
+| truy hồi tri thức | "hybrid tốt nhất" | **SAI.** embedding 0,921 > hybrid 0,895 > bm25 0,711 (Hit@5, 40 ca niêm phong), và hybrid có `cấm@5` **cao nhất** |
+| truy hồi tri thức | "BM25 thắng ở câu có tên riêng" | **đúng một phần.** BM25 hơn ở `kb-method` (+0,150), embedding hơn hẳn ở `kb-occasion` (+0,333) và `kb-region` (+0,150) |
+| chọn món | "lọc theo nhãn thắng dứt khoát" | **đúng.** lọc nhãn 8/8 và **0 ca sai**; ba cách xếp hạng sai **6–7/8 ca** |
+
+Lý do hybrid thua, đo được: RRF hợp nhất theo **HẠNG** nên bỏ hết thông tin khoảng cách điểm — khi
+một bộ chắc chắn hơn bộ kia rất nhiều thì hợp nhất là **kéo bộ tốt xuống**.
+
+**3. Ablation nói ra hai chỗ tôi viết SAI trong mã**: *chuẩn hóa L2* không mất gì (vector e5 đã gần
+chuẩn đơn vị → cơ chế **DƯ với kho này**); *tiền tố E5* tắt đi làm Hit@5 **tăng** +0,023 — nhưng
+`cấm@5` tăng từ 11 lên 13, nên cơ chế **vẫn được giữ** theo đúng chỉ số đã tuyên bố là quyết định.
+
+Bảng ablation đầu của tôi cũng sai: nó in cả ba phương pháp cho mọi cơ chế, nên có dòng "tắt chuẩn
+hóa vector · bm25 · cơ chế này DƯ" — BM25 **không có vector nào để chuẩn hóa**.
+
+**4. `sentence-transformers` KHÔNG vào `ai/requirements.txt`.** Nó nằm riêng ở
+`ai/requirements-rag.txt`. Ba lý do đo được: đường `synthesize` mà nó phục vụ **chưa có ai gọi**
+(`answer.py` tra khóa 24 chủ đề, đúng 100%, 0 ms); chậm hơn **75 lần** để đổi lấy **0 ca đúng thêm**;
+**+2–3GB** ảnh Docker. Điều kiện để nhập vào: **khi đường `synthesize` được dựng**.
 
 ### Sở hữu tệp
-`ai/app/rag/bm25.py` · `embedding.py` · `hybrid.py` · `retriever.py` ·
-`ai/evaluation/run_retrieval_comparison.py`
+`ai/app/rag/base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `ai/app/test_rag.py` ·
+`ai/evaluation/run_retrieval_comparison.py` · `ai/requirements-rag.txt`
 
 ### Tự đo bằng
 ```bash
-python ai/evaluation/run_retrieval_comparison.py    # chưa viết
-python -m unittest test_bm25 test_hybrid            # chưa viết
+python -m unittest test_rag                        # trong ai/app — công thức tính tay được
+python ai/evaluation/run_retrieval_comparison.py   # BM25 nếu thiếu thư viện, CÓ IN RÕ đã bỏ qua
+python -m pip install -r ai/requirements-rag.txt   # rồi chạy lại để có phép so BA phương pháp
+python ai/evaluation/run_retrieval_comparison.py --ablation
 ```
 
 ### Điều phải nói ra trong báo cáo
@@ -412,15 +428,15 @@ nhận **bộ nhớ đã mất**.
 
 ---
 
-## Ai làm được gì ngay tuần 1 — không ai phải chờ
+## Trạng thái — cả năm khâu ĐÃ XONG và có số
 
-| TV | Tuần 1 (làm ngay) | Tuần 2+ (cần đầu vào) |
-|---|---|---|
-| **1** | **~120 ca truy hồi** rồi **~25 kịch bản đa lượt** — hai việc này chặn TV3 và TV5 | `analyze_failures.py`, mở rộng kho nếu cần |
-| **2** | rà lại từ vựng, nối tên món dị nguyên còn thiếu | hợp nhất `session_state` khi TV5 chốt hình dạng |
-| **3** | BM25 + hybrid trên **303 đoạn thật đã có**, kiểm bằng ví dụ tính tay được | chạy phép so khi TV1 xong ca truy hồi |
-| **4** | `cart.py` + 5 bất biến (`answer.py` đã có, đủ để làm) | chỉnh theo ca giỏ hàng của TV1 |
-| **5** | `/health`, `/ready`, token, hợp đồng schema, 3 quy tắc hợp nhất trên dữ liệu giả | nối `/v1/chat` khi TV4 xong `cart` |
+| TV | Đã làm | Số đo | Còn lại |
+|---|---|---|---|
+| **1** | 119 ca trả lời · **138 ca truy hồi** / 14 họ · **25 kịch bản** / 65 lượt · thước đo · `analyze_failures.py` | bộ dò lỗ 0 lỗ; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn 2 kiểu ca LUÔN XANH | tập niêm phong truy hồi **đã dùng hết** → câu hỏi tiếp cần tập MỚI |
+| **2** | từ vựng: 20 cụm tên món dị nguyên · **23 cụm cách khách mô tả** · cụm chỉ vị trí | **119/119** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | — |
+| **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | đường `synthesize` chưa dựng nên embedding chưa vào ảnh Docker |
+| **4** | `cart.py` + 5 bất biến | 20 test; 0 món dị nguyên vào thẻ giỏ qua backend thật | — |
+| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema | **65/65 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy | `last_listed_ids` chưa qua backend |
 
 Điều làm việc này chạy được: **tiêu chí kiểm chứng viết được trước khi mã tồn tại**, vì tiêu chí đến
 từ định nghĩa khâu chứ không từ mã người khác.

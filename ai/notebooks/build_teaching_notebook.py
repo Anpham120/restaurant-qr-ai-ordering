@@ -547,7 +547,7 @@ print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, k
 
 - **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
   chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
-  nó **không còn là lỗi**. Kiểm kê: **74 cụm có nguy cơ** (55 bị chứa trong cụm khác, 40 nằm
+  nó **không còn là lỗi**. Kiểm kê: **78 cụm có nguy cơ** (59 bị chứa trong cụm khác, 40 nằm
   trong tên món, 21 thuộc cả hai).
 - **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
   cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
@@ -1565,27 +1565,31 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
 # PHẦN 4 — TRUY HỒI TRI THỨC
 > **TV3** — nhận kho 303 đoạn từ TV1, làm phần lấy đoạn
 
-> **Vị trí:** TV3, giữa "hiểu câu hỏi" và "chọn món". **Đây là phần duy nhất trong notebook này
-> còn CHƯA đo** — và mục dưới nói rõ chưa đo cái gì.
+> **Vị trí:** TV3, giữa "hiểu câu hỏi" và "chọn món". Phép so **đã chạy**, và một phần kết quả
+> **trái với dự đoán tôi ghi trong kế hoạch** — mục 15b nói rõ chỗ nào và vì sao.
 
 | | |
 |---|---|
 | **Câu hỏi khâu này trả lời** | *Với câu hỏi cần tri thức, lấy đoạn nào — và phương pháp lấy nào tốt hơn?* |
 | **Kiến thức phải nắm** | BM25 (`k1`, `b`, tf-idf) · embedding và cosine · hybrid RRF · Hit@k, MRR@k, nDCG@k, **forbidden@k** · giao thức đo độ trễ |
-| **Tệp sở hữu** | `ai/app/rag/bm25.py` · `embedding.py` · `hybrid.py` · `retriever.py` · `run_retrieval_comparison.py` |
-| **Đầu vào** | 303 đoạn `synthesize` của TV1; ~120 ca truy hồi của TV1 (**chưa có — TV3 chờ cái này**) |
+| **Tệp sở hữu** | `ai/app/rag/base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` |
+| **Đầu vào** | 303 đoạn `synthesize` của TV1; 138 ca truy hồi / 14 họ của TV1 |
 | **Đầu ra bàn giao** | bảng so ba phương pháp trên **hai bài toán**, kèm phân tích ca sai |
-| **Tự đo bằng** | `run_retrieval_comparison.py` (**chưa viết**) |
-| **Trạng thái** | **kho đã sẵn sàng, phép so CHƯA CHẠY** — xem Mục 15 |
+| **Tự đo bằng** | `run_retrieval_comparison.py` — nhóm chốt đỏ là CHẶN |
+| **Trạng thái** | **xong.** embedding thắng trên tập niêm phong (Hit@5 0,921 so với bm25 0,711); lọc theo nhãn thắng dứt khoát ở bài toán chọn món |
 
-### Vì sao phần này chưa có số, và vì sao nói ra chứ không viết cho đầy
+### Điều quan trọng nhất của phần này không phải "phương pháp nào thắng"
 
-Notebook này là tài liệu báo cáo, nên nó phải phân biệt rõ **điều đã đo** với **điều còn dự
-kiến**. Viết một mục về "kết quả so BM25 vs embedding" khi chưa chạy phép so nào là **bịa số**,
-và một báo cáo có một số bịa thì mọi số còn lại đều mất giá trị.
+Nó là: **câu hỏi "phương pháp nào tốt hơn" không có câu trả lời chung.** Nó có câu trả lời
+**theo bài toán**, và hệ thống này có đúng hai bài toán khác nhau về bản chất:
 
-Điều đã làm được: kho tri thức **đủ lớn và đủ sạch** để phép so có nghĩa. Điều chưa làm: chính
-phép so.
+| bài toán | ứng viên | ai thắng |
+|---|---|---|
+| truy hồi tri thức | BM25 / embedding / hybrid | **embedding**, và hybrid KÉM HƠN embedding đơn lẻ |
+| chọn món | BM25 / embedding / **lọc theo nhãn** | **lọc theo nhãn**, dứt khoát: 8/8 so với 1–2/8 |
+
+Một dự án chỉ đo bài toán thứ nhất sẽ kết luận "dùng RAG cho mọi thứ". Đó là kết luận sai, và
+bảng ở mục 15c là con số chứng minh nó sai.
 """))
 
     out.append(md(r"""
@@ -1683,6 +1687,234 @@ print(f"   không trả lời đúng được. Đây là kết quả đáng báo
   (~3GB) khỏi ảnh Docker sau khi đo rằng 24 chủ đề chính sách tra khóa đúng 100%. Nhóm nhãn
   `price` phủ 91/91 món nên lọc theo nhãn đúng 100%, còn BM25 và embedding không hiểu số. **Không
   phải chỗ nào cũng nên dùng RAG** — và điều đó cũng phải đo, không phải phán.
+"""))
+
+    # ---------------------------------------------------------------- Mục 15b
+    out.append(md(r"""
+## 15b. Ba cách truy hồi, và ba công thức viết ra để kiểm được bằng tay
+
+### Kiến thức
+
+**BM25 Okapi** xếp hạng theo TRÙNG TỪ:
+
+$$\text{score}(D,Q)=\sum_{t \in Q}\text{IDF}(t)\cdot\frac{f(t,D)\,(k_1+1)}{f(t,D)+k_1\!\left(1-b+b\frac{|D|}{\text{avgdl}}\right)}$$
+
+$$\text{IDF}(t)=\ln\!\left(1+\frac{N-n(t)+0{,}5}{n(t)+0{,}5}\right)$$
+
+`k1 = 1,5`, `b = 0,75` — giá trị mặc định của tài liệu gốc, **không chỉnh theo tập đánh giá**.
+Chỉnh tham số theo tập rồi báo kết quả trên cùng tập đó là tự lừa.
+
+Dạng IDF ở trên **luôn dương**. Dạng gốc $\ln\frac{N-n+0{,}5}{n+0{,}5}$ cho giá trị **âm** khi một
+từ có ở hơn nửa số đoạn — và điểm âm nghĩa là **chứa từ đó làm đoạn TỤT hạng**. Với kho này thì
+"món" và "nhà hàng" có ở gần như mọi đoạn, nên đó không phải chuyện lý thuyết.
+
+**Embedding**: `intfloat/multilingual-e5-small`, 384 chiều, cosine. Họ E5 đòi **tiền tố**
+`"query: "` cho câu hỏi và `"passage: "` cho đoạn. Thiếu tiền tố thì mô hình **vẫn chạy và vẫn trả
+vector** — chỉ kém đi. Đó là loại lỗi tệ nhất: không thông báo nào, chỉ điểm thấp hơn.
+
+**Hybrid RRF** hợp nhất theo HẠNG, không theo ĐIỂM:
+
+$$\text{RRF}(d)=\sum_{r}\frac{1}{k+\text{rank}_r(d)},\qquad k=60$$
+
+Vì sao theo hạng: điểm BM25 không có trần trên (tổng theo từ, nên câu dài cho điểm lớn), còn cosine
+nằm trong $[-1,1]$. Cộng thẳng thì BM25 áp đảo; chuẩn hóa min-max thì kết quả phụ thuộc **đoạn tệ
+nhất trong danh sách** — thêm một đoạn rác vào cuối là đổi điểm của đoạn đầu.
+
+`k = 60` nghĩa là **đồng thuận giữa hai bộ quan trọng hơn thứ tự trong từng bộ**, và điều đó tính
+ra được:
+
+| tình huống | điểm RRF |
+|---|---|
+| hạng 3 ở **cả hai** bảng | $\frac{1}{63}+\frac{1}{63}=0{,}03175$ |
+| hạng 1 ở **một** bảng | $\frac{1}{61}=0{,}01639$ |
+
+Cái giá của việc dùng hạng, và phải nói ra: RRF **bỏ hết thông tin về khoảng cách điểm**. Một đoạn
+hơn đoạn sau nó rất xa và một đoạn hơn sát sao đều chỉ là "hạng 1 so với hạng 2". Nên RRF mạnh khi
+hai bộ có thang điểm không so được, và **yếu khi một bộ chắc chắn hơn bộ kia rất nhiều** — đó chính
+là điều đã xảy ra ở đây.
+
+### Ba chỗ dễ sai, mỗi chỗ một ca chốt bằng SỐ
+
+| chỗ sai | hệ quả | ca chốt |
+|---|---|---|
+| dạng IDF âm | chứa từ phổ biến làm đoạn TỤT hạng | `test_idf_khong_bao_gio_am` |
+| hạng tính từ 0 | $1/(k+0)$ làm đoạn đầu bảng nặng bất thường | `test_hang_bat_dau_tu_1` |
+| lấy đúng `k` từ mỗi bảng con | đoạn đồng thuận ở hạng 6 KHÔNG BAO GIỜ vào kết quả | `test_lay_sau_hon_k_de_RRF_co_tac_dung` |
+
+Chỗ thứ ba tôi đã mắc: bản đầu lấy đúng `k=5` từ mỗi bảng, và hybrid **gần như trùng khớp BM25** —
+tức phép so không so gì cả. Lấy sâu hơn `k` (ở đây `depth=20`) là điều làm RRF có tác dụng.
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 8 — hai bài toán, hai câu trả lời khác nhau
+import json, os, statistics, sys
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+import run_retrieval_comparison as RC          # ROOT/ai/evaluation đã ở sys.path (xem SETUP)
+from rag import embedding as EMB
+
+cases = RC.load_cases()
+split = RC.load_split()
+ho_do = set(split["gate_families"]) | set(split["dev_families"])
+ca_dev = [c for c in cases if c["family"] in split["dev_families"]]
+ca_seal = [c for c in cases if c["family"] in split["test_families"]]
+
+rs1 = RC.build_retrievers()
+kq_dev = RC.do_bai_toan_1(rs1, ca_dev, 1)
+kq_seal = RC.do_bai_toan_1(rs1, ca_seal, 1)
+
+items = RC.load_menu()
+mon_doan = RC.mon_thanh_doan(items)
+bm25_mon = RC.Bm25Index.build(mon_doan)
+rs2 = [bm25_mon]
+if EMB.available():
+    emb_mon = EMB.EmbeddingIndex.build(mon_doan)
+    rs2 += [emb_mon, RC.HybridRetriever(retrievers=[bm25_mon, emb_mon])]
+rs2.append(RC.LocTheoNhan(items, RC.CA_CHON_MON))
+kq2 = RC.do_bai_toan_2(rs2, items, 1)
+
+
+def hit5(k):
+    return (k.hit5 / k.scored_cases) if k.scored_cases else 0.0
+
+
+fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.6))
+tens1 = list(kq_dev)
+
+# (a) truy hồi tri thức: phát triển vs NIÊM PHONG
+x = range(len(tens1))
+w = 0.38
+ax = axes[0]
+ax.bar([i - w / 2 for i in x], [hit5(kq_dev[t]) for t in tens1], w,
+       label="phát triển (90 ca)", color=XANH)
+ax.bar([i + w / 2 for i in x], [hit5(kq_seal[t]) for t in tens1], w,
+       label="NIÊM PHONG (40 ca)", color=CAM)
+for i, t in enumerate(tens1):
+    ax.text(i - w / 2, hit5(kq_dev[t]) + 0.02, f"{hit5(kq_dev[t]):.3f}",
+            ha="center", fontsize=8)
+    ax.text(i + w / 2, hit5(kq_seal[t]) + 0.02, f"{hit5(kq_seal[t]):.3f}",
+            ha="center", fontsize=8, fontweight="bold")
+ax.set_xticks(list(x)); ax.set_xticklabels(tens1)
+ax.set_ylim(0, 1.12); ax.set_ylabel("Hit@5")
+ax.set_title("Bài toán 1 — truy hồi tri thức\nembedding thắng ở CẢ HAI nhóm", fontsize=11)
+ax.legend(fontsize=8, loc="lower right")
+
+# (b) forbidden@5 — chỉ số quyết định, và ở đây hybrid TỆ NHẤT
+ax = axes[1]
+cam5 = [kq_dev[t].forbidden_hits for t in tens1]
+ax.bar(tens1, cam5, color=[DO if v == max(cam5) else XAM for v in cam5])
+for i, v in enumerate(cam5):
+    ax.text(i, v + 0.2, str(v), ha="center", fontweight="bold")
+ax.set_ylabel("số ca lấy đoạn BỊ CẤM (thấp = tốt)")
+ax.set_ylim(0, max(cam5) * 1.35)
+ax.set_title("cấm@5 trên 90 ca phát triển\nhybrid TỆ NHẤT — trái dự đoán của tôi", fontsize=11)
+
+# (c) chọn món: lọc theo nhãn so với ba cách xếp hạng
+ax = axes[2]
+tens2 = list(kq2)
+sai = [kq2[t].forbidden_hits for t in tens2]
+dung = [hit5(kq2[t]) for t in tens2]
+mau2 = [XANH if t == "lọc nhãn" else XAM for t in tens2]
+ax.barh(tens2[::-1], dung[::-1], color=mau2[::-1])
+for i, t in enumerate(tens2[::-1]):
+    ax.text(dung[::-1][i] + 0.02, i, f"Hit@5 {dung[::-1][i]:.3f} · sai {sai[::-1][i]}/8",
+            va="center", fontsize=8,
+            fontweight="bold" if t == "lọc nhãn" else "normal")
+ax.set_xlim(0, 1.55); ax.set_xlabel("Hit@5")
+ax.set_title("Bài toán 2 — CHỌN MÓN\nlọc theo nhãn thắng dứt khoát", fontsize=11)
+
+plt.tight_layout(); plt.show()
+
+print("BÀI TOÁN 1 — truy hồi tri thức")
+for t in tens1:
+    d, s = kq_dev[t], kq_seal[t]
+    print(f"  {t:11} phát triển Hit@5 {hit5(d):.3f} cấm {d.forbidden_hits:>2}  |  "
+          f"NIÊM PHONG Hit@5 {hit5(s):.3f} cấm {s.forbidden_hits:>2}  |  "
+          f"p50 {statistics.median(d.latencies_ms):.1f} ms")
+print()
+print("BÀI TOÁN 2 — chọn món (cấm@5 = số ca nêu món KHÔNG thỏa ràng buộc = trả lời SAI)")
+for t in tens2:
+    k = kq2[t]
+    print(f"  {t:11} Hit@5 {hit5(k):.3f}  cấm@5 {k.forbidden_hits}/8  "
+          f"p50 {statistics.median(k.latencies_ms):.1f} ms")
+print()
+print("Hai điều TRÁI với dự đoán tôi ghi trong kế hoạch:")
+print("  1. Kế hoạch viết 'hybrid tốt nhất'. Đo được: hybrid KÉM HƠN embedding đơn lẻ, và có")
+print("     cấm@5 CAO NHẤT. Lý do: RRF hợp nhất theo HẠNG nên bỏ hết thông tin khoảng cách điểm;")
+print("     khi một bộ chắc chắn hơn bộ kia rất nhiều thì hợp nhất là KÉO BỘ TỐT XUỐNG.")
+print("  2. Số tuyệt đối của hai nhóm KHÔNG so được với nhau: nhóm niêm phong gồm kb-written và")
+print("     kb-health, chủ đề tách biệt rõ nên dễ hơn. Chỉ THỨ TỰ ba phương pháp là so được —")
+print("     và thứ tự đó giữ nguyên ở cả hai nhóm, nên đó là bằng chứng mạnh nhất có được.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 15b
+
+- **Quan sát:** trên **40 ca niêm phong** (mở MỘT lần, 2026-07-30, giao thức chốt 7 lần/truy vấn):
+  Hit@5 **bm25 0,711 · embedding 0,921 · hybrid 0,895**; cấm@5 **10 · 9 · 10**; abstain **2/2** cả
+  ba. Độ trễ p50: **0,7 ms · 53,1 ms · 53,7 ms**.
+- **Diễn giải:** embedding thắng, và thắng trên tập held-out. Thứ tự `embedding > hybrid > bm25`
+  giữ nguyên ở cả nhóm phát triển và nhóm niêm phong — hai nhóm gồm các HỌ khác nhau, nên đó là
+  bằng chứng mạnh nhất có được ở quy mô này.
+- **Trái với dự đoán của tôi:** kế hoạch ghi "hybrid tốt nhất". Sai. Hybrid kém hơn embedding đơn
+  lẻ và có `cấm@5` cao nhất. Tôi báo đúng như đo được thay vì chỉnh `k` cho ra số đẹp.
+- **Vì sao `cấm@5` quan trọng hơn Hit@5:** Hit@5 = 1,0 **vẫn đúng** khi bộ truy hồi trả 1 đoạn đúng
+  cùng 4 đoạn lạc đề — và 4 đoạn lạc đề là 4 cơ hội để mô hình viết một câu sai về nhà hàng.
+- **Tập niêm phong ĐÃ DÙNG HẾT.** Ghi trong `retrieval_split.json` kèm ngày. Từ nay con số trên 40
+  ca đó không còn là held-out, và câu hỏi tiếp theo cần một tập MỚI. Tập 119 ca đã mất tính
+  held-out đúng vì bước này từng bị làm mà không ghi lại.
+- **Ablation nói ra hai chỗ tôi viết SAI trong mã:** *tắt chuẩn hóa L2* không mất gì (vector của
+  `multilingual-e5-small` đã gần chuẩn đơn vị, nên phép chuẩn hóa **DƯ với kho này**); *tắt tiền tố
+  E5* làm Hit@5 **TĂNG** +0,023. Nhưng cơ chế tiền tố **vẫn được giữ**, vì cùng lúc đó `cấm@5` tăng
+  từ 11 lên 13 — và `cấm@5` là chỉ số tôi đã tuyên bố là quyết định. Một công cụ kết luận theo
+  Hit@5 ở dòng đó là công cụ nói ngược lại thước đo mà chính nó đặt ra.
+"""))
+
+    # ---------------------------------------------------------------- Mục 15c
+    out.append(md(r"""
+## 15c. Bài toán chọn món — chỗ RAG là câu trả lời SAI
+
+### Kiến thức
+
+Bài toán này quan trọng hơn bài toán 1 với hệ thống thật, vì **68/119 ca đánh giá đi qua nhánh lọc
+món**, còn nhánh tri thức chỉ có 29 ca. Nên nếu chọn sai phương pháp ở đây thì sai ở chỗ đông nhất.
+
+Ba cách xếp hạng đều được thấy **đủ dữ liệu** — văn bản của mỗi món gồm tên, danh mục, mô tả, toàn
+bộ nhãn và giá. Cho chúng ít hơn thì kết luận "lọc theo nhãn thắng" thành không công bằng.
+
+`cấm@5` ở bài toán này = số ca nêu một món **không thỏa ràng buộc**. Đó là câu trả lời **SAI**,
+không phải kém — khác với bài toán 1, nơi "bị cấm" nghĩa là lạc chủ đề.
+
+### Bốn lý do xếp hạng theo độ tương đồng THUA, mỗi lý do một ca
+
+| ca | vì sao thua |
+|---|---|
+| `pick-price-01/02` | **không hiểu SỐ.** "50.000" với BM25 là một TỪ, không phải một lượng. Với embedding thì "dưới 50 nghìn" và "dưới 500 nghìn" gần như cùng một vector |
+| `pick-spice-01` | **phủ định.** "món KHÔNG cay" và "món cay" chung gần hết từ |
+| `pick-allergen-01` | **cần LOẠI TRỪ.** Câu chứa chữ "hải sản" nên cả hai kéo món hải sản **LÊN ĐẦU** — đúng ngược điều khách cần. Đây là ca AN TOÀN |
+| `pick-combo-01` | **hai ràng buộc cùng lúc.** Xếp hạng theo độ tương đồng **không có phép AND** |
+
+Ca `pick-allergen-01` là ca đáng nhớ nhất của cả bước: một hệ thống RAG "hoạt động đúng" ở đó sẽ
+mời món hải sản cho người vừa khai dị ứng hải sản, và nó làm vậy **chính vì** nó hoạt động đúng —
+câu hỏi nhắc "hải sản" nên đoạn nói về hải sản giống nhất. Cơ chế đúng cho việc này là **fail-closed
+filter**, không phải xếp hạng.
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 15c
+
+- **Quan sát:** lọc theo nhãn **Hit@1 = Hit@5 = MRR = nDCG = 1,000** và **0/8 ca sai**, ở 0,3 ms.
+  Ba cách xếp hạng: Hit@5 0,750–0,875 nhưng **6–7 trong 8 ca nêu món không thỏa ràng buộc**.
+- **Diễn giải:** đây là con số chứng minh **không phải chỗ nào cũng nên dùng RAG**. Với việc chọn
+  món, dữ liệu đã có cấu trúc (nhãn + giá), nên đưa nó qua một tầng xếp hạng theo độ tương đồng là
+  **bỏ cấu trúc đi rồi cố đoán lại**.
+- **Quyết định kèm theo, và điều kiện để đổi:** embedding thắng bài toán 1 nhưng **KHÔNG** được đưa
+  vào `ai/requirements.txt`. Nó nằm riêng ở `ai/requirements-rag.txt`. Ba lý do đo được: (1) đường
+  `synthesize` mà nó phục vụ **chưa có ai gọi** — `answer.py` trả lời câu chính sách bằng TRA KHÓA
+  trên 24 chủ đề, chính xác tuyệt đối và 0 ms; (2) chậm hơn **75 lần** để đổi lấy **0 ca đúng
+  thêm** trên đường hiện tại; (3) **+2–3GB** ảnh Docker. Điều kiện để nhập vào, ghi ra để lần sau
+  không phải đoán: **khi đường `synthesize` được dựng**.
+- **Điều notebook này KHÔNG nói:** không có con số nào về việc khách thật hỏi gì. Cả 138 ca truy
+  hồi và 8 ca chọn món đều do người viết.
 """))
 
     # ================================================================= PHẦN 5
@@ -2050,9 +2282,12 @@ ax = fig.add_subplot(gs[1, 2])
 ax.axis("off")
 ax.text(0.5, 1.02, "Điều CHƯA đo", ha="center", fontsize=11, fontweight="bold",
         transform=ax.transAxes)
-chua = ["so BM25 / embedding / hybrid", "tập đánh giá truy hồi (~120 ca)",
-        "bộ nhớ phiên đa lượt (~25 kịch bản)", "thẻ giỏ hàng gợi ý",
-        "5 endpoint dịch vụ HTTP", "độ trễ end-to-end thật"]
+# Sáu việc từng nằm trong ô này ĐÃ ĐO XONG (so ba cách truy hồi, 138 ca truy hồi, 25 kịch
+# bản đa lượt, thẻ giỏ, 5 endpoint, độ trễ thật). Danh sách phải được THAY, không phải xóa:
+# một ô "điều chưa đo" rỗng nói rằng đã đo hết mọi thứ, và không hệ thống nào ở tình trạng đó.
+chua = ["khách THẬT hỏi gì — không có log", "28/84 tài liệu tri thức là `demo`",
+        "nhãn dị nguyên phủ 44/91 món", "đường `synthesize` chưa có nhánh nào dùng",
+        "`last_listed_ids` chưa qua backend", "tập niêm phong truy hồi ĐÃ dùng hết"]
 for i, t in enumerate(chua):
     ax.text(0.02, 0.86 - i * 0.155, f"○  {t}", fontsize=9.5, transform=ax.transAxes,
             color="#555")
@@ -2074,8 +2309,11 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 | tất định 119/119 | 100% | không nói khách thật hỏi gì — mọi ca do người viết |
 | có mô hình 119/119 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
 | lỗi an toàn 0 / 0 | trên 119 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
-| kho 84 tài liệu / 327 đoạn | đủ để so truy hồi | chưa nói phương pháp nào tốt hơn — **chưa đo** |
-| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 74 chỗ |
+| kho 84 tài liệu / 303 đoạn xếp hạng | đủ để so truy hồi | 28/84 tài liệu là `demo` |
+| truy hồi: embedding Hit@5 **0,921** | trên 40 ca NIÊM PHONG | tập đó **đã dùng hết** từ 2026-07-30 |
+| chọn món: lọc nhãn **8/8**, 0 ca sai | RAG sai 6–7/8 | 8 ca do người viết |
+| bộ nhớ phiên 65/65 lượt | 0 lỗi an toàn | `last_listed_ids` chưa qua backend |
+| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 78 chỗ |
 
 **Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4.
 Mọi con số sau đó đo trên tập đã thấy.

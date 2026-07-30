@@ -76,10 +76,16 @@ def build(cases: list[dict]) -> dict:
             "phiên bản Python, nên Python đổi thuật toán thì phép chia đổi theo và tập niêm phong",
             "lặng lẽ trộn vào tập phát triển.",
         ],
-        "sealed_opened": False,
+        # ĐÃ MỞ. Ghi ở đây thay vì ghi ngoài tài liệu, vì tài liệu trôi còn tệp này sinh lại được.
+        "sealed_opened": True,
+        "sealed_opened_date": "2026-07-30",
         "sealed_opened_note": (
-            "Đặt thành true VÀ ghi ngày khi mở tập niêm phong. Tập 119 ca đã mất tính held-out vì "
-            "được mở rồi sửa theo — đừng lặp lại mà không ghi."
+            "Mở MỘT lần ngày 2026-07-30 để chốt phép so BM25/embedding/hybrid. Kết quả trên 40 ca "
+            "niêm phong (giao thức chốt, 7 lần/truy vấn): Hit@5 bm25 0,711 · embedding 0,921 · "
+            "hybrid 0,895; cấm@5 lần lượt 10 · 9 · 10; abstain 2/2 cả ba. "
+            "TỪ NAY con số trên 40 ca này KHÔNG còn là held-out. Không sửa hệ thống theo chúng, và "
+            "câu hỏi tiếp theo cần một tập MỚI. Tập 119 ca đã mất tính held-out đúng vì bước này "
+            "bị làm mà không ghi lại."
         ),
         "gate_families": gate,
         "dev_families": sorted(dev),

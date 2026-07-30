@@ -100,6 +100,14 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     thà nói "không có món nào phù hợp" còn hơn mời khách một món có thể gây dị ứng.
     """
     picked = list(items)
+    # Phạm vi và loại trừ do bộ nhớ phiên điền — tham chiếu ngược vào danh sách khách vừa đọc.
+    # Áp TRƯỚC mọi ràng buộc khác vì chúng thu tập ứng viên, không phải thêm điều kiện lên nhãn.
+    if request.scope_item_ids:
+        cho_phep = set(request.scope_item_ids)
+        picked = [i for i in picked if i["id"] in cho_phep]
+    if request.exclude_item_ids:
+        bo = set(request.exclude_item_ids)
+        picked = [i for i in picked if i["id"] not in bo]
     if request.categories:
         picked = [i for i in picked if i["categoryId"] in request.categories]
     elif request.wants == "food":
@@ -196,11 +204,27 @@ def respond(request: Request, items: list[dict]) -> Reply:
                 kind="fact",
                 branch=f"facts:{request.policy_topic}",
             )
+        # Nêu tên món CHỈ khi khách trỏ vào nó bằng THAM CHIẾU, không nêu khi khách tự gõ tên.
+        #
+        # Phân biệt này không phải để một ca xanh — nó là hai tình huống khác nhau:
+        #
+        #   khách gõ "Phở bò tái nạm bao nhiêu calo?"  họ ĐÃ biết mình hỏi món nào. Nhắc lại tên
+        #                                              không thêm gì, và trong một câu "chưa có dữ
+        #                                              liệu" thì nó đọc như một lời MỜI món.
+        #   khách gõ "món đó cho mấy người ăn?"        họ KHÔNG biết hệ thống hiểu "món đó" là món
+        #                                              nào. Không nêu tên thì họ không phát hiện
+        #                                              được khi hệ thống trỏ sai.
+        #
+        # Bản đầu của tôi nêu tên trong CẢ HAI, và `O-nodata-01` đỏ đúng vì lý do thứ nhất: một ca
+        # "chưa có dữ liệu" không được nêu món. Thước đo bắt được, và nó bắt đúng.
+        tro_bang_tham_chieu = named and request.reference_index is not None
+        head = f"{phrase(named[0])}. " if tro_bang_tham_chieu else ""
         return Reply(
             text=(
-                "Mình chưa có dữ liệu về việc này ạ. "
+                f"{head}Mình chưa có dữ liệu về việc này ạ. "
                 f"{STAFF_NOTE}"
             ),
+            items=[named[0]["id"]] if tro_bang_tham_chieu else [],
             kind="no_data",
             branch=f"policy:{request.policy_topic}",
         )
@@ -282,7 +306,19 @@ def respond(request: Request, items: list[dict]) -> Reply:
         )
 
     # 6b. Khách nêu tên món mà không hỏi gì cụ thể — nêu dữ kiện món đó.
-    if named and not request.require_tags and not request.categories:
+    #
+    # `reference_index is not None` là ngoại lệ cần thiết, không phải nới lỏng: khi khách nói "cái
+    # đó có cay không?" thì `require_tags` vẫn còn `spice:none` **kéo từ bộ nhớ** của lượt trước
+    # ("món nào không cay"). Không có ngoại lệ này thì điều kiện `not request.require_tags` sai, và
+    # hệ thống trả về một DANH SÁCH mới thay vì trả lời về đúng món khách đang trỏ vào — đo được ở
+    # `context-reference-02`.
+    #
+    # Ràng buộc kéo từ bộ nhớ là để LỌC DANH SÁCH; nó không được biến câu hỏi về một món thành câu
+    # hỏi về cả thực đơn.
+    if named and (
+        request.reference_index is not None
+        or (not request.require_tags and not request.categories)
+    ):
         item = named[0]
         spice = next((t for t in item["tags"] if t.startswith("spice:")), None)
         spice_vi = {

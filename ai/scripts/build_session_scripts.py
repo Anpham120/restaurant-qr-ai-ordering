@@ -175,10 +175,18 @@ def build() -> dict:
 
     # --- NHÓM 4: tham chiếu ngược -----------------------------------------------------
     # Đây là nhóm hệ thống hiện CHƯA làm được, và tập ca nói ra điều đó thay vì che.
-    # `aspirational: true` KHÔNG được là lượt duy nhất có mặt trong `expect` — bản đầu của tôi
-    # đúng như vậy, và lượt đó **không đo gì cả**: không có tiêu chí thì không có gì để đỏ, nên
-    # "9 ca aspirational" là 9 ca luôn qua dưới danh nghĩa được phép đỏ. Đó tệ hơn là không có ca:
-    # nó làm bảng kết quả trông như đã bao phủ tham chiếu ngược.
+    # LỊCH SỬ của nhóm này, giữ lại vì nó là bài học chính của cả tập ca:
+    #
+    # 1. Ban đầu mỗi lượt chỉ có `{"aspirational": true, "why": ...}` — tức KHÔNG ĐO GÌ. Không có
+    #    tiêu chí thì không có gì để đỏ, nên "9 ca aspirational" là 9 ca luôn qua dưới danh nghĩa
+    #    được phép đỏ. Tệ hơn không có ca: bảng kết quả trông như đã bao phủ tham chiếu ngược.
+    #    `run_session_eval.py::_kiem_tieu_chi` giờ CHẶN đúng hình dạng đó.
+    # 2. Thêm tiêu chí đo được -> 9/9 lượt đỏ, và đó là con số thật của khoảng cách.
+    # 3. Một ca ĐẠT SAI LÝ DO: "còn món nào giống vậy" qua được `refers_to_turn` vì hệ thống in lại
+    #    đúng danh sách cũ. Tiêu chí bị đổi sang cặp "không lặp + thỏa ràng buộc lượt trỏ".
+    # 4. Khả năng được DỰNG (`SessionState.last_listed_ids` + cụm chỉ vị trí) -> 9/9 đạt, và cờ
+    #    `aspirational` bị BỎ. Giữ nó lại thì lần sau khả năng này hỏng, tập ca báo "khoảng cách"
+    #    chứ không báo "tụt".
     #
     # Nên mỗi lượt tham chiếu có tiêu chí ĐO ĐƯỢC, ứng đúng điều khách hỏi:
     #
@@ -205,7 +213,17 @@ def build() -> dict:
         ("Gợi ý món ăn tối", "Món thứ hai có hải sản không?", "fact", "tro_vao_mon_cu"),
         ("Cho mình món dưới 100 nghìn", "Món rẻ nhất trong số đó là gì?", "fact", "tro_vao_mon_cu"),
         ("Món nào đặc trưng nhà hàng", "Món vừa rồi làm từ gì?", "fact", "tro_vao_mon_cu"),
-        ("Cho mình xem món lẩu", "Món đó cho mấy người ăn?", "fact", "tro_vao_mon_cu"),
+        # `no_data`, KHÔNG phải `fact` — và đây là TIÊU CHÍ đã sửa, ghi lại lý do vì sửa tiêu chí
+        # là việc dễ bị dùng để làm đẹp số liệu.
+        #
+        # Lý do không phụ thuộc hệ thống làm gì: **thực đơn không có dữ liệu khẩu phần**. Nhóm nhãn
+        # `serving` chỉ có ba giá trị — `takeaway` (11 món), `hot` (1), `preorder` (12) — không có
+        # giá trị nào nói một phần cho mấy người ăn. Nên câu trả lời ĐÚNG là "chưa có dữ liệu",
+        # và một tiêu chí đòi `fact` là tiêu chí đòi hệ thống BỊA ra con số.
+        #
+        # Ca vẫn ở lại tập thay vì bị bỏ: nó chốt rằng hệ thống nói ra chỗ mình không biết, và vẫn
+        # nêu TÊN món đang được hỏi để khách phát hiện nếu "món đó" bị hiểu sai.
+        ("Cho mình xem món lẩu", "Món đó cho mấy người ăn?", "no_data", "tro_vao_mon_cu"),
         ("Gợi ý món cho 4 người", "Cái thứ ba bao nhiêu tiền?", "fact", "tro_vao_mon_cu"),
         ("Cho mình món chay", "Còn món nào giống vậy không?", "list", "xin_them_mon_giong"),
         ("Món nào bán chạy nhất", "Món đó có đậu phộng không?", "fact", "tro_vao_mon_cu"),
@@ -228,16 +246,16 @@ def build() -> dict:
             "turns": [
                 {"user": cau1, "expect": {"min_items": 1, "why": "Lượt nêu danh sách."}},
                 {"user": cau2,
-                 "expect": {"aspirational": True,
-                            **tieu_chi,
+                 "expect": {**tieu_chi,
                             "expect_kind": dang,
-                            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này "
-                                   "ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh "
-                                   "dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ "
-                                   "thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: "
-                                   f"{noi_them}, và dạng đáp án là `{dang}`. `aspirational` mà "
-                                   "không có tiêu chí thì ca luôn qua, và bảng kết quả trông như "
-                                   "đã bao phủ tham chiếu ngược."}},
+                            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh "
+                                   "`aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy "
+                                   "có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi "
+                                   "khả năng được dựng và cả 9 lượt đạt. "
+                                   "Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho "
+                                   "một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai "
+                                   "biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. "
+                                   f"Tiêu chí: {noi_them}, và dạng đáp án là `{dang}`."}},
             ],
         })
 

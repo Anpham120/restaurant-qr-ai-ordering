@@ -141,9 +141,9 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 346 cụm từ vựng và 91 tên món: **55 cụm bị chứa trong cụm khác**, **40 cụm nằm
-    trong tên món**, và hợp lại là **74 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
-    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 74 chỗ đó.
+    Kiểm kê trên 380 cụm từ vựng và 91 tên món: **59 cụm bị chứa trong cụm khác**, **40 cụm nằm
+    trong tên món**, và hợp lại là **78 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 78 chỗ đó.
 
     Nhưng tập đánh giá chỉ có ca cho **một** trong số đó — nên phép đo ablation báo "mất 1 ca"
     là **chặn dưới**, không phải giá trị thật của cơ chế. Đây là phát hiện về *tập đánh giá*,
@@ -161,7 +161,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 346, "trong_cum_khac": 55, "trong_ten_mon": 40, "co_rui_ro": 74},
+            {"tu_vung": 380, "trong_cum_khac": 59, "trong_ten_mon": 40, "co_rui_ro": 78},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -347,7 +347,7 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
         self.assertEqual(missing, [], f"có nội dung nhưng không câu nào tới được: {missing}")
 
     def test_chu_de_nhan_dien_duoc_ma_khong_co_noi_dung_deu_la_co_y(self):
-        # Năm chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
+        # Sáu chủ đề dưới đây cố tình KHÔNG có nội dung, và lý do ghi trong
         # `ai/docs/05-knowledge-base.md` mục "Bốn nhóm không bao giờ trả lời". Chúng phải được
         # nêu tên ở đây chứ không phải bỏ qua bằng một ngưỡng số.
         deliberately_empty = {
@@ -359,6 +359,14 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
             # true`. Nên câu "hôm nay có món gì đặc biệt" và "giờ này còn món gì" phải nói
             # thẳng chưa có dữ liệu — điền nội dung cho chúng sẽ là bịa.
             "time_or_availability",
+            # Nhóm nhãn `serving` chỉ có ba giá trị — `takeaway` (11 món), `hot` (1),
+            # `preorder` (12) — và KHÔNG có giá trị nào nói một phần cho mấy người ăn. Nên câu
+            # "món đó cho mấy người ăn?" phải nói thẳng chưa có dữ liệu.
+            #
+            # Chủ đề này được THÊM vào từ vựng chứ không để câu đó rơi vào nhánh lọc: trước đây
+            # nó trả về giá và độ cay của món, tức trông như đã trả lời trong khi không trả lời
+            # gì. "Chưa có dữ liệu" đúng hơn một câu đúng-nhưng-không-liên-quan.
+            "serving_size",
         }
         topics = self._topics_with_content()
         extra = self._detectable() - topics

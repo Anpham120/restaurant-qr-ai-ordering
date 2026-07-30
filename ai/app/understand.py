@@ -80,6 +80,26 @@ class Request:
     policy_topic: str | None = None
     unknown_item: bool = False
     unparsed_restriction: bool = False  # khách nêu điều cần tránh mà không hiểu tránh gì
+    # Tham chiếu ngược vào danh sách khách VỪA đọc. Ba cơ chế khác nhau, không gộp được:
+    #
+    #   reference_index   1-based; -1 = món cuối. "món đầu tiên", "cái thứ ba", "món đó".
+    #                     Giải ra thành `named_items` ở bước hợp nhất bộ nhớ, nên nó tái dùng
+    #                     nguyên các nhánh đã có (price_lookup, item_detail, allergen_named_dish)
+    #                     thay vì thêm nhánh thứ bảy.
+    #   scope_last_listed "trong số đó", "trong những món đó" — thu PHẠM VI về danh sách vừa nêu.
+    #                     Khác reference_index: nó không trỏ vào MỘT món, nó giới hạn tập.
+    #   wants_similar     "còn món nào giống vậy" — giữ ràng buộc cũ, BỎ món đã nêu.
+    #
+    # Gộp ba thứ này thành một cờ là chỗ dễ sai nhất: "món rẻ nhất trong số đó" cần phạm vi chứ
+    # không cần một món, còn "còn món nào giống vậy" cần đúng NGƯỢC LẠI của việc trỏ vào món cũ.
+    reference_index: int | None = None
+    scope_last_listed: bool = False
+    wants_similar: bool = False
+    # Hai tập id do bước hợp nhất bộ nhớ điền, KHÔNG do bộ khớp từ vựng điền. `understand()` chỉ
+    # nhận ra khách đang tham chiếu; nó không biết khách đã đọc danh sách nào. Tách vai như vậy để
+    # `understand()` giữ được tính chất "chỉ đọc câu của lượt này".
+    scope_item_ids: list[str] = field(default_factory=list)
+    exclude_item_ids: list[str] = field(default_factory=list)
     matched: list[str] = field(default_factory=list)
 
 
@@ -332,8 +352,46 @@ _add("bia|ruou|do co con", "category", "cat_alcohol")
 _add("mon an|do an|an gi|minh doi|toi doi|bua trua|bua toi|bua sang|an com", "wants", "food")
 _add("do uong|thuc uong|uong gi|nuoc gi", "wants", "drink")
 
+# --- Tham chiếu ngược vào danh sách khách VỪA đọc --------------------------------------
+#
+# "Món đầu tiên giá bao nhiêu?" là câu hỏi tự nhiên nhất của một cuộc hội thoại thật, và trước khối
+# này hệ thống trả lời nó bằng cách LIỆT KÊ LẠI một danh sách mới — vì nó không hiểu "món đầu tiên"
+# trỏ vào đâu. `analyze_failures.py` xếp 9 lượt như vậy vào lớp `capability_missing`: không thiếu
+# từ, không thiếu dữ liệu, mà thiếu chỗ LƯU dãy có thứ tự các món đã nêu.
+#
+# Ba loại cụm, ba cơ chế, không gộp được — xem chú thích ở `Request`.
+#
+# Cụm chỉ VỊ TRÍ giải ra `named_items` ở bước hợp nhất bộ nhớ. Nghĩa là nó tái dùng nguyên các
+# nhánh đã có và đã đo (`price_lookup`, `item_detail`, `allergen_named_dish`), không thêm nhánh
+# thứ bảy vào `answer.respond`. Thêm nhánh thì phải đo lại cả sáu nhánh cũ.
+#
+# "món đó"/"cái đó" không nêu vị trí. Quy ước: lấy món ĐẦU danh sách, và câu trả lời PHẢI nêu tên
+# món nó đang nói — nêu tên biến phỏng đoán thành thứ khách sửa được ngay, còn đoán im lặng thì
+# khách tin vào câu trả lời về một món khác.
+_add("mon dau tien|cai dau tien|mon thu nhat|mon dau", "reference", 1)
+_add("mon thu hai|cai thu hai", "reference", 2)
+_add("mon thu ba|cai thu ba", "reference", 3)
+_add("mon thu tu|cai thu tu", "reference", 4)
+_add("mon thu nam|cai thu nam", "reference", 5)
+_add("mon cuoi cung|mon cuoi|cai cuoi", "reference", -1)
+_add("mon vua roi|mon vua noi|mon do|cai do|no co", "reference", 1)
+
+# Cụm thu PHẠM VI. Khác cụm vị trí: "món rẻ nhất TRONG SỐ ĐÓ" không trỏ vào một món, nó giới hạn
+# tập rồi để câu hỏi "rẻ nhất" chạy trên tập đó. Dùng cụm vị trí ở đây là trả sai: nó sẽ trả món
+# ĐẦU danh sách thay vì món RẺ NHẤT.
+_add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do", "flag", "scope_listed")
+
+# Xin thêm món GIỐNG — cơ chế ngược với trỏ vào món cũ: giữ ràng buộc, BỎ món đã nêu.
+_add("giong vay|giong the|tuong tu|kieu vay|giong nhu vay", "flag", "similar")
+
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")
+
+# Số người ăn một phần — thực đơn KHÔNG có dữ liệu này. Nhóm `serving` chỉ có `takeaway`, `hot`,
+# `preorder`, không có khẩu phần. Nên câu "món đó cho mấy người ăn?" phải trả "chưa có dữ liệu",
+# không được trả bừa giá và độ cay như thể đã trả lời.
+_add("cho may nguoi an|may nguoi an|an duoc may nguoi|du cho may nguoi|khau phan bao nhieu",
+     "policy", "serving_size")
 _add("dat nhat|mac nhat", "flag", "priciest")
 _add("re nhat|thap nhat", "flag", "cheapest")
 
@@ -419,6 +477,18 @@ _add("goi taxi|goi xe|dat ve|dich cau nay|dich sang tieng", "flag", "off_topic")
 
 # Cụm sắp theo độ dài giảm dần — đây là cơ chế chống đụng chữ.
 VOCAB_ORDER = sorted(VOCAB, key=lambda p: (-len(p), p))
+
+# Các cụm chỉ vị trí, tách ra thành một tập riêng vì THỨ TỰ CÁC BƯỚC bắt buộc phải vậy.
+#
+# `understand()` quyết nghĩa của "hải sản" ở BƯỚC 2 (tránh / duyệt danh mục / hỏi về món đã nêu),
+# còn `reference_index` chỉ được đặt ở BƯỚC 3 khi vòng khớp từ vựng chạy. Nên bản đầu của tôi thêm
+# `request.reference_index is not None` vào điều kiện ở bước 2 và đó là MÃ CHẾT: ở thời điểm đó nó
+# luôn là None. Không có test nào đỏ, chỉ có một ca vẫn sai — đúng lớp lỗi "tệp có mặt khác nó
+# chạy", và đây là lần thứ sáu nó xuất hiện trong dự án này.
+#
+# Sinh từ VOCAB chứ không viết tay: viết tay thì thêm cụm ở trên mà quên thêm ở đây, và câu
+# "món thứ sáu có hải sản không?" lại bị đọc thành duyệt danh mục hải sản.
+REFERENCE_PHRASES = frozenset(p for p, (kind, _) in VOCAB.items() if kind == "reference")
 
 # Cách nói ngân sách nghiêm ngặt: "rẻ hơn 20 nghìn" KHÔNG bao gồm món đúng 20.000đ.
 # Khác với "dưới 50.000đ" hay "tầm 80k trở xuống", vốn được hiểu là bao gồm.
@@ -519,7 +589,20 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     wants_to_avoid = wants_to_avoid or any(
         f" {p} " in working for p in ("bi dau bung", "bi di ung", "bi ngua", "bi noi me day", "an vao la bi")
     )
-    asks_about_named = bool(request.named_items) and " co " in working and " khong" in working
+    # Câu "⟨món⟩ có ⟨thành phần⟩ không?" — hỏi VỀ một món, không phải duyệt danh mục.
+    #
+    # `request.reference_index` tính vào đây cùng với `named_items`, và đó là điểm dễ bỏ sót nhất
+    # của cả khối tham chiếu ngược: câu "món thứ hai có hải sản không?" chưa có `named_items` khi
+    # `understand()` chạy — món đó chỉ được giải ra ở bước hợp nhất bộ nhớ, VỀ SAU. Không tính
+    # `reference_index` thì "hải sản" bị đọc thành "duyệt danh mục hải sản", và hệ thống liệt kê
+    # món hải sản cho người vừa hỏi vì lo có hải sản. Đúng lớp lỗi an toàn tệ nhất mà khối
+    # `allergen_topic` tồn tại để chống, chỉ đến theo một đường mới.
+    co_tham_chieu = any(f" {p} " in working for p in REFERENCE_PHRASES)
+    asks_about_named = (
+        (bool(request.named_items) or co_tham_chieu)
+        and " co " in working
+        and " khong" in working
+    )
     request.asks_about_named_dish = asks_about_named
 
     # 3. Cụm từ vựng, dài trước ngắn, ăn hết đoạn đã khớp.
@@ -565,6 +648,15 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.is_comparison = True
             elif value == "off_topic":
                 request.off_topic = True
+            elif value == "scope_listed":
+                request.scope_last_listed = True
+            elif value == "similar":
+                request.wants_similar = True
+        elif kind == "reference":
+            # Cụm đầu tiên khớp thắng. Cụm dài được khớp trước nên "món thứ hai" thắng "món đó",
+            # và không cần thứ tự ưu tiên riêng ở đây.
+            if request.reference_index is None:
+                request.reference_index = int(value)  # type: ignore[arg-type]
 
     # 3b. Khách nói tránh điều gì, nhưng hệ thống không hiểu tránh gì.
     #

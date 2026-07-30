@@ -112,11 +112,11 @@ Hai điều bất ngờ đáng ghi lại:
   thì "mấy giờ mở cửa**?**" không khớp cụm `mo cua`, và 13 ca đổ — trong đó 5 ca an toàn.
   Sáu test đầu của `test_understand.py` đã đỏ đúng vì lý do này.
 - **Con số của "ăn hết đoạn đã khớp" là chặn dưới, không phải giá trị thật.** Kiểm kê trên
-  346 cụm từ vựng và 91 tên món: **55 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
+  380 cụm từ vựng và 91 tên món: **59 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
   `trung`⊂`mien trung`, `nam`⊂`mien nam`, `nam`⊂`nam nguoi`, `tra`⊂`tra tien`,
   `trung`⊂`dac trung`, `ga`⊂`mon ga`), **40 cụm nằm trong tên món** (`lac`⊂"Cơm bò lúc lắc",
-  `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá"), và hợp lại là **74 cụm có nguy cơ** — 21
-  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 74 chỗ đó. **Đây là phát hiện về
+  `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá"), và hợp lại là **78 cụm có nguy cơ** — 21
+  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 78 chỗ đó. **Đây là phát hiện về
   tập đánh giá, không phải về cơ chế** — và tôi đã lấp bằng 9 test riêng thay vì để con số
   ablation nói sai.
 
@@ -129,7 +129,7 @@ Hai điều bất ngờ đáng ghi lại:
 Cũng phải sửa một điều tôi nói trước đó: tôi từng bảo cơ chế ăn đoạn là thứ chặn lỗi
 "bán chạy → món chay". Kiểm lại thì **không phải**: từ vựng không có cụm `chay` đứng một
 mình (tôi tách thành `an chay` và `mon chay`), nên thứ chặn ca đó là **thiết kế từ vựng**.
-Cơ chế ăn đoạn chặn 74 chỗ khác.
+Cơ chế ăn đoạn chặn 78 chỗ khác.
 
 ## 5. Một cơ chế bị bỏ vì nó gây hại
 

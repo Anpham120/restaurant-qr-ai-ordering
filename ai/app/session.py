@@ -55,6 +55,10 @@ MAX_CONTEXT_TAGS = 5
 # sau 10 lượt thì mọi món đều đã bị gợi ý và hệ thống không còn gì để nói.
 MAX_SUGGESTED_MEMORY = 24
 
+# Số món của MỘT danh sách giữ lại để trỏ vào. `answer.LIST_SIZE` là 6, nên 6 là đủ và nhiều hơn
+# là giữ món khách không đọc thấy. Khách nói "cái thứ ba" về danh sách vừa đọc, không về lượt trước.
+MAX_LISTED_MEMORY = 6
+
 # Nhóm nhãn được coi là RÀNG BUỘC CỨNG — lượt mới ghi đè cùng nhóm.
 #
 # Cả bốn nhóm này phủ 91/91 món, và đó không phải trùng hợp: chỉ nhóm phủ hết mới lọc dứt khoát
@@ -86,6 +90,24 @@ class SessionState:
     wants: str = "any"
     suggested_item_ids: list[str] = field(default_factory=list)
     rejected_item_ids: list[str] = field(default_factory=list)
+    # Món của lượt gần nhất, THEO ĐÚNG THỨ TỰ đã nêu ra cho khách. Khác `suggested_item_ids` ở
+    # hai điểm, và cả hai đều cần thiết:
+    #
+    #   suggested_item_ids   TẬP tích lũy cả phiên, dùng để KHÔNG gợi lại. Thứ tự vô nghĩa.
+    #   last_listed_ids      DÃY của MỘT lượt, dùng để trỏ vào: "món đầu tiên", "cái thứ ba".
+    #
+    # Gộp hai thứ này là lý do tham chiếu ngược không làm được: "món đầu tiên" trong một tập tích
+    # lũy 24 món qua 6 lượt thì không trỏ vào đâu cả. Khách nói "món đầu tiên" là nói về danh sách
+    # họ VỪA đọc, nên nó phải bị THAY mỗi lượt có danh sách, không phải cộng dồn.
+    last_listed_ids: list[str] = field(default_factory=list)
+    # Danh mục của lượt gần nhất. `categories` KHÔNG nằm trong `hard_tags` vì nó không phải nhãn,
+    # và không cộng dồn được: "cho mình món chay" rồi "cho mình món lẩu" là hai yêu cầu khác nhau,
+    # không phải giao của hai danh mục.
+    #
+    # Nó tồn tại vì câu "còn món nào giống vậy không?": không nhớ danh mục thì "giống vậy" không
+    # có gì để giống, và hệ thống liệt kê lại cả thực đơn — đúng điều đã đo được ở
+    # `context-reference-08`.
+    last_categories: list[str] = field(default_factory=list)
     turn_count: int = 0
 
     @classmethod
@@ -117,6 +139,11 @@ class SessionState:
                 or rang_buoc.get("suggested_item_ids") or [],
                 "rejected_item_ids": payload.get("rejected_menu_item_ids")
                 or rang_buoc.get("rejected_item_ids") or [],
+                # Backend chưa có trường riêng cho dãy này, nên nó chỉ đến từ hình dạng phẳng.
+                # Nghĩa là qua backend thật thì tham chiếu ngược mất sau mỗi lượt — ghi ra ở đây
+                # thay vì để người sau tưởng nó chạy.
+                "last_listed_ids": rang_buoc.get("last_listed_ids") or [],
+                "last_categories": rang_buoc.get("last_categories") or [],
                 "turn_count": rang_buoc.get("turn_count", 0),
             }
 
@@ -149,6 +176,8 @@ class SessionState:
             wants=wants if wants in ("food", "drink", "any") else "any",
             suggested_item_ids=ids("suggested_item_ids")[:MAX_SUGGESTED_MEMORY],
             rejected_item_ids=ids("rejected_item_ids")[:MAX_SUGGESTED_MEMORY],
+            last_listed_ids=ids("last_listed_ids")[:MAX_LISTED_MEMORY],
+            last_categories=ids("last_categories"),
             turn_count=payload.get("turn_count") if isinstance(payload.get("turn_count"), int) else 0,
         )
 
@@ -162,6 +191,8 @@ class SessionState:
             "wants": self.wants,
             "suggested_item_ids": list(self.suggested_item_ids),
             "rejected_item_ids": list(self.rejected_item_ids),
+            "last_listed_ids": list(self.last_listed_ids),
+            "last_categories": list(self.last_categories),
             "turn_count": self.turn_count,
         }
 
@@ -203,14 +234,55 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     # `wants` (món ăn / đồ uống) là ràng buộc cứng nhưng không mang dạng nhãn, nên xử riêng.
     wants = request.wants if request.wants != "any" else state.wants
 
+    # Danh mục chỉ được kéo lại khi khách xin món GIỐNG. Kéo lại mọi lượt là sai: "cho mình món
+    # chay" rồi "cho mình đồ uống" thì lượt sau không được vẫn bị giới hạn trong danh mục chay.
+    categories = list(request.categories)
+    if request.wants_similar and not categories:
+        categories = list(state.last_categories)
+
+    # QUY TẮC 4 — THAM CHIẾU NGƯỢC. Giải ở đây, không giải trong `answer.py`.
+    #
+    # Đây là chỗ đúng vì tham chiếu ngược là câu hỏi về BỘ NHỚ, không phải về thực đơn: "món đầu
+    # tiên" chỉ có nghĩa khi biết khách vừa đọc danh sách nào. Giải nó thành `named_items` làm
+    # `answer.respond()` xử lý nó bằng đúng các nhánh đã có và đã đo (`price_lookup`,
+    # `item_detail`, `allergen_named_dish`) — không thêm nhánh thứ bảy, nên không phải đo lại sáu
+    # nhánh cũ.
+    named = list(request.named_items)
+    if request.reference_index is not None and state.last_listed_ids and not named:
+        i = request.reference_index
+        # -1 = món cuối. Chỉ số ngoài phạm vi thì BỎ QUA thay vì kẹp về đầu/cuối: khách nói "món
+        # thứ năm" cho một danh sách 3 món là khách nhớ sai, và trả về món thứ 3 như thể đó là món
+        # thứ 5 là xác nhận một điều sai. Bỏ qua thì câu đi tiếp và hệ thống hỏi lại.
+        if i == -1:
+            named = [state.last_listed_ids[-1]]
+        elif 1 <= i <= len(state.last_listed_ids):
+            named = [state.last_listed_ids[i - 1]]
+
     return replace(
         request,
         avoid_tags=avoid,
         require_tags=require,
         prefer_tags=prefer,
+        categories=categories,
         budget_max=budget_max,
         budget_strict=budget_strict,
         wants=wants,
+        named_items=named,
+        # Hai cơ chế còn lại của tham chiếu ngược đi qua HAI tập món, không qua nhãn:
+        #
+        #   scope_item_ids    "món rẻ nhất TRONG SỐ ĐÓ" -> chỉ xét danh sách vừa nêu
+        #   exclude_item_ids  "còn món nào GIỐNG VẬY"   -> giữ ràng buộc, bỏ món đã nêu
+        #
+        # Đặt ở đây chứ không ở `answer.py` vì cả hai chỉ có nghĩa khi biết bộ nhớ phiên. `answer`
+        # nhận chúng như một tập id và không cần biết chúng từ đâu ra.
+        scope_item_ids=(
+            list(state.last_listed_ids) if request.scope_last_listed and state.last_listed_ids
+            else []
+        ),
+        exclude_item_ids=(
+            list(state.last_listed_ids) if request.wants_similar and state.last_listed_ids
+            else []
+        ),
     )
 
 
@@ -232,6 +304,19 @@ def update_state(state: SessionState, merged: Request, replied_item_ids: list[st
             dict.fromkeys([*replied_item_ids, *state.suggested_item_ids])
         )[:MAX_SUGGESTED_MEMORY],
         rejected_item_ids=list(state.rejected_item_ids),
+        # THAY khi lượt này nêu danh sách, GIỮ khi lượt này không nêu gì.
+        #
+        # Giữ khi rỗng là điều bắt buộc, không phải tiện tay: chuỗi lượt thật là "cho mình món
+        # chay" -> "món đầu tiên giá bao nhiêu?" -> "còn cái thứ hai?". Lượt hỏi giá trả về dạng
+        # `fact` nên `replied_item_ids` rỗng; xóa dãy ở đó thì lượt thứ ba không còn gì để trỏ vào,
+        # và tham chiếu ngược chỉ hoạt động được đúng một lượt.
+        last_listed_ids=(
+            list(replied_item_ids)[:MAX_LISTED_MEMORY]
+            if replied_item_ids else list(state.last_listed_ids)
+        ),
+        last_categories=(
+            list(merged.categories) if merged.categories else list(state.last_categories)
+        ),
         turn_count=state.turn_count + 1,
     )
 

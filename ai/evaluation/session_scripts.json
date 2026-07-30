@@ -614,10 +614,9 @@
         {
           "user": "Món đầu tiên giá bao nhiêu?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -637,10 +636,9 @@
         {
           "user": "Cái đó có cay không?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -660,10 +658,9 @@
         {
           "user": "Món thứ hai có hải sản không?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -683,10 +680,9 @@
         {
           "user": "Món rẻ nhất trong số đó là gì?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -706,10 +702,9 @@
         {
           "user": "Món vừa rồi làm từ gì?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -729,10 +724,9 @@
         {
           "user": "Món đó cho mấy người ăn?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
-            "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "expect_kind": "no_data",
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `no_data`."
           }
         }
       ]
@@ -752,10 +746,9 @@
         {
           "user": "Cái thứ ba bao nhiêu tiền?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]
@@ -775,11 +768,10 @@
         {
           "user": "Còn món nào giống vậy không?",
           "expect": {
-            "aspirational": true,
             "must_not_repeat_turn": 1,
             "must_match_turn_constraint": 1,
             "expect_kind": "list",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nêu món KHÁC lượt 1 mà vẫn thỏa ràng buộc của lượt 1 — đòi nhắc lại tên món cũ ở đây là đòi ngược, vì trả lời đúng thì nêu món mới, và dạng đáp án là `list`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nêu món KHÁC lượt 1 mà vẫn thỏa ràng buộc của lượt 1 — đòi nhắc lại tên món cũ ở đây là đòi ngược, vì trả lời đúng thì nêu món mới, và dạng đáp án là `list`."
           }
         }
       ]
@@ -799,10 +791,9 @@
         {
           "user": "Món đó có đậu phộng không?",
           "expect": {
-            "aspirational": true,
             "refers_to_turn": 1,
             "expect_kind": "fact",
-            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]

@@ -175,6 +175,25 @@ jobs:
       - name: Bộ nhớ phiên — 25 kịch bản đa lượt
         run: python ai/evaluation/run_session_eval.py
 
+      # Ba cách truy hồi. CI chạy BM25 THÔI, có chủ ý: `sentence-transformers` kéo theo torch và
+      # ~2–3GB, tức mỗi lần chạy CI tải bằng cả ảnh Docker. Con số của embedding đo tại máy và ghi
+      # trong `ai/docs/07-error-analysis.md` kèm ngày.
+      #
+      # Bỏ qua như vậy KHÔNG âm thầm: `run_retrieval_comparison.py` in rõ "embedding và hybrid BỊ
+      # BỎ QUA" kèm lý do, và nó vẫn CHẶN nếu BM25 lấy đoạn bị cấm ở nhóm chốt hoặc không biết
+      # KHÔNG trả lời. Cài `ai/requirements-rag.txt` rồi chạy lại để có phép so ba phương pháp.
+      - name: Test ba cách truy hồi (công thức tính tay được)
+        run: python -m unittest test_rag
+        working-directory: ai/app
+
+      - name: So truy hồi trên hai bài toán (BM25 — xem ghi chú)
+        run: python ai/evaluation/run_retrieval_comparison.py
+
+      # Không trả mã lỗi — nó phân tích chứ không chặn. Chạy trong CI để nó không mục: một công cụ
+      # phân tích hỏng thầm thì lần cần dùng nhất là lần nó không chạy.
+      - name: Phân tích nguyên nhân sai (cả ba tập)
+        run: python ai/evaluation/analyze_failures.py
+
       - name: Kiểm tập đánh giá
         run: python ai/evaluation/validate_cases.py
 

@@ -1,0 +1,36 @@
+# Phụ thuộc CHỈ DÙNG ĐỂ ĐO, không phải phụ thuộc của dịch vụ.
+#
+# Vì sao tách khỏi `requirements.txt` thay vì nhập vào
+# ----------------------------------------------------
+# Phép so ba cách truy hồi (`run_retrieval_comparison.py`) cần embedding để có gì mà so, và kết
+# quả nói rõ embedding thắng:
+#
+#     40 ca NIÊM PHONG (held-out, mở một lần 2026-07-30, giao thức chốt 7 lần/truy vấn)
+#       Hit@5    bm25 0,711  ·  embedding 0,921  ·  hybrid 0,895
+#       cấm@5    bm25 10     ·  embedding 9      ·  hybrid 10
+#       p50      bm25 0,7ms  ·  embedding 53,1ms ·  hybrid 53,7ms
+#
+# Nhưng "thắng phép so" chưa phải "nên vào ảnh Docker". Ba lý do, và cả ba đo được:
+#
+#   1. Đường mà embedding phục vụ CHƯA CÓ AI GỌI. `answer.py` trả lời câu chính sách bằng TRA KHÓA
+#      trên 24 chủ đề `answer_mode: verbatim` — chính xác tuyệt đối, 0ms, không xếp hạng. 303 đoạn
+#      `synthesize` là đầu vào cho mô hình VIẾT, và đường đó chưa dựng. Thêm 2–3GB cho một khả
+#      năng chưa có ai gọi là đúng điều phải tránh.
+#   2. Chậm hơn 75 lần (0,7ms -> 53,1ms). Với đường tra khóa hiện tại thì đó là thêm 53ms vào mọi
+#      câu hỏi chính sách, để đổi lấy 0 ca đúng thêm — vì tra khóa đã đúng 100%.
+#   3. Bước 5 của dự án đã BỎ chính nhóm thư viện này sau khi đo rằng 24 chủ đề không cần xếp hạng.
+#      Đưa lại mà không có đường dùng là quay lại chỗ cũ, chỉ thêm 2–3GB.
+#
+# Điều kiện để NHẬP vào `requirements.txt`, viết ra để lần sau không phải đoán:
+#
+#     khi đường `synthesize` được dựng — tức khi có một nhánh trả lời DÙNG 303 đoạn đó làm đầu vào
+#     cho mô hình viết. Lúc đó embedding có việc thật, và +21 điểm Hit@5 trở thành lợi ích thật.
+#
+# Cho tới lúc đó: cài tệp này khi muốn CHẠY LẠI phép so, không cài khi chạy dịch vụ.
+#
+#     python -m pip install -r ai/requirements-rag.txt
+#     python ai/evaluation/run_retrieval_comparison.py --ablation
+#
+# `run_retrieval_comparison.py` thiếu thư viện thì chạy tiếp với BM25 và **in rõ đã bỏ qua** —
+# không bỏ qua âm thầm, vì một phép so báo "BM25 thắng" mà chưa từng chạy embedding là con số dối.
+sentence-transformers>=3.0,<6.0
