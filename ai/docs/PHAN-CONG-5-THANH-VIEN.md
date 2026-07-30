@@ -152,8 +152,8 @@ Chúng cũng đòi **cùng một loại kỷ luật**: *số phải tính đư�
   khóa đáp án ghi `allowed: savoury` trong khi câu hỏi không nói "món ăn".
 
 ### Đã xong
-Kho tri thức **84 tài liệu / 327 đoạn** (24 `verbatim` + 60 `synthesize`; 56 `derived` + 28 `demo`),
-303 đoạn được xếp hạng. Từ điển **84 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
+Kho tri thức **108 tài liệu / 449 đoạn** (24 `verbatim` + 84 `synthesize`; 56 `derived` + 52 `demo`),
+425 đoạn được xếp hạng. Từ điển **84 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
 **119 ca / 41 họ**, chia chốt 21 / phát triển 61 / niêm phong 37. Thước đo **37 test**, bộ dò lỗ tìm
 **0 lỗ**.
 
@@ -267,7 +267,7 @@ python ai/evaluation/run_ablation.py
   **100%**, còn BM25 và embedding **không hiểu số**.
 
 ### Nhận từ TV1
-Kho **303 đoạn `synthesize`** với 4 bất biến đã ép: mọi đoạn kèm tiêu đề tài liệu, `chunk_id` tất
+Kho **425 đoạn `synthesize`** với 4 bất biến đã ép: mọi đoạn kèm tiêu đề tài liệu, `chunk_id` tất
 định và không trùng, dãy mã liên tục từ 0, cửa `audience: guest`. Đây là **hiện vật đã hoàn thành** —
 TV3 không phải soạn nội dung, chỉ làm cách lấy.
 
@@ -467,7 +467,7 @@ Ba điều đầu **không ai trong nhóm đóng được** — chúng cần d�
 |---|---|---|
 | CI không kiểm được LỚP MÔ HÌNH | Job `golden-e2e` dựng stack thật nhưng `LLM_BASE_URL` trỏ vào cổng chết, nên 42 lượt chạy trên đường tất định. Hai cấu hình cho cùng câu trả lời ở cả 42 lượt, và mô hình đổi 0/140 ca — nhưng "đổi 0 ca trên tập này" không phải "mô hình không thể làm sai" | cần một khóa mô hình trong secrets — quyết định của chủ dự án |
 | Không có log khách thật | 140 ca và 87 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
-| 28/84 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
+| 52/108 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
 | Tập niêm phong đã dùng hết ở **cả hai** tập | mọi con số hiện tại không còn là held-out | cần tập MỚI, và chỉ mở một lần |
 | Kịch bản đa lượt chưa chấm thẻ giỏ | lỗ đo, nhỏ | TV1 + TV4 |
 

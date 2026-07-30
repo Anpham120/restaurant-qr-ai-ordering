@@ -21,8 +21,12 @@ Nên câu trả lời là: **cần nội dung, không cần hệ truy hồi.** P
 | `ai/app/rag/chunker.py` | nạp, chia đoạn, ép `audience` và `answer_mode` |
 | `app/answer.py` → `load_facts()` | tra khóa trên tài liệu `verbatim` |
 
-**Trạng thái hiện tại: 84 tài liệu / 327 đoạn** — 24 `verbatim` + 60 `synthesize`; theo nguồn
-56 `derived` + 28 `demo`. Bộ truy hồi chỉ xếp hạng **303 đoạn `synthesize`**.
+**Trạng thái hiện tại: 108 tài liệu / 449 đoạn** — 24 `verbatim` + 84 `synthesize`; theo nguồn
+56 `derived` + 52 `demo`. Bộ truy hồi chỉ xếp hạng **425 đoạn `synthesize`**.
+
+> Cập nhật 2026-07-30: thêm 24 tài liệu `written` có cấu trúc RIÊNG. Nút cổ chai trước đó là 45/60
+> tài liệu dùng chung MỘT khuôn, nên mọi tập đánh giá về chọn đoạn đều bị trần bởi kho chứ không
+> bởi công sức. Số MỤC có cấu trúc riêng: 62 -> 184.
 
 ## 0. MỘT kho, HAI chế độ trả lời
 

@@ -172,9 +172,40 @@ class HealthVaReadyKhacNhau(unittest.TestCase):
         body = self.client.get("/ready").json()
         self.assertTrue(body["ready"])
         self.assertEqual(body["menu_items"], 91)
-        self.assertEqual(body["knowledge_docs"], 84)
-        self.assertEqual(body["knowledge_chunks"], 327)
+        self.assertEqual(body["knowledge_docs"], 108)
+        self.assertEqual(body["knowledge_chunks"], 449)
         self.assertEqual(body["verbatim_topics"], 24)
+
+    def test_model_configured_PHAI_kiem_ca_khoa(self):
+        """Thiếu `LLM_API_KEY` thì `model_configured` phải FALSE.
+
+        Bản trước chỉ kiểm URL và tên mô hình. Container chạy với khóa rỗng (từ `deploy/.env`) vẫn
+        báo `true`, và một phép đo đầu-cuối bị kết luận là "có mô hình thật" trong khi mọi lượt đi
+        đường tất định — mô hình được gọi, thất bại ngay vì khóa rỗng, rồi hệ thống thoái hóa êm.
+
+        Một trường trạng thái nói thiếu điều kiện tệ hơn không có trường: nó làm người đọc tin một
+        điều đã được kiểm.
+        """
+        cu = {k: os.environ.get(k) for k in ("LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY")}
+        try:
+            os.environ["LLM_BASE_URL"] = "http://x/v1"
+            os.environ["LLM_MODEL"] = "m"
+            os.environ["LLM_API_KEY"] = ""
+            body = self.client.get("/ready").json()
+            self.assertFalse(body["model_configured"], "thiếu khóa mà báo đã cấu hình")
+            self.assertTrue(body["model_base_url_set"])
+            self.assertFalse(body["model_key_set"])
+
+            os.environ["LLM_API_KEY"] = "co-khoa"
+            body = self.client.get("/ready").json()
+            self.assertTrue(body["model_configured"])
+            self.assertTrue(body["model_key_set"])
+        finally:
+            for k, v in cu.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
     def test_ready_bao_chua_san_sang_khi_thuc_don_rong(self):
         cu = service_module.MENU.items

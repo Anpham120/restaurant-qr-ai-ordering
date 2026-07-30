@@ -27,7 +27,7 @@ Thêm 23 cụm đã đo thì cả 11 về mã tất định. Nên "+11 ca nhờ 
 
 ## 2. Truy hồi tri thức — BM25 vs embedding vs hybrid
 
-Kho: **303 đoạn** `answer_mode: synthesize` (84 tài liệu). Đoạn `verbatim` không vào chỉ mục vì
+Kho: **425 đoạn** `answer_mode: synthesize` (84 tài liệu `synthesize`, 108 tài liệu tổng). Đoạn `verbatim` không vào chỉ mục vì
 chúng được trả **nguyên văn** qua tra khóa, không qua xếp hạng.
 
 ### Nhóm phát triển — 90 ca / 7 họ
@@ -125,7 +125,7 @@ Embedding thắng phép so nhưng **không** được đưa vào phụ thuộc c
 `ai/requirements-rag.txt`. Ba lý do, đo được:
 
 1. **Đường mà embedding phục vụ chưa có ai gọi.** `answer.py` trả lời câu chính sách bằng **tra
-   khóa** trên 24 chủ đề `verbatim` — chính xác tuyệt đối, 0 ms. 303 đoạn `synthesize` là đầu vào
+   khóa** trên 24 chủ đề `verbatim` — chính xác tuyệt đối, 0 ms. 425 đoạn `synthesize` là đầu vào
    cho mô hình VIẾT, và đường đó chưa dựng.
 2. **Chậm hơn 75 lần** (0,7 ms → 53,1 ms), để đổi lấy **0 ca đúng thêm** trên đường hiện tại.
 3. **Ảnh Docker +2–3GB.** Bước 5 đã bỏ chính nhóm thư viện này sau khi đo rằng 24 chủ đề không cần.
@@ -520,7 +520,7 @@ trả về một đoạn văn thay vì danh sách món."* Xác nhận qua backen
 
 Hai lỗi lộ ra khi đo 10 câu:
 
-1. **Đoạn MỞ ĐẦU bị chọn** ở 2 câu. 55/303 đoạn là mở đầu (`heading` rỗng) và chúng mô tả *tài
+1. **Đoạn MỞ ĐẦU bị chọn** ở 2 câu. 55/425 đoạn là mở đầu (`heading` rỗng) và chúng mô tả *tài
    liệu* — "Tài liệu này nói về cách ghép các món…" — nên không trả lời câu nào. **Loại chúng khỏi
    tập ứng viên.** Đây là quy tắc **cấu trúc**, không phải chỉnh tham số, nên nó không cần đo để
    biện minh — nhưng vẫn đo, và nó sửa đúng 2 ca.
@@ -573,7 +573,7 @@ kịch bản trả về `fact`, và cả hai lần đổi được ghi lại tro
 ### Embedding vẫn KHÔNG vào ảnh Docker
 
 Đường `synthesize` đã dựng, nhưng nó dùng **BM25 trong phạm vi 3–8 đoạn**, không phải embedding
-trên 303 đoạn. Phạm vi nhỏ và các mục khác nhau ở **từ khóa** ("khẩu phần" / "thời gian chờ" /
+trên 425 đoạn. Phạm vi nhỏ và các mục khác nhau ở **từ khóa** ("khẩu phần" / "thời gian chờ" /
 "mang đi") — đúng chỗ BM25 mạnh. Nên điều kiện ghi trong `ai/requirements-rag.txt` **vẫn chưa
 thỏa**: chưa có đường nào cần xếp hạng trên toàn kho.
 
@@ -589,7 +589,7 @@ thỏa**: chưa có đường nào cần xếp hạng trên toàn kho.
    `constraints`, không cần đổi hợp đồng backend và không cần migration. Đã xác nhận qua backend
    thật, có 3 test chốt gồm một chiều nghịch.
 4. ~~**`season:cooling` chỉ gắn cho 2/56 món ăn.**~~ **Đã sửa** — xem mục 10.
-5. **Kho tri thức: 28/84 tài liệu là `demo`.** Chúng không thể sai về **con số** (số lấy từ thực
+5. **Kho tri thức: 52/108 tài liệu là `demo`.** Chúng không thể sai về **con số** (số lấy từ thực
    đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
 6. **Không có log khách thật.** Mọi ca do người viết. Con số đo được hệ thống có tôn trọng ràng
    buộc hay không; nó **không** đo được khách thật hỏi gì.

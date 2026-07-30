@@ -156,7 +156,7 @@ class DoanTuDuNghiaKhiTrichRoi(unittest.TestCase):
         BM25/embedding/hybrid ở bước sau — một thiên lệch nằm trong DỮ LIỆU, nên đọc kết quả
         sẽ không thấy nó.
 
-        Chạy trên kho thật, vì lỗi này xảy ra ở kho thật: 84/84 tài liệu đều mở đầu bằng `# H1`
+        Chạy trên kho thật, vì lỗi này xảy ra ở kho thật: 108/108 tài liệu đều mở đầu bằng `# H1`
         trùng với `title` trong frontmatter.
 
         Kiểm **dòng H1**, không kiểm "chuỗi tiêu đề có xuất hiện lại". Bản đầu của test này kiểm

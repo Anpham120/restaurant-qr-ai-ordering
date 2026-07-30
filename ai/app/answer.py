@@ -169,7 +169,7 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     if not cua_tai_lieu:
         return None
 
-    # BỎ đoạn MỞ ĐẦU (`heading` rỗng) khỏi tập ứng viên. 55/303 đoạn là mở đầu, và chúng mô tả TÀI
+    # BỎ đoạn MỞ ĐẦU (`heading` rỗng) khỏi tập ứng viên. 55/425 đoạn là mở đầu, và chúng mô tả TÀI
     # LIỆU chứ không trả lời câu nào — "Tài liệu này nói về cách ghép các món với nhau...". Đo
     # được: BM25 chọn đúng đoạn mở đầu ở 2 câu, và câu trả lời khi đó không trả lời gì.
     #
@@ -247,7 +247,25 @@ def _bo_truy_hoi_toan_kho():
 _TOAN_KHO: tuple[object, str] | None = None
 
 
-def _doan_toan_kho(question: str) -> tuple[str, str] | None:
+def ham_nong_truy_hoi() -> str:
+    """Dựng chỉ mục toàn kho NGAY, và trả về tên phương pháp đang dùng.
+
+    Vì sao phải hâm nóng thay vì để lười
+    ------------------------------------
+    Chỉ mục dựng lười nghĩa là **khách đầu tiên** trả giá nạp mô hình và mã hóa 425 đoạn. Đo được
+    trên máy có embedding: bộ test nhảy từ 20 giây lên 124 giây chỉ vì một lần dựng chỉ mục. Với
+    khách thật thì đó là một lượt chat treo hàng chục giây, và nó xảy ra đúng lần đầu — tức đúng
+    lúc gây ấn tượng xấu nhất.
+
+    Trong container hiện tại không có `sentence-transformers` nên chỗ này dựng BM25 và gần như tức
+    thời. Nhưng hàm vẫn phải tồn tại: ngày nào embedding vào ảnh, chi phí đó chuyển sang lúc khởi
+    động chứ không sang khách.
+    """
+    _, cach = _bo_truy_hoi_toan_kho()
+    return cach
+
+
+def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
     """Đoạn sát nhất trên toàn kho, kèm tên phương pháp đã dùng. None nếu không tra được."""
     index, cach = _bo_truy_hoi_toan_kho()
     if index is None:
@@ -675,7 +693,7 @@ def respond(request: Request, items: list[dict]) -> Reply:
         # là trả lời sai câu hỏi. Không có phép loại trừ này thì cả 6 ca `clarify` của tập đánh giá
         # rơi vào nhánh truy hồi — đo được ngay khi thêm nhánh: 134/140.
         xin_goi_y = request.asks_suggestion or request.wants_similar
-        tim = None if xin_goi_y else _doan_toan_kho(request.text)
+        tim = None if xin_goi_y else doan_tri_thuc_lien_quan(request.text)
         if tim is not None:
             doan, cach = tim
             return Reply(

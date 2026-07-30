@@ -42,6 +42,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -49,8 +50,10 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request as HttpRequ
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from answer import STAFF_NOTE, Reply, load_facts, respond
+from answer import (STAFF_NOTE, Reply, doan_tri_thuc_lien_quan, ham_nong_truy_hoi,
+                    load_facts, respond)
 from cart import CartError, build_cart, cart_payload
+from generate import write_reply
 from llm_understand import enrich, load_env
 from rag.chunker import all_chunks, load_all
 from session import MEMORY_VERSION, SessionState, merge_into_request, session_updates, update_state
@@ -99,6 +102,16 @@ class MenuCache:
 
 
 MENU = MenuCache()
+
+# Chỉ mục truy hồi toàn kho, dựng NGAY lúc nạp module — không để khách đầu tiên trả giá.
+#
+# Đặt ở mức module chứ không trong một `startup` hook để nó cũng chạy khi test import `service`:
+# một chỉ mục chỉ được hâm nóng ở đường chạy thật mà không ở đường test là một chỗ hai đường lệch
+# nhau, và lệch ở đúng phần đắt nhất.
+try:
+    RETRIEVER_NAME = ham_nong_truy_hoi()
+except Exception as exc:  # noqa: BLE001 — kho hỏng KHÔNG được làm dịch vụ không khởi động được
+    RETRIEVER_NAME = f"lỗi: {type(exc).__name__}"
 
 
 def _knowledge_counts() -> tuple[int, int]:
@@ -169,6 +182,21 @@ class ChatTurnIn(BaseModel):
     question: str = Field(min_length=1, max_length=2000, alias="message")
     session_state: dict[str, Any] | None = None
     use_model: bool = True
+    # Bật/tắt đường SINH riêng với đường HIỂU. Hai việc khác nhau và rủi ro khác nhau:
+    #
+    #   use_model      mô hình đọc câu hỏi thành nhãn. Nó không viết chữ, nên nó không bịa được.
+    #   use_generation mô hình VIẾT chữ cho khách. Bảo đảm "không bịa" chuyển sang lớp xác minh.
+    #
+    # `None` nghĩa là "bên gọi không nói", và lúc đó biến môi trường `AI_ENABLE_GENERATION` quyết.
+    #
+    # Vì sao cần cả hai đường: backend .NET KHÔNG gửi trường này (`ChatRequestV2Payload` không có
+    # nó), nên nếu chỉ có trường payload thì đường sinh không bao giờ bật được qua backend — tức
+    # khả năng đó không đo được đầu-cuối, và một khả năng không đo được thì không đáng có.
+    #
+    # Mặc định TẮT ở cả hai đường. Đó là chủ ý, và lý do là một CON SỐ: đo trên mô hình thật, đường
+    # sinh mất khoảng 40 giây mỗi lượt. Với khách đang ngồi ở bàn thì đó là không dùng được. Nên
+    # đường sinh là thứ phải BẬT tường minh sau khi ai đó xem con số đó và chấp nhận nó.
+    use_generation: bool | None = None
 
     # Backend gửi danh sách món KHÔNG được gợi ý lại (nó tự quản `GetExcludedMenuItemIds`). Nhận
     # để tôn trọng, thay vì bỏ qua rồi gợi lại đúng món khách vừa từ chối.
@@ -209,7 +237,30 @@ def ready() -> dict[str, Any]:
         "knowledge_chunks": chunks,
         "verbatim_topics": len(facts),
         "model": env.get("LLM_MODEL") or None,
-        "model_configured": bool(env.get("LLM_BASE_URL") and env.get("LLM_MODEL")),
+        # PHẢI gồm cả khóa. Bản trước chỉ kiểm URL và tên mô hình, nên container chạy với
+        # `LLM_API_KEY=` rỗng vẫn báo `model_configured: true` — và một phép đo đầu-cuối đã bị kết
+        # luận là "có mô hình thật" trong khi mọi lượt đi đường tất định.
+        #
+        # Ba trường riêng thay vì một cờ: khi nó báo `false` thì phải biết THIẾU CÁI GÌ, nếu không
+        # thì người vận hành đọc `false` rồi vẫn phải mở container ra xem.
+        "model_configured": bool(
+            env.get("LLM_BASE_URL") and env.get("LLM_MODEL") and env.get("LLM_API_KEY")
+        ),
+        "model_base_url_set": bool(env.get("LLM_BASE_URL")),
+        "model_key_set": bool(env.get("LLM_API_KEY")),
+        # Phương pháp truy hồi ĐANG chạy, không phải phương pháp tốt nhất đã đo.
+        #
+        # Đo được trên 168 ca chọn mục (hai tập): embedding Top-1 0,864–0,921 so với BM25
+        # 0,750–0,803. Nhưng `sentence-transformers` kéo 2–3GB nên nó không nằm trong
+        # `ai/requirements.txt`, và container hiện chạy BM25.
+        #
+        # Trường này có mặt để chênh lệch đó ĐỌC ĐƯỢC từ ngoài. Một hệ thống âm thầm chạy bản kém
+        # hơn bản đã đo là hệ thống mà báo cáo và thực tế nói hai chuyện khác nhau.
+        "retriever": RETRIEVER_NAME,
+        # Đường sinh đang bật hay tắt. Có mặt vì hai cấu hình cho hai hành vi rất khác nhau — một
+        # bên câu trả lời do khuôn mẫu dựng, một bên do mô hình viết — và người đọc `/ready` phải
+        # biết mình đang xem cái nào.
+        "generation_enabled": _bat_duong_sinh(None),
         "memory_version": MEMORY_VERSION,
     }
 
@@ -251,12 +302,58 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     chosen = [by_id[i] for i in reply.items if i in by_id]
     cart = build_cart(merged, chosen, reply.branch, reply.kind, MENU.category_names)
 
+    # ĐƯỜNG SINH — mô hình viết lại CHỮ, không đổi món.
+    #
+    # Thứ tự ở đây là điều quan trọng nhất của cả khâu: `reply.items`, `cart`, và `new_state` đã
+    # được tính TRƯỚC khi mô hình được gọi, và chúng KHÔNG bị ghi lại sau đó. Nên dù mô hình viết
+    # gì, khách vẫn chỉ đặt được đúng những món bộ lọc đã chọn, và bộ nhớ phiên vẫn ghi đúng danh
+    # sách đó.
+    #
+    # Chỉ chữ đổi. Đó là ranh giới làm cho việc bật đường sinh có thể chấp nhận được.
+    gen = None
+    if _bat_duong_sinh(turn.use_generation):
+        gen = write_reply(
+            merged, chosen, MENU.items, reply.branch, load_env(),
+            knowledge=_tri_thuc_kem(merged),
+        )
+        if gen.text:
+            reply = replace(reply, text=gen.text, branch=f"{reply.branch}+gen")
+
     new_state = update_state(state, merged, reply.items, reply.kind)
-    return _to_payload(reply, new_state, outcome, cart)
+    return _to_payload(reply, new_state, outcome, cart, gen)
+
+
+def _bat_duong_sinh(yeu_cau: bool | None) -> bool:
+    """Bên gọi nói gì thì theo; không nói thì theo `AI_ENABLE_GENERATION`. Mặc định TẮT.
+
+    Đọc biến môi trường ở MỖI lượt chứ không đọc một lần lúc nạp module: đọc một lần thì đổi công
+    tắc phải khởi động lại dịch vụ, và với một khả năng đang được đánh giá thì bật/tắt phải nhanh.
+    Chi phí một lần đọc `os.environ` không đáng kể cạnh 40 giây gọi mô hình.
+    """
+    if yeu_cau is not None:
+        return yeu_cau
+    return os.environ.get("AI_ENABLE_GENERATION", "").strip().lower() in ("1", "true", "yes")
+
+
+def _tri_thuc_kem(merged: Any) -> str:
+    """Đoạn tri thức liên quan, để câu sinh nêu lý do dựa trên tri thức nhà hàng chứ không tự nghĩ.
+
+    Đây là chỗ RAG gặp LLM: đoạn được truy hồi trở thành ngữ cảnh cho câu sinh. Không có nó thì mô
+    hình chỉ có danh sách món và nó sẽ tự nghĩ ra lý do — đúng chỗ dễ bịa nhất.
+
+    Trả chuỗi rỗng khi không tra được. Rỗng thì câu sinh vẫn viết được từ danh sách món; nó chỉ nêu
+    lý do nhạt hơn, và đó là thoái hóa êm chứ không phải lỗi.
+    """
+    try:
+        tim = doan_tri_thuc_lien_quan(merged.text)
+    except Exception:  # noqa: BLE001 - truy hồi hỏng KHÔNG được làm sập luồng trả lời khách
+        return ""
+    return tim[0] if tim else ""
 
 
 def _to_payload(
-    reply: Reply, state: SessionState, outcome: Any, cart: list[Any] | None = None
+    reply: Reply, state: SessionState, outcome: Any, cart: list[Any] | None = None,
+    gen: Any = None,
 ) -> dict[str, Any]:
     """Dịch `Reply` sang đúng tên trường backend đang đọc. Không quyết định gì về nội dung."""
     return {
@@ -274,6 +371,15 @@ def _to_payload(
             "kind": reply.kind,
             "branch": reply.branch,
             "asks_back": reply.asks_back,
+            # Kết quả đường SINH, cho người vận hành. `violations` là chi tiết KỸ THUẬT nên nó
+            # ở đây chứ không bao giờ vào `content` — cùng nguyên tắc với `decision.error`.
+            "generation": None if gen is None else {
+                "called": gen.called,
+                "used": bool(gen.text),
+                "reason": gen.reason,
+                "violations": gen.violations,
+                "used_item_ids": gen.used,
+            },
             "model": None if outcome is None else {
                 "used": outcome.used,
                 "ok": outcome.ok,
