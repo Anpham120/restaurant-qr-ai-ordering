@@ -163,12 +163,17 @@ Hai việc đầu từng **chặn người khác**, và cả hai ĐÃ XONG:
 1. **138 ca đánh giá truy hồi** (`retrieval_cases.json`), 14 họ, 12 ca `expect_nothing`. Khóa đáp án
    là *điều kiện chọn* giải ra khi chạy, kèm `forbidden` — chỉ số **forbidden@5** quan trọng nhất vì
    nó đo việc trích đoạn **sai chủ đề**, thứ mà Hit@5 = 1,0 vẫn cho qua.
-2. **25 kịch bản đa lượt** (`session_scripts.json`), 65 lượt. Bốn nhóm: `allergy_persists` (5,
-   **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5), `context_reference` (9).
-   Kết quả: **65/65**, 0 lỗi an toàn, 0 khoảng cách.
-3. **5 phép kiểm giỏ hàng** cho TV4, cộng chốt `safety_cart_no_allergen`.
-4. `analyze_failures.py` — phân loại mọi ca đỏ vào **6 lớp nguyên nhân**: `vocab_miss`,
-   `retrieval_miss`, `constraint_conflict`, `data_gap`, `criterion_too_strict`, `model_error`.
+2. **30 kịch bản đa lượt** (`session_scripts.json`), 82 lượt, **6 nhóm**. Bốn nhóm đầu:
+   `allergy_persists` (5, **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5),
+   `context_reference` (9). Hai nhóm sau **sinh ra từ lỗi tìm được khi CHẠY THẬT**, không từ kế
+   hoạch: `chained_reference` (3 — hai lượt tham chiếu liên tiếp) và `question_not_declaration`
+   (2 — câu HỎI về dị nguyên không được thành lời KHAI). Kết quả: **82/82**, 0 lỗi an toàn.
+3. **6 phép kiểm giỏ hàng**, áp cho **MỌI ca** chứ không viết trong từng ca — chúng là BẤT BIẾN.
+   Cộng chốt `safety_cart_no_allergen`, tách riêng khỏi `safety_forbid` vì hậu quả khác: nêu tên
+   món là một câu nói, đưa vào thẻ giỏ là **một nút bấm được**.
+4. `analyze_failures.py` — **7 lớp** nguyên nhân. Kế hoạch nêu sáu; lớp thứ bảy
+   (`capability_missing`) do PHÉP ĐO chỉ ra, vì gán sai lớp thì công cụ chỉ người sau đi sửa sai
+   chỗ: 9 lượt tham chiếu ngược từng bị xếp `vocab_miss`, mà thêm bao nhiêu cụm cũng không sửa được.
 5. Mở rộng kho **khi có nhu cầu thật**. Tiêu chí: *nhóm này có câu hỏi nào mà lớp tra khóa không trả
    lời được không?* Thêm tài liệu cho nhóm đã đúng 100% là tạo **đường thứ hai cho cùng một việc**.
 
@@ -403,13 +408,22 @@ vụ mới chỉ cần trả tập trường nhỏ hơn với **đúng tên cũ*
 3. `ai/contracts/ai-chat-v1.schema.json` — viết xong, và `test_contract.py` đối chiếu nó với
    **phản hồi THẬT** trên 8 dạng câu hỏi. Phép kiểm phía backend đã tự bật lại.
 
-### Việc còn lại
-1. `deploy/docker-compose.yml` — bỏ `AI_PIPELINE_PROFILE` (biến giữ chỗ của bản cũ).
-2. **Chạy thật** `docker compose up` — điều kiện chấp nhận không thay được bằng test, xem dưới.
+### Việc còn lại — đã xong
+1. ~~`deploy/docker-compose.yml` — bỏ `AI_PIPELINE_PROFILE`.~~ Đã bỏ. Chú thích cũ nói biến đó
+   "chỉ để ghi log" — **sai**: `ReadPipelineProfile()` kiểm nó với một danh sách cho phép và ném
+   lỗi, nên một giá trị lạ làm **500 mọi lượt chat**.
+2. ~~**Chạy thật** `docker compose up`.~~ Đã chạy nhiều lần: 4/4 container healthy, đường khách
+   trọn vẹn qua backend thật, 0 món dị nguyên qua nhiều lượt.
+3. Còn lại: `last_listed_ids` đi vòng tròn qua `constraints` được rồi, nhưng backend **chưa có
+   trường riêng** cho nó — nếu sau này ai đó thu gọn `constraints` thì tham chiếu ngược mất im
+   lặng. Có 3 test chốt, gồm một chiều nghịch.
 
-### Chặn bởi
-Cần **~25 kịch bản đa lượt của TV1** để đo bộ nhớ. Tuần 1 làm được `/health`, `/ready`, xác thực
-token, hợp đồng schema, và ba quy tắc hợp nhất trên **dữ liệu giả**.
+### Chặn bởi — đã hết
+Từng cần kịch bản đa lượt của TV1 để đo bộ nhớ; nay có 30 kịch bản / 82 lượt và **82/82 đạt**.
+
+Chạy thật qua backend tìm ra **4 lỗi mà 229 test không thấy**, cả bốn là **lệch hợp đồng giữa hai
+bên** — đúng loại lỗi test một phía không thể thấy. Nên điều kiện chấp nhận của khâu này vẫn là
+**chạy thật**, và nó không thay được bằng test dù test có bao nhiêu.
 
 ### Sở hữu tệp
 `ai/app/service.py` · `session.py` · `test_service.py` · `test_session.py` · `ai/contracts/*` ·
@@ -428,15 +442,50 @@ nhận **bộ nhớ đã mất**.
 
 ---
 
-## Trạng thái — cả năm khâu ĐÃ XONG và có số
+## Trạng thái — cả năm khâu ĐÃ XONG, kèm số và kèm chỗ CHƯA đóng được
 
-| TV | Đã làm | Số đo | Còn lại |
+Bảng này từng **trôi số**: nó ghi "119 ca / 25 kịch bản / 65 lượt" trong khi thật là 132 / 30 / 82,
+và cột "Còn lại" của TV3 và TV5 nêu hai việc đã làm xong. Đó đúng **điều cấm số 3** của chính tài
+liệu này — *"viết số vào tài liệu thay vì tính nó"* — và là lần thứ ba dự án mắc nó.
+
+Số dưới đây lấy ngày **2026-07-30**, và mọi con số đều **kiểm lại được bằng một lệnh** ghi ở cột
+cuối. Cột đó là thứ giữ bảng khỏi trôi tiếp: đọc bảng mà nghi thì chạy lệnh.
+
+| TV | Đã làm | Số đo | Kiểm lại bằng |
 |---|---|---|---|
-| **1** | 119 ca trả lời · **138 ca truy hồi** / 14 họ · **25 kịch bản** / 65 lượt · thước đo · `analyze_failures.py` | bộ dò lỗ 0 lỗ; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn 2 kiểu ca LUÔN XANH | tập niêm phong truy hồi **đã dùng hết** → câu hỏi tiếp cần tập MỚI |
-| **2** | từ vựng: 20 cụm tên món dị nguyên · **23 cụm cách khách mô tả** · cụm chỉ vị trí | **122/122** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | — |
-| **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | đường `synthesize` chưa dựng nên embedding chưa vào ảnh Docker |
-| **4** | `cart.py` + 5 bất biến | 20 test; 0 món dị nguyên vào thẻ giỏ qua backend thật | — |
-| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema | **65/65 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy | `last_listed_ids` chưa qua backend |
+| **1** | **132 ca trả lời** / 43 họ · **138 ca truy hồi** / 14 họ · **30 kịch bản** / 82 lượt / 6 nhóm · thước đo · `analyze_failures.py` (7 lớp nguyên nhân) | bộ dò lỗ **0 lỗ**; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn **2 kiểu ca LUÔN XANH**; `validate_cases.py` chặn khóa `facts` thước đo không thực thi | `validate_cases.py` · `probe_metric_holes.py` |
+| **2** | từ vựng: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả · cụm chỉ vị trí · **33 cụm chủ đề tri thức** | **132/132** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | `run_baseline.py --all` · `run_with_model.py` |
+| **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` · **`_knowledge_chunk` (đường synthesize)** | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | `run_retrieval_comparison.py` |
+| **4** | `cart.py` + 5 bất biến · **6 phép kiểm giỏ trong thước đo, áp cho MỌI ca** | 20 test đơn vị + **217 thẻ giỏ chấm trên 132 ca**; 0 món dị nguyên vào thẻ ở cả hai chế độ | `run_baseline.py --all` · `run_with_model.py` |
+| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema · **`last_listed_ids` đi vòng tròn qua backend** | **82/82 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy; **CI 4/4 job xanh** | `run_session_eval.py` · `gh run list` |
+
+### Chỗ CHƯA đóng được, và ai đóng được
+
+Ba điều đầu **không ai trong nhóm đóng được** — chúng cần dữ liệu thật hoặc chủ nhà hàng:
+
+| Chỗ chưa đóng | Vì sao không tự đóng được | Ai đóng |
+|---|---|---|
+| Không có log khách thật | 132 ca và 82 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
+| 28/84 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
+| Tập niêm phong đã dùng hết ở **cả hai** tập | mọi con số hiện tại không còn là held-out | cần tập MỚI, và chỉ mở một lần |
+| Kịch bản đa lượt chưa chấm thẻ giỏ | lỗ đo, nhỏ | TV1 + TV4 |
+
+### Một điều phải nói vì nó là bằng chứng
+
+Ngày 2026-07-30 nhóm soát lại hệ thống **năm lần từ năm góc khác nhau**, và **lần nào cũng tìm ra
+lỗi thật mới** dù lần trước đã 100%:
+
+| Góc soát | Tìm ra |
+|---|---|
+| chạy thật qua backend | **4 lỗi** sau khi 229 test đã xanh |
+| lấp lỗ nhãn mùa | **2 lỗi của hạ tầng gắn nhãn** — `--check` luôn trả 0, và sửa nhãn không tới cơ sở dữ liệu |
+| chấm thẻ giỏ | **2 lỗi sâu hơn** — thước đo không so `kind`, mô hình đoán `wants` làm câu mơ hồ thành 6 món |
+| đẩy CI | **CI chưa từng chạy** vì một byte `0x08` trong `ci.yml` |
+| soát tương thích | **8 ca mang tiêu chí không bao giờ chạy**, che 3 điểm yếu khách đọc thấy |
+
+Nên câu đúng là **"không còn vấn đề nào nhóm BIẾT"**, không phải "không còn vấn đề". Tỷ lệ 100% đo
+trên tập ca do chính nhóm viết, và mỗi góc nhìn mới lại thấy chỗ tập ca không phủ. Đó không phải lý
+do để không tin con số — nó là lý do để **thêm góc soát**, và mỗi lỗi tìm được đã thành một ca.
 
 Điều làm việc này chạy được: **tiêu chí kiểm chứng viết được trước khi mã tồn tại**, vì tiêu chí đến
 từ định nghĩa khâu chứ không từ mã người khác.
