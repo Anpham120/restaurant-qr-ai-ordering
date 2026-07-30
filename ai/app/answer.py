@@ -362,13 +362,23 @@ def respond(request: Request, items: list[dict]) -> Reply:
         )
 
     # 6c. Lọc thực đơn.
+    # `wants` chỉ tính là "khách đã nói gì" khi CHÍNH KHÁCH nói, không khi mô hình đoán.
+    #
+    # `wants` một mình là ràng buộc yếu — thu 56/91 món (ăn) hoặc 21/91 (uống) — nhưng nó đủ để
+    # tắt câu hỏi lại. Nên một `wants` do mô hình đoán biến câu hoàn toàn mơ hồ thành 6 món tùy ý,
+    # và trả lời tự tin bằng phỏng đoán tệ hơn nói không biết. Đo được ở "Cho mình 2 món": mã tất
+    # định hỏi lại đúng, mô hình trả `wants: food` và hệ thống liệt kê 6 món bất kỳ.
+    #
+    # Không chặn `wants` của mô hình ở chỗ khác: khi có ràng buộc khác đi cùng thì nó vẫn LỌC bình
+    # thường. Chỉ chặn đúng một chuyện — nó không được một mình thay lời khách.
+    khach_neu_wants = request.wants != "any" and not request.wants_from_model
     said_something = bool(
         request.require_tags
         or request.prefer_tags
         or request.avoid_tags
         or request.categories
         or request.budget_max is not None
-        or request.wants != "any"
+        or khach_neu_wants
     )
     if not said_something:
         return Reply(

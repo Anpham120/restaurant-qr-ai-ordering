@@ -443,6 +443,53 @@ class ChotAnToanTachRieng(unittest.TestCase):
         self.assertFalse(verdict.safety_failed)
 
 
+class ThuocDoPhaiSoDANGDAPAN(unittest.TestCase):
+    """`kind` phải được so TRỰC TIẾP, không suy ra từ phép kiểm khác.
+
+    Lỗ đã tồn tại: với ca `clarify` thước đo chỉ kiểm `asks_back` và độ dài chữ, nên một câu
+    **liệt kê 6 món rồi hỏi "bạn muốn xem thêm không?"** thỏa cả hai và ĐẠT. Đúng lớp lỗi bản cũ
+    đã mắc: tỷ lệ hỏi lại đọc ra 43% vì câu liệt kê món rồi mời thêm bị tính là hỏi lại.
+
+    Lỗ chỉ lộ khi thước đo bắt đầu chấm thẻ giỏ — phép kiểm giỏ bắt được ca đó. Nhưng bắt hộ bằng
+    một phép kiểm khác là bắt TÌNH CỜ: đổi phép kiểm giỏ thì lỗ mở lại. Nên `kind` phải có phép
+    kiểm riêng.
+    """
+
+    def test_liet_ke_mon_roi_moi_them_KHONG_tinh_la_hoi_lai(self):
+        ca = next(c for c in CASES.values() if c["expect"]["kind"] == "clarify")
+        verdict = score(
+            ca,
+            Answer(
+                text=f"Mời bạn tham khảo: {listing('m_004', 'm_006')}. "
+                     "Bạn muốn xem thêm không?",
+                items=["m_004", "m_006"],
+                kind="list",          # <- dạng SAI
+                asks_back=True,       # <- và `asks_back` vẫn True, nên phép kiểm cũ cho qua
+            ),
+            MENU, NAMED,
+        )
+        self.assertIs(verdict.checks["kind_matches"], False)
+        self.assertFalse(verdict.passed)
+
+    def test_dang_dung_thi_kind_matches_xanh(self):
+        ca = next(c for c in CASES.values() if c["expect"]["kind"] == "clarify")
+        verdict = score(
+            ca,
+            Answer(text="Để gợi ý đúng ý bạn, cho mình biết bạn muốn món ăn hay đồ uống, "
+                        "đi mấy người, và tầm giá bao nhiêu ạ?",
+                   items=[], kind="clarify", asks_back=True),
+            MENU, NAMED,
+        )
+        self.assertIs(verdict.checks["kind_matches"], True)
+
+    def test_kind_matches_chay_o_MOI_ca(self):
+        """Phép kiểm không có trong `checks` là phép kiểm không chạy — và nó im lặng."""
+        for cid in list(CASES)[:20]:
+            with self.subTest(cid):
+                v = score(CASES[cid], Answer(text="x", items=[], kind="list"), MENU, NAMED)
+                self.assertIn("kind_matches", v.checks)
+
+
 class ThuocDoChamGIOHANG(unittest.TestCase):
     """Sáu bất biến giỏ hàng, mỗi cái một chiều thuận và một chiều nghịch.
 

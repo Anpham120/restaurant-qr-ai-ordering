@@ -110,6 +110,17 @@ class Request:
     # Hai tập id do bước hợp nhất bộ nhớ điền, KHÔNG do bộ khớp từ vựng điền. `understand()` chỉ
     # nhận ra khách đang tham chiếu; nó không biết khách đã đọc danh sách nào. Tách vai như vậy để
     # `understand()` giữ được tính chất "chỉ đọc câu của lượt này".
+    # `wants` này do MÔ HÌNH ĐOÁN, không phải khách nói. Chỉ `llm_understand.enrich` đặt cờ này.
+    #
+    # Nó tồn tại vì một khác biệt mà bản thân `Request` không mang được: hai câu dưới đây cho ra
+    # `Request` GIỐNG HỆT NHAU sau khi qua mô hình, nhưng đáng được trả lời khác nhau —
+    #
+    #   "Tư vấn cho mình vài món ăn đi"  khách NÓI "món ăn" -> gợi ý là đúng
+    #   "Cho mình 2 món"                 khách chỉ nêu SỐ   -> hỏi lại là đúng
+    #
+    # Cả hai cùng ra `wants=food` và không có gì khác. Không có cờ này thì hệ thống buộc phải xử
+    # hai câu như một, và dù chọn cách nào cũng sai một câu.
+    wants_from_model: bool = False
     scope_item_ids: list[str] = field(default_factory=list)
     exclude_item_ids: list[str] = field(default_factory=list)
     matched: list[str] = field(default_factory=list)

@@ -296,6 +296,25 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
     )
 
     # --- Dạng đáp án ---------------------------------------------------------------
+    #
+    # So DẠNG khai với dạng ca đòi, trước mọi phép kiểm riêng theo dạng.
+    #
+    # Trước bản này thước đo KHÔNG so `kind`, và đó là một lỗ thật: với ca `clarify` nó chỉ kiểm
+    # `asks_back` cùng độ dài chữ, nên một câu **liệt kê 6 món rồi hỏi "bạn muốn xem thêm không?"**
+    # thỏa cả hai và ĐẠT. Đúng lớp lỗi mà bản cũ đã mắc: tỷ lệ hỏi lại đọc ra 43% vì câu liệt kê
+    # món rồi mời thêm bị tính là hỏi lại.
+    #
+    # Lỗ này chỉ lộ ra khi thước đo bắt đầu chấm THẺ GIỎ — phép kiểm giỏ bắt được ca đó, nhưng bắt
+    # hộ bằng một phép kiểm khác là bắt tình cờ. Nên `kind` được kiểm trực tiếp.
+    #
+    # Đo trước khi thêm: 0/122 ca lệch `kind` ở chế độ tất định, nên phép kiểm này không nới cũng
+    # không siết con số hiện tại — nó chỉ chặn một đường tụt trong tương lai.
+    add(
+        "kind_matches",
+        answer.kind == kind,
+        f"khai dạng đáp án `{answer.kind}` nhưng ca đòi `{kind}`",
+    )
+
     if kind == "no_data":
         add(
             "states_no_data",

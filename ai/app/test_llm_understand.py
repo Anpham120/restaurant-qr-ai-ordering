@@ -167,6 +167,56 @@ class MoHinhKhongDuocBia(unittest.TestCase):
         self.assertIn("thất bại", outcome.reason)
 
 
+class WantsMoHinhDOANKhongThayLoiKHACHNOI(unittest.TestCase):
+    """`wants` do mô hình đoán không được một mình tắt câu hỏi lại.
+
+    Vì sao cần phân biệt: hai câu dưới đây cho ra `Request` GIỐNG HỆT sau khi qua mô hình, nhưng
+    đáng được trả lời khác nhau —
+
+        "Tư vấn cho mình vài món ăn đi"   khách NÓI "món ăn"  -> gợi ý là đúng
+        "Cho mình 2 món"                  khách chỉ nêu SỐ    -> hỏi lại là đúng
+
+    `wants` một mình là ràng buộc yếu (thu 56/91 món ăn hoặc 21/91 đồ uống) nhưng nó ĐỦ để
+    `answer.py` thôi hỏi lại. Nên một `wants` mô hình đoán biến câu hoàn toàn mơ hồ thành 6 món
+    tùy ý — trả lời tự tin bằng phỏng đoán tệ hơn nói không biết.
+
+    Đây là ca DUY NHẤT mô hình làm TỤT trong 122 ca, và nó chỉ lộ khi thước đo bắt đầu chấm thẻ giỏ.
+    """
+
+    def test_mo_hinh_dat_wants_thi_co_CO_duoc_bat(self):
+        request = ask(CAU_MO_HO)
+        self.assertFalse(request.wants_from_model, "tiền đề: chưa gọi mô hình thì cờ phải False")
+        with FakeModel({"require": [], "prefer": [], "avoid": [], "wants": "food"}):
+            llm.enrich(request, ENV, use_cache=False)
+        self.assertEqual(request.wants, "food")
+        self.assertTrue(request.wants_from_model, "wants do mô hình đặt thì phải có cờ")
+
+    def test_KHACH_noi_thi_KHONG_co_co(self):
+        request = ask("Tư vấn cho mình vài món ăn đi")
+        self.assertEqual(request.wants, "food", "tiền đề: khách nói 'món ăn'")
+        self.assertFalse(request.wants_from_model, "khách nói thì KHÔNG được đánh cờ mô hình")
+
+    def test_mo_hinh_KHONG_ghi_de_wants_khach_da_noi(self):
+        request = ask("Cho mình đồ uống thôi")
+        self.assertEqual(request.wants, "drink")
+        with FakeModel({"require": [], "prefer": [], "avoid": [], "wants": "food"}):
+            llm.enrich(request, ENV, use_cache=False)
+        self.assertEqual(request.wants, "drink", "mô hình không được ghi đè lời khách")
+        self.assertFalse(request.wants_from_model)
+
+    def test_cau_hoan_toan_mo_ho_van_HOI_LAI_du_mo_hinh_doan_wants(self):
+        """Chốt end-to-end: đây là hành vi thật sự quan trọng, không phải cái cờ."""
+        from answer import respond
+
+        request = ask("Cho mình 2 món")
+        with FakeModel({"require": [], "prefer": [], "avoid": [], "wants": "food"}):
+            llm.enrich(request, ENV, use_cache=False)
+        reply = respond(request, ITEMS)
+        self.assertEqual(reply.kind, "clarify",
+                         "mô hình đoán wants mà câu vẫn mơ hồ -> phải hỏi lại, không liệt kê")
+        self.assertEqual(reply.items, [], "hỏi lại thì không nêu món nào")
+
+
 class ChuyenVaiTheoNhomChuKhongTheoMoHinh(unittest.TestCase):
     """Nhóm nhãn quyết định nhãn đó là bộ lọc cứng hay chỉ để sắp thứ tự."""
 

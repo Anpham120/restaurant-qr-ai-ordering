@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
 
 from answer import respond                              # noqa: E402
+from cart import build_cart                             # noqa: E402
 from answer_metric import Answer, score                 # noqa: E402
 from llm_understand import enrich, load_env             # noqa: E402
 from understand import understand                       # noqa: E402
@@ -37,6 +38,8 @@ SPLIT = json.loads((HERE / "split.json").read_text(encoding="utf-8-sig"))
 CASES = DATA["cases"]
 NAMED = DATA["named_selectors"]
 ITEMS = MENU["items"]
+# Bảng tra tên danh mục cho lý do thẻ giỏ. Đọc từ thực đơn, không viết cứng.
+CATEGORY_NAMES = {c["categoryId"]: c["name"] for c in MENU.get("categories", [])}
 
 
 def group_of(family: str) -> str:
@@ -53,10 +56,18 @@ def run(case: dict, *, with_model: bool, env: dict, use_cache: bool):
     if with_model:
         outcome = enrich(request, env, use_cache=use_cache)
     reply = respond(request, ITEMS)
+    # Chấm CẢ thẻ giỏ, giống `run_baseline.py`. Bỏ ở đây thì bất biến giỏ hàng chỉ được đo ở chế
+    # độ tất định — trong khi chế độ CÓ MÔ HÌNH mới là chỗ mô hình chèn nhãn vào `require_tags` và
+    # `avoid_tags`, tức chỗ thẻ giỏ dễ lệch khỏi câu trả lời nhất. Chốt an toàn phải giữ ở CẢ HAI
+    # chế độ, nên nó phải được đo ở cả hai.
+    by_id = {i["id"]: i for i in ITEMS}
+    chosen = [by_id[i] for i in reply.items if i in by_id]
+    cart = [a.to_payload() for a in
+            build_cart(request, chosen, reply.branch, reply.kind, CATEGORY_NAMES)]
     verdict = score(
         case,
         Answer(text=reply.text, items=reply.items, kind=reply.kind,
-               asks_back=reply.asks_back),
+               asks_back=reply.asks_back, cart=cart),
         MENU,
         NAMED,
     )

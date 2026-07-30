@@ -417,6 +417,62 @@ Xác nhận cuối qua backend thật (sau khi sửa cả bốn): tham chiếu n
 
 ---
 
+## 11. Chấm giỏ hàng làm lộ hai lỗi sâu hơn chính nó
+
+Đưa 6 bất biến giỏ hàng vào thước đo (mục 1) là một thay đổi ở **thước đo**, không ở hệ thống. Nó
+làm lộ hai chỗ mà không phép đo nào trước đó chạm tới.
+
+### 11.1 Thước đo KHÔNG so `kind` — nên câu liệt kê món được tính là "hỏi lại"
+
+Với ca `kind: clarify`, thước đo chỉ kiểm `asks_back` và độ dài chữ ≥ 30. Nên một câu **liệt kê 6
+món rồi hỏi "bạn muốn xem thêm không?"** thỏa cả hai và ĐẠT.
+
+Đây đúng lớp lỗi bản cũ đã mắc và đã ghi lại: *tỷ lệ hỏi lại đọc ra 43% vì câu trả lời liệt kê món
+rồi mời thêm bị tính là hỏi lại.* Lần đó sửa bằng cách chỉ xét `asks_back` ở ca `clarify` — nhưng
+không ai thêm phép so `kind`, nên lỗ vẫn còn ở chiều ngược.
+
+Đo trước khi bịt: **0/122 ca lệch `kind`** ở chế độ tất định. Nên phép kiểm `kind_matches` không
+nới cũng không siết con số hiện tại — nó chặn một đường tụt trong tương lai. Và nó cần thiết vì lỗ
+này bị **phép kiểm giỏ bắt hộ**, tức bắt tình cờ: đổi phép kiểm giỏ thì lỗ mở lại.
+
+### 11.2 Mô hình đoán `wants` biến câu mơ hồ thành 6 món tùy ý
+
+Ca duy nhất mô hình làm **TỤT** trong 122 ca, và nó vô hình cho tới khi thẻ giỏ được chấm:
+
+```
+"Cho mình 2 món"   (khách nêu SỐ LƯỢNG, không nêu loại)
+  mã tất định  -> clarify, hỏi lại: "bạn muốn món ăn hay đồ uống, đi mấy người, tầm giá nào?"
+  có mô hình   -> mô hình trả `wants: food` -> hệ thống LIỆT KÊ 6 món ăn bất kỳ + 3 thẻ giỏ
+```
+
+`wants` một mình là ràng buộc **yếu** — thu 56/91 món ăn hoặc 21/91 đồ uống — nhưng nó **đủ** để
+`answer.py` thôi hỏi lại. Nên một `wants` do mô hình *đoán* làm hệ thống trả lời tự tin bằng một
+phỏng đoán, và điều đó tệ hơn nói không biết.
+
+**Cách sửa sai đã thử và bị loại bằng số:** "bỏ `wants` khỏi điều kiện thôi hỏi lại" — đo được nó
+phá **5 ca** (`F-foodonly-01/02/03`, `F-drink-01`, `P-stillvague-01`), vì khi khách **nói** "món ăn"
+thì gợi ý mới là đúng. Tập ca nói rõ điều đó.
+
+Nên khác biệt không nằm ở `wants` mà ở **ai đặt nó**. Hai câu cho ra `Request` giống hệt nhau sau
+khi qua mô hình:
+
+| câu | ai đặt `wants` | trả lời đúng |
+|---|---|---|
+| "Tư vấn cho mình vài món ăn đi" | **khách nói** | gợi ý |
+| "Cho mình 2 món" | **mô hình đoán** | hỏi lại |
+
+Sửa bằng `Request.wants_from_model` — chỉ `enrich()` đặt cờ này, và `answer.py` không tính `wants`
+có cờ vào "khách đã nói gì". Mô hình vẫn dùng `wants` để LỌC bình thường khi có ràng buộc khác đi
+cùng; chỉ chặn đúng một chuyện: nó không được một mình thay lời khách.
+
+Sau khi sửa: **122/122 ở cả hai chế độ**, mô hình làm tụt 0 ca.
+
+Đây cũng là vấn đề `P-season-01` đã được ghi là mở từ trước — *"hiểu một phần tệ hơn không hiểu
+gì, vì nó không kích hoạt hỏi lại và trả lời tự tin"*. Nó không tự sửa được cho tới khi có một ca
+đo được nó, và ca đó đến từ việc chấm thẻ giỏ.
+
+---
+
 ## 8. Hạn chế của bước này
 
 1. **Tập niêm phong truy hồi đã dùng hết** (2026-07-30). Câu hỏi tiếp theo cần tập MỚI.

@@ -378,6 +378,21 @@ def enrich(request: Request, env: dict[str, str], *, use_cache: bool = True) -> 
     wants = parsed.get("wants")
     if request.wants == "any" and wants in ("food", "drink"):
         request.wants = wants
+        # Ghi lại rằng `wants` này do MÔ HÌNH ĐOÁN, không phải khách nói.
+        #
+        # Vì sao phải phân biệt: `wants` một mình là ràng buộc yếu (thu 56/91 hoặc 21/91 món),
+        # nhưng nó ĐỦ để `answer.py` thôi hỏi lại. Nên khi mô hình đoán `wants` cho một câu hoàn
+        # toàn mơ hồ, hệ thống chuyển từ "hỏi lại" sang "liệt kê 6 món tùy ý" — và trả lời tự tin
+        # bằng một phỏng đoán tệ hơn là nói không biết.
+        #
+        # Đo được: câu "Cho mình 2 món" (chỉ nêu SỐ LƯỢNG, không nêu loại) — mã tất định hỏi lại
+        # đúng, còn mô hình trả `wants: food` và hệ thống liệt kê 6 món ăn bất kỳ. Đây là ca DUY
+        # NHẤT mô hình làm TỤT trong 122 ca, và nó chỉ lộ ra khi thước đo bắt đầu chấm thẻ giỏ.
+        #
+        # KHÔNG bỏ hẳn `wants` của mô hình: nó vẫn hữu ích để LỌC khi có ràng buộc khác đi cùng
+        # ("cho mình gì đó chua chua" + wants=food). Chỉ chặn đúng một chuyện: nó không được một
+        # mình thay lời khách để tắt câu hỏi lại.
+        request.wants_from_model = True
 
     outcome.ok = True
     outcome.reason = "mô hình đọc được ràng buộc"
