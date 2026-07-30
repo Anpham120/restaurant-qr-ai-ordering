@@ -380,30 +380,61 @@ class StreamVaNapLai(unittest.TestCase):
         os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
-    def test_stream_phat_cung_noi_dung_voi_chat(self):
+    @staticmethod
+    def _khung(text: str) -> list[tuple[str, dict]]:
+        """Đọc SSE thành (tên khung, dữ liệu) — ĐÚNG cách backend đọc.
+
+        Bản trước của test này chỉ quét dòng `data:` và bỏ qua dòng `event:`, nên nó xanh với một
+        stream KHÔNG có dòng `event:` nào. Backend thì `continue` mọi dòng `data:` khi chưa thấy
+        `event:`. Test tự nhất quán với chính nó, và cả stream bị hủy khi chạy thật.
+        """
+        khung: list[tuple[str, dict]] = []
+        ten: str | None = None
+        for dong in text.splitlines():
+            if dong.startswith("event: "):
+                ten = dong[len("event: "):].strip()
+            elif dong.startswith("data: ") and ten:
+                khung.append((ten, json.loads(dong[len("data: "):])))
+        return khung
+
+    def test_stream_phat_dung_KHUNG_ma_backend_doc(self):
+        """Khung SSE phải có dòng `event:`, và tên khung do BÊN GỌI định.
+
+        Đây là lỗi CHẶN PHÁT HÀNH đã xảy ra: dịch vụ phát `data: {"delta": ...}` không kèm dòng
+        `event:`, backend bỏ qua toàn bộ, `finalPayload` null, và khách nhận "Xin lỗi, hệ thống hơi
+        chậm." trên ĐƯỜNG CHÍNH — `ChatbotPage.tsx` gọi stream trước rồi mới lùi về gọi thường.
+
+        Không test nào bắt được vì cả hai bên đều tự nhất quán: test này kiểm khung tự định, còn
+        `ChatAiProviderV2ContractTests` kiểm bộ đọc của backend. Hai khung khác nhau, không tập nào
+        nối hai bên. Golden test đầu-cuối là chỗ bắt được.
+        """
         cau = "Có món chay nào không?"
         thuong = self.client.post("/v1/chat", json={"question": cau, "use_model": False},
                                   headers={"x-internal-token": TOKEN}).json()
         r = self.client.post("/v1/chat/stream", json={"question": cau, "use_model": False},
                              headers={"x-internal-token": TOKEN})
         self.assertEqual(r.status_code, 200)
-        cuoi = [l for l in r.text.splitlines() if l.startswith("data: ")][-1]
-        payload = json.loads(cuoi[len("data: "):])
-        self.assertTrue(payload["done"])
-        self.assertEqual(payload["content"], thuong["content"])
+        khung = self._khung(r.text)
+        ten = [k for k, _ in khung]
+        self.assertIn("token", ten, "thiếu khung `token`")
+        self.assertIn("final", ten, "thiếu khung `final` — backend sẽ trả câu xin lỗi")
+        self.assertEqual(ten[-1], "done", "khung cuối phải là `done`")
+        cuoi = next(d for k, d in khung if k == "final")
+        self.assertEqual(cuoi["content"], thuong["content"])
+        # `final` phải mang ĐỦ payload, không chỉ nội dung: backend đọc thẻ giỏ và cờ từ khung này.
+        for khoa in ("suggested_cart_actions", "guardrail_flags", "session_updates"):
+            self.assertIn(khoa, cuoi, f"khung `final` thiếu {khoa}")
 
     def test_stream_cat_theo_TU_khong_theo_ky_tu(self):
         """Tiếng Việt có dấu tổ hợp; cắt giữa ký tự sẽ hiện ô vuông trên màn hình khách."""
         r = self.client.post("/v1/chat/stream",
                              json={"question": "Có món chay không?", "use_model": False},
                              headers={"x-internal-token": TOKEN})
-        deltas = [
-            json.loads(l[len("data: "):]).get("delta")
-            for l in r.text.splitlines() if l.startswith("data: ")
-        ]
-        deltas = [d for d in deltas if d]
-        self.assertTrue(deltas)
-        for d in deltas:
+        # Khóa là `text`, không phải `delta`: backend đọc `tokenData.TryGetProperty("text", ...)`.
+        doan = [d.get("text") for k, d in self._khung(r.text) if k == "token"]
+        doan = [d for d in doan if d]
+        self.assertTrue(doan, "không có khung `token` nào mang `text`")
+        for d in doan:
             self.assertTrue(d.endswith(" "), f"đoạn {d!r} không kết thúc bằng dấu cách")
 
     def test_nap_lai_thuc_don_bao_SO_MON(self):

@@ -129,6 +129,12 @@ class Request:
     reference_index: int | None = None
     scope_last_listed: bool = False
     wants_similar: bool = False
+    # Khách trỏ vào món ĐANG NÓI TỚI ("món đó", "cái đó", "món vừa rồi"). `session.py` phân giải
+    # thành món tiêu điểm của lượt trước, và lùi về món thứ nhất của danh sách nếu chưa có tiêu điểm.
+    refers_to_focus: bool = False
+    # Khách hỏi so sánh mà KHÔNG nhắc lại tên món ("món nào cay hơn?"). `session.py` lấy lại cặp món
+    # của câu so sánh gần nhất.
+    asks_comparison: bool = False
     # Hai tập id do bước hợp nhất bộ nhớ điền, KHÔNG do bộ khớp từ vựng điền. `understand()` chỉ
     # nhận ra khách đang tham chiếu; nó không biết khách đã đọc danh sách nào. Tách vai như vậy để
     # `understand()` giữ được tính chất "chỉ đọc câu của lượt này".
@@ -430,15 +436,42 @@ _add("mon thu ba|cai thu ba", "reference", 3)
 _add("mon thu tu|cai thu tu", "reference", 4)
 _add("mon thu nam|cai thu nam", "reference", 5)
 _add("mon cuoi cung|mon cuoi|cai cuoi", "reference", -1)
-_add("mon vua roi|mon vua noi|mon do|cai do|no co", "reference", 1)
+# "Món đó" trỏ vào món ĐANG NÓI TỚI, không phải món thứ nhất của danh sách.
+#
+# Bản trước gán các cụm này `reference: 1`, nên chuỗi "món thứ hai có cay không?" rồi "món đó bao
+# nhiêu tiền?" trả lời về món THỨ NHẤT — đúng cú pháp, sai người khách đang trỏ vào. Đo được qua
+# backend, và cả nhóm `chained_reference` 9 lượt vẫn xanh vì không lượt nào chuyển tiêu điểm rồi
+# hỏi tiếp bằng "món đó".
+#
+# `session.py` phân giải cờ này thành món tiêu điểm nếu có, và LÙI VỀ món thứ nhất nếu chưa có
+# tiêu điểm — nên hành vi cũ vẫn nguyên ở lượt đầu.
+_add("mon vua roi|mon vua noi|mon do|cai do|no co", "flag", "refers_to_focus")
 
 # Cụm thu PHẠM VI. Khác cụm vị trí: "món rẻ nhất TRONG SỐ ĐÓ" không trỏ vào một món, nó giới hạn
 # tập rồi để câu hỏi "rẻ nhất" chạy trên tập đó. Dùng cụm vị trí ở đây là trả sai: nó sẽ trả món
 # ĐẦU danh sách thay vì món RẺ NHẤT.
 _add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do", "flag", "scope_listed")
+# Câu so sánh TIẾP NỐI: khách vừa so hai món, rồi hỏi thuộc tính khác mà không nhắc lại tên.
+#
+# "Món nào cay hơn?" sau một câu so sánh từng rơi vào nhánh hỏi lại — mất hẳn cặp món vừa nói.
+#
+# Danh sách hẹp CÓ CHỦ ĐÍCH và **không** chứa "re hon" / "it hon" / "thap hon": ba cụm đó là cách
+# nói SIẾT NGÂN SÁCH (`STRICT_BUDGET_FRAMING`), và câu "Món nào rẻ hơn?" trong một phiên đang lọc là
+# yêu cầu danh sách rẻ hơn, không phải so hai món. Trộn hai nghĩa lại là phá một hành vi đang đúng
+# để sửa một hành vi đang sai.
+_add("cay hon|ngon hon|dam hon|hon nhau|khac gi nhau|nao hon", "flag", "asks_comparison")
 
 # Xin thêm món GIỐNG — cơ chế ngược với trỏ vào món cũ: giữ ràng buộc, BỎ món đã nêu.
 _add("giong vay|giong the|tuong tu|kieu vay|giong nhu vay", "flag", "similar")
+# "Món khác đi" mang ĐÚNG nghĩa của `similar`: giữ ràng buộc cũ, bỏ món vừa nêu. Thiếu nhóm cụm này
+# thì câu đó rơi vào nhánh lọc bình thường và khách nhận lại **y nguyên danh sách cũ**.
+#
+# Đo được qua backend + mô hình thật. Nhóm `no_repeat` của bộ chạy phiên vẫn xanh 10/10 vì tiêu chí
+# của nó chỉ kiểm bộ nhớ có GHI món đã gợi — không kiểm danh sách có ĐỔI. Ca đạt sai lý do, lần thứ
+# tư trong dự án này.
+#
+# Không cụm nào ở đây nằm trong cụm từ vựng khác hay trong tên món nào (đã kiểm cả 91 tên).
+_add("mon khac|cai khac|mon nao khac|thu khac|mon gi khac", "flag", "similar")
 
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")
@@ -606,7 +639,19 @@ VOCAB_ORDER = sorted(VOCAB, key=lambda p: (-len(p), p))
 #
 # Sinh từ VOCAB chứ không viết tay: viết tay thì thêm cụm ở trên mà quên thêm ở đây, và câu
 # "món thứ sáu có hải sản không?" lại bị đọc thành duyệt danh mục hải sản.
-REFERENCE_PHRASES = frozenset(p for p, (kind, _) in VOCAB.items() if kind == "reference")
+REFERENCE_PHRASES = frozenset(
+    p for p, (kind, value) in VOCAB.items()
+    if kind == "reference" or (kind == "flag" and value == "refers_to_focus")
+)
+# Gồm CẢ cụm tiêu điểm ("món đó", "cái đó"), không chỉ cụm đếm vị trí.
+#
+# Bỏ sót chúng là một hồi quy thật: khi chuyển các cụm đó từ loại `reference` sang cờ
+# `refers_to_focus`, tập này hụt đi và `co_tham_chieu` thành False, nên câu "Cái đó có cay không?"
+# không còn được đọc là câu HỎI VỀ MỘT MÓN — nó rơi xuống nhánh lọc và trả về danh sách.
+# `context-reference-02` bắt được ngay.
+#
+# Sinh từ VOCAB theo cả hai điều kiện, không viết tay: thêm cụm tiêu điểm mới mà quên ở đây là đúng
+# lỗi này lặp lại.
 
 # Cách nói ngân sách nghiêm ngặt: "rẻ hơn 20 nghìn" KHÔNG bao gồm món đúng 20.000đ.
 # Khác với "dưới 50.000đ" hay "tầm 80k trở xuống", vốn được hiểu là bao gồm.
@@ -802,6 +847,10 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.scope_last_listed = True
             elif value == "similar":
                 request.wants_similar = True
+            elif value == "refers_to_focus":
+                request.refers_to_focus = True
+            elif value == "asks_comparison":
+                request.asks_comparison = True
         elif kind == "reference":
             # Cụm đầu tiên khớp thắng. Cụm dài được khớp trước nên "món thứ hai" thắng "món đó",
             # và không cần thứ tự ưu tiên riêng ở đây.

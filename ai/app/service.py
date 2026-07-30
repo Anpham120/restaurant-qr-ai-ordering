@@ -347,13 +347,34 @@ def chat_stream(turn: ChatTurnIn) -> StreamingResponse:
 
     Phát theo TỪ, không theo ký tự — tiếng Việt có dấu tổ hợp nên cắt giữa ký tự sẽ hiện ra ô
     vuông trên màn hình khách.
+
+    KHUNG SSE PHẢI CÓ DÒNG `event:`, và tên khung do BÊN GỌI định
+    ------------------------------------------------------------
+    Bản đầu phát `data: {"delta": ...}` rồi `data: {"done": true, ...}`, **không có dòng `event:`**.
+    Backend đọc SSE ở `ChatAiProvider.GenerateStreamAsync` và nó bỏ qua mọi dòng `data:` khi chưa
+    thấy dòng `event:` (`string.IsNullOrWhiteSpace(eventName)` → `continue`). Nên **toàn bộ stream bị
+    hủy**, `finalPayload` là null, và khách nhận "Xin lỗi, hệ thống hơi chậm."
+
+    Hậu quả không nhỏ: `ChatbotPage.tsx` gọi `sendMessageStream` TRƯỚC rồi mới lùi về `sendMessage`,
+    nên đây là đường CHÍNH của khách. Mọi câu trả lời thật đi qua dịch vụ AI đều thành câu xin lỗi.
+
+    Không test nào bắt được, vì cả hai bên đều tự nhất quán với chính mình:
+      * `test_service.py` kiểm stream phát cùng nội dung với `/v1/chat` — đúng, theo khung TỰ ĐỊNH.
+      * `ChatAiProviderV2ContractTests` kiểm bộ đọc của backend — đúng, theo khung backend chờ.
+    Hai khung khác nhau, và không tập nào nối hai bên lại. Golden test đầu-cuối là chỗ bắt được.
+
+    Đây đúng bài học đã ghi ở `require_token` phía trên: **hợp đồng do BÊN GỌI định, không do bên
+    nhận.** Nên sửa ở đây, không sửa bộ đọc của backend.
+
+    Ba tên khung backend hiểu: `token` (có `data.text`), `final` (cả payload), `done`.
     """
     payload = chat(turn)
 
     def stream():
         for word in str(payload["content"]).split(" "):
-            yield f"data: {json.dumps({'delta': word + ' '}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'done': True, **payload}, ensure_ascii=False)}\n\n"
+            yield f"event: token\ndata: {json.dumps({'text': word + ' '}, ensure_ascii=False)}\n\n"
+        yield f"event: final\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        yield 'event: done\ndata: {"ok": true}\n\n'
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 

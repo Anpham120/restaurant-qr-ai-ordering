@@ -9,10 +9,10 @@ lúc 132/132 ca, 82/82 lượt, 244 test và CI 4/4 đều xanh. Cả ba lỗi c
 và con số trong câu trả lời đều CÓ THẬT trong thực đơn — nên mọi phép kiểm chống bịa đều xanh — mà
 khách đọc ra một điều SAI.
 
-Cần stack đang chạy và MỘT mã QR cho MỖI hội thoại (mỗi hội thoại phải là một bàn sạch — xem
-phần kiểm mã QR trong `main`):
+Cần stack đang chạy, và MỘT mã QR cho bước thêm vào giỏ. Phiên chat của mỗi hội thoại là phiên
+trắng (xem docstring lớp `Khach`), nên bộ này chạy lại được vô hạn và không đốt bàn nào:
 
-    export GOLDEN_QR_TOKENS=ma1,ma2,ma3,ma4,ma5
+    export GOLDEN_QR_TOKEN=<mã QR của một bàn>
     python ai/evaluation/run_golden_e2e.py
     python ai/evaluation/run_golden_e2e.py --api http://127.0.0.1:5000 --chi-tiet
 
@@ -45,6 +45,9 @@ MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
 REFUSE_PHRASES = ("mình chỉ hỗ trợ", "ngoài phạm vi", "không cung cấp", "mình không hỗ trợ")
 NO_DATA_PHRASES = ("chưa có dữ liệu", "chưa có món đó", "thực đơn của nhà hàng chưa có")
 CLARIFY_PHRASES = ("cho mình biết", "bạn muốn", "bạn cho mình biết")
+# Cụm riêng của nhánh so sánh. Nhánh này nêu hai món và sinh hai thẻ giỏ, nên nếu không nhận riêng
+# thì luật "hai thẻ trở lên là danh sách" đọc nó thành `list`.
+COMPARE_PHRASES = ("chênh nhau", "nhẹ ví hơn")
 
 SO_TIEN = re.compile(r"\d[\d.,]*")
 
@@ -54,19 +57,43 @@ class KhongGoiDuocStack(RuntimeError):
 
 
 class Khach:
-    """Một khách quét QR. Gọi ĐÚNG những endpoint mà frontend gọi, không phải đường nội bộ."""
+    """Một khách. Gọi ĐÚNG những endpoint mà frontend gọi, không phải đường nội bộ.
 
-    def __init__(self, api: str, qr_token: str) -> None:
+    Phiên chat luôn MỚI, và đó là điều làm bộ này chạy lại được
+    -------------------------------------------------------------
+    Bản đầu mở phiên chat qua `tableSessionId`, và `DbChatStore.CreateOrGetSession` **trả lại phiên
+    cũ** cho cùng phiên bàn (đúng thiết kế: khách quét lại QR giữa bữa thì không mất ngữ cảnh). Nên
+    mỗi hội thoại phải ăn một bàn sạch, và bộ này **chỉ chạy được một lần trên mỗi cơ sở dữ liệu** —
+    lần chạy thứ hai hết bàn. Đó là khiếm khuyết của bộ đo, không phải của hệ thống.
+
+    Không truyền `tableSessionId` thì `CreateOrGetSession` luôn tạo phiên mới. Nên phiên chat của
+    mỗi hội thoại là phiên trắng, không giới hạn số lần chạy, và không đốt bàn nào.
+
+    Phiên bàn chỉ cần cho bước THÊM VÀO GIỎ, và bước đó không phụ thuộc bộ nhớ chat của bàn: thẻ giỏ
+    đến từ câu trả lời, còn giỏ hàng chỉ nhận `menuItemId` cộng `delta`. Nên một bàn dùng lại được
+    qua nhiều lần chạy.
+    """
+
+    def __init__(self, api: str, qr_token: str | None = None) -> None:
         self.api = api.rstrip("/")
-        ts = self._call("/api/table-sessions", "POST", {"qrToken": qr_token})
-        self.table_session_id = ts.get("sessionId") or ts.get("id")
-        # Giỏ hàng cần TOKEN của phiên bàn, không phải id phiên. Bản đầu của tôi gửi id và nhận
-        # 401 `TABLE_SESSION_TOKEN_INVALID` — đúng chuyện bộ này tồn tại để bắt, chỉ có điều lần
-        # này nó bắt tôi.
-        self.table_session_token = ts.get("tableSessionToken")
-        if not self.table_session_id or not self.table_session_token:
-            raise KhongGoiDuocStack(f"phiên bàn thiếu id hoặc token: {sorted(ts)}")
-        cs = self._call("/api/chat/sessions", "POST", {"tableSessionId": self.table_session_id})
+        self.table_session_id: str | None = None
+        self.table_session_token: str | None = None
+        if qr_token:
+            ts = self._call("/api/table-sessions", "POST", {"qrToken": qr_token})
+            self.table_session_id = ts.get("sessionId") or ts.get("id")
+            # Giỏ hàng cần TOKEN của phiên bàn, không phải id phiên. Bản đầu của tôi gửi id và nhận
+            # 401 `TABLE_SESSION_TOKEN_INVALID` — đúng chuyện bộ này tồn tại để bắt, chỉ có điều
+            # lần này nó bắt tôi.
+            self.table_session_token = ts.get("tableSessionToken")
+            if not self.table_session_id or not self.table_session_token:
+                raise KhongGoiDuocStack(f"phiên bàn thiếu id hoặc token: {sorted(ts)}")
+        # KHÔNG gửi `tableSessionId`: xem docstring — đó là điều kiện để phiên chat luôn trắng.
+        cs = self._call("/api/chat/sessions", "POST", {})
+        if cs.get("reused"):
+            raise KhongGoiDuocStack(
+                "phiên chat bị DÙNG LẠI dù không truyền `tableSessionId` — bộ nhớ hội thoại trước "
+                "còn nguyên và kết quả không đọc được"
+            )
         self.chat_session_id = cs["chatSessionId"]
         self.token = cs["accessToken"]
 
@@ -94,6 +121,52 @@ class Khach:
             "POST", {"content": cau}, {"X-Chat-Session-Token": self.token},
         )
         return r["message"]
+
+    def hoi_stream(self, cau: str) -> dict:
+        """Hỏi qua đường SSE — ĐÂY là đường khách thật đi.
+
+        `ChatbotPage.tsx` gọi `sendMessageStream` TRƯỚC, chỉ lùi về `sendMessage` khi stream lỗi.
+        Nên nếu chỉ kiểm đường gọi thường thì đường chính của khách không được kiểm — và hai đường
+        đi qua hai nhánh khác nhau ở backend.
+        """
+        body = json.dumps({"content": cau}).encode()
+        req = urllib.request.Request(
+            f"{self.api}/api/chat/sessions/{self.chat_session_id}/messages/stream",
+            data=body, method="POST",
+        )
+        req.add_header("Content-Type", "application/json")
+        req.add_header("X-Chat-Session-Token", self.token)
+        req.add_header("Accept", "text/event-stream")
+        try:
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                raw = resp.read().decode()
+        except urllib.error.HTTPError as e:
+            raise KhongGoiDuocStack(
+                f"stream -> HTTP {e.code}: {e.read().decode()[:200]}"
+            ) from e
+        except (urllib.error.URLError, OSError) as e:
+            raise KhongGoiDuocStack(f"stream -> {e}") from e
+
+        # Lấy khung dữ liệu CUỐI có `message`: các khung trước là token rời.
+        cuoi: dict | None = None
+        for dong in raw.splitlines():
+            if not dong.startswith("data:"):
+                continue
+            phan = dong[5:].strip()
+            if not phan or phan == "[DONE]":
+                continue
+            try:
+                goi = json.loads(phan)
+            except ValueError:
+                continue
+            if isinstance(goi, dict) and goi.get("message"):
+                cuoi = goi["message"]
+        if cuoi is None:
+            raise KhongGoiDuocStack(
+                f"stream không có khung nào chứa `message`; {len(raw)} byte, "
+                f"đầu: {raw[:200]!r}"
+            )
+        return cuoi
 
     def them_vao_gio(self, menu_item_id: str, so_luong: int) -> dict:
         # Trường là `delta`, không phải `quantity`: endpoint này CỘNG THÊM vào giỏ, và backend từ
@@ -137,6 +210,10 @@ def suy_ra_kind(text: str, so_the_gio: int) -> str:
         return "refuse"
     if any(p in sach for p in NO_DATA_PHRASES):
         return "no_data"
+    # `compare` phải xét TRƯỚC `list`: câu so sánh nêu hai món và sinh hai thẻ giỏ, nên luật
+    # "hai thẻ trở lên là danh sách" đọc nó thành `list`. Nhận bằng cụm riêng của nhánh so sánh.
+    if any(p in sach for p in COMPARE_PHRASES):
+        return "compare"
     if "mời bạn tham khảo" in sach or "những món này" in sach or so_the_gio >= 2:
         return "list"
     if any(p in sach for p in CLARIFY_PHRASES) and not so_the_gio:
@@ -202,18 +279,99 @@ def cham_the_gio(the: list[dict], text: str, by_id: dict, exp: dict) -> list[str
     return do
 
 
+def mon_theo_thu_tu(text: str, items: list[dict]) -> list[dict]:
+    """Món câu trả lời nêu tên, THEO ĐÚNG THỨ TỰ xuất hiện trong câu.
+
+    Thứ tự là thông tin: khách nói "món thứ hai" là trỏ vào món thứ hai họ ĐỌC THẤY. Tra bằng vị
+    trí của tên món trong văn bản, không bằng thứ tự thực đơn.
+
+    Tên món dài trước: "Phở bò tái nạm" chứa "Phở bò"? Không, nhưng nguyên tắc vẫn giữ — nếu một
+    tên món là tiền tố của tên khác thì tên dài phải thắng, cùng cơ chế mà `understand.py` dùng.
+    """
+    thay: list[tuple[int, dict]] = []
+    da_an: list[tuple[int, int]] = []
+    for m in sorted(items, key=lambda x: -len(x["name"])):
+        vi = text.find(m["name"])
+        if vi < 0:
+            continue
+        het = vi + len(m["name"])
+        if any(vi >= a and het <= b for a, b in da_an):
+            continue
+        da_an.append((vi, het))
+        thay.append((vi, m))
+    return [m for _, m in sorted(thay, key=lambda t: t[0])]
+
+
 def cham_luot(msg: dict, exp: dict, items: list[dict], by_id: dict,
-              by_name: dict) -> tuple[list[str], str]:
+              by_name: dict, truoc: list[dict] | None = None) -> tuple[list[str], str]:
+    truoc = truoc or []
     text = msg.get("content") or ""
     the = msg.get("suggestedCartActions") or []
     # Món câu trả lời NÊU TÊN — tra bằng tên thực đơn, không đoán. Dùng cho phép kiểm an toàn và
     # đếm số món, KHÔNG dùng để đọc dạng đáp án (xem `suy_ra_kind`).
-    neu_ten = [m for m in items if m["name"] in text]
+    neu_ten = mon_theo_thu_tu(text, items)
     kind = suy_ra_kind(text, len(the))
     do: list[str] = []
 
     if exp.get("kind") and kind != exp["kind"]:
         do.append(f"dạng đáp án đọc ra là `{kind}`, cần `{exp['kind']}`")
+
+    # --- nhóm danh mục: món ăn KHÁC đồ uống ------------------------------------------
+    #
+    # Đây là ràng buộc mà chủ dự án nêu thẳng: "không phải bảo tư vấn món mà cứ đưa bia, sinh tố
+    # xoài, nước rau má vào". Nó không đo được bằng nhãn — `cat_drink` là DANH MỤC, không phải nhãn
+    # — nên nó cần tiêu chí riêng.
+    for cat in exp.get("forbid_category_any", []):
+        xau = [m["name"] for m in neu_ten if m["categoryId"] == cat]
+        if xau:
+            do.append(f"nêu món thuộc nhóm `{cat}` mà lượt này không được có: {xau}")
+    chi = exp.get("only_categories")
+    if chi:
+        ngoai = [f"{m['name']} ({m['categoryId']})" for m in neu_ten
+                 if m["categoryId"] not in chi]
+        if ngoai:
+            do.append(f"nêu món ngoài {chi}: {ngoai}")
+
+    # --- tham chiếu ngược ------------------------------------------------------------
+    #
+    # Bản CHẶT: chốt đúng món ở đúng VỊ TRÍ của lượt trước, không chỉ "có nhắc món nào của lượt
+    # trước". Bản lỏng đã cho ca đạt SAI LÝ DO ba lần trong dự án này: câu "món thứ hai có hải sản
+    # không?" mà hệ thống KHÔNG hiểu sẽ liệt kê lại danh sách cũ, và danh sách đó chứa món của lượt
+    # trước nên tiêu chí lỏng thỏa — dù hệ thống chẳng hiểu "thứ hai" là gì.
+    dat = exp.get("refers_to_position")
+    if dat is not None:
+        k, vi_tri = dat["turn"], dat["index"]
+        if k > len(truoc):
+            do.append(f"ca viết sai: trỏ vào lượt {k} nhưng chỉ có {len(truoc)} lượt trước")
+        else:
+            ds = truoc[k - 1]["items"]
+            if len(ds) < vi_tri:
+                do.append(
+                    f"ca viết sai: lượt {k} chỉ nêu {len(ds)} món nên vị trí {vi_tri} không có"
+                )
+            else:
+                can = ds[vi_tri - 1]
+                if can["name"] not in text:
+                    do.append(
+                        f"phải nói về {can['name']!r} (món thứ {vi_tri} của lượt {k}), "
+                        f"câu trả lời nêu {[m['name'] for m in neu_ten][:3]}"
+                    )
+                # Và KHÔNG được liệt kê lại cả danh sách: đó là cách lách tiêu chí.
+                elif len(neu_ten) > 2:
+                    do.append(
+                        f"nêu {len(neu_ten)} món cho một câu hỏi về MỘT món — liệt kê lại danh "
+                        "sách cũ là cách qua tiêu chí mà không hiểu tham chiếu"
+                    )
+
+    k = exp.get("must_not_repeat_turn")
+    if k is not None:
+        if k > len(truoc):
+            do.append(f"ca viết sai: trỏ vào lượt {k} nhưng chỉ có {len(truoc)} lượt trước")
+        else:
+            cu = {m["id"] for m in truoc[k - 1]["items"]}
+            lap = [m["name"] for m in neu_ten if m["id"] in cu]
+            if lap:
+                do.append(f"gợi lại món đã nêu ở lượt {k}: {lap}")
 
     if exp.get("min_items") is not None and len(neu_ten) < exp["min_items"]:
         do.append(f"nêu {len(neu_ten)} món, cần ít nhất {exp['min_items']}")
@@ -256,13 +414,27 @@ def cham_luot(msg: dict, exp: dict, items: list[dict], by_id: dict,
                 f"món rẻ nhất là {dong_tien(min(m['price'] for m in trong))}"
             )
 
-    ten_mon = exp.get("must_state_price_of")
-    if ten_mon is not None:
-        mon = by_name.get(ten_mon)
-        if mon is None:
+    # Nhận CẢ chuỗi và danh sách: câu so sánh cần giá của HAI món, và tách thành hai khóa thì hai
+    # khóa đó phải cùng nghĩa — một khóa nhận danh sách gọn hơn và không lệch nghĩa được.
+    can_gia = exp.get("must_state_price_of")
+    if can_gia is not None:
+        for ten_mon in ([can_gia] if isinstance(can_gia, str) else can_gia):
+            mon = by_name.get(ten_mon)
+            if mon is None:
+                do.append(f"ca viết sai: thực đơn không có món {ten_mon!r}")
+            elif dong_tien(mon["price"]) not in text:
+                do.append(f"phải nêu giá thật {dong_tien(mon['price'])} của {ten_mon}")
+
+    for ten_mon in exp.get("must_name_items", []):
+        if ten_mon not in by_name:
             do.append(f"ca viết sai: thực đơn không có món {ten_mon!r}")
-        elif dong_tien(mon["price"]) not in text:
-            do.append(f"phải nêu giá thật {dong_tien(mon['price'])} của {ten_mon}")
+        elif ten_mon not in text:
+            do.append(f"phải nhắc {ten_mon!r}")
+
+    for nhan in exp.get("require_tags_all", []):
+        thieu = [m["name"] for m in neu_ten if nhan not in m["tags"]]
+        if thieu:
+            do.append(f"món nêu ra phải có nhãn `{nhan}`, những món này không có: {thieu}")
 
     # Không tên món nào ngoài thực đơn được xuất hiện như một món của nhà hàng. Kiểm bằng thẻ giỏ
     # và bằng số tiền, hai thứ tra được — không quét tên món tự do, vì cách đó bắt oan.
@@ -292,57 +464,60 @@ def main(argv: list[str] | None = None) -> int:
     by_name = {m["name"]: m for m in items}
     hoi_thoais = data["conversations"]
 
-    # MỖI hội thoại một mã QR riêng, và bộ này DỪNG nếu không đủ.
-    #
-    # Không phải chuyện cấu hình cho gọn: backend trả lại phiên chat CŨ cho cùng phiên bàn (đúng
-    # thiết kế — khách quét lại QR giữa bữa thì không mất ngữ cảnh). Nên dùng một mã QR cho nhiều
-    # hội thoại nghĩa là tất cả chia chung một bộ nhớ, và kết quả KHÔNG ĐỌC ĐƯỢC.
-    #
-    # Đúng chuyện này đã lừa tôi ngày 2026-07-30: tôi tạo "phiên mới" cho từng câu, thấy hệ thống
-    # trả lời sai, và mất một lượt điều tra mới nhận ra ngân sách 45.000đ của lần chạy TRƯỚC còn
-    # dính trong bộ nhớ. Nên bộ này không cho phép cấu hình sai đó tồn tại.
+    # MỘT mã QR, dùng cho bước THÊM VÀO GIỎ. Phiên chat của mọi hội thoại là phiên trắng — xem
+    # docstring lớp `Khach` — nên không hội thoại nào cần bàn riêng và bộ này chạy lại được vô hạn.
     #
     # Mã QR không nằm trong repo: nó là bí mật của bàn và luân chuyển khi đóng phiên.
-    tokens = [t.strip() for t in (os.environ.get("GOLDEN_QR_TOKENS") or "").split(",") if t.strip()]
-    if len(tokens) < len(hoi_thoais):
+    qr = (os.environ.get("GOLDEN_QR_TOKEN") or "").strip()
+    can_gio = [c["id"] for c in hoi_thoais
+               if any(t.get("expect", {}).get("add_first_cart_item_to_cart") for t in c["turns"])]
+    if can_gio and not qr:
         print(
-            f"Cần {len(hoi_thoais)} mã QR (mỗi hội thoại một bàn SẠCH), có {len(tokens)}.\n\n"
-            "  Vì sao mỗi hội thoại một bàn: backend trả lại phiên chat CŨ cho cùng bàn, nên dùng\n"
-            "  chung một bàn là để bộ nhớ hội thoại trước chảy sang hội thoại sau — và lúc đó số\n"
-            "  đo được không nói lên điều gì.\n\n"
-            "  Lấy mã của các bàn chưa dùng:\n\n"
+            f"Thiếu GOLDEN_QR_TOKEN. {len(can_gio)} hội thoại có bước thêm vào giỏ thật "
+            f"({', '.join(can_gio)}), và bước đó cần một phiên bàn.\n\n"
+            "  Chỉ cần MỘT mã, và dùng lại được qua nhiều lần chạy: giỏ hàng chỉ nhận `menuItemId`\n"
+            "  cộng `delta`, không phụ thuộc bộ nhớ chat của bàn.\n\n"
             "    docker compose -f deploy/docker-compose.yml exec -T postgres \\\n"
-            "      psql -U restaurant_user -d restaurant_qr -t \\\n"
-            "      -c \"select table_code, qr_token from restaurant_tables order by table_code;\"\n\n"
-            "    export GOLDEN_QR_TOKENS=ma1,ma2,ma3,ma4,ma5"
+            "      psql -U restaurant_user -d restaurant_qr -t -A \\\n"
+            "      -c \"select qr_token from restaurant_tables order by table_code limit 1;\"\n\n"
+            "    export GOLDEN_QR_TOKEN=<mã>"
         )
         return 2
 
     print(f"GOLDEN ĐẦU-CUỐI — {args.api}")
-    print(f"  {len(hoi_thoais)} hội thoại / "
-          f"{sum(len(c['turns']) for c in hoi_thoais)} lượt, mỗi hội thoại một bàn sạch\n")
+    print(f"  {len(hoi_thoais)} hội thoại / {sum(len(c['turns']) for c in hoi_thoais)} lượt")
+    print("  mỗi hội thoại một phiên chat TRẮNG; một phiên bàn cho bước thêm vào giỏ\n")
 
     tong = dat = 0
     hong: list[str] = []
-    for hoi_thoai, qr in zip(hoi_thoais, tokens):
+    for hoi_thoai in hoi_thoais:
+        can = any(t.get("expect", {}).get("add_first_cart_item_to_cart")
+                  for t in hoi_thoai["turns"])
         try:
-            khach = Khach(args.api, qr)
+            khach = Khach(args.api, qr if can else None)
         except KhongGoiDuocStack as e:
             print(f"KHÔNG GỌI ĐƯỢC STACK: {e}")
             print("\n  Dựng stack rồi chạy lại:")
             print("    docker compose -f deploy/docker-compose.yml up -d")
             return 2
 
-        print(f"[{hoi_thoai['id']}]  phiên chat {khach.chat_session_id}")
+        duong = hoi_thoai.get("transport", "post")
+        print(f"[{hoi_thoai['id']}]  phiên chat {khach.chat_session_id}"
+              f"{'  (qua SSE)' if duong == 'stream' else ''}")
+        truoc: list[dict] = []
         for j, turn in enumerate(hoi_thoai["turns"], 1):
             tong += 1
             try:
-                msg = khach.hoi(turn["user"])
+                msg = (khach.hoi_stream(turn["user"]) if duong == "stream"
+                       else khach.hoi(turn["user"]))
             except KhongGoiDuocStack as e:
                 print(f"  lượt {j}: KHÔNG GỌI ĐƯỢC — {e}")
                 return 2
             exp = turn.get("expect", {})
-            do, kind = cham_luot(msg, exp, items, by_id, by_name)
+            do, kind = cham_luot(msg, exp, items, by_id, by_name, truoc)
+            # Ghi lại món của lượt này THEO THỨ TỰ, để `refers_to_position` và
+            # `must_not_repeat_turn` của lượt sau có cái mà trỏ vào.
+            truoc.append({"items": mon_theo_thu_tu(msg.get("content") or "", items)})
 
             # Bấm THÊM VÀO GIỎ thật. Đây là chặng cuối, và nó kiểm điều mà không mảng JSON nào
             # kiểm được: thẻ giỏ có đi qua được đường xác thực và ràng buộc của backend hay không.

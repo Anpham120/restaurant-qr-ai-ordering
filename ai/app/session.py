@@ -100,6 +100,15 @@ class SessionState:
     # lũy 24 món qua 6 lượt thì không trỏ vào đâu cả. Khách nói "món đầu tiên" là nói về danh sách
     # họ VỪA đọc, nên nó phải bị THAY mỗi lượt có danh sách, không phải cộng dồn.
     last_listed_ids: list[str] = field(default_factory=list)
+    # Món ĐANG NÓI TỚI. Khác `last_listed_ids` ở chỗ nó là MỘT món, và nó chỉ đổi khi câu trả lời
+    # nói về đúng một món — nên nó sống qua những lượt liệt kê danh sách.
+    #
+    # Có mặt vì "món thứ hai có cay không?" rồi "món đó bao nhiêu tiền?" từng trả lời về món THỨ
+    # NHẤT: cụm "món đó" bị gán vị trí 1 trong từ vựng. Vị trí là cách trỏ khi khách ĐẾM; "món đó"
+    # thì không đếm, nó trỏ vào tiêu điểm của cuộc nói.
+    last_focus_id: str | None = None
+    # Cặp món của câu so sánh gần nhất, để câu "món nào cay hơn?" không mất ngữ cảnh.
+    last_compared_ids: list[str] = field(default_factory=list)
     # Danh mục của lượt gần nhất. `categories` KHÔNG nằm trong `hard_tags` vì nó không phải nhãn,
     # và không cộng dồn được: "cho mình món chay" rồi "cho mình món lẩu" là hai yêu cầu khác nhau,
     # không phải giao của hai danh mục.
@@ -177,6 +186,9 @@ class SessionState:
             rejected_item_ids=ids("rejected_item_ids")[:MAX_SUGGESTED_MEMORY],
             last_listed_ids=ids("last_listed_ids")[:MAX_LISTED_MEMORY],
             last_categories=ids("last_categories"),
+            last_focus_id=(payload.get("last_focus_id")
+                           if isinstance(payload.get("last_focus_id"), str) else None),
+            last_compared_ids=ids("last_compared_ids")[:2],
             turn_count=payload.get("turn_count") if isinstance(payload.get("turn_count"), int) else 0,
         )
 
@@ -188,6 +200,8 @@ class SessionState:
             "budget_max": self.budget_max,
             "budget_strict": self.budget_strict,
             "wants": self.wants,
+            "last_focus_id": self.last_focus_id,
+            "last_compared_ids": list(self.last_compared_ids),
             "suggested_item_ids": list(self.suggested_item_ids),
             "rejected_item_ids": list(self.rejected_item_ids),
             "last_listed_ids": list(self.last_listed_ids),
@@ -257,6 +271,30 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
         elif 1 <= i <= len(state.last_listed_ids):
             named = [state.last_listed_ids[i - 1]]
 
+    # "Món đó" / "cái đó" / "món vừa rồi": trỏ vào TIÊU ĐIỂM, không vào vị trí.
+    #
+    # Lùi về món thứ nhất của danh sách khi chưa có tiêu điểm — đúng hành vi cũ ở lượt đầu, nên
+    # không ca nào tụt. Chuỗi "món thứ hai có cay không?" rồi "món đó bao nhiêu tiền?" nay trả lời
+    # về món thứ hai, vì lượt trước đã đặt tiêu điểm vào đó.
+    if request.refers_to_focus and not named:
+        if state.last_focus_id:
+            named = [state.last_focus_id]
+        elif state.last_listed_ids:
+            named = [state.last_listed_ids[0]]
+
+    # Câu so sánh TIẾP NỐI: lấy lại cặp món của câu so sánh gần nhất.
+    #
+    # Chỉ khi lượt này KHÔNG nhắc tên món nào — khách nhắc tên thì tên đó thắng. Và chỉ khi cặp cũ
+    # đủ hai món, vì nhánh so sánh cần đúng hai.
+    #
+    # Nhận CẢ `is_comparison` (cụm sẵn có: "khác nhau thế nào", "nên chọn", "so với") lẫn
+    # `asks_comparison` (cụm mới: "cay hơn", "ngon hơn"). Hai cụm khác nhau nhưng cùng một nhu cầu:
+    # khách đang so hai món mà không nhắc lại tên. Để `is_comparison` ngoài luật này thì câu "hai
+    # món đó khác nhau thế nào?" vẫn rơi vào nhánh hỏi lại.
+    if ((request.asks_comparison or request.is_comparison)
+            and not named and len(state.last_compared_ids) == 2):
+        named = list(state.last_compared_ids)
+
     return replace(
         request,
         avoid_tags=avoid,
@@ -278,9 +316,14 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
             list(state.last_listed_ids) if request.scope_last_listed and state.last_listed_ids
             else []
         ),
+        # Loại CẢ tập đã gợi trong phiên, không chỉ lượt cuối.
+        #
+        # Đo được: sau ba lượt danh sách, "món khác đi" mà chỉ loại lượt cuối vẫn có thể trả về món
+        # của lượt 1 — và với khách thì đó vẫn là "món cũ". `suggested_item_ids` bị chặn ở
+        # MAX_SUGGESTED_MEMORY nên tập này không phình vô hạn.
         exclude_item_ids=(
-            list(state.last_listed_ids) if request.wants_similar and state.last_listed_ids
-            else []
+            list(dict.fromkeys([*state.last_listed_ids, *state.suggested_item_ids]))
+            if request.wants_similar else []
         ),
     )
 
@@ -349,6 +392,20 @@ def update_state(
         ),
         last_categories=(
             list(merged.categories) if merged.categories else list(state.last_categories)
+        ),
+        # TIÊU ĐIỂM: đổi chỉ khi câu trả lời nói về ĐÚNG MỘT món. Giữ nguyên ở lượt danh sách.
+        #
+        # Điều kiện là "đúng một món", không phải `reply_kind == "fact"`: một câu `fact` có thể là
+        # câu tri thức không món nào, và lúc đó tiêu điểm cũ vẫn là món khách đang nói tới.
+        last_focus_id=(
+            replied_item_ids[0] if len(replied_item_ids) == 1 else state.last_focus_id
+        ),
+        # CẶP SO SÁNH: chỉ đổi khi lượt này thật sự là một câu so sánh hai món. Giữ nguyên ở mọi
+        # dạng khác, để "món nào cay hơn?" vẫn trỏ được sau một lượt xen giữa.
+        last_compared_ids=(
+            list(replied_item_ids)
+            if (reply_kind == "compare" and len(replied_item_ids) == 2)
+            else list(state.last_compared_ids)
         ),
         turn_count=state.turn_count + 1,
     )
@@ -435,6 +492,16 @@ def session_updates(state: SessionState, replied_item_ids: list[str]) -> dict[st
             "wants": state.wants,
             "last_listed_ids": list(state.last_listed_ids),
             "last_categories": list(state.last_categories),
+            # `last_focus_id` và `last_compared_ids` cũng phải nằm ở đây, và cùng một lý do — chỉ
+            # có điều lần này lỗi đã xảy ra TRƯỚC khi tôi kịp nhớ ra: hai trường được thêm vào
+            # `SessionState`, chạy đúng trong tiến trình, và **sai qua backend**. Golden đầu-cuối
+            # bắt được ("Món đó bao nhiêu tiền?" trỏ sai món, "Món nào cay hơn?" mất cặp món), còn
+            # 87 lượt phiên vẫn xanh vì chúng chạy trong tiến trình.
+            #
+            # Đây là lần thứ hai đúng lớp lỗi này trong cùng một tệp. Quy tắc: THÊM TRƯỜNG VÀO
+            # `SessionState` LÀ PHẢI THÊM KHÓA Ở ĐÂY — có test bất biến bên dưới ép điều đó.
+            "last_focus_id": state.last_focus_id,
+            "last_compared_ids": list(state.last_compared_ids),
         },
         "referenced_menu_item_ids": list(replied_item_ids),
         "suggested_menu_item_ids": list(state.suggested_item_ids),

@@ -216,6 +216,8 @@ class TapGoldenPhaiHopLe(unittest.TestCase):
             "must_say_any", "must_not_say_any", "max_price", "must_name_priciest",
             "must_name_priciest_within", "must_state_price_of", "no_invented_item_names",
             "no_cart", "add_first_cart_item_to_cart",
+            "forbid_category_any", "only_categories", "refers_to_position",
+            "must_not_repeat_turn", "must_name_items", "require_tags_all",
         }
         for c in self.data["conversations"]:
             for j, t in enumerate(c["turns"], 1):
@@ -223,11 +225,57 @@ class TapGoldenPhaiHopLe(unittest.TestCase):
                 self.assertEqual(la, [], f"{c['id']} lượt {j}: khóa lạ {la}")
 
     def test_ten_mon_trong_tieu_chi_phai_co_that(self):
+        """Mọi tên món viết trong tiêu chí phải có trong thực đơn.
+
+        `must_state_price_of` nhận CẢ chuỗi và danh sách (câu so sánh cần giá hai món), nên test này
+        phải chuẩn hóa. Bản đầu chỉ nhận chuỗi và nó `TypeError` ngay khi tôi nới khóa — hàng rào
+        bắt đúng việc nó có mặt để bắt.
+        """
         for c in self.data["conversations"]:
             for j, t in enumerate(c["turns"], 1):
-                ten = t.get("expect", {}).get("must_state_price_of")
-                if ten is not None:
+                exp = t.get("expect", {})
+                gia = exp.get("must_state_price_of")
+                ten_list = ([] if gia is None else
+                            [gia] if isinstance(gia, str) else list(gia))
+                for ten in ten_list + list(exp.get("must_name_items", [])):
                     self.assertIn(ten, BY_NAME, f"{c['id']} lượt {j}")
+
+    def test_nhan_va_danh_muc_trong_tieu_chi_phai_co_that(self):
+        """Nhãn và mã danh mục cũng phải có thật — nhãn viết sai là tiêu chí không bao giờ thỏa."""
+        nhan_that = {t for m in ITEMS for t in m["tags"]}
+        danh_muc_that = {m["categoryId"] for m in ITEMS}
+        for c in self.data["conversations"]:
+            for j, t in enumerate(c["turns"], 1):
+                exp = t.get("expect", {})
+                for nhan in (list(exp.get("forbid_tags_any", []))
+                             + list(exp.get("cart_forbid_tags_any", []))
+                             + list(exp.get("require_tags_all", []))):
+                    self.assertIn(nhan, nhan_that, f"{c['id']} lượt {j}: nhãn lạ")
+                for cat in (list(exp.get("only_categories", []))
+                            + list(exp.get("forbid_category_any", []))):
+                    self.assertIn(cat, danh_muc_that, f"{c['id']} lượt {j}: danh mục lạ")
+
+    def test_tham_chieu_chi_tro_vao_luot_TRUOC_do(self):
+        """`refers_to_position` và `must_not_repeat_turn` chỉ được trỏ vào lượt đã xảy ra."""
+        for c in self.data["conversations"]:
+            for j, t in enumerate(c["turns"], 1):
+                exp = t.get("expect", {})
+                dat = exp.get("refers_to_position")
+                if dat is not None:
+                    self.assertTrue(1 <= dat["turn"] < j, f"{c['id']} lượt {j}: {dat}")
+                    self.assertGreaterEqual(dat["index"], 1, f"{c['id']} lượt {j}")
+                k = exp.get("must_not_repeat_turn")
+                if k is not None:
+                    self.assertTrue(1 <= k < j, f"{c['id']} lượt {j}: trỏ vào lượt {k}")
+
+    def test_co_it_nhat_mot_hoi_thoai_di_duong_SSE(self):
+        """Frontend gọi stream TRƯỚC rồi mới lùi về gọi thường, nên SSE là đường CHÍNH của khách.
+
+        Không có hội thoại nào đi đường đó thì đường chính không được kiểm — và hai đường đi qua hai
+        nhánh khác nhau ở backend.
+        """
+        co = [c["id"] for c in self.data["conversations"] if c.get("transport") == "stream"]
+        self.assertTrue(co, "không hội thoại nào đi đường SSE")
 
     def test_co_it_nhat_mot_luot_bam_them_vao_gio_that(self):
         """Không có lượt nào bấm thêm vào giỏ thì bộ này dừng ở chặng 5, không phải chặng 6."""

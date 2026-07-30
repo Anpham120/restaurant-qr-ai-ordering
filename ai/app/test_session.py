@@ -334,6 +334,58 @@ class ThamChieuNguocPhaiSONG_QUA_BACKEND(unittest.TestCase):
     Nên hai chiều được kiểm riêng — chiều thuận (còn) và chiều nghịch (bỏ khóa ra thì MẤT).
     """
 
+    def test_MOI_truong_bo_nho_deu_song_qua_vong_JSON(self):
+        """Bất biến: THÊM TRƯỜNG VÀO `SessionState` LÀ PHẢI THÊM KHÓA VÀO `constraints`.
+
+        Test này tồn tại vì đúng lớp lỗi đó đã xảy ra HAI lần trong cùng tệp `session.py`:
+
+          1. `last_listed_ids` — tham chiếu ngược chạy trong tiến trình, mất qua backend.
+          2. `last_focus_id` và `last_compared_ids` — thêm để sửa hai lỗi golden bắt được, chạy
+             đúng trong tiến trình, và **vẫn sai qua backend** ở lần chạy golden tiếp theo.
+
+        Cả hai lần, 87 lượt phiên đều xanh: bộ chạy kịch bản giữ `SessionState` trong một biến nên
+        nó không bao giờ đi qua vòng JSON. Chỉ golden đầu-cuối bắt được.
+
+        Nên test này không kiểm một trường cụ thể — nó kiểm **mọi trường**, và nó đỏ ngay khi có ai
+        thêm trường mới mà quên đường vòng. Danh sách miễn phải khai TƯỜNG MINH kèm lý do.
+        """
+        import dataclasses
+
+        # Trường KHÔNG cần đi vòng, và vì sao. Miễn phải tường minh, không được im lặng.
+        MIEN = {
+            # Backend sở hữu danh sách món khách từ chối (`GetExcludedMenuItemIds`), dịch vụ chỉ
+            # đọc. Ghi lại là tranh quyền với backend.
+            "rejected_item_ids",
+            # Đếm lượt chỉ dùng cho tóm tắt; mất nó thì tóm tắt kém đi, không sai.
+            "turn_count",
+            # `budget_strict` đi cùng `budget_max` và chỉ có nghĩa khi có ngân sách.
+            "budget_strict",
+        }
+        truong = {f.name for f in dataclasses.fields(SessionState)} - MIEN
+        goi = session_updates(SessionState(), [])
+        co_trong_vong = set(goi["constraints"]) | {
+            "suggested_item_ids",  # đi qua `suggested_menu_item_ids`
+        }
+        thieu = sorted(truong - co_trong_vong)
+        self.assertEqual(
+            thieu, [],
+            f"trường {thieu} không có đường đi vòng qua backend — nó sẽ chạy đúng trong tiến "
+            "trình và MẤT trong hệ thống thật. Thêm khóa vào `session_updates()['constraints']` "
+            "và đọc lại trong `from_payload`, hoặc khai miễn kèm lý do trong test này."
+        )
+
+    def test_tieu_diem_va_cap_so_sanh_song_qua_vong_JSON(self):
+        """Hai trường mới, chiều thuận. Golden bắt được đúng vì thiếu chiều này."""
+        state = SessionState(
+            last_listed_ids=["m_008", "m_009"],
+            last_focus_id="m_009",
+            last_compared_ids=["m_008", "m_009"],
+        )
+        qua_mang = json.loads(json.dumps(session_updates(state, ["m_009"])))
+        ve = SessionState.from_payload({"constraints": qua_mang["constraints"]})
+        self.assertEqual(ve.last_focus_id, "m_009")
+        self.assertEqual(ve.last_compared_ids, ["m_008", "m_009"])
+
     def test_dai_mon_da_neu_song_qua_vong_JSON(self):
         state = SessionState(
             last_listed_ids=["m_008", "m_009", "m_010"],

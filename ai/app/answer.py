@@ -416,7 +416,12 @@ def respond(request: Request, items: list[dict]) -> Reply:
         )
 
     # 4. So sánh hai món đã nêu tên.
-    if request.is_comparison and len(named) == 2:
+    #
+    # Nhận CẢ `asks_comparison` — cách hỏi TIẾP NỐI ("món nào cay hơn?") không nhắc lại tên món, và
+    # `session.py` lấy lại cặp món của câu so sánh gần nhất. Không nới ở đây thì cặp món đã lấy lại
+    # rơi xuống nhánh `item_detail` và câu trả lời nói về MỘT món — trả lời một câu so sánh bằng
+    # thông tin của một bên.
+    if (request.is_comparison or request.asks_comparison) and len(named) == 2:
         first, second = named
         gap = abs(first["price"] - second["price"])
         cheaper = first if first["price"] <= second["price"] else second
@@ -539,8 +544,13 @@ def respond(request: Request, items: list[dict]) -> Reply:
     #
     # Ràng buộc kéo từ bộ nhớ là để LỌC DANH SÁCH; nó không được biến câu hỏi về một món thành câu
     # hỏi về cả thực đơn.
+    # `refers_to_focus` cần ĐÚNG ngoại lệ như `reference_index`, và vì đúng lý do đã ghi ở trên:
+    # câu "cái đó có cay không?" mang `require_tags` kéo từ bộ nhớ ("món nào không cay" ở lượt
+    # trước), nên điều kiện `not request.require_tags` sai và hệ thống liệt kê lại danh sách thay vì
+    # trả lời về món khách đang trỏ vào. Bỏ sót ngoại lệ này làm `context-reference-02` đỏ.
     if named and (
         request.reference_index is not None
+        or request.refers_to_focus
         or (not request.require_tags and not request.categories)
     ):
         item = named[0]
