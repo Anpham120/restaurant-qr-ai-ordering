@@ -118,16 +118,33 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     return picked
 
 
-def _order(items: list[dict], prefer_tags: list[str]) -> list[dict]:
+def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> list[dict]:
     """Sắp cố định để câu trả lời giống nhau mọi lần chạy.
 
     Món mang nhãn ngữ cảnh khách nêu (dịp ăn) được đưa lên trước, nhưng món không mang
     nhãn đó **không bị loại**. Đó là cách dùng đúng cho nhóm nhãn không phủ hết 91 món:
     thiếu nhãn nghĩa là *chưa ghi nhận*, không phải *không phù hợp*.
+
+    Khi khách CHƯA nói món ăn hay đồ uống, món ăn được xếp trước đồ uống
+    -------------------------------------------------------------------
+    Vì sao cần: 5 món rẻ nhất thực đơn đều là đồ uống (12.000–30.000đ) còn món ăn rẻ nhất là
+    35.000đ. Nên sắp theo giá tăng dần làm đồ uống **luôn** đứng đầu, và câu "món nào không cay?"
+    trả về sáu loại bia. Đo được: **13/119 ca** khách hỏi "món" mà nhận toàn đồ uống — và cả 13
+    đều QUA đánh giá, vì khóa đáp án không cấm đồ uống.
+
+    Đây là NGỮ CẢNH, không phải ràng buộc — cùng nguyên tắc với dịp ăn:
+
+    - **xếp trước**, nên "món nào không cay" trả món ăn thay vì bia
+    - **KHÔNG lọc**, nên "món nào rẻ hơn 20 nghìn" vẫn trả đồ uống, vì không món ăn nào dưới
+      20.000đ và trả rỗng ở đó mới là sai
+
+    Lọc cứng ở đây sẽ hỏng đúng ca thứ hai: khách hỏi thật, dữ liệu trả lời được, mà hệ thống nói
+    "không có món nào phù hợp".
     """
     def key(item: dict) -> tuple:
         matched = sum(1 for t in prefer_tags if t in item["tags"])
-        return (-matched, item["price"], item["id"])
+        drink_last = 1 if (wants == "any" and item["categoryId"] in DRINK_CATEGORIES) else 0
+        return (-matched, drink_last, item["price"], item["id"])
 
     return sorted(items, key=key)
 
@@ -302,7 +319,7 @@ def respond(request: Request, items: list[dict]) -> Reply:
             branch="clarify",
         )
 
-    picked = _order(select(request, items), request.prefer_tags)
+    picked = _order(select(request, items), request.prefer_tags, request.wants)
     if not picked:
         return Reply(
             text=(

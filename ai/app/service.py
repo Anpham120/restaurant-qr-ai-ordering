@@ -50,6 +50,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from answer import STAFF_NOTE, Reply, load_facts, respond
+from cart import CartError, build_cart, cart_payload
 from llm_understand import enrich, load_env
 from rag.chunker import all_chunks, load_all
 from session import MEMORY_VERSION, SessionState, merge_into_request, session_updates, update_state
@@ -77,6 +78,9 @@ class MenuCache:
 
     def __init__(self) -> None:
         self.items: list[dict] = []
+        # Bảng tra `cat_vegetarian` -> "Món chay", cho câu lý do của thẻ giỏ. Là BẢNG TRA TÊN,
+        # không phải danh sách món, nên nó không mở lại đường lọc thứ hai.
+        self.category_names: dict[str, str] = {}
         self.loaded_at: float | None = None
         self.error: str | None = None
         self.reload()
@@ -85,10 +89,12 @@ class MenuCache:
         try:
             data = json.loads(MENU_PATH.read_text(encoding="utf-8-sig"))
             self.items = data["items"]
+            self.category_names = {c["categoryId"]: c["name"] for c in data.get("categories", [])}
             self.loaded_at = time.time()
             self.error = None
         except (OSError, ValueError, KeyError) as exc:
             self.items = []
+            self.category_names = {}
             self.error = f"{type(exc).__name__}: {exc}"
 
 
@@ -188,20 +194,30 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
         outcome = enrich(merged, load_env(), use_cache=True)
 
     reply = respond(merged, MENU.items)
+
+    # Thẻ giỏ sinh từ ĐÚNG danh sách món `respond()` đã chọn, không lọc lại. `cart.build_cart`
+    # cố tình không nhận thực đơn nên nó không thể trở thành đường chọn món thứ hai.
+    #
+    # `CartError` nghĩa là lọc fail-closed đã hỏng — món mang nhãn cần tránh lọt qua
+    # `answer.select()`. Không bắt nó ở đây: để nó nổi lên `chat()` và thành `internal_error`,
+    # tức khách nhận câu chuyển nhân viên chứ KHÔNG nhận thẻ giỏ chứa món gây dị ứng.
+    by_id = {m["id"]: m for m in MENU.items}
+    chosen = [by_id[i] for i in reply.items if i in by_id]
+    cart = build_cart(merged, chosen, reply.branch, reply.kind, MENU.category_names)
+
     new_state = update_state(state, merged, reply.items)
-    return _to_payload(reply, new_state, outcome)
+    return _to_payload(reply, new_state, outcome, cart)
 
 
-def _to_payload(reply: Reply, state: SessionState, outcome: Any) -> dict[str, Any]:
+def _to_payload(
+    reply: Reply, state: SessionState, outcome: Any, cart: list[Any] | None = None
+) -> dict[str, Any]:
     """Dịch `Reply` sang đúng tên trường backend đang đọc. Không quyết định gì về nội dung."""
     return {
         "ok": True,
         "provider_available": True,
         "content": reply.text,
-        # Thẻ giỏ hàng là việc của TV4 (`cart.py`), chưa có. Trả mảng rỗng chứ không bỏ trường:
-        # backend đọc bằng `TryGetProperty` nên cả hai đều chạy, nhưng có trường thì hợp đồng nói
-        # rõ "chưa có thẻ nào" thay vì "không biết có trường này".
-        "suggested_cart_actions": [],
+        "suggested_cart_actions": cart_payload(cart or []),
         "guardrail_flags": _flags(reply, state),
         "suggest_staff_handoff": reply.kind in ("no_data", "refuse") or bool(state.avoid_tags),
         "session_updates": {

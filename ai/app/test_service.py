@@ -295,10 +295,31 @@ class HopDongTraVe(unittest.TestCase):
         self.assertNotIn("accepted_menu_item_ids", updates)
         self.assertNotIn("added_to_cart_menu_item_ids", updates)
 
-    def test_the_gio_hang_hien_la_mang_rong_chu_khong_thieu_truong(self):
-        """`cart.py` là việc của TV4, chưa có. Có trường rỗng thì hợp đồng nói rõ 'chưa có thẻ
-        nào'; thiếu trường thì người gọi không biết có trường này."""
-        self.assertEqual(self._body()["suggested_cart_actions"], [])
+    def test_the_gio_hang_qua_HTTP_ton_trong_du_bat_bien(self):
+        """`cart.py` nay đã có. Kiểm qua đúng đường khách đi, không chỉ gọi hàm trực tiếp.
+
+        Test này từng khẳng định thẻ giỏ RỖNG (khi `cart.py` chưa tồn tại). Đổi khẳng định thay
+        vì xóa test, vì chỗ này là nơi duy nhất kiểm thẻ giỏ đi qua lớp HTTP đúng như backend gọi.
+        """
+        items = {m["id"]: m for m in service_module.MENU.items}
+        cart = self._body()["suggested_cart_actions"]
+        self.assertTrue(cart, "câu dị ứng vẫn phải nhận được gợi ý — fail-closed không nghĩa là "
+                              "không mời gì")
+        for action in cart:
+            with self.subTest(action["name"]):
+                # giá lấy từ thực đơn
+                self.assertEqual(action["price"], items[action["menu_item_id"]]["price"])
+                # luôn cần khách xác nhận
+                self.assertTrue(action["requires_customer_confirmation"])
+                # không món nào mang nhãn dị nguyên khách đã khai
+                self.assertNotIn("allergen:seafood", items[action["menu_item_id"]]["tags"])
+                # lý do nói "chưa/không ghi nhận", không nói "an toàn"
+                self.assertNotIn("an toàn", action["reason"].lower())
+
+    def test_nhanh_hoi_lai_qua_HTTP_KHONG_co_the_gio(self):
+        """Gợi ý đặt món khi chưa hiểu câu hỏi là sai, và phải sai cả qua HTTP."""
+        body = self._body("Gợi ý món đi")
+        self.assertEqual(body["suggested_cart_actions"], [])
 
     def test_json_hoa_duoc_toan_bo(self):
         json.dumps(self._body(), ensure_ascii=False)
