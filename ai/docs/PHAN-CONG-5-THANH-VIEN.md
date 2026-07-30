@@ -163,11 +163,11 @@ Hai việc đầu từng **chặn người khác**, và cả hai ĐÃ XONG:
 1. **138 ca đánh giá truy hồi** (`retrieval_cases.json`), 14 họ, 12 ca `expect_nothing`. Khóa đáp án
    là *điều kiện chọn* giải ra khi chạy, kèm `forbidden` — chỉ số **forbidden@5** quan trọng nhất vì
    nó đo việc trích đoạn **sai chủ đề**, thứ mà Hit@5 = 1,0 vẫn cho qua.
-2. **30 kịch bản đa lượt** (`session_scripts.json`), 82 lượt, **6 nhóm**. Bốn nhóm đầu:
+2. **33 kịch bản đa lượt** (`session_scripts.json`), 87 lượt, **7 nhóm**. Bốn nhóm đầu:
    `allergy_persists` (5, **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5),
    `context_reference` (9). Hai nhóm sau **sinh ra từ lỗi tìm được khi CHẠY THẬT**, không từ kế
    hoạch: `chained_reference` (3 — hai lượt tham chiếu liên tiếp) và `question_not_declaration`
-   (2 — câu HỎI về dị nguyên không được thành lời KHAI). Kết quả: **82/82**, 0 lỗi an toàn.
+   (2 — câu HỎI về dị nguyên không được thành lời KHAI). Kết quả: **87/87**, 0 lỗi an toàn.
 3. **6 phép kiểm giỏ hàng**, áp cho **MỌI ca** chứ không viết trong từng ca — chúng là BẤT BIẾN.
    Cộng chốt `safety_cart_no_allergen`, tách riêng khỏi `safety_forbid` vì hậu quả khác: nêu tên
    món là một câu nói, đưa vào thẻ giỏ là **một nút bấm được**.
@@ -419,7 +419,7 @@ vụ mới chỉ cần trả tập trường nhỏ hơn với **đúng tên cũ*
    lặng. Có 3 test chốt, gồm một chiều nghịch.
 
 ### Chặn bởi — đã hết
-Từng cần kịch bản đa lượt của TV1 để đo bộ nhớ; nay có 30 kịch bản / 82 lượt và **82/82 đạt**.
+Từng cần kịch bản đa lượt của TV1 để đo bộ nhớ; nay có 33 kịch bản / 87 lượt và **87/87 đạt**.
 
 Chạy thật qua backend tìm ra **4 lỗi mà 229 test không thấy**, cả bốn là **lệch hợp đồng giữa hai
 bên** — đúng loại lỗi test một phía không thể thấy. Nên điều kiện chấp nhận của khâu này vẫn là
@@ -453,11 +453,11 @@ cuối. Cột đó là thứ giữ bảng khỏi trôi tiếp: đọc bảng mà
 
 | TV | Đã làm | Số đo | Kiểm lại bằng |
 |---|---|---|---|
-| **1** | **132 ca trả lời** / 43 họ · **138 ca truy hồi** / 14 họ · **30 kịch bản** / 82 lượt / 6 nhóm · thước đo · `analyze_failures.py` (7 lớp nguyên nhân) | bộ dò lỗ **0 lỗ**; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn **2 kiểu ca LUÔN XANH**; `validate_cases.py` chặn khóa `facts` thước đo không thực thi | `validate_cases.py` · `probe_metric_holes.py` |
-| **2** | từ vựng: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả · cụm chỉ vị trí · **33 cụm chủ đề tri thức** | **132/132** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | `run_baseline.py --all` · `run_with_model.py` |
+| **1** | **140 ca trả lời** / 45 họ · **138 ca truy hồi** / 14 họ · **33 kịch bản** / 87 lượt / 7 nhóm · thước đo · `analyze_failures.py` (7 lớp nguyên nhân) | bộ dò lỗ **0 lỗ**; 9 loại ca viết sai bị chặn; bộ chạy phiên chặn **2 kiểu ca LUÔN XANH**; `validate_cases.py` chặn khóa `expect` VÀ khóa `facts` mà thước đo không thực thi | `validate_cases.py` · `probe_metric_holes.py` |
+| **2** | từ vựng: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả · cụm chỉ vị trí · **33 cụm chủ đề tri thức** · **mẫu số học** (không phải cụm từ khóa) | **140/140** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | `run_baseline.py --all` · `run_with_model.py` |
 | **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` · **`_knowledge_chunk` (đường synthesize)** | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | `run_retrieval_comparison.py` |
-| **4** | `cart.py` + 5 bất biến · **6 phép kiểm giỏ trong thước đo, áp cho MỌI ca** | 20 test đơn vị + **217 thẻ giỏ chấm trên 132 ca**; 0 món dị nguyên vào thẻ ở cả hai chế độ | `run_baseline.py --all` · `run_with_model.py` |
-| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema · **`last_listed_ids` đi vòng tròn qua backend** | **82/82 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy; **CI 4/4 job xanh** | `run_session_eval.py` · `gh run list` |
+| **4** | `cart.py` + 5 bất biến · **6 phép kiểm giỏ trong thước đo, áp cho MỌI ca** | 20 test đơn vị + **229 thẻ giỏ chấm trên 140 ca** (84/140 ca có thẻ); 0 món dị nguyên vào thẻ ở cả hai chế độ | `run_baseline.py --all` · `run_with_model.py` |
+| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema · **`last_listed_ids` đi vòng tròn qua backend** | **87/87 lượt phiên**, 0 lỗi an toàn; 4/4 container healthy; **CI 4/4 job xanh**; 8/8 lượt đúng khi chạy thật qua backend + mô hình trên phiên sạch | `run_session_eval.py` · `gh run list` |
 
 ### Chỗ CHƯA đóng được, và ai đóng được
 
@@ -465,7 +465,7 @@ Ba điều đầu **không ai trong nhóm đóng được** — chúng cần d�
 
 | Chỗ chưa đóng | Vì sao không tự đóng được | Ai đóng |
 |---|---|---|
-| Không có log khách thật | 132 ca và 82 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
+| Không có log khách thật | 140 ca và 87 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
 | 28/84 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
 | Tập niêm phong đã dùng hết ở **cả hai** tập | mọi con số hiện tại không còn là held-out | cần tập MỚI, và chỉ mở một lần |
 | Kịch bản đa lượt chưa chấm thẻ giỏ | lỗ đo, nhỏ | TV1 + TV4 |

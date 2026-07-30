@@ -141,7 +141,7 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 411 cụm từ vựng và 91 tên món: **66 cụm bị chứa trong cụm khác**, **40 cụm nằm
+    Kiểm kê trên 427 cụm từ vựng và 91 tên món: **66 cụm bị chứa trong cụm khác**, **40 cụm nằm
     trong tên món**, và hợp lại là **85 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 85 chỗ đó.
 
@@ -161,7 +161,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 411, "trong_cum_khac": 66, "trong_ten_mon": 40, "co_rui_ro": 85},
+            {"tu_vung": 427, "trong_cum_khac": 66, "trong_ten_mon": 40, "co_rui_ro": 85},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -290,6 +290,79 @@ class NgoaiPhamVi(unittest.TestCase):
         request = ask("Có món nào không cay không?")
         self.assertFalse(request.off_topic)
         self.assertIsNone(request.policy_topic)
+
+    def test_kien_thuc_chung_bi_chan(self):
+        """Câu kiến thức ngoài nhà hàng phải NÓI ĐƯỢC là ngoài phạm vi, không phải hỏi lại.
+
+        Trước bản này bốn câu dưới đây rơi vào nhánh hỏi lại: trợ lý hỏi khách muốn món ăn hay đồ
+        uống. Nó không trả lời sai — chữ gửi cho khách luôn dựng từ dữ liệu nhà hàng nên nó không
+        có đường trả lời — nhưng nó cũng không nói được rằng câu đó ngoài phạm vi.
+        """
+        for cau in ("Thủ đô nước Pháp là gì?", "Dân số Việt Nam bao nhiêu?",
+                    "Giải thích thuật toán Dijkstra cho mình với", "Viết code Python cho mình",
+                    "Nhà hàng bên cạnh có ngon không?", "Ai là tổng thống Mỹ?"):
+            self.assertTrue(ask(cau).off_topic, cau)
+
+    def test_khong_tu_choi_oan_cau_dung_chu_de(self):
+        """Danh sách 'ngoài phạm vi' KHÔNG được từ chối oan câu đang chọn món.
+
+        Test này tồn tại vì một cụm cụ thể đã làm đúng chuyện đó: `doi thu` (đối thủ) nằm trong
+        "đổi thử món khác" sau khi rút dấu, nên câu đổi món bị từ chối. Cả 132 ca đánh giá lẫn 82
+        lượt hội thoại vẫn xanh — không tập nào có câu nói "đổi thử" — nên lỗi chỉ hiện ra khi thử
+        đúng cách nói đó.
+
+        Mỗi cụm thêm vào danh sách 'ngoài phạm vi' là một cụm có thể nằm trong câu đúng chủ đề.
+        Danh sách dưới đây là chỗ trả giá cho việc đó.
+        """
+        for cau in ("Mình muốn đổi thử món khác", "Đổi thử cái khác được không?",
+                    "Cho mình đổi thử món khác đi", "Quán có món gì ngon?",
+                    "Nhà hàng có món chay không?", "Ông bà mình ăn được món nào?",
+                    "Cho mình nước ép cam", "Số lượng bao nhiêu phần?"):
+            self.assertFalse(ask(cau).off_topic, cau)
+
+    def test_cau_so_hoc_nhan_bang_mau_khong_bang_tu_khoa(self):
+        """Câu tính toán bị chặn, và câu về món có SỐ thì không.
+
+        Bản đầu dùng cụm từ khóa "cong bang may". Nó khớp "2 cộng bằng mấy?" nhưng KHÔNG khớp
+        "2 cộng 2 bằng mấy?" — có con số ở giữa. Phép thử cục bộ của tôi dùng câu không số nên nó
+        xanh, phép thử qua backend dùng câu có số nên nó đỏ. Cùng một cơ chế, hai cách viết câu,
+        hai kết quả — đó là dấu hiệu cơ chế sai loại, không phải thiếu cụm.
+
+        Nửa dưới quan trọng hơn nửa trên: thực đơn đầy câu có số ("gọi 2 món cho 3 người"), nên một
+        mẫu bắt oan ở đây phá nhiều hơn nó chặn.
+        """
+        for cau in ("2 cộng 2 bằng mấy?", "5 x 3 là bao nhiêu?", "10 chia 2 bằng mấy",
+                    "100 trừ 37 bằng bao nhiêu?"):
+            self.assertTrue(ask(cau).off_topic, cau)
+        for cau in ("Cho mình 2 món cho 3 người ăn", "Nhóm 6 người thì nên gọi bao nhiêu món?",
+                    "Bàn 4 người, gợi ý 5 món giúp mình", "Mình đi 2 người, ngân sách 300k",
+                    "Cho mình xem 3 món khai vị", "Có món nào dưới 50.000đ không?"):
+            self.assertFalse(ask(cau).off_topic, cau)
+
+    def test_phep_tinh_viet_bang_ky_hieu_khong_chan_duoc(self):
+        """Giới hạn ĐÃ BIẾT, chốt lại để không ai tưởng nó chạy.
+
+        `fold()` bỏ `+ - * /`, nên "3+4" thành "3 4" — không phân biệt được với "gọi 3 4 món". Thêm
+        lớp ký hiệu vào mẫu là mã chết. Test này giữ giới hạn đó ở trạng thái ĐO ĐƯỢC: nếu về sau
+        có ai làm nó chặn được thì test đỏ và đó là tin tốt, cập nhật test.
+        """
+        self.assertFalse(ask("3+4 = ?").off_topic)
+
+    def test_gia_khach_khang_dinh_khong_thanh_ngan_sach(self):
+        """"Phở bò tái nạm giá 45.000đ đúng không?" là KHẲNG ĐỊNH GIÁ, không phải ngân sách.
+
+        Đo được khi chạy thật qua backend: con số đó vào bộ nhớ phiên thành ngân sách và dính lại,
+        nên lượt sau "Món đắt nhất giá bao nhiêu?" trả lời "Cháo lòng Sài Gòn, 45.000đ". Tên món và
+        giá đều có thật trong thực đơn — nên không thước đo nào về việc bịa dữ liệu bắt được — mà
+        câu trả lời thì sai.
+        """
+        r = ask("Phở bò tái nạm giá 45.000đ đúng không?")
+        self.assertEqual(r.asserted_price, 45000)
+        self.assertIsNone(r.budget_max)
+        # Không có tên món thì con số vẫn là ngân sách: luật này hẹp có chủ đích.
+        b = ask("Có món nào dưới 45.000đ đúng không?")
+        self.assertIsNone(b.asserted_price)
+        self.assertEqual(b.budget_max, 45000)
 
 
 class SoSanh(unittest.TestCase):

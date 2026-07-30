@@ -132,6 +132,12 @@
     "require": [],
     "wants": "food"
   },
+  "9f5715e10c1524df65e24370b767fc7c": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
   "9fe2d578b327fa408597715f9e000b47": {
     "avoid": [
       "allergen:dairy"

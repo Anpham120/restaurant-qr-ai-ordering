@@ -1007,6 +1007,81 @@
           }
         }
       ]
+    },
+    {
+      "id": "extreme-scope-01",
+      "group": "extreme_scope",
+      "why": "Câu cực trị SAU khi khách nêu ngân sách. Phải nêu đúng món đắt nhất trong ngân sách, và phải NÓI RA rằng nó đang xét trong phạm vi đó.",
+      "turns": [
+        {
+          "user": "Cho mình món ăn dưới 100.000đ",
+          "expect": {
+            "expect_kind": "list",
+            "memory_budget_max": 100000,
+            "why": "Lượt khai ngân sách. Phải vào bộ nhớ để lượt sau có phạm vi."
+          }
+        },
+        {
+          "user": "Món đắt nhất giá bao nhiêu?",
+          "expect": {
+            "expect_kind": "fact",
+            "must_say_all": [
+              "trong phạm vi",
+              "95.000đ"
+            ],
+            "memory_budget_max": 100000,
+            "why": "Hai tiêu chí trong một khóa, hai lỗi khác nhau. Giá 95.000đ chốt hệ thống lấy món ĐẮT nhất trong ngân sách, không phải món rẻ nhất (12.000đ). Cụm 'trong phạm vi' chốt câu trả lời nói ra phạm vi của nó; thiếu cụm đó thì khách đọc được một khẳng định tuyệt đối sai.\nChốt GIÁ chứ không chốt MÓN vì 5 món cùng giá 95.000đ — chốt món thì tiêu chí phụ thuộc thứ tự phá hòa và có thể đỏ khi hệ thống đúng."
+          }
+        }
+      ]
+    },
+    {
+      "id": "extreme-scope-02",
+      "group": "extreme_scope",
+      "why": "Chiều KHÔNG có ràng buộc. Không có kịch bản này thì một bản 'luôn thêm trong phạm vi bạn nêu' cũng xanh, và bản đó nói sai ở mọi câu không có ràng buộc.",
+      "turns": [
+        {
+          "user": "Món đắt nhất giá bao nhiêu?",
+          "expect": {
+            "expect_kind": "fact",
+            "must_name_item": [
+              "m_022"
+            ],
+            "must_not_say_any": [
+              "trong phạm vi"
+            ],
+            "why": "Không ràng buộc nào, nên phạm vi là cả thực đơn: Tôm hùm nướng mỡ hành (890.000đ).\n`must_not_say_any` là tiêu chí LÀM VIỆC của kịch bản này: không có nó thì một bản 'luôn thêm trong phạm vi bạn nêu' cũng xanh, và bản đó nói sai ở mọi câu không có ràng buộc. Chốt món dùng được ở đây vì giá 890.000đ là DUY NHẤT trong thực đơn — không có chỗ hòa để phá."
+          }
+        }
+      ]
+    },
+    {
+      "id": "price-premise-01",
+      "group": "extreme_scope",
+      "why": "Nguyên nhân GỐC của lỗi trên: giá khách KHẲNG ĐỊNH bị lưu thành ngân sách phiên rồi dính lại.",
+      "turns": [
+        {
+          "user": "Phở bò tái nạm giá 45.000đ đúng không?",
+          "expect": {
+            "expect_kind": "fact",
+            "must_name_item": [
+              "m_008"
+            ],
+            "memory_budget_max": null,
+            "why": "Phải đính chính theo thực đơn (75,000đ) và KHÔNG lưu 45.000đ thành ngân sách. `memory_budget_max: null` là tiêu chí quan trọng nhất của kịch bản — câu trả lời lượt này có thể trông đúng trong khi bộ nhớ đã nhiễm."
+          }
+        },
+        {
+          "user": "Món đắt nhất giá bao nhiêu?",
+          "expect": {
+            "expect_kind": "fact",
+            "must_name_item": [
+              "m_022"
+            ],
+            "why": "Lượt LỘ RA lỗi. Nếu lượt 1 nhiễm bộ nhớ thì câu này trả lời một món 45.000đ thay vì Tôm hùm nướng mỡ hành — đúng dữ liệu, sai sự thật."
+          }
+        }
+      ]
     }
   ]
 }

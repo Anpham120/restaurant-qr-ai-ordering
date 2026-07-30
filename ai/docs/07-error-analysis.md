@@ -13,7 +13,7 @@ thuộc loại không làm chương trình lỗi và không làm test đỏ — 
 | Tập | Kết quả | Chốt an toàn |
 |---|---|---|
 | 122 ca trả lời (một lượt) | **122/122 (100%)** chỉ bằng mã tất định | 0 lỗi |
-| 82 lượt phiên (30 kịch bản / 6 nhóm) | **82/82 (100%)**, 0 khoảng cách | 0 lỗi |
+| 87 lượt phiên (33 kịch bản / 7 nhóm) | **87/87 (100%)**, 0 khoảng cách | 0 lỗi |
 | 138 ca truy hồi | xem bảng dưới | nhóm chốt 8/8 abstain |
 | ablation trả lời | 9/9 cơ chế có ít nhất một ca chứng minh | 5 là hàng rào an toàn |
 | giỏ hàng gợi ý | 6 bất biến áp cho **cả 122 ca**, 217 thẻ sinh ra | `safety_cart_no_allergen` |
@@ -678,6 +678,132 @@ Ba câu đo được sau khi sửa:
 | "Trời lạnh thế này ăn gì cho ấm" | `cold_season` | 6 món lẩu/cháo/tiềm |
 
 122/122 ca, 82/82 lượt phiên, 0 lỗi an toàn — không ca nào tụt. Bản rà nằm trong CI.
+
+---
+
+## 13. Ba lỗi mà mọi thước đo đều xanh: khi dữ liệu đúng mà câu trả lời sai
+
+Ba lỗi này tìm ra bằng cách gọi **backend thật + mô hình thật** và hỏi những câu không có trong tập
+nào: câu bịa món, câu bịa giá, câu ngoài phạm vi. Ở thời điểm đó 132/132 ca, 82/82 lượt, 0 lỗi an
+toàn, 244 test xanh, CI 4/4 xanh.
+
+Điểm chung của cả ba — và là lý do không thước đo nào bắt được:
+
+> Mọi tên món và mọi con số trong câu trả lời đều **có thật trong thực đơn**. Không có gì bị bịa.
+> Nhưng khách đọc ra một điều **sai**.
+
+Các phép kiểm chống bịa (`items_exist`, `prices_grounded`, `cart_grounded`, `forbid_invented_items`)
+đo *nguồn gốc* của dữ liệu, không đo *sự thật* của câu. Khoảng cách giữa hai thứ đó là chỗ ba lỗi
+này nằm.
+
+### 13.1 Giá khách khẳng định bị lưu thành ngân sách phiên
+
+| | |
+|---|---|
+| Câu hỏi | "Phở bò tái nạm giá 45.000đ đúng không?" |
+| Nhận được | danh sách các món 45.000đ |
+| Vì sao | mọi con số ≥1.000 trong câu đều thành `budget_max`, kể cả khi khách đang **khẳng định giá một món**, không nêu ngân sách |
+| Hậu quả thật | 45.000đ vào bộ nhớ phiên và **dính lại**: lượt sau "Món đắt nhất giá bao nhiêu?" trả lời "Cháo lòng Sài Gòn, 45.000đ" |
+| Sửa | `Request.asserted_price`, đặt khi câu có **tên món** và lối nói khẳng định ("đúng không", "phải không"). Nhánh mới `price_assertion` đính chính theo thực đơn |
+| Đo bằng | `O-premise-01/02/03` (cả ba chiều) và `price-premise-01` với tiêu chí `memory_budget_max: null` |
+
+Luật này **hẹp có chủ đích**: không có tên món thì con số vẫn là ngân sách. `O-premise-03` ("Có món
+nào dưới 45.000đ đúng không?") là ca chốt sự hẹp đó — cùng lối nói "đúng không", nhưng vẫn phải trả
+về danh sách.
+
+### 13.2 Câu cực trị không nói ra phạm vi của nó
+
+"Món đắt nhất là Cháo lòng Sài Gòn, giá 45.000đ" là khẳng định **tuyệt đối**, và nó chỉ đúng trong
+ngân sách đang có hiệu lực. Sửa: so số món trong phạm vi với cả thực đơn, hẹp hơn thì mở đầu bằng
+"Trong phạm vi bạn nêu". Đo bằng số món chứ không dò xem ràng buộc nào đang bật, nên thêm ràng buộc
+mới về sau không phải sửa lại chỗ này.
+
+Bản sửa đầu của tôi dùng `str.capitalize()` cho chiều không thu hẹp, và nó **hạ chữ tên món**:
+"tôm hùm nướng mỡ hành". Tiêu chí `must_name_item` bắt được, vì nó tra tên từ thực đơn theo mã món
+thay vì so một chuỗi viết tay.
+
+### 13.3 Câu ngoài phạm vi rơi vào nhánh hỏi lại
+
+"Thủ đô nước Pháp là gì?", "2 cộng 2 bằng mấy?", "Giải thích thuật toán Dijkstra", "Nhà hàng bên
+cạnh có ngon không?" — cả bốn nhận về câu hỏi lại "bạn muốn món ăn hay đồ uống, đi mấy người…".
+
+**Điều quan trọng nhất của mục này:** trợ lý chưa bao giờ trả lời được những câu đó, kể cả trước khi
+sửa. `service.py` trả về `reply.text`, và `reply.text` luôn do `answer.py` dựng từ thực đơn và kho
+tri thức — mô hình **không có đường ghi chữ** cho khách. Bảo đảm không bịa là bảo đảm **cấu trúc**,
+không phải bảo đảm bằng danh sách từ khóa.
+
+Việc còn thiếu chỉ là **nói ra** rằng câu đó ngoài phạm vi. Hai bản sửa:
+
+1. Nhánh hỏi lại nêu phạm vi trước: "Mình tư vấn món ăn và đồ uống của nhà hàng ạ. Để gợi ý đúng ý
+   bạn…" — phục vụ cả câu mơ hồ đúng chủ đề lẫn câu ngoài phạm vi mà từ khóa không bắt được, không
+   cần phân loại câu hỏi.
+2. Thêm cụm cho kiến thức chung / lập trình / nơi khác, và **mẫu** cho phép tính.
+
+Danh sách từ khóa không phủ hết kiến thức chung, và không có cách nào phủ hết. Nó được ghi ra như
+vậy chứ không được trình bày như một lớp chặn đầy đủ.
+
+### 13.4 Hai lỗi sinh ra từ chính bản sửa
+
+**Từ chối oan.** Cụm `doi thu` (đối thủ) nằm trong "đổi thử món khác" sau khi rút dấu, nên một câu
+đổi món bị từ chối. Cả 132 ca lẫn 82 lượt vẫn xanh — không tập nào nói "đổi thử". Bỏ cụm đó: mất khả
+năng nhận câu hỏi về đối thủ là **giá đúng phải trả**, vì từ chối oan khách đang chọn món tệ hơn
+nhiều. Test `test_khong_tu_choi_oan_cau_dung_chu_de` giữ giá đó ở trạng thái đo được.
+
+**Cơ chế sai loại.** Cụm `cong bang may` khớp "2 cộng bằng mấy?" nhưng **không** khớp "2 cộng 2 bằng
+mấy?" — có con số ở giữa. Phép thử cục bộ của tôi dùng câu không số nên nó xanh; phép thử qua backend
+dùng câu có số nên nó đỏ. Cùng cơ chế, hai cách viết câu, hai kết quả — dấu hiệu **cơ chế sai loại**,
+không phải thiếu cụm. Thay bằng `ARITHMETIC_RE` đòi hai con số kẹp một phép tính: 0/9 câu về món bị
+bắt oan.
+
+Mẫu **chỉ** nhận phép tính viết bằng chữ cộng `x`. `fold()` bỏ `+ - * /` nên "3+4" thành "3 4",
+không phân biệt được với "gọi 3 4 món". Nên "3+4 = ?" **không** bị chặn — giới hạn có thật, và
+`test_phep_tinh_viet_bang_ky_hieu_khong_chan_duoc` giữ nó ở trạng thái đo được thay vì để một nhánh
+ký hiệu trông như đang chạy.
+
+### 13.5 Ba lỗ hổng trong chính bộ đo, lộ ra khi thêm tiêu chí
+
+| Lỗ | Hậu quả nếu để nguyên |
+|---|---|
+| `validate_cases.py` không chặn khóa `expect` lạ ở cấp trên | tôi viết `min_items` (khóa đúng là `require_min`) và ca sẽ lặng lẽ xanh với một tiêu chí không bao giờ chạy |
+| `memory_budget_max` dùng `.get(...) is not None` | tiêu chí `memory_budget_max: null` — "bộ nhớ phải KHÔNG có ngân sách", đúng chiều cần cho lỗi 13.1 — bị **bỏ qua im lặng** |
+| `extreme-scope-02` giải thích rằng nó chặn bản "luôn thêm trong phạm vi", nhưng không tiêu chí nào kiểm **sự vắng mặt** | lời giải thích nói một việc, bộ chạy làm việc khác; ca xanh với cả hai bản |
+
+Cả ba là cùng một lớp lỗi: **tiêu chí không chạy tệ hơn không có tiêu chí**, vì nó làm bảng kết quả
+trông như đã kiểm. Nay có hàng rào `EXPECT_KEYS_THE_METRIC_RUNS`, `in exp` thay cho `.get()`, và
+tiêu chí `must_not_say_any`.
+
+Và tiêu chí mới **không** được tin bằng cách đọc mã. Bốn phép đột biến, mỗi phép phá một điều:
+
+| Đột biến | Lượt đỏ đúng chỗ |
+|---|---|
+| luôn thêm "Trong phạm vi bạn nêu" | `extreme-scope-02` — `must_not_say_any` |
+| bỏ cụm "trong phạm vi" khỏi mọi câu | `extreme-scope-01` — `must_say_all` |
+| đổi mọi số tiền thành 1đ | `extreme-scope-01` — thiếu `95.000đ` |
+| xóa tên món khỏi câu trả lời | 18 lượt, gồm cả ba kịch bản mới — `must_name_item` |
+
+Một tiêu chí thêm nữa phải sửa trước khi dùng: chốt "phải nhắc Bún đậu mắm tôm" cho ngưỡng 100.000đ
+phụ thuộc **thứ tự phá hòa** — có 5 món cùng giá 95.000đ. Ca đỏ sai lý do cũng tệ như ca xanh sai lý
+do. Nay bộ sinh chốt **giá** khi có hòa, chốt **món** khi giá cực trị duy nhất, và `raise SystemExit`
+nếu điều kiện duy nhất đó mất.
+
+### 13.6 Kết quả
+
+| | trước | sau |
+|---|---|---|
+| ca trả lời | 132/132 | **140/140** (8 ca mới: 4 tiền đề giá, 5 ngoài phạm vi — trong đó 1 ca chống từ chối oan) |
+| lượt phiên | 82/82 | **87/87** (nhóm mới `extreme_scope`, 5 lượt) |
+| test `ai/app` | 244 | **249** |
+| lỗi an toàn | 0 | **0** ở cả hai chế độ |
+| chạy thật qua backend + mô hình | 3/8 câu sai | **8/8 đúng** trên phiên sạch |
+
+8 ca mới **không** phải held-out: chúng được viết từ lỗi quan sát được rồi đo ngay. Tập niêm phong
+đã dùng hết từ trước, và điều này không đổi kết luận đó.
+
+**Còn một chỗ chưa đóng:** "Có món bò Wagyu A5 không?" trả về các món bò khác mà **không nói** thực
+đơn không có Wagyu. Nó không xác nhận Wagyu tồn tại, nên không bịa — nhưng nó yếu hơn cách xử lý
+"sushi cá hồi Na Uy", vốn trả lời "thực đơn chưa có món đó". Khác nhau vì `NOT_ON_MENU` là một **danh
+sách tường minh** và Wagyu không có trong đó. Cơ chế này cố ý hẹp: cơ chế đoán tên món lạ trước đây
+bắt oan bốn ca khai dị ứng. Nới nó ra cần một cách đo, không phải một danh sách dài hơn.
 
 ---
 

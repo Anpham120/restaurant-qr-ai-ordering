@@ -49,6 +49,19 @@ VALID_KINDS = {"fact", "list", "compare", "no_data", "clarify", "refuse"}
 #
 # `run_session_eval.py` đã có hàng rào cùng loại cho khóa `expect` của nó. Chỗ này thiếu, nên thêm.
 FACT_KEYS_THE_METRIC_RUNS = {"price", "tags_include", "tags_exclude"}
+
+# Khóa cấp trên của `expect` mà thước đo thực thi. Cùng hàng rào, một cấp cao hơn.
+#
+# Lỗ hổng này lộ ra ngay lần dùng sau: tôi viết `min_items` cho một ca mới, và `min_items` không tồn
+# tại trong thước đo — khóa đúng là `require_min`. Không có hàng rào này thì ca đó lặng lẽ xanh với
+# một tiêu chí không bao giờ chạy, đúng lớp lỗi mà hàng rào `facts` ở trên vừa chặn.
+#
+# `why` không phải tiêu chí máy chạy, nhưng nó BẮT BUỘC có và được kiểm riêng bên dưới.
+EXPECT_KEYS_THE_METRIC_RUNS = {
+    "kind", "why", "require_min", "allowed", "forbid", "require_from", "facts",
+    "must_offer_staff", "knowledge_topic", "knowledge_chunk_topic",
+    "forbid_invented_items", "forbid_leak", "allow_items",
+}
 VALID_TYPES = {"A", "B", "C"}
 SELECTOR_FIELDS = ("allowed", "forbid", "require_from")
 
@@ -127,6 +140,13 @@ def main() -> int:
         expect = case.get("expect") or {}
         kind = expect.get("kind")
         check(problems, cid, f"kind lạ: {kind!r}", kind in VALID_KINDS)
+        la_tren = sorted(set(expect) - EXPECT_KEYS_THE_METRIC_RUNS)
+        check(
+            problems, cid,
+            f"khóa `expect` thước đo KHÔNG thực thi: {la_tren} — tiêu chí sẽ không bao giờ chạy "
+            "và ca lặng lẽ luôn xanh",
+            not la_tren,
+        )
         for _mid, _facts in (expect.get("facts") or {}).items():
             la = sorted(set(_facts) - FACT_KEYS_THE_METRIC_RUNS)
             check(

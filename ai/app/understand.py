@@ -86,6 +86,13 @@ class Request:
     # Lỗi này chỉ hiện khi chạy thật qua backend, vì nó cần bộ nhớ SỐNG QUA nhiều lượt.
     declared_avoidance: bool = False
     asks_price: bool = False
+    # Giá khách KHẲNG ĐỊNH về một món đã nêu tên — khác hoàn toàn với ngân sách.
+    #
+    # "Phở bò tái nạm giá 45.000đ đúng không?" từng bị đọc thành ngân sách 45.000đ, và hậu quả đo
+    # được khi chạy thật: ngân sách đó vào bộ nhớ phiên và DÍNH LẠI, nên lượt sau "Món đắt nhất giá
+    # bao nhiêu?" trả lời "Cháo lòng Sài Gòn, 45.000đ" — mọi con số đều có thật trong thực đơn,
+    # nhưng câu trả lời thì sai.
+    asserted_price: int | None = None
     # Khách hỏi một phần cho MẤY NGƯỜI ăn. Trả lời từ nhãn `party:*` của chính món, không từ tri
     # thức chung — hỏi về một món thì đáp án là nhãn của món đó.
     asks_serving: bool = False
@@ -567,6 +574,24 @@ _add("size lon|size nho|size vua|size|phan lon|to lon|bat lon", "policy", "no_si
 _add("thoi tiet|ty gia|bong da|tin tuc", "flag", "off_topic")
 _add("prompt he thong|system prompt|model ai nao|chi dan noi bo|ban dung model gi", "flag", "off_topic")
 _add("goi taxi|goi xe|dat ve|dich cau nay|dich sang tieng", "flag", "off_topic")
+# Kiến thức chung, toán, lập trình, nơi khác. Thêm sau khi chạy thật: bốn câu kiểu "Thủ đô nước
+# Pháp là gì?", "2 cộng 2 bằng mấy?", "Giải thích thuật toán Dijkstra", "Nhà hàng bên cạnh có ngon
+# không?" đều rơi vào nhánh HỎI LẠI, tức trợ lý hỏi khách muốn món ăn hay đồ uống. Nó không trả
+# lời sai, nhưng nó cũng không nói được rằng câu đó ngoài phạm vi.
+#
+# Danh sách từ khóa KHÔNG phủ hết kiến thức chung, và không có cách nào phủ hết. Bảo đảm thật nằm ở
+# chỗ khác: chữ gửi cho khách luôn do `answer.py` dựng từ dữ liệu thực đơn và kho tri thức, nên trợ
+# lý KHÔNG CÓ ĐƯỜNG trả lời một câu ngoài phạm vi dù có hiểu nó. Danh sách này chỉ để nói ra điều
+# đó cho khách nghe, thay vì hỏi lại một câu không liên quan.
+_add("thu do|dan so|dien tich nuoc|lich su the gioi|ai la tong thong|ai la thu tuong",
+     "flag", "off_topic")
+_add("giai phuong trinh|thuat toan|lap trinh|viet code|python|javascript",
+     "flag", "off_topic")
+# KHÔNG có "doi thu" ở đây. Cụm đó nằm trong "đổi thử món khác" sau khi rút dấu, nên nó từ chối
+# oan một câu hoàn toàn đúng chủ đề — đo được ngay khi thêm. Mất khả năng nhận ra câu hỏi về đối
+# thủ là giá phải trả, và là giá đúng: từ chối oan khách đang chọn món tệ hơn nhiều so với hỏi lại
+# một câu về đối thủ.
+_add("nha hang ben canh|nha hang khac|quan ben canh|quan khac", "flag", "off_topic")
 
 # Cụm sắp theo độ dài giảm dần — đây là cơ chế chống đụng chữ.
 VOCAB_ORDER = sorted(VOCAB, key=lambda p: (-len(p), p))
@@ -587,6 +612,29 @@ REFERENCE_PHRASES = frozenset(p for p, (kind, _) in VOCAB.items() if kind == "re
 # Khác với "dưới 50.000đ" hay "tầm 80k trở xuống", vốn được hiểu là bao gồm.
 # Bỏ qua khác biệt này thì câu "rẻ hơn 20 nghìn" trả về Bia Sài Gòn Special đúng 20.000đ.
 STRICT_BUDGET_FRAMING = ("re hon", "it hon", "thap hon", "duoi muc", "khong den")
+
+# Cách nói KHẲNG ĐỊNH: khách đưa ra một con số và hỏi nó có đúng không.
+#
+# Kèm điều kiện có tên món, danh sách này mới được dùng — "dưới 45k đúng không?" (không tên món)
+# vẫn là ngân sách. Hẹp có chủ đích: nó chỉ chặn đúng trường hợp đo được, không đoán rộng ra.
+PRICE_ASSERTION_FRAMING = ("dung khong", "phai khong", "co dung", "co phai", "dung chu",
+                           "phai chu", "co đung")
+
+# Phép tính: "2 cộng 2 bằng mấy", "5 x 3", "10 chia 2".
+#
+# Mẫu chứ không phải danh sách cụm, vì cụm "cong bang may" khớp "2 cộng bằng mấy?" mà KHÔNG khớp
+# "2 cộng 2 bằng mấy?" — có con số ở giữa. Lỗi đó đã xảy ra thật: bản từ khóa qua được phép thử cục
+# bộ của tôi và trượt ở phép thử qua backend, vì hai phép thử dùng hai cách viết câu.
+#
+# Mẫu đòi HAI con số kẹp một phép tính, nên nó không khớp câu về món: "gọi 2 món cho 3 người" không
+# có phép tính ở giữa, còn "50.000đ" chỉ có một số. Đo trên 9 câu về món: 0 câu bắt oan.
+#
+# CHỈ có tên phép tính viết bằng chữ, cộng `x`. Không có `+ - * /` vì `fold()` bỏ chúng: "3+4" thành
+# "3 4", không phân biệt được với "gọi 3 4 món". Nên "3+4 = ?" KHÔNG bị chặn — giới hạn có thật, ghi
+# ra chứ không để một nhánh ký hiệu trông như đang chạy. Thêm chúng vào mẫu là mã chết.
+ARITHMETIC_RE = re.compile(
+    r"\d+\s*(?:cong|tru|nhan|chia|x)\s*\d+"
+)
 
 # Tiền: "50k", "200 nghìn", "50.000đ".
 MONEY_RE = re.compile(
@@ -797,13 +845,28 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         elif unit == "trieu":
             value *= 1_000_000
         # Con số dưới 1.000 đồng không phải ngân sách thật — thường là số người.
-        if value >= 1000:
+        #
+        # Và con số đi kèm TÊN MÓN cùng lối nói khẳng định là giá khách tưởng, không phải ngân
+        # sách: nó phải được ĐÍNH CHÍNH, không phải dùng để lọc.
+        khang_dinh_gia = bool(request.named_items) and any(
+            f in request.folded for f in PRICE_ASSERTION_FRAMING
+        )
+        if value >= 1000 and khang_dinh_gia:
+            request.asserted_price = value
+            request.matched.append(f"giá khách khẳng định: {value:,}đ")
+        elif value >= 1000:
             request.budget_max = value
             request.budget_strict = any(
                 f in request.folded for f in STRICT_BUDGET_FRAMING
             )
             limit = "<" if request.budget_strict else "<="
             request.matched.append(f"ngân sách: {limit} {value:,}đ")
+
+    # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
+    #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.
+    if ARITHMETIC_RE.search(request.folded):
+        request.off_topic = True
+        request.matched.append("phép tính -> ngoài phạm vi")
 
     # 6a. Dịp ăn ngầm định đây là bữa ăn, nên là món ăn — trừ "nhậu", vì nhậu bao gồm cả
     #     bia. Không có luật này thì câu "Mình đi hẹn hò, nên gọi món gì?" trả về cả

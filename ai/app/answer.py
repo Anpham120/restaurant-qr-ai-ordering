@@ -447,11 +447,44 @@ def respond(request: Request, items: list[dict]) -> Reply:
         item = min(pool, key=lambda i: i["price"]) if request.asks_extreme == "cheapest" \
             else max(pool, key=lambda i: i["price"])
         label = "rẻ nhất" if request.asks_extreme == "cheapest" else "đắt nhất"
+        # NÓI RÕ phạm vi khi phạm vi bị thu hẹp.
+        #
+        # Câu "Món đắt nhất là Cháo lòng Sài Gòn, giá 45.000đ" là một khẳng định TUYỆT ĐỐI sai,
+        # dù cả tên món lẫn giá đều có thật: nó chỉ đúng trong phạm vi ngân sách đang có hiệu lực.
+        # Với khách, một câu như vậy không khác gì bịa — nên câu trả lời phải mang theo phạm vi
+        # của chính nó.
+        #
+        # Đo bằng số món, không bằng việc dò xem ràng buộc nào đang bật: hễ phạm vi nhỏ hơn cả
+        # thực đơn thì nói ra, nên thêm ràng buộc mới về sau không cần sửa chỗ này.
+        # `str.capitalize()` KHÔNG dùng được ở đây: nó hạ chữ toàn bộ phần sau, nên "Tôm hùm nướng
+        # mỡ hành" thành "tôm hùm nướng mỡ hành". Tên món là dữ liệu, không phải văn xuôi — không
+        # hàm chữ nào được chạy qua nó. Tiêu chí `must_name_item` của bộ chạy phiên bắt đúng lỗi
+        # này, vì nó so tên món tra từ thực đơn chứ không so chuỗi viết tay.
+        mo_dau = "Trong phạm vi bạn nêu, m" if len(pool) < len(items) else "M"
         return Reply(
-            text=f"Món {label} là {item['name']}, giá {money(item['price'])} ạ.",
+            text=f"{mo_dau}ón {label} là {item['name']}, giá {money(item['price'])} ạ.",
             items=[item["id"]],
             kind="fact",
             branch=f"extreme:{request.asks_extreme}",
+        )
+
+    # 5b. Khách khẳng định một mức giá cho món đã nêu tên — ĐÍNH CHÍNH theo thực đơn.
+    #
+    # Đây là chốt "không nhận tiền đề sai": con số sai do KHÁCH đưa ra, và im lặng rồi trả lời
+    # chuyện khác là để khách tin con số sai đó. Nhánh này chỉ đọc giá trong thực đơn nên nó không
+    # thể bịa; việc nó thêm vào là nói thẳng hai con số có khớp nhau hay không.
+    if named and request.asserted_price is not None:
+        item = named[0]
+        if item["price"] == request.asserted_price:
+            noi = f"Đúng ạ, {phrase(item)} theo thực đơn."
+        else:
+            noi = (f"Thực đơn ghi {phrase(item)}, không phải "
+                   f"{money(request.asserted_price)} ạ.")
+        return Reply(
+            text=f"{noi} {STAFF_NOTE}",
+            items=[item["id"]],
+            kind="fact",
+            branch="price_assertion",
         )
 
     # 6a. Câu hỏi về dị nguyên của một món đã nêu tên.
@@ -541,9 +574,17 @@ def respond(request: Request, items: list[dict]) -> Reply:
     )
     if not said_something:
         return Reply(
+            # Nêu PHẠM VI trước khi hỏi lại.
+            #
+            # Nhánh này nhận hai loại câu rất khác nhau: câu mơ hồ nhưng đúng chủ đề ("tư vấn giúp
+            # mình với") và câu ngoài phạm vi mà từ khóa không bắt được. Với loại thứ hai, hỏi
+            # "bạn muốn món ăn hay đồ uống" là một câu trả lời trớ trêu.
+            #
+            # Nêu phạm vi phục vụ được cả hai mà không cần phân loại câu hỏi — và phân loại chính
+            # là chỗ sẽ đoán sai, vì không có cách nào liệt kê hết kiến thức ngoài nhà hàng.
             text=(
-                "Để gợi ý đúng ý bạn, cho mình biết bạn muốn món ăn hay đồ uống, "
-                "đi mấy người, và tầm giá khoảng bao nhiêu ạ?"
+                "Mình tư vấn món ăn và đồ uống của nhà hàng ạ. Để gợi ý đúng ý bạn, cho mình biết "
+                "bạn muốn món ăn hay đồ uống, đi mấy người, và tầm giá khoảng bao nhiêu ạ?"
             ),
             kind="clarify",
             asks_back=True,

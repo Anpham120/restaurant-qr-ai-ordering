@@ -67,6 +67,10 @@ KHOA_HIEU = frozenset({
     "forbid_tags_any",
     "min_items",
     "expect_kind",
+    "must_name_item",
+    "must_say_any",
+    "must_say_all",
+    "must_not_say_any",
     "refers_to_turn",
     "refers_to_position",
     "must_not_repeat_turn",
@@ -158,6 +162,9 @@ def chay_kich_ban(script: dict, items: list[dict]) -> list[dict]:
             "reply": reply,
             "state": state,
             "items": [theo_id[i] for i in reply.items if i in theo_id],
+            # Cả thực đơn, để `must_name_item` tra tên theo mã món — tiêu chí khai mã, không khai
+            # chuỗi, nên nó không trôi khi tên món đổi.
+            "menu": items,
         })
     return ghi
 
@@ -181,6 +188,47 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
 
     if exp.get("expect_kind") and reply.kind != exp["expect_kind"]:
         do.append(f"dạng đáp án `{reply.kind}`, cần `{exp['expect_kind']}`")
+
+    # `must_name_item`: câu trả lời phải NHẮC TÊN đúng món, tên lấy từ thực đơn theo mã món.
+    #
+    # Tiêu chí này khai mã món chứ không khai chuỗi, nên nó không thể trùng với chính lời giải
+    # thích của nó — lớp lỗi "phép kiểm chuỗi khớp đúng cách nó tự diễn đạt" đã xảy ra bốn lần
+    # trong dự án này.
+    for mid in exp.get("must_name_item", []):
+        mon = _theo_id(ban_ghi["menu"])[mid] if "menu" in ban_ghi else None
+        ten = mon["name"] if mon else mid
+        if ten not in reply.text:
+            do.append(f"không nhắc {ten!r} — câu trả lời sai món")
+
+    # `must_say_any`: câu trả lời phải chứa MỘT trong các cụm khách cần đọc thấy.
+    #
+    # Dùng cho đúng một việc: câu cực trị phải nói ra PHẠM VI của nó. "Món đắt nhất là Cháo lòng
+    # Sài Gòn, giá 45.000đ" là khẳng định tuyệt đối sai dù tên món và giá đều có thật — nó chỉ
+    # đúng trong ngân sách đang có hiệu lực. Không cụm nào trong câu trả lời nói ra điều đó thì
+    # khách đọc được một điều sai, và không tiêu chí nào khác của bộ này bắt được.
+    cum = exp.get("must_say_any")
+    if cum and not any(c.lower() in reply.text.lower() for c in cum):
+        do.append(f"không có cụm nào trong {cum} — câu trả lời không nói ra phạm vi của nó")
+
+    # `must_say_all`: MỌI cụm phải có mặt. Dùng khi một lượt cần chốt hai điều cùng lúc.
+    #
+    # Có mặt vì `must_name_item` không dùng được ở chỗ có HÒA: 5 món cùng giá 95.000đ, nên chốt
+    # "phải nhắc Bún đậu mắm tôm" qua được chỉ nhờ thứ tự phá hòa của bảng xếp hạng — tiêu chí đó
+    # có thể đỏ khi hệ thống hoàn toàn đúng. Chốt GIÁ thì không phụ thuộc thứ tự, mà vẫn phân biệt
+    # được đắt nhất với rẻ nhất (95.000đ so với 45.000đ).
+    for c in exp.get("must_say_all", []):
+        if c.lower() not in reply.text.lower():
+            do.append(f"thiếu cụm {c!r} trong câu trả lời")
+
+    # `must_not_say_any`: cụm KHÔNG được có mặt.
+    #
+    # Chiều phủ định là chỗ tiêu chí dễ thành mã chết nhất. Kịch bản `extreme-scope-02` ghi trong
+    # `why` rằng nó chặn bản "luôn thêm 'trong phạm vi bạn nêu'", nhưng bản đầu KHÔNG có tiêu chí
+    # nào kiểm sự vắng mặt — lời giải thích nói một việc, bộ chạy làm việc khác, và ca vẫn xanh với
+    # cả hai bản. Đó là lỗi tệ hơn thiếu ca: nó làm người đọc tin một chiều đã được đo.
+    for c in exp.get("must_not_say_any", []):
+        if c.lower() in reply.text.lower():
+            do.append(f"câu trả lời có cụm {c!r} mà lượt này KHÔNG được có")
 
     if exp.get("refers_to_turn") is not None:
         k = exp["refers_to_turn"]
@@ -293,7 +341,11 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
                 f"bộ nhớ CÒN GIỮ `{tag}` sau khi khách đổi ý — ghi đè phải theo NHÓM, "
                 "giữ cả hai giá trị thì phép lọc AND cho kết quả RỖNG"
             )
-    if exp.get("memory_budget_max") is not None and state.budget_max != exp["memory_budget_max"]:
+    # `in exp`, KHÔNG phải `.get(...) is not None`: bản trước bỏ qua im lặng tiêu chí
+    # `memory_budget_max: null`, tức "bộ nhớ phải KHÔNG có ngân sách" — đúng chiều cần đo cho lỗi
+    # giá khách khẳng định bị lưu thành ngân sách. Một tiêu chí viết đúng ý mà bộ chạy lặng lẽ bỏ
+    # qua là ca luôn xanh, và đây là lần thứ ba lớp lỗi này xuất hiện trong dự án.
+    if "memory_budget_max" in exp and state.budget_max != exp["memory_budget_max"]:
         do.append(f"ngân sách trong bộ nhớ {state.budget_max}, cần {exp['memory_budget_max']}")
     if exp.get("memory_wants") and state.wants != exp["memory_wants"]:
         do.append(f"`wants` trong bộ nhớ {state.wants!r}, cần {exp['memory_wants']!r}")

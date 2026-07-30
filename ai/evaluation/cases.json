@@ -2067,6 +2067,99 @@
         "must_offer_staff": true,
         "why": "Trước khi dựng: hỏi lại. Tài liệu `qr_ordering` có 5 mục về đúng việc này. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
       }
+    },
+    {
+      "id": "O-premise-01",
+      "type": "B",
+      "family": "false_price_premise",
+      "question": "Phở bò tái nạm giá 45.000đ đúng không?",
+      "expect": {
+        "kind": "fact",
+        "facts": {
+          "m_008": {
+            "price": 75000
+          }
+        },
+        "must_offer_staff": true,
+        "why": "Khách khẳng định một mức giá SAI. Con số 45.000đ từng bị đọc thành ngân sách, và hệ quả đo được khi chạy thật qua backend: ngân sách đó vào bộ nhớ phiên và dính lại, nên lượt sau 'Món đắt nhất giá bao nhiêu?' trả lời 'Cháo lòng Sài Gòn, 45.000đ'. Mọi con số trong câu đó đều có thật trong thực đơn — nên không phép kiểm nào về việc bịa dữ liệu bắt được — mà câu trả lời thì sai.\nTiêu chí là giá THẬT 75.000đ phải xuất hiện: im lặng về con số sai của khách là để họ tin nó."
+      }
+    },
+    {
+      "id": "O-premise-02",
+      "type": "B",
+      "family": "false_price_premise",
+      "question": "Gỏi cuốn tôm thịt giá 65.000đ đúng không?",
+      "expect": {
+        "kind": "fact",
+        "facts": {
+          "m_001": {
+            "price": 65000
+          }
+        },
+        "must_offer_staff": true,
+        "why": "Chiều ĐÚNG của cùng cơ chế. Chỉ có ca sai thì một bản 'luôn nói con số khách đưa là sai' cũng qua — và bản đó tệ hơn bản hiện tại."
+      }
+    },
+    {
+      "id": "O-premise-03",
+      "type": "B",
+      "family": "false_price_premise",
+      "question": "Có món nào dưới 45.000đ đúng không?",
+      "expect": {
+        "kind": "list",
+        "require_min": 2,
+        "why": "Ca chống nới rộng: cùng lối nói 'đúng không' nhưng KHÔNG nêu tên món, nên 45.000đ vẫn là ngân sách và câu trả lời vẫn là danh sách. Luật phân biệt khẳng định giá với ngân sách bắt buộc phải hẹp; ca này là chỗ chốt nó hẹp."
+      }
+    },
+    {
+      "id": "O-offscope-01",
+      "type": "B",
+      "family": "off_scope_general_knowledge",
+      "question": "Thủ đô nước Pháp là gì?",
+      "expect": {
+        "kind": "refuse",
+        "why": "Câu kiến thức chung. Trước bản này nó rơi vào nhánh HỎI LẠI, tức trợ lý hỏi khách muốn món ăn hay đồ uống — một câu trả lời trớ trêu.\nĐiều quan trọng: trợ lý KHÔNG BAO GIỜ trả lời được câu này, kể cả trước khi sửa, vì chữ gửi cho khách luôn do `answer.py` dựng từ dữ liệu thực đơn và kho tri thức. Bảo đảm không bịa là bảo đảm CẤU TRÚC. Ca này chốt việc NÓI RA phạm vi, là phần danh sách từ khóa lo — và danh sách từ khóa thì không phủ hết kiến thức chung, không có cách nào phủ hết."
+      }
+    },
+    {
+      "id": "O-offscope-02",
+      "type": "B",
+      "family": "off_scope_general_knowledge",
+      "question": "Giải thích thuật toán Dijkstra cho mình với",
+      "expect": {
+        "kind": "refuse",
+        "why": "Câu kỹ thuật. Cùng lớp với câu địa lý, khác chỗ nó là yêu cầu GIẢI THÍCH DÀI."
+      }
+    },
+    {
+      "id": "O-offscope-03",
+      "type": "B",
+      "family": "off_scope_general_knowledge",
+      "question": "Nhà hàng bên cạnh có ngon không?",
+      "expect": {
+        "kind": "refuse",
+        "why": "Ngoài phạm vi mà NGHE RẤT GẦN chủ đề — vẫn là chuyện ăn uống, nhưng về một nơi trợ lý không có dữ liệu. Đây là ca dễ sai nhất của họ này, và cũng là ca mà việc trả lời bịa gây hại thật: khen hay dìm một nhà hàng khác."
+      }
+    },
+    {
+      "id": "O-offscope-04",
+      "type": "B",
+      "family": "off_scope_general_knowledge",
+      "question": "Mình muốn đổi thử món khác",
+      "expect": {
+        "kind": "clarify",
+        "why": "Ca CHỐNG TỪ CHỐI OAN, và nó có thật: cụm `doi thu` (đối thủ) từng được thêm vào danh sách ngoài phạm vi, và nó nằm trong 'đổi thử món khác' sau khi rút dấu — nên câu đổi món bị từ chối. Cả 132 ca lẫn 82 lượt vẫn xanh vì không tập nào nói 'đổi thử'.\nMỗi cụm thêm vào danh sách ngoài phạm vi là một cụm có thể nằm trong câu đúng chủ đề. Ca này là chỗ trả giá cho việc đó."
+      }
+    },
+    {
+      "id": "O-offscope-05",
+      "type": "B",
+      "family": "off_scope_general_knowledge",
+      "question": "2 cộng 2 bằng mấy?",
+      "expect": {
+        "kind": "refuse",
+        "why": "Câu tính toán. Ca này tồn tại vì cách nhận diện đầu tiên SAI LOẠI: cụm từ khóa \"cong bang may\" khớp \"2 cộng bằng mấy?\" mà không khớp \"2 cộng 2 bằng mấy?\" — có con số ở giữa. Phép thử cục bộ dùng câu không số nên nó xanh; phép thử qua backend dùng câu có số nên nó đỏ. Nay nhận bằng mẫu \"số - phép tính - số\", và ca dùng đúng dạng câu đã trượt."
+      }
     }
   ]
 }

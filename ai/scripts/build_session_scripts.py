@@ -46,6 +46,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_PATH = REPO_ROOT / "ai" / "evaluation" / "session_scripts.json"
+MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
 
 # Câu KHÔNG nhắc dị ứng, dùng làm lượt tiếp theo. Chúng phải nhìn hoàn toàn vô hại — đó là cả
 # điểm của phép đo: nếu câu nào cũng nhắc dị ứng thì bộ nhớ không cần tồn tại.
@@ -72,6 +73,9 @@ KHAI_DI_UNG = [
 
 def build() -> dict:
     scripts: list[dict] = []
+    # Thực đơn, để nhóm `extreme_scope` TÍNH mã món trong tiêu chí thay vì viết tay: giá món đổi
+    # làm món đắt nhất thành món khác thì kịch bản đổi theo, không trôi thành tiêu chí sai.
+    items = json.loads(MENU_PATH.read_text(encoding="utf-8-sig"))["items"]
 
     # --- NHÓM 1: dị nguyên phải giữ suốt phiên (CHỐT AN TOÀN) -------------------------
     for i, (cau_khai, nhan, loai) in enumerate(KHAI_DI_UNG, 1):
@@ -379,6 +383,116 @@ def build() -> dict:
                             "why": "Lượt KHÔNG nhắc dị ứng, sau lời khai. Phải còn được bảo vệ."}},
             ],
         })
+
+    # --- Nhóm `extreme_scope`: câu cực trị phải nói ra PHẠM VI của nó -------------------
+    #
+    # Cả nhóm sinh ra từ một lỗi đo được khi CHẠY THẬT qua backend và mô hình: câu "Món đắt nhất
+    # giá bao nhiêu?" trả lời "Món đắt nhất là Cháo lòng Sài Gòn, giá 45.000đ". Tên món và giá đều
+    # có thật trong thực đơn — nên mọi phép kiểm về việc bịa dữ liệu đều xanh — mà khẳng định thì
+    # sai: nó chỉ đúng trong ngân sách đang có hiệu lực, và ngân sách đó vào bộ nhớ từ một câu
+    # KHÔNG khai ngân sách ("Phở bò tái nạm giá 45.000đ đúng không?").
+    #
+    # Không tập nào cũ bắt được: 139 ca đều một lượt, và 82 lượt cũ không có câu cực trị nào sau
+    # một lượt nêu ngân sách.
+    #
+    # Mã món trong tiêu chí TÍNH TỪ THỰC ĐƠN, không viết tay — giá đổi thì bộ sinh đổi theo.
+    #
+    # Và tiêu chí phải TRÁNH CHỖ HÒA GIÁ. Bản đầu chốt "phải nhắc Bún đậu mắm tôm" cho ngưỡng
+    # 100.000đ, trong khi có 5 món cùng giá 95.000đ — tiêu chí đó qua được chỉ nhờ thứ tự phá hòa
+    # của bảng xếp hạng, và nó có thể đỏ khi hệ thống hoàn toàn đúng. Ca đỏ sai lý do cũng tệ như ca
+    # xanh sai lý do: cả hai làm bảng kết quả nói sai.
+    #
+    # Nên: giá cực trị DUY NHẤT thì chốt món; có hòa thì chốt GIÁ. Giá vẫn phân biệt được đắt nhất
+    # với rẻ nhất, mà không phụ thuộc thứ tự.
+    def cuc_tri(pool: list[dict]) -> tuple[dict, list[dict]]:
+        cao = max(i["price"] for i in pool)
+        hoa = [i for i in pool if i["price"] == cao]
+        return max(pool, key=lambda i: i["price"]), hoa
+
+    def dong_tien(gia: int) -> str:
+        return f"{gia:,}".replace(",", ".") + "đ"
+
+    dat_nhat_toan_bo, hoa_toan_bo = cuc_tri(items)
+    duoi_100k = [i for i in items if i["price"] <= 100_000]
+    dat_nhat_100k, hoa_100k = cuc_tri(duoi_100k)
+    # Hàng rào, không phải chú thích: `extreme-scope-02` chốt MÓN, nên nó chỉ đúng khi giá cao nhất
+    # của cả thực đơn là duy nhất. Nếu về sau có món thứ hai cùng giá thì bộ sinh DỪNG, thay vì sinh
+    # ra một tiêu chí phụ thuộc thứ tự phá hòa.
+    if len(hoa_toan_bo) != 1:
+        raise SystemExit(
+            f"{len(hoa_toan_bo)} món cùng giá cao nhất ({dat_nhat_toan_bo['price']:,}đ): "
+            "`extreme-scope-02` chốt theo món nên không dùng được. Đổi sang `must_say_all` với "
+            "giá, như `extreme-scope-01` đã làm."
+        )
+    pho_bo = next(i for i in items if i["name"] == "Phở bò tái nạm")
+
+    scripts.append({
+        "id": "extreme-scope-01",
+        "group": "extreme_scope",
+        "why": ("Câu cực trị SAU khi khách nêu ngân sách. Phải nêu đúng món đắt nhất trong ngân "
+                "sách, và phải NÓI RA rằng nó đang xét trong phạm vi đó."),
+        "turns": [
+            {"user": "Cho mình món ăn dưới 100.000đ",
+             "expect": {"expect_kind": "list",
+                        "memory_budget_max": 100_000,
+                        "why": "Lượt khai ngân sách. Phải vào bộ nhớ để lượt sau có phạm vi."}},
+            {"user": "Món đắt nhất giá bao nhiêu?",
+             "expect": {"expect_kind": "fact",
+                        "must_say_all": ["trong phạm vi", dong_tien(dat_nhat_100k["price"])],
+                        "memory_budget_max": 100_000,
+                        "why": f"Hai tiêu chí trong một khóa, hai lỗi khác nhau. Giá "
+                               f"{dong_tien(dat_nhat_100k['price'])} chốt hệ thống lấy món ĐẮT "
+                               f"nhất trong ngân sách, không phải món rẻ nhất "
+                               f"({dong_tien(min(i['price'] for i in duoi_100k))}). Cụm 'trong "
+                               f"phạm vi' chốt câu trả lời nói ra phạm vi của nó; thiếu cụm đó thì "
+                               f"khách đọc được một khẳng định tuyệt đối sai.\n"
+                               f"Chốt GIÁ chứ không chốt MÓN vì {len(hoa_100k)} món cùng giá "
+                               f"{dong_tien(dat_nhat_100k['price'])} — chốt món thì tiêu chí phụ "
+                               f"thuộc thứ tự phá hòa và có thể đỏ khi hệ thống đúng."}},
+        ],
+    })
+    scripts.append({
+        "id": "extreme-scope-02",
+        "group": "extreme_scope",
+        "why": ("Chiều KHÔNG có ràng buộc. Không có kịch bản này thì một bản 'luôn thêm trong phạm "
+                "vi bạn nêu' cũng xanh, và bản đó nói sai ở mọi câu không có ràng buộc."),
+        "turns": [
+            {"user": "Món đắt nhất giá bao nhiêu?",
+             "expect": {"expect_kind": "fact",
+                        "must_name_item": [dat_nhat_toan_bo["id"]],
+                        "must_not_say_any": ["trong phạm vi"],
+                        "why": f"Không ràng buộc nào, nên phạm vi là cả thực đơn: "
+                               f"{dat_nhat_toan_bo['name']} "
+                               f"({dong_tien(dat_nhat_toan_bo['price'])}).\n"
+                               f"`must_not_say_any` là tiêu chí LÀM VIỆC của kịch bản này: không có "
+                               f"nó thì một bản 'luôn thêm trong phạm vi bạn nêu' cũng xanh, và "
+                               f"bản đó nói sai ở mọi câu không có ràng buộc. Chốt món dùng được ở "
+                               f"đây vì giá {dong_tien(dat_nhat_toan_bo['price'])} là DUY NHẤT "
+                               f"trong thực đơn — không có chỗ hòa để phá."}},
+        ],
+    })
+    scripts.append({
+        "id": "price-premise-01",
+        "group": "extreme_scope",
+        "why": ("Nguyên nhân GỐC của lỗi trên: giá khách KHẲNG ĐỊNH bị lưu thành ngân sách phiên "
+                "rồi dính lại."),
+        "turns": [
+            {"user": "Phở bò tái nạm giá 45.000đ đúng không?",
+             "expect": {"expect_kind": "fact",
+                        "must_name_item": [pho_bo["id"]],
+                        "memory_budget_max": None,
+                        "why": f"Phải đính chính theo thực đơn ({pho_bo['price']:,}đ) và KHÔNG lưu "
+                               f"45.000đ thành ngân sách. `memory_budget_max: null` là tiêu chí "
+                               f"quan trọng nhất của kịch bản — câu trả lời lượt này có thể trông "
+                               f"đúng trong khi bộ nhớ đã nhiễm."}},
+            {"user": "Món đắt nhất giá bao nhiêu?",
+             "expect": {"expect_kind": "fact",
+                        "must_name_item": [dat_nhat_toan_bo["id"]],
+                        "why": f"Lượt LỘ RA lỗi. Nếu lượt 1 nhiễm bộ nhớ thì câu này trả lời một "
+                               f"món 45.000đ thay vì {dat_nhat_toan_bo['name']} — đúng dữ liệu, "
+                               f"sai sự thật."}},
+        ],
+    })
 
     return {
         "schema_version": 1,
