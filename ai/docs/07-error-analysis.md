@@ -807,14 +807,101 @@ bắt oan bốn ca khai dị ứng. Nới nó ra cần một cách đo, không p
 
 ---
 
+## 14. Golden test đầu-cuối — chặng mà không tập nào đi tới
+
+Ba lỗi ở mục 13 tìm ra bằng script tạm trong thư mục nháp. Script đó **không commit được**, nên phát
+hiện thì có mà khả năng lặp lại thì không. `run_golden_e2e.py` là bản đàng hoàng của nó.
+
+Chuỗi gọi thật có 6 chặng, và mỗi tập cũ dừng ở một chặng khác nhau:
+
+| Chặng | Ai kiểm |
+|---|---|
+| `understand()` + `respond()` gọi trực tiếp | 140 ca `cases.json` |
+| + bộ nhớ nhiều lượt, vẫn trong tiến trình | 87 lượt `session_scripts.json` |
+| + mô hình (trong tiến trình, dùng cache) | `run_with_model.py` |
+| + HTTP tới dịch vụ AI | 29 test `test_service.py` (`TestClient`) |
+| + backend .NET gọi dịch vụ AI | `AiContractBoundaryTests` — kiểm **hợp đồng**, provider giả |
+| **QR → phiên bàn → phiên chat → backend → AI → mô hình → thẻ giỏ → giỏ hàng thật** | `run_golden_e2e.py` |
+
+5 hội thoại / 18 lượt: khách dị ứng, câu hỏi giá và tiền đề sai, câu ngoài phạm vi, món không có,
+câu tri thức. Kết quả **18/18** qua backend + mô hình thật.
+
+### 14.1 Bảy bất biến thẻ giỏ, áp cho MỌI lượt
+
+Áp cho mọi lượt chứ không khai từng lượt: tiêu chí khai lẻ là chỗ sinh ra lượt không được kiểm.
+
+1. món trong thẻ **tồn tại** trong thực đơn
+2. tên trong thẻ **khớp** tên thực đơn
+3. giá trong thẻ **là** giá thực đơn
+4. **món trong thẻ là món câu trả lời VỪA NÊU**
+5. số lượng là số dương
+6. luôn đòi khách xác nhận — AI không tự đặt món
+7. nhánh chưa hiểu câu hỏi thì **không** có thẻ
+
+Bất biến 4 là bất biến đáng nhất. Ba cái đầu chỉ nói thẻ trỏ vào món có thật với giá đúng — chúng
+**vẫn xanh** nếu trợ lý tư vấn món A rồi bỏ món B vào thẻ. Mà đó chính là kiểu sai khách chịu thiệt:
+bấm "thêm vào giỏ" là tin rằng nó thêm đúng món vừa được gợi ý.
+
+Và một lượt **bấm thêm vào giỏ thật**, rồi đọc lại giỏ để xác nhận món đã vào. Đây là điều không
+mảng JSON nào kiểm được: thẻ giỏ có đi qua được đường xác thực và ràng buộc của backend hay không.
+
+### 14.2 Ba lỗi của chính bộ này, cả ba do gọi thật mà lộ
+
+| Lỗi | Vì sao |
+|---|---|
+| `POST /cart/items` trả 400 `CART_DELTA_INVALID` | trường là `delta`, không phải `quantity` — endpoint CỘNG THÊM vào giỏ |
+| rồi trả 401 `TABLE_SESSION_TOKEN_INVALID` | header cần **token** của phiên bàn (`tableSessionToken`), không phải id phiên |
+| câu tri thức bị đọc thành `list` | bản đầu đếm tên món trong văn xuôi; câu ghép đồ uống nhắc "Trà đào cam sả" và "trà sen" nên thành hai món |
+
+Hai lỗi đầu là đúng loại lỗi bộ này tồn tại để bắt — hợp đồng thật khác hợp đồng tôi tưởng — chỉ có
+điều lần này nó bắt tôi. Lỗi thứ ba sửa bằng cách đọc dạng đáp án từ **số thẻ giỏ** và cụm mở đầu,
+không từ số tên món: đếm tên món không phân biệt được "đây là các món tôi gợi ý" với "tôi đang nói
+VỀ các món này". Việc đếm tên món vẫn giữ ở phép kiểm an toàn, và ở đó nó đúng — một món hải sản
+nhắc trong văn xuôi vẫn là món hải sản đã lọt tới mắt khách dị ứng.
+
+### 14.3 Hai hạn chế phải nói ra
+
+**Không nằm trong CI.** Bộ này cần stack đang chạy, và CI hiện chỉ có 4 job trong đó
+`docker-compose-config` **chỉ kiểm cú pháp** compose. Nên đây là **cửa thủ công trước khi phát
+hành**, không phải hàng rào tự động. Đưa được vào CI thì cần dựng compose trong runner với bí mật
+sinh tại chỗ; dịch vụ AI chạy không có mô hình vẫn trả lời 140/140 bằng mã tất định, nên về nguyên
+tắc là làm được — chưa làm.
+
+Bù lại: **phần chấm điểm có 25 test chạy không cần stack** (`test_golden_e2e.py`). Một bộ đo mà logic
+chấm sai sẽ báo xanh trên hệ thống đang sai, và đó là kiểu hỏng tệ nhất của bộ đo. Trong 25 test đó
+có test phá đúng bất biến 4, đúng chiều "ca viết sai chứ không phải hệ thống sai", và bốn hàng rào
+cho chính tập golden — gồm hàng rào **chặn khóa `expect` lạ**.
+
+**Dạng đáp án phải SUY RA.** `ChatMessageResponse` chỉ có `Content` và `SuggestedCartActions` —
+backend không chuyển tiếp `kind` vì nó không thuộc hợp đồng khách. `cases.json` so `kind` trực tiếp
+và chính xác hơn. Đây là hạn chế thật, không phải một lựa chọn tinh tế.
+
+**Mỗi hội thoại cần một bàn riêng, và bộ này DỪNG nếu không đủ.** Backend trả lại phiên chat CŨ cho
+cùng phiên bàn — đúng thiết kế, khách quét lại QR giữa bữa thì không mất ngữ cảnh. Dùng chung một
+bàn nghĩa là mọi hội thoại chia chung bộ nhớ và số đo được không nói lên điều gì. Đúng chuyện này đã
+lừa tôi: tôi tạo "phiên mới" cho từng câu, thấy hệ thống trả lời sai, và mất một lượt điều tra mới
+nhận ra ngân sách 45.000đ của lần chạy **trước** còn dính trong bộ nhớ. Nên bộ này không cho phép
+cấu hình sai đó tồn tại — thiếu mã QR là thoát mã 2.
+
+Mã thoát 2 ("không gọi được stack") khác mã 1 ("hệ thống sai") có chủ đích: trộn hai thứ đó lại là
+cách một bộ đo tự vô hiệu hóa, vì nó sẽ xanh trên máy không có gì chạy.
+
+---
+
 ## Chạy lại
 
 ```bash
+# Golden đầu-cuối — CẦN stack đang chạy, và một mã QR cho MỖI hội thoại
+docker compose -f deploy/docker-compose.yml up -d
+export GOLDEN_QR_TOKENS=ma1,ma2,ma3,ma4,ma5
+python ai/evaluation/run_golden_e2e.py --chi-tiet
+
 # Không cần thư viện ngoài — BM25, và bộ so in rõ đã bỏ qua embedding
 python -m unittest test_rag                       # trong ai/app
 python ai/evaluation/run_retrieval_comparison.py
 python ai/evaluation/analyze_failures.py
 python ai/evaluation/run_session_eval.py --chi-tiet
+python -m unittest discover -s ai/evaluation -p "test_golden*.py"   # chấm điểm golden, không cần stack
 python ai/scripts/audit_season_tags.py            # rà nhãn mùa, hai chiều
 
 # Phép so BA phương pháp (tải ~2–3GB)
