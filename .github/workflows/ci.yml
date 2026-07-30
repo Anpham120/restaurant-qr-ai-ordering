@@ -165,6 +165,16 @@ jobs:
       - name: Kiểm phép chia tập truy hồi
         run: python ai/evaluation/build_retrieval_split.py --check
 
+      # Kịch bản ĐA LƯỢT — đo BỘ NHỚ PHIÊN, thứ 119 ca một lượt không thể đo.
+      # Lỗi bộ nhớ chỉ hiện từ lượt 2: khách khai dị ứng ở lượt 1, hỏi tiếp ở lượt 5 không nhắc
+      # lại, và nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được. Bước này trả mã
+      # khác 0 khi có LỖI AN TOÀN, nên nó là CHỐT, không phải theo dõi tỷ lệ.
+      - name: Kiểm kịch bản đa lượt sinh lại được
+        run: python ai/scripts/build_session_scripts.py --check
+
+      - name: Bộ nhớ phiên — 25 kịch bản đa lượt
+        run: python ai/evaluation/run_session_eval.py
+
       - name: Kiểm tập đánh giá
         run: python ai/evaluation/validate_cases.py
 

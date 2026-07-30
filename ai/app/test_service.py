@@ -3,7 +3,7 @@
 
 Hai nhóm bất biến quan trọng nhất:
 
-1. **Lớp vỏ không được đổi nội dung.** Mọi con số của dự án (108/119 tất định, 0 lỗi an toàn) đo
+1. **Lớp vỏ không được đổi nội dung.** Mọi con số của dự án (119/119 tất định, 0 lỗi an toàn) đo
    trên `understand → session → answer`. Nếu `service.py` đổi câu trả lời thì những con số đó
    không còn nói về thứ khách nhận được. Có test đòi 5 câu qua HTTP cho **cùng `content` và cùng
    danh sách món** với khi gọi `respond()` trực tiếp.

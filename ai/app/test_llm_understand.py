@@ -29,6 +29,13 @@ MENU = json.loads(
 ITEMS = MENU["items"]
 ENV = {"LLM_MODEL": "test", "LLM_BASE_URL": "http://test", "LLM_API_KEY": "test"}
 
+# Câu mà mã tất định KHÔNG hiểu, nên mô hình phải được gọi. Nhiều test dưới đây cần một câu
+# như vậy, và câu đó **hết hạn khi từ vựng lớn lên**: bản trước dùng "cho mình gì đó chua chua",
+# rồi cụm "chua chua" được thêm vào từ vựng và hai test đỏ — không phải vì hệ thống sai mà vì
+# ví dụ của test đã cũ. Đặt tên một chỗ để lần sau chỉ phải sửa một chỗ, và
+# `test_cau_mo_ho_van_con_mo_ho` bên dưới chốt rằng nó vẫn còn mơ hồ thật.
+CAU_MO_HO = "Cho mình gì đó lạ lạ"
+
 
 class FakeModel:
     """Thay `call_model` bằng một đáp án cố định."""
@@ -143,7 +150,7 @@ class MoHinhKhongDuocBia(unittest.TestCase):
                 )
 
     def test_thieu_cau_hinh_thi_cau_tra_loi_tat_dinh_con_nguyen(self):
-        request = ask("Cho mình gì đó chua chua")
+        request = ask(CAU_MO_HO)
         outcome = llm.enrich(request, {}, use_cache=False)
         self.assertTrue(outcome.used)
         self.assertFalse(outcome.ok)
@@ -200,8 +207,24 @@ class ChiGoiMoHinhKhiCanThiet(unittest.TestCase):
             llm.enrich(request, ENV, use_cache=False)
         self.assertEqual(fake.calls, 0)
 
+    def test_cau_mo_ho_van_con_mo_ho(self):
+        """`CAU_MO_HO` phải THẬT SỰ mơ hồ, nếu không mọi test dùng nó đều vô nghĩa.
+
+        Test này bắt đúng cái đã xảy ra: thêm từ vựng làm câu ví dụ trở thành hiểu được, và
+        các test "khi mô hình không được cấu hình" bỗng đỏ mà thông báo lỗi không nói ra lý do.
+        """
+        request = ask(CAU_MO_HO)
+        with FakeModel(None) as fake:
+            llm.enrich(request, ENV, use_cache=False)
+        self.assertEqual(
+            fake.calls,
+            1,
+            f"mã tất định đã hiểu được {CAU_MO_HO!r} (require={request.require_tags}, "
+            f"prefer={request.prefer_tags}) — chọn câu mơ hồ MỚI cho CAU_MO_HO",
+        )
+
     def test_goi_khi_cau_mo_ho(self):
-        request = ask("Cho mình gì đó chua chua")
+        request = ask(CAU_MO_HO)
         with FakeModel({"require": [], "prefer": ["flavour:sour"], "avoid": [], "wants": "any"}) as fake:
             llm.enrich(request, ENV, use_cache=False)
         self.assertEqual(fake.calls, 1)

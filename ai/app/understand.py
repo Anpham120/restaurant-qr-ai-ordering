@@ -164,7 +164,30 @@ AVOID_FRAMING = (
     "di ung voi",
 )
 
-# Độ cay — nhóm phủ 91/91 nên lọc được dứt khoát.
+# Khi nào một nhãn được dùng làm LỌC CỨNG (`require`) và khi nào chỉ được XẾP HẠNG (`prefer`)
+# -------------------------------------------------------------------------------------------
+# Bản đầu tôi viết quy tắc là "nhóm phủ 91/91 thì lọc được". Đo lại thì quy tắc đó vừa quá chặt
+# vừa nói sai lý do. Quy tắc thật có ba mệnh đề khác nhau, và trộn chúng lại là chỗ tôi sai:
+#
+#   lọc theo nhãn CÓ MẶT   an toàn ở mọi độ phủ. Nhãn có mặt là điều đã KHẲNG ĐỊNH, nên món
+#                          nêu ra chắc chắn thỏa. Cái mất là ĐỘ BAO: món đúng nhưng chưa
+#                          được gắn nhãn sẽ bị bỏ. Mất độ bao thì khách thiếu lựa chọn;
+#                          nêu món không thỏa thì khách nhận câu trả lời SAI. Chọn mất độ bao.
+#   lọc theo nhãn VẮNG MẶT chỉ an toàn khi nhóm được gắn nhãn ĐẦY ĐỦ. `avoid_tags` là loại này,
+#                          và nhãn dị nguyên chỉ phủ 44/91 — nên đó là giới hạn phải NÓI RA,
+#                          không phải chỗ để suy ra "không có nhãn nghĩa là an toàn".
+#   phủ 91/91              không quyết định được lọc hay không. Nó quyết định câu "không có
+#                          món nào phù hợp" có nghĩa hay không: nhóm phủ hết thì rỗng là rỗng
+#                          thật; nhóm phủ một phần thì rỗng có thể chỉ là chưa gắn nhãn.
+#
+# Còn một cái bẫy chỉ hiện khi ĐO: `require_tags` là phép AND. Hai cụm trong CÙNG một câu map
+# sang hai nhãn KHÁC nhau của cùng nhóm thì giao có thể rỗng, và ca đỏ theo cách không ai đọc
+# ra được. Ví dụ "sinh viên nên hơi ít tiền, món nào vừa phải thôi": `price` nằm trong
+# `exclusive_groups` nên mỗi món đúng một nhãn giá, và price:budget ∩ price:mid = 0 món. Vì vậy
+# "vừa phải" bị BỎ khỏi từ vựng thay vì gắn nhãn price:mid — xem ghi chú ở nhóm giá.
+
+# Độ cay — `spice` nằm trong `exclusive_groups` và phủ 91/91, nên đây là nhóm lọc dứt khoát
+# nhất: mỗi món đúng một mức, và "không có món nào" là câu trả lời thật chứ không phải thiếu nhãn.
 _add("khong an duoc cay|khong an cay|khong cay|k cay|it cay", "require", "spice:none")
 _add("cay nhe", "require", "spice:mild")
 _add("cay vua", "require", "spice:medium")
@@ -229,9 +252,68 @@ _add("ba nguoi|3 nguoi|bon nguoi|4 nguoi|nam nguoi|5 nguoi", "require", "party:t
 _add("nhom ban|di nhom|ca nhom", "require", "party:friends")
 _add("gia dinh|ca nha", "require", "party:family")
 
-# Đối tượng.
+# Đối tượng. "dễ tiêu" là cách khách nói LÝ DO thay vì nói đối tượng — người Việt nói "cụ già
+# đi cùng, cần món dễ tiêu" chứ ít khi nói "món cho người lớn tuổi".
 _add("tre em|em be|cho be|con nho|tre nho", "require", "audience:child")
-_add("nguoi gia|nguoi lon tuoi|ong ba", "require", "audience:elderly")
+_add("nguoi gia|nguoi lon tuoi|ong ba|cu gia|de tieu", "require", "audience:elderly")
+
+# --- Cách khách MÔ TẢ thay vì gọi tên nhãn --------------------------------------------------
+#
+# Bốn nhóm dưới đây là 10/11 ca đỏ còn lại của tập 119 ca, và cả 10 ca đỏ vì CÙNG một lý do:
+# khách nói đúng ý mình bằng tiếng Việt thường ngày, còn từ vựng chỉ có từ khớp tên nhãn.
+# Khi không hiểu, hệ thống đi nhánh `clarify` và hỏi lại một câu khách vừa trả lời rồi.
+#
+# Vì sao thêm vào đây thay vì để mô hình lo: mô hình sinh trả lời được cả 10 ca này, nhưng
+# **10/119 ca = 8,4% chất lượng treo vào một thành phần không tất định**. Thêm cụm vào bảng
+# đưa chúng về mã tất định — cùng lý do đã ghi ở nhóm "giòn giòn" phía trên.
+#
+# Mỗi cụm đã được ĐO trước khi thêm, không phải đoán: nạp từng cụm vào `VOCAB` rồi chạy
+# `understand()` thật trên **cả 119 câu hỏi của tập đánh giá**, và chỉ giữ cụm nào đổi kết quả
+# của đúng ca nó nhắm mà không đổi ca nào khác. Kết quả: 11/11 ca nhắm đổi, 0 ca khác đổi.
+# Phép đo bằng chuỗi con thì không đủ — nó từng cho tôi 17/19 dương tính giả vì không biết
+# bộ khớp ăn cụm dài trước rồi tiêu luôn đoạn văn bản đó.
+
+# Hương vị. `flavour` phủ 72/91 nên "không có món nào" ở đây có thể chỉ là chưa gắn nhãn.
+# "đỡ ngán" và "đưa cơm" là hai cách nói ngược nhau về cùng chuyện: món chua để đỡ ngán, món
+# đậm để đưa cơm. Cả hai cụm của một câu map về CÙNG nhãn nên phép AND không tự triệt tiêu.
+_add("chua chua|do ngan", "require", "flavour:sour")
+_add("dam da|dua com", "require", "flavour:rich")
+# "có khói", "thơm mùi than" là mùi, không phải cách chế biến — nên nhãn đúng là flavour:smoky
+# chứ không phải method:grilled. Hai nhãn giao nhau nhiều nhưng smoky nói đúng điều khách tả.
+_add("co khoi|mui than|thom mui than", "require", "flavour:smoky")
+
+# Sức khỏe. `health` phủ 67/91. Khách kể TÌNH TRẠNG ("đang giảm cân", "tập gym") chứ không nêu
+# nhãn, nên mỗi tình trạng chỉ map về MỘT nhãn: chọn hai nhãn cho một câu thì phép AND thu hẹp
+# tới mức có câu ra rỗng, mà tiêu chí của ca chỉ đòi thỏa MỘT trong các nhãn hợp lý.
+_add("giam can|an kieng", "require", "health:low_calorie")
+_add("tap gym|nhieu dam", "require", "health:high_protein")
+_add("thanh thanh", "require", "health:light")
+
+# Thời tiết. Khách nói thời tiết chứ không nói mùa. Cụm nóng map về `season:hot_season` —
+# nhãn "Mùa nóng" — chứ không phải `season:cooling` ("Giải nhiệt"), vì đo trên thực đơn này
+# thấy `season:cooling` gắn cho **5 đồ uống nhưng chỉ 2/49 món ăn**, nên câu "ăn gì cho mát
+# người" lọc theo `cooling` chỉ còn đúng 2 món — vừa sát ngưỡng, một món đổi nhãn là mất câu
+# trả lời. Đây là khiếm khuyết GẮN NHÃN của dữ liệu, không phải của từ vựng, và nó được ghi ra
+# thay vì lấp bằng cách sửa nhãn món cho vừa một ca đánh giá.
+# "giải nhiệt" thì giữ đúng `season:cooling` vì đó là nhãn của chính cụm đó.
+_add("troi nong|cho mat|mat nguoi", "require", "season:hot_season")
+_add("giai nhiet", "require", "season:cooling")
+_add("troi lanh|cho am|an cho am", "require", "season:cold_season")
+
+# Ngân sách nói bằng lời, không bằng số. `price` nằm trong `exclusive_groups` nên mỗi món đúng
+# một nhãn giá — và đó là lý do hai cụm bị BỎ thay vì gắn nhãn:
+#
+#   "vừa phải"  nghĩa là price:mid, nhưng nó đứng cùng câu với "ít tiền" (price:budget) trong
+#               ca P-budget-01. Nhóm loại trừ nên budget ∩ mid = 0 món: gắn nhãn cho nó làm
+#               câu trả lời RỖNG, tức tệ hơn là không hiểu.
+#   "ăn sang"   "ăn sáng" (bữa sáng) và "ăn sang" (đắt tiền) rút dấu về CÙNG một chuỗi
+#               `an sang`, nên gắn nhãn giá cho cụm ngắn này biến "mình muốn ăn sáng" thành
+#               câu hỏi món đắt tiền. Chỉ giữ cụm dài, không thể hiểu lẫn.
+#
+# `price:premium` chỉ có 1 món nên cụm đắt tiền map về `price:high` (10 món) — một món thì
+# không tư vấn được gì, và tiêu chí của ca nhận cả hai nhãn.
+_add("it tien", "require", "price:budget")
+_add("an sang mot bua", "require", "price:high")
 
 # Danh mục.
 _add("khai vi", "category", "cat_appetizer")

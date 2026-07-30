@@ -24,7 +24,7 @@
         "use_model": {
           "type": "boolean",
           "default": true,
-          "description": "Cho phép gọi mô hình sinh để đọc thêm ràng buộc. Đặt false thì hệ thống chỉ dùng mã tất định — đo được 108/119 ca. Mô hình KHÔNG chọn món, nó chỉ trả về nhãn và mọi nhãn đi qua cổng kiểm."
+          "description": "Cho phép gọi mô hình sinh để đọc thêm ràng buộc. Đặt false thì hệ thống chỉ dùng mã tất định — đo được 119/119 ca, tức mô hình hiện KHÔNG đổi ca nào trên tập đánh giá. Mô hình KHÔNG chọn món, nó chỉ trả về nhãn và mọi nhãn đi qua cổng kiểm."
         }
       }
     },

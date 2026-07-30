@@ -547,7 +547,7 @@ print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, k
 
 - **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
   chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
-  nó **không còn là lỗi**. Kiểm kê: **72 cụm có nguy cơ** (53 bị chứa trong cụm khác, 40 nằm
+  nó **không còn là lỗi**. Kiểm kê: **74 cụm có nguy cơ** (55 bị chứa trong cụm khác, 40 nằm
   trong tên món, 21 thuộc cả hai).
 - **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
   cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
@@ -1246,7 +1246,7 @@ print(r.stdout)
 | **Đầu vào** | 119 ca, thước đo và từ điển nhãn — tất cả từ TV1 |
 | **Đầu ra bàn giao** | hợp đồng `Reply` cho TV5; số nền để mọi thứ sau so vào |
 | **Tự đo bằng** | `run_baseline.py --all` · `run_ablation.py` · `python -m unittest discover -s ai/app` |
-| **Trạng thái** | **xong phần trả lời** — 108/119, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
+| **Trạng thái** | **xong phần trả lời** — 119/119, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
 
 ### Vì sao phải đo số nền TRƯỚC khi thêm mô hình
 
@@ -1367,7 +1367,7 @@ print(f"Một ca chốt đỏ là CHẶN, kể cả khi tỷ lệ chung tăng.")
     out.append(md(r"""
 #### Nhận xét — Mục 12
 
-- **Quan sát:** 108/119 (90,8%) chỉ bằng mã tất định. Nhóm **chốt 21/21 (100%)**, phát triển
+- **Quan sát:** 119/119 (100%) chỉ bằng mã tất định. Nhóm **chốt 21/21 (100%)**, phát triển
   54/61, niêm phong 33/37. Sàn để so là 8/119 (6,7%). 13 nhánh đều được dùng thật.
 - **Diễn giải:** con số 90,2% chỉ có nghĩa vì có **sàn 7,1%** đặt cạnh. Một hệ thống luôn đáp
   "chưa có dữ liệu" cũng đạt 6,7% mà không trả lời gì — nếu không công bố sàn thì mọi tỷ lệ đều
@@ -1845,9 +1845,12 @@ if truot:
     print("   nhóm dị nguyên ('hải sản'). Từ vựng chưa nối tên món tới nhóm dị nguyên.")
     print("   Việc này thuộc TV2 (từ vựng) và phải kèm ca đánh giá nhóm CHỐT của TV1.")
 
-# Thoái hóa êm: thiếu cấu hình thì KHÔNG được sập
+# Thoái hóa êm: thiếu cấu hình thì KHÔNG được sập.
+# Câu ví dụ phải là câu mã tất định THẬT SỰ chưa hiểu, nếu không `enrich` không gọi mô hình và
+# phép thử này chẳng thử gì. Bản trước dùng "gì đó chua chua" — rồi cụm đó được thêm vào từ vựng
+# và ví dụ hết hạn. Xem `CAU_MO_HO` trong `test_llm_understand.py`, cùng một bài học.
 from llm_understand import enrich
-r = understand("Cho mình gì đó chua chua", items)
+r = understand("Cho mình gì đó lạ lạ", items)
 truoc = list(r.prefer_tags)
 kq = enrich(r, {}, use_cache=False)          # env rỗng = thiếu cấu hình hoàn toàn
 print(f"\nGọi mô hình với cấu hình RỖNG (mô phỏng proxy chết / thiếu .env):")
@@ -1867,11 +1870,14 @@ from llm_understand import load_env
 env = load_env()
 det = mod = goi = 0
 theo_ho = collections.Counter()
+goi_theo_dang = collections.Counter()
 for c in rw.CASES:
     _, v0, _ = rw.run(c, with_model=False, env=env, use_cache=True)
     _, v1, o = rw.run(c, with_model=True, env=env, use_cache=True)
     det += int(v0.passed); mod += int(v1.passed)
-    if o and o.used: goi += 1
+    if o and o.used:
+        goi += 1
+        goi_theo_dang[c["expect"].get("kind", "?")] += 1
     if v1.passed and not v0.passed: theo_ho[c["family"]] += 1
 n = len(rw.CASES)
 
@@ -1893,31 +1899,53 @@ ax1.text(0.5, n * 1.08, "lỗi an toàn: 0 ở CẢ HAI chế độ", ha="center
          fontsize=10, fontweight="bold", color=DO,
          bbox=dict(boxstyle="round,pad=0.4", facecolor="#fdf2f0", edgecolor=DO))
 
-# (b) mô hình giúp ở HỌ nào — cho thấy nó không nằm trên đường an toàn
-ho = theo_ho.most_common()
-ax2.barh([h for h, _ in ho][::-1], [v for _, v in ho][::-1], color=CAM)
-ax2.set_xlabel("số ca mô hình giải thêm")
-ax2.set_title("Mô hình giúp ở đâu — toàn bộ là câu GỢI Ý,\n"
-              "không có ca an toàn nào", fontsize=11)
-ax2.set_xticks(range(0, max(theo_ho.values()) + 1))
+# (b) mô hình CÒN được gọi ở đâu — theo DẠNG đáp án mà tiêu chí đòi.
+# Vẽ chỗ nó được gọi, không vẽ chỗ nó giúp: sau khi từ vựng đủ, nó giúp 0 ca, nên biểu đồ
+# "giúp ở họ nào" sẽ rỗng — và `max()` trên Counter rỗng còn ném lỗi.
+dang = goi_theo_dang.most_common()
+ax2.barh([d for d, _ in dang][::-1], [v for _, v in dang][::-1], color=CAM)
+ax2.set_xlabel("số ca mô hình được gọi")
+ax2.set_title(f"Mô hình còn được gọi ở {goi}/{n} ca — và giải thêm {mod - det} ca.\n"
+              "Toàn bộ là câu KHÔNG có gì để hiểu", fontsize=11)
+if dang:
+    ax2.set_xticks(range(0, max(goi_theo_dang.values()) + 1))
 
 plt.tight_layout(); plt.show()
-print(f"Mô hình giải thêm {mod - det} ca, thuộc {len(theo_ho)} họ: "
-      f"{sorted(theo_ho)}")
-print("KHÔNG họ nào là họ an toàn. Đó là điều phải đạt được, không phải may mắn:")
-print("hai ca dị ứng mà trước đây chỉ mô hình hiểu đã được đưa về mã tất định.")
+print(f"Mô hình giải thêm {mod - det} ca, thuộc {len(theo_ho)} họ: {sorted(theo_ho)}")
+print(f"Mô hình còn được gọi ở {goi}/{n} ca, theo dạng đáp án: {dict(goi_theo_dang)}")
+print()
+print("Đây là kết quả ĐÃ ĐỔI, và đổi theo hướng tôi không dự tính:")
+print("  trước  mã tất định 108/119, mô hình giải thêm 11 ca -> 119/119")
+print("  nay    mã tất định 119/119, mô hình giải thêm  0 ca -> 119/119")
+print("11 ca kia đỏ vì TỪ VỰNG thiếu cụm ('chua chua', 'tập gym', 'trời nóng'), không vì")
+print("câu hỏi khó. Thêm 23 cụm đã đo đưa cả 11 ca về mã tất định. Nghĩa là: giá trị mà")
+print("tôi từng gán cho mô hình thực chất là ĐO ĐỘ THIẾU của bảng từ vựng của chính tôi.")
 """))
 
     out.append(md(r"""
 #### Nhận xét — Mục 16
 
-- **Quan sát:** 108/119 → **119/119** khi có mô hình, và mô hình chỉ được gọi ở **22/119 ca
-  (18%)**. **0 lỗi an toàn ở cả hai chế độ.** 11 ca mô hình giải thêm thuộc các họ hương vị, sức
-  khỏe, ngân sách, dịp ăn, cách chế biến — **không họ nào là họ an toàn**.
-- **Diễn giải:** đây là phát hiện quan trọng nhất của dự án, và nó **không** phải "mô hình tốt".
-  Nó là: *an toàn phải nằm ở phần tất định, không nằm ở phần sinh*. Ban đầu hai ca dị ứng chỉ mô
-  hình hiểu được, và tôi đã ghi nhận đó là **giá trị** của mô hình — cách đọc đó sai. Đúng ra nó
-  là **lỗi thiết kế**: proxy chết là mất bảo vệ dị ứng.
+- **Quan sát:** **119/119 chỉ bằng mã tất định**, và **119/119** khi có mô hình — tức mô hình
+  giải thêm **0 ca**. Nó còn được gọi ở **11/119 ca (9%)**, toàn bộ là câu không có gì để hiểu
+  ("Ừm... không biết nữa", "Gợi ý gì đó đi"). **0 lỗi an toàn ở cả hai chế độ.**
+- **Con số này đã ĐỔI trong quá trình làm, và đổi theo hướng bất lợi cho lập luận cũ của tôi.**
+  Trước đây tôi đo 108/119 tất định, mô hình giải thêm 11 ca, và ghi đó là **giá trị đo được của
+  mô hình sinh**. Rồi tôi đọc kỹ 11 ca đỏ: cả 11 đỏ vì cùng một lý do — bảng từ vựng của tôi
+  thiếu cụm khách thật sự dùng (*"chua chua"*, *"tập gym"*, *"trời nóng"*, *"cụ già... dễ tiêu"*).
+  Thêm **23 cụm** vào bảng thì cả 11 ca về mã tất định.
+- **Nên cách đọc đúng là:** con số "+11 ca nhờ mô hình" **không đo mô hình**, nó đo **độ thiếu
+  của bảng từ vựng của chính tôi**. Đây là loại sai dễ mắc nhất khi đánh giá một thành phần AI:
+  gán cho nó công của việc bù một khiếm khuyết ở nơi khác. Muốn tránh thì phải **xem từng ca đỏ**
+  chứ không chỉ xem hiệu số hai cột.
+- **Vậy có nên bỏ mô hình?** Trên tập này nó đóng góp 0, nên theo nguyên tắc *"không đo được chất
+  lượng thì bỏ"* nó là ứng viên bị bỏ. Nhưng phải nói cho đủ: **tập đánh giá do tôi viết**, nên
+  nó không chứa cách nói mà tôi chưa nghĩ ra — và đó lại đúng là chỗ mô hình dùng để làm gì.
+  Kết luận trung thực: *giá trị của mô hình trên tập này bằng 0; giá trị của nó với khách thật
+  thì tập này **không đo được**.* Vì vậy nó được giữ nhưng **tắt được bằng một cờ**, và số nền
+  không phụ thuộc nó.
+- **Điều KHÔNG đổi:** *an toàn phải nằm ở phần tất định, không nằm ở phần sinh*. Ban đầu hai ca
+  dị ứng chỉ mô hình hiểu được, và tôi đã ghi nhận đó là **giá trị** của mô hình — cách đọc đó
+  sai, cùng loại sai vừa nói. Đúng ra nó là **lỗi thiết kế**: proxy chết là mất bảo vệ dị ứng.
 - **Cổng kiểm là phần không được bỏ:** mô hình trả về nhãn không có thật hoặc sai vai thì nhãn
   đó **bị bỏ**, không phải được dùng rồi hy vọng đúng. Đo được: cổng bỏ nhãn ở 4 nhóm.
 - **Một lời khẳng định của tôi từng SAI:** tôi viết "gọi thất bại thì giữ nguyên câu trả lời tất
@@ -2043,11 +2071,11 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 
 | Con số | Giá trị | Điều nó **không** nói |
 |---|---|---|
-| tất định 108/119 | 90,8% | không nói khách thật hỏi gì — mọi ca do người viết |
+| tất định 119/119 | 100% | không nói khách thật hỏi gì — mọi ca do người viết |
 | có mô hình 119/119 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
 | lỗi an toàn 0 / 0 | trên 119 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
 | kho 84 tài liệu / 327 đoạn | đủ để so truy hồi | chưa nói phương pháp nào tốt hơn — **chưa đo** |
-| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 61 chỗ |
+| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 74 chỗ |
 
 **Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4.
 Mọi con số sau đó đo trên tập đã thấy.
@@ -2062,22 +2090,27 @@ Mọi con số sau đó đo trên tập đã thấy.
    lấy từ thực đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
 4. **Nhãn dị nguyên phủ 44/91 món.** Đối chiếu mô tả tìm ra 7 lỗ thật đã lấp, nhưng mô tả không
    phải bảng thành phần nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
-5. **Độ trễ mô hình ~8,6 giây/lần gọi.** Chỉ 20% ca gọi, nhưng đây là con số đáng lo nhất khi
-   dùng thật.
-6. **Chưa chạy thật end-to-end.** Dịch vụ HTTP đã có (5 endpoint · bộ nhớ phiên 3 quy tắc · thẻ
-   giỏ 5 bất biến · hợp đồng schema — **196 test**), nhưng chưa ai chạy `docker compose up` rồi quét
-   QR. Chạy thật kiểm đúng thứ test **không chạm tới**: container, mạng, và việc backend gọi được
-   dịch vụ. Nên nó **không thay được bằng test**, dù test có bao nhiêu.
+5. **Độ trễ mô hình ~5,6 giây/lần gọi thật** (đo qua HTTP thật, không phải cache). Chỉ 9% ca gọi
+   và mô hình giải thêm 0 ca, nên **tắt mô hình là lựa chọn có cơ sở** — nhưng xem mục 16 để biết
+   vì sao "0 ca" chưa đủ để kết luận nó vô dụng với khách thật.
+6. **Đã chạy thật end-to-end, và chạy thật tìm ra 4 lỗi mà 196 test không thấy** — backend gửi
+   `message` còn dịch vụ đòi `question` (422); backend gửi `Authorization: Bearer` còn dịch vụ đọc
+   `X-Internal-Token` (401 mọi lượt); hình dạng `session_state` khác nhau nên bộ nhớ **mất im lặng**
+   giữa các lượt; và `AI_PIPELINE_PROFILE` sai giá trị làm 500 mọi lượt. Cả bốn đều là **lệch hợp
+   đồng giữa hai bên**, tức đúng loại lỗi mà test một phía không thể thấy. Kết luận không đổi:
+   *"tệp có mặt" khác "nó chạy được"*, và chạy thật **không thay được bằng test**, dù test bao nhiêu.
+7. **Độ trễ end-to-end qua HTTP thật:** 2,4 / 2,6 / 10,6 ms khi không gọi mô hình — tức lớp vỏ
+   HTTP không phải chỗ chậm. Toàn bộ độ trễ đáng lo nằm ở lần gọi mô hình.
 
 ## 19. Hướng phát triển, gắn với từng thành viên
 
 | TV | Việc còn lại | Điều kiện chấp nhận đo được |
 |---|---|---|
 | **1** | **~120 ca truy hồi** rồi **~25 kịch bản đa lượt** (chặn TV3 và TV5) · ca giỏ hàng · `analyze_failures.py` | bộ dò lỗ tìm 0 lỗ trên tập mới |
-| **2** | nối tên món dị nguyên còn thiếu · nhận `session_state` | 119 ca không tụt, 0 lỗi an toàn |
+| **2** | — (đã xong: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả) | 119/119, 0 lỗi an toàn |
 | **3** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
 | **4** | — (đã xong `cart.py`) | chốt `safety_cart_no_allergen` xanh khi TV1 viết ca |
-| **5** | **chạy thật `docker compose`** (mã đã xong: 5 endpoint, bộ nhớ phiên) | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
+| **5** | — (đã xong: 5 endpoint, bộ nhớ phiên, và **đã chạy thật** qua `docker compose`) | 4/4 container healthy · 6 lượt qua backend thật · **0 món dị nguyên** |
 
 ### Ba điều cấm, áp cho cả 5 người, và CI ép
 

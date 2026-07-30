@@ -1,0 +1,811 @@
+{
+  "schema_version": 1,
+  "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",
+  "provenance": [
+    "119 ca hiện có đều MỘT LƯỢT, nên chúng không đo được bộ nhớ phiên.",
+    "",
+    "Mỗi lượt kiểm HAI thứ: câu trả lời KHÔNG có món cấm, VÀ bộ nhớ CÒN giữ ràng buộc.",
+    "Chỉ kiểm câu trả lời thì một hệ thống quên dị ứng nhưng tình cờ không gợi món hải sản",
+    "cũng qua được.",
+    "",
+    "Nhóm `allergy_persists` là CHỐT AN TOÀN: một lượt mời món gây dị ứng là CHẶN.",
+    "Nhóm `context_reference` có `aspirational: true` — được phép đỏ, đo khoảng cách còn",
+    "lại. Đánh dấu rõ thay vì bỏ ca ra, vì bỏ ra thì báo cáo không nói được hệ thống thiếu",
+    "gì."
+  ],
+  "scripts": [
+    {
+      "id": "allergy-persists-01",
+      "group": "allergy_persists",
+      "why": "Dị nguyên khai bằng cách nói chuẩn, giữ qua 5 lượt. Đây là CHỐT AN TOÀN.",
+      "turns": [
+        {
+          "user": "Mình dị ứng hải sản, gợi ý món ăn giúp mình",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai dị ứng (cách nói chuẩn). Phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Cho mình món không cay",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 2: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Thêm món tráng miệng đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 3: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Nhóm mình 4 người thì gọi gì",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 4: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Có món nào đặc trưng nhà hàng không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 5: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "allergy-persists-02",
+      "group": "allergy_persists",
+      "why": "Dị nguyên khai bằng cách nói dân dã, giữ qua 5 lượt. Đây là CHỐT AN TOÀN.",
+      "turns": [
+        {
+          "user": "Mình không ăn được đồ tanh",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai dị ứng (cách nói dân dã). Phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Thêm món tráng miệng đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 2: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Nhóm mình 4 người thì gọi gì",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 3: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Có món nào đặc trưng nhà hàng không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 4: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Món nào bán chạy nhất?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 5: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "allergy-persists-03",
+      "group": "allergy_persists",
+      "why": "Dị nguyên khai bằng triệu chứng, giữ qua 5 lượt. Đây là CHỐT AN TOÀN.",
+      "turns": [
+        {
+          "user": "Bé nhà mình uống sữa là bị đau bụng",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lượt khai dị ứng (triệu chứng). Phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Nhóm mình 4 người thì gọi gì",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lượt 2: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:dairy vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Có món nào đặc trưng nhà hàng không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lượt 3: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:dairy vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Món nào bán chạy nhất?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lượt 4: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:dairy vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Cho mình xem thêm vài món",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lượt 5: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:dairy vẫn phải bị bắt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "allergy-persists-04",
+      "group": "allergy_persists",
+      "why": "Dị nguyên khai bằng tên món cụ thể + triệu chứng, giữ qua 5 lượt. Đây là CHỐT AN TOÀN.",
+      "turns": [
+        {
+          "user": "Ăn tôm là mình bị nổi mề đay",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai dị ứng (tên món cụ thể + triệu chứng). Phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào đặc trưng nhà hàng không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 2: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Món nào bán chạy nhất?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 3: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Cho mình xem thêm vài món",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 4: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Món nào rẻ hơn?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt 5: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:seafood vẫn phải bị bắt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "allergy-persists-05",
+      "group": "allergy_persists",
+      "why": "Dị nguyên khai bằng cách nói chuẩn, giữ qua 5 lượt. Đây là CHỐT AN TOÀN.",
+      "turns": [
+        {
+          "user": "Tôi dị ứng đậu phộng, món nào tránh được?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt khai dị ứng (cách nói chuẩn). Phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Món nào bán chạy nhất?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt 2: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:peanut vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Cho mình xem thêm vài món",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt 3: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:peanut vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Món nào rẻ hơn?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt 4: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:peanut vẫn phải bị bắt."
+          }
+        },
+        {
+          "user": "Cho mình món không cay",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt 5: câu KHÔNG nhắc dị ứng. Nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được, và câu này nhìn hoàn toàn vô hại nên không ai nghi. Kiểm CẢ bộ nhớ, không chỉ câu trả lời — hệ thống quên mà tình cờ không gợi món allergen:peanut vẫn phải bị bắt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-01",
+      "group": "constraint_overrides",
+      "why": "Ngân sách mới phải THAY ngân sách cũ. Cộng dồn thì cái nào thắng là tùy thứ tự áp.",
+      "turns": [
+        {
+          "user": "Cho mình món dưới 200 nghìn",
+          "expect": {
+            "memory_budget_max": 200000,
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "Rẻ hơn 100 nghìn đi",
+          "expect": {
+            "memory_budget_max": 100000,
+            "why": "Ngân sách mới phải THAY ngân sách cũ. Cộng dồn thì cái nào thắng là tùy thứ tự áp."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-02",
+      "group": "constraint_overrides",
+      "why": "Ghi đè theo NHÓM chứ không theo nhãn. Giữ cả hai mức cay thì phép lọc AND cho kết quả RỖNG và khách nhận 'không có món nào' cho một yêu cầu hoàn toàn hợp lệ.",
+      "turns": [
+        {
+          "user": "Cho mình món không cay",
+          "expect": {
+            "memory_must_have_require": [
+              "spice:none"
+            ],
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "Thôi cho mình món cay đậm",
+          "expect": {
+            "memory_must_have_require": [
+              "spice:hot"
+            ],
+            "memory_must_not_have_require": [
+              "spice:none"
+            ],
+            "why": "Ghi đè theo NHÓM chứ không theo nhãn. Giữ cả hai mức cay thì phép lọc AND cho kết quả RỖNG và khách nhận 'không có món nào' cho một yêu cầu hoàn toàn hợp lệ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-03",
+      "group": "constraint_overrides",
+      "why": "Cùng nhóm `party` — lượt mới đẩy giá trị cũ ra.",
+      "turns": [
+        {
+          "user": "Nhóm mình 2 người",
+          "expect": {
+            "memory_must_have_require": [
+              "party:two_three"
+            ],
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "À thành 5 người rồi",
+          "expect": {
+            "memory_must_have_require": [
+              "party:three_five"
+            ],
+            "memory_must_not_have_require": [
+              "party:two_three"
+            ],
+            "why": "Cùng nhóm `party` — lượt mới đẩy giá trị cũ ra."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-04",
+      "group": "constraint_overrides",
+      "why": "`wants` cũng là ràng buộc cứng dù không mang dạng nhãn.",
+      "turns": [
+        {
+          "user": "Cho mình món ăn",
+          "expect": {
+            "memory_wants": "food",
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "Cho mình đồ uống thôi",
+          "expect": {
+            "memory_wants": "drink",
+            "why": "`wants` cũng là ràng buộc cứng dù không mang dạng nhãn."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-05",
+      "group": "constraint_overrides",
+      "why": "Chiều PHÂN BIỆT quan trọng nhất: dị nguyên CỘNG DỒN, không ghi đè. Nếu nó ghi đè như ràng buộc cứng thì khai sữa ở lượt 2 xóa hải sản của lượt 1 — mất bảo vệ.",
+      "turns": [
+        {
+          "user": "Mình dị ứng hải sản",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "Mình cũng không ăn được sữa",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:seafood",
+              "allergen:dairy"
+            ],
+            "why": "Chiều PHÂN BIỆT quan trọng nhất: dị nguyên CỘNG DỒN, không ghi đè. Nếu nó ghi đè như ràng buộc cứng thì khai sữa ở lượt 2 xóa hải sản của lượt 1 — mất bảo vệ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "constraint-overrides-06",
+      "group": "constraint_overrides",
+      "why": "Ngân sách đổi nhưng ràng buộc chay KHÔNG bị đổi — khác nhóm thì không ghi đè nhau.",
+      "turns": [
+        {
+          "user": "Cho mình món chay dưới 100 nghìn",
+          "expect": {
+            "memory_budget_max": 100000,
+            "why": "Lượt đặt ràng buộc ban đầu — và phải kiểm rằng nó ĐÃ VÀO bộ nhớ. Không kiểm thì lượt 2 xanh cũng không phân biệt được 'ghi đè đúng' với 'không nhớ gì cả'."
+          }
+        },
+        {
+          "user": "Cho mình món dưới 50 nghìn",
+          "expect": {
+            "memory_budget_max": 50000,
+            "why": "Ngân sách đổi nhưng ràng buộc chay KHÔNG bị đổi — khác nhóm thì không ghi đè nhau."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-repeat-01",
+      "group": "no_repeat",
+      "why": "Khách nói 'món khác đi' thì hệ thống không được gợi lại món vừa nêu. Backend đã có `GetExcludedMenuItemIds`, nên phần này là hợp nhất bộ nhớ.",
+      "turns": [
+        {
+          "user": "Cho mình món chay",
+          "expect": {
+            "min_items": 2,
+            "why": "Lượt gợi ý đầu."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "memory_remembers_suggested": true,
+            "why": "Bộ nhớ phải GHI món đã gợi ý. Không ghi thì lượt sau không biết bỏ gì, và khách nhận đúng danh sách cũ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-repeat-02",
+      "group": "no_repeat",
+      "why": "Khách nói 'món khác đi' thì hệ thống không được gợi lại món vừa nêu. Backend đã có `GetExcludedMenuItemIds`, nên phần này là hợp nhất bộ nhớ.",
+      "turns": [
+        {
+          "user": "Món nào không cay",
+          "expect": {
+            "min_items": 2,
+            "why": "Lượt gợi ý đầu."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "memory_remembers_suggested": true,
+            "why": "Bộ nhớ phải GHI món đã gợi ý. Không ghi thì lượt sau không biết bỏ gì, và khách nhận đúng danh sách cũ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-repeat-03",
+      "group": "no_repeat",
+      "why": "Khách nói 'món khác đi' thì hệ thống không được gợi lại món vừa nêu. Backend đã có `GetExcludedMenuItemIds`, nên phần này là hợp nhất bộ nhớ.",
+      "turns": [
+        {
+          "user": "Gợi ý món ăn tối",
+          "expect": {
+            "min_items": 2,
+            "why": "Lượt gợi ý đầu."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "memory_remembers_suggested": true,
+            "why": "Bộ nhớ phải GHI món đã gợi ý. Không ghi thì lượt sau không biết bỏ gì, và khách nhận đúng danh sách cũ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-repeat-04",
+      "group": "no_repeat",
+      "why": "Khách nói 'món khác đi' thì hệ thống không được gợi lại món vừa nêu. Backend đã có `GetExcludedMenuItemIds`, nên phần này là hợp nhất bộ nhớ.",
+      "turns": [
+        {
+          "user": "Cho mình món dưới 100 nghìn",
+          "expect": {
+            "min_items": 2,
+            "why": "Lượt gợi ý đầu."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "memory_remembers_suggested": true,
+            "why": "Bộ nhớ phải GHI món đã gợi ý. Không ghi thì lượt sau không biết bỏ gì, và khách nhận đúng danh sách cũ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-repeat-05",
+      "group": "no_repeat",
+      "why": "Khách nói 'món khác đi' thì hệ thống không được gợi lại món vừa nêu. Backend đã có `GetExcludedMenuItemIds`, nên phần này là hợp nhất bộ nhớ.",
+      "turns": [
+        {
+          "user": "Món nào đặc trưng nhà hàng",
+          "expect": {
+            "min_items": 2,
+            "why": "Lượt gợi ý đầu."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "memory_remembers_suggested": true,
+            "why": "Bộ nhớ phải GHI món đã gợi ý. Không ghi thì lượt sau không biết bỏ gì, và khách nhận đúng danh sách cũ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-01",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Cho mình món chay",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món đầu tiên giá bao nhiêu?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-02",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Món nào không cay",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Cái đó có cay không?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-03",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Gợi ý món ăn tối",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món thứ hai có hải sản không?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-04",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Cho mình món dưới 100 nghìn",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món rẻ nhất trong số đó là gì?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-05",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Món nào đặc trưng nhà hàng",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món vừa rồi làm từ gì?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-06",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Cho mình xem món lẩu",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món đó cho mấy người ăn?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-07",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Gợi ý món cho 4 người",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Cái thứ ba bao nhiêu tiền?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-08",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Cho mình món chay",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Còn món nào giống vậy không?",
+          "expect": {
+            "aspirational": true,
+            "must_not_repeat_turn": 1,
+            "must_match_turn_constraint": 1,
+            "expect_kind": "list",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nêu món KHÁC lượt 1 mà vẫn thỏa ràng buộc của lượt 1 — đòi nhắc lại tên món cũ ở đây là đòi ngược, vì trả lời đúng thì nêu món mới, và dạng đáp án là `list`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-09",
+      "group": "context_reference",
+      "why": "Tham chiếu ngược ('món đầu tiên', 'cái đó'). Hệ thống hiện CHƯA làm được — nhóm này đo khoảng cách còn lại, không phải đo thứ đã xong. Ca ở đây được phép đỏ, và số đỏ là con số đáng báo cáo.",
+      "turns": [
+        {
+          "user": "Món nào bán chạy nhất",
+          "expect": {
+            "min_items": 1,
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Món đó có đậu phộng không?",
+          "expect": {
+            "aspirational": true,
+            "refers_to_turn": 1,
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. `aspirational: true` nghĩa là ca này ĐƯỢC PHÉP đỏ — nó đo khoảng cách, không chặn phát hành. Đánh dấu rõ thay vì bỏ ca ra: bỏ ra thì báo cáo không nói được hệ thống còn thiếu gì. Nhưng tiêu chí vẫn phải ĐO ĐƯỢC: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`. `aspirational` mà không có tiêu chí thì ca luôn qua, và bảng kết quả trông như đã bao phủ tham chiếu ngược."
+          }
+        }
+      ]
+    }
+  ]
+}

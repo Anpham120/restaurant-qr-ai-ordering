@@ -191,7 +191,7 @@ python -m unittest test_chunker            # trong ai/app
 *Câu khách vừa gõ nêu ra những ràng buộc gì, và cái gì hệ thống KHÔNG hiểu?*
 
 ### Kiến thức phải nắm
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **72 cụm có nguy cơ** (53 bị
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **74 cụm có nguy cơ** (55 bị
   chứa trong cụm khác, 40 nằm trong tên món, 21 thuộc cả hai). Số này do
   `test_understand.collision_census()` tính lại mỗi lần chạy, **không viết tay**.
 - **Ràng buộc khác ngữ cảnh.** "Tôi ăn chay" là ràng buộc (lọc cứng); "tôi đi hẹn hò" là ngữ cảnh
@@ -313,7 +313,7 @@ có một số bịa thì mọi số còn lại mất giá trị. Tập niêm ph
   — hai đường sẽ lệch nhau, và lệch ở đây nghĩa là thẻ giỏ chứa món khách dị ứng.
 
 ### Đã xong
-`answer.py` — 6 nhánh, fail-closed, `prefer_tags` chỉ xếp thứ tự. 108/119 ca, 0 lỗi an toàn.
+`answer.py` — 6 nhánh, fail-closed, `prefer_tags` chỉ xếp thứ tự. 119/119 ca, 0 lỗi an toàn.
 
 ### Đã xong
 `answer.py` 6 nhánh loại trừ, fail-closed. `cart.py` với **5 bất biến**, 20 test — cộng
@@ -472,7 +472,7 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 | **4** | `answer.py` 6 nhánh · `cart.py` 5 bất biến · sửa lỗi "hỏi món trả toàn bia" | chỉnh theo ca giỏ hàng của TV1 |
 | **5** | 5 endpoint · `session.py` 3 quy tắc · hợp đồng schema | **chạy thật `docker compose`** |
 
-**Số đo hiện tại:** 108/119 (90,8%) chỉ bằng mã tất định · 119/119 khi có mô hình · **0 lỗi an toàn
+**Số đo hiện tại:** 119/119 (100%) chỉ bằng mã tất định · 119/119 khi có mô hình (mô hình đổi **0 ca**) · **0 lỗi an toàn
 ở cả hai chế độ** · nhóm chốt 21/21 · 9/9 cơ chế ablation có giá trị, 5 là hàng rào an toàn ·
 **196 test `ai/app`** + 37 test `ai/evaluation`.
 

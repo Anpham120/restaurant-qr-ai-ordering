@@ -141,9 +141,9 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 323 cụm từ vựng và 91 tên món: **53 cụm bị chứa trong cụm khác**, **40 cụm nằm
-    trong tên món**, và hợp lại là **72 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
-    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 72 chỗ đó.
+    Kiểm kê trên 346 cụm từ vựng và 91 tên món: **55 cụm bị chứa trong cụm khác**, **40 cụm nằm
+    trong tên món**, và hợp lại là **74 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 74 chỗ đó.
 
     Nhưng tập đánh giá chỉ có ca cho **một** trong số đó — nên phép đo ablation báo "mất 1 ca"
     là **chặn dưới**, không phải giá trị thật của cơ chế. Đây là phát hiện về *tập đánh giá*,
@@ -161,7 +161,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 323, "trong_cum_khac": 53, "trong_ten_mon": 40, "co_rui_ro": 72},
+            {"tu_vung": 346, "trong_cum_khac": 55, "trong_ten_mon": 40, "co_rui_ro": 74},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 

@@ -11,7 +11,7 @@ trả lời đúng theo tiêu chí mà vẫn tệ với khách* — và đúng m
 uống. Nó chỉ lộ ra khi tôi đọc đầu ra thật của thẻ giỏ hàng.
 
 Bài học: **tập đánh giá đo điều nó được viết để đo.** Một hành vi không có ca thì không có gì canh,
-kể cả khi tỷ lệ chung là 90,8%.
+kể cả khi tỷ lệ chung là 100%.
 
     python -m unittest test_answer      # trong ai/app
 """

@@ -1,0 +1,347 @@
+# -*- coding: utf-8 -*-
+"""Chạy 25 kịch bản hội thoại đa lượt — đo BỘ NHỚ PHIÊN, thứ 119 ca không đo được.
+
+Vì sao cần bộ chạy riêng chứ không mở rộng `run_baseline.py`
+------------------------------------------------------------
+119 ca hiện có đều **một lượt**: mỗi ca gọi `understand()` một lần trên một câu hỏi rồi chấm câu
+trả lời. Cấu trúc đó **không thể** bắt được lỗi bộ nhớ, vì lỗi bộ nhớ chỉ hiện ra ở lượt thứ hai
+trở đi. Cụ thể lỗi tệ nhất của phần này:
+
+    lượt 1   "Mình dị ứng hải sản"        -> hệ thống hiểu, lọc đúng
+    lượt 2   "Cho mình món không cay"     -> câu này KHÔNG nhắc dị ứng
+             nếu bộ nhớ quên -> hệ thống mời món hải sản cho người dị ứng
+
+Và lượt 2 nhìn hoàn toàn vô hại. Không ai đọc log mà nghi câu đó.
+
+Hai điều mỗi lượt kiểm, và vì sao phải là HAI
+---------------------------------------------
+    câu trả lời   không có món mang nhãn bị cấm
+    bộ nhớ        SAU lượt đó còn giữ ràng buộc
+
+Chỉ kiểm câu trả lời thì một hệ thống **đã quên** dị ứng nhưng tình cờ không gợi món hải sản
+(vì khách vừa hỏi món tráng miệng) vẫn qua — và nó sẽ đỏ ở một lượt khác, ngẫu nhiên. Kiểm cả bộ
+nhớ biến lỗi ngẫu nhiên thành lỗi tất định.
+
+Ba mức kết quả, không phải hai
+------------------------------
+    CHẶN          nhóm `allergy_persists` đỏ. Một lượt mời món gây dị ứng là chặn phát hành,
+                  không phải trừ điểm. Mã trả về khác 0.
+    ĐỎ            lượt không đạt tiêu chí. Số này báo cáo được.
+    KHOẢNG CÁCH   lượt `aspirational: true` — hệ thống chưa làm được và tập ca NÓI RA điều đó
+                  thay vì bỏ ca ra. Không chặn, nhưng phải đếm và phải in.
+
+`aspirational` mà không kèm tiêu chí đo được thì vô nghĩa: không có gì để đỏ nên ca luôn qua, và
+bảng kết quả trông như đã bao phủ. Bộ chạy này **từ chối** lượt như vậy — xem `_kiem_tieu_chi`.
+
+    python ai/evaluation/run_session_eval.py            # bảng tóm tắt
+    python ai/evaluation/run_session_eval.py --chi-tiet # in từng lượt đỏ
+"""
+from __future__ import annotations
+
+import argparse
+import collections
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parents[1]
+sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
+
+import answer  # noqa: E402
+import session as S  # noqa: E402
+from understand import understand  # noqa: E402
+
+SCRIPTS_PATH = HERE / "session_scripts.json"
+MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
+
+# Nhóm CHỐT AN TOÀN. Đỏ ở đây là CHẶN, không phải số liệu.
+GATE_GROUPS = ("allergy_persists",)
+
+# Khóa `expect` bộ chạy này hiểu. Khóa lạ là LỖI, không phải bị bỏ qua im lặng — một tiêu chí
+# viết sai tên khóa sẽ không bao giờ chạy, và ca đó lặng lẽ luôn xanh. Bản trước của tập đánh giá
+# truy hồi có 96 khóa đáp án trỏ sai chỗ suốt nhiều tháng vì đúng cơ chế im lặng này.
+KHOA_HIEU = frozenset({
+    "why",
+    "aspirational",
+    "forbid_tags_any",
+    "min_items",
+    "expect_kind",
+    "refers_to_turn",
+    "must_not_repeat_turn",
+    "must_match_turn_constraint",
+    "memory_must_have_avoid",
+    "memory_must_have_require",
+    "memory_must_not_have_require",
+    "memory_budget_max",
+    "memory_wants",
+    "memory_remembers_suggested",
+})
+
+# Khóa CHỈ mang chú thích, không phải tiêu chí. Một lượt chỉ có những khóa này thì nó không đo gì.
+KHOA_KHONG_DO = frozenset({"why", "aspirational"})
+
+
+def load_menu() -> list[dict]:
+    return json.loads(MENU_PATH.read_text(encoding="utf-8-sig"))["items"]
+
+
+def _theo_id(items: list[dict]) -> dict[str, dict]:
+    return {i["id"]: i for i in items}
+
+
+def _kiem_tieu_chi(script: dict) -> list[str]:
+    """Bắt tiêu chí viết sai TRƯỚC khi chạy. Hai loại lỗi, cả hai đều làm ca luôn xanh."""
+    loi: list[str] = []
+    for j, turn in enumerate(script["turns"], 1):
+        exp = turn.get("expect", {})
+        la = sorted(set(exp) - KHOA_HIEU)
+        if la:
+            loi.append(
+                f"{script['id']} lượt {j}: khóa `expect` bộ chạy không hiểu: {la}. "
+                "Tiêu chí sai tên khóa thì nó KHÔNG BAO GIỜ chạy và lượt lặng lẽ luôn xanh"
+            )
+        if not (set(exp) - KHOA_KHONG_DO):
+            loi.append(
+                f"{script['id']} lượt {j}: `expect` chỉ có {sorted(exp)} — không có tiêu chí nào "
+                "ĐO ĐƯỢC, nên lượt này luôn qua. `aspirational` nói ca ĐƯỢC PHÉP đỏ, nó không "
+                "thay cho tiêu chí"
+            )
+        if exp.get("refers_to_turn") is not None:
+            k = exp["refers_to_turn"]
+            if not isinstance(k, int) or not 1 <= k < j:
+                loi.append(
+                    f"{script['id']} lượt {j}: `refers_to_turn`={k!r} phải là số lượt TRƯỚC đó "
+                    f"(1..{j - 1}) — tham chiếu về lượt chưa xảy ra thì không đo được gì"
+                )
+    return loi
+
+
+def chay_kich_ban(script: dict, items: list[dict]) -> list[dict]:
+    """Chạy hết một kịch bản, trả về một bản ghi cho mỗi lượt.
+
+    Đường đi mỗi lượt đúng thứ tự dịch vụ thật dùng, và thứ tự này là phần dễ sai nhất:
+
+        understand(câu)                  -> chỉ những gì lượt NÀY nói
+        merge_into_request(., bộ nhớ)    -> cộng dị nguyên, ghi đè ràng buộc cứng theo nhóm
+        respond(bản ĐÃ hợp nhất)         -> trả lời
+        update_state(bộ nhớ, bản ĐÃ hợp nhất, món đã nêu)
+
+    Ghi bộ nhớ từ bản **đã hợp nhất**, không phải bản gốc: bản gốc của lượt 2 không chứa dị nguyên
+    khai ở lượt 1, nên ghi từ bản gốc là **mất dị nguyên ngay lượt sau** — đúng lỗi mà cả khâu bộ
+    nhớ tồn tại để chống.
+    """
+    theo_id = _theo_id(items)
+    state = S.SessionState()
+    ghi: list[dict] = []
+
+    for turn in script["turns"]:
+        request = understand(turn["user"], items)
+        merged = S.merge_into_request(request, state)
+        reply = answer.respond(merged, items)
+        state = S.update_state(state, merged, list(reply.items))
+        ghi.append({
+            "user": turn["user"],
+            "expect": turn.get("expect", {}),
+            "request": merged,
+            "reply": reply,
+            "state": state,
+            "items": [theo_id[i] for i in reply.items if i in theo_id],
+        })
+    return ghi
+
+
+def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
+    """Trả về danh sách lý do ĐỎ. Rỗng nghĩa là lượt đạt.
+
+    `truoc` là các bản ghi của những lượt TRƯỚC lượt này, dùng cho `refers_to_turn`.
+    """
+    exp, reply, state = ban_ghi["expect"], ban_ghi["reply"], ban_ghi["state"]
+    do: list[str] = []
+
+    # --- câu trả lời ---
+    for tag in exp.get("forbid_tags_any", []):
+        xau = [i["name"] for i in ban_ghi["items"] if tag in i["tags"]]
+        if xau:
+            do.append(f"AN TOÀN: câu trả lời có món mang `{tag}`: {xau}")
+
+    if exp.get("min_items") is not None and len(reply.items) < exp["min_items"]:
+        do.append(f"nêu {len(reply.items)} món, cần ít nhất {exp['min_items']}")
+
+    if exp.get("expect_kind") and reply.kind != exp["expect_kind"]:
+        do.append(f"dạng đáp án `{reply.kind}`, cần `{exp['expect_kind']}`")
+
+    if exp.get("refers_to_turn") is not None:
+        k = exp["refers_to_turn"]
+        ten_truoc = [i["name"] for i in truoc[k - 1]["items"]]
+        # So bằng TÊN món trong văn bản trả lời, không bằng `reply.items`: một câu trả lời dạng
+        # `fact` nêu giá một món có thể không đưa món đó vào `items`, nhưng nó vẫn phải NHẮC tên.
+        if not any(ten in reply.text for ten in ten_truoc):
+            do.append(
+                f"không nhắc món nào của lượt {k} ({ten_truoc[:3]}) — chưa hiểu tham chiếu ngược"
+            )
+
+    # `must_not_repeat_turn` + `must_share_tag_with_turn` là cặp tiêu chí cho câu "còn món nào
+    # GIỐNG VẬY không?" — và cặp này tồn tại vì `refers_to_turn` đã cho một ca ĐẠT SAI LÝ DO.
+    #
+    # Ca đó qua vì hệ thống **liệt kê lại đúng danh sách cũ**: nhắc tên món của lượt 1 nên tiêu
+    # chí "phải nhắc tên món lượt trước" thỏa, dù nó chẳng hiểu chữ "giống vậy" nào. Với câu hỏi
+    # kiểu này, câu trả lời ĐÚNG phải nêu món **khác** — nên đòi nhắc tên cũ là đòi ngược.
+    # Đo đúng cần hai chiều cùng lúc: MỚI (không lặp) và CÙNG KIỂU (chung nhãn).
+    if exp.get("must_not_repeat_turn") is not None:
+        k = exp["must_not_repeat_turn"]
+        cu = {i["id"] for i in truoc[k - 1]["items"]}
+        moi = [i for i in ban_ghi["items"] if i["id"] not in cu]
+        if not moi:
+            do.append(
+                f"nêu lại đúng {len(cu)} món của lượt {k}, không món nào mới — "
+                "liệt kê lại danh sách cũ không phải trả lời 'còn món nào giống vậy'"
+            )
+
+    # "chung nhãn với lượt trước" là tiêu chí QUÁ LỎNG và tôi đã thử nó: `season:all_year` gắn cho
+    # 69/91 món, nên hai món bất kỳ gần như luôn chung một nhãn, và ca vẫn ĐẠT SAI LÝ DO. Tiêu chí
+    # chặt là: món nêu ra phải thỏa đúng RÀNG BUỘC mà lượt được trỏ đã hiểu — danh mục và nhãn
+    # bắt buộc của lượt đó. Đó mới là nghĩa của "giống vậy".
+    if exp.get("must_match_turn_constraint") is not None:
+        k = exp["must_match_turn_constraint"]
+        rb = truoc[k - 1]["request"]
+        buoc = list(rb.require_tags)
+        if not buoc and not rb.categories:
+            do.append(
+                f"lượt {k} không có ràng buộc nào nên tiêu chí này không đo được gì — "
+                "chọn lượt trước có ràng buộc rõ"
+            )
+        else:
+            xau = [
+                i["name"] for i in ban_ghi["items"]
+                if (rb.categories and i["categoryId"] not in rb.categories)
+                or any(t not in i["tags"] for t in buoc)
+            ]
+            if xau:
+                do.append(
+                    f"nêu món KHÔNG thỏa ràng buộc của lượt {k} "
+                    f"(danh mục={rb.categories or '-'}, nhãn={buoc or '-'}): {xau[:4]} — "
+                    "'giống vậy' chưa được hiểu, hệ thống chỉ liệt kê lại thực đơn"
+                )
+
+    # --- bộ nhớ ---
+    for tag in exp.get("memory_must_have_avoid", []):
+        if tag not in state.avoid_tags:
+            do.append(
+                f"AN TOÀN: bộ nhớ MẤT `{tag}` (còn {state.avoid_tags}) — lượt sau không còn "
+                "được bảo vệ, và lượt sau đó nhìn vô hại nên không ai nghi"
+            )
+    for tag in exp.get("memory_must_have_require", []):
+        if tag not in state.hard_tags:
+            do.append(f"bộ nhớ thiếu ràng buộc cứng `{tag}` (còn {state.hard_tags})")
+    for tag in exp.get("memory_must_not_have_require", []):
+        if tag in state.hard_tags:
+            do.append(
+                f"bộ nhớ CÒN GIỮ `{tag}` sau khi khách đổi ý — ghi đè phải theo NHÓM, "
+                "giữ cả hai giá trị thì phép lọc AND cho kết quả RỖNG"
+            )
+    if exp.get("memory_budget_max") is not None and state.budget_max != exp["memory_budget_max"]:
+        do.append(f"ngân sách trong bộ nhớ {state.budget_max}, cần {exp['memory_budget_max']}")
+    if exp.get("memory_wants") and state.wants != exp["memory_wants"]:
+        do.append(f"`wants` trong bộ nhớ {state.wants!r}, cần {exp['memory_wants']!r}")
+    if exp.get("memory_remembers_suggested"):
+        truoc_ids = {i for r in truoc for i in r["reply"].items}
+        if not truoc_ids:
+            do.append("lượt trước không nêu món nào nên tiêu chí này không đo được gì")
+        elif not truoc_ids & set(state.suggested_item_ids):
+            do.append(
+                f"bộ nhớ không ghi món đã gợi ý (có {state.suggested_item_ids[:3]}, "
+                f"lượt trước nêu {sorted(truoc_ids)[:3]}) — lượt sau không biết bỏ gì"
+            )
+    return do
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--chi-tiet", action="store_true", help="In từng lượt đỏ.")
+    args = parser.parse_args(argv)
+
+    data = json.loads(SCRIPTS_PATH.read_text(encoding="utf-8-sig"))
+    scripts = data["scripts"]
+    items = load_menu()
+
+    # Kiểm tiêu chí TRƯỚC khi chạy. Tiêu chí sai thì con số vô nghĩa, nên đây là lỗi chặn.
+    loi_tieu_chi = [l for s in scripts for l in _kiem_tieu_chi(s)]
+    if loi_tieu_chi:
+        print(f"TIÊU CHÍ VIẾT SAI ({len(loi_tieu_chi)}) — không chạy, vì con số sẽ vô nghĩa:")
+        for l in loi_tieu_chi:
+            print(f"  - {l}")
+        return 1
+
+    tong_luot = do_luot = khoang_cach = an_toan = 0
+    theo_nhom: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0, 0])
+    kich_ban_do: dict[str, list[str]] = {}
+    chi_tiet: list[str] = []
+
+    for script in scripts:
+        nhom = script["group"]
+        ghi = chay_kich_ban(script, items)
+        do_cua_kb: list[str] = []
+        for j, ban_ghi in enumerate(ghi):
+            tong_luot += 1
+            theo_nhom[nhom][0] += 1
+            do = cham_luot(ban_ghi, ghi[:j])
+            asp = bool(ban_ghi["expect"].get("aspirational"))
+            if not do:
+                theo_nhom[nhom][1] += 1
+                continue
+            an_toan += sum(1 for d in do if d.startswith("AN TOÀN"))
+            if asp:
+                khoang_cach += 1
+                theo_nhom[nhom][2] += 1
+            else:
+                do_luot += 1
+                do_cua_kb.extend(do)
+            nhan = "KHOẢNG CÁCH" if asp else "ĐỎ"
+            chi_tiet.append(
+                f"  [{nhan}] {script['id']} lượt {j + 1}: {ban_ghi['user']!r}\n"
+                + "".join(f"        - {d}\n" for d in do)
+            )
+        if do_cua_kb:
+            kich_ban_do[script["id"]] = do_cua_kb
+
+    print("BỘ NHỚ PHIÊN — 25 kịch bản đa lượt, thứ 119 ca một lượt không đo được\n")
+    qua = tong_luot - do_luot - khoang_cach
+    print(f"  lượt         : {tong_luot}")
+    print(f"  đạt          : {qua}/{tong_luot}  ({100 * qua / tong_luot:.1f}%)")
+    print(f"  đỏ           : {do_luot}")
+    print(f"  khoảng cách  : {khoang_cach}  (aspirational — hệ thống chưa làm được, không chặn)")
+    print(f"  lỗi AN TOÀN  : {an_toan}")
+
+    print(f"\n  {'nhóm':22}{'lượt':>6}{'đạt':>6}{'kc':>5}   chốt an toàn")
+    print("  " + "-" * 60)
+    for nhom in sorted(theo_nhom):
+        t, d, k = theo_nhom[nhom]
+        chot = "CÓ — đỏ là CHẶN" if nhom in GATE_GROUPS else ""
+        print(f"  {nhom:22}{t:>6}{d:>6}{k:>5}   {chot}")
+
+    if args.chi_tiet and chi_tiet:
+        print(f"\nchi tiết ({len(chi_tiet)} lượt):")
+        for c in chi_tiet:
+            print(c, end="")
+
+    # Mã trả về: chặn khi có lỗi an toàn, hoặc khi nhóm chốt đỏ.
+    chot_do = [
+        sid for sid, _ in kich_ban_do.items()
+        if next(s["group"] for s in scripts if s["id"] == sid) in GATE_GROUPS
+    ]
+    if an_toan:
+        print(f"\nCHẶN: {an_toan} lỗi an toàn. Một lượt mời món gây dị ứng là chặn phát hành.")
+        return 1
+    if chot_do:
+        print(f"\nCHẶN: nhóm chốt an toàn đỏ ở {chot_do}.")
+        return 1
+    if do_luot:
+        print(f"\n{do_luot} lượt đỏ (không thuộc nhóm chốt) — chạy lại với --chi-tiet.")
+        return 1
+    print(f"\nKhông lượt nào đỏ. Còn {khoang_cach} lượt khoảng cách — xem mục tham chiếu ngược.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
