@@ -125,53 +125,63 @@ Mỗi phần có ba lớp:
 | **Ví dụ tại dự án** | ô mã chạy trên dữ liệu thật, in ra số |
 | **Nhận xét** | quan sát → diễn giải → giới hạn → quyết định tiếp theo |
 
-## Mục lục — chia theo thành viên
+## Mục lục — chia theo PIPELINE HỆ THỐNG
 
-Nhóm 5 người chia việc **theo đúng dây chuyền xây hệ thống**: đầu ra của khâu này là đầu vào của
-khâu sau. Notebook đi theo đúng thứ tự đó, nên mỗi thành viên đọc phần của mình là **vừa học kiến
-thức vừa nhận việc**.
+Nhóm 5 người chia việc theo **đường đi thật của một câu hỏi lúc phục vụ**, không theo thứ tự dự án
+được dựng. Mỗi người sở hữu một khâu, nên đọc phần của mình là **vừa học kiến thức vừa nhận việc**.
 
-| Phần | Thành viên | Khâu | Mục | Trạng thái |
+```
+khách gõ câu → A cổng vào & phiên → B hiểu câu hỏi → C truy hồi tri thức
+             → D chọn món & giỏ hàng → A ghi bộ nhớ, trả JSON
+
+                        E đo lường & an toàn  (xuyên ngang cả 4 khâu)
+```
+
+| Khâu | Phụ trách | Module | Mục | Trạng thái |
 |---|---|---|---|---|
-| **TV1** | Bài toán, dữ liệu và kho tri thức | bước 0–1 | 1–7 | **xong** |
-| **TV2** | Tập đánh giá và thước đo | bước 2–3 | 8–11 | **xong** |
-| **TV3** | Trả lời không cần mô hình | bước 4 | 12–14 | xong phần trả lời; còn giỏ hàng + bộ nhớ phiên |
-| **TV4** | Truy hồi tri thức | bước 5 | 15 | kho đã sẵn; **phép so chưa chạy** |
-| **TV5** | Mô hình sinh, an toàn, tích hợp | bước 6–7 | 16 | xong phần mô hình; còn dịch vụ HTTP |
-| **VI** | Kết quả tổng hợp, hạn chế, hướng phát triển | — | 17–19 | — |
+| **A** | Cổng vào & phiên | `service.py` · `session.py` | 16 (một phần) | **chưa có** |
+| **B** | Hiểu câu hỏi | `understand.py` · `llm_understand.py` | 1–4, 12–13, 16 | **xong** |
+| **C** | Truy hồi tri thức | `rag/*` · `knowledge/*` | 5–7, 15 | kho xong; **phép so chưa chạy** |
+| **D** | Chọn món & giỏ hàng | `answer.py` · `cart.py` | 12–14 | `answer` xong; `cart` chưa |
+| **E** | Đo lường & an toàn | `evaluation/*` | 8–11, 14 | **xong** phần hiện có |
+| — | Kết quả, hạn chế, hướng phát triển | — | 17–19 | — |
 
-**Ranh giới TV1 / TV4 — đọc kỹ chỗ này.** Bản phân công đầu tiên đặt tên TV4 là *"Tri thức &
-RAG"* trong khi lại giao `ai/knowledge/*` cho TV1 ở dòng sở hữu tệp. Đó là **mâu thuẫn thật**:
-kho tri thức bị giao cho hai người. Ranh giới đã chốt lại:
+Các mục **không ứng một-một với khâu**, và đó là điều phải nói rõ: notebook đi theo thứ tự **học
+được** (bài toán → dữ liệu → đo lường → trả lời → truy hồi → mô hình), còn phân công đi theo thứ tự
+**chạy**. Hai thứ tự đó khác nhau vì chúng trả lời hai câu hỏi khác nhau — *học thế nào cho hiểu*
+và *ai sửa tệp nào*.
 
-| | TV1 | TV4 |
+**Hai chỗ không phải khâu runtime, và cái giá của việc chia thuần pipeline:**
+
+| Thứ | Gửi vào | Cái giá |
 |---|---|---|
-| phụ trách | **nội dung** kho tri thức | **cách lấy** đoạn từ kho |
-| tệp | `ai/knowledge/*`, `chunker.py`, `build_knowledge.py` | `bm25.py`, `embedding.py`, `hybrid.py` |
-| câu hỏi | *tri thức nào cần có, và tin được đến đâu?* | *với câu hỏi này, lấy đoạn nào?* |
+| từ điển nhãn | **B** | B gánh cả việc dữ liệu |
+| kho tri thức | **C** | **C gánh hai nền kiến thức**: dữ liệu nhà hàng *và* truy hồi thông tin |
+| đo lường | **E** | E là **vai xuyên ngang**, không phải một chặng — nên nó phải có TÊN, không được coi là "việc chung" |
 
-Chia như vậy vì hai việc cần **kiến thức khác nhau**: TV1 cần hiểu dữ liệu nhà hàng và provenance;
-TV4 cần hiểu tf-idf, cosine, và chỉ số xếp hạng. Gộp vào một người thì người đó gánh hai nền
-kiến thức, còn để mơ hồ thì cả hai đều tưởng người kia làm.
+Dòng cuối là điều quan trọng nhất. Nếu đo lường tan vào 4 khâu kia thì mỗi người tự chấm phần mình
+— đúng bệnh của bản cũ, nơi 8 đường xử lý đều "chạy đúng" theo người viết chúng và **thước đo sai 3
+lần trước khi hệ thống sai**.
 """))
 
     # ================================================================= PHẦN I
     out.append(md(r"""
 ---
-# PHẦN TV1 — BÀI TOÁN, DỮ LIỆU VÀ KHO TRI THỨC
+# PHẦN 1 — BÀI TOÁN, DỮ LIỆU VÀ KHO TRI THỨC
+> **Khâu B** (từ điển nhãn) và **khâu C** (kho tri thức)
 
-> **Vị trí trong dây chuyền:** khâu đầu. Không ai làm được gì trước khi khâu này xong, vì mọi
-> khâu sau đều đo trên dữ liệu của nó.
+> **Vị trí:** dữ liệu nền của cả pipeline. Không phải một chặng runtime — một câu hỏi không "đi
+> qua" từ điển nhãn, nó *dùng* từ điển. Nhưng mọi khâu đều đo trên dữ liệu này.
 
 | | |
 |---|---|
 | **Câu hỏi khâu này trả lời** | *AI được phép trả lời gì, dữ liệu có gì, và khi một nhãn không có mặt thì kết luận được gì?* |
 | **Kiến thức phải nắm** | phân loại ba loại câu hỏi A/B/C · rút dấu tiếng Việt là phép mất thông tin · độ phủ nhãn quyết định filterability · chunking cho truy hồi · provenance `derived` vs `demo` |
-| **Tệp sở hữu** | `ai/knowledge/*` · `ai/app/rag/chunker.py` · `ai/scripts/build_knowledge.py` · `build_tag_dictionary.py` · `audit_allergen_tags.py` · `backend/data/menu-tags.json` |
+| **Tệp sở hữu** | **khâu C:** `ai/knowledge/*` · `rag/chunker.py` · `build_knowledge.py` · `audit_allergen_tags.py` — **khâu B:** `build_tag_dictionary.py` · `backend/data/menu-tags.json` |
 | **Đầu vào** | thực đơn thật (91 món) và yêu cầu nghiệp vụ |
-| **Đầu ra bàn giao** | từ điển nhãn có tiền tố nhóm · kho tri thức 84 tài liệu / 327 đoạn · định dạng `KnowledgeChunk` cho TV2 và TV4 |
+| **Đầu ra bàn giao** | từ điển nhãn có tiền tố nhóm · kho tri thức 84 tài liệu / 327 đoạn · định dạng `KnowledgeChunk` cho khâu D và E |
 | **Tự đo bằng** | `build_knowledge.py --check` · `build_tag_dictionary.py --check` · `audit_allergen_tags.py` · `python -m unittest test_chunker test_packaging` |
-| **Trạng thái** | **xong** — 97 test xanh, 3 bộ sinh khớp kết quả sinh lại |
+| **Trạng thái** | **xong** — 103 test xanh, 2 bộ sinh khớp kết quả sinh lại |
 
 ### Vì sao khâu này đứng đầu
 
@@ -179,7 +189,7 @@ Phản xạ tự nhiên khi bắt đầu là chọn mô hình hoặc dựng RAG.
 hai đều cần một thứ chưa có: **định nghĩa thế nào là trả lời sai**. Không có định nghĩa đó thì
 mọi câu trả lời đều "có vẻ hợp lý", và không ai đo được gì.
 
-Bảy mục dưới đây là toàn bộ nội dung TV1 cần hiểu, và mỗi mục có ô mã tính lại từ mã sống —
+Bảy mục dưới đây là nội dung khâu B và C phải hiểu, và mỗi mục có ô mã tính lại từ mã sống —
 nên đọc xong chạy được ngay, không phải tin lời.
 
 ## 1. Cần làm gì đầu tiên: phát biểu bài toán
@@ -912,22 +922,23 @@ print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đườ
     # ================================================================= PHẦN II
     out.append(md(r"""
 ---
-# PHẦN TV2 — TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
+# PHẦN 2 — TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
+> **Khâu E** — vai xuyên ngang, không phải một chặng pipeline
 
-> **Vị trí trong dây chuyền:** nhận dữ liệu từ TV1, giao thước đo cho TV3. Khâu này chứa **bài
-> học đắt nhất của cả dự án**.
+> **Vị trí:** **xuyên ngang cả 4 khâu runtime**, không phải một chặng. Khâu này chứa **bài học
+> đắt nhất của cả dự án**.
 
 | | |
 |---|---|
 | **Câu hỏi khâu này trả lời** | *Làm sao biết hệ thống trả lời đúng hay sai — và làm sao biết thước đo của mình đúng?* |
 | **Kiến thức phải nắm** | khóa đáp án dạng truy vấn thay vì danh sách · test hai chiều · chia ba nhóm chốt/phát triển/niêm phong · bộ dò lỗ thước đo |
 | **Tệp sở hữu** | `ai/evaluation/cases.json` · `answer_metric.py` · `menu_selectors.py` · `validate_cases.py` · `build_split.py` · `probe_metric_holes.py` · `test_answer_metric.py` |
-| **Đầu vào** | từ điển nhãn và kho tri thức của TV1 |
-| **Đầu ra bàn giao** | 119 ca / 41 họ · thước đo 37 test · bộ dò lỗ cho TV3 chạy `run_baseline.py` |
+| **Đầu vào** | từ điển nhãn của khâu B và kho tri thức của khâu C |
+| **Đầu ra bàn giao** | 119 ca / 41 họ · thước đo 37 test · bộ dò lỗ để khâu D chạy `run_baseline.py` |
 | **Tự đo bằng** | `validate_cases.py` · `build_split.py --check` · `probe_metric_holes.py` · `python -m unittest discover -s ai/evaluation` |
 | **Trạng thái** | **xong** — 37 test xanh, bộ dò tìm 0 lỗ |
 
-### Điều TV2 phải hiểu trước tiên
+### Điều khâu E phải hiểu trước tiên
 
 **Thước đo cũng là một phương pháp, và cũng phải chứng minh được mình đúng.** Ở bản cũ, thước
 đo sai **3 lần trước khi hệ thống sai**, và cả 3 lần đều sai theo chiều nguy hiểm hơn: **bịa ra
@@ -1213,21 +1224,22 @@ print(r.stdout)
 - **Quyết định tiếp theo:** đã có tập ca và thước đo tự chứng minh. Giờ mới được xây hệ thống.
 """))
 
-    # ================================================================ PHẦN TV3
+    # ================================================================= PHẦN 3
     out.append(md(r"""
 ---
-# PHẦN TV3 — TRẢ LỜI KHÔNG CẦN MÔ HÌNH
+# PHẦN 3 — TRẢ LỜI KHÔNG CẦN MÔ HÌNH
+> **Khâu B** (hiểu câu hỏi) và **khâu D** (chọn món)
 
-> **Vị trí trong dây chuyền:** nhận thước đo từ TV2. Đây là khâu quyết định **mô hình sinh còn
-> phải làm gì** — và câu trả lời hóa ra là "ít hơn nhiều so với tưởng".
+> **Vị trí:** khâu B (hiểu) và khâu D (chọn món) trong pipeline. Đây là phần quyết định **mô hình
+> sinh còn phải làm gì** — và câu trả lời hóa ra là "ít hơn nhiều so với tưởng".
 
 | | |
 |---|---|
 | **Câu hỏi khâu này trả lời** | *Bao nhiêu câu trả lời được mà KHÔNG cần mô hình sinh?* |
 | **Kiến thức phải nắm** | số nền (baseline) · khớp cụm dài trước rồi ăn hết đoạn · **ràng buộc khác ngữ cảnh** · fail-closed cho dị nguyên · ablation để chứng minh từng cơ chế có giá trị |
 | **Tệp sở hữu** | `ai/app/understand.py` · `answer.py` · `cart.py` · `session.py` · `test_understand.py` |
-| **Đầu vào** | 119 ca và thước đo của TV2; từ điển nhãn của TV1 |
-| **Đầu ra bàn giao** | hợp đồng `Reply` cho TV4/TV5; số nền để mọi thứ sau so vào |
+| **Đầu vào** | 119 ca và thước đo của khâu E; từ điển nhãn của khâu B |
+| **Đầu ra bàn giao** | hợp đồng `Reply` cho khâu A; số nền để mọi thứ sau so vào |
 | **Tự đo bằng** | `run_baseline.py --all` · `run_ablation.py` · `python -m unittest discover -s ai/app` |
 | **Trạng thái** | **xong phần trả lời** — 108/119, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
 
@@ -1258,7 +1270,7 @@ Kiến trúc trả lời là **sáu nhánh loại trừ nhau**, và thứ tự l
 | 6 | còn lại | lọc thực đơn theo ràng buộc | nhánh rộng nhất, nên đứng cuối |
 
 Nhánh 6 sinh ra **câu hỏi lại** khi khách chưa nói gì đủ để lọc. Hỏi lại là **câu trả lời đúng**
-ở đó, không phải thất bại — và thước đo của TV2 phải phân biệt được hai thứ này.
+ở đó, không phải thất bại — và thước đo của khâu E phải phân biệt được hai thứ này.
 
 Đối lập với bản cũ: 8 đường **chồng nhau**, nên hai đường có thể cho hai kết quả khác nhau cho
 cùng một câu, và hệ thống trả lời tùy lúc.
@@ -1542,20 +1554,21 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
   cơ chế vô dụng — nên con số ablation phải đọc kèm phần kiểm kê.
 """))
 
-    # ================================================================ PHẦN TV4
+    # ================================================================= PHẦN 4
     out.append(md(r"""
 ---
-# PHẦN TV4 — TRUY HỒI TRI THỨC
+# PHẦN 4 — TRUY HỒI TRI THỨC
+> **Khâu C**
 
-> **Vị trí trong dây chuyền:** nhận kho tri thức từ TV1 và tập đánh giá từ TV2. **Đây là khâu
-> duy nhất trong notebook này còn phần CHƯA đo** — và mục dưới nói rõ chưa đo cái gì.
+> **Vị trí:** khâu C trong pipeline, giữa "hiểu câu hỏi" và "chọn món". **Đây là khâu duy nhất
+> trong notebook này còn phần CHƯA đo** — và mục dưới nói rõ chưa đo cái gì.
 
 | | |
 |---|---|
 | **Câu hỏi khâu này trả lời** | *Với câu hỏi cần tri thức, lấy đoạn nào — và phương pháp lấy nào tốt hơn?* |
 | **Kiến thức phải nắm** | BM25 (`k1`, `b`, tf-idf) · embedding và cosine · hybrid RRF · Hit@k, MRR@k, nDCG@k, **forbidden@k** · giao thức đo độ trễ |
 | **Tệp sở hữu** | `ai/app/rag/bm25.py` · `embedding.py` · `hybrid.py` · `retriever.py` · `run_retrieval_comparison.py` |
-| **Đầu vào** | 303 đoạn `synthesize` của TV1; ~120 ca truy hồi của TV2 (chưa có) |
+| **Đầu vào** | 303 đoạn `synthesize` (khâu C tự sở hữu); ~120 ca truy hồi của khâu E (chưa có) |
 | **Đầu ra bàn giao** | bảng so ba phương pháp trên **hai bài toán**, kèm phân tích ca sai |
 | **Tự đo bằng** | `run_retrieval_comparison.py` (**chưa viết**) |
 | **Trạng thái** | **kho đã sẵn sàng, phép so CHƯA CHẠY** — xem Mục 15 |
@@ -1657,7 +1670,7 @@ print(f"   không trả lời đúng được. Đây là kết quả đáng báo
   0 đoạn trùng tiêu đề, 327 mã đoạn duy nhất và tất định. Thiếu **tập đánh giá truy hồi**.
 - **Diễn giải:** phần khó của RAG **không phải** cài BM25 hay tải model embedding — đó là việc
   vài chục dòng mã. Phần khó là làm cho **chỉ mục đủ sạch để phép so nói được điều gì**, và đó
-  chính là việc TV1 đã làm xong.
+  chính là việc khâu C đã làm xong (mục 5–7).
 - **Điều notebook này KHÔNG nói:** không có con số nào về BM25 vs embedding vs hybrid, vì chưa
   chạy phép so nào. Viết ra bây giờ là bịa, và một báo cáo có một số bịa thì mọi số còn lại mất
   giá trị.
@@ -1667,12 +1680,13 @@ print(f"   không trả lời đúng được. Đây là kết quả đáng báo
   phải chỗ nào cũng nên dùng RAG** — và điều đó cũng phải đo, không phải phán.
 """))
 
-    # ================================================================ PHẦN TV5
+    # ================================================================= PHẦN 5
     out.append(md(r"""
 ---
-# PHẦN TV5 — MÔ HÌNH SINH, AN TOÀN VÀ TÍCH HỢP
+# PHẦN 5 — MÔ HÌNH SINH, AN TOÀN VÀ TÍCH HỢP
+> **Khâu B** (mô hình đọc ràng buộc) và **khâu A** (thoái hóa êm, tích hợp)
 
-> **Vị trí trong dây chuyền:** khâu cuối. Nhận hợp đồng `Reply` từ TV3. Khâu này chứa **phát
+> **Vị trí:** phần mô hình thuộc khâu B; phần tích hợp và thoái hóa êm thuộc khâu A. Chứa **phát
 > hiện quan trọng nhất của cả dự án**.
 
 | | |
@@ -1680,7 +1694,7 @@ print(f"   không trả lời đúng được. Đây là kết quả đáng báo
 | **Câu hỏi khâu này trả lời** | *Mô hình sinh được phép làm gì, và nếu nó chết thì hệ thống mất gì?* |
 | **Kiến thức phải nắm** | mô hình chỉ **hiểu**, không **chọn** · cổng kiểm khóa mô hình trả về · **an toàn không được phụ thuộc thành phần không tất định** · thoái hóa êm khi gọi thất bại |
 | **Tệp sở hữu** | `ai/app/llm_understand.py` · `service.py` · `ai/contracts/*.schema.json` · `ai/Dockerfile` |
-| **Đầu vào** | `Reply` của TV3; kho tri thức của TV1 |
+| **Đầu vào** | `Reply` của khâu D; kho tri thức của khâu C |
 | **Đầu ra bàn giao** | dịch vụ HTTP mà backend gọi được |
 | **Tự đo bằng** | `run_with_model.py` · `python -m unittest test_llm_understand test_packaging` |
 | **Trạng thái** | **xong phần mô hình** — 119/119, 0 lỗi an toàn. **Còn lại:** 5 endpoint HTTP |
@@ -1824,7 +1838,7 @@ if truot:
         print(f"        avoid={avoid}  còn {n_mon} món, SÓT {sot} món mang nhãn cấm")
     print("\n   Nguyên nhân: khách gọi TÊN MÓN cụ thể ('tôm', 'cua') chứ không gọi tên")
     print("   nhóm dị nguyên ('hải sản'). Từ vựng chưa nối tên món tới nhóm dị nguyên.")
-    print("   Việc này thuộc TV3 (từ vựng) và phải kèm ca đánh giá nhóm CHỐT.")
+    print("   Việc này thuộc khâu B (từ vựng) và phải kèm ca đánh giá nhóm CHỐT của khâu E.")
 
 # Thoái hóa êm: thiếu cấu hình thì KHÔNG được sập
 from llm_understand import enrich
@@ -1912,7 +1926,7 @@ print("hai ca dị ứng mà trước đây chỉ mô hình hiểu đã được
     # ============================================================== TỔNG HỢP
     out.append(md(r"""
 ---
-# PHẦN VI — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
+# PHẦN 6 — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
 
 Phần này không thêm kiến thức mới. Nó gom lại **con số nào đã đo, con số nào chưa**, và **cái gì
 không đo được** — vì một báo cáo mà không phân biệt ba loại đó thì người đọc không biết tin phần
@@ -2048,15 +2062,15 @@ Mọi con số sau đó đo trên tập đã thấy.
 6. **Chưa chạy thật end-to-end.** Mọi con số tồn tại trong test; chưa có dịch vụ HTTP nên khách
    quét QR vẫn chưa dùng được.
 
-## 19. Hướng phát triển, gắn với từng thành viên
+## 19. Hướng phát triển, gắn với từng khâu
 
-| TV | Việc còn lại | Điều kiện chấp nhận đo được |
+| Khâu | Việc còn lại | Điều kiện chấp nhận đo được |
 |---|---|---|
-| **TV1** | mở rộng kho khi có nhu cầu thật | `build_knowledge.py --check` xanh, 119 ca không tụt |
-| **TV2** | ~120 ca truy hồi · ~25 kịch bản đa lượt · 4 phép kiểm giỏ hàng | bộ dò lỗ tìm 0 lỗ trên tập mới |
-| **TV3** | `cart.py` (5 bất biến) · `session.py` (3 quy tắc hợp nhất) | chốt `safety_cart_no_allergen` xanh |
-| **TV4** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
-| **TV5** | 5 endpoint · hợp đồng schema · chạy thật `docker compose` | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
+| **A** | 5 endpoint · `session.py` (3 quy tắc hợp nhất) · chạy thật `docker compose` | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
+| **B** | nối tên món dị nguyên còn thiếu · nhận `session_state` | 119 ca không tụt, 0 lỗi an toàn |
+| **C** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
+| **D** | `cart.py` (5 bất biến) | chốt `safety_cart_no_allergen` xanh |
+| **E** | ~120 ca truy hồi · ~25 kịch bản đa lượt · `analyze_failures.py` | bộ dò lỗ tìm 0 lỗ trên tập mới |
 
 ### Ba điều cấm, áp cho cả 5 người, và CI ép
 
