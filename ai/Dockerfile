@@ -44,4 +44,7 @@ ENV AI_SERVICE_PORT=8001
 ENV HF_HUB_OFFLINE=1
 
 USER app
-CMD ["sh", "-c", "uvicorn app.main:app --host ${AI_SERVICE_HOST:-127.0.0.1} --port ${AI_SERVICE_PORT:-8001}"]
+# Điểm vào là `app/service.py`. Dòng này trước đây gọi `app.main:app` — module của bản cũ, và
+# nhánh dựng lại không có tệp đó, nên container sẽ khởi động thất bại ngay. Không test nào bắt
+# được vì test chạy từ mã nguồn, không chạy container.
+CMD ["sh", "-c", "uvicorn app.service:app --host ${AI_SERVICE_HOST:-0.0.0.0} --port ${AI_SERVICE_PORT:-8001}"]

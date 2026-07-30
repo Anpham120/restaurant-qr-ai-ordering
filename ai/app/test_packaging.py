@@ -39,6 +39,7 @@ Cách sửa khi test đỏ — theo thứ tự ưu tiên:
 from __future__ import annotations
 
 import ast
+import re
 import unittest
 from pathlib import Path
 
@@ -191,6 +192,51 @@ class DuLieuLucChayPhaiNamTrongAnhDocker(unittest.TestCase):
             "container tệp sẽ thiếu và mã thoái hóa im lặng:\n  "
             + "\n  ".join(offenders)
             + "\nCách sửa tốt nhất: chuyển dữ liệu vào `ai/`. Xem docstring tệp này.",
+        )
+
+
+class DiemVaoTrongDockerfilePhaiTonTai(unittest.TestCase):
+    """`CMD` trỏ vào một module — module đó phải có thật và phải khai `app`.
+
+    Vì sao cần: `CMD` gọi `app.main:app` suốt từ bản cũ, mà nhánh dựng lại không có
+    `app/main.py`. Container khởi động thất bại ngay, và **không test nào bắt được** vì mọi test
+    chạy từ mã nguồn chứ không chạy container.
+
+    Cùng lớp lỗi với vụ byte 0x08 trong `understand.py`: mã có mặt, tài liệu nói nó chạy, CI
+    xanh, và nó không chạy. Cách chặn cũng giống: đọc chính tệp cấu hình rồi đối chiếu với mã.
+    """
+
+    def _cmd_target(self) -> str:
+        """Đọc `module:biến` từ dòng CMD của Dockerfile."""
+        text = DOCKERFILE.read_text(encoding="utf-8")
+        match = re.search(r"uvicorn\s+([\w.]+:\w+)", text)
+        self.assertIsNotNone(match, "không tìm được lệnh uvicorn trong Dockerfile")
+        return match.group(1)  # type: ignore[union-attr]
+
+    def test_module_diem_vao_ton_tai(self):
+        module, _, bien = self._cmd_target().partition(":")
+        # WORKDIR là /app/ai, nên `app.service` ứng với `ai/app/service.py`.
+        path = APP_DIR.parent / Path(*module.split(".")).with_suffix(".py")
+        self.assertTrue(
+            path.exists(),
+            f"Dockerfile CMD gọi {module!r} nhưng {path.relative_to(REPO_ROOT)} không tồn tại — "
+            "container sẽ khởi động thất bại và không test nào khác bắt được",
+        )
+
+    def test_module_diem_vao_khai_dung_bien(self):
+        module, _, bien = self._cmd_target().partition(":")
+        path = APP_DIR.parent / Path(*module.split(".")).with_suffix(".py")
+        if not path.exists():
+            self.skipTest("test trên đã báo module không tồn tại")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        gan = {
+            t.id
+            for node in ast.walk(tree) if isinstance(node, ast.Assign)
+            for t in node.targets if isinstance(t, ast.Name)
+        }
+        self.assertIn(
+            bien, gan,
+            f"{path.name} không khai biến {bien!r} mà Dockerfile trỏ tới",
         )
 
 
