@@ -28,13 +28,16 @@ x-api-environment: &api-environment
   CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-  # Chỉ backend đọc biến này, và chỉ để ghi vào một trường log (ChatAiProvider.ReadPipelineProfile).
-  # Dịch vụ AI KHÔNG đọc nó — bản dựng lại không có khái niệm "pipeline profile" nào để chọn, vì nó
-  # có đúng một đường xử lý thay vì 8 đường chồng nhau như bản cũ.
+  # KHÔNG đặt biến này. Backend `ReadPipelineProfile()` chỉ nhận đúng ba giá trị
+  # (`llm_first_v1`, `evidence_first_v2`, `planner_state_v3`) và NÉM LỖI với mọi giá trị khác;
+  # để trống thì nó tự dùng `llm_first_v1`.
   #
-  # Đổi từ BẮT BUỘC sang MẶC ĐỊNH: bắt buộc một biến mà không thành phần nào dùng để quyết định gì
-  # thì `docker compose up` thất bại vì một lý do không có thật.
-  AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:-rebuild-1}
+  # Tôi từng ghi ở đây rằng biến này "chỉ để ghi log" rồi đặt nó thành `rebuild-1`. Điều đó SAI:
+  # backend kiểm nó theo danh sách cho phép, nên mọi lượt chat trả **500 Unhandled API
+  # exception**. Chạy thật mới thấy — đọc mã thì tôi đã đọc đúng dòng ghi log và bỏ qua dòng kiểm.
+  #
+  # Dịch vụ AI không đọc biến này: bản dựng lại có đúng một đường xử lý thay vì 8 đường chồng
+  # nhau, nên không có "profile" nào để chọn.
   # Keep the browser-facing API alive slightly longer than the AI service's
   # end-to-end request budget.  Otherwise a valid DeepSeek/Luna response can
   # be discarded by the backend before the AI service returns it.

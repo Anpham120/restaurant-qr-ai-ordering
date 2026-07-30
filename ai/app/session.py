@@ -99,6 +99,27 @@ class SessionState:
         if not isinstance(payload, dict):
             return cls()
 
+        # Backend .NET gửi bộ nhớ theo hình dạng CỦA NÓ (`ChatSessionStatePayload`): ràng buộc
+        # nằm trong `constraints`, còn món đã gợi ý nằm ở `suggested_menu_item_ids`. Dịch vụ dùng
+        # hình dạng phẳng. Nhận CẢ HAI, vì:
+        #
+        #   - hình dạng backend  -> khi backend gọi thật
+        #   - hình dạng phẳng    -> khi test và công cụ nội bộ gọi trực tiếp
+        #
+        # Chỗ này từng là lỗi IM LẶNG nguy hiểm nhất của phần tích hợp: bộ nhớ khoan dung với
+        # khóa lạ nên nó không báo lỗi, nó trả về phiên RỖNG. Tức dị ứng khai ở lượt 1 mất ở lượt
+        # 2, và câu ở lượt 2 nhìn hoàn toàn vô hại. 422 thì thấy ngay; mất bộ nhớ thì không.
+        if isinstance(payload.get("constraints"), dict):
+            rang_buoc = dict(payload["constraints"])
+            payload = {
+                **rang_buoc,
+                "suggested_item_ids": payload.get("suggested_menu_item_ids")
+                or rang_buoc.get("suggested_item_ids") or [],
+                "rejected_item_ids": payload.get("rejected_menu_item_ids")
+                or rang_buoc.get("rejected_item_ids") or [],
+                "turn_count": rang_buoc.get("turn_count", 0),
+            }
+
         def tags(key: str, keep: str | None = None) -> list[str]:
             raw = payload.get(key)
             if not isinstance(raw, list):

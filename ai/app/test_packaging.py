@@ -415,6 +415,101 @@ class DockerfileKhongDungGoiKhongCoTrongRequirements(unittest.TestCase):
                     )
 
 
+class KhongTepBiMatNaoLotVaoANH(unittest.TestCase):
+    """`.dockerignore` phải loại MỌI tệp `.env` trong repo, không chỉ tệp ở gốc.
+
+    Lỗi thật đã xảy ra: `.dockerignore` có `.env` và `.env.*`, nhưng mẫu KHÔNG có tiền tố `**/`
+    chỉ khớp ở **gốc build context**. Nên `ai/.env` lọt vào ảnh — 917 byte chứa `LLM_API_KEY`
+    (35 ký tự) và `AI_INTERNAL_TOKEN` (41 ký tự).
+
+    Bí mật nướng vào một lớp ảnh thì **không xóa được** bằng cách xóa tệp ở lớp sau: lớp cũ vẫn
+    nằm trong ảnh và ai có ảnh đều đọc được.
+
+    Phát hiện được chỉ vì chạy container thật rồi `ls` bên trong. Dấu hiệu đầu tiên là `/ready`
+    báo `model_configured: true` dù tôi truyền `LLM_MODEL=` rỗng — cấu hình đến từ trong ảnh.
+
+    Test này không build ảnh. Nó liệt kê tệp bí mật thật trong repo rồi đối chiếu với
+    `.dockerignore` — cùng cách tiếp cận với `docker_copied_roots()`.
+    """
+
+    DOCKERIGNORE = REPO_ROOT / ".dockerignore"
+
+    # Tên tệp thường chứa bí mật. Không quét nội dung — quét nội dung là dò chuỗi và sẽ có báo
+    # động giả; tên tệp thì rõ ràng.
+    MAU_BI_MAT = (".env", ".env.local", ".env.development", ".env.production")
+
+    def _patterns(self) -> list[str]:
+        out = []
+        for line in self.DOCKERIGNORE.read_text(encoding="utf-8").splitlines():
+            line = line.split("#")[0].strip()
+            if line:
+                out.append(line)
+        return out
+
+    def _bi_loai(self, rel: str, patterns: list[str]) -> bool:
+        """Mẫu nào trong `.dockerignore` loại đường dẫn này?
+
+        Cài đúng phần ngữ nghĩa quan trọng: mẫu KHÔNG có `**/` thì neo ở gốc context.
+        """
+        import fnmatch
+
+        ten = rel.split("/")[-1]
+        loai = False
+        for pat in patterns:
+            phu_dinh = pat.startswith("!")
+            p = pat[1:] if phu_dinh else pat
+            khop = False
+            if p.startswith("**/"):
+                duoi = p[3:]
+                khop = fnmatch.fnmatch(ten, duoi) or fnmatch.fnmatch(rel, "*/" + duoi)
+            else:
+                khop = fnmatch.fnmatch(rel, p)
+            if khop:
+                loai = not phu_dinh
+        return loai
+
+    def _tep_bi_mat(self) -> list[str]:
+        """Tệp bí mật THẬT trong repo, bỏ qua tệp mẫu và thư mục không vào ảnh."""
+        bo_qua = {".git", ".venv", "node_modules", "__pycache__", "bin", "obj"}
+        out = []
+        for path in REPO_ROOT.rglob("*"):
+            if not path.is_file():
+                continue
+            if bo_qua & set(path.parts):
+                continue
+            ten = path.name
+            if ten.endswith(".example.env") or ten.endswith(".example"):
+                continue
+            if ten in self.MAU_BI_MAT or ten.startswith(".env."):
+                out.append(path.relative_to(REPO_ROOT).as_posix())
+        return sorted(out)
+
+    def test_moi_tep_env_deu_bi_dockerignore_loai(self):
+        patterns = self._patterns()
+        lot = [rel for rel in self._tep_bi_mat() if not self._bi_loai(rel, patterns)]
+        self.assertEqual(
+            lot, [],
+            "Tệp bí mật LỌT vào build context của Docker — chúng sẽ nằm trong một lớp ảnh và "
+            "không xóa được bằng cách xóa tệp ở lớp sau:\n  "
+            + "\n  ".join(lot)
+            + "\n\nThêm mẫu `**/.env` vào `.dockerignore`. Mẫu không có `**/` chỉ khớp ở GỐC.",
+        )
+
+    def test_dockerignore_dung_mau_co_TIEN_TO_dung_moi_noi(self):
+        """Chiều ngược: chứng minh việc thiếu `**/` là nguyên nhân, không phải trùng hợp."""
+        patterns = self._patterns()
+        thieu_tien_to = ["env-o-goc/.env"]  # đường dẫn giả, chỉ có mẫu `**/` mới loại được
+        self.assertTrue(
+            all(self._bi_loai(r, patterns) for r in thieu_tien_to),
+            "`.dockerignore` không có mẫu `**/.env` nên tệp .env trong thư mục con sẽ lọt",
+        )
+        # Và tệp MẪU thì KHÔNG được loại — nó cần có trong repo để người khác biết cần biến gì.
+        self.assertFalse(
+            self._bi_loai("deploy/env/staging.example.env", patterns),
+            "tệp *.example.env phải được giữ, nó là tài liệu về biến cần thiết",
+        )
+
+
 class ThuVienPhaiCoKhiCIYEUCAU(unittest.TestCase):
     """Chặn việc phép kiểm điểm vào bị bỏ qua âm thầm trong CI."""
 

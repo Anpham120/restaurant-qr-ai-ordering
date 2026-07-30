@@ -110,30 +110,69 @@ def _knowledge_counts() -> tuple[int, int]:
         return 0, 0
 
 
-def require_token(x_internal_token: str | None = Header(default=None)) -> None:
-    """Xác thực token nội bộ.
+def require_token(
+    x_internal_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> None:
+    """Xác thực token nội bộ. Nhận HAI cách gửi, vì bên gọi thật dùng cách thứ hai.
 
-    Token trống trong môi trường thì **từ chối mọi yêu cầu**, không phải cho qua. Cấu hình thiếu
-    mà mở cửa là cách một dịch vụ nội bộ thành công khai mà không ai biết.
+        Authorization: Bearer <token>    backend .NET gửi thế này
+                                         (`ChatAiProvider.TryAddInternalAuthorization`)
+        X-Internal-Token: <token>        hợp đồng dịch vụ, dùng bởi test và công cụ nội bộ
+
+    Bản đầu chỉ đọc `X-Internal-Token`, nên mọi lượt chat từ backend nhận **401** và khách thấy
+    "Xin lỗi, hệ thống hơi chậm". Không test nào bắt được — mọi test đều tự gửi
+    `X-Internal-Token`, tức chúng kiểm hợp đồng tôi TƯỞNG, không kiểm hợp đồng bên gọi DÙNG.
+
+    Đây là lỗi tích hợp thứ ba cùng một lớp trong lần chạy thật này (`message` vs `question`, hình
+    dạng `session_state`, và header token). Bài học chung: **hợp đồng do BÊN GỌI định, không do
+    bên nhận định** — và cách duy nhất biết bên gọi gửi gì là đọc mã của nó hoặc chạy thật.
+
+    Token trống trong môi trường thì TỪ CHỐI mọi yêu cầu (503), không cho qua. Cấu hình thiếu mà
+    mở cửa là cách một dịch vụ nội bộ thành công khai mà không ai biết.
     """
     expected = os.environ.get("AI_INTERNAL_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="AI_INTERNAL_TOKEN chưa được cấu hình")
-    if x_internal_token != expected:
+
+    supplied = x_internal_token
+    if supplied is None and authorization:
+        scheme, _, value = authorization.partition(" ")
+        if scheme.lower() == "bearer":
+            supplied = value.strip()
+
+    if supplied != expected:
         raise HTTPException(status_code=401, detail="token không hợp lệ")
 
 
 class ChatTurnIn(BaseModel):
-    """Một lượt. Chỉ ba trường — mọi thứ khác backend đã có hoặc không dùng.
+    """Một lượt. Dịch vụ chỉ DÙNG ba thứ, nhưng phải NHẬN được hình dạng backend gửi.
 
     `ChatRequestV2Payload` của backend có 24 trường, trong đó `promotions`, `orders`,
-    `pipeline_profile`, `catalog_version` hiện **luôn rỗng**. Nhận đúng ba trường cần là hợp đồng
-    tự nói được nó dùng gì.
+    `catalog_version` hiện luôn rỗng. Dịch vụ **bỏ qua** phần không dùng thay vì từ chối, vì
+    backend là bên gọi và hợp đồng gọi do bên gọi định — bắt backend đổi tên trường để khớp dịch
+    vụ mới là phá hợp đồng khách hàng, đúng thứ bản dựng lại cam kết không làm.
+
+    Trường câu hỏi nhận CẢ HAI tên:
+
+        message     backend .NET gửi tên này (`ChatRequestV2Payload.Message`, snake_case)
+        question    tên của hợp đồng dịch vụ, dùng bởi test và công cụ nội bộ
+
+    Bản đầu chỉ nhận `question`, nên backend gọi thật bị **422** — và không test nào bắt được vì
+    mọi test đều tự gửi `question`. Chỉ chạy thật mới thấy.
     """
 
-    question: str = Field(min_length=1, max_length=2000)
+    model_config = {"populate_by_name": True, "extra": "ignore"}
+
+    # `alias="message"` để backend gửi `message` là khớp; `question` vẫn dùng được nhờ
+    # `populate_by_name`.
+    question: str = Field(min_length=1, max_length=2000, alias="message")
     session_state: dict[str, Any] | None = None
     use_model: bool = True
+
+    # Backend gửi danh sách món KHÔNG được gợi ý lại (nó tự quản `GetExcludedMenuItemIds`). Nhận
+    # để tôn trọng, thay vì bỏ qua rồi gợi lại đúng món khách vừa từ chối.
+    excluded_menu_item_ids: list[str] = Field(default_factory=list)
 
 
 app = FastAPI(title="AI tư vấn đặt món", version=SERVICE_VERSION)
@@ -186,6 +225,13 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     """
     state = SessionState.from_payload(turn.session_state)
     merged = merge_into_request(understand(turn.question, MENU.items), state)
+
+    # Món backend nói đừng gợi lại. Cộng vào bộ nhớ chứ không lọc riêng, để chỉ có MỘT chỗ quyết
+    # định "món nào đã xem" — hai chỗ sẽ lệch nhau.
+    if turn.excluded_menu_item_ids:
+        state.suggested_item_ids = list(
+            dict.fromkeys([*turn.excluded_menu_item_ids, *state.suggested_item_ids])
+        )
 
     outcome = None
     if turn.use_model:

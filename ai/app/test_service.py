@@ -99,6 +99,51 @@ class XacThucToken(unittest.TestCase):
         finally:
             os.environ["AI_INTERNAL_TOKEN"] = cu or TOKEN
 
+    def test_nhan_token_qua_Authorization_Bearer(self):
+        """Backend .NET gửi token bằng `Authorization: Bearer`, không phải `X-Internal-Token`.
+
+        Bản đầu chỉ đọc `X-Internal-Token` nên MỌI lượt chat từ backend nhận 401 và khách thấy
+        "Xin lỗi, hệ thống hơi chậm". Không test nào bắt được vì mọi test đều tự gửi header của
+        hợp đồng dịch vụ — tức chúng kiểm hợp đồng tôi TƯỞNG, không kiểm hợp đồng bên gọi DÙNG.
+        """
+        r = self.client.post(
+            "/v1/chat", json={"message": "Có món chay không?", "use_model": False},
+            headers={"authorization": f"Bearer {TOKEN}"},
+        )
+        self.assertEqual(r.status_code, 200, "backend gửi Bearer — phải nhận được")
+        self.assertTrue(r.json()["content"])
+
+    def test_Authorization_Bearer_SAI_thi_van_401(self):
+        r = self.client.post(
+            "/v1/chat", json={"message": "x", "use_model": False},
+            headers={"authorization": "Bearer sai-be-bet"},
+        )
+        self.assertEqual(r.status_code, 401)
+
+    def test_nhan_truong_message_nhu_backend_gui(self):
+        """Backend gửi `message`; hợp đồng dịch vụ dùng `question`. Phải nhận cả hai."""
+        for khoa in ("message", "question"):
+            with self.subTest(khoa):
+                r = self.client.post(
+                    "/v1/chat", json={khoa: "Cho mình món chay", "use_model": False},
+                    headers={"x-internal-token": TOKEN},
+                )
+                self.assertEqual(r.status_code, 200)
+                self.assertTrue(r.json()["content"])
+
+    def test_bo_qua_truong_LA_cua_backend_thay_vi_tu_choi(self):
+        """Backend gửi 24 trường. Từ chối trường lạ là bắt backend đổi để khớp dịch vụ mới —
+        phá hợp đồng khách hàng, đúng thứ bản dựng lại cam kết không làm."""
+        r = self.client.post(
+            "/v1/chat",
+            json={"message": "Cho mình món chay", "use_model": False,
+                  "contract_version": "v2", "pipeline_profile": "llm_first_v1",
+                  "table_code": "B01", "menu_items": [], "live_context": {},
+                  "history": [], "facts": [], "catalog_version": "abc"},
+            headers={"x-internal-token": TOKEN},
+        )
+        self.assertEqual(r.status_code, 200)
+
     def test_health_va_ready_KHONG_can_token(self):
         """Kiểm tra sức khỏe phải gọi được không cần token, nếu không orchestrator không dùng được."""
         self.assertEqual(self.client.get("/health").status_code, 200)
