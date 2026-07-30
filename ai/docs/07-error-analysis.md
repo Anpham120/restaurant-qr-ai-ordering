@@ -1,10 +1,10 @@
-# Bước 7 — Truy hồi, phân tích nguyên nhân sai, và những chỗ tôi đo sai
+# Bước 7 — Truy hồi, phân tích nguyên nhân sai, và bốn phép đo phải làm lại
 
 Bước này làm ba việc: dựng ba cách truy hồi rồi **so trên hai bài toán**, dựng công cụ truy nguyên
 nhân của mọi ca không đạt, và dựng khả năng **tham chiếu ngược** mà công cụ đó chỉ ra là còn thiếu.
 
-Điều đáng đọc nhất trong tài liệu này không phải bảng số. Đó là **bốn lần tôi đo sai**, vì mỗi lần
-đều là loại sai không làm chương trình lỗi và không làm test đỏ — nó chỉ làm con số nói sai.
+Phần đáng đọc nhất không phải bảng số, mà là **bốn phép đo đã phải làm lại** (mục 5). Cả bốn đều
+thuộc loại không làm chương trình lỗi và không làm test đỏ — chúng chỉ làm con số nói sai.
 
 ---
 
@@ -13,14 +13,14 @@ nhân của mọi ca không đạt, và dựng khả năng **tham chiếu ngư�
 | Tập | Kết quả | Chốt an toàn |
 |---|---|---|
 | 119 ca trả lời (một lượt) | **119/119 (100%)** chỉ bằng mã tất định | 0 lỗi |
-| 65 lượt phiên (25 kịch bản) | **65/65 (100%)**, 0 khoảng cách | 0 lỗi |
+| 82 lượt phiên (30 kịch bản / 6 nhóm) | **82/82 (100%)**, 0 khoảng cách | 0 lỗi |
 | 138 ca truy hồi | xem bảng dưới | nhóm chốt 8/8 abstain |
 | ablation trả lời | 9/9 cơ chế có ít nhất một ca chứng minh | 5 là hàng rào an toàn |
 
-**Mô hình sinh đổi 0 ca.** Trước bước này nó đổi +11 ca, và tôi đã ghi đó là giá trị đo được của
-nó. Đọc lại 11 ca đỏ thì cả 11 đỏ vì **từ vựng của tôi thiếu cụm khách thật sự dùng**. Thêm 23 cụm
-đã đo thì cả 11 về mã tất định. Nên con số "+11 ca nhờ mô hình" **không đo mô hình** — nó đo độ
-thiếu của bảng từ vựng của chính tôi. Xem mục 5.
+**Mô hình sinh đổi 0 ca.** Trước bước này nó đổi +11 ca, và con số đó từng được ghi là giá trị đo
+được của mô hình. Đọc lại 11 ca đỏ thì cả 11 đỏ vì **bảng từ vựng thiếu cụm khách thật sự dùng**.
+Thêm 23 cụm đã đo thì cả 11 về mã tất định. Nên "+11 ca nhờ mô hình" **không đo mô hình** — nó đo
+độ thiếu của bảng từ vựng. Xem mục 5.1.
 
 ---
 
@@ -54,10 +54,10 @@ Hit@5 giữ nguyên ở cả hai nhóm — hai nhóm gồm các HỌ khác nhau,
 1. **Số tuyệt đối của hai nhóm KHÔNG so được với nhau.** Nhóm niêm phong gồm `kb-written` (24 ca)
    và `kb-health` (12 ca) — tài liệu người viết về các chủ đề tách biệt rõ, dễ hơn. Chỉ THỨ TỰ
    giữa ba phương pháp là so được.
-2. **Hybrid KÉM HƠN embedding đơn lẻ, và có `cấm@5` cao nhất.** Điều này trái dự đoán tôi ghi
-   trong kế hoạch ("hybrid tốt nhất"). Lý do đo được: RRF hợp nhất theo HẠNG nên nó bỏ hết thông
-   tin về khoảng cách điểm — khi một bộ chắc chắn hơn bộ kia rất nhiều thì hợp nhất là **kéo bộ
-   tốt xuống**. Tôi báo đúng như đo được thay vì chỉnh `k` cho ra số đẹp.
+2. **Hybrid KÉM HƠN embedding đơn lẻ, và có `cấm@5` cao nhất.** Kế hoạch dự kiến "hybrid tốt
+   nhất"; đo được ngược lại. Lý do đo được: RRF hợp nhất theo HẠNG nên nó bỏ hết thông tin về
+   khoảng cách điểm — khi một bộ chắc chắn hơn bộ kia rất nhiều thì hợp nhất **kéo bộ tốt xuống**.
+   Kết quả được báo đúng như đo được, không chỉnh `k` cho ra số đẹp.
 3. **Tập niêm phong ĐÃ DÙNG HẾT.** Ghi trong `retrieval_split.json` (`sealed_opened: true`, kèm
    ngày). Từ nay con số trên 40 ca đó không còn là held-out, và câu hỏi tiếp theo cần một tập MỚI.
 
@@ -165,27 +165,29 @@ phóng đại số ca sai: cùng tập ca, BM25 cho 64 ca không đạt còn emb
 
 ---
 
-## 5. Bốn lần tôi đo sai ở bước này
+## 5. Bốn phép đo đã phải làm lại
 
-Đây là phần đáng đọc nhất. Cả bốn đều **không làm chương trình lỗi và không làm test đỏ**.
+Cả bốn đều **không làm chương trình lỗi và không làm test đỏ** — nên chúng chỉ lộ ra khi đọc lại
+từng ca, hoặc khi chạy thật.
 
 ### 5.1 Gán cho mô hình công của việc bù khiếm khuyết ở nơi khác
 
-Tôi đo 108/119 tất định, mô hình +11 ca, và ghi đó là **giá trị đo được của mô hình sinh**. Con số
-đúng, kết luận sai: 11 ca kia đỏ vì bảng từ vựng của tôi thiếu cụm (*"chua chua"*, *"tập gym"*,
-*"trời nóng"*, *"cụ già… dễ tiêu"*). Thêm 23 cụm → cả 11 về mã tất định, và mô hình về +0 ca.
+Phép đo cho 108/119 tất định và mô hình +11 ca; kết luận ghi ra là **"đó là giá trị đo được của
+mô hình sinh"**. Con số đúng, kết luận sai: 11 ca kia đỏ vì bảng từ vựng thiếu cụm (*"chua chua"*,
+*"tập gym"*, *"trời nóng"*, *"cụ già… dễ tiêu"*). Thêm 23 cụm → cả 11 về mã tất định, mô hình +0.
 
 **Cách tránh:** xem TỪNG ca đỏ, không xem hiệu số hai cột. Hiệu số nói "có cải thiện"; chỉ từng ca
 nói "cải thiện đó là gì".
 
-**Còn phải nói cho đủ:** "mô hình đóng góp 0" **không** chứng minh nó vô dụng. Tập đánh giá do tôi
-viết nên nó không chứa cách nói tôi chưa nghĩ ra — mà đó lại đúng là chỗ mô hình dùng để làm gì.
+**Còn phải nói cho đủ:** "mô hình đóng góp 0" **không** chứng minh nó vô dụng. Tập đánh giá do
+người làm viết nên nó không chứa cách nói chưa ai nghĩ ra — mà đó lại đúng là chỗ mô hình dùng để
+làm gì.
 Kết luận trung thực: *giá trị của mô hình trên tập này bằng 0; giá trị với khách thật thì tập này
 **không đo được**.* Nên nó được giữ nhưng tắt được bằng một cờ, và số nền không phụ thuộc nó.
 
 ### 5.2 Ablation gán mức mất cho phương pháp không có cơ chế đó
 
-Bảng ablation đầu của tôi in cả ba phương pháp cho mọi cơ chế, nên nó có những dòng như:
+Bảng ablation bản đầu in cả ba phương pháp cho mọi cơ chế, nên nó có những dòng như:
 
 ```
 tắt chuẩn hóa vector    bm25    +0.000   <-- KHÔNG mất gì, cơ chế này DƯ
@@ -209,17 +211,17 @@ Bảng đúng:
 | tắt chuẩn hóa L2 | embedding | 0,625 | 11 | +0,000 | **cơ chế DƯ với kho này** |
 | tắt tiền tố E5 | embedding | 0,648 | 13 | +0,023 | Hit@5 TĂNG nhưng cấm@5 tăng +2 |
 
-Hai kết quả trái với điều tôi viết trong mã:
+Hai kết quả trái với chú thích đã viết trong mã:
 
 - **Chuẩn hóa L2 không mất gì.** Vector của `multilingual-e5-small` đã gần chuẩn đơn vị, nên phép
-  chuẩn hóa không đổi thứ tự. Tôi viết "không chuẩn hóa thì đoạn DÀI được lợi thế" — đúng về lý
-  thuyết, **sai với mô hình này**.
-- **Tắt tiền tố E5 làm Hit@5 TĂNG.** Tôi viết "thiếu tiền tố thì vẫn chạy, chỉ kém đi". Sai.
+  chuẩn hóa không đổi thứ tự. Chú thích ghi "không chuẩn hóa thì đoạn DÀI được lợi thế" — đúng về
+  lý thuyết, **sai với mô hình này**.
+- **Tắt tiền tố E5 làm Hit@5 TĂNG.** Chú thích ghi "thiếu tiền tố thì vẫn chạy, chỉ kém đi". Sai.
 
 Nhưng công cụ **không** kết luận "tắt đi tốt hơn" ở dòng cuối, vì `cấm@5` tăng từ 11 lên 13: bộ
-truy hồi lấy được nhiều đoạn đúng hơn **kèm** nhiều đoạn lạc đề hơn. Tôi đã tuyên bố `forbidden@5`
-là chỉ số quyết định, nên kết luận phải dùng nó — một công cụ kết luận theo Hit@5 ở đó là công cụ
-nói ngược lại thước đo mà chính nó đặt ra.
+truy hồi lấy được nhiều đoạn đúng hơn **kèm** nhiều đoạn lạc đề hơn. `forbidden@5` đã được đặt làm
+chỉ số quyết định, nên kết luận phải dùng nó — một công cụ kết luận theo Hit@5 ở đó là công cụ nói
+ngược lại thước đo mà chính nó đặt ra.
 
 ### 5.3 Ca ĐẠT SAI LÝ DO, và tiêu chí quá lỏng hai lần liền
 
@@ -238,12 +240,12 @@ kết quả đúng.
 ### 5.4 Mã chết ở bước 2 vì `reference_index` chỉ có ở bước 3
 
 Để câu "món thứ hai có **hải sản** không?" được đọc là *hỏi về một món* thay vì *duyệt danh mục
-hải sản*, tôi thêm `request.reference_index is not None` vào điều kiện ở **bước 2** của
+hải sản*, bản đầu thêm `request.reference_index is not None` vào điều kiện ở **bước 2** của
 `understand()`. Nhưng `reference_index` chỉ được đặt ở **bước 3**, khi vòng khớp từ vựng chạy. Ở
 bước 2 nó luôn là `None`.
 
-Không test nào đỏ. Chỉ có một ca vẫn sai, và nếu tôi không chạy lại tập kịch bản thì tôi đã tin là
-đã sửa. Đây là lần thứ **sáu** lớp lỗi *"tệp có mặt khác nó chạy"* xuất hiện trong dự án này.
+Không test nào đỏ. Chỉ có một ca vẫn sai, và nếu không chạy lại tập kịch bản thì bản sửa đó trông
+như đã xong. Đây là lần thứ **sáu** lớp lỗi *"tệp có mặt khác nó chạy"* xuất hiện trong dự án này.
 
 **Đã sửa:** `REFERENCE_PHRASES` sinh **từ `VOCAB`** (không viết tay — viết tay thì thêm cụm ở trên
 mà quên thêm ở đây) và kiểm ở bước 2.
@@ -300,7 +302,7 @@ xanh — bản trước của tập truy hồi có 96 khóa trỏ sai chỗ su�
 Tiêu chí lượt 1 quan trọng hơn nó trông: không kiểm rằng ràng buộc **đã vào** bộ nhớ thì lượt 2
 xanh không phân biệt được hai trường hợp trái ngược — *"ghi đè đúng"* và *"không nhớ gì cả"*.
 
-**Nêu tên món trong câu "chưa có dữ liệu".** Tôi thêm tên món vào câu no_data để khách biết hệ
+**Nêu tên món trong câu "chưa có dữ liệu".** Bản đầu thêm tên món vào câu no_data để khách biết hệ
 thống đang nói về món nào. Thước đo đỏ đúng ở `O-nodata-01`: một ca "chưa có dữ liệu" **không được
 nêu món** — nêu món ở đó đọc như một lời mời. Sửa thành: nêu tên **chỉ khi** khách trỏ bằng tham
 chiếu ("món đó"), không nêu khi khách tự gõ tên (họ đã biết mình hỏi món nào).
@@ -315,15 +317,114 @@ thống nói ra chỗ mình không biết — và vẫn nêu TÊN món để kh�
 
 ---
 
+## 9. Bốn lỗi mà CHẠY THẬT tìm ra sau khi mọi test đã xanh
+
+Ở thời điểm 229 test xanh, 119/119 ca trả lời, 65/65 lượt phiên và 0 lỗi an toàn, việc chạy sáu lượt
+qua backend thật vẫn tìm ra **bốn lỗi**. Cả bốn đều nằm ngoài tầm của tập ca đang có, và mỗi lỗi đã
+trở thành một ca mới — nếu không nó sẽ quay lại.
+
+### 9.1 Một câu `fact` phá dãy món mà khách còn đang trỏ vào
+
+```
+lượt 1  "cho mình món chay"             -> danh sách 6 món
+lượt 2  "món đầu tiên giá bao nhiêu?"   -> fact, 1 món  -> dãy CÒN 1 MÓN
+lượt 3  "món thứ hai có hải sản không?" -> "thứ hai" ngoài phạm vi -> liệt kê lại danh sách mới
+```
+
+`update_state` thay `last_listed_ids` mỗi khi lượt có nêu món — kể cả câu `fact` về **một** món.
+Nhưng khách ở lượt 3 vẫn đang nói về danh sách của lượt 1; họ không coi một câu trả lời về một món
+là một danh sách mới.
+
+**Vì sao 25 kịch bản không bắt được:** mọi kịch bản `context_reference` chỉ có **MỘT** lượt tham
+chiếu. Chuỗi hai lượt tham chiếu liên tiếp chưa từng được chạy.
+
+**Sửa:** thay dãy chỉ khi `reply_kind == "list"`. Tham số `reply_kind` **không có giá trị mặc
+định** — mặc định sẽ che đúng lỗi mà nó tồn tại để sửa.
+
+**Ca mới:** nhóm `chained_reference` (3 kịch bản / 9 lượt). Đo hai chiều: với bản sửa 0 lượt đỏ,
+bỏ bản sửa ra **3 lượt đỏ**.
+
+**Và tiêu chí đầu của nhóm này QUÁ LỎNG** — lần thứ ba trong bước này. Với `refers_to_turn` ("phải
+nhắc một món của lượt 1"), chỉ 1 trong 3 kịch bản bắt được lỗi: hai kịch bản kia **đạt sai lý do**
+vì hệ thống không hiểu thì nó liệt kê lại danh sách cũ, và danh sách đó *chứa* tên món của lượt 1.
+Phải thay bằng `refers_to_position` — đòi nhắc **đúng** món ở vị trí đó **và không nhắc món nào
+khác**. Sau đó 3/3 bắt được.
+
+### 9.2 Câu HỎI bị ghi vào bộ nhớ thành lời KHAI dị ứng
+
+```
+lượt 1  "Cơm gà Hội An có hải sản không?"  -> hỏi về thành phần MỘT món
+lượt 2  "gợi ý món ăn giúp mình"           -> 26/91 món bị ẩn, và câu trả lời mở đầu bằng
+                                              "thực đơn không ghi nhận thành phần bạn cần tránh"
+```
+
+Cả câu KHAI và câu HỎI đều sinh `avoid_tags` — và **phải cùng sinh**, vì để trả lời "món này có hải
+sản không?" thì hệ thống cần biết nhãn hải sản. Nhưng bộ nhớ ghi cả hai như nhau, nên một câu hỏi tò
+mò trở thành một ràng buộc suốt phiên, và hệ thống **khẳng định một điều khách chưa hề nói**.
+
+**Vì sao đây KHÔNG phải nới ràng buộc an toàn:** nới là bỏ một điều khách **đã** khai. Ở đây không
+có lời khai nào để bỏ — có một câu hỏi, và nó đã được trả lời đầy đủ.
+
+**Sửa:** `Request.declared_avoidance` tách "khai" khỏi "hỏi"; `update_state` ghi dị nguyên của lượt
+này vào bộ nhớ **chỉ khi** lượt đó khai. Nhãn đã có trong bộ nhớ thì giữ **vô điều kiện** — chốt an
+toàn không đổi.
+
+**Ca mới:** nhóm `question_not_declaration` (2 kịch bản / 8 lượt), đo **cả hai chiều**: câu hỏi
+không được vào bộ nhớ, **và** câu khai vẫn phải vào và giữ. Không có chiều thứ hai thì bản sửa
+chiều thứ nhất có thể phá chốt an toàn mà tập ca vẫn xanh. Với bản sửa 0 lượt đỏ, bỏ bản sửa ra
+**4 lượt đỏ**.
+
+### 9.3 Lỗi CHỮ trong câu khách đọc
+
+```
+"Mình chỉ đọc được phần thực đơn ghi, nên Bạn nhắc nhân viên…"
+```
+
+`STAFF_NOTE` bắt đầu bằng chữ B hoa và bị nối sau từ "nên". Thước đo chấm **đúng/sai về dữ liệu** —
+món có thật không, giá đúng không, có lọt món cần tránh không — nên nó không chấm câu có đọc được
+hay không. Câu này qua được mọi ca đánh giá.
+
+**Ca mới:** `CauChuKHACHDOCTHAY` trong `test_answer.py` — quét **toàn bộ** câu trả lời của 119 ca:
+chữ hoa giữa câu, khoảng trắng/dấu câu lặp, câu không có dấu kết. Quét toàn bộ chứ không vài ca mẫu,
+vì lỗi chữ nằm ở nhánh nào thì chỉ ca đi qua nhánh đó mới lộ.
+
+### 9.4 `last_listed_ids` không đi qua backend
+
+Tham chiếu ngược chạy hoàn hảo trong bộ chạy kịch bản (nó giữ `SessionState` trong biến) nhưng sẽ
+**mất sạch** trong hệ thống thật: mỗi lượt qua backend là một vòng
+`session_updates -> JSON -> Postgres -> from_payload`, và khóa nào không có trong `constraints` thì
+không sống qua vòng đó.
+
+**Sửa:** thêm `last_listed_ids` và `last_categories` vào `session_updates()["constraints"]`. Không
+cần đổi hợp đồng backend và không cần migration — `ChatAiProvider.ExtractSessionUpdates` copy **mọi**
+khóa của dict đó vào `constraints_json` rồi trả lại nguyên vẹn.
+
+**Ca mới:** 3 test trong `test_session.py`, gồm **chiều nghịch** (bỏ khóa ra thì MẤT) — không có
+chiều nghịch thì test thuận cũng xanh với một hệ thống truyền dãy món qua đường khác, và ta không
+biết đường nào đang giữ nó.
+
+### Điều bốn lỗi này nói chung
+
+Ba trong bốn lỗi là **lỗi khách nhìn thấy** (mất chỗ trỏ, mất 26 lựa chọn, chữ hoa giữa câu), và
+không lỗi nào là lỗi an toàn — chốt fail-closed giữ 0 lỗi qua tất cả. Nhưng chúng nói một điều về
+phương pháp: **tập ca kiểm đúng những gì người viết nghĩ ra để kiểm.** Một cuộc hội thoại thật có
+những chuỗi không ai nghĩ tới, nên chạy thật không thay được bằng test — và ngược lại, mỗi lỗi tìm
+được khi chạy thật phải trở thành một ca.
+
+Xác nhận cuối qua backend thật (sau khi sửa cả bốn): tham chiếu ngược trỏ đúng món ở cả hai lượt,
+**0 món hải sản lọt qua 5 lượt** trong đó 4 lượt không nhắc dị ứng.
+
+---
+
 ## 8. Hạn chế của bước này
 
 1. **Tập niêm phong truy hồi đã dùng hết** (2026-07-30). Câu hỏi tiếp theo cần tập MỚI.
 2. **CI chỉ chạy BM25.** `sentence-transformers` + torch ≈ 2–3GB mỗi lần chạy. Con số của embedding
    đo tại máy, ghi ở mục 2 kèm ngày. Bỏ qua **không âm thầm**: bộ so in rõ đã bỏ qua và vì sao, và
    nó vẫn CHẶN nếu BM25 phạm nhóm chốt.
-3. **`last_listed_ids` không đi qua backend.** Backend chưa có trường riêng cho dãy này, nên qua
-   backend thật thì tham chiếu ngược mất sau mỗi lượt. Ghi ra ở đây và trong `session.py` thay vì
-   để người sau tưởng nó chạy. Sửa được bằng một trường trong `ChatSessionStatePayload`.
+3. ~~**`last_listed_ids` không đi qua backend.**~~ **Đã sửa** — xem mục 9.4. Nó đi vòng tròn qua
+   `constraints`, không cần đổi hợp đồng backend và không cần migration. Đã xác nhận qua backend
+   thật, có 3 test chốt gồm một chiều nghịch.
 4. **`season:cooling` chỉ gắn cho 2/49 món ăn** (và 5 đồ uống). Khiếm khuyết gắn nhãn thật, nên cụm
    "trời nóng / cho mát" map về `season:hot_season` (4 món ăn) để có biên. Không sửa nhãn món cho
    vừa một ca đánh giá.

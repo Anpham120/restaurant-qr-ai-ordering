@@ -16,12 +16,16 @@ Tôi đã chạy tay 6 lượt qua backend thật và thấy 0 món dị nguyên
 không phải phép đo: nó không lặp lại được, không vào CI, và không ai biết nó còn đúng sau lần
 sửa tiếp theo. **Chốt an toàn không có tập ca là chốt bằng lời.**
 
-Bốn nhóm, và nhóm đầu là CHỐT
+Năm nhóm, và nhóm đầu là CHỐT
 -----------------------------
     allergy_persists      dị nguyên khai một lần phải giữ suốt phiên          CHỐT AN TOÀN
     constraint_overrides  "rẻ hơn nữa" phải THAY ngân sách cũ, không cộng dồn
     no_repeat             "món khác đi" không được gợi lại món đã nêu
     context_reference     "món đầu tiên giá bao nhiêu" — tham chiếu ngược
+    chained_reference     HAI lượt tham chiếu liên tiếp — nhóm này sinh ra từ một lỗi tìm được khi
+                          CHẠY THẬT qua backend, không tìm được bằng bốn nhóm trên
+    question_not_declaration  câu HỎI "món này có hải sản không?" KHÔNG được thành lời KHAI dị ứng
+                          — cũng sinh ra từ một lỗi tìm được khi chạy thật
 
 Mỗi lượt kiểm HAI thứ, và thứ hai mới là điều đáng đo
 -----------------------------------------------------
@@ -256,6 +260,119 @@ def build() -> dict:
                                    "một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai "
                                    "biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. "
                                    f"Tiêu chí: {noi_them}, và dạng đáp án là `{dang}`."}},
+            ],
+        })
+
+    # --- NHÓM 5: HAI lượt tham chiếu liên tiếp -----------------------------------------
+    #
+    # Nhóm này tồn tại vì một lỗi mà 25 kịch bản trước KHÔNG bắt được, và chỉ hiện ra khi chạy qua
+    # backend thật. Mọi kịch bản `context_reference` chỉ có MỘT lượt tham chiếu, nên chuỗi dưới đây
+    # chưa từng được chạy:
+    #
+    #   lượt 1  "cho mình món chay"             -> danh sách 6 món
+    #   lượt 2  "món đầu tiên giá bao nhiêu?"   -> fact về 1 món
+    #   lượt 3  "món thứ hai có hải sản không?" -> "thứ hai" trỏ vào đâu?
+    #
+    # Bản trước thay `last_listed_ids` mỗi khi lượt có nêu món, kể cả câu `fact` về MỘT món. Nên
+    # sau lượt 2 dãy còn đúng 1 món, và lượt 3 không trỏ được — dù khách vẫn đang nói về danh sách
+    # của lượt 1.
+    #
+    # Bài học ghi lại: tập ca kiểm điều người viết NGHĨ RA để kiểm. Một cuộc hội thoại thật có
+    # những chuỗi không ai nghĩ tới, nên "chạy thật" không thay được bằng test — và ngược lại, mỗi
+    # lỗi tìm được khi chạy thật phải trở thành một ca, nếu không nó sẽ quay lại.
+    #
+    # Tiêu chí dùng `refers_to_position` (bản CHẶT) chứ không dùng `refers_to_turn` (bản lỏng). Đã
+    # đo: với bản lỏng, 2 trong 3 kịch bản dưới đây ĐẠT dù bản sửa bị tắt — vì hệ thống không hiểu
+    # thì nó liệt kê lại danh sách cũ, và danh sách đó CHỨA tên món của lượt 1 nên tiêu chí "phải
+    # nhắc món của lượt 1" thỏa. Bản chặt đòi nhắc ĐÚNG món ở vị trí đó VÀ không nhắc món nào khác.
+    LIEN_TIEP = [
+        ("Cho mình món chay", "Món đầu tiên giá bao nhiêu?",
+         "Món thứ hai có hải sản không?", 2),
+        ("Món nào không cay", "Món đầu tiên giá bao nhiêu?",
+         "Món thứ ba giá bao nhiêu?", 3),
+        ("Cho mình xem món lẩu", "Cái đó bao nhiêu tiền?",
+         "Món thứ hai giá bao nhiêu?", 2),
+    ]
+    for i, (cau1, cau2, cau3, vi_tri) in enumerate(LIEN_TIEP, 1):
+        scripts.append({
+            "id": f"chained-reference-{i:02d}",
+            "group": "chained_reference",
+            "why": ("HAI lượt tham chiếu liên tiếp. Câu `fact` về MỘT món không được phá dãy món "
+                    "mà khách còn đang trỏ vào. Lỗi này chỉ hiện khi chạy qua backend thật, không "
+                    "hiện trong 25 kịch bản trước — vì mọi kịch bản trước chỉ có MỘT lượt tham "
+                    "chiếu."),
+            "turns": [
+                {"user": cau1, "expect": {"min_items": 3, "why": "Lượt nêu danh sách nhiều món."}},
+                {"user": cau2,
+                 "expect": {"refers_to_position": {"turn": 1, "index": 1},
+                            "expect_kind": "fact",
+                            "why": "Tham chiếu thứ nhất — trỏ vào món ĐẦU của lượt 1."}},
+                {"user": cau3,
+                 "expect": {"refers_to_position": {"turn": 1, "index": vi_tri},
+                            "expect_kind": "fact",
+                            "why": "Tham chiếu thứ HAI, và đây là lượt đáng đo: nó phải trỏ vào "
+                                   f"món thứ {vi_tri} của LƯỢT 1, không phải vào câu trả lời một "
+                                   "món của lượt 2. Nếu dãy bị thay ở lượt 2 thì lượt này không "
+                                   "trỏ được và hệ thống liệt kê lại một danh sách mới — mà danh "
+                                   "sách đó lại CHỨA tên món của lượt 1, nên tiêu chí lỏng "
+                                   "`refers_to_turn` vẫn cho qua. Đó là lý do phải dùng bản chặt."}},
+            ],
+        })
+
+    # --- NHÓM 6: câu HỎI không được thành lời KHAI ------------------------------------
+    #
+    # Nhóm này cũng sinh ra từ một lỗi tìm được khi CHẠY THẬT, và là lỗi khách NHÌN THẤY:
+    #
+    #   lượt 1  "Cơm gà Hội An có hải sản không?"  -> hỏi về thành phần MỘT món
+    #   lượt 2  "gợi ý món ăn giúp mình"           -> 26/91 món bị ẩn, và câu trả lời mở đầu
+    #                                                 "thực đơn không ghi nhận thành phần bạn cần
+    #                                                 tránh" — khẳng định điều khách chưa hề nói
+    #
+    # Nguyên nhân: cả câu KHAI và câu HỎI đều sinh `avoid_tags` (đúng — để trả lời được câu hỏi thì
+    # phải biết nhãn), nhưng bộ nhớ ghi cả hai như nhau.
+    #
+    # Nhóm này đo CẢ HAI CHIỀU, và chiều thứ hai mới là chiều khó:
+    #   chiều 1  câu HỎI  -> bộ nhớ KHÔNG được có nhãn đó
+    #   chiều 2  câu KHAI -> bộ nhớ PHẢI có, và giữ suốt phiên (nhóm `allergy_persists` đã lo)
+    #
+    # Không có chiều 1 thì một hệ thống "an toàn quá mức" vẫn xanh mọi ca, dù nó ẩn 26 món của một
+    # khách chỉ tò mò. Không có chiều 2 thì sửa chiều 1 sẽ phá mất chốt an toàn mà không ai biết.
+    HOI_KHONG_PHAI_KHAI = [
+        ("Cơm gà Hội An có hải sản không?", "allergen:seafood",
+         "Hỏi về thành phần một món đã nêu tên."),
+        ("Bún đậu mắm tôm có đậu phộng không?", "allergen:peanut",
+         "Cùng dạng, nhãn khác — chốt rằng cơ chế đúng cho cả nhóm dị nguyên, không chỉ hải sản."),
+    ]
+    for i, (cau_hoi, nhan, ghi_chu) in enumerate(HOI_KHONG_PHAI_KHAI, 1):
+        scripts.append({
+            "id": f"question-not-declaration-{i:02d}",
+            "group": "question_not_declaration",
+            "why": ("Câu HỎI về thành phần một món KHÔNG phải lời KHAI dị ứng. Ghi nó vào bộ nhớ "
+                    "làm 26/91 món bị ẩn suốt phiên và mọi câu sau đó khẳng định 'thành phần bạn "
+                    "cần tránh' — một điều khách chưa nói. Lỗi này chỉ hiện khi chạy thật, vì nó "
+                    "cần bộ nhớ sống qua nhiều lượt."),
+            "turns": [
+                {"user": cau_hoi,
+                 "expect": {"expect_kind": "fact",
+                            "memory_must_not_have_avoid": [nhan],
+                            "why": f"{ghi_chu} Trả lời đúng về món đó, nhưng KHÔNG ghi nhãn "
+                                   f"`{nhan}` vào bộ nhớ."}},
+                {"user": "Gợi ý món ăn giúp mình",
+                 "expect": {"min_items": 3,
+                            "memory_must_not_have_avoid": [nhan],
+                            "why": "Lượt sau phải thấy ĐỦ thực đơn. Nếu bộ nhớ đã ghi nhãn từ câu "
+                                   "hỏi thì lượt này bị lọc và khách mất lựa chọn mà không hiểu "
+                                   "vì sao."}},
+                {"user": "Mình dị ứng " + ("hải sản" if nhan.endswith("seafood") else "đậu phộng"),
+                 "expect": {"forbid_tags_any": [nhan],
+                            "memory_must_have_avoid": [nhan],
+                            "why": "CHIỀU NGƯỢC LẠI, và là chiều then chốt: khi khách KHAI thật thì "
+                                   "bộ nhớ PHẢI ghi. Không có lượt này thì bản sửa chiều trên có "
+                                   "thể phá chốt an toàn mà tập ca vẫn xanh."}},
+                {"user": "Cho mình xem thêm vài món",
+                 "expect": {"forbid_tags_any": [nhan],
+                            "memory_must_have_avoid": [nhan],
+                            "why": "Lượt KHÔNG nhắc dị ứng, sau lời khai. Phải còn được bảo vệ."}},
             ],
         })
 

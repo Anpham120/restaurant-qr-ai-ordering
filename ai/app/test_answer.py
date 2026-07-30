@@ -174,5 +174,60 @@ class MoiMonNeuRaPhaiCoThatVaDungGia(unittest.TestCase):
         )
 
 
+class CauChuKHACHDOCTHAY(unittest.TestCase):
+    """Lỗi CHỮ trong câu trả lời — thứ thước đo nội dung không bắt được.
+
+    Thước đo chấm ĐÚNG/SAI về dữ liệu: món có thật không, giá đúng không, có lọt món cần tránh
+    không. Nó không chấm câu có đọc được không. Nên một câu như:
+
+        "Mình chỉ đọc được phần thực đơn ghi, nên Bạn nhắc nhân viên…"
+
+    qua được mọi ca đánh giá, dù khách đọc thấy ngay chữ B hoa giữa câu. Lỗi này chỉ hiện ra khi
+    ĐỌC câu trả lời thật qua backend, và nó đã hiện ra đúng như vậy.
+
+    Ba phép kiểm dưới đây quét TOÀN BỘ câu trả lời của 119 ca, không chỉ vài ca mẫu — vì lỗi chữ
+    nằm ở nhánh nào thì chỉ ca đi qua nhánh đó mới lộ.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cases = json.loads(
+            (REPO_ROOT / "ai" / "evaluation" / "cases.json").read_text(encoding="utf-8-sig")
+        )["cases"]
+        cls.tra_loi = [
+            (c["id"], respond(understand(c["question"], ITEMS), ITEMS).text) for c in cases
+        ]
+
+    def test_khong_chu_hoa_giua_cau(self):
+        """Chữ hoa sau dấu phẩy hoặc sau một từ nối là dấu hiệu ghép chuỗi sai chỗ."""
+        xau = []
+        for cid, text in self.tra_loi:
+            for noi in (", nên ", ", và ", ", rồi ", ", thì ", " nên ", " và "):
+                vi_tri = text.find(noi)
+                while vi_tri >= 0:
+                    sau = text[vi_tri + len(noi):]
+                    if sau[:1].isupper() and not sau.startswith(("Mình", "Bạn nhé")):
+                        # Tên món viết hoa là hợp lệ — bỏ qua nếu ngay sau đó là một tên món.
+                        if not any(sau.startswith(i["name"]) for i in ITEMS):
+                            xau.append(f"{cid}: …{noi}{sau[:34]}…")
+                            break
+                    vi_tri = text.find(noi, vi_tri + 1)
+        self.assertEqual(xau, [], f"{len(xau)} câu có chữ hoa giữa câu: {xau[:6]}")
+
+    def test_khong_hai_dau_cach_hoac_dau_cau_lien_tiep(self):
+        xau = [
+            f"{cid}: {text[:60]!r}" for cid, text in self.tra_loi
+            if "  " in text or ".." in text or " ." in text or " ," in text
+        ]
+        self.assertEqual(xau, [], f"{len(xau)} câu có khoảng trắng/dấu câu lặp: {xau[:4]}")
+
+    def test_moi_cau_ket_thuc_bang_dau_cau(self):
+        xau = [
+            f"{cid}: {text[-30:]!r}" for cid, text in self.tra_loi
+            if text and text.rstrip()[-1] not in ".?!"
+        ]
+        self.assertEqual(xau, [], f"{len(xau)} câu không có dấu kết: {xau[:4]}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

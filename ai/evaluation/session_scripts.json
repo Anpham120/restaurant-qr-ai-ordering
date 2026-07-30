@@ -797,6 +797,216 @@
           }
         }
       ]
+    },
+    {
+      "id": "chained-reference-01",
+      "group": "chained_reference",
+      "why": "HAI lượt tham chiếu liên tiếp. Câu `fact` về MỘT món không được phá dãy món mà khách còn đang trỏ vào. Lỗi này chỉ hiện khi chạy qua backend thật, không hiện trong 25 kịch bản trước — vì mọi kịch bản trước chỉ có MỘT lượt tham chiếu.",
+      "turns": [
+        {
+          "user": "Cho mình món chay",
+          "expect": {
+            "min_items": 3,
+            "why": "Lượt nêu danh sách nhiều món."
+          }
+        },
+        {
+          "user": "Món đầu tiên giá bao nhiêu?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 1
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ nhất — trỏ vào món ĐẦU của lượt 1."
+          }
+        },
+        {
+          "user": "Món thứ hai có hải sản không?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 2
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ HAI, và đây là lượt đáng đo: nó phải trỏ vào món thứ 2 của LƯỢT 1, không phải vào câu trả lời một món của lượt 2. Nếu dãy bị thay ở lượt 2 thì lượt này không trỏ được và hệ thống liệt kê lại một danh sách mới — mà danh sách đó lại CHỨA tên món của lượt 1, nên tiêu chí lỏng `refers_to_turn` vẫn cho qua. Đó là lý do phải dùng bản chặt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-02",
+      "group": "chained_reference",
+      "why": "HAI lượt tham chiếu liên tiếp. Câu `fact` về MỘT món không được phá dãy món mà khách còn đang trỏ vào. Lỗi này chỉ hiện khi chạy qua backend thật, không hiện trong 25 kịch bản trước — vì mọi kịch bản trước chỉ có MỘT lượt tham chiếu.",
+      "turns": [
+        {
+          "user": "Món nào không cay",
+          "expect": {
+            "min_items": 3,
+            "why": "Lượt nêu danh sách nhiều món."
+          }
+        },
+        {
+          "user": "Món đầu tiên giá bao nhiêu?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 1
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ nhất — trỏ vào món ĐẦU của lượt 1."
+          }
+        },
+        {
+          "user": "Món thứ ba giá bao nhiêu?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 3
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ HAI, và đây là lượt đáng đo: nó phải trỏ vào món thứ 3 của LƯỢT 1, không phải vào câu trả lời một món của lượt 2. Nếu dãy bị thay ở lượt 2 thì lượt này không trỏ được và hệ thống liệt kê lại một danh sách mới — mà danh sách đó lại CHỨA tên món của lượt 1, nên tiêu chí lỏng `refers_to_turn` vẫn cho qua. Đó là lý do phải dùng bản chặt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-03",
+      "group": "chained_reference",
+      "why": "HAI lượt tham chiếu liên tiếp. Câu `fact` về MỘT món không được phá dãy món mà khách còn đang trỏ vào. Lỗi này chỉ hiện khi chạy qua backend thật, không hiện trong 25 kịch bản trước — vì mọi kịch bản trước chỉ có MỘT lượt tham chiếu.",
+      "turns": [
+        {
+          "user": "Cho mình xem món lẩu",
+          "expect": {
+            "min_items": 3,
+            "why": "Lượt nêu danh sách nhiều món."
+          }
+        },
+        {
+          "user": "Cái đó bao nhiêu tiền?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 1
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ nhất — trỏ vào món ĐẦU của lượt 1."
+          }
+        },
+        {
+          "user": "Món thứ hai giá bao nhiêu?",
+          "expect": {
+            "refers_to_position": {
+              "turn": 1,
+              "index": 2
+            },
+            "expect_kind": "fact",
+            "why": "Tham chiếu thứ HAI, và đây là lượt đáng đo: nó phải trỏ vào món thứ 2 của LƯỢT 1, không phải vào câu trả lời một món của lượt 2. Nếu dãy bị thay ở lượt 2 thì lượt này không trỏ được và hệ thống liệt kê lại một danh sách mới — mà danh sách đó lại CHỨA tên món của lượt 1, nên tiêu chí lỏng `refers_to_turn` vẫn cho qua. Đó là lý do phải dùng bản chặt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "question-not-declaration-01",
+      "group": "question_not_declaration",
+      "why": "Câu HỎI về thành phần một món KHÔNG phải lời KHAI dị ứng. Ghi nó vào bộ nhớ làm 26/91 món bị ẩn suốt phiên và mọi câu sau đó khẳng định 'thành phần bạn cần tránh' — một điều khách chưa nói. Lỗi này chỉ hiện khi chạy thật, vì nó cần bộ nhớ sống qua nhiều lượt.",
+      "turns": [
+        {
+          "user": "Cơm gà Hội An có hải sản không?",
+          "expect": {
+            "expect_kind": "fact",
+            "memory_must_not_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Hỏi về thành phần một món đã nêu tên. Trả lời đúng về món đó, nhưng KHÔNG ghi nhãn `allergen:seafood` vào bộ nhớ."
+          }
+        },
+        {
+          "user": "Gợi ý món ăn giúp mình",
+          "expect": {
+            "min_items": 3,
+            "memory_must_not_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt sau phải thấy ĐỦ thực đơn. Nếu bộ nhớ đã ghi nhãn từ câu hỏi thì lượt này bị lọc và khách mất lựa chọn mà không hiểu vì sao."
+          }
+        },
+        {
+          "user": "Mình dị ứng hải sản",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "CHIỀU NGƯỢC LẠI, và là chiều then chốt: khi khách KHAI thật thì bộ nhớ PHẢI ghi. Không có lượt này thì bản sửa chiều trên có thể phá chốt an toàn mà tập ca vẫn xanh."
+          }
+        },
+        {
+          "user": "Cho mình xem thêm vài món",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt KHÔNG nhắc dị ứng, sau lời khai. Phải còn được bảo vệ."
+          }
+        }
+      ]
+    },
+    {
+      "id": "question-not-declaration-02",
+      "group": "question_not_declaration",
+      "why": "Câu HỎI về thành phần một món KHÔNG phải lời KHAI dị ứng. Ghi nó vào bộ nhớ làm 26/91 món bị ẩn suốt phiên và mọi câu sau đó khẳng định 'thành phần bạn cần tránh' — một điều khách chưa nói. Lỗi này chỉ hiện khi chạy thật, vì nó cần bộ nhớ sống qua nhiều lượt.",
+      "turns": [
+        {
+          "user": "Bún đậu mắm tôm có đậu phộng không?",
+          "expect": {
+            "expect_kind": "fact",
+            "memory_must_not_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Cùng dạng, nhãn khác — chốt rằng cơ chế đúng cho cả nhóm dị nguyên, không chỉ hải sản. Trả lời đúng về món đó, nhưng KHÔNG ghi nhãn `allergen:peanut` vào bộ nhớ."
+          }
+        },
+        {
+          "user": "Gợi ý món ăn giúp mình",
+          "expect": {
+            "min_items": 3,
+            "memory_must_not_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt sau phải thấy ĐỦ thực đơn. Nếu bộ nhớ đã ghi nhãn từ câu hỏi thì lượt này bị lọc và khách mất lựa chọn mà không hiểu vì sao."
+          }
+        },
+        {
+          "user": "Mình dị ứng đậu phộng",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "CHIỀU NGƯỢC LẠI, và là chiều then chốt: khi khách KHAI thật thì bộ nhớ PHẢI ghi. Không có lượt này thì bản sửa chiều trên có thể phá chốt an toàn mà tập ca vẫn xanh."
+          }
+        },
+        {
+          "user": "Cho mình xem thêm vài món",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lượt KHÔNG nhắc dị ứng, sau lời khai. Phải còn được bảo vệ."
+          }
+        }
+      ]
     }
   ]
 }

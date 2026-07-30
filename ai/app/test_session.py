@@ -39,7 +39,7 @@ def turn(state: SessionState, question: str):
     """Chạy một lượt trọn vẹn: hiểu → hợp nhất → trả lời → ghi bộ nhớ."""
     merged = merge_into_request(understand(question, ITEMS), state)
     reply = respond(merged, ITEMS)
-    return merged, reply, update_state(state, merged, reply.items)
+    return merged, reply, update_state(state, merged, reply.items, reply.kind)
 
 
 class ChotAnToanDiNguyenGiuSuotPhien(unittest.TestCase):
@@ -158,19 +158,55 @@ class NguCanhCongVaoNhungCoTRAN(unittest.TestCase):
 
 
 class GhiBoNhoTuBanDaHopNHAT(unittest.TestCase):
-    """Nếu ghi từ bản GỐC thay vì bản đã hợp nhất thì bộ nhớ mất dị nguyên ngay lượt sau."""
+    """Ghi từ bản GỐC thay vì bản đã hợp nhất thì bộ nhớ mất ràng buộc CỨNG ngay lượt sau.
 
-    def test_ghi_tu_ban_goc_thi_mat_di_nguyen(self):
+    Test này từng minh họa bằng DỊ NGUYÊN, và nó không còn minh họa được bằng dị nguyên nữa — vì
+    `update_state` nay giữ `state.avoid_tags` **vô điều kiện**, nên đường mất đó đã bị bịt bằng một
+    cơ chế thứ hai. Trường an toàn nhất có hai lớp bảo vệ là điều đúng, không phải điều dư.
+
+    Nhưng bài học không đổi, và nó vẫn đo được ở các trường khác: `hard_tags`, `budget_max` và
+    `wants` CHỈ đến từ bản đã hợp nhất. Ghi từ bản gốc thì "dưới 200k" khai ở lượt 1 mất ngay lượt
+    2, và khách nhận món 500k cho một yêu cầu họ đã nêu rõ.
+    """
+
+    def test_ghi_tu_ban_goc_thi_mat_rang_buoc_cung(self):
+        state = SessionState()
+        _, _, state = turn(state, "Cho mình món không cay dưới 200 nghìn")
+        self.assertIn("spice:none", state.hard_tags, "tiền đề: lượt 1 đã vào bộ nhớ")
+        self.assertEqual(state.budget_max, 200_000)
+
+        # Lượt 2 KHÔNG nhắc lại ràng buộc nào.
+        goc = understand("Món nào ngon?", ITEMS)
+        self.assertEqual(goc.require_tags, [], "tiền đề: bản gốc lượt 2 không có ràng buộc")
+        self.assertIsNone(goc.budget_max)
+        merged = merge_into_request(goc, state)
+
+        sai = update_state(state, goc, [], "list")      # ghi từ bản GỐC — cách làm SAI
+        dung = update_state(state, merged, [], "list")  # ghi từ bản đã hợp nhất — ĐÚNG
+
+        self.assertEqual(sai.hard_tags, [], "minh họa cách sai: mất ràng buộc độ cay")
+        self.assertIsNone(sai.budget_max, "minh họa cách sai: mất ngân sách")
+        self.assertIn("spice:none", dung.hard_tags)
+        self.assertEqual(dung.budget_max, 200_000)
+
+    def test_di_nguyen_co_LOP_BAO_VE_THU_HAI(self):
+        """Dị nguyên còn nguyên **kể cả khi** ghi từ bản gốc — hai lớp, không một.
+
+        Lớp 1: `merge_into_request` cộng dị nguyên vào bản của lượt này.
+        Lớp 2: `update_state` giữ `state.avoid_tags` vô điều kiện, không phụ thuộc bản nào truyền vào.
+
+        Chốt lớp 2 riêng là cần thiết: nếu lần sau ai đó sửa `update_state` cho "gọn" và bỏ lớp 2,
+        test này đỏ ngay — còn test ở trên vẫn xanh vì nó đo trường khác.
+        """
         state = SessionState()
         _, _, state = turn(state, "Mình dị ứng hải sản")
-        # Lượt 2 KHÔNG nhắc dị ứng: bản gốc của lượt 2 có avoid_tags rỗng.
         goc = understand("Món nào rẻ hơn?", ITEMS)
-        self.assertEqual(goc.avoid_tags, [], "tiền đề của test: bản gốc lượt 2 không có dị nguyên")
-        merged = merge_into_request(goc, state)
-        sai = update_state(state, goc, [])          # ghi từ bản GỐC — cách làm SAI
-        dung = update_state(state, merged, [])      # ghi từ bản đã hợp nhất — cách làm ĐÚNG
-        self.assertEqual(sai.avoid_tags, [], "minh họa cách sai: bộ nhớ mất dị nguyên")
-        self.assertIn("allergen:seafood", dung.avoid_tags)
+        self.assertEqual(goc.avoid_tags, [], "tiền đề: bản gốc lượt 2 không có dị nguyên")
+        sai = update_state(state, goc, [], "list")
+        self.assertIn(
+            "allergen:seafood", sai.avoid_tags,
+            "dị nguyên phải sống sót kể cả khi chỗ gọi truyền SAI bản — đây là lớp bảo vệ thứ hai",
+        )
 
 
 class BoNhoBenNgoaiHongThiKHONG_SAP(unittest.TestCase):
@@ -284,6 +320,75 @@ class KhongPhaGiDaCo(unittest.TestCase):
                 self.assertEqual(goc.text, qua_phien.text)
                 self.assertEqual(goc.items, qua_phien.items)
                 self.assertEqual(goc.kind, qua_phien.kind)
+
+
+class ThamChieuNguocPhaiSONG_QUA_BACKEND(unittest.TestCase):
+    """Dãy món đã nêu phải đi được VÒNG TRÒN qua hình dạng backend, không chỉ trong bộ nhớ.
+
+    Vì sao cần test này: tham chiếu ngược có thể chạy hoàn hảo trong bộ chạy kịch bản (nó giữ
+    `SessionState` trong biến) mà **mất sạch trong hệ thống thật** — vì mỗi lượt qua backend là một
+    vòng `session_updates() -> JSON -> from_payload()`, và khóa nào không có trong `constraints` thì
+    không sống qua vòng đó.
+
+    Đây đúng là loại lỗi mà khâu bộ nhớ tồn tại để chống: 422 thì thấy ngay, mất bộ nhớ thì không.
+    Nên hai chiều được kiểm riêng — chiều thuận (còn) và chiều nghịch (bỏ khóa ra thì MẤT).
+    """
+
+    def test_dai_mon_da_neu_song_qua_vong_JSON(self):
+        state = SessionState(
+            last_listed_ids=["m_008", "m_009", "m_010"],
+            last_categories=["cat_vegetarian"],
+            avoid_tags=["allergen:seafood"],
+        )
+        # Đúng đường backend đi: session_updates -> JSON -> from_payload.
+        goi = session_updates(state, ["m_008", "m_009", "m_010"])
+        qua_mang = json.loads(json.dumps(goi))
+        ve = SessionState.from_payload({
+            "constraints": qua_mang["constraints"],
+            "suggested_menu_item_ids": qua_mang["suggested_menu_item_ids"],
+            "rejected_menu_item_ids": qua_mang["rejected_menu_item_ids"],
+        })
+        self.assertEqual(ve.last_listed_ids, ["m_008", "m_009", "m_010"])
+        self.assertEqual(ve.last_categories, ["cat_vegetarian"])
+        self.assertEqual(ve.avoid_tags, ["allergen:seafood"], "dị nguyên cũng phải sống qua vòng")
+
+    def test_thieu_khoa_trong_constraints_thi_MAT_dai_mon(self):
+        """Chiều nghịch: chứng minh `constraints` là chỗ DUY NHẤT dãy món sống qua được.
+
+        Bỏ khóa ra rồi kiểm là MẤT — nếu không có chiều này thì test trên cũng xanh với một hệ
+        thống truyền dãy món qua một đường khác, và ta không biết đường nào đang giữ nó.
+        """
+        goi = session_updates(
+            SessionState(last_listed_ids=["m_008"], last_categories=["cat_vegetarian"]),
+            ["m_008"],
+        )
+        thieu = dict(goi["constraints"])
+        thieu.pop("last_listed_ids")
+        thieu.pop("last_categories")
+        ve = SessionState.from_payload({"constraints": thieu})
+        self.assertEqual(ve.last_listed_ids, [])
+        self.assertEqual(ve.last_categories, [])
+
+    def test_tham_chieu_giai_dung_mon_sau_khi_qua_vong_JSON(self):
+        """Chốt end-to-end: hỏi danh sách, đi qua vòng JSON, rồi trỏ vào "món thứ hai"."""
+        r1 = merge_into_request(understand("Cho mình món chay", ITEMS), SessionState())
+        reply1 = respond(r1, ITEMS)
+        self.assertGreaterEqual(len(reply1.items), 2, "lượt 1 phải nêu ít nhất 2 món")
+
+        s1 = update_state(SessionState(), r1, reply1.items, reply1.kind)
+        qua_mang = json.loads(json.dumps(session_updates(s1, reply1.items)))
+        s1_ve = SessionState.from_payload({
+            "constraints": qua_mang["constraints"],
+            "suggested_menu_item_ids": qua_mang["suggested_menu_item_ids"],
+            "rejected_menu_item_ids": qua_mang["rejected_menu_item_ids"],
+        })
+
+        r2 = merge_into_request(understand("Món thứ hai giá bao nhiêu?", ITEMS), s1_ve)
+        self.assertEqual(r2.named_items, [reply1.items[1]], "phải trỏ đúng món THỨ HAI")
+        reply2 = respond(r2, ITEMS)
+        self.assertEqual(reply2.kind, "fact")
+        ten = next(i["name"] for i in ITEMS if i["id"] == reply1.items[1])
+        self.assertIn(ten, reply2.text)
 
 
 if __name__ == "__main__":

@@ -73,6 +73,18 @@ class Request:
     wants: str = "any"          # "food" | "drink" | "any"
     asks_allergy: bool = False
     asks_about_named_dish: bool = False
+    # Khách có THẬT SỰ khai điều cần tránh, hay chỉ HỎI về thành phần của một món?
+    #
+    # Hai chuyện này cùng sinh ra `avoid_tags` — và phải cùng sinh, vì để trả lời "món này có hải
+    # sản không?" thì hệ thống cần biết nhãn hải sản. Nhưng chỉ MỘT trong hai được vào BỘ NHỚ:
+    #
+    #   "mình dị ứng hải sản"          KHAI  -> nhớ suốt phiên, không bao giờ bỏ
+    #   "Cơm gà Hội An có hải sản không?"  HỎI   -> trả lời rồi thôi
+    #
+    # Gộp hai thứ này là một lỗi khách NHÌN THẤY: một câu hỏi tò mò làm 26/91 món bị ẩn suốt phiên,
+    # và câu trả lời sau đó nói "thành phần bạn cần tránh" — khẳng định một điều khách chưa hề nói.
+    # Lỗi này chỉ hiện khi chạy thật qua backend, vì nó cần bộ nhớ SỐNG QUA nhiều lượt.
+    declared_avoidance: bool = False
     asks_price: bool = False
     asks_extreme: str | None = None   # "cheapest" | "priciest"
     is_comparison: bool = False
@@ -604,6 +616,7 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         and " khong" in working
     )
     request.asks_about_named_dish = asks_about_named
+    request.declared_avoidance = bool(wants_to_avoid)
 
     # 3. Cụm từ vựng, dài trước ngắn, ăn hết đoạn đã khớp.
     for phrase in VOCAB_ORDER:

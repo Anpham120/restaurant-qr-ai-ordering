@@ -298,7 +298,10 @@ def respond(request: Request, items: list[dict]) -> Reply:
         return Reply(
             text=(
                 f"Thực đơn không ghi nhận thành phần đó trong {phrase(item)}. "
-                f"Mình chỉ đọc được phần thực đơn ghi, nên {STAFF_NOTE}"
+                # KHÔNG nối `STAFF_NOTE` sau chữ "nên": nó bắt đầu bằng chữ B hoa nên câu ra
+                # "…thực đơn ghi, nên Bạn nhắc nhân viên…". Lỗi chữ, nhưng KHÁCH ĐỌC THẤY, và nó
+                # chỉ hiện khi đọc câu trả lời thật — thước đo chấm nội dung nên không bắt được.
+                f"Mình chỉ đọc được phần thực đơn ghi. {STAFF_NOTE}"
             ),
             items=[item["id"]],
             kind="fact",

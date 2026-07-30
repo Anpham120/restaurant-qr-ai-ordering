@@ -139,9 +139,8 @@ class SessionState:
                 or rang_buoc.get("suggested_item_ids") or [],
                 "rejected_item_ids": payload.get("rejected_menu_item_ids")
                 or rang_buoc.get("rejected_item_ids") or [],
-                # Backend chưa có trường riêng cho dãy này, nên nó chỉ đến từ hình dạng phẳng.
-                # Nghĩa là qua backend thật thì tham chiếu ngược mất sau mỗi lượt — ghi ra ở đây
-                # thay vì để người sau tưởng nó chạy.
+                # Đi vòng tròn qua `constraints` được, vì backend copy MỌI khóa của dict đó vào
+                # `constraints_json` rồi trả lại nguyên vẹn. Xem `session_updates()`.
                 "last_listed_ids": rang_buoc.get("last_listed_ids") or [],
                 "last_categories": rang_buoc.get("last_categories") or [],
                 "turn_count": rang_buoc.get("turn_count", 0),
@@ -286,15 +285,38 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     )
 
 
-def update_state(state: SessionState, merged: Request, replied_item_ids: list[str]) -> SessionState:
+def update_state(
+    state: SessionState,
+    merged: Request,
+    replied_item_ids: list[str],
+    reply_kind: str,
+) -> SessionState:
     """Ghi bộ nhớ sau khi đã trả lời. Nhận `Request` ĐÃ hợp nhất, không phải bản gốc.
 
     Nhận bản đã hợp nhất là điểm quan trọng: nếu ghi từ bản gốc thì dị nguyên khai ở lượt 1 sẽ
     không có trong bản gốc của lượt 2, và bộ nhớ **mất nó ngay lượt sau** — đúng lỗi mà cả khâu
     này tồn tại để chống.
+
+    `reply_kind` là tham số BẮT BUỘC, không có giá trị mặc định. Nó quyết định `last_listed_ids`
+    có bị thay hay không, và đặt mặc định cho nó sẽ che đúng lỗi mà nó tồn tại để sửa — xem bên
+    dưới. Thà sửa ba chỗ gọi còn hơn để một mặc định quyết định thay.
     """
     return SessionState(
-        avoid_tags=[t for t in merged.avoid_tags if t.startswith(ALLERGEN_PREFIX)],
+        # Dị nguyên vào bộ nhớ CHỈ khi lượt này KHAI điều cần tránh. Nhãn đã có trong bộ nhớ thì
+        # giữ nguyên vô điều kiện — chốt an toàn không đổi: đã khai một lần là giữ suốt phiên.
+        #
+        # Điều ĐỔI là chiều còn lại: một câu HỎI ("món này có hải sản không?") cũng sinh
+        # `avoid_tags` để trả lời được, nhưng nó KHÔNG được biến thành lời khai. Trước bản này, một
+        # câu hỏi tò mò làm 26/91 món bị ẩn suốt phiên và mọi câu sau đó mở đầu bằng "thực đơn không
+        # ghi nhận thành phần bạn cần tránh" — khẳng định một điều khách chưa nói.
+        #
+        # Vì sao đây KHÔNG phải nới ràng buộc an toàn: nới là bỏ một điều khách ĐÃ khai. Ở đây
+        # không có lời khai nào để bỏ — có một câu hỏi, và nó đã được trả lời đầy đủ.
+        avoid_tags=list(dict.fromkeys([
+            *state.avoid_tags,
+            *([t for t in merged.avoid_tags if t.startswith(ALLERGEN_PREFIX)]
+              if merged.declared_avoidance else []),
+        ])),
         hard_tags=[t for t in merged.require_tags if _group(t) in HARD_CONSTRAINT_GROUPS],
         context_tags=list(merged.prefer_tags)[:MAX_CONTEXT_TAGS],
         budget_max=merged.budget_max,
@@ -304,15 +326,26 @@ def update_state(state: SessionState, merged: Request, replied_item_ids: list[st
             dict.fromkeys([*replied_item_ids, *state.suggested_item_ids])
         )[:MAX_SUGGESTED_MEMORY],
         rejected_item_ids=list(state.rejected_item_ids),
-        # THAY khi lượt này nêu danh sách, GIỮ khi lượt này không nêu gì.
+        # THAY chỉ khi lượt này NÊU MỘT DANH SÁCH. Giữ nguyên ở mọi dạng đáp án khác.
         #
-        # Giữ khi rỗng là điều bắt buộc, không phải tiện tay: chuỗi lượt thật là "cho mình món
-        # chay" -> "món đầu tiên giá bao nhiêu?" -> "còn cái thứ hai?". Lượt hỏi giá trả về dạng
-        # `fact` nên `replied_item_ids` rỗng; xóa dãy ở đó thì lượt thứ ba không còn gì để trỏ vào,
-        # và tham chiếu ngược chỉ hoạt động được đúng một lượt.
+        # Điều kiện là `reply_kind == "list"`, KHÔNG phải `replied_item_ids` khác rỗng. Khác biệt
+        # đó là một lỗi thật, và nó chỉ hiện ra khi chạy qua backend thật chứ không hiện trong tập
+        # kịch bản:
+        #
+        #   lượt 1  "cho mình món chay"            -> list 6 món     -> dãy = 6 món
+        #   lượt 2  "món đầu tiên giá bao nhiêu?"  -> fact, 1 món     -> dãy CÒN 1 MÓN
+        #   lượt 3  "món thứ hai có hải sản không?" -> "thứ hai" ngoài phạm vi -> KHÔNG trỏ được
+        #
+        # Khách ở lượt 3 vẫn đang nói về danh sách của lượt 1 — họ không coi câu trả lời về một món
+        # là một danh sách mới. Nên một câu `fact` về một món KHÔNG được phá dãy mà khách còn đang
+        # trỏ vào.
+        #
+        # Tập 25 kịch bản không bắt được vì mọi kịch bản `context_reference` chỉ có MỘT lượt tham
+        # chiếu. Đây đúng là lý do "chạy thật" không thay được bằng test: test kiểm điều tôi nghĩ
+        # ra để kiểm, còn một cuộc hội thoại thật có những chuỗi tôi không nghĩ tới.
         last_listed_ids=(
             list(replied_item_ids)[:MAX_LISTED_MEMORY]
-            if replied_item_ids else list(state.last_listed_ids)
+            if (reply_kind == "list" and replied_item_ids) else list(state.last_listed_ids)
         ),
         last_categories=(
             list(merged.categories) if merged.categories else list(state.last_categories)
@@ -384,12 +417,24 @@ def session_updates(state: SessionState, replied_item_ids: list[str]) -> dict[st
     """
     return {
         "facts": [],
+        # `constraints` là chỗ DUY NHẤT bộ nhớ đi được vòng tròn qua backend, và nó đi được vì
+        # backend copy MỌI khóa của dict này vào `constraints_json` rồi trả lại nguyên vẹn
+        # (`ChatAiProvider.ExtractSessionUpdates` dòng 740–742, đọc lại ở dòng 447). Nên thêm khóa
+        # ở đây là đủ — KHÔNG cần đổi hợp đồng backend, không cần migration.
+        #
+        # `last_listed_ids` và `last_categories` phải nằm ở đây, nếu không tham chiếu ngược chỉ
+        # chạy trong test và MẤT trong hệ thống thật: mỗi lượt qua backend sẽ trả về một
+        # `SessionState` không có dãy món, và "món đầu tiên" lại không trỏ vào đâu. Đó đúng là
+        # loại lỗi im lặng mà cả khâu này tồn tại để chống — 422 thì thấy ngay, mất bộ nhớ thì
+        # không.
         "constraints": {
             "avoid_tags": list(state.avoid_tags),
             "hard_tags": list(state.hard_tags),
             "context_tags": list(state.context_tags),
             "budget_max": state.budget_max,
             "wants": state.wants,
+            "last_listed_ids": list(state.last_listed_ids),
+            "last_categories": list(state.last_categories),
         },
         "referenced_menu_item_ids": list(replied_item_ids),
         "suggested_menu_item_ids": list(state.suggested_item_ids),

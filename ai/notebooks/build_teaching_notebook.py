@@ -6,7 +6,7 @@ Vì sao sinh bằng script thay vì viết notebook bằng tay
 Một notebook báo cáo viết tay có hai bệnh, và bản cũ của dự án này mắc cả hai:
 
 1. **Số liệu chép tay lạc hậu.** Ai đó đo được 0,9960, chép vào notebook, rồi hệ thống đổi
-   và con số nằm đó mãi. Bản cũ có một chỉ số tôi từng báo +81% mà số thật là +53%.
+   và con số nằm đó mãi. Bản cũ có một chỉ số được báo +81% trong khi số thật là +53%.
 2. **Notebook và mã trôi khỏi nhau.** Notebook nhắc một hàm đã bị đổi tên, và không có gì
    báo.
 
@@ -674,7 +674,7 @@ print("riêng (tra khóa, trả nguyên văn). Để trong chỉ mục là hai �
 - **Quan sát:** 84 tài liệu / 327 đoạn trong **một** kho, chia 24 `verbatim` + 60 `synthesize`.
   Bộ truy hồi chỉ xếp hạng **303 đoạn** — 24 đoạn `verbatim` bị loại vì chúng đã có đường tới
   khách riêng.
-- **Diễn giải:** hai thứ tôi từng gộp lẫn là **kho lưu trữ** và **chế độ trả lời**. Chúng độc
+- **Diễn giải:** hai thứ dễ bị gộp lẫn là **kho lưu trữ** và **chế độ trả lời**. Chúng độc
   lập: không có gì bắt buộc "lưu trong markdown thì phải qua mô hình". Nhận ra điều đó mới gộp
   được kho mà không mất bảo đảm an toàn.
 - **Ranh giới được ÉP bằng mã, không phải quy ước:** gọi `verbatim_answer` trên tài liệu
@@ -1141,7 +1141,7 @@ print(f"Dạng chỉ có ở tập phát triển: {sorted(dev_kinds - test_kinds
   hạt giống nào để chọn cho ra kết quả đẹp, và ai chạy lại cũng ra đúng vậy.
 - **Giới hạn thật, phải nói ra:** bộ chia bắt được một lỗi ngay lần chạy đầu — dạng `compare`
   chỉ có ở tập niêm phong, nên tập phát triển không dự báo được nó. Đã sửa. Còn dạng nào chỉ
-  có ở một phía thì ô mã in ra, và **tôi không che con số đó**.
+  có ở một phía thì ô mã in ra, và **con số đó không bị che**.
 - **Quyết định tiếp theo:** dựng thước đo, và chứng minh nó theo cả hai chiều.
 """))
 
@@ -1220,7 +1220,7 @@ print(r.stdout)
 - **Quan sát:** cả năm cách trả lời vô nghĩa đều bị bắt ở **mọi** ca. Cách duy nhất còn qua
   được là "luôn nói chưa có dữ liệu", và nó qua đúng số ca mà đó **là** câu trả lời đúng.
 - **Diễn giải:** con số đó là **sàn** của thước đo — mọi hệ thống thật phải hơn hẳn nó mới đáng
-  nói. Sàn được **tính**, không viết cứng: bản đầu tôi ghi "12/80" và con số đó lạc hậu ngay
+  nói. Sàn được **tính**, không viết cứng: bản đầu ghi "12/80" và con số đó lạc hậu ngay
   khi tập ca đổi.
 - **Giới hạn:** ba phép kiểm (`must_offer_staff`, `states_no_data`, `declines_explicitly`) dùng
   **danh sách cụm từ** thay cho hiểu nghĩa. Câu diễn đạt đúng ý bằng từ khác sẽ bị đánh đỏ oan.
@@ -1566,7 +1566,7 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
 > **TV3** — nhận kho 303 đoạn từ TV1, làm phần lấy đoạn
 
 > **Vị trí:** TV3, giữa "hiểu câu hỏi" và "chọn món". Phép so **đã chạy**, và một phần kết quả
-> **trái với dự đoán tôi ghi trong kế hoạch** — mục 15b nói rõ chỗ nào và vì sao.
+> **khác với dự kiến ghi trong kế hoạch** — mục 15b nói rõ chỗ nào và vì sao.
 
 | | |
 |---|---|
@@ -1741,7 +1741,7 @@ là điều đã xảy ra ở đây.
 | hạng tính từ 0 | $1/(k+0)$ làm đoạn đầu bảng nặng bất thường | `test_hang_bat_dau_tu_1` |
 | lấy đúng `k` từ mỗi bảng con | đoạn đồng thuận ở hạng 6 KHÔNG BAO GIỜ vào kết quả | `test_lay_sau_hon_k_de_RRF_co_tac_dung` |
 
-Chỗ thứ ba tôi đã mắc: bản đầu lấy đúng `k=5` từ mỗi bảng, và hybrid **gần như trùng khớp BM25** —
+Chỗ thứ ba đã xảy ra thật: bản đầu lấy đúng `k=5` từ mỗi bảng, và hybrid **gần như trùng khớp BM25** —
 tức phép so không so gì cả. Lấy sâu hơn `k` (ở đây `depth=20`) là điều làm RRF có tác dụng.
 """))
 
@@ -1798,7 +1798,7 @@ ax.set_ylim(0, 1.12); ax.set_ylabel("Hit@5")
 ax.set_title("Bài toán 1 — truy hồi tri thức\nembedding thắng ở CẢ HAI nhóm", fontsize=11)
 ax.legend(fontsize=8, loc="lower right")
 
-# (b) forbidden@5 — chỉ số quyết định, và ở đây hybrid TỆ NHẤT
+# (b) forbidden@5 — chỉ số quyết định của phép so này
 ax = axes[1]
 cam5 = [kq_dev[t].forbidden_hits for t in tens1]
 ax.bar(tens1, cam5, color=[DO if v == max(cam5) else XAM for v in cam5])
@@ -1806,7 +1806,8 @@ for i, v in enumerate(cam5):
     ax.text(i, v + 0.2, str(v), ha="center", fontweight="bold")
 ax.set_ylabel("số ca lấy đoạn BỊ CẤM (thấp = tốt)")
 ax.set_ylim(0, max(cam5) * 1.35)
-ax.set_title("cấm@5 trên 90 ca phát triển\nhybrid TỆ NHẤT — trái dự đoán của tôi", fontsize=11)
+ax.set_title("cấm@5 trên 90 ca phát triển\nhybrid cao nhất, tức kém nhất ở chỉ số này",
+             fontsize=11)
 
 # (c) chọn món: lọc theo nhãn so với ba cách xếp hạng
 ax = axes[2]
@@ -1837,13 +1838,13 @@ for t in tens2:
     print(f"  {t:11} Hit@5 {hit5(k):.3f}  cấm@5 {k.forbidden_hits}/8  "
           f"p50 {statistics.median(k.latencies_ms):.1f} ms")
 print()
-print("Hai điều TRÁI với dự đoán tôi ghi trong kế hoạch:")
-print("  1. Kế hoạch viết 'hybrid tốt nhất'. Đo được: hybrid KÉM HƠN embedding đơn lẻ, và có")
-print("     cấm@5 CAO NHẤT. Lý do: RRF hợp nhất theo HẠNG nên bỏ hết thông tin khoảng cách điểm;")
-print("     khi một bộ chắc chắn hơn bộ kia rất nhiều thì hợp nhất là KÉO BỘ TỐT XUỐNG.")
+print("Hai điểm cần đọc kèm bảng trên:")
+print("  1. Hybrid KÉM HƠN embedding đơn lẻ, và có cấm@5 CAO NHẤT. RRF hợp nhất theo HẠNG nên nó")
+print("     bỏ hết thông tin khoảng cách điểm; khi một bộ chắc chắn hơn bộ kia rất nhiều thì hợp")
+print("     nhất kéo bộ tốt xuống.")
 print("  2. Số tuyệt đối của hai nhóm KHÔNG so được với nhau: nhóm niêm phong gồm kb-written và")
-print("     kb-health, chủ đề tách biệt rõ nên dễ hơn. Chỉ THỨ TỰ ba phương pháp là so được —")
-print("     và thứ tự đó giữ nguyên ở cả hai nhóm, nên đó là bằng chứng mạnh nhất có được.")
+print("     kb-health, chủ đề tách biệt rõ nên dễ hơn. Chỉ THỨ TỰ ba phương pháp là so được, và")
+print("     thứ tự đó giữ nguyên ở cả hai nhóm.")
 """))
 
     out.append(md(r"""
@@ -1855,17 +1856,17 @@ print("     và thứ tự đó giữ nguyên ở cả hai nhóm, nên đó là 
 - **Diễn giải:** embedding thắng, và thắng trên tập held-out. Thứ tự `embedding > hybrid > bm25`
   giữ nguyên ở cả nhóm phát triển và nhóm niêm phong — hai nhóm gồm các HỌ khác nhau, nên đó là
   bằng chứng mạnh nhất có được ở quy mô này.
-- **Trái với dự đoán của tôi:** kế hoạch ghi "hybrid tốt nhất". Sai. Hybrid kém hơn embedding đơn
+- **Khác dự kiến trong kế hoạch:** kế hoạch ghi "hybrid tốt nhất". Đo được ngược lại — hybrid kém hơn embedding đơn
   lẻ và có `cấm@5` cao nhất. Tôi báo đúng như đo được thay vì chỉnh `k` cho ra số đẹp.
 - **Vì sao `cấm@5` quan trọng hơn Hit@5:** Hit@5 = 1,0 **vẫn đúng** khi bộ truy hồi trả 1 đoạn đúng
   cùng 4 đoạn lạc đề — và 4 đoạn lạc đề là 4 cơ hội để mô hình viết một câu sai về nhà hàng.
 - **Tập niêm phong ĐÃ DÙNG HẾT.** Ghi trong `retrieval_split.json` kèm ngày. Từ nay con số trên 40
   ca đó không còn là held-out, và câu hỏi tiếp theo cần một tập MỚI. Tập 119 ca đã mất tính
   held-out đúng vì bước này từng bị làm mà không ghi lại.
-- **Ablation nói ra hai chỗ tôi viết SAI trong mã:** *tắt chuẩn hóa L2* không mất gì (vector của
+- **Ablation chỉ ra hai khẳng định SAI trong chú thích mã:** *tắt chuẩn hóa L2* không mất gì (vector của
   `multilingual-e5-small` đã gần chuẩn đơn vị, nên phép chuẩn hóa **DƯ với kho này**); *tắt tiền tố
   E5* làm Hit@5 **TĂNG** +0,023. Nhưng cơ chế tiền tố **vẫn được giữ**, vì cùng lúc đó `cấm@5` tăng
-  từ 11 lên 13 — và `cấm@5` là chỉ số tôi đã tuyên bố là quyết định. Một công cụ kết luận theo
+  từ 11 lên 13 — và `cấm@5` là chỉ số đã được đặt làm chỉ số quyết định. Một công cụ kết luận theo
   Hit@5 ở dòng đó là công cụ nói ngược lại thước đo mà chính nó đặt ra.
 """))
 
@@ -2002,7 +2003,7 @@ Sau khi thêm 14 ca cách nói lạ, mã tất định một mình còn **2 lỗ
 - *"Mình không ăn được **đồ tanh**"* — không hiểu "đồ tanh" là cá/hải sản
 - *"Bé nhà mình **uống sữa là bị đau bụng**, có món nào **không sữa** không?"* — không hiểu
 
-Mô hình sinh sửa được **cả hai**, và ban đầu tôi ghi nhận đó là **giá trị** của mô hình.
+Mô hình sinh sửa được **cả hai**, và ban đầu điều đó được ghi nhận là **giá trị** của mô hình.
 
 **Nghĩ lại thì đó là lỗi thiết kế nghiêm trọng.** Nếu mô hình là thứ duy nhất hiểu hai câu đó,
 thì **an toàn của hệ thống phụ thuộc một thành phần không tất định**:
@@ -2088,8 +2089,9 @@ kq = enrich(r, {}, use_cache=False)          # env rỗng = thiếu cấu hình 
 print(f"\nGọi mô hình với cấu hình RỖNG (mô phỏng proxy chết / thiếu .env):")
 print(f"   không sập, trả về: used={kq.used}  lý do={kq.reason!r}")
 print(f"   prefer_tags trước {truoc} -> sau {r.prefer_tags}  (giữ nguyên)")
-print("   => câu trả lời tất định vẫn tới khách. Đây là điều tôi từng khẳng định SAI")
-print("      trước khi có test cho đúng đường lỗi này.")
+print("   => câu trả lời tất định vẫn tới khách.")
+print("   Đường lỗi này có test riêng: một khẳng định về hành vi khi lỗi mà không có test cho")
+print("   đúng đường lỗi đó thì không kiểm được, và CI là môi trường duy nhất không có ai/.env.")
 """))
 
     out.append(plot_code(r"""
@@ -2146,12 +2148,12 @@ plt.tight_layout(); plt.show()
 print(f"Mô hình giải thêm {mod - det} ca, thuộc {len(theo_ho)} họ: {sorted(theo_ho)}")
 print(f"Mô hình còn được gọi ở {goi}/{n} ca, theo dạng đáp án: {dict(goi_theo_dang)}")
 print()
-print("Đây là kết quả ĐÃ ĐỔI, và đổi theo hướng tôi không dự tính:")
+print("So với lần đo trước:")
 print("  trước  mã tất định 108/119, mô hình giải thêm 11 ca -> 119/119")
 print("  nay    mã tất định 119/119, mô hình giải thêm  0 ca -> 119/119")
-print("11 ca kia đỏ vì TỪ VỰNG thiếu cụm ('chua chua', 'tập gym', 'trời nóng'), không vì")
-print("câu hỏi khó. Thêm 23 cụm đã đo đưa cả 11 ca về mã tất định. Nghĩa là: giá trị mà")
-print("tôi từng gán cho mô hình thực chất là ĐO ĐỘ THIẾU của bảng từ vựng của chính tôi.")
+print("11 ca kia đỏ vì TỪ VỰNG thiếu cụm ('chua chua', 'tập gym', 'trời nóng'), không vì câu hỏi")
+print("khó. Thêm 23 cụm đã đo đưa cả 11 ca về mã tất định. Nên hiệu số '+11 ca nhờ mô hình' đo độ")
+print("thiếu của bảng từ vựng, không đo năng lực mô hình.")
 """))
 
     out.append(md(r"""
@@ -2160,9 +2162,9 @@ print("tôi từng gán cho mô hình thực chất là ĐO ĐỘ THIẾU của 
 - **Quan sát:** **119/119 chỉ bằng mã tất định**, và **119/119** khi có mô hình — tức mô hình
   giải thêm **0 ca**. Nó còn được gọi ở **11/119 ca (9%)**, toàn bộ là câu không có gì để hiểu
   ("Ừm... không biết nữa", "Gợi ý gì đó đi"). **0 lỗi an toàn ở cả hai chế độ.**
-- **Con số này đã ĐỔI trong quá trình làm, và đổi theo hướng bất lợi cho lập luận cũ của tôi.**
+- **Con số này đã ĐỔI trong quá trình làm, và đổi theo hướng bác bỏ kết luận trước đó.**
   Trước đây tôi đo 108/119 tất định, mô hình giải thêm 11 ca, và ghi đó là **giá trị đo được của
-  mô hình sinh**. Rồi tôi đọc kỹ 11 ca đỏ: cả 11 đỏ vì cùng một lý do — bảng từ vựng của tôi
+  mô hình sinh**. Đọc kỹ 11 ca đỏ thì cả 11 đỏ vì cùng một lý do — bảng từ vựng
   thiếu cụm khách thật sự dùng (*"chua chua"*, *"tập gym"*, *"trời nóng"*, *"cụ già... dễ tiêu"*).
   Thêm **23 cụm** vào bảng thì cả 11 ca về mã tất định.
 - **Nên cách đọc đúng là:** con số "+11 ca nhờ mô hình" **không đo mô hình**, nó đo **độ thiếu
@@ -2170,17 +2172,17 @@ print("tôi từng gán cho mô hình thực chất là ĐO ĐỘ THIẾU của 
   gán cho nó công của việc bù một khiếm khuyết ở nơi khác. Muốn tránh thì phải **xem từng ca đỏ**
   chứ không chỉ xem hiệu số hai cột.
 - **Vậy có nên bỏ mô hình?** Trên tập này nó đóng góp 0, nên theo nguyên tắc *"không đo được chất
-  lượng thì bỏ"* nó là ứng viên bị bỏ. Nhưng phải nói cho đủ: **tập đánh giá do tôi viết**, nên
+  lượng thì bỏ"* nó là ứng viên bị bỏ. Nhưng phải nói cho đủ: **tập đánh giá do người làm viết**, nên
   nó không chứa cách nói mà tôi chưa nghĩ ra — và đó lại đúng là chỗ mô hình dùng để làm gì.
   Kết luận trung thực: *giá trị của mô hình trên tập này bằng 0; giá trị của nó với khách thật
   thì tập này **không đo được**.* Vì vậy nó được giữ nhưng **tắt được bằng một cờ**, và số nền
   không phụ thuộc nó.
 - **Điều KHÔNG đổi:** *an toàn phải nằm ở phần tất định, không nằm ở phần sinh*. Ban đầu hai ca
-  dị ứng chỉ mô hình hiểu được, và tôi đã ghi nhận đó là **giá trị** của mô hình — cách đọc đó
+  dị ứng chỉ mô hình hiểu được, và điều đó từng được ghi nhận là **giá trị** của mô hình — cách đọc đó
   sai, cùng loại sai vừa nói. Đúng ra nó là **lỗi thiết kế**: proxy chết là mất bảo vệ dị ứng.
 - **Cổng kiểm là phần không được bỏ:** mô hình trả về nhãn không có thật hoặc sai vai thì nhãn
   đó **bị bỏ**, không phải được dùng rồi hy vọng đúng. Đo được: cổng bỏ nhãn ở 4 nhóm.
-- **Một lời khẳng định của tôi từng SAI:** tôi viết "gọi thất bại thì giữ nguyên câu trả lời tất
+- **Một khẳng định trong tài liệu từng SAI:** tài liệu ghi "gọi thất bại thì giữ nguyên câu trả lời tất
   định" trước khi có test cho đường lỗi đó — và `Request` nằm ngoài `try` nên thiếu cấu hình là
   **sập**. CI tìm ra vì CI là môi trường duy nhất không có `ai/.env`. Bài học: **khẳng định về
   hành vi khi lỗi thì phải có test cho đúng đường lỗi đó.**

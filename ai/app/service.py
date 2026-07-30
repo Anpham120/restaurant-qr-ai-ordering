@@ -251,7 +251,7 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     chosen = [by_id[i] for i in reply.items if i in by_id]
     cart = build_cart(merged, chosen, reply.branch, reply.kind, MENU.category_names)
 
-    new_state = update_state(state, merged, reply.items)
+    new_state = update_state(state, merged, reply.items, reply.kind)
     return _to_payload(reply, new_state, outcome, cart)
 
 

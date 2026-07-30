@@ -68,9 +68,11 @@ KHOA_HIEU = frozenset({
     "min_items",
     "expect_kind",
     "refers_to_turn",
+    "refers_to_position",
     "must_not_repeat_turn",
     "must_match_turn_constraint",
     "memory_must_have_avoid",
+    "memory_must_not_have_avoid",
     "memory_must_have_require",
     "memory_must_not_have_require",
     "memory_budget_max",
@@ -107,6 +109,15 @@ def _kiem_tieu_chi(script: dict) -> list[str]:
                 "ĐO ĐƯỢC, nên lượt này luôn qua. `aspirational` nói ca ĐƯỢC PHÉP đỏ, nó không "
                 "thay cho tiêu chí"
             )
+        if exp.get("refers_to_position") is not None:
+            dat = exp["refers_to_position"]
+            if (not isinstance(dat, dict) or not isinstance(dat.get("turn"), int)
+                    or not isinstance(dat.get("index"), int)
+                    or not 1 <= dat["turn"] < j or dat["index"] < 1):
+                loi.append(
+                    f"{script['id']} lượt {j}: `refers_to_position`={dat!r} phải là "
+                    f"{{'turn': 1..{j - 1}, 'index': >=1}}"
+                )
         if exp.get("refers_to_turn") is not None:
             k = exp["refers_to_turn"]
             if not isinstance(k, int) or not 1 <= k < j:
@@ -125,7 +136,7 @@ def chay_kich_ban(script: dict, items: list[dict]) -> list[dict]:
         understand(câu)                  -> chỉ những gì lượt NÀY nói
         merge_into_request(., bộ nhớ)    -> cộng dị nguyên, ghi đè ràng buộc cứng theo nhóm
         respond(bản ĐÃ hợp nhất)         -> trả lời
-        update_state(bộ nhớ, bản ĐÃ hợp nhất, món đã nêu)
+        update_state(bộ nhớ, bản ĐÃ hợp nhất, món đã nêu, DẠNG đáp án)
 
     Ghi bộ nhớ từ bản **đã hợp nhất**, không phải bản gốc: bản gốc của lượt 2 không chứa dị nguyên
     khai ở lượt 1, nên ghi từ bản gốc là **mất dị nguyên ngay lượt sau** — đúng lỗi mà cả khâu bộ
@@ -139,7 +150,7 @@ def chay_kich_ban(script: dict, items: list[dict]) -> list[dict]:
         request = understand(turn["user"], items)
         merged = S.merge_into_request(request, state)
         reply = answer.respond(merged, items)
-        state = S.update_state(state, merged, list(reply.items))
+        state = S.update_state(state, merged, list(reply.items), reply.kind)
         ghi.append({
             "user": turn["user"],
             "expect": turn.get("expect", {}),
@@ -181,7 +192,39 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
                 f"không nhắc món nào của lượt {k} ({ten_truoc[:3]}) — chưa hiểu tham chiếu ngược"
             )
 
-    # `must_not_repeat_turn` + `must_share_tag_with_turn` là cặp tiêu chí cho câu "còn món nào
+    # `refers_to_position` là bản CHẶT của `refers_to_turn`, và nó tồn tại vì bản lỏng cho ca ĐẠT
+    # SAI LÝ DO lần thứ ba trong dự án này.
+    #
+    # Cụ thể: câu "món thứ hai có hải sản không?" mà hệ thống KHÔNG hiểu sẽ rơi vào nhánh lọc và
+    # liệt kê lại danh sách cũ. Danh sách đó CHỨA tên món của lượt 1, nên `refers_to_turn` thỏa —
+    # dù hệ thống chẳng hiểu "thứ hai" là gì. Tiêu chí lỏng biến một lỗi thành một ca xanh.
+    #
+    # Bản chặt đòi hai điều cùng lúc: nhắc ĐÚNG món ở vị trí đó, và KHÔNG nhắc món nào khác của
+    # danh sách. Điều thứ hai là điều then chốt — liệt kê lại cả danh sách thì nó vi phạm ngay.
+    if exp.get("refers_to_position") is not None:
+        dat = exp["refers_to_position"]
+        k, vi_tri = dat["turn"], dat["index"]
+        ds = truoc[k - 1]["items"]
+        if len(ds) < vi_tri:
+            do.append(
+                f"lượt {k} chỉ nêu {len(ds)} món nên vị trí {vi_tri} không tồn tại — "
+                "ca viết sai, không phải hệ thống sai"
+            )
+        else:
+            can = ds[vi_tri - 1]["name"]
+            khac = [i["name"] for i in ds if i["name"] != can and i["name"] in reply.text]
+            if can not in reply.text:
+                do.append(
+                    f"không nhắc món ở vị trí {vi_tri} của lượt {k} ({can!r}) — "
+                    "chưa hiểu tham chiếu theo vị trí"
+                )
+            if khac:
+                do.append(
+                    f"nhắc thêm {len(khac)} món KHÁC của lượt {k} ({khac[:3]}) — "
+                    "liệt kê lại danh sách không phải trả lời về MỘT món"
+                )
+
+    # `must_not_repeat_turn` + `must_match_turn_constraint` là cặp tiêu chí cho câu "còn món nào
     # GIỐNG VẬY không?" — và cặp này tồn tại vì `refers_to_turn` đã cho một ca ĐẠT SAI LÝ DO.
     #
     # Ca đó qua vì hệ thống **liệt kê lại đúng danh sách cũ**: nhắc tên món của lượt 1 nên tiêu
@@ -230,6 +273,16 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
             do.append(
                 f"AN TOÀN: bộ nhớ MẤT `{tag}` (còn {state.avoid_tags}) — lượt sau không còn "
                 "được bảo vệ, và lượt sau đó nhìn vô hại nên không ai nghi"
+            )
+    # Chiều NGƯỢC của `memory_must_have_avoid`, và nó cần thiết vì "an toàn quá mức" cũng là lỗi:
+    # ghi một câu HỎI thành lời KHAI làm 26/91 món bị ẩn suốt phiên cho một khách chỉ tò mò, và mọi
+    # câu sau đó khẳng định "thành phần bạn cần tránh" — điều khách chưa nói. Không có tiêu chí này
+    # thì một hệ thống ẩn quá nhiều vẫn xanh mọi ca.
+    for tag in exp.get("memory_must_not_have_avoid", []):
+        if tag in state.avoid_tags:
+            do.append(
+                f"bộ nhớ ĐÃ GHI `{tag}` dù khách chỉ HỎI, không KHAI — từ lượt sau khách mất "
+                "lựa chọn và câu trả lời khẳng định một điều họ chưa nói"
             )
     for tag in exp.get("memory_must_have_require", []):
         if tag not in state.hard_tags:
@@ -305,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         if do_cua_kb:
             kich_ban_do[script["id"]] = do_cua_kb
 
-    print("BỘ NHỚ PHIÊN — 25 kịch bản đa lượt, thứ 119 ca một lượt không đo được\n")
+    print("BỘ NHỚ PHIÊN — kịch bản đa lượt, thứ 119 ca một lượt không đo được\n")
     qua = tong_luot - do_luot - khoang_cach
     print(f"  lượt         : {tong_luot}")
     print(f"  đạt          : {qua}/{tong_luot}  ({100 * qua / tong_luot:.1f}%)")
