@@ -130,10 +130,17 @@ jobs:
 
       # Ký tự điều khiển trong mã nguồn là vô hình trên màn hình VÀ trong git diff, và nếu nó
       # nằm trong regex thì regex im lặng không khớp gì. Dự án đã mất một cơ chế an toàn theo
-      # đúng cách đó: một byte 0x08 làm `khong ...` thành `<backspace>khong ...`, nên mẫu
+      # đúng cách đó: một byte 0x08 làm `\bkhong ...` thành `<backspace>khong ...`, nên mẫu
       # "không ⟨chủ đề⟩" là MÃ CHẾT trong khi tài liệu ghi nó là hàng rào dị ứng.
+      #
+      # `pyyaml` được cài ở đây, không để test tự bỏ qua: bước này còn kiểm rằng CHÍNH TỆP NÀY
+      # phân tích được, và test bỏ qua âm thầm thì không khác gì không có test. Đúng lỗi đã xảy
+      # ra: một byte 0x08 trong chú thích của tệp này làm GitHub Actions không phân tích được nó,
+      # nên CẢ CI không chạy — mọi lần đẩy báo "failure" sau 0 giây và không bước nào thực thi.
       - name: Kiểm vệ sinh mã nguồn và cơ chế an toàn có CHẠY
-        run: python -m unittest test_source_hygiene
+        run: |
+          python -m pip install -q "pyyaml>=6.0,<7.0"
+          python -m unittest test_source_hygiene
         working-directory: ai/app
 
       # Test dịch vụ HTTP cần fastapi và httpx, còn phần dữ liệu/thước đo chỉ dùng thư viện

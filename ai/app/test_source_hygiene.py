@@ -54,6 +54,9 @@ FORBIDDEN = {
 }
 
 
+REPO_ROOT = APP_DIR.parents[1]
+
+
 def source_files() -> list[Path]:
     """Mọi tệp .py của dịch vụ. Bỏ qua môi trường ảo nếu nó nằm trong `ai/`."""
     return sorted(
@@ -62,10 +65,35 @@ def source_files() -> list[Path]:
     )
 
 
+def text_files() -> list[Path]:
+    """Mọi tệp VĂN BẢN mà một byte điều khiển làm hỏng — rộng hơn `source_files()`.
+
+    Vì sao phải rộng hơn: bản đầu chỉ quét `ai/**/*.py`, và một byte 0x08 lọt vào
+    `.github/workflows/ci.yml` — trong một CHÚ THÍCH mô tả chính lỗi 0x08 đó. Hệ quả: GitHub
+    Actions không phân tích được tệp workflow, nên **cả CI không chạy**, và mọi lần đẩy báo
+    "failure" sau 0 giây.
+
+    Đó là lớp lỗi tệ hơn cả lần trước: lần trước một cơ chế an toàn thành mã chết; lần này **toàn
+    bộ phép kiểm tự động** thành mã chết. Và CI không thể tự bắt lỗi của chính tệp CI, nên chỗ duy
+    nhất bắt được là test chạy ở máy.
+    """
+    ra: list[Path] = []
+    for mau in ("*.py", "*.yml", "*.yaml", "*.json", "*.md", "*.toml", "*.cfg", "*.txt"):
+        for goc in (REPO_ROOT / "ai", REPO_ROOT / ".github", REPO_ROOT / "deploy"):
+            if not goc.exists():
+                continue
+            ra += [
+                p for p in goc.rglob(mau)
+                if ".venv" not in p.parts and "site-packages" not in p.parts
+                and "node_modules" not in p.parts and "__pycache__" not in p.parts
+            ]
+    return sorted(set(ra))
+
+
 class MaNguonKhongChuaKyTuDieuKhien(unittest.TestCase):
     def test_khong_tep_nao_co_byte_dieu_khien(self):
         loi: list[str] = []
-        for path in source_files():
+        for path in text_files():
             raw = path.read_bytes()
             for code, escape in FORBIDDEN.items():
                 n = raw.count(bytes([code]))
@@ -74,13 +102,69 @@ class MaNguonKhongChuaKyTuDieuKhien(unittest.TestCase):
                         i for i, l in enumerate(raw.split(b"\n"), 1) if bytes([code]) in l
                     ]
                     loi.append(
-                        f"{path.name}: {n} byte {hex(code)} ở dòng {dong} — có lẽ là "
-                        f"`{escape}` viết trong chuỗi KHÔNG raw"
+                        f"{path.relative_to(REPO_ROOT)}: {n} byte {hex(code)} ở dòng {dong} — "
+                        f"có lẽ là `{escape}` viết trong chuỗi KHÔNG raw"
                     )
         self.assertEqual(
             loi, [],
             "Ký tự điều khiển trong mã nguồn. Chúng vô hình trên màn hình và trong git diff, "
             "và nếu nằm trong regex thì regex im lặng không khớp gì:\n  " + "\n  ".join(loi),
+        )
+
+
+class TepWORKFLOWPhaiPhanTichDuoc(unittest.TestCase):
+    """CI không thể tự bắt lỗi của chính tệp CI — nên chỗ bắt phải là test ở máy.
+
+    Đã xảy ra: một byte 0x08 trong `ci.yml` làm GitHub Actions không phân tích được tệp, nên **cả
+    CI không chạy**. Mọi lần đẩy báo "failure" sau 0 giây, và không bước nào trong đó thực thi —
+    tức 337 test, 12 bộ kiểm và toàn bộ test backend .NET đều KHÔNG chạy, trong khi bảng trạng
+    thái chỉ nói "failure" chứ không nói vì sao.
+
+    `yaml` là thư viện tùy chọn, nên test tự bỏ qua khi thiếu — nhưng KHÔNG âm thầm: nó nêu rõ lý
+    do, vì một test bỏ qua im lặng thì không khác gì không có test.
+    """
+
+    def workflows(self) -> list[Path]:
+        goc = REPO_ROOT / ".github" / "workflows"
+        return sorted(goc.glob("*.yml")) + sorted(goc.glob("*.yaml")) if goc.exists() else []
+
+    def test_moi_tep_workflow_phan_tich_duoc(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("thiếu pyyaml — cài `pip install pyyaml` để bật phép kiểm này")
+        tep = self.workflows()
+        self.assertTrue(tep, "không tìm thấy tệp workflow nào — đường dẫn có đúng không?")
+        for path in tep:
+            with self.subTest(path.name):
+                try:
+                    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+                except Exception as exc:  # ReaderError, ScannerError, ...
+                    self.fail(f"{path.name} KHÔNG phân tích được: {type(exc).__name__}: "
+                              f"{str(exc)[:200]}")
+                self.assertTrue(data.get("jobs"), f"{path.name} không có job nào")
+
+    def test_ci_chay_tren_nhanh_dang_lam(self):
+        """Nhánh không nằm trong danh sách trigger thì CI không bao giờ chạy cho nó.
+
+        Đây là chỗ dễ mất hàng tháng mà không ai biết: mã xanh ở máy, CI im lặng vì nó không được
+        gọi. Nhánh `rebuild/**` từng cần thêm vào danh sách vì đó là chỗ DUY NHẤT biên dịch được
+        backend .NET — máy phát triển không có .NET SDK.
+        """
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("thiếu pyyaml")
+        ci = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+        if not ci.exists():
+            self.skipTest("không có ci.yml")
+        data = yaml.safe_load(ci.read_text(encoding="utf-8"))
+        # `on` là từ khóa YAML cho True, nên nó có thể vào dict dưới khóa `True`.
+        on = data.get("on") or data.get(True) or {}
+        nhanh = (on.get("push") or {}).get("branches") or []
+        self.assertIn(
+            "rebuild/**", nhanh,
+            "nhánh `rebuild/**` phải nằm trong trigger: đây là chỗ duy nhất biên dịch .NET",
         )
 
 
