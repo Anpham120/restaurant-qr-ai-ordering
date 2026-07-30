@@ -251,7 +251,18 @@ def _flags(reply: Reply, state: SessionState) -> list[str]:
         flags.append("no_data")
     if reply.kind == "refuse":
         flags.append("out_of_scope")
-    if reply.asks_back:
+
+    # Gắn cờ theo `kind`, KHÔNG theo `asks_back` — và đây là chỗ tôi đã lặp lại đúng một lỗi cũ
+    # của dự án trước khi chạy thật phát hiện ra.
+    #
+    # `asks_back` bật ở HAI trường hợp khác nhau: nhánh `clarify` (chưa hiểu câu hỏi, phải hỏi
+    # lại) và nhánh `filter` (đã liệt kê món RỒI MỜI THÊM). Gộp hai thứ đó lại thì câu "Món nào
+    # không cay?" — trả 6 món kèm 3 thẻ giỏ — bị gắn cờ là câu hỏi lại.
+    #
+    # Bản cũ mắc đúng lỗi này ở THƯỚC ĐO: "tỷ lệ hỏi lại đọc ra 43% vì câu trả lời liệt kê món
+    # rồi mời thêm bị tính là hỏi lại". Nó đã được sửa ở bước 3, và tôi mang nó trở lại trong
+    # phần cờ log — nơi hậu quả giống hệt: người vận hành đọc log sẽ thấy một con số sai.
+    if reply.kind == "clarify":
         flags.append("asked_clarifying_question")
     return flags
 

@@ -39,13 +39,30 @@ Cách sửa khi test đỏ — theo thứ tự ưu tiên:
 from __future__ import annotations
 
 import ast
+import os
 import re
+import sys
 import unittest
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parents[1]
 DOCKERFILE = REPO_ROOT / "ai" / "Dockerfile"
+
+# Phép kiểm "điểm vào import được" phải IMPORT THẬT `service.py`, nên nó cần `fastapi`. Phần còn
+# lại của tệp này chỉ đọc văn bản nên chạy được bằng thư viện chuẩn.
+#
+# Bỏ qua sạch khi thiếu gói, để `unittest discover -s ai/app` không vỡ với người chưa cài. Nhưng
+# bỏ qua ÂM THẦM trong CI là test dối, nên `AI_REQUIRE_SERVICE_TESTS=1` biến việc thiếu gói thành
+# LỖI — cùng cơ chế với `test_service.py`.
+try:
+    import fastapi  # noqa: F401
+
+    CO_FASTAPI = True
+except ImportError:
+    CO_FASTAPI = False
+
+BAT_BUOC = os.environ.get("AI_REQUIRE_SERVICE_TESTS") == "1"
 
 # Mô-đun chỉ dùng khi test/khi phát triển, không nằm trên đường trả lời khách. Đường dẫn ra
 # ngoài `ai/` trong các tệp này là chấp nhận được, vì chúng không bao giờ chạy trong container.
@@ -206,37 +223,208 @@ class DiemVaoTrongDockerfilePhaiTonTai(unittest.TestCase):
     xanh, và nó không chạy. Cách chặn cũng giống: đọc chính tệp cấu hình rồi đối chiếu với mã.
     """
 
-    def _cmd_target(self) -> str:
-        """Đọc `module:biến` từ dòng CMD của Dockerfile."""
-        text = DOCKERFILE.read_text(encoding="utf-8")
-        match = re.search(r"uvicorn\s+([\w.]+:\w+)", text)
-        self.assertIsNotNone(match, "không tìm được lệnh uvicorn trong Dockerfile")
-        return match.group(1)  # type: ignore[union-attr]
+    def _cmd(self) -> tuple[str, str, str | None]:
+        """Đọc (module, biến, app_dir) từ dòng CMD của Dockerfile.
 
-    def test_module_diem_vao_ton_tai(self):
-        module, _, bien = self._cmd_target().partition(":")
-        # WORKDIR là /app/ai, nên `app.service` ứng với `ai/app/service.py`.
-        path = APP_DIR.parent / Path(*module.split(".")).with_suffix(".py")
-        self.assertTrue(
-            path.exists(),
-            f"Dockerfile CMD gọi {module!r} nhưng {path.relative_to(REPO_ROOT)} không tồn tại — "
-            "container sẽ khởi động thất bại và không test nào khác bắt được",
+        Chỉ xét dòng bắt đầu bằng `CMD`, KHÔNG quét cả tệp. Bản đầu quét cả tệp và nó đọc được
+        `uvicorn app.service:app` nằm trong **chú thích** — đúng chỗ tôi lấy nó làm ví dụ về lệnh
+        SAI. Test khi đó báo lỗi thật nhưng nguyên nhân nằm trong chính phép đọc của nó.
+        """
+        # Chỉ dòng ở CỘT 0. Lệnh Dockerfile luôn bắt đầu ở cột 0; `CMD` thụt lề là phần tiếp của
+        # `HEALTHCHECK ... \` phía trên. Bản dùng `lstrip()` bắt được cả hai và báo "phải có đúng
+        # một dòng CMD, thấy 2".
+        dong_cmd = [
+            l for l in DOCKERFILE.read_text(encoding="utf-8").splitlines()
+            if l.startswith("CMD")
+        ]
+        self.assertEqual(len(dong_cmd), 1, f"phải có đúng một dòng CMD, thấy {len(dong_cmd)}")
+        match = re.search(r"uvicorn\s+([\w.]+):(\w+)([^\"]*)", dong_cmd[0])
+        self.assertIsNotNone(match, "không tìm được lệnh uvicorn trong dòng CMD")
+        module, bien, phan_con_lai = match.groups()  # type: ignore[union-attr]
+        app_dir = None
+        thay = re.search(r"--app-dir\s+(\S+)", phan_con_lai)
+        if thay:
+            app_dir = thay.group(1)
+        return module, bien, app_dir
+
+    @unittest.skipUnless(CO_FASTAPI, "cần fastapi để import service.py")
+    def test_diem_vao_IMPORT_DUOC_THAT(self):
+        """Phép kiểm quan trọng nhất của tệp này — và nó ra đời sau khi ba lỗi lọt qua.
+
+        Bản đầu chỉ kiểm "tệp module tồn tại" và "tệp có khai biến `app`". Cả hai đều XANH trong
+        khi container vẫn khởi động thất bại, vì:
+
+            uvicorn app.service:app   ->  ModuleNotFoundError: No module named 'answer'
+
+        Mọi mô-đun trong `ai/app` dùng import PHẲNG (`from answer import ...`), nên `ai/app` phải
+        nằm trong `sys.path`. Test qua được vì chúng tự thêm đường dẫn đó; uvicorn thì không.
+
+        Phát hiện được chỉ vì tôi chạy uvicorn thật. Nên test này **chạy thử import** trong một
+        tiến trình riêng với đúng `sys.path` mà container có — không phải phân tích tĩnh.
+
+        Bài học lặp lại lần thứ tư trong dự án: **"tệp có mặt" không đồng nghĩa "nó chạy".**
+        """
+        import subprocess
+
+        module, bien, app_dir = self._cmd()
+        # WORKDIR trong ảnh là /app/ai. `--app-dir X` làm uvicorn chèn /app/ai/X vào sys.path.
+        cwd = APP_DIR.parent
+        sys_path_extra = str((cwd / app_dir).resolve()) if app_dir else str(cwd)
+
+        ma = (
+            "import sys; sys.path.insert(0, %r);"
+            "import importlib; m = importlib.import_module(%r);"
+            "assert hasattr(m, %r), 'thiếu biến %s';"
+            "print('OK')" % (sys_path_extra, module, bien, bien)
+        )
+        r = subprocess.run(
+            [sys.executable, "-c", ma], cwd=cwd, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(
+            r.returncode, 0,
+            f"Dockerfile CMD `uvicorn {module}:{bien}"
+            + (f" --app-dir {app_dir}" if app_dir else "")
+            + "` KHÔNG import được:\n"
+            + (r.stderr or "").strip()[-800:]
+            + "\n\nContainer sẽ khởi động thất bại. Nếu lỗi là ModuleNotFoundError cho một "
+            "mô-đun trong `ai/app` thì thiếu `--app-dir app`.",
         )
 
-    def test_module_diem_vao_khai_dung_bien(self):
-        module, _, bien = self._cmd_target().partition(":")
-        path = APP_DIR.parent / Path(*module.split(".")).with_suffix(".py")
-        if not path.exists():
-            self.skipTest("test trên đã báo module không tồn tại")
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        gan = {
-            t.id
-            for node in ast.walk(tree) if isinstance(node, ast.Assign)
-            for t in node.targets if isinstance(t, ast.Name)
-        }
-        self.assertIn(
-            bien, gan,
-            f"{path.name} không khai biến {bien!r} mà Dockerfile trỏ tới",
+    @unittest.skipUnless(CO_FASTAPI, "cần fastapi để import service.py")
+    def test_neu_thieu_app_dir_thi_import_THAT_BAI(self):
+        """Chiều ngược: chứng minh `--app-dir app` là bắt buộc, không phải trang trí.
+
+        Không có test này thì ai đó có thể bỏ `--app-dir` và tin rằng nó không cần.
+        """
+        import subprocess
+
+        module, bien, _ = self._cmd()
+        ma = (
+            "import sys; sys.path.insert(0, %r);"
+            "import importlib; importlib.import_module('app.service')"
+            % str(APP_DIR.parent.resolve())
+        )
+        r = subprocess.run(
+            [sys.executable, "-c", ma], cwd=APP_DIR.parent,
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertNotEqual(
+            r.returncode, 0,
+            "`app.service` import ĐƯỢC mà không cần app/ trong sys.path — nghĩa là các mô-đun "
+            "đã chuyển sang import tương đối, và lúc đó `--app-dir app` không còn cần. Cập nhật "
+            "Dockerfile và bỏ test này.",
+        )
+        self.assertIn("ModuleNotFoundError", r.stderr)
+
+
+class DockerfileKhongDungGoiKhongCoTrongRequirements(unittest.TestCase):
+    """Mọi gói Dockerfile cài hoặc import phải có trong `requirements.txt`.
+
+    Vì sao cần: Dockerfile của bản cũ có ba dòng mà **build sẽ thất bại**, và chúng sống sót suốt
+    quá trình dựng lại:
+
+        pip install torch==2.13.0+cpu               phiên bản không tồn tại, và không tệp nào
+                                                    trong `ai/` import torch
+        python -c "from sentence_transformers ..."  gói đã bị bỏ khỏi requirements ở bước 5
+        ENV HF_HOME / HF_HUB_OFFLINE                biến cho model không còn tải
+
+    Không test nào bắt được, vì mọi test chạy từ mã nguồn chứ không build ảnh. Cùng lớp lỗi với
+    `CMD` trỏ vào `app.main:app` và với byte 0x08 trong regex: **thứ có mặt trong tệp, được tài
+    liệu mô tả là hoạt động, và không hoạt động.**
+
+    Test này không build ảnh (đắt, chậm, cần Docker). Nó đọc Dockerfile rồi đối chiếu với
+    `requirements.txt` — cùng cách tiếp cận với `docker_copied_roots()` ở trên.
+    """
+
+    REQUIREMENTS = REPO_ROOT / "ai" / "requirements.txt"
+
+    def _packages(self) -> set[str]:
+        """Tên gói trong requirements.txt, chuẩn hóa về chữ thường và gạch dưới."""
+        out: set[str] = set()
+        for line in self.REQUIREMENTS.read_text(encoding="utf-8").splitlines():
+            line = line.split("#")[0].strip()
+            if not line:
+                continue
+            ten = re.split(r"[<>=!\[;]", line)[0].strip().lower()
+            if ten:
+                out.add(ten.replace("-", "_"))
+        return out
+
+    def test_pip_install_khong_cai_goi_ngoai_requirements(self):
+        """`pip install <ten-goi>` trong Dockerfile phải trùng một gói trong requirements.
+
+        Cho phép `-r requirements.txt` và các cờ. Cái bị chặn là **tên gói viết thẳng** —
+        `torch==2.13.0+cpu` là dạng đó.
+        """
+        packages = self._packages()
+        vi_pham: list[str] = []
+        for i, line in enumerate(DOCKERFILE.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip().lstrip("&").strip()
+            if not stripped.startswith(("RUN pip install", "pip install")):
+                continue
+            for tok in stripped.split():
+                if tok.startswith("-") or tok in ("RUN", "pip", "install", "requirements.txt"):
+                    continue
+                if tok.endswith(("\\", "&&")) or tok in ("&&", "\\"):
+                    continue
+                ten = re.split(r"[<>=!\[]", tok)[0].strip().lower().replace("-", "_")
+                if ten and ten not in packages:
+                    vi_pham.append(f"dòng {i}: cài {tok!r} — không có trong requirements.txt")
+        self.assertEqual(
+            vi_pham, [],
+            "Dockerfile cài gói không khai trong requirements.txt. Hoặc thêm nó vào "
+            "requirements, hoặc bỏ dòng cài — giữ cả hai chỗ là hai bản sao sẽ trôi khỏi nhau:\n  "
+            + "\n  ".join(vi_pham),
+        )
+
+    def test_RUN_python_khong_import_goi_ngoai_requirements(self):
+        """`RUN python -c "import X"` phải import gói có trong requirements, hoặc thư viện chuẩn.
+
+        Đây là dòng đã giết build: `from sentence_transformers import SentenceTransformer` với
+        gói đã bị bỏ.
+        """
+        import sys as _sys
+
+        chuan = set(getattr(_sys, "stdlib_module_names", ()))
+        packages = self._packages()
+        text = DOCKERFILE.read_text(encoding="utf-8")
+        vi_pham: list[str] = []
+        for i, line in enumerate(text.splitlines(), 1):
+            if "python -c" not in line:
+                continue
+            for mod in re.findall(r"(?:^|\s)(?:import|from)\s+([a-zA-Z_][\w.]*)", line):
+                goc = mod.split(".")[0].lower().replace("-", "_")
+                if goc in chuan or goc in packages:
+                    continue
+                vi_pham.append(f"dòng {i}: import {mod!r} — không phải stdlib, không trong requirements")
+        self.assertEqual(vi_pham, [], "\n  ".join(vi_pham))
+
+    def test_khong_con_bien_moi_truong_cua_tang_embedding_da_bo(self):
+        """Biến cho một tầng không tồn tại làm người đọc tưởng hệ thống có tầng đó.
+
+        Bước 5 đã bỏ `sentence-transformers` (~3GB) sau khi đo rằng 24 chủ đề chính sách tra khóa
+        đúng 100%. Giữ `HF_HOME` và `HF_HUB_OFFLINE` lại thì Dockerfile vẫn nói có tầng embedding.
+        """
+        text = DOCKERFILE.read_text(encoding="utf-8")
+        for bien in ("HF_HOME", "HF_HUB_OFFLINE", "TRANSFORMERS_CACHE"):
+            for i, line in enumerate(text.splitlines(), 1):
+                if line.strip().startswith("ENV") and bien in line:
+                    self.fail(
+                        f"dòng {i}: còn `ENV {bien}` — tầng embedding đã bị bỏ ở bước 5, biến này "
+                        "làm Dockerfile nói sai về thứ hệ thống có"
+                    )
+
+
+class ThuVienPhaiCoKhiCIYEUCAU(unittest.TestCase):
+    """Chặn việc phép kiểm điểm vào bị bỏ qua âm thầm trong CI."""
+
+    def test_ci_phai_co_fastapi(self):
+        if not BAT_BUOC:
+            self.skipTest("chỉ ép khi AI_REQUIRE_SERVICE_TESTS=1 (CI đặt biến này)")
+        self.assertTrue(
+            CO_FASTAPI,
+            "CI yêu cầu phép kiểm điểm vào phải CHẠY nhưng thiếu fastapi. Không có nó thì lỗi "
+            "'container khởi động thất bại' lọt qua CI — đúng lỗi đã lọt ba lần.",
         )
 
 

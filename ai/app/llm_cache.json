@@ -19,6 +19,14 @@
     "require": [],
     "wants": "food"
   },
+  "15b6fbffbbb49bb8e0b73008d0077c80": {
+    "avoid": [],
+    "prefer": [
+      "flavour:sour"
+    ],
+    "require": [],
+    "wants": "any"
+  },
   "2da11ba58a76666f1de9698abcf99bb6": {
     "avoid": [],
     "prefer": [

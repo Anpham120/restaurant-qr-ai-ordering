@@ -28,7 +28,13 @@ x-api-environment: &api-environment
   CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-  AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
+  # Chỉ backend đọc biến này, và chỉ để ghi vào một trường log (ChatAiProvider.ReadPipelineProfile).
+  # Dịch vụ AI KHÔNG đọc nó — bản dựng lại không có khái niệm "pipeline profile" nào để chọn, vì nó
+  # có đúng một đường xử lý thay vì 8 đường chồng nhau như bản cũ.
+  #
+  # Đổi từ BẮT BUỘC sang MẶC ĐỊNH: bắt buộc một biến mà không thành phần nào dùng để quyết định gì
+  # thì `docker compose up` thất bại vì một lý do không có thật.
+  AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:-rebuild-1}
   # Keep the browser-facing API alive slightly longer than the AI service's
   # end-to-end request budget.  Otherwise a valid DeepSeek/Luna response can
   # be discarded by the backend before the AI service returns it.
@@ -118,7 +124,6 @@ services:
       RAG_RETRIEVAL_METHOD: ${RAG_RETRIEVAL_METHOD:-hybrid}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-e5_small}
       AI_LLM_FIRST: ${AI_LLM_FIRST:-true}
-      AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
       AI_SERVICE_HOST: ${AI_SERVICE_HOST:-127.0.0.1}
       AI_SERVICE_PORT: ${AI_SERVICE_PORT:-8001}
     mem_limit: 3g
