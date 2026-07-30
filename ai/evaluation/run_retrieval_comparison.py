@@ -119,6 +119,9 @@ class Ketqua:
     forbidden_hits: int = 0
     abstain_cases: int = 0
     abstain_ok: int = 0
+    # Ca `expect_nothing` mà tầng truy hồi KHÔNG đo được (không có đoạn cấm để tránh). Đếm riêng và
+    # in ra, chứ không cộng vào `abstain_ok` — cộng vào là tự cho điểm.
+    abstain_khong_do_duoc: int = 0
     scored_cases: int = 0     # ca có `expected`, dùng làm mẫu số cho Hit/MRR/nDCG
     latencies_ms: list[float] = None
 
@@ -132,9 +135,19 @@ class Ketqua:
             self.forbidden_hits += 1
         if expect_nothing:
             self.abstain_cases += 1
-            # Biết không trả lời = KHÔNG lấy đoạn bị cấm nào. Với ca `expect_nothing` thì không có
-            # đoạn nào là "đúng", nên tiêu chí duy nhất đo được là tránh được đoạn cấm.
-            if not (cam & set(lay[:K])):
+            # Ca `expect_nothing` KHÔNG có đoạn cấm thì tầng này không đo được gì.
+            #
+            # Bản trước tính "không lấy đoạn cấm nào" là đạt, nên với `forbidden` rỗng thì phép giao
+            # luôn rỗng và abstain = 100% với MỌI phương pháp — kể cả một phương pháp trả bừa. Đó là
+            # tiêu chí mã chết, và bằng chứng là golden bắt được truy hồi trả lời "Bạn là model gì?"
+            # bằng một đoạn nói về lẩu trong khi bảng này báo 20/20.
+            #
+            # Nguyên nhân sâu hơn: một bộ truy hồi LUÔN trả về gì đó. Quyết định "không trả lời" nằm
+            # ở lớp TRÊN nó (`answer.thuoc_mien` cùng vị trí của nhánh), nên nó không đo được ở đây.
+            # Xem mục "CỔNG KHÔNG TRẢ LỜI" ở cuối báo cáo.
+            if not cam:
+                self.abstain_khong_do_duoc += 1
+            elif not (cam & set(lay[:K])):
                 self.abstain_ok += 1
             return
         self.scored_cases += 1
@@ -153,7 +166,14 @@ class Ketqua:
             statistics.quantiles(self.latencies_ms, n=20)[18]
             if len(self.latencies_ms) >= 20 else max(self.latencies_ms, default=0.0)
         )
-        ab = f"{self.abstain_ok}/{self.abstain_cases}" if self.abstain_cases else "-"
+        if not self.abstain_cases:
+            ab = "-"
+        elif self.abstain_khong_do_duoc:
+            do_duoc = self.abstain_cases - self.abstain_khong_do_duoc
+            ab = (f"{self.abstain_ok}/{do_duoc}+{self.abstain_khong_do_duoc}?"
+                  if do_duoc else f"0/0+{self.abstain_khong_do_duoc}?")
+        else:
+            ab = f"{self.abstain_ok}/{self.abstain_cases}"
         if m:
             diem = (f"{self.hit1 / m:>8.3f}{self.hit5 / m:>8.3f}"
                     f"{self.mrr5 / m:>8.3f}{self.ndcg5 / m:>8.3f}")
@@ -508,9 +528,19 @@ def main(argv: list[str] | None = None) -> int:
                 if k.forbidden_hits:
                     print(f"  CHẶN: {ten} lấy đoạn BỊ CẤM ở {k.forbidden_hits} ca nhóm chốt")
                     chan += 1
-                if k.abstain_cases and k.abstain_ok < k.abstain_cases:
+                # Chỉ chặn trên số ca ĐO ĐƯỢC ở tầng này.
+                #
+                # Bản trước chặn trên `abstain_cases`, và sau khi `abstain` được sửa để không tự cho
+                # điểm thì mọi ca `expect_nothing` không có đoạn cấm rơi vào ô "không đo được" — nên
+                # phép chặn báo 20/20 hỏng trong khi hệ thống hoàn toàn đúng.
+                #
+                # Một phép chặn đọc chỉ số không đo được là báo động sai, và báo động sai làm người
+                # ta bỏ qua phép chặn. Việc "hệ thống có biết không trả lời hay không" được đo ở mục
+                # KHÔNG TRẢ LỜI CÂU KHÔNG TRẢ LỜI ĐƯỢC bên dưới, nơi nó đo được thật.
+                do_duoc = k.abstain_cases - k.abstain_khong_do_duoc
+                if do_duoc and k.abstain_ok < do_duoc:
                     print(f"  CHẶN: {ten} không biết KHÔNG trả lời ở "
-                          f"{k.abstain_cases - k.abstain_ok}/{k.abstain_cases} ca")
+                          f"{do_duoc - k.abstain_ok}/{do_duoc} ca đo được")
                     chan += 1
 
     theo_ho(retrievers, [c for c in cases if c["family"] in
@@ -534,6 +564,55 @@ def main(argv: list[str] | None = None) -> int:
     for c in CA_CHON_MON:
         print(f"    {c['id']:16} {c['query']}")
         print(f"        {c['why']}")
+
+    # --- CỔNG KHÔNG TRẢ LỜI: đo quyết định thật, không đo bộ xếp hạng --------------------
+    #
+    # Vì sao mục này tách khỏi bảng ba phương pháp: một bộ truy hồi LUÔN trả về gì đó, nên "biết
+    # không trả lời" không phải tính chất của bộ xếp hạng. Nó là tính chất của lớp trên —
+    # `answer.thuoc_mien()` cùng VỊ TRÍ của nhánh truy hồi trong `respond()`.
+    #
+    # Nhét con số này vào bảng ba phương pháp sẽ ngụ ý rằng đổi phương pháp thì abstain đổi, mà
+    # không phải: cả ba dùng chung một cổng.
+    #
+    # Bằng chứng mục này cần tồn tại: bảng abstain cũ báo 20/20 cho cả ba phương pháp, trong khi
+    # golden 103 lượt bắt được truy hồi trả lời "Bạn là model gì?" bằng một đoạn nói về lẩu.
+    ca_abstain = [c for c in cases if c.get("expect_nothing")]
+    if ca_abstain:
+        # Đo HỆ THỐNG, không đo cổng đơn lẻ.
+        #
+        # Bản đầu của mục này đo `answer.thuoc_mien()` và ra 4/24 — nghe như hệ thống hỏng nặng.
+        # Nhưng cổng đó là lớp CUỐI, không phải lớp duy nhất: "Nhà hàng mấy giờ mở cửa?" bị nhánh
+        # chính sách bắt trước, "Món nào dưới 50.000đ?" bị bộ lọc giá bắt, "Gợi ý gì đó đi" bị cờ
+        # `asks_suggestion` bắt. Với những câu đó, cổng không bao giờ được hỏi tới.
+        #
+        # Câu hỏi đúng là: hệ thống có TRẢ LỜI một câu không trả lời được bằng một đoạn tri thức hay
+        # không. Đo bằng `reply.branch`: nhánh `knowledge_corpus:*` nghĩa là câu trả lời đến từ truy
+        # hồi toàn kho, và với ca `expect_nothing` thì đó là câu trả lời SAI.
+        from answer import respond  # noqa: PLC0415 — chỉ mục này cần
+        from understand import understand  # noqa: PLC0415
+
+        items = load_menu()
+        theo_nhanh: dict[str, list[str]] = {}
+        sai: list[str] = []
+        for c in ca_abstain:
+            rep = respond(understand(c["query"], items), items)
+            nhom = rep.branch.split(":")[0]
+            theo_nhanh.setdefault(nhom, []).append(c["id"])
+            if rep.branch.startswith("knowledge_corpus"):
+                sai.append(f"{c['id']}: {c['query']}")
+        n = len(ca_abstain)
+        print(f"\nKHÔNG TRẢ LỜI CÂU KHÔNG TRẢ LỜI ĐƯỢC ({n} ca `expect_nothing`)")
+        print("  Đo HỆ THỐNG, không đo bộ xếp hạng: `expect_nothing` mà nhánh là")
+        print("  `knowledge_corpus:*` nghĩa là truy hồi đã trả lời một câu không có đáp án.")
+        print(f"  đúng : {n - len(sai)}/{n}")
+        print("  nhánh nào xử lý những câu này:")
+        for nhom, ids in sorted(theo_nhanh.items(), key=lambda t: -len(t[1])):
+            print(f"      {nhom:22} {len(ids):2}  {', '.join(ids[:3])}"
+                  + ("..." if len(ids) > 3 else ""))
+        if sai:
+            print(f"  SAI  : {len(sai)}/{n} — truy hồi trả lời câu không có đáp án:")
+            for x in sai:
+                print(f"      {x}")
 
     if args.ablation:
         chay_ablation([c for c in cases if c["family"] in

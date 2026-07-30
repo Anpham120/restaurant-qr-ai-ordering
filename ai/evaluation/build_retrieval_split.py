@@ -78,14 +78,28 @@ def build(cases: list[dict]) -> dict:
         ],
         # ĐÃ MỞ. Ghi ở đây thay vì ghi ngoài tài liệu, vì tài liệu trôi còn tệp này sinh lại được.
         "sealed_opened": True,
-        "sealed_opened_date": "2026-07-30",
+        "sealed_opened_date": "2026-07-31",
         "sealed_opened_note": (
-            "Mở MỘT lần ngày 2026-07-30 để chốt phép so BM25/embedding/hybrid. Kết quả trên 40 ca "
-            "niêm phong (giao thức chốt, 7 lần/truy vấn): Hit@5 bm25 0,711 · embedding 0,921 · "
-            "hybrid 0,895; cấm@5 lần lượt 10 · 9 · 10; abstain 2/2 cả ba. "
-            "TỪ NAY con số trên 40 ca này KHÔNG còn là held-out. Không sửa hệ thống theo chúng, và "
-            "câu hỏi tiếp theo cần một tập MỚI. Tập 119 ca đã mất tính held-out đúng vì bước này "
-            "bị làm mà không ghi lại."
+            "MỞ HAI LẦN, trên HAI tập khác nhau. Ghi cả hai vì lần thứ hai không thay thế lần thứ "
+            "nhất — chúng đo hai kho khác nhau.\n"
+            "\n"
+            "Lần 1 — 2026-07-30, kho 303 đoạn / 60 chủ đề, 40 ca niêm phong: Hit@5 bm25 0,711 · "
+            "embedding 0,921 · hybrid 0,895; cấm@5 10 · 9 · 10.\n"
+            "\n"
+            "Lần 2 — 2026-07-31, kho 425 đoạn / 84 chủ đề (thêm 24 tài liệu `written`), tập ca 138 "
+            "-> 210 ca, 50 ca niêm phong: Hit@1 bm25 0,391 · embedding 0,609 · hybrid 0,522; "
+            "Hit@5 0,522 · 0,674 · 0,674; cấm@5 6 · 5 · 6.\n"
+            "\n"
+            "Hai điều đọc được khi so hai lần:\n"
+            "  1. embedding thắng ở CẢ HAI kho, và khoảng cách còn rộng hơn ở kho lớn: Hit@1 hơn "
+            "     BM25 21,8 điểm. Kết luận không phải hệ quả của một kho dễ.\n"
+            "  2. CON SỐ TUYỆT ĐỐI TỤT MẠNH khi kho lớn lên (embedding Hit@5 0,921 -> 0,674). Đó "
+            "     KHÔNG phải hệ thống kém đi — đó là bài toán khó lên: 60 chủ đề thành 84, và các "
+            "     chủ đề mới gần nhau hơn (bốn tài liệu vùng miền, bốn tài liệu đồ uống). Con số "
+            "     0,921 cũ đo một kho dễ hơn, và trích nó ra khỏi ngữ cảnh đó là nói quá.\n"
+            "\n"
+            "TỪ NAY con số trên 50 ca này KHÔNG còn là held-out. Không sửa hệ thống theo chúng, và "
+            "câu hỏi tiếp theo cần một tập MỚI."
         ),
         "gate_families": gate,
         "dev_families": sorted(dev),

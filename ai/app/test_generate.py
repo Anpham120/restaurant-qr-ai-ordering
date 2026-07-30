@@ -85,6 +85,27 @@ class BonPhepKiemXacMinh(unittest.TestCase):
         loi = verify(text, [], [TOM], ITEMS, ["allergen:seafood"])
         self.assertTrue(any(x.startswith("AN TOÀN") for x in loi), loi)
 
+    def test_in_ma_nhan_ky_thuat_vao_cau_khach_doc(self):
+        """Rò rỉ biểu diễn nội bộ — cùng loại với rò rỉ chỉ dẫn, chỉ nhẹ hơn.
+
+        Đo được ở golden 103 lượt chạy qua mô hình thật: "Thực đơn không ghi nhận allergen:peanut ở
+        món này, nhưng có ghi nhận allergen:gluten." Khách không biết `allergen:peanut` là gì.
+
+        Nguyên nhân là prompt đưa nhãn dạng KHÓA để mô hình biết thuộc tính món, và mô hình dùng lại
+        đúng chuỗi đó. Sửa hai đầu: prompt cấm, và phép kiểm này chặn nếu vẫn có.
+        """
+        loi = verify(f"{PHO['name']} (75.000đ) — thực đơn không ghi nhận allergen:peanut.",
+                     [PHO["id"]], [PHO], ITEMS, [])
+        self.assertTrue(any("mã nhãn kỹ thuật" in x for x in loi), loi)
+
+    def test_noi_bang_tieng_Viet_thuong_thi_khong_vi_pham(self):
+        """Chiều đúng: cùng nội dung, viết bằng tiếng Việt thường."""
+        self.assertEqual(
+            verify(f"{PHO['name']} (75.000đ) — thực đơn không ghi nhận đậu phộng.",
+                   [PHO["id"]], [PHO], ITEMS, []),
+            [],
+        )
+
     def test_so_nho_khong_phai_tien_thi_bo_qua(self):
         """"đi 2 người" không phải số tiền. Bắt oan ở đây làm mọi câu sinh bị bỏ."""
         self.assertEqual(verify("Hai món này đủ cho 2 người ạ.", [], [PHO, GA], ITEMS, []), [])

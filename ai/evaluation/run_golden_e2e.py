@@ -467,6 +467,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ai", default="http://127.0.0.1:8001",
                    help="gốc URL dịch vụ AI, chỉ để đọc `/ready` và in cấu hình đang đo")
     p.add_argument("--chi-tiet", action="store_true", help="in mọi câu trả lời")
+    p.add_argument("--chi", default="", metavar="CHUOI",
+                   help="chỉ chạy hội thoại có id CHỨA chuỗi này. Dùng khi cần xem kỹ một nhóm; "
+                        "một lần chạy đầy đủ vẫn là điều kiện chấp nhận.")
     args = p.parse_args(argv)
 
     data = json.loads(GOLDEN_PATH.read_text(encoding="utf-8-sig"))
@@ -474,6 +477,10 @@ def main(argv: list[str] | None = None) -> int:
     by_id = {m["id"]: m for m in items}
     by_name = {m["name"]: m for m in items}
     hoi_thoais = data["conversations"]
+    if args.chi:
+        hoi_thoais = [c for c in hoi_thoais if args.chi in c["id"]]
+        print(f"CHỈ chạy {len(hoi_thoais)} hội thoại có id chứa {args.chi!r} — "
+              "đây KHÔNG phải một lần chạy đầy đủ.\n")
 
     # MỘT mã QR, dùng cho bước THÊM VÀO GIỎ. Phiên chat của mọi hội thoại là phiên trắng — xem
     # docstring lớp `Khach` — nên không hội thoại nào cần bàn riêng và bộ này chạy lại được vô hạn.

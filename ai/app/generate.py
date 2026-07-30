@@ -18,7 +18,7 @@ Mạnh, đo được, nhưng không còn là bất khả. Ba việc giữ nó �
 1. **Mô hình KHÔNG chọn món.** Danh sách món do `answer.select()` lọc theo nhãn quyết định, và đo
    được là lọc theo nhãn thắng dứt khoát: 8/8 đúng so với RAG sai 6–7/8. Mô hình chỉ VIẾT về những
    món đã được chọn.
-2. **Xác minh trước khi gửi.** Bốn phép kiểm ở `verify()` dưới đây. Vi phạm bất kỳ phép nào thì câu
+2. **Xác minh trước khi gửi.** Sáu phép kiểm ở `verify()` dưới đây. Vi phạm bất kỳ phép nào thì câu
    sinh bị BỎ và hệ thống dùng lại câu khuôn mẫu — không sửa, không thử lại.
 3. **Thẻ giỏ vẫn tất định.** Nó dựng từ `reply.items`, không từ chữ mô hình viết. Nên dù một câu
    sinh lọt qua xác minh mà vẫn sai, khách không đặt được món không tồn tại.
@@ -67,6 +67,17 @@ COUNT_IN_TEXT = re.compile(
     r"(\d+)\s*(?:món|loại|nồi|ly|phần)(?=[\s,.;:!?)]|$)", re.IGNORECASE
 )
 
+# Khóa nhãn nội bộ trong chữ khách đọc: `allergen:peanut`, `spice:none`. Khách không biết chúng là
+# gì, và đây là rò rỉ biểu diễn nội bộ — cùng loại với rò rỉ chỉ dẫn, chỉ nhẹ hơn.
+#
+# Đo được ở golden 103 lượt: "Thực đơn không ghi nhận allergen:peanut ở món này, nhưng có ghi nhận
+# allergen:gluten." Nguyên nhân là prompt đưa nhãn dạng khóa để mô hình biết thuộc tính món, và mô
+# hình dùng lại đúng chuỗi đó.
+NHAN_KHOA_TRONG_TEXT = re.compile(
+    r"\b(?:allergen|spice|diet|region|method|flavour|health|party|price|season|occasion|"
+    r"audience|ingredient|promo|serving|meal):[a-z_]+"
+)
+
 PROMPT = """Bạn viết câu trả lời cho khách trong nhà hàng Việt Nam, dựa TRÊN DỮ LIỆU ĐƯỢC ĐƯA.
 
 QUY TẮC BẮT BUỘC:
@@ -75,10 +86,13 @@ QUY TẮC BẮT BUỘC:
 3. Không được nói món nào "an toàn" cho người dị ứng. Chỉ được nói thực đơn CÓ hoặc KHÔNG ghi nhận.
 4. Không được thêm thông tin không có trong dữ liệu: không calo, không thời gian nấu, không nguồn
    gốc nguyên liệu, không khuyến mãi.
-5. KHÔNG được nêu số lượng món ("có 6 món lẩu", "3 loại"). Bạn chỉ thấy một phần thực đơn, nên mọi
+5. KHÔNG được viết ra mã nhãn kỹ thuật như `allergen:peanut`, `spice:none`, `diet:vegan`. Khách
+   không hiểu chúng. Hãy viết bằng tiếng Việt thường: "thực đơn không ghi nhận đậu phộng", "món
+   này không cay".
+6. KHÔNG được nêu số lượng món ("có 6 món lẩu", "3 loại"). Bạn chỉ thấy một phần thực đơn, nên mọi
    con số đếm bạn viết ra đều có thể sai.
-6. Viết 2–4 câu, tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo.
-7. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
+7. Viết 2–4 câu, tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo.
+8. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
 
 Trả về JSON đúng dạng:
 {{"text": "câu trả lời", "used_item_ids": ["mã món đã nhắc"]}}
@@ -134,7 +148,7 @@ def _mo_ta_mon(items: list[dict]) -> str:
 
 def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict],
            avoid_tags: list[str]) -> list[str]:
-    """Bốn phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
+    """Sáu phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
 
     Áp cho MỌI câu sinh, không khai từng ca: một phép kiểm chỉ chạy ở vài chỗ là một phép kiểm không
     bảo đảm gì.
@@ -182,7 +196,12 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
                 "khác đều có thể sai"
             )
 
-    # 5. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
+    # 5. KHÔNG được in khóa nhãn nội bộ. Rò rỉ biểu diễn nội bộ vào chữ khách đọc.
+    khoa = sorted(set(NHAN_KHOA_TRONG_TEXT.findall(text)))
+    if khoa:
+        loi.append(f"in mã nhãn kỹ thuật vào câu khách đọc: {khoa}")
+
+    # 6. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
     #    Đây là phép kiểm cuối cùng trước khi chữ tới khách, và nó lặp lại điều bộ lọc đã làm —
     #    lặp có chủ ý: bộ lọc chọn món, còn phép này kiểm chữ, và hai thứ đó lệch nhau được.
     for tag in avoid_tags:

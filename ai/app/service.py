@@ -318,6 +318,20 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
         )
         if gen.text:
             reply = replace(reply, text=gen.text, branch=f"{reply.branch}+gen")
+            # THU HẸP thẻ giỏ về những món câu sinh THẬT SỰ nêu.
+            #
+            # Thẻ giỏ dựng từ 6 món bộ lọc chọn, còn văn xuôi nêu 2–3 món. Nên khách đọc về 2 món
+            # rồi thấy 3 thẻ cho món khác — golden 103 lượt bắt được 36 lượt vì đúng lý do này, và
+            # nó là bất biến "thẻ giỏ phải là món vừa tư vấn" đang làm việc.
+            #
+            # Phép GIAO, không phải phép thay: tập nguồn vẫn là `chosen`, nên mô hình KHÔNG thêm
+            # được món nào vào giỏ — nó chỉ bỏ bớt. Bảo đảm "giỏ chỉ chứa món bộ lọc đã chọn" giữ
+            # nguyên, và mọi thẻ còn lại là món khách vừa đọc.
+            #
+            # Rỗng thì để rỗng: một câu sinh không nêu món nào thì không có gì để khách bấm, và một
+            # thẻ giỏ cho món khách chưa đọc tệ hơn không có thẻ.
+            neu_ten = [m for m in chosen if m["name"] in gen.text]
+            cart = [a for a in cart if a.menu_item_id in {m["id"] for m in neu_ten}]
 
     new_state = update_state(state, merged, reply.items, reply.kind)
     return _to_payload(reply, new_state, outcome, cart, gen)
