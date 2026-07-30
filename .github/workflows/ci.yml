@@ -153,6 +153,18 @@ jobs:
       - name: Rà nhãn dị nguyên
         run: python ai/scripts/audit_allergen_tags.py
 
+      # Tập đánh giá TRUY HỒI — khác tập 119 ca: nó chấm ĐOẠN ĐƯỢC LẤY, không chấm câu trả lời.
+      # Khóa đáp án là điều kiện chọn, giải ra chunk_id khi chạy, nên nó không thể trỏ vào tài
+      # liệu không tồn tại mà vẫn xanh.
+      - name: Kiểm tập đánh giá truy hồi sinh lại được
+        run: python ai/scripts/build_retrieval_cases.py --check
+
+      - name: Kiểm ca truy hồi (9 loại lỗi)
+        run: python ai/evaluation/validate_retrieval_cases.py
+
+      - name: Kiểm phép chia tập truy hồi
+        run: python ai/evaluation/build_retrieval_split.py --check
+
       - name: Kiểm tập đánh giá
         run: python ai/evaluation/validate_cases.py
 

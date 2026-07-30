@@ -1,0 +1,2806 @@
+{
+  "schema_version": 1,
+  "authored": "Sinh bởi ai/scripts/build_retrieval_cases.py — đừng sửa tay tệp này.",
+  "provenance": [
+    "Ca theo nhóm nhãn và tài liệu người viết: SINH từ khóa chủ đề thật của kho tri thức,",
+    "nên chúng không thể trỏ vào tài liệu không tồn tại.",
+    "Ca đối kháng: viết tay, vì chúng nhắm chỗ dễ sai và không suy được từ dữ liệu.",
+    "",
+    "Khóa đáp án là ĐIỀU KIỆN CHỌN, giải ra chunk_id khi chạy. Danh sách chunk_id viết tay",
+    "thì không có cách nào kiểm — bản cũ có 96 khóa trỏ sai chỗ suốt nhiều tháng.",
+    "",
+    "`expect_nothing: true` là trường quan trọng nhất: nó đo việc bộ truy hồi biết KHI NÀO",
+    "KHÔNG trả lời. Không có nó thì một bộ luôn trả 5 đoạn cũng đạt điểm cao."
+  ],
+  "cases": [
+    {
+      "id": "kb-region-central-1",
+      "family": "kb-region",
+      "query": "Đặc sản miền Trung có những món gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_north"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-central-2",
+      "family": "kb-region",
+      "query": "Mình muốn ăn kiểu Huế, Đà Nẵng",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_north"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-north-1",
+      "family": "kb-region",
+      "query": "Món miền Bắc có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_north"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-north-2",
+      "family": "kb-region",
+      "query": "Mình nhớ vị Hà Nội, ăn gì cho giống?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_north"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-south-1",
+      "family": "kb-region",
+      "query": "Món miền Nam gồm những gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_south"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-south-2",
+      "family": "kb-region",
+      "query": "Cho mình vị ngọt kiểu Sài Gòn",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_south"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hanoi-1",
+      "family": "kb-region",
+      "query": "Món Hà Nội có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hanoi"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hanoi-2",
+      "family": "kb-region",
+      "query": "Ăn gì cho ra chất thủ đô?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hanoi"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hue-1",
+      "family": "kb-region",
+      "query": "Món Huế có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hue"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hue-2",
+      "family": "kb-region",
+      "query": "Mình muốn thử vị cay của đất kinh kỳ",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hue"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-danang-1",
+      "family": "kb-region",
+      "query": "Món Đà Nẵng có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_danang"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-danang-2",
+      "family": "kb-region",
+      "query": "Ăn gì đặc trưng thành phố biển miền Trung?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_danang"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hoian-1",
+      "family": "kb-region",
+      "query": "Món Hội An có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hoian"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-hoian-2",
+      "family": "kb-region",
+      "query": "Ăn gì đặc trưng phố cổ bên sông Thu Bồn?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_hoian"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-saigon-1",
+      "family": "kb-region",
+      "query": "Món Sài Gòn có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_saigon"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-saigon-2",
+      "family": "kb-region",
+      "query": "Cho mình món kiểu người thành phố phương Nam",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_saigon"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-highlands-1",
+      "family": "kb-region",
+      "query": "Món Tây Nguyên có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_highlands"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-highlands-2",
+      "family": "kb-region",
+      "query": "Ăn gì đặc trưng vùng cao nguyên?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_highlands"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-mekong-1",
+      "family": "kb-region",
+      "query": "Món miền Tây có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_mekong"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-region-mekong-2",
+      "family": "kb-region",
+      "query": "Ăn gì đặc trưng vùng sông nước Cửu Long?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_mekong"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `region` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-grilled-1",
+      "family": "kb-method",
+      "query": "Món nướng có những gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_fried"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-grilled-2",
+      "family": "kb-method",
+      "query": "Mình muốn ăn gì đó thơm mùi than",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_fried"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-fried-1",
+      "family": "kb-method",
+      "query": "Món chiên có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_fried"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-fried-2",
+      "family": "kb-method",
+      "query": "Cho mình món giòn giòn ngập dầu",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_fried"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-steamed-1",
+      "family": "kb-method",
+      "query": "Món hấp có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_steamed"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-steamed-2",
+      "family": "kb-method",
+      "query": "Mình muốn món chín bằng hơi nước, nhẹ bụng",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_steamed"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-boiled-1",
+      "family": "kb-method",
+      "query": "Món luộc có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_boiled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-boiled-2",
+      "family": "kb-method",
+      "query": "Cho mình món chín trong nước, đơn giản",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_boiled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-braised-1",
+      "family": "kb-method",
+      "query": "Món kho có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_braised"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-braised-2",
+      "family": "kb-method",
+      "query": "Mình muốn món rim lâu cho đậm vị",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_braised"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-stir_fried-1",
+      "family": "kb-method",
+      "query": "Món xào có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_stir_fried"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-stir_fried-2",
+      "family": "kb-method",
+      "query": "Cho mình món đảo nhanh trên chảo lửa lớn",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_stir_fried"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-simmered-1",
+      "family": "kb-method",
+      "query": "Món nấu có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_simmered"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-simmered-2",
+      "family": "kb-method",
+      "query": "Mình muốn món để lửa nhỏ cho mềm",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_simmered"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-stewed-1",
+      "family": "kb-method",
+      "query": "Món tiềm có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_stewed"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-stewed-2",
+      "family": "kb-method",
+      "query": "Cho mình món hầm lâu trong thố",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_stewed"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-rolled-1",
+      "family": "kb-method",
+      "query": "Món cuốn có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_rolled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-rolled-2",
+      "family": "kb-method",
+      "query": "Mình muốn món gói lại rồi chấm",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_rolled"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-roasted-1",
+      "family": "kb-method",
+      "query": "Món rang có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_roasted"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-method-roasted-2",
+      "family": "kb-method",
+      "query": "Mình muốn món đảo khô trên chảo",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_roasted"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `method` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-beef-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có bò?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_chicken"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-beef-2",
+      "family": "kb-ingredient",
+      "query": "Mình thích thịt đỏ",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_chicken"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-chicken-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có gà?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_chicken"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-chicken-2",
+      "family": "kb-ingredient",
+      "query": "Cho mình món thịt gia cầm",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_chicken"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-pork-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có heo?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_pork"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-pork-2",
+      "family": "kb-ingredient",
+      "query": "Mình muốn ăn thịt lợn",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_pork"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-fish-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có cá?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_fish"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-fish-2",
+      "family": "kb-ingredient",
+      "query": "Cho mình món từ loài sống dưới nước có vảy",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_fish"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-shrimp-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có tôm?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_shrimp"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-shrimp-2",
+      "family": "kb-ingredient",
+      "query": "Mình thích loại giáp xác nhỏ màu hồng",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_shrimp"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-crab-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có cua?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_crab"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-crab-2",
+      "family": "kb-ingredient",
+      "query": "Cho mình món từ loài tám chân có càng",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_crab"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-squid-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có mực?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_squid"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-squid-2",
+      "family": "kb-ingredient",
+      "query": "Mình muốn món từ loài thân mềm biển",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_squid"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-tofu-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có đậu hũ?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_tofu"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-tofu-2",
+      "family": "kb-ingredient",
+      "query": "Cho mình món từ đậu nành ép",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_tofu"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-mushroom-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có nấm?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_mushroom"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-mushroom-2",
+      "family": "kb-ingredient",
+      "query": "Mình thích vị đất, dai dai",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_mushroom"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-vegetable-1",
+      "family": "kb-ingredient",
+      "query": "Món nào có rau?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_vegetable"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-ingredient-vegetable-2",
+      "family": "kb-ingredient",
+      "query": "Cho mình món nhiều chất xanh",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ingredient_vegetable"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `ingredient` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-rich-1",
+      "family": "kb-flavour",
+      "query": "Món nào đậm đà đưa cơm?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_sour"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-rich-2",
+      "family": "kb-flavour",
+      "query": "Cho mình vị nồng, ăn với cơm là hết bát",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_sour"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-sour-1",
+      "family": "kb-flavour",
+      "query": "Món nào chua chua?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_sour"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-sour-2",
+      "family": "kb-flavour",
+      "query": "Mình muốn vị thanh, hơi gắt lưỡi",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_sour"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-sweet-1",
+      "family": "kb-flavour",
+      "query": "Món nào ngọt?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_sweet"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-sweet-2",
+      "family": "kb-flavour",
+      "query": "Cho mình vị dịu, hơi có đường",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_sweet"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-salty-1",
+      "family": "kb-flavour",
+      "query": "Món nào mặn?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_salty"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-salty-2",
+      "family": "kb-flavour",
+      "query": "Mình muốn vị đậm muối",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_salty"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-fatty-1",
+      "family": "kb-flavour",
+      "query": "Món nào béo?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_fatty"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-fatty-2",
+      "family": "kb-flavour",
+      "query": "Cho mình món ngậy, nhiều dầu mỡ",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_fatty"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-smoky-1",
+      "family": "kb-flavour",
+      "query": "Món nào thơm khói?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_smoky"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-flavour-smoky-2",
+      "family": "kb-flavour",
+      "query": "Mình muốn mùi than, mùi lửa",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "flavour_smoky"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "flavour_rich"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `flavour` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-healthy-1",
+      "family": "kb-health",
+      "query": "Món nào lành mạnh?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_light"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-healthy-2",
+      "family": "kb-health",
+      "query": "Mình đang muốn ăn sạch, ít dầu",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_light"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-light-1",
+      "family": "kb-health",
+      "query": "Món nào thanh nhẹ?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_light"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-light-2",
+      "family": "kb-health",
+      "query": "Cho mình gì đó nhẹ bụng, không nặng",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_light"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-low_calorie-1",
+      "family": "kb-health",
+      "query": "Món nào ít calo?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_low_calorie"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-low_calorie-2",
+      "family": "kb-health",
+      "query": "Mình đang giảm cân",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_low_calorie"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-high_protein-1",
+      "family": "kb-health",
+      "query": "Món nào giàu protein?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_high_protein"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-high_protein-2",
+      "family": "kb-health",
+      "query": "Mình tập gym, cần nhiều đạm",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_high_protein"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-low_fat-1",
+      "family": "kb-health",
+      "query": "Món nào ít dầu mỡ?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_low_fat"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-low_fat-2",
+      "family": "kb-health",
+      "query": "Cho mình món không ngậy",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_low_fat"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-no_msg-1",
+      "family": "kb-health",
+      "query": "Món nào không bột ngọt?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_no_msg"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-health-no_msg-2",
+      "family": "kb-health",
+      "query": "Mình không dùng mì chính",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "health_no_msg"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_healthy"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `health` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-date-1",
+      "family": "kb-occasion",
+      "query": "Đi hẹn hò nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_everyday"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-date-2",
+      "family": "kb-occasion",
+      "query": "Mình đi với người thương, chọn gì cho hợp?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_everyday"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-everyday-1",
+      "family": "kb-occasion",
+      "query": "Ăn hàng ngày nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_everyday"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-everyday-2",
+      "family": "kb-occasion",
+      "query": "Bữa cơm thường ngày thì chọn gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_everyday"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-drinking-1",
+      "family": "kb-occasion",
+      "query": "Đi nhậu nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_drinking"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-drinking-2",
+      "family": "kb-occasion",
+      "query": "Nhóm mình uống bia, cần món nhắm",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_drinking"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-business-1",
+      "family": "kb-occasion",
+      "query": "Tiếp khách công việc nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_business"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-business-2",
+      "family": "kb-occasion",
+      "query": "Mình mời đối tác, chọn gì cho phải?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_business"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-birthday-1",
+      "family": "kb-occasion",
+      "query": "Sinh nhật nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_birthday"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-birthday-2",
+      "family": "kb-occasion",
+      "query": "Nhóm mình mừng tuổi mới, gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_birthday"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-banquet-1",
+      "family": "kb-occasion",
+      "query": "Tiệc đông người nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_banquet"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A: dùng đúng từ có trong tài liệu, BM25 nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-occasion-banquet-2",
+      "family": "kb-occasion",
+      "query": "Mình đặt bàn cho hai chục người",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "occasion_banquet"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "occasion_date"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B: diễn đạt khác từ hoàn toàn, embedding nên thắng. `forbidden` là một giá trị khác cùng nhóm `occasion` — cùng nhóm dùng chung khuôn tài liệu nên đó là chỗ dễ lẫn nhất."
+    },
+    {
+      "id": "kb-written-combo_pairing-1",
+      "family": "kb-written",
+      "query": "Gợi ý kết hợp món với nhau",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `combo_pairing`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-combo_pairing-2",
+      "family": "kb-written",
+      "query": "Gọi mấy món thì ăn cùng nhau cho hợp?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `combo_pairing`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-beverage_pairing-1",
+      "family": "kb-written",
+      "query": "Uống gì với món nướng?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `beverage_pairing`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-beverage_pairing-2",
+      "family": "kb-written",
+      "query": "Món cay đậm thì nên kèm thức gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `beverage_pairing`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-meal_sets-1",
+      "family": "kb-written",
+      "query": "Set bữa trưa gồm gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "meal_sets"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `meal_sets`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-meal_sets-2",
+      "family": "kb-written",
+      "query": "Buổi trưa nên ăn combo nào?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "meal_sets"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `meal_sets`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-ordering_guide-1",
+      "family": "kb-written",
+      "query": "Nhóm 6 người thì gọi bao nhiêu món?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ordering_guide"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `ordering_guide`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-ordering_guide-2",
+      "family": "kb-written",
+      "query": "Đông người thì gọi thế nào cho đủ?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ordering_guide"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `ordering_guide`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-portion_timing-1",
+      "family": "kb-written",
+      "query": "Khẩu phần một món là bao nhiêu?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "portion_timing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `portion_timing`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-portion_timing-2",
+      "family": "kb-written",
+      "query": "Một suất ăn được mấy người?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "portion_timing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `portion_timing`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-faq_extended-1",
+      "family": "kb-written",
+      "query": "Món nào ngon nhất?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "faq_extended"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `faq_extended`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-faq_extended-2",
+      "family": "kb-written",
+      "query": "Hôm nay có gì đặc biệt không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "faq_extended"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `faq_extended`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-allergy_guidance-1",
+      "family": "kb-written",
+      "query": "Mình khai dị ứng thế nào?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "allergy_guidance"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `allergy_guidance`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-allergy_guidance-2",
+      "family": "kb-written",
+      "query": "Cần nói gì để bếp biết mình không ăn được?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "allergy_guidance"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `allergy_guidance`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-qr_ordering-1",
+      "family": "kb-written",
+      "query": "Dùng ứng dụng gọi món thế nào?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "qr_ordering"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `qr_ordering`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-qr_ordering-2",
+      "family": "kb-written",
+      "query": "Quét mã rồi làm gì tiếp?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "qr_ordering"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `qr_ordering`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-first_visit-1",
+      "family": "kb-written",
+      "query": "Lần đầu đến nên gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "first_visit"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `first_visit`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-first_visit-2",
+      "family": "kb-written",
+      "query": "Mình chưa ăn ở đây bao giờ, bắt đầu từ đâu?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "first_visit"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `first_visit`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-budget_planning-1",
+      "family": "kb-written",
+      "query": "Có 300 nghìn thì gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "budget_planning"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `budget_planning`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-budget_planning-2",
+      "family": "kb-written",
+      "query": "Mình muốn tính tiền trước khi gọi",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "budget_planning"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `budget_planning`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-sharing_etiquette-1",
+      "family": "kb-written",
+      "query": "Ăn chia chung thế nào?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "sharing_etiquette"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `sharing_etiquette`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-sharing_etiquette-2",
+      "family": "kb-written",
+      "query": "Gọi món để cả bàn cùng gắp có phép gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "sharing_etiquette"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `sharing_etiquette`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-written-dietary_limits-1",
+      "family": "kb-written",
+      "query": "Ăn chay và dị ứng khác nhau thế nào?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "dietary_limits"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng A cho tài liệu người viết `dietary_limits`. Dùng đúng từ trong tài liệu."
+    },
+    {
+      "id": "kb-written-dietary_limits-2",
+      "family": "kb-written",
+      "query": "Chế độ ăn có phải dị ứng không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "dietary_limits"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "combo_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Dạng B cho tài liệu người viết `dietary_limits`. Diễn đạt khác từ, đo khả năng khớp theo nghĩa."
+    },
+    {
+      "id": "kb-collision-01",
+      "family": "kb-collision",
+      "query": "Có đặc sản miền Trung nào không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_beef"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Sau khi rút dấu, 'mien trung' CHỨA 'trung' (trứng). Bộ truy hồi không được lẫn câu vùng miền với câu dị nguyên trứng — đây là một trong bảy lỗi đã giết bản cũ."
+    },
+    {
+      "id": "kb-collision-02",
+      "family": "kb-collision",
+      "query": "Có món tráng miệng gì không?",
+      "expected": [],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "expect_nothing": true,
+      "why": "'trang' CHỨA 'tra' (trà) sau khi rút dấu, nên câu này không được lấy tài liệu ghép đồ uống. Và `expected` RỖNG vì không tài liệu tri thức nào nói về món tráng miệng — đó là một DANH MỤC thực đơn, trả lời bằng lọc theo nhãn. Bản đầu của ca này đòi 'mọi tài liệu người viết' trong khi `forbidden` là một trong số đó: ca tự mâu thuẫn, không bộ truy hồi nào qua được. Bộ kiểm bắt được vì nó GIẢI cả hai điều kiện rồi so giao — đọc bằng mắt thì không thấy."
+    },
+    {
+      "id": "kb-collision-03",
+      "family": "kb-collision",
+      "query": "Món nào bán chạy nhất?",
+      "expected": [],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "dietary_limits"
+          ]
+        }
+      ],
+      "expect_nothing": true,
+      "why": "'ban chay' CHỨA 'chay'. Không tài liệu nào nói về món bán chạy — đây là câu LỌC theo nhãn `promo:popular`, truy hồi phải trả rỗng."
+    },
+    {
+      "id": "kb-collision-04",
+      "family": "kb-collision",
+      "query": "Nhóm năm người thì gọi gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "ordering_guide"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "ingredient_mushroom"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "'nam nguoi' CHỨA 'nam' (nấm). Câu số người không được lấy tài liệu nguyên liệu nấm."
+    },
+    {
+      "id": "kb-verbatim-topic-01",
+      "family": "kb-verbatim-topic",
+      "query": "Nhà hàng mấy giờ mở cửa?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Chủ đề `hours` là tài liệu `answer_mode: verbatim` — nó KHÔNG nằm trong chỉ mục truy hồi vì nó có đường tới khách riêng (tra khóa, trả nguyên văn). Truy hồi phải trả RỖNG, không phải trả một đoạn gần gần."
+    },
+    {
+      "id": "kb-verbatim-topic-02",
+      "family": "kb-verbatim-topic",
+      "query": "Nhà hàng có wifi không?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Cùng lý do: `wifi` là chủ đề verbatim."
+    },
+    {
+      "id": "kb-verbatim-topic-03",
+      "family": "kb-verbatim-topic",
+      "query": "Thanh toán bằng cách nào?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Cùng lý do: `payment` là chủ đề verbatim. Ba ca này chốt rằng chỉ mục KHÔNG chứa đoạn verbatim — nếu chúng đỏ thì `retrievable_chunks()` đã hỏng."
+    },
+    {
+      "id": "kb-number-01",
+      "family": "kb-number",
+      "query": "Món nào dưới 50.000đ?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "BM25 và embedding KHÔNG hiểu số. Lọc theo nhãn `price` (phủ 91/91 món) đúng 100%. Đây là ca chứng minh BẰNG SỐ rằng không phải chỗ nào cũng nên dùng RAG — kết quả đáng báo cáo nhất của phép so."
+    },
+    {
+      "id": "kb-number-02",
+      "family": "kb-number",
+      "query": "Có món nào rẻ hơn 20 nghìn không?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Cùng lý do. Và câu trả lời đúng là đồ uống — thông tin đó nằm trong THỰC ĐƠN, không nằm trong kho tri thức."
+    },
+    {
+      "id": "kb-out-of-scope-01",
+      "family": "kb-out-of-scope",
+      "query": "Hôm nay thời tiết thế nào?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Ngoài phạm vi. Không đoạn nào trả lời được, và lấy 5 đoạn bất kỳ là tệ hơn trả rỗng."
+    },
+    {
+      "id": "kb-out-of-scope-02",
+      "family": "kb-out-of-scope",
+      "query": "Bếp trưởng tên gì?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Không có dữ liệu nhân sự. Bịa một đoạn gần gần ở đây là nói sai về người thật."
+    },
+    {
+      "id": "kb-out-of-scope-03",
+      "family": "kb-out-of-scope",
+      "query": "Doanh thu tháng này bao nhiêu?",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Thông tin nội bộ, không thuộc kênh chat khách hàng."
+    },
+    {
+      "id": "kb-multi-topic-01",
+      "family": "kb-multi-topic",
+      "query": "Món nướng miền Trung có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ]
+        },
+        {
+          "topic_keys_any": [
+            "region_central"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_steamed"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Hai chủ đề đều trả lời được, nên khóa đáp án là HỢP của hai điều kiện. Ca này chốt rằng thước đo không đòi đúng một đoạn duy nhất."
+    },
+    {
+      "id": "kb-multi-topic-02",
+      "family": "kb-multi-topic",
+      "query": "Món chiên nhiều đạm có gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_fried"
+          ]
+        },
+        {
+          "topic_keys_any": [
+            "health_high_protein"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "health_low_calorie"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Cùng dạng, và `forbidden` là chủ đề NGƯỢC nghĩa — ít calo trái với nhiều đạm ở đây."
+    },
+    {
+      "id": "kb-section-01",
+      "family": "kb-section",
+      "query": "Món nướng có dị nguyên gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ],
+          "heading_any": [
+            "Dị nguyên trong nhóm này"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_grilled"
+          ],
+          "heading_any": [
+            "Gợi ý chọn"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Câu hỏi nhắm đúng MỘT MỤC. Ca này đo việc chia đoạn có tác dụng: nếu cả tài liệu là một đoạn thì không phân biệt được mục dị nguyên với mục gợi ý chọn."
+    },
+    {
+      "id": "kb-section-02",
+      "family": "kb-section",
+      "query": "Trong nhóm món hấp, món nào rẻ nhất?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "method_steamed"
+          ],
+          "heading_any": [
+            "Gợi ý chọn",
+            "Danh sách món"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "topic_keys_any": [
+            "method_steamed"
+          ],
+          "heading_any": [
+            "Dị nguyên trong nhóm này"
+          ]
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Cùng dạng, mục khác. Bộ kiểm ngay-lúc-sinh đã bắt HAI lỗi ở ca này: bản đầu dùng `method_hotpot` (khóa tôi BỊA), bản sau dùng `method_braised` (có thật nhưng tài liệu đó KHÔNG có mục dị nguyên vì nhóm nó không món nào mang nhãn). Chọn `method_steamed` vì nó có đủ bốn mục — và đó là điều kiện để ca nhắm-mục có nghĩa."
+    },
+    {
+      "id": "kb-vague-01",
+      "family": "kb-vague",
+      "query": "Gợi ý gì đó đi",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Quá chung để nhắm chủ đề. Câu trả lời đúng là HỎI LẠI, không phải lấy 5 đoạn bất kỳ."
+    },
+    {
+      "id": "kb-vague-02",
+      "family": "kb-vague",
+      "query": "Cho mình xem menu",
+      "expected": [],
+      "forbidden": [],
+      "expect_nothing": true,
+      "why": "Đây là câu về THỰC ĐƠN, không phải về tri thức. Thực đơn có đường riêng."
+    }
+  ]
+}

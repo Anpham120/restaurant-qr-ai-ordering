@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "authored": "Sinh bởi ai/evaluation/build_retrieval_split.py — đừng sửa tay.",
+  "how": [
+    "Chia theo HỌ, không theo ca: hai ca cùng họ hỏi cùng chủ đề nên xem một ca là biết",
+    "ca kia. Chia theo ca thì tập niêm phong không còn niêm phong.",
+    "",
+    "Thứ tự do sha256(tên họ) quyết định, không do random.shuffle — shuffle phụ thuộc",
+    "phiên bản Python, nên Python đổi thuật toán thì phép chia đổi theo và tập niêm phong",
+    "lặng lẽ trộn vào tập phát triển."
+  ],
+  "sealed_opened": false,
+  "sealed_opened_note": "Đặt thành true VÀ ghi ngày khi mở tập niêm phong. Tập 119 ca đã mất tính held-out vì được mở rồi sửa theo — đừng lặp lại mà không ghi.",
+  "gate_families": [
+    "kb-number",
+    "kb-out-of-scope",
+    "kb-verbatim-topic"
+  ],
+  "dev_families": [
+    "kb-collision",
+    "kb-flavour",
+    "kb-ingredient",
+    "kb-method",
+    "kb-occasion",
+    "kb-region",
+    "kb-section"
+  ],
+  "test_families": [
+    "kb-health",
+    "kb-multi-topic",
+    "kb-vague",
+    "kb-written"
+  ]
+}
