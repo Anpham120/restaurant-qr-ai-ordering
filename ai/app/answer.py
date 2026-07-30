@@ -92,6 +92,71 @@ def listing(items: list[dict]) -> str:
     return ", ".join(phrase(i) for i in items)
 
 
+# Nhãn `party:*` đọc được cho khách. Nhóm này phủ 91/91 món và nó CHÍNH LÀ khẩu phần — xem chú
+# thích ở `understand.py` về việc chủ đề `serving_size` bị bỏ.
+#
+# Chỉ ba nhãn dưới đây nói về SỐ NGƯỜI. `party:share`, `party:friends`, `party:family` nói về DỊP
+# ĂN, không nói khẩu phần — trộn chúng vào thì câu trả lời thành "món này cho gia đình người ăn".
+_SERVING_VI = {
+    "party:solo": "một người",
+    "party:two_three": "2–3 người",
+    "party:three_five": "3–5 người",
+}
+
+
+def _knowledge_chunk(topic: str, question: str) -> str | None:
+    """Đoạn của tài liệu `topic` trả lời `question` sát nhất, hoặc None nếu không có tài liệu.
+
+    Truy hồi ở đây chỉ xếp hạng TRONG PHẠM VI một tài liệu — 3–8 đoạn, không phải 303. Chủ đề đã
+    được nhận ra bằng TRA KHÓA ở bước hiểu câu hỏi, nên phần xếp hạng không quyết định *trả lời về
+    cái gì*, chỉ quyết định *mục nào của tài liệu đó*. Đó là lý do không cần ngưỡng tương đồng:
+    tài liệu nào cũng có ít nhất một mục, và mục sát nhất luôn tốt hơn không trả lời.
+
+    Dùng BM25 chứ không embedding: phạm vi 3–8 đoạn cùng chủ đề nên chúng khác nhau ở TỪ KHÓA của
+    từng mục ("khẩu phần" so với "thời gian chờ" so với "mang đi"), đúng chỗ BM25 mạnh. Và nó không
+    thêm 2–3GB vào ảnh Docker. Nếu phép đo cho thấy embedding chọn đoạn tốt hơn thì đổi — nhưng
+    phải đổi vì SỐ.
+
+    CHIẾN LƯỢC ĐÃ ĐO NHƯNG KHÔNG NHẬN: "ưu tiên mục có TIÊU ĐỀ trùng nhiều từ với câu hỏi nhất".
+    Nó đạt 6/7 so với 5/7 của bản hiện tại trên 7 câu có khóa đáp án — nhưng **n=7 thì một ca lệch
+    là 14%**, và trên 3 câu chưa có khóa đáp án nó chọn đoạn KÉM HƠN ở 2 câu. Chọn chiến lược trên
+    7 điểm dữ liệu với biên 1 ca là đúng thứ dự án này có luật riêng để tránh.
+
+    Nên nó được ghi lại chứ không nhận, và điều kiện để xét lại là có tập ca ĐỦ LỚN cho việc chọn
+    đoạn trong phạm vi tài liệu — chứ không phải cảm giác rằng tiêu đề là tín hiệu tốt.
+
+    Trả `None` khi không tìm được tài liệu, và chỗ gọi nói "chưa có dữ liệu". Kho hỏng thì coi như
+    chưa có, cùng nguyên tắc với `load_facts()`.
+    """
+    try:
+        from rag.bm25 import Bm25Index
+        from rag.chunker import retrievable_chunks
+
+        cua_tai_lieu = [
+            c for c in retrievable_chunks(KNOWLEDGE_PATH) if topic in c.topic_keys
+        ]
+    except (KnowledgeError, OSError, ImportError):
+        return None
+    if not cua_tai_lieu:
+        return None
+
+    # BỎ đoạn MỞ ĐẦU (`heading` rỗng) khỏi tập ứng viên. 55/303 đoạn là mở đầu, và chúng mô tả TÀI
+    # LIỆU chứ không trả lời câu nào — "Tài liệu này nói về cách ghép các món với nhau...". Đo
+    # được: BM25 chọn đúng đoạn mở đầu ở 2 câu, và câu trả lời khi đó không trả lời gì.
+    #
+    # Đây là quy tắc CẤU TRÚC, không phải chỉnh tham số: một mục không có tiêu đề là phần dẫn nhập
+    # của tài liệu. Nên nó không cần đo để biện minh — nhưng vẫn đo, và nó sửa đúng 2 ca.
+    #
+    # Giữ lại mở đầu làm dự phòng khi tài liệu KHÔNG có mục nào: thà trả phần dẫn nhập còn hơn nói
+    # "chưa có dữ liệu" khi tài liệu có nội dung.
+    co_muc = [c for c in cua_tai_lieu if c.heading] or cua_tai_lieu
+
+    hits = Bm25Index.build(co_muc).search(question, k=1)
+    theo_id = {c.chunk_id: c for c in co_muc}
+    chon = theo_id[hits[0].chunk_id] if hits else co_muc[0]
+    return " ".join(chon.text.split())
+
+
 def select(request: Request, items: list[dict]) -> list[dict]:
     """Lọc thực đơn theo đúng những gì khách đã nói.
 
@@ -250,6 +315,52 @@ def respond(request: Request, items: list[dict]) -> Reply:
             items=[named[0]["id"]] if tro_bang_tham_chieu else [],
             kind="no_data",
             branch=f"policy:{request.policy_topic}",
+        )
+
+    # 2c. Khẩu phần của MỘT món đã nêu tên (hoặc trỏ tới bằng tham chiếu ngược).
+    #
+    # Trả lời từ nhãn `party:*` của chính món, không từ tri thức chung — hỏi về một món thì đáp án
+    # là nhãn của món đó. Nhóm `party` phủ 91/91 nên nhánh này luôn có gì để nói.
+    if request.asks_serving and named:
+        item = named[0]
+        muc = [_SERVING_VI[t] for t in ("party:solo", "party:two_three", "party:three_five")
+               if t in item["tags"]]
+        if muc:
+            return Reply(
+                text=f"{phrase(item)} phù hợp cho {', '.join(muc)} ạ.",
+                items=[item["id"]],
+                kind="fact",
+                branch="serving_named_dish",
+            )
+
+    # 2d. Chủ đề tri thức NHIỀU MỤC. Khác nhánh 2 ở chỗ tài liệu có nhiều mục nên phải chọn mục.
+    #
+    # Đặt SAU nhánh chính sách (nguyên văn) và SAU nhánh món-đã-nêu-tên, TRƯỚC nhánh lọc. Thứ tự đó
+    # là thứ tự loại trừ và nó quan trọng:
+    #
+    #   trước nhánh lọc  vì 4 trong 10 câu tri thức từng rơi vào nhánh lọc và nhận về danh sách món
+    #   sau nhánh 2      vì chủ đề nguyên văn chính xác tuyệt đối, còn ở đây phải CHỌN mục
+    #
+    # Câu trả lời là đoạn tri thức NGUYÊN VĂN, không nhờ mô hình viết lại. Tài liệu được viết để
+    # đọc được, và một chữ số lệch trong câu về nhà hàng là sai sự thật — cùng lý do với 24 chủ đề
+    # nguyên văn. Mô hình có thể viết hay hơn, nhưng "hay hơn" không đáng đổi bằng "có thể bịa".
+    # Hỏi khẩu phần mà KHÔNG nêu món nào -> câu hỏi về cả thực đơn, trả bằng tri thức chung.
+    chu_de_tri_thuc = request.knowledge_topic
+    if chu_de_tri_thuc is None and request.asks_serving:
+        chu_de_tri_thuc = "portion_timing"
+
+    if chu_de_tri_thuc is not None:
+        doan = _knowledge_chunk(chu_de_tri_thuc, request.text)
+        if doan:
+            return Reply(
+                text=f"{doan} Nếu cần rõ hơn, bạn hỏi nhân viên giúp mình nhé.",
+                kind="fact",
+                branch=f"knowledge:{chu_de_tri_thuc}",
+            )
+        return Reply(
+            text=f"Mình chưa có dữ liệu về việc này ạ. {STAFF_NOTE}",
+            kind="no_data",
+            branch=f"knowledge_missing:{chu_de_tri_thuc}",
         )
 
     # 2b. Khách hỏi một món cụ thể mà thực đơn không có. Phải nói không có, tuyệt đối

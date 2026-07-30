@@ -86,10 +86,25 @@ class Request:
     # Lỗi này chỉ hiện khi chạy thật qua backend, vì nó cần bộ nhớ SỐNG QUA nhiều lượt.
     declared_avoidance: bool = False
     asks_price: bool = False
+    # Khách hỏi một phần cho MẤY NGƯỜI ăn. Trả lời từ nhãn `party:*` của chính món, không từ tri
+    # thức chung — hỏi về một món thì đáp án là nhãn của món đó.
+    asks_serving: bool = False
     asks_extreme: str | None = None   # "cheapest" | "priciest"
     is_comparison: bool = False
     off_topic: bool = False
     policy_topic: str | None = None
+    # Chủ đề tri thức `answer_mode: synthesize` — KHÁC `policy_topic`, và tách ra là cố ý.
+    #
+    #   policy_topic     24 chủ đề `verbatim`: cả tài liệu là MỘT câu trả lời, trả nguyên văn.
+    #                    Tra khóa, không xếp hạng, mô hình không chạm vào chữ.
+    #   knowledge_topic  11 chủ đề `synthesize`: tài liệu có NHIỀU mục, phải chọn mục nào trả lời
+    #                    câu này. Vẫn tra khóa để tìm TÀI LIỆU, rồi xếp hạng trong phạm vi tài
+    #                    liệu đó để chọn ĐOẠN — phạm vi 3–8 đoạn thay vì 303.
+    #
+    # Gộp hai trường thì nhánh trả lời phải đoán tài liệu thuộc loại nào, và `load_facts()` chỉ có
+    # nội dung của loại thứ nhất — nên chủ đề loại thứ hai sẽ trả "chưa có dữ liệu" trong khi câu
+    # trả lời NẰM TRONG REPO. Đó đúng là lỗi đã đo được ở câu "một phần lẩu cho mấy người ăn?".
+    knowledge_topic: str | None = None
     unknown_item: bool = False
     unparsed_restriction: bool = False  # khách nêu điều cần tránh mà không hiểu tránh gì
     # Tham chiếu ngược vào danh sách khách VỪA đọc. Ba cơ chế khác nhau, không gộp được:
@@ -421,11 +436,21 @@ _add("giong vay|giong the|tuong tu|kieu vay|giong nhu vay", "flag", "similar")
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")
 
-# Số người ăn một phần — thực đơn KHÔNG có dữ liệu này. Nhóm `serving` chỉ có `takeaway`, `hot`,
-# `preorder`, không có khẩu phần. Nên câu "món đó cho mấy người ăn?" phải trả "chưa có dữ liệu",
-# không được trả bừa giá và độ cay như thể đã trả lời.
-_add("cho may nguoi an|may nguoi an|an duoc may nguoi|du cho may nguoi|khau phan bao nhieu",
-     "policy", "serving_size")
+# Số người ăn một phần. Chủ đề này TỪNG là `policy: serving_size` với câu trả lời "chưa có dữ
+# liệu", và lý do đó SAI: nó dựa trên việc nhóm `serving` chỉ có `takeaway`/`hot`/`preorder`, và bỏ
+# sót nhóm `party` — `party:solo` là "Cá nhân", `party:two_three` là "2-3 người",
+# `party:three_five` là "3-5 người". Nhóm `party` phủ **91/91 món**, và chính dự án này dùng nó làm
+# ràng buộc cứng vì độ phủ đó.
+#
+# Nên hệ thống từng nói "chưa có dữ liệu" cho một câu mà dữ liệu CÓ, và một ca đánh giá bị sửa tiêu
+# chí theo cái sai đó. Lỗi đọc dữ liệu: xem một nhóm nhãn rồi kết luận về cả thực đơn.
+#
+# Hai câu hỏi khác nhau, hai đường trả lời khác nhau:
+#   "khẩu phần thế nào?"           -> tri thức `portion_timing` (nói về cả thực đơn)
+#   "món đó cho mấy người ăn?"     -> nhãn `party:*` của CHÍNH món đó (xem `answer.py`)
+_add("khau phan the nao|khau phan bao nhieu", "knowledge", "portion_timing")
+_add("cho may nguoi an|may nguoi an|an duoc may nguoi|du cho may nguoi|mot phan cho may nguoi",
+     "flag", "asks_serving")
 _add("dat nhat|mac nhat", "flag", "priciest")
 _add("re nhat|thap nhat", "flag", "cheapest")
 
@@ -466,6 +491,40 @@ _add("ghe an cho em be|ghe an cho be|ghe cho em be|ghe cho be|ghe em be|ghe tre 
 _add("xe lan|nguoi khuyet tat|loi di cho xe lan", "policy", "accessibility")
 _add("hut thuoc|khu hut thuoc|thuoc la", "policy", "smoking")
 _add("mang do tu ngoai vao|mang banh vao|mang banh sinh nhat|do tu ben ngoai", "policy", "outside_food")
+
+# --- Chủ đề tri thức NHIỀU MỤC (`answer_mode: synthesize`) ----------------------------------
+#
+# 11 chủ đề dưới đây trả lời bằng cách CHỌN MỘT MỤC của một tài liệu, khác 24 chủ đề `policy` ở
+# trên vốn trả nguyên văn cả tài liệu. Xem chú thích ở `Request.knowledge_topic`.
+#
+# Đo trước khi thêm, cùng phương pháp đã dùng cho 23 cụm mô tả và cụm chỉ vị trí: nạp từng cụm rồi
+# chạy `understand()` trên CẢ 122 câu. Kết quả: **33/33 cụm an toàn, 0/122 ca đổi, 0 ca dạng `list`
+# đổi** — con số cuối là con số phải canh, vì dự án đã ghi rõ nguy cơ: "Gộp hai loại thì câu 'món
+# nào không cay' sẽ trả về một đoạn văn thay vì danh sách món."
+#
+# Cụm được chọn theo một quy tắc: chúng nói về CÁCH LÀM hoặc về CHÍNH THỰC ĐƠN, không nói về món.
+# Câu về món phải tiếp tục đi nhánh lọc, vì liệt kê món thật hữu ích hơn một đoạn văn.
+#
+# CHỦ ĐỀ BỊ LOẠI, và lý do đo được: `budget_planning`. Câu "Hai người 300 nghìn thì gọi được những
+# gì?" hiện trả về DANH SÁCH MÓN, và đó **đúng hơn** một đoạn văn về bốn mức giá — khách nêu con số
+# cụ thể thì họ muốn món, không muốn giải thích. Không tìm được cách diễn đạt nào vừa rõ là câu
+# meta vừa không phải câu đặt hàng, nên chủ đề đó để nguyên cho nhánh lọc.
+#
+# 48/60 tài liệu `synthesize` còn lại là `derived` — sinh từ nhãn thực đơn (hương vị, vùng miền,
+# cách chế biến). Chúng KHÔNG có cụm nào ở đây, cũng vì lý do trên: với "món bò có gì", nhánh lọc
+# liệt kê món bò thật tốt hơn một đoạn văn về nhóm nhãn `ingredient:beef`.
+_add("goi combo gi|combo gi cho hop|ket hop mon nao|ghep mon the nao", "knowledge", "combo_pairing")
+_add("set bua trua|set bua toi|co set nao", "knowledge", "meal_sets")
+_add("uong gi cho hop|ghep do uong|uong gi voi", "knowledge", "beverage_pairing")
+_add("nen goi bao nhieu mon|goi bao nhieu mon|goi may mon|thu tu goi mon",
+     "knowledge", "ordering_guide")
+_add("bao lau thi co mon|bao lau moi co mon", "knowledge", "portion_timing")
+_add("an chia chung|chia chung the nao", "knowledge", "sharing_etiquette")
+_add("lan dau toi day|lan dau den nha hang|thuc don to chuc the nao", "knowledge", "first_visit")
+_add("ghi nhan che do an nao|che do an nao", "knowledge", "dietary_limits")
+_add("noi voi nha hang the nao|khai di ung the nao|nen noi gi ve viec di ung",
+     "knowledge", "allergy_guidance")
+_add("goi mon qua ma qr|quet ma qr the nao|dung ung dung the nao", "knowledge", "qr_ordering")
 
 # An toàn dị ứng: bếp xử lý thế nào. Đây là chủ đề tri thức quan trọng nhất, vì nó nói ra
 # GIỚI HẠN của những gì hệ thống biết.
@@ -674,6 +733,12 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             request.wants = str(value)
         elif kind == "policy":
             request.policy_topic = request.policy_topic or str(value)
+        elif kind == "knowledge":
+            # `policy` THẮNG `knowledge` khi cả hai cùng khớp: chủ đề nguyên văn chính xác tuyệt
+            # đối, còn chủ đề nhiều mục phải chọn mục nên có chỗ để chệch. Đo được: câu "Nhà hàng
+            # có nhận đặt bàn trước không?" khớp cả `booking` (nguyên văn) — và câu trả lời nguyên
+            # văn đúng hơn, nên nó phải thắng.
+            request.knowledge_topic = request.knowledge_topic or str(value)
         elif kind == "flag":
             if value == "asks_price":
                 request.asks_price = True
@@ -683,6 +748,8 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.is_comparison = True
             elif value == "off_topic":
                 request.off_topic = True
+            elif value == "asks_serving":
+                request.asks_serving = True
             elif value == "scope_listed":
                 request.scope_last_listed = True
             elif value == "similar":

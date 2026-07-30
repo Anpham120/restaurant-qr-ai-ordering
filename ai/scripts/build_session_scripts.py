@@ -217,17 +217,21 @@ def build() -> dict:
         ("Gợi ý món ăn tối", "Món thứ hai có hải sản không?", "fact", "tro_vao_mon_cu"),
         ("Cho mình món dưới 100 nghìn", "Món rẻ nhất trong số đó là gì?", "fact", "tro_vao_mon_cu"),
         ("Món nào đặc trưng nhà hàng", "Món vừa rồi làm từ gì?", "fact", "tro_vao_mon_cu"),
-        # `no_data`, KHÔNG phải `fact` — và đây là TIÊU CHÍ đã sửa, ghi lại lý do vì sửa tiêu chí
-        # là việc dễ bị dùng để làm đẹp số liệu.
+        # `fact` — và tiêu chí này đã ĐỔI HAI LẦN, nên cả hai lần được ghi lại.
         #
-        # Lý do không phụ thuộc hệ thống làm gì: **thực đơn không có dữ liệu khẩu phần**. Nhóm nhãn
-        # `serving` chỉ có ba giá trị — `takeaway` (11 món), `hot` (1), `preorder` (12) — không có
-        # giá trị nào nói một phần cho mấy người ăn. Nên câu trả lời ĐÚNG là "chưa có dữ liệu",
-        # và một tiêu chí đòi `fact` là tiêu chí đòi hệ thống BỊA ra con số.
+        # Lần 1: đổi từ `fact` sang `no_data`, với lý do "thực đơn không có dữ liệu khẩu phần" —
+        # dựa trên việc nhóm `serving` chỉ có `takeaway`/`hot`/`preorder`.
         #
-        # Ca vẫn ở lại tập thay vì bị bỏ: nó chốt rằng hệ thống nói ra chỗ mình không biết, và vẫn
-        # nêu TÊN món đang được hỏi để khách phát hiện nếu "món đó" bị hiểu sai.
-        ("Cho mình xem món lẩu", "Món đó cho mấy người ăn?", "no_data", "tro_vao_mon_cu"),
+        # Lần 2: đổi NGƯỢC LẠI về `fact`, vì lý do của lần 1 SAI. Nó bỏ sót nhóm `party`:
+        # `party:solo` = "Cá nhân", `party:two_three` = "2-3 người", `party:three_five` =
+        # "3-5 người" — và nhóm đó phủ **91/91 món**, chính dự án này dùng nó làm ràng buộc cứng vì
+        # độ phủ đó.
+        #
+        # Bài học đắt hơn cả hai lần đổi: một tiêu chí bị sửa theo một KẾT LUẬN SAI về dữ liệu thì
+        # nó khóa cái sai đó lại. Ca trở thành bằng chứng rằng hệ thống đúng khi nói "không biết",
+        # trong khi câu trả lời nằm trong repo. Xem một nhóm nhãn rồi kết luận về cả thực đơn là
+        # lỗi đọc dữ liệu, và tiêu chí đánh giá là chỗ nó sống lâu nhất.
+        ("Cho mình xem món lẩu", "Món đó cho mấy người ăn?", "fact", "tro_vao_mon_cu"),
         ("Gợi ý món cho 4 người", "Cái thứ ba bao nhiêu tiền?", "fact", "tro_vao_mon_cu"),
         ("Cho mình món chay", "Còn món nào giống vậy không?", "list", "xin_them_mon_giong"),
         ("Món nào bán chạy nhất", "Món đó có đậu phộng không?", "fact", "tro_vao_mon_cu"),

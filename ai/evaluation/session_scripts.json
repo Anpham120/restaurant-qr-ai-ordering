@@ -725,8 +725,8 @@
           "user": "Món đó cho mấy người ăn?",
           "expect": {
             "refers_to_turn": 1,
-            "expect_kind": "no_data",
-            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `no_data`."
+            "expect_kind": "fact",
+            "why": "Lượt tham chiếu ngược. Nhóm này TỪNG được đánh `aspirational: true` (được phép đỏ) vì hệ thống chưa lưu dãy có thứ tự các món đã nêu — 9/9 lượt đỏ. Cờ đó ĐÃ BỎ sau khi khả năng được dựng và cả 9 lượt đạt. Bỏ cờ là bắt buộc, không phải dọn dẹp: giữ 'được phép đỏ' cho một khả năng ĐÃ CHẠY nghĩa là lần sau nó hỏng thì không ai biết — tập ca sẽ báo 'khoảng cách' thay vì báo 'tụt'. Tiêu chí: câu trả lời phải nhắc một món của lượt 1, và dạng đáp án là `fact`."
           }
         }
       ]

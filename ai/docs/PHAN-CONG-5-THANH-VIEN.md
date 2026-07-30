@@ -197,7 +197,7 @@ python -m unittest test_chunker            # trong ai/app
 *Câu khách vừa gõ nêu ra những ràng buộc gì, và cái gì hệ thống KHÔNG hiểu?*
 
 ### Kiến thức phải nắm
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **78 cụm có nguy cơ** (59 bị
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **85 cụm có nguy cơ** (66 bị
   chứa trong cụm khác, 40 nằm trong tên món, 21 thuộc cả hai). Số này do
   `test_understand.collision_census()` tính lại mỗi lần chạy, **không viết tay**.
 - **Ràng buộc khác ngữ cảnh.** "Tôi ăn chay" là ràng buộc (lọc cứng); "tôi đi hẹn hò" là ngữ cảnh

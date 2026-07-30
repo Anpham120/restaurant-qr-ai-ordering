@@ -39,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 KNOWLEDGE_PATH = REPO_ROOT / "ai" / "knowledge"
 
 sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
-from rag.chunker import KnowledgeError, verbatim_answers  # noqa: E402
+from rag.chunker import KnowledgeError, retrievable_chunks, verbatim_answers  # noqa: E402
 
 
 def load_facts() -> dict[str, str]:
@@ -248,7 +248,10 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
     # Miễn hai phép kiểm đó KHÔNG mở lỗ, vì chốt an toàn (`safety_forbid`) vẫn đếm trên
     # `mentioned | declared`, và tiêu chí thay thế còn chặt hơn: câu trả lời phải chứa
     # nguyên văn nội dung tri thức, tức không thể tự viết ra.
-    is_knowledge = expect.get("knowledge_topic") is not None
+    # Cả hai loại chủ đề tri thức đều là "câu trả lời đọc từ tệp", nên cùng được miễn hai phép kiểm
+    # dành cho câu tra cứu món. Xem `knowledge_chunk_topic` bên dưới.
+    is_knowledge = (expect.get("knowledge_topic") is not None
+                    or expect.get("knowledge_chunk_topic") is not None)
 
     # --- Nhất quán giữa phần chữ và phần khai ---------------------------------------
     # Hai chiều, vì mỗi chiều bắt một cách gian khác nhau.
@@ -413,6 +416,36 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
                 normalise_spaces(strip_accents(known)) in
                 normalise_spaces(strip_accents(text)),
                 f"phải đọc nguyên văn tri thức chủ đề {topic!r} nhưng câu trả lời không chứa nó",
+            )
+
+    # Chủ đề tri thức NHIỀU MỤC: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó.
+    #
+    # Khác `knowledge_topic` ở chỗ ca KHÔNG chỉ định đoạn nào. Lý do: chọn đoạn là việc của phép
+    # truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt thay vì phép kiểm hành vi —
+    # đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng.
+    #
+    # Điều ca chốt là thứ quan trọng hơn: câu trả lời **không thể tự viết ra**. Nó phải trùng khớp
+    # từng chữ với một đoạn có thật trong kho, nên không có chỗ nào để bịa — cùng bảo đảm mà 24 chủ
+    # đề nguyên văn có, chỉ khác là đoạn nào thì do truy hồi chọn.
+    chunk_topic = expect.get("knowledge_chunk_topic")
+    if chunk_topic is not None:
+        try:
+            kho = [c for c in retrievable_chunks(KNOWLEDGE_PATH)
+                   if chunk_topic in c.topic_keys]
+        except (KnowledgeError, OSError):
+            kho = []
+        if not kho:
+            add("knowledge_chunk_present", False,
+                f"ca đòi tri thức chủ đề {chunk_topic!r} nhưng kho không có đoạn nào")
+        else:
+            sach = normalise_spaces(strip_accents(text))
+            trung = [c for c in kho
+                     if normalise_spaces(strip_accents(" ".join(c.text.split()))) in sach]
+            add(
+                "knowledge_chunk_quoted",
+                bool(trung),
+                f"phải đọc NGUYÊN VĂN một đoạn của chủ đề {chunk_topic!r} — câu trả lời không "
+                f"chứa đoạn nào trong {len(kho)} đoạn của tài liệu đó",
             )
 
     # --- Ràng buộc khách đã nói ----------------------------------------------------

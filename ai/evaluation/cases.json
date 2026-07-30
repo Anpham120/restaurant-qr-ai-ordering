@@ -1947,6 +1947,126 @@
         "forbid": "$savoury",
         "why": "CHIỀU NGƯỢC LẠI, và là chiều then chốt. Khách nói rõ 'tráng miệng' thì câu trả lời PHẢI là tráng miệng — nếu bản sửa hai ca trên dùng phép LỌC thay vì xếp hạng thì ca này đỏ ngay. Không có ca này thì cách sửa dễ nhất (bỏ tráng miệng khỏi kết quả) sẽ làm hai ca trên xanh và làm hỏng một câu hỏi hoàn toàn hợp lệ, mà tập đánh giá không thấy gì."
       }
+    },
+    {
+      "id": "K-multi-01",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Đi hẹn hò nên gọi combo gì cho hợp?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "combo_pairing",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: trả về danh sách món, có cả Tôm hùm nướng 890.000đ cho một câu hỏi về CÁCH ghép món. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-02",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Ăn món nướng thì uống gì cho hợp?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "beverage_pairing",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: 'mình chưa tìm được món nào thỏa hết những điều bạn nêu' — câu trả lời RỖNG cho một câu có đủ dữ liệu để trả lời. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-03",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Nhóm 6 người thì nên gọi bao nhiêu món?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "ordering_guide",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: trả về SỐ MÓN của thực đơn (91 món, 13 nhóm) — đúng dữ liệu, sai câu hỏi. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-04",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Một phần lẩu cho mấy người ăn?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "portion_timing",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: 'chưa có dữ liệu' — trong khi nhóm nhãn `party` phủ 91/91 món và tài liệu `portion_timing` nói rõ ba mức khẩu phần. Đây là ca lộ ra một khẳng định SAI của chính dự án: chủ đề `serving_size` được dựng với lý do 'thực đơn không có dữ liệu khẩu phần', và lý do đó bỏ sót nhóm `party`. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-05",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Có set bữa trưa nào không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "meal_sets",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: danh sách món. Khách hỏi có SET nào, không hỏi món nào. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-06",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Người Việt ăn chia chung thế nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "sharing_etiquette",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: hỏi lại 'bạn muốn món ăn hay đồ uống' — câu hỏi không về món. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-07",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Lần đầu tới đây thì nên gọi gì?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "first_visit",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: hỏi lại. Tài liệu `first_visit` có mục 'Nên thử gì trước'. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-08",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Thực đơn có ghi nhận chế độ ăn nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "dietary_limits",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: danh sách món. Đây là câu META về thực đơn, không phải câu lọc món — cùng lớp phân biệt với 'có mấy mức cay?' so với 'món nào không cay?'. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-09",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Mình nên nói với nhà hàng thế nào về việc dị ứng?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "allergy_guidance",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: hỏi lại. Đây là câu tri thức QUAN TRỌNG NHẤT của nhóm: nó nói ra GIỚI HẠN của những gì trợ lý biết về dị ứng, và hỏi lại ở đây là bỏ mất cơ hội nói điều đó. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
+    },
+    {
+      "id": "K-multi-10",
+      "type": "B",
+      "family": "knowledge_multi_section",
+      "question": "Gọi món qua mã QR thì làm thế nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "qr_ordering",
+        "must_offer_staff": true,
+        "why": "Trước khi dựng: hỏi lại. Tài liệu `qr_ordering` có 5 mục về đúng việc này. Tiêu chí là `knowledge_chunk_topic`: câu trả lời phải chứa NGUYÊN VĂN một đoạn của tài liệu đó. Ca KHÔNG chỉ định đoạn nào — chọn đoạn là việc của truy hồi, và ghim đoạn vào ca sẽ biến ca thành phép kiểm cài đặt: đổi chiến lược chọn đoạn là ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời KHÔNG THỂ TỰ VIẾT RA, vì nó phải trùng từng chữ với một đoạn có thật trong kho."
+      }
     }
   ]
 }

@@ -473,6 +473,112 @@ gì, vì nó không kích hoạt hỏi lại và trả lời tự tin"*. Nó kh�
 
 ---
 
+## 12. Đường `synthesize` — 303 đoạn tri thức trước đó không ai với tới
+
+Trước bản này, **60/60 chủ đề `synthesize` không có đường nào từ câu khách**. Kho 303 đoạn tồn tại,
+được kiểm, được dùng làm nguyên liệu cho phép so truy hồi — và không nhánh trả lời nào đọc nó.
+
+### Khảo sát làm đổi thiết kế: 48/60 tài liệu KHÔNG nên đi đường này
+
+| loại | số tài liệu | nhánh đúng | vì sao |
+|---|---|---|---|
+| `derived` (hương vị, vùng miền, cách chế biến, nguyên liệu…) | 48 | **nhánh lọc** | với "món bò có gì", liệt kê món bò thật hữu ích hơn một đoạn văn về nhóm nhãn `ingredient:beef` |
+| `written` | 12 | **nhánh tri thức** | combo, ghép đồ uống, khẩu phần, cách gọi món — nhánh lọc không trả lời được |
+
+Nên đường này phục vụ **11 chủ đề**, không phải 60. Chủ đề thứ 12 — `budget_planning` — cũng bị
+loại, và bằng số: câu "Hai người 300 nghìn thì gọi được những gì?" hiện trả **danh sách món**, và
+đó **đúng hơn** một đoạn văn về bốn mức giá. Khách nêu con số cụ thể thì họ muốn món.
+
+### Trạng thái ĐO ĐƯỢC trước khi dựng: 10/10 sai
+
+```
+4 câu -> clarify    hỏi lại trong khi câu trả lời NẰM TRONG REPO
+4 câu -> filter     trả danh sách món cho một câu hỏi tri thức
+1 câu -> no_data    "chưa có dữ liệu" trong khi tài liệu có nội dung
+1 câu -> sai chủ đề hỏi "gọi bao nhiêu món" mà trả về SỐ MÓN của thực đơn (91 món, 13 nhóm)
+```
+
+Không ca nào trong 122 ca cũ bắt được, vì không ca nào hỏi những câu này.
+
+### Thiết kế: tra khóa tìm TÀI LIỆU, xếp hạng chọn ĐOẠN
+
+```
+understand.py   nhận chủ đề bằng TỪ VỰNG (tra khóa) -> knowledge_topic
+answer.py       xếp hạng TRONG PHẠM VI tài liệu đó -> chọn 1 đoạn -> trả NGUYÊN VĂN
+```
+
+Không dùng ngưỡng tương đồng ở đâu cả. Chủ đề đã được nhận ra bằng tra khóa nên phần xếp hạng
+**không quyết định trả lời về cái gì**, chỉ quyết định *mục nào của tài liệu đó* — phạm vi 3–8 đoạn
+thay vì 303. Và câu trả lời là đoạn **nguyên văn**, không nhờ mô hình viết lại: một chữ số lệch
+trong câu về nhà hàng là sai sự thật, cùng lý do với 24 chủ đề `verbatim`.
+
+Từ vựng: **33 cụm, đo trước khi thêm** — 33/33 an toàn, **0/122 ca đổi**, và con số phải canh là
+**0 ca dạng `list` bị đổi**. Dự án đã ghi rõ nguy cơ: *"Gộp hai loại thì câu 'món nào không cay' sẽ
+trả về một đoạn văn thay vì danh sách món."* Xác nhận qua backend thật: câu đó vẫn trả danh sách món.
+
+### Chọn đoạn trong tài liệu: nhận phần có nguyên tắc, từ chối phần chỉ hơn 1 ca
+
+Hai lỗi lộ ra khi đo 10 câu:
+
+1. **Đoạn MỞ ĐẦU bị chọn** ở 2 câu. 55/303 đoạn là mở đầu (`heading` rỗng) và chúng mô tả *tài
+   liệu* — "Tài liệu này nói về cách ghép các món…" — nên không trả lời câu nào. **Loại chúng khỏi
+   tập ứng viên.** Đây là quy tắc **cấu trúc**, không phải chỉnh tham số, nên nó không cần đo để
+   biện minh — nhưng vẫn đo, và nó sửa đúng 2 ca.
+
+2. **BM25 bị đoạn dài lấn**: "Có set bữa trưa nào không?" nhận mục *"Bảy món lẩu"* (133 từ) thay vì
+   *"Bữa trưa cần gì"* (96 từ).
+
+Chiến lược "ưu tiên mục có TIÊU ĐỀ trùng nhiều từ với câu hỏi nhất" sửa được lỗi 2 và đạt **6/7 so
+với 5/7**. **Không nhận**, vì hai lý do đo được:
+
+- **n = 7 thì một ca lệch là 14%.** Dự án có luật riêng cho chuyện này: *"Con số phải kèm `n` —
+  120 ca thì một ca lệch là 0,8%."* Chọn chiến lược trên 7 điểm dữ liệu với biên 1 ca là đúng thứ
+  luật đó tồn tại để tránh.
+- Trên 3 câu **chưa có khóa đáp án**, nó chọn đoạn **kém hơn ở 2 câu**.
+
+Ghi lại trong `answer.py::_knowledge_chunk` kèm điều kiện xét lại: cần tập ca **đủ lớn** cho việc
+chọn đoạn, không phải cảm giác rằng tiêu đề là tín hiệu tốt.
+
+### Tiêu chí ca: không ghim đoạn nào, nhưng chặn hoàn toàn việc bịa
+
+`knowledge_chunk_topic` đòi câu trả lời chứa **nguyên văn một đoạn** của tài liệu đó — không chỉ
+định đoạn nào. Ghim đoạn vào ca sẽ biến ca thành phép kiểm **cài đặt**: đổi chiến lược chọn đoạn là
+ca đỏ dù câu trả lời vẫn đúng. Điều ca chốt quan trọng hơn: câu trả lời **không thể tự viết ra**.
+
+10 ca mới, họ `knowledge_multi_section`. **132/132** ở cả hai chế độ.
+
+### Và đường này lộ ra một khẳng định SAI của chính dự án
+
+Chủ đề `serving_size` được dựng với lý do *"thực đơn không có dữ liệu khẩu phần"*, dựa trên việc
+nhóm `serving` chỉ có `takeaway`/`hot`/`preorder`. Lý do đó **bỏ sót nhóm `party`**:
+
+```
+party:solo        "Cá nhân"
+party:two_three   "2-3 người"
+party:three_five  "3-5 người"      -> phủ 91/91 món
+```
+
+Chính dự án này dùng `party` làm **ràng buộc cứng** vì độ phủ 91/91. Nên hệ thống nói "chưa có dữ
+liệu" cho một câu mà dữ liệu **có** — và một ca đánh giá đã bị **sửa tiêu chí theo cái sai đó**
+(`no_data` thay vì `fact`).
+
+Đó là điều tệ hơn cả lỗi ban đầu: **một tiêu chí bị sửa theo kết luận sai thì nó khóa cái sai lại**,
+và ca trở thành bằng chứng rằng hệ thống đúng khi nói "không biết". Xem một nhóm nhãn rồi kết luận
+về cả thực đơn là lỗi đọc dữ liệu, và **tiêu chí đánh giá là chỗ nó sống lâu nhất**.
+
+Đã sửa: `serving_size` bị bỏ; câu về khẩu phần **một món** trả lời từ nhãn `party:*` của chính món
+(`branch=serving_named_dish`), câu về khẩu phần **chung** đi tri thức `portion_timing`. Tiêu chí ca
+kịch bản trả về `fact`, và cả hai lần đổi được ghi lại trong bộ sinh.
+
+### Embedding vẫn KHÔNG vào ảnh Docker
+
+Đường `synthesize` đã dựng, nhưng nó dùng **BM25 trong phạm vi 3–8 đoạn**, không phải embedding
+trên 303 đoạn. Phạm vi nhỏ và các mục khác nhau ở **từ khóa** ("khẩu phần" / "thời gian chờ" /
+"mang đi") — đúng chỗ BM25 mạnh. Nên điều kiện ghi trong `ai/requirements-rag.txt` **vẫn chưa
+thỏa**: chưa có đường nào cần xếp hạng trên toàn kho.
+
+---
+
 ## 8. Hạn chế của bước này
 
 1. **Tập niêm phong truy hồi đã dùng hết** (2026-07-30). Câu hỏi tiếp theo cần tập MỚI.
