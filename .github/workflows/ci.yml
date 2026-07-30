@@ -257,6 +257,89 @@ jobs:
           LLM_MODEL: cx/gpt-5.6-luna-review
         run: python ai/evaluation/run_with_model.py
 
+  golden-e2e:
+    name: golden-e2e
+    runs-on: ubuntu-latest
+    # Dựng stack THẬT rồi hỏi như khách: QR -> phiên bàn -> phiên chat -> backend .NET ->
+    # dịch vụ AI -> câu trả lời -> thẻ giỏ -> giỏ hàng thật.
+    #
+    # Vì sao job này tồn tại: mọi tập khác dừng ở một chặng khác nhau của chuỗi gọi, và cả
+    # `test_service.py` lẫn `ChatAiProviderV2ContractTests` đều tự nhất quán với chính mình —
+    # nên khung SSE của hai bên lệch nhau suốt mà không tập nào đỏ. Khách nhận "Xin lỗi, hệ
+    # thống hơi chậm." trên ĐƯỜNG CHÍNH (frontend gọi stream trước rồi mới lùi về gọi thường).
+    #
+    # KHÔNG cần bí mật thật. `LLM_BASE_URL` trỏ vào cổng không có gì lắng nghe, nên mô hình gọi
+    # thất bại ngay và dịch vụ trả lời bằng mã tất định — đúng đường đã đạt 140/140 ca.
+    env:
+      DEPLOY_ENV: ci
+      COMPOSE_PROJECT_NAME: cmc-restaurant-golden
+      FRONTEND_PORT: "8080"
+      BACKEND_PORT: "5000"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: restaurant_qr_golden
+      POSTGRES_USER: restaurant_user
+      POSTGRES_PASSWORD: ci-postgres-placeholder
+      FRONTEND_SERVER_NAMES: cmcrestaurant.app
+      API_SERVER_NAME: api.cmcrestaurant.app
+      PUBLIC_API_BASE_URL: http://127.0.0.1:5000/api
+      PUBLIC_ORDERING_BASE_URL: http://127.0.0.1:8080
+      PUBLIC_MARKETING_BASE_URL: http://127.0.0.1:8080
+      JWT_SIGNING_KEY: ci-placeholder-signing-key-change-me
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:8080
+      PAYMENTS__VIETQR__BANKID: "970436"
+      PAYMENTS__VIETQR__ACCOUNTNUMBER: "ci-placeholder-account"
+      PAYMENTS__VIETQR__ACCOUNTNAME: CMC CI
+      CHAT_AI_PROVIDER: python-rag
+      AI_SERVICE_URL: http://127.0.0.1:8001
+      AI_SERVICE_PORT: "8001"
+      AI_INTERNAL_TOKEN: ci-internal-token-placeholder
+      LLM_PROVIDER: 9router
+      LLM_BASE_URL: http://127.0.0.1:20128/v1
+      LLM_API_KEY: ci-provider-key-placeholder
+      LLM_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
+      AI_PIPELINE_PROFILE: rebuild_placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Bộ chạy golden chỉ dùng thư viện chuẩn — không cài gì.
+
+      - name: Di trú cơ sở dữ liệu
+        run: |
+          docker compose -f deploy/docker-compose.yml --profile migrate run --rm migrate
+
+      - name: Dựng postgres, dịch vụ AI, backend
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --build postgres ai-service api
+
+      - name: Chờ backend và dịch vụ AI sẵn sàng
+        run: python ai/evaluation/wait_for_stack.py
+
+      - name: Golden đầu-cuối — hỏi như khách thật
+        run: |
+          QR=$(docker compose -f deploy/docker-compose.yml exec -T postgres \
+            psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A \
+            -c "select qr_token from restaurant_tables order by table_code limit 1;" | tr -d '\r')
+          test -n "$QR" || { echo "không lấy được mã QR — cơ sở dữ liệu chưa seed bàn nào"; exit 1; }
+          GOLDEN_QR_TOKEN="$QR" python ai/evaluation/run_golden_e2e.py --chi-tiet
+
+      - name: Log khi đỏ
+        if: failure()
+        run: |
+          docker compose -f deploy/docker-compose.yml logs --tail 200 api
+          docker compose -f deploy/docker-compose.yml logs --tail 100 ai-service
+
+      - name: Hạ stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v
+
   docker-compose-config:
     name: docker-compose-config
     runs-on: ubuntu-latest

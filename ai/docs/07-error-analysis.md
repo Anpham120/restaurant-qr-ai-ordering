@@ -821,10 +821,10 @@ Chuỗi gọi thật có 6 chặng, và mỗi tập cũ dừng ở một chặng
 | + mô hình (trong tiến trình, dùng cache) | `run_with_model.py` |
 | + HTTP tới dịch vụ AI | 29 test `test_service.py` (`TestClient`) |
 | + backend .NET gọi dịch vụ AI | `AiContractBoundaryTests` — kiểm **hợp đồng**, provider giả |
-| **QR → phiên bàn → phiên chat → backend → AI → mô hình → thẻ giỏ → giỏ hàng thật** | `run_golden_e2e.py` |
+| **QR → phiên bàn → phiên chat → backend → AI → mô hình → thẻ giỏ → giỏ hàng thật** | `run_golden_e2e.py`, job CI `golden-e2e` |
 
-5 hội thoại / 18 lượt: khách dị ứng, câu hỏi giá và tiền đề sai, câu ngoài phạm vi, món không có,
-câu tri thức. Kết quả **18/18** qua backend + mô hình thật.
+**13 hội thoại / 42 lượt** (bảng năng lực ở 14.3). Kết quả **42/42** qua backend, ở cả hai cấu
+hình mô hình.
 
 ### 14.1 Bảy bất biến thẻ giỏ, áp cho MỌI lượt
 
@@ -859,16 +859,118 @@ không từ số tên món: đếm tên món không phân biệt được "đây
 VỀ các món này". Việc đếm tên món vẫn giữ ở phép kiểm an toàn, và ở đó nó đúng — một món hải sản
 nhắc trong văn xuôi vẫn là món hải sản đã lọt tới mắt khách dị ứng.
 
-### 14.3 Hai hạn chế phải nói ra
+### 14.3 Mở rộng lên 13 hội thoại / 42 lượt, và nó tìm ra một lỗi CHẶN PHÁT HÀNH
 
-**Không nằm trong CI.** Bộ này cần stack đang chạy, và CI hiện chỉ có 4 job trong đó
-`docker-compose-config` **chỉ kiểm cú pháp** compose. Nên đây là **cửa thủ công trước khi phát
-hành**, không phải hàng rào tự động. Đưa được vào CI thì cần dựng compose trong runner với bí mật
-sinh tại chỗ; dịch vụ AI chạy không có mô hình vẫn trả lời 140/140 bằng mã tất định, nên về nguyên
-tắc là làm được — chưa làm.
+5 hội thoại đầu chốt lại ba lỗi ở mục 13. Chúng **không** đủ rộng để đánh giá trợ lý, nên tập được
+mở lên 13 hội thoại / 42 lượt, mỗi hội thoại phủ một năng lực:
 
-Bù lại: **phần chấm điểm có 25 test chạy không cần stack** (`test_golden_e2e.py`). Một bộ đo mà logic
-chấm sai sẽ báo xanh trên hệ thống đang sai, và đó là kiểu hỏng tệ nhất của bộ đo. Trong 25 test đó
+| Hội thoại | Năng lực |
+|---|---|
+| `khach-di-ung-hai-san` | chốt an toàn qua đủ 6 chặng, kết bằng bấm thêm vào giỏ thật |
+| `khach-hoi-gia-va-tien-de-sai` | ba lỗi mục 13, trong đúng thứ tự đã xảy ra |
+| `khach-hoi-ngoai-pham-vi` | kiến thức chung, phép tính, dò chỉ dẫn nội bộ, và **chống từ chối oan** |
+| `khach-hoi-mon-khong-co` | chặn bịa món, hai chiều |
+| `khach-hoi-tri-thuc` | đường tri thức, trả nguyên văn đoạn có thật |
+| `khach-hoi-mon-an-khong-phai-do-uong` | **món ăn khác đồ uống**, và không lặp món |
+| `khach-tro-vao-mon-da-neu` | tham chiếu ngược theo VỊ TRÍ, và tham chiếu chuỗi |
+| `khach-siet-ngan-sach` | ràng buộc cùng nhóm GHI ĐÈ, không cộng dồn |
+| `khach-so-sanh-hai-mon` | so sánh, và câu so sánh TIẾP NỐI |
+| `khach-hoi-do-cay-va-an-chay` | ba vụ đụng chữ, qua đủ chuỗi gọi |
+| `khach-hoi-thu-thuc-don-khong-co` | ba loại dữ liệu thực đơn không chứa |
+| `khach-hoi-chinh-sach-nha-hang` | câu chính sách, và vụ đụng chữ "mở cửa" chứa "cua" |
+| `khach-di-ung-qua-duong-stream` | **đường SSE** — đường CHÍNH của khách |
+
+Lần chạy đầu: **6 lượt đỏ**.
+
+#### Lỗi chặn phát hành: đường SSE của khách luôn trả câu xin lỗi
+
+| | |
+|---|---|
+| Hiện tượng | mọi lượt qua SSE nhận "Xin lỗi, hệ thống hơi chậm. Bạn thử lại sau giây lát nhé." |
+| Vì sao nghiêm trọng | `ChatbotPage.tsx` gọi `sendMessageStream` **trước**, chỉ lùi về `sendMessage` khi stream lỗi. Đây là đường chính, nên **mọi câu trả lời thật đi qua dịch vụ AI đều thành câu xin lỗi** |
+| Nguyên nhân | dịch vụ AI phát `data: {"delta": ...}` **không kèm dòng `event:`**; `ChatAiProvider.GenerateStreamAsync` bỏ qua mọi dòng `data:` khi `eventName` còn rỗng. Toàn bộ stream bị hủy, `finalPayload` null |
+| Vì sao không test nào bắt | cả hai bên **tự nhất quán với chính mình**: `test_service.py` kiểm khung tự định, `ChatAiProviderV2ContractTests` kiểm bộ đọc của backend. Hai khung khác nhau, không tập nào nối hai bên |
+| Sửa ở đâu | ở **dịch vụ AI**, không ở bộ đọc backend — đúng bài học đã ghi tại `require_token`: hợp đồng do BÊN GỌI định |
+
+Một chi tiết đáng ghi: đúng lúc đó có một lượt SSE **xanh**, và nó xanh vì backend lấy đường
+`CatalogReply` fast-path nên không gọi dịch vụ AI. Nếu tập chỉ có một lượt SSE thì kết luận sẽ ngược
+hẳn.
+
+#### Ba lỗi ngữ cảnh, tất cả tái hiện được trong tiến trình
+
+| Câu | Nhận được | Nguyên nhân | Sửa |
+|---|---|---|---|
+| "Cho mình món khác đi" | **y nguyên** danh sách cũ | cụm không có trong từ vựng, rơi vào nhánh lọc thường | cụm vào `similar`; loại **cả tập đã gợi trong phiên**, không chỉ lượt cuối |
+| "Món thứ hai có cay không?" rồi "Món đó bao nhiêu tiền?" | trả lời về món **thứ nhất** | từ vựng gán "món đó" bằng vị trí 1 | `last_focus_id`; vị trí là cách trỏ khi khách **đếm**, "món đó" trỏ vào **tiêu điểm** |
+| "Món nào cay hơn?" sau một câu so sánh | hỏi lại | mất cặp món | `last_compared_ids`; danh sách cụm **không** chứa "rẻ hơn"/"ít hơn" vì ba cụm đó là cách nói siết ngân sách |
+
+Nhóm `no_repeat` của bộ chạy phiên vẫn **xanh 10/10** suốt thời gian lỗi thứ nhất tồn tại: tiêu chí
+của nó chỉ kiểm bộ nhớ có **ghi** món đã gợi, không kiểm danh sách có **đổi** — dù `why` của nó nói
+đúng điều đó. Ca đạt sai lý do, lần thứ tư trong dự án.
+
+#### Hai hồi quy do chính bản sửa, cả hai bị bắt ngay
+
+- Chuyển "cái đó" từ loại `reference` sang cờ làm `REFERENCE_PHRASES` hụt đi, nên "Cái đó có cay
+  không?" không còn được đọc là câu hỏi về một món, và `context-reference-02` đỏ. Tập đó nay sinh từ
+  **cả hai** điều kiện.
+- Nhánh `item_detail` đòi `reference_index is not None`; cờ tiêu điểm cần đúng ngoại lệ đó, vì
+  `require_tags` kéo từ bộ nhớ làm điều kiện "không có ràng buộc" sai.
+
+#### Bất biến mới: thêm trường bộ nhớ là phải có đường đi vòng
+
+`last_focus_id` và `last_compared_ids` chạy đúng trong tiến trình và **sai qua backend** — chúng
+thiếu khóa trong `session_updates()["constraints"]`. 87 lượt phiên vẫn xanh, vì bộ chạy kịch bản giữ
+`SessionState` trong một biến nên nó không đi qua vòng JSON.
+
+Đây là lần **thứ hai** đúng lớp lỗi này trong cùng một tệp (lần đầu: `last_listed_ids`). Nên hàng rào
+không kiểm một trường cụ thể mà kiểm **mọi trường**:
+`test_MOI_truong_bo_nho_deu_song_qua_vong_JSON`. Danh sách miễn phải khai tường minh kèm lý do.
+
+#### Ba lỗi của chính bộ golden, cả ba do gọi thật mà lộ
+
+| Lỗi | Vì sao |
+|---|---|
+| 400 `CART_DELTA_INVALID` | trường là `delta`, không phải `quantity` — endpoint CỘNG THÊM vào giỏ |
+| 401 `TABLE_SESSION_TOKEN_INVALID` | header cần `tableSessionToken`, không phải id phiên |
+| câu tri thức bị đọc thành `list` | đếm tên món trong văn xuôi; câu ghép đồ uống nhắc hai tên trà |
+
+Cộng một khiếm khuyết **thiết kế**: bản đầu mở phiên chat qua `tableSessionId`, mà
+`CreateOrGetSession` trả lại phiên **cũ** cho cùng phiên bàn, nên mỗi hội thoại ăn một bàn sạch và
+bộ **chỉ chạy được một lần trên mỗi cơ sở dữ liệu**. Không truyền `tableSessionId` thì phiên luôn
+trắng. Nay chạy lại được vô hạn và chỉ cần **một** mã QR, cho bước thêm vào giỏ.
+
+#### Chỗ hở Wagyu: đóng được
+
+"Có món bò Wagyu A5 không?" từng trả về các món bò khác mà **không nói** thực đơn không có Wagyu —
+yếu hơn hẳn cách xử lý "sushi cá hồi Na Uy", và khác biệt duy nhất là món kia nằm trong
+`NOT_ON_MENU`. Nay `wagyu`, `foie gras`, `truffle`, `caviar` đã vào danh sách đó (không cụm nào nằm
+trong 91 tên món, nên không tạo chỗ đụng chữ), và ca golden siết lên `no_data`.
+
+Danh sách vẫn **cố ý hẹp**: cơ chế ĐOÁN tên món lạ đã bị bỏ vì nó bắt oan bốn ca khai dị ứng. Ca
+"Có món bò nào không?" là chỗ chốt rằng thêm cụm không phá phép lọc theo nguyên liệu.
+
+### 14.4 Golden ĐÃ vào CI
+
+Job `golden-e2e` dựng stack thật trong runner rồi chạy 42 lượt. Nó **không cần bí mật thật**: mọi
+biến đã có ở job `docker-compose-config` dưới dạng chỗ giữ chỗ, và `LLM_BASE_URL` trỏ vào một cổng
+không có gì lắng nghe, nên mô hình gọi thất bại ngay và dịch vụ trả lời bằng **mã tất định**.
+
+Đó không phải giới hạn phải chịu, đó là điều đáng kiểm: 140/140 ca đã đạt không cần mô hình, nên
+đường tất định phải đi hết chuỗi gọi được. **Đo được: 42/42 ở cả hai cấu hình** — có mô hình thật và
+không có mô hình.
+
+`wait_for_stack.py` in ra `model_configured`, nên bản ghi CI nói rõ lớp mô hình có được chạy hay
+không, thay vì để người đọc tưởng nó đã được kiểm.
+
+### 14.5 Hai hạn chế phải nói ra
+
+**Lớp mô hình không được CI kiểm.** Job `golden-e2e` chạy trên đường tất định (xem 14.4). Câu
+trả lời của hai cấu hình giống nhau ở cả 42 lượt, và `run_with_model.py` cho thấy mô hình đổi 0/140
+ca — nhưng "đổi 0 ca trên tập này" không phải "mô hình không thể làm sai". Muốn CI kiểm lớp đó thì
+cần một khóa mô hình trong secrets, và đó là quyết định của chủ dự án.
+
+Bù lại: **phần chấm điểm có 28 test chạy không cần stack** (`test_golden_e2e.py`). Một bộ đo mà logic
+chấm sai sẽ báo xanh trên hệ thống đang sai, và đó là kiểu hỏng tệ nhất của bộ đo. Trong 28 test đó
 có test phá đúng bất biến 4, đúng chiều "ca viết sai chứ không phải hệ thống sai", và bốn hàng rào
 cho chính tập golden — gồm hàng rào **chặn khóa `expect` lạ**.
 

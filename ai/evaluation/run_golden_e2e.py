@@ -567,7 +567,12 @@ def main(argv: list[str] | None = None) -> int:
         for h in hong:
             print(f"  {h}")
         return 1
-    print("\nMọi lượt đạt qua ĐỦ chuỗi gọi: QR -> backend -> dịch vụ AI -> mô hình -> giỏ hàng.")
+    print("\nMọi lượt đạt qua ĐỦ chuỗi gọi: QR -> phiên bàn -> phiên chat -> backend -> "
+          "dịch vụ AI -> thẻ giỏ -> giỏ hàng thật.")
+    # KHÔNG nói "qua mô hình": bộ này chạy được cả khi không có mô hình, và trong CI thì đúng là
+    # không có (`LLM_BASE_URL` trỏ vào cổng chết). Đo được: 42/42 đạt ở cả hai cấu hình. Trạng thái
+    # mô hình do `wait_for_stack.py` in ra — chỗ đọc được nó thật.
+    print("Lớp mô hình có được chạy hay không: xem dòng `mô hình` của wait_for_stack.py.")
     return 0
 
 

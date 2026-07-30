@@ -457,7 +457,7 @@ cuối. Cột đó là thứ giữ bảng khỏi trôi tiếp: đọc bảng mà
 | **2** | từ vựng: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả · cụm chỉ vị trí · **33 cụm chủ đề tri thức** · **mẫu số học** (không phải cụm từ khóa) | **140/140** chỉ bằng mã tất định, mô hình đổi **0 ca**, 0 lỗi an toàn | `run_baseline.py --all` · `run_with_model.py` |
 | **3** | `base.py` · `bm25.py` · `embedding.py` · `hybrid.py` · `run_retrieval_comparison.py` · **`_knowledge_chunk` (đường synthesize)** | niêm phong: embedding Hit@5 **0,921** · bm25 0,711 · hybrid 0,895. Chọn món: **lọc nhãn 8/8, 0 sai** | `run_retrieval_comparison.py` |
 | **4** | `cart.py` + 5 bất biến · **6 phép kiểm giỏ trong thước đo, áp cho MỌI ca** | 20 test đơn vị + **229 thẻ giỏ chấm trên 140 ca** (84/140 ca có thẻ); 0 món dị nguyên vào thẻ ở cả hai chế độ | `run_baseline.py --all` · `run_with_model.py` |
-| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema · **`last_listed_ids` đi vòng tròn qua backend** · **golden đầu-cuối: 5 hội thoại / 18 lượt qua ĐỦ 6 chặng, gồm bước bấm thêm vào giỏ thật** | **87/87 lượt phiên** và **18/18 lượt golden** (backend + mô hình thật), 0 lỗi an toàn; 7 bất biến thẻ giỏ áp cho mọi lượt, trong đó **thẻ phải là món vừa tư vấn**; 4/4 container healthy; **CI 4/4 job xanh** | `run_session_eval.py` · `run_golden_e2e.py` · `gh run list` |
+| **5** | 5 endpoint · `session.py` 4 quy tắc hợp nhất · schema · **`last_listed_ids` đi vòng tròn qua backend** · **golden đầu-cuối: 13 hội thoại / 42 lượt qua ĐỦ 6 chặng, gồm đường SSE và bước bấm thêm vào giỏ thật** | **87/87 lượt phiên** và **42/42 lượt golden** (đo ở CẢ HAI cấu hình mô hình), 0 lỗi an toàn; 7 bất biến thẻ giỏ áp cho mọi lượt, trong đó **thẻ phải là món vừa tư vấn**; 4/4 container healthy; **CI 5/5 job xanh** (job `golden-e2e` dựng stack thật) | `run_session_eval.py` · `run_golden_e2e.py` · `gh run list` |
 
 ### Chỗ CHƯA đóng được, và ai đóng được
 
@@ -465,7 +465,7 @@ Ba điều đầu **không ai trong nhóm đóng được** — chúng cần d�
 
 | Chỗ chưa đóng | Vì sao không tự đóng được | Ai đóng |
 |---|---|---|
-| Golden đầu-cuối KHÔNG nằm trong CI | Nó cần stack đang chạy; `docker-compose-config` chỉ kiểm cú pháp compose. Nên nó là **cửa thủ công trước khi phát hành**, không phải hàng rào tự động. Bù lại phần chấm điểm có **25 test** chạy không cần stack | dựng compose trong runner với bí mật sinh tại chỗ — làm được, chưa làm |
+| CI không kiểm được LỚP MÔ HÌNH | Job `golden-e2e` dựng stack thật nhưng `LLM_BASE_URL` trỏ vào cổng chết, nên 42 lượt chạy trên đường tất định. Hai cấu hình cho cùng câu trả lời ở cả 42 lượt, và mô hình đổi 0/140 ca — nhưng "đổi 0 ca trên tập này" không phải "mô hình không thể làm sai" | cần một khóa mô hình trong secrets — quyết định của chủ dự án |
 | Không có log khách thật | 140 ca và 87 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
 | 28/84 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
 | Tập niêm phong đã dùng hết ở **cả hai** tập | mọi con số hiện tại không còn là held-out | cần tập MỚI, và chỉ mở một lần |

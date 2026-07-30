@@ -194,8 +194,10 @@
         {
           "user": "Có món bò Wagyu A5 vân cẩm thạch không?",
           "expect": {
+            "kind": "no_data",
+            "no_cart": true,
             "no_invented_item_names": true,
-            "why": "Món NGOÀI danh sách tường minh. Ở đây hệ thống trả về các món bò khác mà KHÔNG nói thực đơn không có Wagyu — yếu hơn chiều trên, và ca này ghi đúng trạng thái đó thay vì đòi một hành vi chưa có.\nĐiều nó chốt là điều quan trọng nhất: KHÔNG được xác nhận Wagyu tồn tại, và không tên món nào ngoài thực đơn được xuất hiện. Khi nào cơ chế nhận món lạ khá lên thì ca này đổi sang đòi `kind: no_data` — và lúc đó nó đỏ, đó là tin tốt."
+            "why": "Món NGOÀI thực đơn và ngoài danh sách tường minh ban đầu. Lượt này từng chỉ chốt 'không xác nhận Wagyu tồn tại' — hệ thống trả về các món bò khác mà không nói thực đơn không có Wagyu, yếu hơn hẳn chiều 'sushi cá hồi Na Uy' ở lượt trên.\nKhác biệt duy nhất giữa hai lượt là món kia nằm trong `NOT_ON_MENU`. Nay `wagyu` (cùng `foie gras`, `truffle`, `caviar`) đã vào danh sách đó, nên ca siết lên `no_data` — nói thẳng là chưa có, thay vì mời món khác và để khách tự suy.\nDanh sách vẫn cố ý hẹp: cơ chế ĐOÁN tên món lạ đã bị bỏ vì nó bắt oan bốn ca khai dị ứng. Ca `Có món bò nào không?` (trong bộ 140) là chỗ chốt rằng thêm cụm không phá phép lọc theo nguyên liệu."
           }
         }
       ]

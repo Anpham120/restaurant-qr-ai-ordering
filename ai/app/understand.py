@@ -694,6 +694,14 @@ NOT_ON_MENU = (
     "pizza", "sushi", "sashimi", "burger", "hamburger", "pasta", "spaghetti",
     "mi y", "ga ran", "khoai tay chien", "banh ngot", "kimchi", "lau thai",
     "dim sum", "steak", "bo bit tet", "salad ca ngu", "taco", "kebab",
+    # Thêm sau khi chạy thật: câu "Có món bò Wagyu A5 không?" trả về các món bò khác mà KHÔNG nói
+    # thực đơn không có Wagyu. Nó không xác nhận Wagyu tồn tại nên không bịa, nhưng nó yếu hơn hẳn
+    # cách xử lý "sushi cá hồi Na Uy" — và khác biệt duy nhất là món kia có trong danh sách này.
+    #
+    # Cả bốn cụm đều KHÔNG nằm trong tên món nào của thực đơn (đã kiểm 91/91), nên thêm chúng không
+    # tạo chỗ đụng chữ. Danh sách vẫn cố ý hẹp: cơ chế ĐOÁN tên món lạ đã bị bỏ vì nó bắt oan bốn ca
+    # khai dị ứng, và nới lại cần một cách đo, không phải một danh sách dài hơn.
+    "wagyu", "foie gras", "truffle", "caviar",
 )
 
 
