@@ -135,6 +135,12 @@ class Request:
     # Khách hỏi so sánh mà KHÔNG nhắc lại tên món ("món nào cay hơn?"). `session.py` lấy lại cặp món
     # của câu so sánh gần nhất.
     asks_comparison: bool = False
+    # Khách XIN GỢI Ý MÓN mà chưa nêu ràng buộc nào. Cờ này quyết định giữa HỎI LẠI và TRUY HỒI
+    # TOÀN KHO: cả hai nhánh nhận cùng một tập câu "không hiểu được gì", nên phải có cách tách.
+    #
+    # Đề bài mục 5: hỏi lại khi câu thật sự mơ hồ là ĐÚNG. Trả một đoạn tri thức cho câu "cho mình
+    # món ngon" là trả lời sai câu hỏi, không phải trả lời tốt hơn.
+    asks_suggestion: bool = False
     # Hai tập id do bước hợp nhất bộ nhớ điền, KHÔNG do bộ khớp từ vựng điền. `understand()` chỉ
     # nhận ra khách đang tham chiếu; nó không biết khách đã đọc danh sách nào. Tách vai như vậy để
     # `understand()` giữ được tính chất "chỉ đọc câu của lượt này".
@@ -460,6 +466,14 @@ _add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do", "flag
 # yêu cầu danh sách rẻ hơn, không phải so hai món. Trộn hai nghĩa lại là phá một hành vi đang đúng
 # để sửa một hành vi đang sai.
 _add("cay hon|ngon hon|dam hon|hon nhau|khac gi nhau|nao hon", "flag", "asks_comparison")
+# Khách xin gợi ý món mà chưa nêu ràng buộc. Sáu ca `clarify` của tập đánh giá nằm hết trong nhóm
+# cách nói này, và chúng phải HỎI LẠI chứ không nhận một đoạn tri thức.
+#
+# Các cụm ở đây bị ĂN khỏi câu như mọi cụm từ vựng khác, và điều đó vô hại: không cụm nào trong số
+# này mang ràng buộc. "Gợi ý món ăn cho mình" vẫn còn "món ăn" để đặt `wants=food`, nên câu đó vẫn đi
+# nhánh lọc — đã kiểm bằng ca golden.
+_add("goi y|tu van|ban chon|chon giup|mon ngon|khong biet|cung duoc|tuy ban|mon gi cung",
+     "flag", "asks_suggestion")
 
 # Xin thêm món GIỐNG — cơ chế ngược với trỏ vào món cũ: giữ ràng buộc, BỎ món đã nêu.
 _add("giong vay|giong the|tuong tu|kieu vay|giong nhu vay", "flag", "similar")
@@ -665,6 +679,12 @@ STRICT_BUDGET_FRAMING = ("re hon", "it hon", "thap hon", "duoi muc", "khong den"
 PRICE_ASSERTION_FRAMING = ("dung khong", "phai khong", "co dung", "co phai", "dung chu",
                            "phai chu", "co đung")
 
+# "<số> món": "cho mình 2 món", "lấy 3 món". Nhận bằng mẫu vì con số là bất kỳ.
+#
+# Mẫu này chỉ được ĐỌC ở nhánh cuối, sau khi đã biết câu không có ràng buộc nào — nên "gọi 2 món cho
+# 3 người" không bị ảnh hưởng: câu đó có nhãn `party` nên nó đi nhánh lọc từ trước.
+SO_MON_RE = re.compile(r"\d+\s*mon\b")
+
 # Phép tính: "2 cộng 2 bằng mấy", "5 x 3", "10 chia 2".
 #
 # Mẫu chứ không phải danh sách cụm, vì cụm "cong bang may" khớp "2 cộng bằng mấy?" mà KHÔNG khớp
@@ -859,6 +879,8 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.refers_to_focus = True
             elif value == "asks_comparison":
                 request.asks_comparison = True
+            elif value == "asks_suggestion":
+                request.asks_suggestion = True
         elif kind == "reference":
             # Cụm đầu tiên khớp thắng. Cụm dài được khớp trước nên "món thứ hai" thắng "món đó",
             # và không cần thứ tự ưu tiên riêng ở đây.
@@ -918,6 +940,10 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             )
             limit = "<" if request.budget_strict else "<="
             request.matched.append(f"ngân sách: {limit} {value:,}đ")
+
+    # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
+    if SO_MON_RE.search(request.folded):
+        request.asks_suggestion = True
 
     # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
     #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.

@@ -186,6 +186,85 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     return " ".join(chon.text.split())
 
 
+def _bo_truy_hoi_toan_kho():
+    """Bộ xếp hạng trên TOÀN KHO, dựng một lần cho cả tiến trình.
+
+    Vì sao nhánh này tồn tại
+    ------------------------
+    Đề bài (`00-problem-statement.md` mục 3B) nói loại B "cần một kho tri thức, và cần **tìm đúng
+    đoạn**". Nhưng trước nhánh này, tài liệu `synthesize` chỉ tới được qua CỤM TỪ VỰNG: `understand`
+    nhận ra `knowledge_topic` rồi `_knowledge_chunk` xếp hạng 3–7 đoạn TRONG tài liệu đó.
+
+    Hệ quả đo được: 60 tài liệu nhưng chỉ 33 cụm chủ đề, nên phần kho không có cụm là nội dung
+    **không bao giờ tới tay khách** — im lặng, không lỗi. Và thêm tài liệu mới mà không thêm cụm thì
+    chỉ làm kho to hơn chứ không làm trợ lý trả lời được thêm câu nào.
+
+    Truy hồi toàn kho tháo đúng nút đó: tài liệu tới được vì NỘI DUNG của nó khớp câu hỏi, không vì
+    ai đó nhớ thêm một cụm vào từ vựng.
+
+    KHÔNG có ngưỡng tương đồng, và nhánh này được đặt ở đâu là lý do
+    ---------------------------------------------------------------
+    Nó đứng ngay TRƯỚC nhánh hỏi lại, tức nó chỉ chạy khi câu hỏi **không có ràng buộc nào** để lọc
+    thực đơn và **không** ngoài phạm vi. Đó là đúng tập câu đang rơi vào "bạn muốn món ăn hay đồ
+    uống?" — nên nhánh này không lấy câu nào của nhánh khác, và nó không cần ngưỡng để quyết định
+    có nên trả lời: nếu tới được đây thì lựa chọn còn lại là hỏi lại, và một đoạn tri thức sát nhất
+    tốt hơn một câu hỏi lại.
+
+    Chọn embedding khi có, lùi về BM25 khi không
+    -------------------------------------------
+    Đo được trên tập chọn mục (168 ca, hai tập): embedding Top-1 0,864–0,921 so với BM25 0,750–0,803,
+    và cách biệt lớn nhất ở câu diễn đạt khác từ (0,818–0,868 so với 0,636–0,684).
+
+    Nhưng `sentence-transformers` không nằm trong `ai/requirements.txt` (nó kéo theo 2–3GB), nên
+    trong container hiện tại nhánh này chạy BM25. Hàm trả về CẢ TÊN phương pháp để `Reply.branch`
+    nói ra cái nào đã chạy — một hệ thống âm thầm lùi về bản kém hơn là hệ thống không đo được.
+    """
+    global _TOAN_KHO
+    if _TOAN_KHO is not None:
+        return _TOAN_KHO
+    try:
+        from rag.bm25 import Bm25Index
+        from rag.chunker import retrievable_chunks
+
+        doan = [c for c in retrievable_chunks(KNOWLEDGE_PATH) if c.heading]
+        if not doan:
+            _TOAN_KHO = (None, "kho rỗng")
+            return _TOAN_KHO
+        try:
+            from rag import embedding as EMB
+
+            if EMB.available():
+                _TOAN_KHO = (EMB.EmbeddingIndex.build(doan), "embedding")
+                return _TOAN_KHO
+        except ImportError:
+            pass
+        _TOAN_KHO = (Bm25Index.build(doan), "bm25")
+    except (KnowledgeError, OSError, ImportError) as exc:
+        _TOAN_KHO = (None, f"{type(exc).__name__}")
+    return _TOAN_KHO
+
+
+_TOAN_KHO: tuple[object, str] | None = None
+
+
+def _doan_toan_kho(question: str) -> tuple[str, str] | None:
+    """Đoạn sát nhất trên toàn kho, kèm tên phương pháp đã dùng. None nếu không tra được."""
+    index, cach = _bo_truy_hoi_toan_kho()
+    if index is None:
+        return None
+    hits = index.search(question, k=1)
+    if not hits:
+        return None
+    try:
+        from rag.chunker import retrievable_chunks
+
+        theo_id = {c.chunk_id: c for c in retrievable_chunks(KNOWLEDGE_PATH)}
+    except (KnowledgeError, OSError):
+        return None
+    chon = theo_id.get(hits[0].chunk_id)
+    return (" ".join(chon.text.split()), cach) if chon else None
+
+
 def select(request: Request, items: list[dict]) -> list[dict]:
     """Lọc thực đơn theo đúng những gì khách đã nói.
 
@@ -583,6 +662,27 @@ def respond(request: Request, items: list[dict]) -> Reply:
         or khach_neu_wants
     )
     if not said_something:
+        # 6b-bis. TRUY HỒI TOÀN KHO trước khi hỏi lại.
+        #
+        # Câu tới được đây là câu không có ràng buộc nào để lọc thực đơn — tức lựa chọn còn lại là
+        # hỏi lại. Một đoạn tri thức sát nhất tốt hơn một câu hỏi lại, và đây là chỗ DUY NHẤT trong
+        # `respond()` mà điều đó đúng: mọi nhánh trước đã có thứ cụ thể hơn để trả lời.
+        #
+        # Không có ngưỡng tương đồng: VỊ TRÍ của nhánh làm việc của ngưỡng. Xem `_bo_truy_hoi_toan_kho`.
+        #
+        # NHƯNG loại trừ đúng một nhóm: khách XIN GỢI Ý MÓN mà chưa nêu ràng buộc. Đề bài mục 5 nói
+        # hỏi lại ở câu thật sự mơ hồ là ĐÚNG, và trả một đoạn tri thức cho câu "cho mình món ngon"
+        # là trả lời sai câu hỏi. Không có phép loại trừ này thì cả 6 ca `clarify` của tập đánh giá
+        # rơi vào nhánh truy hồi — đo được ngay khi thêm nhánh: 134/140.
+        xin_goi_y = request.asks_suggestion or request.wants_similar
+        tim = None if xin_goi_y else _doan_toan_kho(request.text)
+        if tim is not None:
+            doan, cach = tim
+            return Reply(
+                text=f"{doan} Nếu cần rõ hơn, bạn hỏi nhân viên giúp mình nhé.",
+                kind="fact",
+                branch=f"knowledge_corpus:{cach}",
+            )
         return Reply(
             # Nêu PHẠM VI trước khi hỏi lại.
             #

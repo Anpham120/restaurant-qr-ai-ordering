@@ -60,6 +60,27 @@ def why_unavailable() -> str:
     return _LOAD_ERROR or "chưa kiểm"
 
 
+_MODEL_CACHE: dict[str, object] = {}
+
+
+def _load_model():
+    """Nạp mô hình MỘT lần cho cả tiến trình.
+
+    Bản trước gọi `SentenceTransformer(MODEL_NAME)` trong mỗi `build()`. Điều đó không lộ ra vì bộ so
+    trên toàn kho dựng đúng MỘT chỉ mục — nhưng bài toán chọn mục trong tài liệu dựng một chỉ mục cho
+    MỖI tài liệu, và 18 tài liệu × 2 phương pháp = 36 bản mô hình trong một tiến trình. Kết quả:
+    **segfault**, không phải chậm.
+
+    Một triển khai thật cũng phải nạp một lần lúc khởi động, nên đây là sửa đúng chỗ chứ không phải
+    một mẹo để phép đo chạy được.
+    """
+    if MODEL_NAME not in _MODEL_CACHE:
+        from sentence_transformers import SentenceTransformer
+
+        _MODEL_CACHE[MODEL_NAME] = SentenceTransformer(MODEL_NAME)
+    return _MODEL_CACHE[MODEL_NAME]
+
+
 @dataclass
 class EmbeddingIndex:
     """Vector của từng đoạn, đã chuẩn hóa L2.
@@ -84,10 +105,8 @@ class EmbeddingIndex:
 
     @classmethod
     def build(cls, chunks, *, normalize: bool = True, use_prefix: bool = True) -> "EmbeddingIndex":
-        from sentence_transformers import SentenceTransformer
-
         index = cls(normalize=normalize, use_prefix=use_prefix)
-        index._model = SentenceTransformer(MODEL_NAME)
+        index._model = _load_model()
         index.chunk_ids = [c.chunk_id for c in chunks]
         texts = [
             (PASSAGE_PREFIX if use_prefix else "") + c.text for c in chunks
