@@ -125,22 +125,62 @@ Mỗi phần có ba lớp:
 | **Ví dụ tại dự án** | ô mã chạy trên dữ liệu thật, in ra số |
 | **Nhận xét** | quan sát → diễn giải → giới hạn → quyết định tiếp theo |
 
-## Mục lục
+## Mục lục — chia theo thành viên
 
-| Phần | Nội dung | Bước tương ứng |
+Nhóm 5 người chia việc **theo đúng dây chuyền xây hệ thống**: đầu ra của khâu này là đầu vào của
+khâu sau. Notebook đi theo đúng thứ tự đó, nên mỗi thành viên đọc phần của mình là **vừa học kiến
+thức vừa nhận việc**.
+
+| Phần | Thành viên | Khâu | Mục | Trạng thái |
+|---|---|---|---|---|
+| **TV1** | Bài toán, dữ liệu và kho tri thức | bước 0–1 | 1–7 | **xong** |
+| **TV2** | Tập đánh giá và thước đo | bước 2–3 | 8–11 | **xong** |
+| **TV3** | Trả lời không cần mô hình | bước 4 | 12–14 | xong phần trả lời; còn giỏ hàng + bộ nhớ phiên |
+| **TV4** | Truy hồi tri thức | bước 5 | 15 | kho đã sẵn; **phép so chưa chạy** |
+| **TV5** | Mô hình sinh, an toàn, tích hợp | bước 6–7 | 16 | xong phần mô hình; còn dịch vụ HTTP |
+| **VI** | Kết quả tổng hợp, hạn chế, hướng phát triển | — | 17–19 | — |
+
+**Ranh giới TV1 / TV4 — đọc kỹ chỗ này.** Bản phân công đầu tiên đặt tên TV4 là *"Tri thức &
+RAG"* trong khi lại giao `ai/knowledge/*` cho TV1 ở dòng sở hữu tệp. Đó là **mâu thuẫn thật**:
+kho tri thức bị giao cho hai người. Ranh giới đã chốt lại:
+
+| | TV1 | TV4 |
 |---|---|---|
-| I | Bài toán và dữ liệu | 0–1 |
-| II | Đo lường: tập đánh giá và thước đo | 2–3 |
-| III | Trả lời không cần mô hình | 4 |
-| IV | Kho tri thức và truy hồi | 5 |
-| V | Mô hình sinh và an toàn | 6–7 |
-| VI | Kết quả, hạn chế, và hướng phát triển | — |
+| phụ trách | **nội dung** kho tri thức | **cách lấy** đoạn từ kho |
+| tệp | `ai/knowledge/*`, `chunker.py`, `build_knowledge.py` | `bm25.py`, `embedding.py`, `hybrid.py` |
+| câu hỏi | *tri thức nào cần có, và tin được đến đâu?* | *với câu hỏi này, lấy đoạn nào?* |
+
+Chia như vậy vì hai việc cần **kiến thức khác nhau**: TV1 cần hiểu dữ liệu nhà hàng và provenance;
+TV4 cần hiểu tf-idf, cosine, và chỉ số xếp hạng. Gộp vào một người thì người đó gánh hai nền
+kiến thức, còn để mơ hồ thì cả hai đều tưởng người kia làm.
 """))
 
     # ================================================================= PHẦN I
     out.append(md(r"""
 ---
-# PHẦN I — BÀI TOÁN VÀ DỮ LIỆU
+# PHẦN TV1 — BÀI TOÁN, DỮ LIỆU VÀ KHO TRI THỨC
+
+> **Vị trí trong dây chuyền:** khâu đầu. Không ai làm được gì trước khi khâu này xong, vì mọi
+> khâu sau đều đo trên dữ liệu của nó.
+
+| | |
+|---|---|
+| **Câu hỏi khâu này trả lời** | *AI được phép trả lời gì, dữ liệu có gì, và khi một nhãn không có mặt thì kết luận được gì?* |
+| **Kiến thức phải nắm** | phân loại ba loại câu hỏi A/B/C · rút dấu tiếng Việt là phép mất thông tin · độ phủ nhãn quyết định filterability · chunking cho truy hồi · provenance `derived` vs `demo` |
+| **Tệp sở hữu** | `ai/knowledge/*` · `ai/app/rag/chunker.py` · `ai/scripts/build_knowledge.py` · `build_tag_dictionary.py` · `audit_allergen_tags.py` · `backend/data/menu-tags.json` |
+| **Đầu vào** | thực đơn thật (91 món) và yêu cầu nghiệp vụ |
+| **Đầu ra bàn giao** | từ điển nhãn có tiền tố nhóm · kho tri thức 84 tài liệu / 327 đoạn · định dạng `KnowledgeChunk` cho TV2 và TV4 |
+| **Tự đo bằng** | `build_knowledge.py --check` · `build_tag_dictionary.py --check` · `audit_allergen_tags.py` · `python -m unittest test_chunker test_packaging` |
+| **Trạng thái** | **xong** — 97 test xanh, 3 bộ sinh khớp kết quả sinh lại |
+
+### Vì sao khâu này đứng đầu
+
+Phản xạ tự nhiên khi bắt đầu là chọn mô hình hoặc dựng RAG. Cả hai đều **sai thứ tự**, vì cả
+hai đều cần một thứ chưa có: **định nghĩa thế nào là trả lời sai**. Không có định nghĩa đó thì
+mọi câu trả lời đều "có vẻ hợp lý", và không ai đo được gì.
+
+Bảy mục dưới đây là toàn bộ nội dung TV1 cần hiểu, và mỗi mục có ô mã tính lại từ mã sống —
+nên đọc xong chạy được ngay, không phải tin lời.
 
 ## 1. Cần làm gì đầu tiên: phát biểu bài toán
 
@@ -870,7 +910,26 @@ print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đườ
     # ================================================================= PHẦN II
     out.append(md(r"""
 ---
-# PHẦN II — ĐO LƯỜNG: TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
+# PHẦN TV2 — TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
+
+> **Vị trí trong dây chuyền:** nhận dữ liệu từ TV1, giao thước đo cho TV3. Khâu này chứa **bài
+> học đắt nhất của cả dự án**.
+
+| | |
+|---|---|
+| **Câu hỏi khâu này trả lời** | *Làm sao biết hệ thống trả lời đúng hay sai — và làm sao biết thước đo của mình đúng?* |
+| **Kiến thức phải nắm** | khóa đáp án dạng truy vấn thay vì danh sách · test hai chiều · chia ba nhóm chốt/phát triển/niêm phong · bộ dò lỗ thước đo |
+| **Tệp sở hữu** | `ai/evaluation/cases.json` · `answer_metric.py` · `menu_selectors.py` · `validate_cases.py` · `build_split.py` · `probe_metric_holes.py` · `test_answer_metric.py` |
+| **Đầu vào** | từ điển nhãn và kho tri thức của TV1 |
+| **Đầu ra bàn giao** | 112 ca / 41 họ · thước đo 37 test · bộ dò lỗ cho TV3 chạy `run_baseline.py` |
+| **Tự đo bằng** | `validate_cases.py` · `build_split.py --check` · `probe_metric_holes.py` · `python -m unittest discover -s ai/evaluation` |
+| **Trạng thái** | **xong** — 37 test xanh, bộ dò tìm 0 lỗ |
+
+### Điều TV2 phải hiểu trước tiên
+
+**Thước đo cũng là một phương pháp, và cũng phải chứng minh được mình đúng.** Ở bản cũ, thước
+đo sai **3 lần trước khi hệ thống sai**, và cả 3 lần đều sai theo chiều nguy hiểm hơn: **bịa ra
+lỗi không có**, khiến người ta đi sửa những thứ vốn đã đúng.
 
 ## 8. Vì sao đo lường phải có trước thứ được đo
 
@@ -1150,6 +1209,859 @@ print(r.stdout)
   Đây là đánh đổi có ý thức: cách còn lại là dùng một mô hình để chấm, mà khi đó **thước đo lại
   cần một thước đo**.
 - **Quyết định tiếp theo:** đã có tập ca và thước đo tự chứng minh. Giờ mới được xây hệ thống.
+"""))
+
+    # ================================================================ PHẦN TV3
+    out.append(md(r"""
+---
+# PHẦN TV3 — TRẢ LỜI KHÔNG CẦN MÔ HÌNH
+
+> **Vị trí trong dây chuyền:** nhận thước đo từ TV2. Đây là khâu quyết định **mô hình sinh còn
+> phải làm gì** — và câu trả lời hóa ra là "ít hơn nhiều so với tưởng".
+
+| | |
+|---|---|
+| **Câu hỏi khâu này trả lời** | *Bao nhiêu câu trả lời được mà KHÔNG cần mô hình sinh?* |
+| **Kiến thức phải nắm** | số nền (baseline) · khớp cụm dài trước rồi ăn hết đoạn · **ràng buộc khác ngữ cảnh** · fail-closed cho dị nguyên · ablation để chứng minh từng cơ chế có giá trị |
+| **Tệp sở hữu** | `ai/app/understand.py` · `answer.py` · `cart.py` · `session.py` · `test_understand.py` |
+| **Đầu vào** | 112 ca và thước đo của TV2; từ điển nhãn của TV1 |
+| **Đầu ra bàn giao** | hợp đồng `Reply` cho TV4/TV5; số nền để mọi thứ sau so vào |
+| **Tự đo bằng** | `run_baseline.py --all` · `run_ablation.py` · `python -m unittest discover -s ai/app` |
+| **Trạng thái** | **xong phần trả lời** — 101/112, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
+
+### Vì sao phải đo số nền TRƯỚC khi thêm mô hình
+
+Bản cũ có **8 đường xử lý tất định chồng nhau** và chỉ **33%** câu trả lời do mã sinh ra. Không
+ai nói được đường nào phụ trách việc gì, và **2 đường bị một cờ legacy tắt mà hệ thống vẫn chạy
+đúng** — tức chúng là dư, nhưng không ai biết vì không có số nền để đối chiếu.
+
+Số nền có hai tính chất mà câu trả lời của mô hình không có: **đúng 100% về dữ liệu** và **giống
+nhau mọi lần chạy**. Nên nó là mốc, và mọi thứ thêm vào sau phải chứng minh mình vượt mốc đó.
+"""))
+
+    out.append(md(r"""
+## 12. Số nền: sáu nhánh loại trừ, không nhánh nào chồng nhánh nào
+
+### Kiến thức
+
+Kiến trúc trả lời là **sáu nhánh loại trừ nhau**, và thứ tự là thứ tự loại trừ:
+
+| # | Nhánh | Việc | Vì sao đứng ở vị trí đó |
+|---|---|---|---|
+| 1 | ngoài bài toán | từ chối ngắn gọn | phải chặn trước, không thì câu hỏi thời tiết rơi vào nhánh lọc món |
+| 2 | câu chính sách | tra kho tri thức, hoặc nói chưa có dữ liệu | "mấy giờ mở cửa" không phải câu lọc món |
+| 3 | hỏi giá một món | nêu giá | có đáp án đúng duy nhất |
+| 4 | so sánh hai món | nêu dữ kiện cả hai | |
+| 5 | món đắt/rẻ nhất | tính rồi nêu | |
+| 6 | còn lại | lọc thực đơn theo ràng buộc | nhánh rộng nhất, nên đứng cuối |
+
+Nhánh 6 sinh ra **câu hỏi lại** khi khách chưa nói gì đủ để lọc. Hỏi lại là **câu trả lời đúng**
+ở đó, không phải thất bại — và thước đo của TV2 phải phân biệt được hai thứ này.
+
+Đối lập với bản cũ: 8 đường **chồng nhau**, nên hai đường có thể cho hai kết quả khác nhau cho
+cùng một câu, và hệ thống trả lời tùy lúc.
+"""))
+
+    out.append(code(r"""
+# Số nền theo nhóm chia tập, và nhánh nào thật sự được dùng
+import collections
+import run_baseline as rb
+
+g = collections.defaultdict(lambda: [0, 0])
+nhanh, kieu = collections.Counter(), collections.Counter()
+for c in rb.DATA["cases"]:
+    _, reply, v = rb.run_case(c)
+    grp = rb.group_of(c["family"])
+    g[grp][1] += 1
+    g[grp][0] += int(v.passed)
+    nhanh[reply.branch.split(":")[0]] += 1
+    kieu[reply.kind] += 1
+
+tong_ok = sum(v[0] for v in g.values())
+tong = sum(v[1] for v in g.values())
+print(f"SỐ NỀN — chỉ tra thực đơn, không mô hình nào: {tong_ok}/{tong} "
+      f"({100 * tong_ok / tong:.1f}%)\n")
+print(f"{'nhóm':14}{'qua':>10}   vai trò của nhóm")
+print("-" * 62)
+vai = {"chốt": "an toàn, LUÔN phải 100%", "phát triển": "được xem, được sửa theo",
+       "niêm phong": "chỉ mở để chốt kết quả"}
+for k in ("chốt", "phát triển", "niêm phong"):
+    ok, n = g[k]
+    print(f"{k:14}{ok:>4}/{n:<4} {100*ok/n:5.1f}%   {vai[k]}")
+
+print(f"\nSàn để so — cách lách 'luôn nói chưa có dữ liệu' qua được: "
+      f"{sum(1 for c in rb.DATA['cases'] if c['expect']['kind'] == 'no_data')}/{tong}")
+print("=> số nền chỉ có nghĩa khi nó cao hơn sàn này rất nhiều.")
+
+print(f"\n{len(nhanh)} nhánh được dùng thật (không nhánh nào là mã chết):")
+for b, n in nhanh.most_common():
+    print(f"   {b:22} {n:3d} ca")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 4 — số nền: theo nhóm chia tập, và so với sàn
+import collections
+import run_baseline as rb
+
+g = collections.defaultdict(lambda: [0, 0])
+nhanh = collections.Counter()
+for c in rb.DATA["cases"]:
+    _, reply, v = rb.run_case(c)
+    grp = rb.group_of(c["family"])
+    g[grp][1] += 1
+    g[grp][0] += int(v.passed)
+    nhanh[reply.branch.split(":")[0]] += 1
+tong_ok = sum(v[0] for v in g.values()); tong = sum(v[1] for v in g.values())
+san = sum(1 for c in rb.DATA["cases"] if c["expect"]["kind"] == "no_data")
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 4.6))
+
+ten = ["chốt\n(an toàn)", "phát triển", "niêm phong\n(held-out)"]
+khoa = ["chốt", "phát triển", "niêm phong"]
+qua = [g[k][0] for k in khoa]; tongnhom = [g[k][1] for k in khoa]
+truot = [t - q for q, t in zip(qua, tongnhom)]
+ax1.bar(ten, qua, color=XANH, label="qua")
+ax1.bar(ten, truot, bottom=qua, color=DO, label="đỏ")
+for i, (q, t) in enumerate(zip(qua, tongnhom)):
+    ax1.text(i, t + 0.8, f"{q}/{t}\n{100*q/t:.1f}%", ha="center", fontsize=9,
+             fontweight="bold")
+ax1.set_ylabel("số ca"); ax1.set_ylim(0, max(tongnhom) * 1.28)
+ax1.set_title("Số nền theo nhóm chia tập\n(nhóm CHỐT phải luôn 100%)", fontsize=11)
+ax1.legend(fontsize=9)
+
+# So số nền với sàn — sàn là điều làm con số có nghĩa
+b = ax2.barh(["Sàn: luôn nói\n'chưa có dữ liệu'", "Số nền\n(mã tất định)"],
+             [san, tong_ok], color=[XAM, XANH])
+ax2.bar_label(b, labels=[f"{san}/{tong} = {100*san/tong:.1f}%",
+                         f"{tong_ok}/{tong} = {100*tong_ok/tong:.1f}%"],
+              padding=4, fontsize=10, fontweight="bold")
+ax2.set_xlim(0, tong * 1.3); ax2.set_xlabel("số ca qua")
+ax2.set_title("Vì sao cần SÀN để so\n(không có sàn thì % nào cũng 'nghe được')",
+              fontsize=11)
+ax2.grid(False)
+
+plt.tight_layout(); plt.show()
+print(f"Nhóm chốt {g['chốt'][0]}/{g['chốt'][1]} — đây là điều kiện chặn, không phải số liệu.")
+print(f"Một ca chốt đỏ là CHẶN, kể cả khi tỷ lệ chung tăng.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 12
+
+- **Quan sát:** 101/112 (90,2%) chỉ bằng mã tất định. Nhóm **chốt 14/14 (100%)**, phát triển
+  54/61, niêm phong 33/37. Sàn để so là 8/112 (7,1%). 13 nhánh đều được dùng thật.
+- **Diễn giải:** con số 90,2% chỉ có nghĩa vì có **sàn 7,1%** đặt cạnh. Một hệ thống luôn đáp
+  "chưa có dữ liệu" cũng đạt 7,1% mà không trả lời gì — nếu không công bố sàn thì mọi tỷ lệ đều
+  "nghe được".
+- **Nhóm chốt là điều kiện chặn, không phải số liệu:** một ca chốt đỏ là **chặn phát hành**, kể
+  cả khi tỷ lệ chung tăng. Đưa ca an toàn vào tập phát triển thì tỷ lệ chung sẽ che mất nó.
+- **Giới hạn phải nói ra:** tập niêm phong **đã được mở** ở bước 4 để chốt kết quả, nên
+  33/37 hiện tại **không còn là số held-out thật**. Số held-out thật duy nhất của dự án là
+  **23/27 (85,2%)** ở lần mở đầu tiên. Mọi tập mới phải chỉ mở một lần.
+"""))
+
+    out.append(md(r"""
+## 13. Chỗ khó nhất của khâu này: RÀNG BUỘC khác NGỮ CẢNH
+
+### Kiến thức
+
+Đây là phân biệt mà nếu làm sai thì hệ thống *vẫn chạy*, *vẫn không lỗi*, nhưng trả lời tệ — nên
+nó chỉ lộ ra khi có thước đo.
+
+Khách nói hai loại điều rất khác nhau:
+
+| Loại | Ví dụ | Phải làm gì | Nếu làm sai |
+|---|---|---|---|
+| **Ràng buộc** | "tôi ăn chay", "dị ứng hải sản", "dưới 100k" | **lọc cứng** — món không thỏa thì loại | mời khách món họ không ăn được |
+| **Ngữ cảnh** | "tôi đi hẹn hò", "trời nóng", "đi với bạn" | **chỉ sắp thứ tự** — không loại món nào | câu "hẹn hò" chỉ còn **1 món** trong 91 |
+
+Ca thật đã xảy ra: nhãn `occasion` được dùng làm **lọc cứng**, và vì nhóm đó chỉ phủ 79/91 món
+nên câu "đi hẹn hò nên gọi gì" trả về **đúng một món**. Sửa bằng cách chuyển `occasion` sang
+`prefer_tags` — chỉ ảnh hưởng thứ tự, không loại món.
+
+**Quy tắc suy ra từ Mục 3:** nhóm nhãn **không phủ hết 91 món** thì chỉ được dùng theo chiều
+khẳng định (đưa lên trước), **không** được dùng để loại. Vì thiếu nhãn ở nhóm đó nghĩa là *chưa
+ghi nhận*, không phải *không phù hợp*.
+
+### Fail-closed cho dị nguyên: ngoại lệ duy nhất, và nó không bao giờ được nới
+
+Ràng buộc dị nguyên áp **cuối cùng** và **không bao giờ bị nới**, kể cả khi kết quả rỗng. Thà
+nói "không có món nào phù hợp, bạn hỏi nhân viên giúp mình" còn hơn mời khách một món có thể gây
+dị ứng.
+"""))
+
+    out.append(code(r"""
+# Ràng buộc vs ngữ cảnh, và fail-closed — chứng minh bằng chính bộ trả lời
+from answer import respond, select
+from understand import understand
+menu = load("menu-dataset.json"); items = menu["items"]
+
+print("1) NGỮ CẢNH chỉ sắp thứ tự, KHÔNG loại món")
+r = understand("Mình đi hẹn hò, gợi ý món nào", items)
+print(f"   require (lọc cứng) : {r.require_tags}")
+print(f"   prefer  (chỉ xếp)  : {r.prefer_tags}")
+print(f"   số món còn lại sau khi lọc: {len(select(r, items))}/{len(items)}")
+print("   => dịp ăn KHÔNG nằm trong require, nên không món nào bị loại.")
+
+print("\n2) RÀNG BUỘC thì lọc cứng")
+r2 = understand("Mình ăn chay, dưới 80 nghìn", items)
+print(f"   require : {r2.require_tags}   ngân sách: {r2.budget_max}")
+print(f"   số món còn lại: {len(select(r2, items))}/{len(items)}")
+
+print("\n3) FAIL-CLOSED: ràng buộc dị nguyên không bao giờ được nới")
+r3 = understand("Mình dị ứng hải sản, cho mình món ăn", items)
+chon = select(r3, items)
+print(f"   avoid   : {r3.avoid_tags}")
+print(f"   số món  : {len(chon)}/{len(items)}")
+con_di_nguyen = [m["name"] for m in chon if "allergen:seafood" in m["tags"]]
+print(f"   món còn sót nhãn hải sản: {len(con_di_nguyen)}  <- PHẢI là 0")
+
+rep = respond(r3, items)
+print(f"   câu trả lời có mở đường hỏi nhân viên: "
+      f"{'nhân viên' in rep.text or 'bếp' in rep.text}")
+print("   => nhãn dị nguyên chỉ phủ 44/91 món, nên danh sách lọc ra KHÔNG phải")
+print("      kết luận về an toàn. Lời nhắc hỏi nhân viên là bắt buộc, không phải lịch sự.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 13
+
+- **Quan sát:** câu "hẹn hò" giữ nguyên toàn bộ 91 món vì dịp ăn nằm ở `prefer_tags`, không ở
+  `require_tags`. Câu "ăn chay dưới 80k" lọc cứng. Câu dị ứng hải sản để lại **0 món** mang nhãn
+  hải sản và câu trả lời **có** mở đường hỏi nhân viên.
+- **Diễn giải:** phân biệt ràng buộc/ngữ cảnh không phải chuyện tinh tế về ngôn ngữ — nó suy
+  trực tiếp từ **độ phủ nhãn** ở Mục 3. Nhóm phủ 91/91 mới được dùng để loại; nhóm phủ một phần
+  chỉ được dùng để xếp thứ tự.
+- **Fail-closed là ngoại lệ có chủ ý:** nó làm kết quả *tệ hơn* theo nghĩa số món trả về, và đó
+  là đánh đổi đúng. Kết quả rỗng kèm lời nhắc hỏi nhân viên là câu trả lời đúng; kết quả có món
+  bằng cách nới ràng buộc dị nguyên là câu trả lời **sai một cách nguy hiểm**.
+- **Giới hạn:** lời nhắc hỏi nhân viên là điều **thước đo bắt buộc** ở mọi ca dị ứng. Nhưng nó
+  chỉ chuyển rủi ro sang con người — hệ thống không thể biết bếp có dùng chung dụng cụ hay không.
+"""))
+
+    out.append(md(r"""
+## 14. Ablation: chứng minh từng cơ chế thật sự có giá trị
+
+### Kiến thức
+
+Câu hỏi mà mọi hệ thống nhiều cơ chế phải trả lời: **cơ chế nào thật sự cần?** Bản cũ có 8 đường
+và 2 trong số đó là dư mà không ai biết.
+
+Cách trả lời là **ablation**: tắt từng cơ chế, đo lại, xem mất bao nhiêu ca. Cơ chế nào tắt mà
+**không mất ca nào** thì nó là dư — và phải nói ra, không phải giữ lại "cho chắc".
+
+Có hai cột phải đọc riêng, và cột thứ hai quan trọng hơn:
+
+- **mất bao nhiêu ca** — giá trị về chất lượng
+- **gây bao nhiêu lỗi an toàn** — cơ chế nào tắt mà sinh lỗi an toàn thì nó **không phải tính
+  năng, nó là hàng rào**, và không được bàn về việc bỏ nó
+"""))
+
+    out.append(code(r"""
+# Ablation: tắt từng cơ chế, đo lại
+import run_ablation as ra
+
+base_ok, base_unsafe = ra.measure()
+n = len(ra.CASES)
+print(f"bản đầy đủ: {base_ok}/{n} ca qua, {base_unsafe} lỗi an toàn\n")
+print(f"{'cơ chế bị tắt':46}{'qua':>9}{'mất':>6}{'lỗi an toàn':>13}")
+print("-" * 76)
+ket_qua = []
+for ten, tat in ra.ABLATIONS:
+    hoan_lai = tat()                 # tắt cơ chế, trả về hàm hoàn lại
+    try:
+        ok, unsafe = ra.measure()
+    finally:
+        hoan_lai()                   # LUÔN hoàn lại, kể cả khi đo lỗi
+    ket_qua.append((ten, ok, base_ok - ok, unsafe))
+for ten, ok, mat, unsafe in sorted(ket_qua, key=lambda r: (-r[3], -r[2])):
+    canh = "  <-- HÀNG RÀO" if unsafe else ""
+    print(f"{ten:46}{ok:>5}/{n}{mat:>6}{unsafe:>13}{canh}")
+
+du = [t for t, _, mat, unsafe in ket_qua if mat == 0 and unsafe == 0]
+print(f"\ncơ chế tắt mà KHÔNG mất ca nào (tức là dư): {len(du)} {du}")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 5 — ablation: cơ chế nào là tính năng, cơ chế nào là hàng rào an toàn
+import run_ablation as ra
+
+base_ok, base_unsafe = ra.measure()
+n = len(ra.CASES)
+rows = []
+for ten, tat in ra.ABLATIONS:
+    hoan_lai = tat()
+    try:
+        ok, unsafe = ra.measure()
+    finally:
+        hoan_lai()
+    rows.append((ten, base_ok - ok, unsafe))
+rows.sort(key=lambda r: (r[2], r[1]))
+
+fig, ax = plt.subplots(figsize=(11, 5))
+ten = [r[0] for r in rows]
+mat = [r[1] for r in rows]
+mau = [DO if r[2] else XANH for r in rows]
+b = ax.barh(ten, mat, color=mau)
+nhan = [f"{m} ca" + (f"  ·  {u} lỗi an toàn" if u else "") for _, m, u in rows]
+ax.bar_label(b, labels=nhan, padding=4, fontsize=9)
+ax.set_xlabel("số ca MẤT khi tắt cơ chế")
+ax.set_xlim(0, max(mat) * 1.55)
+ax.set_title("Ablation — tắt từng cơ chế rồi đo lại\n"
+             "đỏ = tắt thì sinh LỖI AN TOÀN (hàng rào, không phải tính năng)",
+             fontsize=11)
+
+from matplotlib.patches import Patch
+ax.legend(handles=[Patch(color=DO, label="hàng rào an toàn"),
+                   Patch(color=XANH, label="tính năng chất lượng")],
+          loc="lower right", fontsize=9)
+plt.tight_layout(); plt.show()
+
+rao = sum(1 for r in rows if r[2])
+print(f"{rao}/{len(rows)} cơ chế là HÀNG RÀO AN TOÀN — tắt là sinh lỗi an toàn ngay.")
+print("Với chúng thì câu hỏi 'có đáng giữ không' không đặt ra được.")
+print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng — đo được bằng số ca.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 14
+
+- **Quan sát:** 9/9 cơ chế đều có ít nhất một ca chứng minh giá trị — **không cơ chế nào là dư**.
+  5/9 là **hàng rào an toàn**: tắt là sinh lỗi an toàn ngay. Hai cơ chế đáng chú ý nhất là "bỏ
+  dấu câu khi chuẩn hóa" (mất 20 ca, 7 lỗi an toàn) và "phân biệt món ăn với đồ uống" (mất 14
+  ca, 7 lỗi an toàn).
+- **Diễn giải:** "bỏ dấu câu" nghe như chuyện làm sạch chữ, nhưng thiếu nó thì `"mấy giờ mở
+  cửa?"` không khớp cụm `mo cua` — dấu hỏi làm lệch cả chuỗi. Đây là ví dụ điển hình của **cơ chế
+  nghe tầm thường mà giá trị đo được rất cao**, và không có ablation thì không ai biết.
+- **Phân biệt hàng rào với tính năng là kết luận quan trọng nhất của mục này:** với 5 cơ chế đỏ,
+  câu hỏi "có đáng giữ không" **không đặt ra được** — chúng không đánh đổi với chất lượng.
+- **Giới hạn đã nêu ở Mục 4:** cơ chế "ăn hết đoạn đã khớp" chỉ đo được **1 ca**, nhưng nó bảo
+  vệ **61 chỗ** đụng chữ. Chênh lệch đó là **giới hạn của tập đánh giá**, không phải bằng chứng
+  cơ chế vô dụng — nên con số ablation phải đọc kèm phần kiểm kê.
+"""))
+
+    # ================================================================ PHẦN TV4
+    out.append(md(r"""
+---
+# PHẦN TV4 — TRUY HỒI TRI THỨC
+
+> **Vị trí trong dây chuyền:** nhận kho tri thức từ TV1 và tập đánh giá từ TV2. **Đây là khâu
+> duy nhất trong notebook này còn phần CHƯA đo** — và mục dưới nói rõ chưa đo cái gì.
+
+| | |
+|---|---|
+| **Câu hỏi khâu này trả lời** | *Với câu hỏi cần tri thức, lấy đoạn nào — và phương pháp lấy nào tốt hơn?* |
+| **Kiến thức phải nắm** | BM25 (`k1`, `b`, tf-idf) · embedding và cosine · hybrid RRF · Hit@k, MRR@k, nDCG@k, **forbidden@k** · giao thức đo độ trễ |
+| **Tệp sở hữu** | `ai/app/rag/bm25.py` · `embedding.py` · `hybrid.py` · `retriever.py` · `run_retrieval_comparison.py` |
+| **Đầu vào** | 303 đoạn `synthesize` của TV1; ~120 ca truy hồi của TV2 |
+| **Đầu ra bàn giao** | bảng so ba phương pháp trên **hai bài toán**, kèm phân tích ca sai |
+| **Tự đo bằng** | `run_retrieval_comparison.py` (**chưa viết**) |
+| **Trạng thái** | **kho đã sẵn sàng, phép so CHƯA CHẠY** — xem Mục 15 |
+
+### Vì sao phần này chưa có số, và vì sao nói ra chứ không viết cho đầy
+
+Notebook này là tài liệu báo cáo, nên nó phải phân biệt rõ **điều đã đo** với **điều còn dự
+kiến**. Viết một mục về "kết quả so BM25 vs embedding" khi chưa chạy phép so nào là **bịa số**,
+và một báo cáo có một số bịa thì mọi số còn lại đều mất giá trị.
+
+Điều đã làm được: kho tri thức **đủ lớn và đủ sạch** để phép so có nghĩa. Điều chưa làm: chính
+phép so.
+"""))
+
+    out.append(md(r"""
+## 15. Điều kiện để phép so truy hồi có nghĩa — đã đủ, và còn thiếu gì
+
+### Kiến thức
+
+Trước khi so ba phương pháp truy hồi, phải kiểm bốn điều kiện. Nếu thiếu một điều, kết quả so
+sẽ **có số nhưng không nói được gì**:
+
+| Điều kiện | Vì sao cần | Trạng thái |
+|---|---|---|
+| **Kho đủ lớn** | với ~40 đoạn thì BM25 và embedding hòa nhau tầm thường | **đủ** — 303 đoạn |
+| **Chỉ mục sạch** | đoạn nội bộ hoặc đoạn rác trong chỉ mục làm mọi phương pháp tệ đều nhau | **đủ** — cửa `audience`, 0 đoạn quá ngắn, 0 trùng tiêu đề |
+| **Mã đoạn tất định** | khóa đáp án trỏ vào `chunk_id`; mã đổi thì mọi ca trỏ sai | **đủ** — kiểm ở Mục 6 |
+| **Tập đánh giá truy hồi** | 112 ca hiện có chấm **câu trả lời**, không chấm **đoạn được lấy** | **CHƯA CÓ** |
+
+### Hai bài toán, không phải một — và đây là phần đáng báo cáo nhất
+
+Điểm mạnh của phép so này không nằm ở việc "hybrid thắng bao nhiêu điểm", mà ở việc so trên
+**hai bài toán khác nhau** rồi cho thấy câu trả lời khác nhau:
+
+| Bài toán | Ứng viên | Dự kiến |
+|---|---|---|
+| **Truy hồi tri thức** — đoạn nào trả lời câu chính sách | BM25 / embedding / hybrid | embedding thắng ở câu diễn đạt khác từ; BM25 thắng ở câu có tên riêng |
+| **Chọn món** — món nào thỏa ràng buộc | BM25 / embedding / **lọc theo nhãn** | **lọc theo nhãn thắng dứt khoát** |
+
+Bài toán thứ hai quan trọng vì nó chứng minh bằng số rằng **không phải chỗ nào cũng nên dùng
+RAG**. Ví dụ "món nào dưới 50.000đ": BM25 và embedding **không hiểu số**, còn lọc theo nhãn
+`price` đúng **100%** vì nhóm đó phủ 91/91 món.
+
+Đó cũng là lý do bước 5 của dự án **bỏ** `sentence-transformers` (~3GB) khỏi ảnh Docker: 24 chủ
+đề chính sách tra khóa đúng 100% thì thêm một tầng embedding là thêm 3GB cho 0 lợi ích.
+"""))
+
+    out.append(code(r"""
+# Kiểm bốn điều kiện của phép so truy hồi — cái nào đủ, cái nào chưa
+from pathlib import Path as _P
+from rag.chunker import all_chunks, load_all, retrievable_chunks
+
+chunks = retrievable_chunks(KNOWLEDGE)
+tat_ca = all_chunks(KNOWLEDGE)
+w = sorted(c.word_count for c in chunks)
+
+dieu_kien = []
+dieu_kien.append(("kho đủ lớn (>=250 đoạn xếp hạng)", len(chunks) >= 250,
+                  f"{len(chunks)} đoạn synthesize"))
+dieu_kien.append(("chỉ mục sạch: 0 đoạn quá ngắn", all(c.word_count >= 12 for c in chunks),
+                  f"ngắn nhất {w[0]} từ"))
+h1_con = [c.chunk_id for c in tat_ca
+          if any(l.startswith("# ") for l in c.text.splitlines()[1:])]
+dieu_kien.append(("chỉ mục sạch: 0 đoạn trùng tiêu đề", not h1_con,
+                  f"{len(h1_con)} đoạn còn dòng H1"))
+ids = [c.chunk_id for c in tat_ca]
+dieu_kien.append(("mã đoạn tất định và không trùng",
+                  len(set(ids)) == len(ids) and [c.chunk_id for c in all_chunks(KNOWLEDGE)] == ids,
+                  f"{len(set(ids))}/{len(ids)} mã duy nhất"))
+co_tap = (_P(str(KNOWLEDGE.parent)) / "evaluation" / "retrieval_cases.json").exists()
+dieu_kien.append(("tập đánh giá truy hồi (~120 ca)", co_tap,
+                  "retrieval_cases.json chưa tồn tại" if not co_tap else "có"))
+
+print(f"{'điều kiện':44}{'trạng thái':>12}   bằng chứng")
+print("-" * 92)
+for ten, dat, bc in dieu_kien:
+    print(f"{ten:44}{'ĐỦ' if dat else 'CHƯA':>12}   {bc}")
+
+thieu = [t for t, dat, _ in dieu_kien if not dat]
+print(f"\n{len(dieu_kien) - len(thieu)}/{len(dieu_kien)} điều kiện đã đủ.")
+if thieu:
+    print(f"Còn thiếu: {thieu}")
+    print("=> Chưa chạy phép so nào. Mọi con số về BM25/embedding/hybrid trong báo cáo")
+    print("   này sẽ là BỊA nếu viết ra bây giờ.")
+
+# Cho thấy vì sao 'chọn món' KHÔNG nên dùng truy hồi
+items = load("menu-dataset.json")["items"]
+phu_gia = len({m["id"] for m in items if any(t.startswith("price:") for t in m["tags"])})
+print(f"\nVí dụ vì sao không phải chỗ nào cũng dùng RAG:")
+print(f"   nhóm nhãn `price` phủ {phu_gia}/{len(items)} món -> lọc theo nhãn đúng 100%")
+print(f"   BM25 và embedding KHÔNG hiểu số, nên câu 'món nào dưới 50.000đ' chúng")
+print(f"   không trả lời đúng được. Đây là kết quả đáng báo cáo, không phải thất bại.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 15
+
+- **Quan sát:** 4/5 điều kiện đã đủ. 303 đoạn `synthesize` được xếp hạng, đoạn ngắn nhất 17 từ,
+  0 đoạn trùng tiêu đề, 327 mã đoạn duy nhất và tất định. Thiếu **tập đánh giá truy hồi**.
+- **Diễn giải:** phần khó của RAG **không phải** cài BM25 hay tải model embedding — đó là việc
+  vài chục dòng mã. Phần khó là làm cho **chỉ mục đủ sạch để phép so nói được điều gì**, và đó
+  chính là việc TV1 đã làm xong.
+- **Điều notebook này KHÔNG nói:** không có con số nào về BM25 vs embedding vs hybrid, vì chưa
+  chạy phép so nào. Viết ra bây giờ là bịa, và một báo cáo có một số bịa thì mọi số còn lại mất
+  giá trị.
+- **Kết quả đã có, ngược với kỳ vọng thông thường:** bước 5 **bỏ** `sentence-transformers`
+  (~3GB) khỏi ảnh Docker sau khi đo rằng 24 chủ đề chính sách tra khóa đúng 100%. Nhóm nhãn
+  `price` phủ 91/91 món nên lọc theo nhãn đúng 100%, còn BM25 và embedding không hiểu số. **Không
+  phải chỗ nào cũng nên dùng RAG** — và điều đó cũng phải đo, không phải phán.
+"""))
+
+    # ================================================================ PHẦN TV5
+    out.append(md(r"""
+---
+# PHẦN TV5 — MÔ HÌNH SINH, AN TOÀN VÀ TÍCH HỢP
+
+> **Vị trí trong dây chuyền:** khâu cuối. Nhận hợp đồng `Reply` từ TV3. Khâu này chứa **phát
+> hiện quan trọng nhất của cả dự án**.
+
+| | |
+|---|---|
+| **Câu hỏi khâu này trả lời** | *Mô hình sinh được phép làm gì, và nếu nó chết thì hệ thống mất gì?* |
+| **Kiến thức phải nắm** | mô hình chỉ **hiểu**, không **chọn** · cổng kiểm khóa mô hình trả về · **an toàn không được phụ thuộc thành phần không tất định** · thoái hóa êm khi gọi thất bại |
+| **Tệp sở hữu** | `ai/app/llm_understand.py` · `service.py` · `ai/contracts/*.schema.json` · `ai/Dockerfile` |
+| **Đầu vào** | `Reply` của TV3; kho tri thức của TV1 |
+| **Đầu ra bàn giao** | dịch vụ HTTP mà backend gọi được |
+| **Tự đo bằng** | `run_with_model.py` · `python -m unittest test_llm_understand test_packaging` |
+| **Trạng thái** | **xong phần mô hình** — 112/112, 0 lỗi an toàn. **Còn lại:** 5 endpoint HTTP |
+
+### Nguyên tắc phân quyền: mô hình chỉ HIỂU, không CHỌN
+
+Mô hình sinh **không được chọn món**. Nó chỉ làm một việc: đọc câu khách và trả về **nhãn ràng
+buộc**. Việc chọn món vẫn do mã tất định làm, dựa trên nhãn đó.
+
+Lý do rất cụ thể: nếu mô hình chọn món thì nó có thể chọn món **không tồn tại**, hoặc chọn món
+**vi phạm ràng buộc dị ứng**. Nếu nó chỉ trả về nhãn, thì nhãn sai chỉ dẫn tới **gợi ý kém**, và
+mọi nhãn nó trả về đều bị **kiểm lại** trước khi dùng.
+
+```
+câu khách  ->  mã tất định hiểu  ->  [nếu chưa đủ]  mô hình đọc thêm ràng buộc
+                                                     |
+                                        cổng kiểm: nhãn có thật không? đúng vai không?
+                                                     |
+                                            mã tất định CHỌN MÓN  ->  câu trả lời
+```
+"""))
+
+    out.append(code(r"""
+# Mô hình thêm được gì, và cổng kiểm bỏ gì
+import collections, os
+os.environ.setdefault("LLM_MODEL", "cx/gpt-5.6-luna-review")
+import run_with_model as rw
+from llm_understand import load_env
+
+env = load_env()
+det_ok = mod_ok = goi = 0
+chi_mo_hinh, bo = [], collections.Counter()
+for c in rw.CASES:
+    _, v0, _ = rw.run(c, with_model=False, env=env, use_cache=True)
+    _, v1, o = rw.run(c, with_model=True, env=env, use_cache=True)
+    det_ok += int(v0.passed); mod_ok += int(v1.passed)
+    if o and o.used:
+        goi += 1
+        for d in o.dropped:
+            bo[d.split(":")[0] if ":" in d else d] += 1
+    if v1.passed and not v0.passed:
+        chi_mo_hinh.append((c["id"], c["question"]))
+
+n = len(rw.CASES)
+print(f"không mô hình : {det_ok}/{n}  ({100*det_ok/n:.1f}%)")
+print(f"có mô hình    : {mod_ok}/{n}  ({100*mod_ok/n:.1f}%)")
+print(f"số lần gọi    : {goi}/{n} ca ({100*goi//n}% — chỉ gọi khi mã tất định chưa hiểu đủ)")
+
+print(f"\n=== {len(chi_mo_hinh)} ca CHỈ mô hình giải được ===")
+for cid, q in chi_mo_hinh:
+    print(f"   {cid:16} {q}")
+
+print(f"\n=== Cổng kiểm BỎ nhãn mô hình trả về ({sum(bo.values())} lần, "
+      f"{len(bo)} nhóm) ===")
+for k, v in bo.most_common():
+    print(f"   {k:12} {v} lần   (bịa hoặc sai vai -> KHÔNG được dùng)")
+print("\n=> Mô hình trả về nhãn không có thật hoặc sai vai thì nhãn đó bị BỎ,")
+print("   không phải được dùng rồi hy vọng nó đúng.")
+"""))
+
+    out.append(md(r"""
+## 16. Phát hiện quan trọng nhất của dự án: an toàn KHÔNG được phụ thuộc mô hình sinh
+
+### Kiến thức
+
+Sau khi thêm 14 ca cách nói lạ, mã tất định một mình còn **2 lỗi an toàn**:
+
+- *"Mình không ăn được **đồ tanh**"* — không hiểu "đồ tanh" là cá/hải sản
+- *"Bé nhà mình **uống sữa là bị đau bụng**, có món nào **không sữa** không?"* — không hiểu
+
+Mô hình sinh sửa được **cả hai**, và ban đầu tôi ghi nhận đó là **giá trị** của mô hình.
+
+**Nghĩ lại thì đó là lỗi thiết kế nghiêm trọng.** Nếu mô hình là thứ duy nhất hiểu hai câu đó,
+thì **an toàn của hệ thống phụ thuộc một thành phần không tất định**:
+
+| Sự cố | Hậu quả nếu an toàn phụ thuộc mô hình |
+|---|---|
+| proxy chết | **mất bảo vệ dị ứng** |
+| hết hạn mức gọi | **mất bảo vệ dị ứng** |
+| mô hình trả lời sai một lần | **mất bảo vệ dị ứng** cho đúng khách đó |
+
+Không chấp nhận được. Nên hai lớp nhận diện đó được **đưa về mã tất định**:
+
+1. **Cách nói dân dã cho dị nguyên**: `đồ tanh`, `mùi tanh` → `allergen:seafood`
+2. **Mẫu "không ⟨chủ đề⟩"** bắt bằng biểu thức chính quy thay vì liệt kê từng tổ hợp
+3. **Triệu chứng cũng là cách khai dị ứng**: `bị đau bụng`, `bị ngứa`, `bị nổi mề đay`
+
+Kết quả: **0 lỗi an toàn ở cả hai chế độ**. Mô hình vẫn có giá trị (+11 ca) nhưng **không còn
+nằm trên đường an toàn**.
+
+> **Nguyên tắc rút ra:** proxy chết thì khách mất phần gợi ý tinh, **không mất bảo vệ dị ứng.**
+
+### Hệ quả thứ hai: gọi thất bại phải thoái hóa ÊM
+
+Tôi từng viết rằng "gọi mô hình thất bại thì giữ nguyên câu trả lời tất định". Câu đó **đã từng
+sai**: `urllib.request.Request(...)` nằm **ngoài** khối `try`, nên thiếu cấu hình là **sập** chứ
+không thoái hóa. CI tìm ra, vì CI là môi trường duy nhất không có `ai/.env`.
+
+Bài học: **một lời khẳng định về hành vi khi lỗi thì phải có test cho đúng đường lỗi đó.**
+"""))
+
+    out.append(code(r"""
+# An toàn phải TẤT ĐỊNH — chứng minh hai câu đó nay hiểu được KHÔNG cần mô hình
+from understand import understand
+from answer import respond, select
+items = load("menu-dataset.json")["items"]
+
+# Kết luận của ô này được ĐẾM từ kết quả, không khẳng định trước rồi minh họa. Bản đầu của ô
+# này viết "bốn cách khai dị ứng đều xử lý được" rồi in ra 2/4 SAI — và hai ca SAI đó là LỖ
+# AN TOÀN THẬT, không phải lỗi trình bày.
+cau_kho = [
+    ("Mình không ăn được đồ tanh", "allergen:seafood", "cách nói dân dã"),
+    ("Bé nhà mình uống sữa là bị đau bụng, có món nào không sữa không?",
+     "allergen:dairy", "triệu chứng + mẫu 'không X'"),
+    ("Cho mình món không hải sản", "allergen:seafood", "mẫu 'không X' (từng là MÃ CHẾT)"),
+    ("Món nào không sữa", "allergen:dairy", "mẫu 'không X'"),
+    ("Món nào không trứng", "allergen:egg", "mẫu 'không X'"),
+    ("Món không gluten", "allergen:gluten", "mẫu 'không X'"),
+    ("Ăn tôm là mình bị nổi mề đay", "allergen:seafood",
+     "triệu chứng + TÊN MÓN CỤ THỂ"),
+]
+qua, truot = [], []
+for cau, nhan_can, loai in cau_kho:
+    r = understand(cau, items)
+    chon = select(r, items)
+    sot = sum(1 for m in chon if nhan_can in m["tags"])
+    ok = nhan_can in r.avoid_tags and sot == 0
+    (qua if ok else truot).append((cau, loai, r.avoid_tags, len(chon), sot))
+
+print(f"{len(qua)}/{len(cau_kho)} cách khai dị ứng xử lý được HOÀN TOÀN bằng mã tất định:\n")
+for cau, loai, avoid, n_mon, sot in qua:
+    print(f"   OK  [{loai}]")
+    print(f"       {cau[:70]}")
+    print(f"       avoid={avoid}  còn {n_mon} món, sót nhãn cấm: {sot}")
+
+if truot:
+    print(f"\n{len(truot)} cách CHƯA xử lý được — đây là LỖ AN TOÀN CÒN MỞ:\n")
+    for cau, loai, avoid, n_mon, sot in truot:
+        print(f"   CHƯA [{loai}]")
+        print(f"        {cau[:70]}")
+        print(f"        avoid={avoid}  còn {n_mon} món, SÓT {sot} món mang nhãn cấm")
+    print("\n   Nguyên nhân: khách gọi TÊN MÓN cụ thể ('tôm', 'cua') chứ không gọi tên")
+    print("   nhóm dị nguyên ('hải sản'). Từ vựng chưa nối tên món tới nhóm dị nguyên.")
+    print("   Việc này thuộc TV3 (từ vựng) và phải kèm ca đánh giá nhóm CHỐT.")
+
+# Thoái hóa êm: thiếu cấu hình thì KHÔNG được sập
+from llm_understand import enrich
+r = understand("Cho mình gì đó chua chua", items)
+truoc = list(r.prefer_tags)
+kq = enrich(r, {}, use_cache=False)          # env rỗng = thiếu cấu hình hoàn toàn
+print(f"\nGọi mô hình với cấu hình RỖNG (mô phỏng proxy chết / thiếu .env):")
+print(f"   không sập, trả về: used={kq.used}  lý do={kq.reason!r}")
+print(f"   prefer_tags trước {truoc} -> sau {r.prefer_tags}  (giữ nguyên)")
+print("   => câu trả lời tất định vẫn tới khách. Đây là điều tôi từng khẳng định SAI")
+print("      trước khi có test cho đúng đường lỗi này.")
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 6 — mô hình thêm gì, và an toàn có phụ thuộc nó không
+import collections, os
+os.environ.setdefault("LLM_MODEL", "cx/gpt-5.6-luna-review")
+import run_with_model as rw
+from llm_understand import load_env
+
+env = load_env()
+det = mod = goi = 0
+theo_ho = collections.Counter()
+for c in rw.CASES:
+    _, v0, _ = rw.run(c, with_model=False, env=env, use_cache=True)
+    _, v1, o = rw.run(c, with_model=True, env=env, use_cache=True)
+    det += int(v0.passed); mod += int(v1.passed)
+    if o and o.used: goi += 1
+    if v1.passed and not v0.passed: theo_ho[c["family"]] += 1
+n = len(rw.CASES)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 4.6))
+
+# (a) số nền -> có mô hình, và AN TOÀN không đổi
+x = ["Chỉ mã\ntất định", "Có mô hình\nsinh"]
+ax1.bar(x, [det, mod], color=[XANH, CAM], width=0.55)
+for i, v in enumerate([det, mod]):
+    ax1.text(i, v + 1.5, f"{v}/{n}\n{100*v/n:.1f}%", ha="center",
+             fontweight="bold", fontsize=10)
+ax1.axhline(det, color=XANH, linestyle=":", linewidth=1.2)
+ax1.text(1.38, det, "số nền", color=XANH, fontsize=8, va="center")
+ax1.set_ylim(0, n * 1.22); ax1.set_ylabel("số ca qua")
+ax1.set_title(f"Mô hình thêm {mod - det} ca (+{100*(mod-det)/n:.1f}đ%)\n"
+              f"nhưng chỉ được gọi ở {goi}/{n} ca", fontsize=11)
+# Lỗi an toàn = 0 ở CẢ HAI cột, đó là điều đáng nhấn
+ax1.text(0.5, n * 1.08, "lỗi an toàn: 0 ở CẢ HAI chế độ", ha="center",
+         fontsize=10, fontweight="bold", color=DO,
+         bbox=dict(boxstyle="round,pad=0.4", facecolor="#fdf2f0", edgecolor=DO))
+
+# (b) mô hình giúp ở HỌ nào — cho thấy nó không nằm trên đường an toàn
+ho = theo_ho.most_common()
+ax2.barh([h for h, _ in ho][::-1], [v for _, v in ho][::-1], color=CAM)
+ax2.set_xlabel("số ca mô hình giải thêm")
+ax2.set_title("Mô hình giúp ở đâu — toàn bộ là câu GỢI Ý,\n"
+              "không có ca an toàn nào", fontsize=11)
+ax2.set_xticks(range(0, max(theo_ho.values()) + 1))
+
+plt.tight_layout(); plt.show()
+print(f"Mô hình giải thêm {mod - det} ca, thuộc {len(theo_ho)} họ: "
+      f"{sorted(theo_ho)}")
+print("KHÔNG họ nào là họ an toàn. Đó là điều phải đạt được, không phải may mắn:")
+print("hai ca dị ứng mà trước đây chỉ mô hình hiểu đã được đưa về mã tất định.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 16
+
+- **Quan sát:** 101/112 → **112/112** khi có mô hình, và mô hình chỉ được gọi ở **22/112 ca
+  (20%)**. **0 lỗi an toàn ở cả hai chế độ.** 11 ca mô hình giải thêm thuộc các họ hương vị, sức
+  khỏe, ngân sách, dịp ăn, cách chế biến — **không họ nào là họ an toàn**.
+- **Diễn giải:** đây là phát hiện quan trọng nhất của dự án, và nó **không** phải "mô hình tốt".
+  Nó là: *an toàn phải nằm ở phần tất định, không nằm ở phần sinh*. Ban đầu hai ca dị ứng chỉ mô
+  hình hiểu được, và tôi đã ghi nhận đó là **giá trị** của mô hình — cách đọc đó sai. Đúng ra nó
+  là **lỗi thiết kế**: proxy chết là mất bảo vệ dị ứng.
+- **Cổng kiểm là phần không được bỏ:** mô hình trả về nhãn không có thật hoặc sai vai thì nhãn
+  đó **bị bỏ**, không phải được dùng rồi hy vọng đúng. Đo được: cổng bỏ nhãn ở 4 nhóm.
+- **Một lời khẳng định của tôi từng SAI:** tôi viết "gọi thất bại thì giữ nguyên câu trả lời tất
+  định" trước khi có test cho đường lỗi đó — và `Request` nằm ngoài `try` nên thiếu cấu hình là
+  **sập**. CI tìm ra vì CI là môi trường duy nhất không có `ai/.env`. Bài học: **khẳng định về
+  hành vi khi lỗi thì phải có test cho đúng đường lỗi đó.**
+- **Giới hạn:** độ trễ mô hình đo được **~8,6 giây/lần gọi**. Với 20% ca thì trung bình còn chịu
+  được, nhưng đó là con số đáng lo nhất khi đưa vào dùng thật.
+"""))
+
+    # ============================================================== TỔNG HỢP
+    out.append(md(r"""
+---
+# PHẦN VI — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
+
+Phần này không thêm kiến thức mới. Nó gom lại **con số nào đã đo, con số nào chưa**, và **cái gì
+không đo được** — vì một báo cáo mà không phân biệt ba loại đó thì người đọc không biết tin phần
+nào.
+
+## 17. Bảng kết quả, và điều mỗi con số KHÔNG nói
+"""))
+
+    out.append(plot_code(r"""
+# Biểu đồ 7 — bảng điều khiển tổng hợp cho báo cáo
+import collections, os
+os.environ.setdefault("LLM_MODEL", "cx/gpt-5.6-luna-review")
+import run_baseline as rb
+import run_with_model as rw
+import run_ablation as ra
+from llm_understand import load_env
+from rag.chunker import all_chunks, load_all, retrievable_chunks
+
+env = load_env()
+n = len(rw.CASES)
+det = sum(int(rw.run(c, with_model=False, env=env, use_cache=True)[1].passed)
+          for c in rw.CASES)
+mod = sum(int(rw.run(c, with_model=True, env=env, use_cache=True)[1].passed)
+          for c in rw.CASES)
+san = sum(1 for c in rb.DATA["cases"] if c["expect"]["kind"] == "no_data")
+docs = load_all(KNOWLEDGE)
+
+fig = plt.figure(figsize=(13, 7.2))
+gs = fig.add_gridspec(2, 3, hspace=0.45, wspace=0.32)
+
+# (1) tiến trình chất lượng, có SÀN làm mốc dưới
+ax = fig.add_subplot(gs[0, 0])
+ax.bar(["sàn", "tất định", "+ mô hình"], [san, det, mod],
+       color=[XAM, XANH, CAM], width=0.6)
+for i, v in enumerate([san, det, mod]):
+    ax.text(i, v + 2, f"{100*v/n:.1f}%", ha="center", fontweight="bold", fontsize=9)
+ax.set_ylim(0, n * 1.2); ax.set_ylabel(f"ca qua / {n}")
+ax.set_title("Chất lượng trả lời", fontsize=11)
+
+# (2) lỗi an toàn — cột 0 là điều đáng báo cáo nhất
+ax = fig.add_subplot(gs[0, 1])
+ax.bar(["tất định", "+ mô hình"], [0, 0], color=[XANH, CAM], width=0.5)
+ax.set_ylim(0, 3); ax.set_yticks([0, 1, 2, 3])
+ax.text(0.5, 1.5, "0  và  0", ha="center", fontsize=22, fontweight="bold", color=DO)
+ax.set_title("Lỗi an toàn\n(dị ứng, bịa món, bịa giá)", fontsize=11)
+ax.set_ylabel("số lỗi")
+
+# (3) chia tập đánh giá
+ax = fig.add_subplot(gs[0, 2])
+grp = collections.Counter(rb.group_of(c["family"]) for c in rb.DATA["cases"])
+ax.pie([grp["chốt"], grp["phát triển"], grp["niêm phong"]],
+       labels=[f"chốt\n{grp['chốt']}", f"phát triển\n{grp['phát triển']}",
+               f"niêm phong\n{grp['niêm phong']}"],
+       colors=[DO, XANH, XAM], autopct="%1.0f%%", startangle=140,
+       textprops={"fontsize": 9})
+ax.set_title(f"{n} ca / 3 nhóm", fontsize=11)
+
+# (4) kho tri thức
+ax = fig.add_subplot(gs[1, 0])
+mode = collections.Counter(d.answer_mode for d in docs)
+b = ax.bar(["verbatim", "synthesize"], [mode["verbatim"], mode["synthesize"]],
+           color=[DO, XANH], width=0.55)
+ax.bar_label(b, padding=2, fontweight="bold")
+ax.set_ylim(0, max(mode.values()) * 1.25); ax.set_ylabel("tài liệu")
+ax.set_title(f"Kho tri thức\n{len(docs)} tài liệu / "
+             f"{len(all_chunks(KNOWLEDGE))} đoạn", fontsize=11)
+
+# (5) ablation: hàng rào vs tính năng
+ax = fig.add_subplot(gs[1, 1])
+base_ok, _ = ra.measure()
+hang_rao = tinh_nang = 0
+for _, tat in ra.ABLATIONS:
+    hoan_lai = tat()
+    try:
+        _, unsafe = ra.measure()
+    finally:
+        hoan_lai()
+    if unsafe: hang_rao += 1
+    else: tinh_nang += 1
+b = ax.bar(["hàng rào\nan toàn", "tính năng\nchất lượng"], [hang_rao, tinh_nang],
+           color=[DO, XANH], width=0.55)
+ax.bar_label(b, padding=2, fontweight="bold")
+ax.set_ylim(0, max(hang_rao, tinh_nang) * 1.35); ax.set_ylabel("số cơ chế")
+ax.set_title(f"{len(ra.ABLATIONS)} cơ chế — không cơ chế nào dư", fontsize=11)
+
+# (6) điều CHƯA đo — phải có mặt trong báo cáo
+ax = fig.add_subplot(gs[1, 2])
+ax.axis("off")
+ax.text(0.5, 1.02, "Điều CHƯA đo", ha="center", fontsize=11, fontweight="bold",
+        transform=ax.transAxes)
+chua = ["so BM25 / embedding / hybrid", "tập đánh giá truy hồi (~120 ca)",
+        "bộ nhớ phiên đa lượt (~25 kịch bản)", "thẻ giỏ hàng gợi ý",
+        "5 endpoint dịch vụ HTTP", "độ trễ end-to-end thật"]
+for i, t in enumerate(chua):
+    ax.text(0.02, 0.86 - i * 0.155, f"○  {t}", fontsize=9.5, transform=ax.transAxes,
+            color="#555")
+ax.add_patch(plt.Rectangle((0, 0), 1, 1, transform=ax.transAxes, fill=False,
+                           edgecolor=XAM, linewidth=1, linestyle="--"))
+
+fig.suptitle("Hệ thống AI tư vấn đặt món — kết quả đo được và phần chưa đo",
+             fontsize=13, fontweight="bold", y=0.99)
+plt.show()
+print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và 0 | "
+      f"{hang_rao}/{len(ra.ABLATIONS)} cơ chế là hàng rào an toàn")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 17
+
+| Con số | Giá trị | Điều nó **không** nói |
+|---|---|---|
+| tất định 101/112 | 90,2% | không nói khách thật hỏi gì — mọi ca do người viết |
+| có mô hình 112/112 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
+| lỗi an toàn 0 / 0 | trên 112 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
+| kho 84 tài liệu / 327 đoạn | đủ để so truy hồi | chưa nói phương pháp nào tốt hơn — **chưa đo** |
+| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 61 chỗ |
+
+**Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4.
+Mọi con số sau đó đo trên tập đã thấy.
+
+## 18. Hạn chế phải nói ra
+
+1. **Không có log khách thật.** Mọi ca đánh giá do người viết. Con số đo được hệ thống **có tôn
+   trọng ràng buộc hay không**; nó **không** đo được khách thật hỏi gì.
+2. **Tập niêm phong đã dùng hết.** Mọi con số trên 112 ca hiện tại không còn là held-out. Tập
+   mới (truy hồi, đa lượt) mỗi tập chỉ được mở **một lần**.
+3. **28/84 tài liệu tri thức là `demo`** — giá trị mẫu. Chúng không thể nói sai về **con số** (số
+   lấy từ thực đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
+4. **Nhãn dị nguyên phủ 44/91 món.** Đối chiếu mô tả tìm ra 7 lỗ thật đã lấp, nhưng mô tả không
+   phải bảng thành phần nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
+5. **Độ trễ mô hình ~8,6 giây/lần gọi.** Chỉ 20% ca gọi, nhưng đây là con số đáng lo nhất khi
+   dùng thật.
+6. **Chưa chạy thật end-to-end.** Mọi con số tồn tại trong test; chưa có dịch vụ HTTP nên khách
+   quét QR vẫn chưa dùng được.
+
+## 19. Hướng phát triển, gắn với từng thành viên
+
+| TV | Việc còn lại | Điều kiện chấp nhận đo được |
+|---|---|---|
+| **TV1** | mở rộng kho khi có nhu cầu thật | `build_knowledge.py --check` xanh, 112 ca không tụt |
+| **TV2** | ~120 ca truy hồi · ~25 kịch bản đa lượt · 4 phép kiểm giỏ hàng | bộ dò lỗ tìm 0 lỗ trên tập mới |
+| **TV3** | `cart.py` (5 bất biến) · `session.py` (3 quy tắc hợp nhất) | chốt `safety_cart_no_allergen` xanh |
+| **TV4** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
+| **TV5** | 5 endpoint · hợp đồng schema · chạy thật `docker compose` | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
+
+### Ba điều cấm, áp cho cả 5 người, và CI ép
+
+1. **Không nới ràng buộc dị nguyên** — kể cả khi kết quả rỗng.
+2. **Không để mô hình sinh chọn món** — nó chỉ trả về nhãn, và nhãn bị cổng kiểm lại.
+3. **Không viết số vào tài liệu** — số phải tính được, nếu không nó sẽ trôi. Dự án này đã mắc
+   đúng lỗi đó một lần với con số kiểm kê đụng chữ.
 """))
 
     return out

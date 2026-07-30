@@ -12,9 +12,9 @@ Chia việc theo đúng dây chuyền đó có ba lợi ích:
 
 ```
 TV1              TV2              TV3              TV4              TV5
-Bài toán    →   Đánh giá    →   Trả lời     →   Tri thức    →   An toàn
-& Dữ liệu       & Thước đo      tất định         & RAG            & Tích hợp
-bước 0–1        bước 2–3        bước 4           bước 5–6         bước 7 + dịch vụ
+Bài toán    →   Đánh giá    →   Trả lời     →   Truy hồi    →   An toàn
+& Dữ liệu       & Thước đo      tất định         tri thức        & Tích hợp
+bước 0–1        bước 2–3        bước 4           bước 5           bước 6–7 + dịch vụ
 Phần I          Phần II         Phần III         Phần IV          Phần V–VI
 ```
 
@@ -183,7 +183,13 @@ Số nền, 6 nhánh trả lời, ablation từng cơ chế, ràng buộc vs ng�
 
 ---
 
-# TV4 — Tri thức & RAG (bước 5–6)
+# TV4 — Truy hồi tri thức (bước 5)
+
+> **Ranh giới với TV1 — đã sửa một mâu thuẫn của bản đầu.** Bản đầu đặt tên khâu này là "Tri
+> thức & RAG" nhưng lại giao `ai/knowledge/*` cho TV1 ở dòng sở hữu tệp, tức **kho tri thức bị
+> giao cho hai người**. Chốt lại: TV1 phụ trách **nội dung** kho (tri thức nào cần có, tin được
+> đến đâu), TV4 phụ trách **cách lấy** đoạn từ kho (phương pháp xếp hạng, chỉ số đánh giá). Hai
+> việc cần hai nền kiến thức khác nhau nên tách là đúng; để mơ hồ thì cả hai tưởng người kia làm.
 
 ### Câu hỏi khâu này trả lời
 *Câu chính sách lấy dữ liệu ở đâu, và phương pháp truy hồi nào tốt hơn?*

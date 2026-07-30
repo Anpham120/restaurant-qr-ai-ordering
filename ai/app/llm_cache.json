@@ -1,4 +1,12 @@
 {
+  "02ccc0dbea33154aeec726d3b4e8803d": {
+    "avoid": [],
+    "prefer": [
+      "flavour:sour"
+    ],
+    "require": [],
+    "wants": "food"
+  },
   "048d11b3e07e0c2fbcdb808a04027db7": {
     "avoid": [],
     "prefer": [],

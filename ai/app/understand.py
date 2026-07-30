@@ -405,7 +405,7 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # đau bụng, có món nào không sữa không?" trước đây chỉ mô hình hiểu được, nghĩa là an
     # toàn của hệ thống phụ thuộc một thành phần không tất định. Nay mã tất định hiểu được.
     wants_to_avoid = wants_to_avoid or bool(
-        re.search(r"khong (?:co )?(?:hai san|do bien|do tanh|dau phong|lac|trung|sua|gluten|bot mi)", working)
+        re.search(r"\bkhong (?:co )?(?:hai san|do bien|do tanh|dau phong|lac|trung|sua|gluten|bot mi)\b", working)
     )
     # Triệu chứng cũng là cách khai dị ứng, không chỉ chữ "dị ứng".
     wants_to_avoid = wants_to_avoid or any(

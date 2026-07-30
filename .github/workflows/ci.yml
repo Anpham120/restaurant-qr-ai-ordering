@@ -128,6 +128,14 @@ jobs:
         run: python -m unittest test_packaging
         working-directory: ai/app
 
+      # Ký tự điều khiển trong mã nguồn là vô hình trên màn hình VÀ trong git diff, và nếu nó
+      # nằm trong regex thì regex im lặng không khớp gì. Dự án đã mất một cơ chế an toàn theo
+      # đúng cách đó: một byte 0x08 làm `khong ...` thành `<backspace>khong ...`, nên mẫu
+      # "không ⟨chủ đề⟩" là MÃ CHẾT trong khi tài liệu ghi nó là hàng rào dị ứng.
+      - name: Kiểm vệ sinh mã nguồn và cơ chế an toàn có CHẠY
+        run: python -m unittest test_source_hygiene
+        working-directory: ai/app
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên
