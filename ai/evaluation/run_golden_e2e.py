@@ -186,6 +186,15 @@ class Khach:
         )
 
 
+def thu_ready(ai_url: str) -> dict | None:
+    """Đọc `/ready` của dịch vụ AI. `None` nếu không gọi được — và chỗ gọi phải NÓI RA điều đó."""
+    try:
+        with urllib.request.urlopen(f"{ai_url.rstrip('/')}/ready", timeout=5) as r:
+            return json.loads(r.read().decode())
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
 def load_menu() -> list[dict]:
     return json.loads(MENU_PATH.read_text(encoding="utf-8-sig"))["items"]
 
@@ -455,6 +464,8 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--api", default="http://127.0.0.1:5000", help="gốc URL backend")
+    p.add_argument("--ai", default="http://127.0.0.1:8001",
+                   help="gốc URL dịch vụ AI, chỉ để đọc `/ready` và in cấu hình đang đo")
     p.add_argument("--chi-tiet", action="store_true", help="in mọi câu trả lời")
     args = p.parse_args(argv)
 
@@ -483,6 +494,32 @@ def main(argv: list[str] | None = None) -> int:
             "    export GOLDEN_QR_TOKEN=<mã>"
         )
         return 2
+
+    # CẤU HÌNH ĐANG ĐO — in trước mọi con số.
+    #
+    # Vì sao bắt buộc: cùng một bộ 100 lượt cho hai kết quả rất khác nhau tùy dịch vụ AI đang chạy
+    # đường tất định hay đường sinh, và tùy `LLM_API_KEY` có rỗng hay không. Đã trả giá một lần cho
+    # việc thiếu dòng này: một lần chạy 42 lượt được báo là "qua mô hình thật" trong khi khóa rỗng
+    # nên mọi lượt đi đường tất định — `/ready.model_configured` lúc đó không kiểm khóa.
+    #
+    # Không gọi được `/ready` thì NÓI RA, không im lặng chạy tiếp rồi báo một con số không nhãn.
+    cau_hinh = thu_ready(args.ai)
+    print("CẤU HÌNH DỊCH VỤ AI đang đo:")
+    if cau_hinh is None:
+        print(f"  KHÔNG đọc được {args.ai}/ready — không biết đang đo cấu hình nào.")
+    else:
+        for khoa in ("retriever", "generation_enabled", "model_configured", "model_key_set",
+                     "knowledge_docs", "knowledge_chunks"):
+            if khoa in cau_hinh:
+                print(f"  {khoa:20} {cau_hinh[khoa]}")
+        if not cau_hinh.get("model_configured"):
+            print("  => Mô hình KHÔNG được gọi trong lần chạy này. Con số dưới đây là con số của")
+            print("     ĐƯỜNG TẤT ĐỊNH, và không được gán nhãn 'có mô hình'.")
+        elif not cau_hinh.get("generation_enabled"):
+            print("  => Mô hình chỉ ĐỌC câu hỏi thành nhãn; chữ vẫn do khuôn mẫu dựng.")
+        else:
+            print("  => Đường SINH đang bật: chữ khách đọc do mô hình viết, qua lớp xác minh.")
+    print()
 
     print(f"GOLDEN ĐẦU-CUỐI — {args.api}")
     print(f"  {len(hoi_thoais)} hội thoại / {sum(len(c['turns']) for c in hoi_thoais)} lượt")

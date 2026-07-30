@@ -547,7 +547,7 @@ print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, k
 
 - **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
   chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
-  nó **không còn là lỗi**. Kiểm kê: **85 cụm có nguy cơ** (66 bị chứa trong cụm khác, 40 nằm
+  nó **không còn là lỗi**. Kiểm kê: **89 cụm có nguy cơ** (70 bị chứa trong cụm khác, 41 nằm
   trong tên món, 21 thuộc cả hai).
 - **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
   cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
@@ -2315,7 +2315,7 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 | truy hồi: embedding Hit@5 **0,921** | trên 40 ca NIÊM PHONG | tập đó **đã dùng hết** từ 2026-07-30 |
 | chọn món: lọc nhãn **8/8**, 0 ca sai | RAG sai 6–7/8 | 8 ca do người viết |
 | bộ nhớ phiên 65/65 lượt | 0 lỗi an toàn | `last_listed_ids` chưa qua backend |
-| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 85 chỗ |
+| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 89 chỗ |
 
 **Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4.
 Mọi con số sau đó đo trên tập đã thấy.

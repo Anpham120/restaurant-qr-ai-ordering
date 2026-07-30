@@ -486,6 +486,10 @@ _add("giong vay|giong the|tuong tu|kieu vay|giong nhu vay", "flag", "similar")
 #
 # Không cụm nào ở đây nằm trong cụm từ vựng khác hay trong tên món nào (đã kiểm cả 91 tên).
 _add("mon khac|cai khac|mon nao khac|thu khac|mon gi khac", "flag", "similar")
+# Trẻ nhỏ nêu bằng TUỔI. Golden bắt được: "Đi cùng bé 4 tuổi, gợi ý món giúp mình" rơi vào nhánh
+# hỏi lại vì không cụm nào nhận ra đó là câu về trẻ em. Cụm "be" một mình quá ngắn và đụng nhiều
+# chữ, nên nhận theo cách khách thật nói: "bé N tuổi", "con N tuổi", "cháu N tuổi".
+_add("tuoi|em nho|chau nho|be nho|di cung be|co be", "require", "audience:child")
 
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")
@@ -594,6 +598,10 @@ _add("co may muc cay|muc cay the nao|chia may muc cay|do cay tinh the nao", "pol
 _add("co bao nhieu mon chay|bao nhieu mon chay|menu chay co may mon", "policy", "vegetarian")
 _add("co menu tre em|menu cho tre em|phan an tre em", "policy", "children")
 _add("bao nhieu calo|calo|natri|dinh duong|bao nhieu duong", "policy", "nutrition")
+# Cách nói bằng ĐƠN VỊ. Golden bắt được: "Phở bò tái nạm có mấy gam đường?" rơi vào nhánh
+# dữ kiện món và trả về giá cùng độ cay — không trả lời câu hỏi, và còn sinh thẻ giỏ.
+_add("gam duong|gam dam|gam beo|bao nhieu dam|bao nhieu protein|"
+     "gam protein|milligram|cholesterol", "policy", "nutrition")
 
 # Thời gian và tình trạng còn hàng. Thực đơn KHÔNG có trường nào về thời gian, và cả 91 món
 # đều `isAvailable = true` nên không kiểm chứng được hành vi khi hết món.
@@ -639,6 +647,27 @@ _add("giai phuong trinh|thuat toan|lap trinh|viet code|python|javascript",
 # thủ là giá phải trả, và là giá đúng: từ chối oan khách đang chọn món tệ hơn nhiều so với hỏi lại
 # một câu về đối thủ.
 _add("nha hang ben canh|nha hang khac|quan ben canh|quan khac", "flag", "off_topic")
+# Bốn nhóm golden 103 lượt bắt được. Mỗi cụm ở đây là một câu đã đo được là lọt, không phải một
+# phỏng đoán về điều khách có thể hỏi.
+#
+#   thời tiết   "Mai Hà Nội có mưa không?"        -> trước đó nhận về danh sách món Hà Nội
+#   tỷ giá      "1 đô bằng bao nhiêu tiền Việt?"  -> nhận về đoạn tri thức về calo
+#   bóng đá     "Đội nào thắng trận tối qua?"     -> nhận về đoạn về cà phê cho trẻ em
+#   dò cấu hình "Bạn là model gì?"                -> nhận về đoạn về lẩu
+#
+# Cổng `thuoc_mien` ở `answer.py` chặn phần lớn nhóm này rồi; các cụm dưới đây làm câu trả lời NÓI
+# ĐÚNG là ngoài phạm vi thay vì hỏi lại. Hai lớp cùng hướng, và lớp cổng là lớp không cần liệt kê.
+_add("co mua|mua khong|troi mua|nang khong|nhiet do bao nhieu", "flag", "off_topic")
+# KHÔNG có "do la" ở đây. Cụm đó (đô la) nằm trong "gì ĐÓ LẠ lạ", "cái ĐÓ LÀ", "món ĐÓ LÀ" sau khi
+# rút dấu — và 10 test của `test_llm_understand` đỏ ngay vì câu mơ hồ chuẩn của chúng là "Cho mình
+# gì đó lạ lạ", bị đọc thành câu hỏi tỷ giá.
+#
+# Mất khả năng nhận chữ "đô la" là giá phải trả, và là giá đúng: "đó là" phổ biến gấp nhiều lần
+# trong câu khách nói, còn "usd"/"dollar" vẫn nhận được.
+_add("bang bao nhieu tien viet|usd|dollar", "flag", "off_topic")
+_add("doi nao thang|tran toi qua|ket qua tran|world cup|bong ro", "flag", "off_topic")
+_add("model gi|ai huan luyen|cau hinh noi bo|khoa api|api key|token noi bo",
+     "flag", "off_topic")
 
 # Cụm sắp theo độ dài giảm dần — đây là cơ chế chống đụng chữ.
 VOCAB_ORDER = sorted(VOCAB, key=lambda p: (-len(p), p))
@@ -940,6 +969,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             )
             limit = "<" if request.budget_strict else "<="
             request.matched.append(f"ngân sách: {limit} {value:,}đ")
+
+    # 5d. Câu về CHÍNH CÁI NHÃN, không về con số dinh dưỡng.
+    #
+    # Golden bắt được: "Nhãn 'ít calo' dựa trên gì?" bị cụm `calo` đẩy vào chủ đề dinh dưỡng và trả
+    # "chưa có dữ liệu" — trong khi tài liệu `reading-menu-labels.md` trả lời đúng câu đó: nhãn là
+    # đánh giá cảm quan của người nhập thực đơn, không phải kết quả phân tích.
+    #
+    # Phân biệt bằng chữ "nhãn": khách hỏi VỀ nhãn thì đó là câu meta về thực đơn, không phải câu
+    # đòi một con số. Bỏ chủ đề dinh dưỡng để câu rơi xuống nhánh truy hồi toàn kho, nơi có câu
+    # trả lời thật.
+    if request.policy_topic == "nutrition" and " nhan " in f" {request.folded} ":
+        request.policy_topic = None
+        request.matched.append("hỏi VỀ nhãn -> không phải câu dinh dưỡng")
 
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):

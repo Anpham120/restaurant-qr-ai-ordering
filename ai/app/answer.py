@@ -247,6 +247,66 @@ def _bo_truy_hoi_toan_kho():
 _TOAN_KHO: tuple[object, str] | None = None
 
 
+_TU_MIEN: frozenset[str] | None = None
+
+
+def _tu_thuoc_mien(items: list[dict]) -> frozenset[str]:
+    """Tập từ thuộc MIỀN nhà hàng, SINH TỪ DỮ LIỆU — không viết tay.
+
+    Nguồn: tên món, tên danh mục, nhãn tiếng Việt của từ điển nhãn, và tiêu đề mọi tài liệu tri
+    thức. Bốn nguồn đó là toàn bộ vốn từ mà hệ thống có thể trả lời về, nên một câu không chạm từ
+    nào trong đó là câu hệ thống không có gì để nói.
+
+    Vì sao không viết tay danh sách: nó sẽ trôi khỏi thực đơn ngay lần thêm món, và một cổng dựa
+    trên danh sách trôi sẽ chặn oan hoặc mở oan mà không ai biết. Sinh từ dữ liệu thì tập tự lớn
+    lên cùng thực đơn và kho.
+
+    Bỏ từ một ký tự và từ chức năng ngắn: chúng có trong mọi câu nên chúng làm cổng vô nghĩa.
+    """
+    from understand import fold
+
+    BO = {"mon", "cua", "va", "cho", "co", "khong", "nao", "gi", "la", "cai", "voi", "de",
+          "ban", "minh", "toi", "duoc", "the", "nay", "do", "o", "an", "uong"}
+    tu: set[str] = set()
+    for i in items:
+        tu.update(fold(i["name"]).split())
+        tu.update(fold(i.get("categoryName", "")).split())
+    try:
+        import json as _json
+
+        nhan = _json.loads(
+            (Path(__file__).resolve().parents[2] / "backend" / "data" / "menu-tags.json")
+            .read_text(encoding="utf-8-sig")
+        )["tags"]
+        for meta in nhan.values():
+            tu.update(fold(meta.get("label_vi", "")).split())
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        from rag.chunker import retrievable_chunks
+
+        for c in retrievable_chunks(KNOWLEDGE_PATH):
+            tu.update(fold(c.heading or "").split())
+    except (KnowledgeError, OSError, ImportError):
+        pass
+    return frozenset(t for t in tu if len(t) > 2 and t not in BO)
+
+
+def thuoc_mien(question: str, items: list[dict]) -> bool:
+    """Câu hỏi có chạm vào vốn từ của nhà hàng không.
+
+    Cổng cho nhánh truy hồi toàn kho. Đo được vì sao cần: không có nó, "Bạn là model gì?" nhận về
+    một đoạn nói về lẩu, và "Đội nào thắng trận tối qua?" nhận về một đoạn nói về cà phê — cả hai
+    tệ hơn một câu hỏi lại rõ ràng.
+    """
+    global _TU_MIEN
+    if _TU_MIEN is None:
+        _TU_MIEN = _tu_thuoc_mien(items)
+    from understand import fold
+
+    return any(t in _TU_MIEN for t in fold(question).split())
+
+
 def ham_nong_truy_hoi() -> str:
     """Dựng chỉ mục toàn kho NGAY, và trả về tên phương pháp đang dùng.
 
@@ -692,8 +752,17 @@ def respond(request: Request, items: list[dict]) -> Reply:
         # hỏi lại ở câu thật sự mơ hồ là ĐÚNG, và trả một đoạn tri thức cho câu "cho mình món ngon"
         # là trả lời sai câu hỏi. Không có phép loại trừ này thì cả 6 ca `clarify` của tập đánh giá
         # rơi vào nhánh truy hồi — đo được ngay khi thêm nhánh: 134/140.
+        # Hai điều kiện, và điều kiện thứ hai là bản sửa của một hồi quy do chính nhánh này gây ra.
+        #
+        #   xin_goi_y    khách xin gợi ý món mà chưa nêu gì -> HỎI LẠI là đúng (đề bài mục 5)
+        #   thuoc_mien   câu không chạm vốn từ nhà hàng     -> không có gì để trả lời
+        #
+        # Không có điều kiện thứ hai, golden 103 lượt bắt được 5 câu ngoài phạm vi nhận về một đoạn
+        # tri thức ngẫu nhiên: "Bạn là model gì?" -> đoạn về lẩu; "Đội nào thắng trận tối qua?" ->
+        # đoạn về cà phê cho trẻ em. Cả hai tệ hơn hỏi lại.
         xin_goi_y = request.asks_suggestion or request.wants_similar
-        tim = None if xin_goi_y else doan_tri_thuc_lien_quan(request.text)
+        co_the_tra = thuoc_mien(request.text, items)
+        tim = None if (xin_goi_y or not co_the_tra) else doan_tri_thuc_lien_quan(request.text)
         if tim is not None:
             doan, cach = tim
             return Reply(

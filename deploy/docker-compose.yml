@@ -116,6 +116,15 @@ services:
       LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-}
       LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-false}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
+      # Đường SINH: mô hình VIẾT chữ cho khách thay vì khuôn mẫu dựng.  Mặc định TẮT, và mặc
+      # định đó dựa trên số đo, không dựa trên thận trọng chung: trên 18 ca loại C, câu sinh
+      # làm TỤT 9 ca so với đường tất định (thua thước đo nội dung: văn xuôi nêu 3 món trong
+      # khi khuôn mẫu nêu 6), mô hình bịa giá ở 3/18 lượt (lớp xác minh chặn được), và độ trễ
+      # là 7 giây mỗi lượt so với gần 0.
+      #
+      # Bật nó là một quyết định phải xem những con số đó trước.  Xem
+      # ai/evaluation/run_llm_rag_eval.py để chạy lại phép đo.
+      AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
       AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}
       AI_MAX_RETRY: ${AI_MAX_RETRY:-0}

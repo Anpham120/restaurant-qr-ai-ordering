@@ -65,7 +65,15 @@ MAX_LISTED_MEMORY = 6
 # được, nên chỉ chúng mới xứng là ràng buộc cứng. Nhóm phủ một phần (occasion 79/91, flavour
 # 72/91...) thuộc NGỮ CẢNH, vì thiếu nhãn ở đó nghĩa là *chưa ghi nhận*, không phải *không phù
 # hợp*.
-HARD_CONSTRAINT_GROUPS = ("spice", "price", "party", "season")
+HARD_CONSTRAINT_GROUPS = ("spice", "price", "party", "season", "diet")
+
+# `diet` thêm vào sau khi golden 103 lượt bắt được: khách nói "Mình ăn chay nữa" ở lượt 3, và lượt 4
+# nhận về Bánh mì pate, Cháo lòng, Xôi gà — ba món không chay. Chế độ ăn bị QUÊN ngay lượt sau.
+#
+# Vì sao nó thuộc nhóm cứng dù chỉ phủ 17/91 món, trong khi bốn nhóm kia phủ 91/91: tiêu chí không
+# phải độ phủ mà là "khách nêu điều này là nêu điều BẮT BUỘC". Ăn chay không phải sở thích để sắp
+# thứ tự — món không chay là món khách không ăn. Cùng lý do `llm_understand.HARD_GROUPS` đã xếp
+# `diet` vào nhóm cứng từ trước; chỗ này bỏ sót và hai tệp lệch nhau.
 
 # Nhóm nhãn dị nguyên — cộng dồn, không bao giờ bỏ.
 ALLERGEN_PREFIX = "allergen:"
