@@ -1745,6 +1745,160 @@
         "require_min": 2,
         "why": "Chiều ngược của P-season-01 (trời nóng). Không có nó thì hệ thống có thể học cách luôn gợi món giải nhiệt mà ca kia vẫn xanh."
       }
+    },
+    {
+      "id": "S-allergen-09",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Ăn tôm là mình bị nổi mề đay",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Khách gọi TÊN MÓN ('tôm') chứ không gọi tên nhóm ('hải sản'), và khai bằng TRIỆU CHỨNG chứ không dùng chữ 'dị ứng'. Trước khi sửa, câu này cho avoid=[] và hệ thống mời lại 26 món mang nhãn hải sản. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-10",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Ăn cua vào là mình bị ngứa",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Cụm 'cua' nằm trong 'giờ mở cửa' và 'đặc sản của nhà hàng' sau khi rút dấu. Ca này chốt rằng việc thêm 'cua' vào từ vựng KHÔNG phá mấy câu đó — cơ chế khớp cụm dài trước rồi ăn hết đoạn là thứ bảo vệ, và nó phải được chứng minh bằng ca chứ không bằng lập luận. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-11",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Mình dị ứng cá",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Cụm 'ca' là cụm nguy hiểm nhất từ vựng có: nó nằm trong 'cà phê', 'cá nhân', 'cả nhà'. Bộ dò chuỗi con của tôi loại nó, nhưng chạy thật thì nó an toàn vì các cụm dài hơn khớp trước. Ca này giữ kết luận đó đúng. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-12",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Ăn kem là mình bị đau bụng",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:dairy"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:dairy"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Nhóm sữa, khai bằng triệu chứng, và tên món là 'kem' — một món tráng miệng có thật trong thực đơn. Ca này đòi hệ thống phân biệt 'kem' như DỊ NGUYÊN với 'kem' như món khách muốn. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-13",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Mình dị ứng phô mai",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:dairy"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:dairy"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Cụm hai từ, không đụng gì — ca đối chứng cho thấy phần dễ vẫn phải có ca, nếu không thì khi phần khó hỏng ta không biết hỏng vì cơ chế nào. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-14",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Cho mình món không hải sản",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:seafood"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:seafood"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Dạng 'không ⟨chủ đề⟩' KHÔNG kèm 'có' hay 'ăn'. Đây đúng dạng mà mẫu regex phụ trách, và mẫu đó từng là MÃ CHẾT vì một byte 0x08 vô hình biến `\\b` thành backspace. Không ca nào trong 112 ca cũ dùng dạng này — mọi ca dị ứng cũ đều dùng 'dị ứng', 'không ăn được', hoặc 'không CÓ' — nên lỗi sống suốt mà mọi thước đo vẫn xanh. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
+    },
+    {
+      "id": "S-allergen-15",
+      "type": "A",
+      "family": "allergen_avoid",
+      "question": "Món nào không sữa",
+      "expect": {
+        "kind": "list",
+        "allowed": {
+          "tags_none": [
+            "allergen:dairy"
+          ]
+        },
+        "require_min": 3,
+        "forbid": {
+          "tags_any": [
+            "allergen:dairy"
+          ]
+        },
+        "must_offer_staff": true,
+        "why": "Cùng dạng với S-allergen-14 nhưng nhóm dị nguyên khác, để một nhóm hỏng không núp sau nhóm khác. Câu ngắn, không có chữ 'dị ứng' — đúng cách khách gõ nhanh. KHÓA ĐÁP ÁN không giới hạn danh mục: câu này không nói 'món ăn' nên trả kèm đồ uống là ĐÚNG. Bản đầu tôi ghi `allowed: savoury` và cả 7 ca mới đỏ đồng loạt — hệ thống đúng, khóa đáp án sai. Điều ca này kiểm là KHÔNG có nhãn dị nguyên, không phải danh mục."
+      }
     }
   ]
 }

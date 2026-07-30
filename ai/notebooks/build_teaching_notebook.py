@@ -532,8 +532,8 @@ print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, k
 
 - **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
   chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
-  nó **không còn là lỗi**. Kiểm kê: **61 cụm có nguy cơ** (44 bị chứa trong cụm khác, 29 nằm
-  trong tên món, 12 thuộc cả hai).
+  nó **không còn là lỗi**. Kiểm kê: **72 cụm có nguy cơ** (53 bị chứa trong cụm khác, 40 nằm
+  trong tên món, 21 thuộc cả hai).
 - **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
   cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
   không bao giờ hết.
@@ -541,7 +541,9 @@ print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, k
   Chênh lệch đó là **khoảng trống của tập đánh giá**, không phải bằng chứng cơ chế vô dụng. Đã
   lấp bằng 9 test riêng, và ba con số trên **được tính lại mỗi lần chạy test** —
   `test_understand.collision_census()`. Bản trước của tài liệu ghi "32 cụm" và "90 cụm": hai số
-  đó đúng lúc đo, rồi từ vựng lớn lên 303 cụm mà không ai tính lại.
+  đó đúng lúc đo, rồi từ vựng lớn lên mà không ai tính lại. Con số hiện tại cũng đã đổi một lần
+  nữa (61 → 72) khi từ vựng thêm 20 cụm tên món cho nhóm dị nguyên — và lần này **test đỏ báo
+  ngay**, đúng như nó được viết ra để làm.
 - **Quyết định tiếp theo:** dữ liệu nhãn đã an toàn, sang phần tri thức không nằm trong nhãn.
 """))
 
@@ -921,7 +923,7 @@ print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đườ
 | **Kiến thức phải nắm** | khóa đáp án dạng truy vấn thay vì danh sách · test hai chiều · chia ba nhóm chốt/phát triển/niêm phong · bộ dò lỗ thước đo |
 | **Tệp sở hữu** | `ai/evaluation/cases.json` · `answer_metric.py` · `menu_selectors.py` · `validate_cases.py` · `build_split.py` · `probe_metric_holes.py` · `test_answer_metric.py` |
 | **Đầu vào** | từ điển nhãn và kho tri thức của TV1 |
-| **Đầu ra bàn giao** | 112 ca / 41 họ · thước đo 37 test · bộ dò lỗ cho TV3 chạy `run_baseline.py` |
+| **Đầu ra bàn giao** | 119 ca / 41 họ · thước đo 37 test · bộ dò lỗ cho TV3 chạy `run_baseline.py` |
 | **Tự đo bằng** | `validate_cases.py` · `build_split.py --check` · `probe_metric_holes.py` · `python -m unittest discover -s ai/evaluation` |
 | **Trạng thái** | **xong** — 37 test xanh, bộ dò tìm 0 lỗ |
 
@@ -1224,10 +1226,10 @@ print(r.stdout)
 | **Câu hỏi khâu này trả lời** | *Bao nhiêu câu trả lời được mà KHÔNG cần mô hình sinh?* |
 | **Kiến thức phải nắm** | số nền (baseline) · khớp cụm dài trước rồi ăn hết đoạn · **ràng buộc khác ngữ cảnh** · fail-closed cho dị nguyên · ablation để chứng minh từng cơ chế có giá trị |
 | **Tệp sở hữu** | `ai/app/understand.py` · `answer.py` · `cart.py` · `session.py` · `test_understand.py` |
-| **Đầu vào** | 112 ca và thước đo của TV2; từ điển nhãn của TV1 |
+| **Đầu vào** | 119 ca và thước đo của TV2; từ điển nhãn của TV1 |
 | **Đầu ra bàn giao** | hợp đồng `Reply` cho TV4/TV5; số nền để mọi thứ sau so vào |
 | **Tự đo bằng** | `run_baseline.py --all` · `run_ablation.py` · `python -m unittest discover -s ai/app` |
-| **Trạng thái** | **xong phần trả lời** — 101/112, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
+| **Trạng thái** | **xong phần trả lời** — 108/119, 0 lỗi an toàn. **Còn lại:** thẻ giỏ hàng và bộ nhớ phiên |
 
 ### Vì sao phải đo số nền TRƯỚC khi thêm mô hình
 
@@ -1348,10 +1350,10 @@ print(f"Một ca chốt đỏ là CHẶN, kể cả khi tỷ lệ chung tăng.")
     out.append(md(r"""
 #### Nhận xét — Mục 12
 
-- **Quan sát:** 101/112 (90,2%) chỉ bằng mã tất định. Nhóm **chốt 14/14 (100%)**, phát triển
-  54/61, niêm phong 33/37. Sàn để so là 8/112 (7,1%). 13 nhánh đều được dùng thật.
+- **Quan sát:** 108/119 (90,8%) chỉ bằng mã tất định. Nhóm **chốt 21/21 (100%)**, phát triển
+  54/61, niêm phong 33/37. Sàn để so là 8/119 (6,7%). 13 nhánh đều được dùng thật.
 - **Diễn giải:** con số 90,2% chỉ có nghĩa vì có **sàn 7,1%** đặt cạnh. Một hệ thống luôn đáp
-  "chưa có dữ liệu" cũng đạt 7,1% mà không trả lời gì — nếu không công bố sàn thì mọi tỷ lệ đều
+  "chưa có dữ liệu" cũng đạt 6,7% mà không trả lời gì — nếu không công bố sàn thì mọi tỷ lệ đều
   "nghe được".
 - **Nhóm chốt là điều kiện chặn, không phải số liệu:** một ca chốt đỏ là **chặn phát hành**, kể
   cả khi tỷ lệ chung tăng. Đưa ca an toàn vào tập phát triển thì tỷ lệ chung sẽ che mất nó.
@@ -1553,7 +1555,7 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
 | **Câu hỏi khâu này trả lời** | *Với câu hỏi cần tri thức, lấy đoạn nào — và phương pháp lấy nào tốt hơn?* |
 | **Kiến thức phải nắm** | BM25 (`k1`, `b`, tf-idf) · embedding và cosine · hybrid RRF · Hit@k, MRR@k, nDCG@k, **forbidden@k** · giao thức đo độ trễ |
 | **Tệp sở hữu** | `ai/app/rag/bm25.py` · `embedding.py` · `hybrid.py` · `retriever.py` · `run_retrieval_comparison.py` |
-| **Đầu vào** | 303 đoạn `synthesize` của TV1; ~120 ca truy hồi của TV2 |
+| **Đầu vào** | 303 đoạn `synthesize` của TV1; ~120 ca truy hồi của TV2 (chưa có) |
 | **Đầu ra bàn giao** | bảng so ba phương pháp trên **hai bài toán**, kèm phân tích ca sai |
 | **Tự đo bằng** | `run_retrieval_comparison.py` (**chưa viết**) |
 | **Trạng thái** | **kho đã sẵn sàng, phép so CHƯA CHẠY** — xem Mục 15 |
@@ -1581,7 +1583,7 @@ sẽ **có số nhưng không nói được gì**:
 | **Kho đủ lớn** | với ~40 đoạn thì BM25 và embedding hòa nhau tầm thường | **đủ** — 303 đoạn |
 | **Chỉ mục sạch** | đoạn nội bộ hoặc đoạn rác trong chỉ mục làm mọi phương pháp tệ đều nhau | **đủ** — cửa `audience`, 0 đoạn quá ngắn, 0 trùng tiêu đề |
 | **Mã đoạn tất định** | khóa đáp án trỏ vào `chunk_id`; mã đổi thì mọi ca trỏ sai | **đủ** — kiểm ở Mục 6 |
-| **Tập đánh giá truy hồi** | 112 ca hiện có chấm **câu trả lời**, không chấm **đoạn được lấy** | **CHƯA CÓ** |
+| **Tập đánh giá truy hồi** | 119 ca hiện có chấm **câu trả lời**, không chấm **đoạn được lấy** | **CHƯA CÓ** |
 
 ### Hai bài toán, không phải một — và đây là phần đáng báo cáo nhất
 
@@ -1681,7 +1683,7 @@ print(f"   không trả lời đúng được. Đây là kết quả đáng báo
 | **Đầu vào** | `Reply` của TV3; kho tri thức của TV1 |
 | **Đầu ra bàn giao** | dịch vụ HTTP mà backend gọi được |
 | **Tự đo bằng** | `run_with_model.py` · `python -m unittest test_llm_understand test_packaging` |
-| **Trạng thái** | **xong phần mô hình** — 112/112, 0 lỗi an toàn. **Còn lại:** 5 endpoint HTTP |
+| **Trạng thái** | **xong phần mô hình** — 119/119, 0 lỗi an toàn. **Còn lại:** 5 endpoint HTTP |
 
 ### Nguyên tắc phân quyền: mô hình chỉ HIỂU, không CHỌN
 
@@ -1890,8 +1892,8 @@ print("hai ca dị ứng mà trước đây chỉ mô hình hiểu đã được
     out.append(md(r"""
 #### Nhận xét — Mục 16
 
-- **Quan sát:** 101/112 → **112/112** khi có mô hình, và mô hình chỉ được gọi ở **22/112 ca
-  (20%)**. **0 lỗi an toàn ở cả hai chế độ.** 11 ca mô hình giải thêm thuộc các họ hương vị, sức
+- **Quan sát:** 108/119 → **119/119** khi có mô hình, và mô hình chỉ được gọi ở **22/119 ca
+  (18%)**. **0 lỗi an toàn ở cả hai chế độ.** 11 ca mô hình giải thêm thuộc các họ hương vị, sức
   khỏe, ngân sách, dịp ăn, cách chế biến — **không họ nào là họ an toàn**.
 - **Diễn giải:** đây là phát hiện quan trọng nhất của dự án, và nó **không** phải "mô hình tốt".
   Nó là: *an toàn phải nằm ở phần tất định, không nằm ở phần sinh*. Ban đầu hai ca dị ứng chỉ mô
@@ -2022,9 +2024,9 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 
 | Con số | Giá trị | Điều nó **không** nói |
 |---|---|---|
-| tất định 101/112 | 90,2% | không nói khách thật hỏi gì — mọi ca do người viết |
-| có mô hình 112/112 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
-| lỗi an toàn 0 / 0 | trên 112 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
+| tất định 108/119 | 90,8% | không nói khách thật hỏi gì — mọi ca do người viết |
+| có mô hình 119/119 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
+| lỗi an toàn 0 / 0 | trên 119 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
 | kho 84 tài liệu / 327 đoạn | đủ để so truy hồi | chưa nói phương pháp nào tốt hơn — **chưa đo** |
 | 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 61 chỗ |
 
@@ -2035,7 +2037,7 @@ Mọi con số sau đó đo trên tập đã thấy.
 
 1. **Không có log khách thật.** Mọi ca đánh giá do người viết. Con số đo được hệ thống **có tôn
    trọng ràng buộc hay không**; nó **không** đo được khách thật hỏi gì.
-2. **Tập niêm phong đã dùng hết.** Mọi con số trên 112 ca hiện tại không còn là held-out. Tập
+2. **Tập niêm phong đã dùng hết.** Mọi con số trên 119 ca hiện tại không còn là held-out. Tập
    mới (truy hồi, đa lượt) mỗi tập chỉ được mở **một lần**.
 3. **28/84 tài liệu tri thức là `demo`** — giá trị mẫu. Chúng không thể nói sai về **con số** (số
    lấy từ thực đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
@@ -2050,7 +2052,7 @@ Mọi con số sau đó đo trên tập đã thấy.
 
 | TV | Việc còn lại | Điều kiện chấp nhận đo được |
 |---|---|---|
-| **TV1** | mở rộng kho khi có nhu cầu thật | `build_knowledge.py --check` xanh, 112 ca không tụt |
+| **TV1** | mở rộng kho khi có nhu cầu thật | `build_knowledge.py --check` xanh, 119 ca không tụt |
 | **TV2** | ~120 ca truy hồi · ~25 kịch bản đa lượt · 4 phép kiểm giỏ hàng | bộ dò lỗ tìm 0 lỗ trên tập mới |
 | **TV3** | `cart.py` (5 bất biến) · `session.py` (3 quy tắc hợp nhất) | chốt `safety_cart_no_allergen` xanh |
 | **TV4** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |

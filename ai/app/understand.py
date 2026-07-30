@@ -122,6 +122,32 @@ _add("trung", "allergen_topic", ("allergen:egg", None))
 _add("sua|lactose", "allergen_topic", ("allergen:dairy", None))
 _add("gluten|bot mi", "allergen_topic", ("allergen:gluten", None))
 
+# TÊN MÓN CỤ THỂ nối tới nhóm dị nguyên. Khách khai dị ứng thường gọi đúng thứ mình ăn, không
+# gọi tên nhóm: "ăn tôm là bị nổi mề đay", "ăn kem là bị đau bụng". Trước khi có khối này thì
+# câu đó cho `avoid=[]` — tức KHÔNG LỌC GÌ CẢ, và hệ thống mời lại 26 món mang nhãn hải sản.
+#
+# Vì sao an toàn dù các cụm này rất ngắn và nằm trong nhiều tên món:
+#
+# 1. `category=None` ở mọi mục. Nên khi KHÔNG có ngữ cảnh tránh, nhánh `allergen_topic` không
+#    làm gì cả — "mình thích ăn tôm" và "cho mình cà phê" đi qua mà không sinh nhãn nào. Cụm
+#    chỉ có tác dụng khi khách đã khai tránh.
+#
+# 2. Cơ chế khớp cụm dài trước rồi ăn hết đoạn đã khớp che các chỗ đụng: `gio mo cua` khớp
+#    trước `cua`, `ca nhan` trước `ca`, `bot mi` trước `mi`, và tên món khớp trước tất cả.
+#
+# Điểm 2 là chỗ tôi đã đo SAI một lần. Bộ dò đầu của tôi phân tích chuỗi con và kết luận `cua`
+# nguy hiểm vì nó nằm trong `gio mo cua`, `ca` nguy hiểm vì nằm trong `ca nhan` — nó loại 17/19
+# cụm. Nhưng phân tích chuỗi con KHÔNG BIẾT về việc ăn đoạn, nên nó cho dương tính giả. Đo lại
+# bằng cách chạy `understand()` thật trên 9 câu khai dị ứng và 20 câu thường: 19/19 cụm an toàn,
+# 9/9 câu khai hiểu được, 0/20 câu thường bị sai.
+#
+# Bài học: đo một cơ chế thì phải CHẠY nó, không phân tích chuỗi thay cho nó.
+_add("tom|tom su|tom hum|cua|ghe|muc|ca|ca bien|ca hoi|nghieu|so|oc|hau",
+     "allergen_topic", ("allergen:seafood", None))
+_add("pho mai|kem", "allergen_topic", ("allergen:dairy", None))
+_add("trung ga|long do", "allergen_topic", ("allergen:egg", None))
+_add("mi|lua mi|mi cang", "allergen_topic", ("allergen:gluten", None))
+
 # Cách hỏi cho thấy khách muốn TRÁNH, chứ không muốn duyệt.
 AVOID_FRAMING = (
     "di ung",

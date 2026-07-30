@@ -112,7 +112,7 @@ def collision_census() -> dict[str, int]:
     """Kiểm kê chỗ đụng chữ, TÍNH LẠI mỗi lần chạy thay vì viết số vào tài liệu.
 
     Vì sao hàm này tồn tại: tài liệu từng ghi "32 cụm nằm trong cụm khác" và "90 cụm nằm trong
-    tên món". Hai số đó đúng lúc đo, rồi từ vựng lớn dần lên 303 cụm và **không ai tính lại** —
+    tên món". Hai số đó đúng lúc đo, rồi từ vựng lớn dần lên và **không ai tính lại** —
     tới lúc tôi đo lại thì không cách đếm nào cho ra 32 hay 90 nữa.
 
     Đó đúng lớp lỗi mà cả dự án này chống: **số viết tay thì trôi khỏi dữ liệu.** Nên số phải
@@ -141,9 +141,9 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 303 cụm từ vựng và 91 tên món: **44 cụm bị chứa trong cụm khác**, **29 cụm nằm
-    trong tên món**, và hợp lại là **61 cụm có nguy cơ** (12 cụm thuộc cả hai). Cơ chế khớp cụm
-    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 61 chỗ đó.
+    Kiểm kê trên 323 cụm từ vựng và 91 tên món: **53 cụm bị chứa trong cụm khác**, **40 cụm nằm
+    trong tên món**, và hợp lại là **72 cụm có nguy cơ** (21 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 72 chỗ đó.
 
     Nhưng tập đánh giá chỉ có ca cho **một** trong số đó — nên phép đo ablation báo "mất 1 ca"
     là **chặn dưới**, không phải giá trị thật của cơ chế. Đây là phát hiện về *tập đánh giá*,
@@ -161,7 +161,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 303, "trong_cum_khac": 44, "trong_ten_mon": 29, "co_rui_ro": 61},
+            {"tu_vung": 323, "trong_cum_khac": 53, "trong_ten_mon": 40, "co_rui_ro": 72},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 

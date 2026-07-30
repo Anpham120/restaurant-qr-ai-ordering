@@ -61,7 +61,7 @@ Nếu cần thêm tài liệu:
 1. Thêm nhóm nhãn vào `DERIVED_GROUPS` trong `build_knowledge.py` — nhưng chỉ khi nhóm đó có câu
    hỏi mà **lớp tra khóa không trả lời được**.
 2. Thêm tài liệu người viết vào `ai/knowledge/written/`, bắt buộc `audience: guest`.
-3. Chạy lại `build_knowledge.py` và xác nhận 112 ca không tụt.
+3. Chạy lại `build_knowledge.py` và xác nhận 119 ca không tụt.
 
 ### Sở hữu tệp
 `ai/knowledge/*` · `ai/scripts/build_knowledge.py` ·
@@ -104,7 +104,7 @@ một lỗ trong thước đo làm con số 0,9960 tụt xuống 0,7368 khi bị
 - **Bộ dò lỗ** tìm lỗi *chưa nghĩ tới*: đưa câu trả lời chắc chắn tệ qua toàn bộ tập ca.
 
 ### Việc còn lại
-1. **~25 kịch bản đa lượt** (`session_scripts.json`) đo bộ nhớ phiên — 112 ca hiện có đều một
+1. **~25 kịch bản đa lượt** (`session_scripts.json`) đo bộ nhớ phiên — 119 ca hiện có đều một
    lượt nên không đo được ngữ cảnh. Bốn nhóm: dị ứng phải nhớ (chốt an toàn), ghi đè ràng buộc,
    không lặp món, tham chiếu ngược.
 2. **~120 ca đánh giá truy hồi** cho TV4, khóa đáp án là điều kiện chọn.
@@ -139,8 +139,8 @@ Tập đánh giá, khóa đáp án dạng truy vấn, chia ba nhóm, thước đ
 ### Kiến thức phải nắm
 - **Số nền** là mốc để mọi thứ sau so vào. Bản cũ chỉ 33% câu trả lời do mã tất định sinh, và
   không ai biết vì sao.
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **61 cụm có nguy cơ đụng
-  chữ** (44 cụm bị chứa trong cụm khác, 29 cụm nằm trong tên món, 12 cụm thuộc cả hai). Số này
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **72 cụm có nguy cơ đụng
+  chữ** (53 cụm bị chứa trong cụm khác, 40 cụm nằm trong tên món, 21 cụm thuộc cả hai). Số này
   do `test_understand.collision_census()` tính lại mỗi lần chạy, không viết tay.
 - **Ràng buộc khác ngữ cảnh.** "Tôi ăn chay" là ràng buộc (lọc cứng); "tôi đi hẹn hò" là ngữ
   cảnh (chỉ sắp thứ tự). Lẫn hai thứ thì câu hẹn hò chỉ còn **đúng một món**.
@@ -299,7 +299,7 @@ chỗ theo hai hướng ngược nhau.
 
 ```
 TV3 — tuần 2
-  số đo: run_baseline.py --all -> 104/112 (tuần trước 101/112), 0 lỗi an toàn
+  số đo: run_baseline.py --all -> 111/119 (tuần trước 108/119), 0 lỗi an toàn
   làm được: thẻ giỏ + 5 test bất biến; bộ nhớ dị nguyên cộng dồn
   đang vướng: chưa rõ "món khác đi" nên bỏ bao nhiêu món đã gợi ý — cần TV2 viết ca
 ```
