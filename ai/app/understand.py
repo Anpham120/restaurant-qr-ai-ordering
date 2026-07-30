@@ -321,15 +321,26 @@ _add("giam can|an kieng", "require", "health:low_calorie")
 _add("tap gym|nhieu dam", "require", "health:high_protein")
 _add("thanh thanh", "require", "health:light")
 
-# Thời tiết. Khách nói thời tiết chứ không nói mùa. Cụm nóng map về `season:hot_season` —
-# nhãn "Mùa nóng" — chứ không phải `season:cooling` ("Giải nhiệt"), vì đo trên thực đơn này
-# thấy `season:cooling` gắn cho **5 đồ uống nhưng chỉ 2/49 món ăn**, nên câu "ăn gì cho mát
-# người" lọc theo `cooling` chỉ còn đúng 2 món — vừa sát ngưỡng, một món đổi nhãn là mất câu
-# trả lời. Đây là khiếm khuyết GẮN NHÃN của dữ liệu, không phải của từ vựng, và nó được ghi ra
-# thay vì lấp bằng cách sửa nhãn món cho vừa một ca đánh giá.
-# "giải nhiệt" thì giữ đúng `season:cooling` vì đó là nhãn của chính cụm đó.
-_add("troi nong|cho mat|mat nguoi", "require", "season:hot_season")
-_add("giai nhiet", "require", "season:cooling")
+# Thời tiết. Khách nói thời tiết chứ không nói mùa, nên cụm được tách theo ĐÚNG nghĩa của nhãn:
+#
+#   "trời nóng"                  -> season:hot_season  (nhãn "Mùa nóng")
+#   "cho mát", "mát người",      -> season:cooling     (nhãn "Giải nhiệt")
+#   "giải nhiệt"
+#
+# Bản trước gộp cả ba cụm nóng vào `season:hot_season`, và lý do là ĐỘ BAO chứ không phải nghĩa:
+# lúc đó `season:cooling` gắn cho 5 đồ uống nhưng chỉ **2/56 món ăn**, nên câu "ăn gì cho mát
+# người" lọc theo `cooling` chỉ còn 2 món — sát ngưỡng, một món đổi nhãn là mất câu trả lời.
+#
+# `ai/scripts/audit_season_tags.py` đối chiếu nhãn với MÔ TẢ món và tìm ra khiếm khuyết đó là lỗi
+# dữ liệu thật, không phải lựa chọn: *Canh khổ qua* ghi "thanh nhiệt" và CÓ nhãn, còn *Bánh tráng
+# cuốn thịt heo* ghi "Thanh mát... Phù hợp mùa nóng" mà KHÔNG có. Sau khi lấp 3 lỗ đó,
+# `season:cooling` phủ **4/56 món ăn** — bằng `hot_season` — nên lý do gộp không còn.
+#
+# Hai cụm cùng câu ("Trời nóng quá, ăn gì cho mát người") giờ cho require = [hot_season, cooling],
+# và phép AND ra **3 món** — nhiều hơn cả hai phương án gộp trước đó. Nhãn mùa không nằm trong
+# `exclusive_groups` nên một món mang được cả hai, và đó là lý do phép AND ở đây không triệt tiêu.
+_add("troi nong", "require", "season:hot_season")
+_add("cho mat|mat nguoi|giai nhiet", "require", "season:cooling")
 _add("troi lanh|cho am|an cho am", "require", "season:cold_season")
 
 # Ngân sách nói bằng lời, không bằng số. `price` nằm trong `exclusive_groups` nên mỗi món đúng

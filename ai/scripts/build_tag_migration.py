@@ -37,21 +37,40 @@ MIGRATIONS = (
 )
 SNAPSHOT_PATH = MIGRATIONS / "RestaurantDbContextModelSnapshot.cs"
 
-# Dấu thời gian cố định, không sinh từ giờ hệ thống: migration phải tái lập được và
-# chạy lại script không được tạo ra một migration thứ hai.
-STAMP = "20260729120000"
-CLASS_NAME = "RelabelsMenuTagsWithNamespacedKeys"
+# CHUỖI PHIÊN BẢN nhãn. Mỗi lần bộ nhãn thực đơn đổi sau khi một migration ĐÃ CHẠY trên cơ sở dữ
+# liệu thật thì phải thêm một dòng vào đây — không được sửa lại migration cũ.
+#
+# Vì sao không sửa migration cũ: EF ghi migration đã chạy vào `__EFMigrationsHistory` và **không
+# chạy lại**. Nên sửa nội dung của nó chỉ ảnh hưởng cơ sở dữ liệu MỚI TẠO; cơ sở dữ liệu đang chạy
+# giữ nhãn cũ mãi. Đó đúng là lỗi đã xảy ra: 3 nhãn `season:cooling` được thêm vào thực đơn, tệp
+# JSON và tệp seed C# đều cập nhật, nhưng cơ sở dữ liệu vẫn 11 món — nên **trợ lý AI thấy nhãn mới
+# mà trang thực đơn của khách thì không**. Đúng lớp lệch hai nguồn mà migration đầu tiên trong danh
+# sách này tồn tại để hợp nhất.
+#
+# Dấu thời gian CỐ ĐỊNH, không sinh từ giờ hệ thống: chạy lại script không được tạo migration mới,
+# và migration phải tái lập được bit-for-bit.
+#
+# Mỗi phiên bản đặt nhãn cho **cả 91 món** theo trạng thái thực đơn lúc đó, chứ không chỉ món đổi.
+# Nhờ vậy `Down()` của phiên bản N chỉ cần đọc `Up()` của phiên bản N-1 — không cần lưu trạng thái
+# ở đâu khác, và tệp migration tự là nguồn.
+REVISIONS: list[tuple[str, str]] = [
+    ("20260729120000", "RelabelsMenuTagsWithNamespacedKeys"),
+    ("20260730090000", "AddsCoolingSeasonTagsFromDescriptionAudit"),
+]
+STAMP, CLASS_NAME = REVISIONS[-1]
 MIGRATION_PATH = MIGRATIONS / f"{STAMP}_{CLASS_NAME}.cs"
 
-HEADER = '''using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+# Migration của phiên bản TRƯỚC, dùng để đọc nhãn cũ cho `Down()`. Với phiên bản đầu thì nguồn là
+# migration seed gốc.
+SEED_MIGRATION = MIGRATIONS / "20260707233442_SeedOfficialMenuAndThirtyTables.cs"
+PREV_MIGRATION = (
+    MIGRATIONS / f"{REVISIONS[-2][0]}_{REVISIONS[-2][1]}.cs" if len(REVISIONS) > 1
+    else SEED_MIGRATION
+)
 
-#nullable disable
-
-namespace RestaurantQrAiOrdering.Api.Data.Migrations;
-
-/// <summary>
-/// Gán nhãn lại thực đơn theo khóa có không gian tên, và hợp nhất hai nguồn nhãn.
+# Mô tả cho từng phiên bản, in vào `<summary>` của tệp sinh ra.
+DESCRIPTIONS: dict[str, str] = {
+    "RelabelsMenuTagsWithNamespacedKeys": """/// Gán nhãn lại thực đơn theo khóa có không gian tên, và hợp nhất hai nguồn nhãn.
 ///
 /// Trước migration này, cơ sở dữ liệu và tệp `backend/data/menu-dataset.json` mang hai
 /// bộ nhãn khác nhau cho cùng 91 món: cơ sở dữ liệu 1,7 nhãn/món, tệp JSON 15 nhãn/món.
@@ -65,10 +84,42 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations;
 /// nên cả lớp lỗi đó biến mất về mặt cấu trúc.
 ///
 /// Nhãn hiển thị cho khách không đổi: giao diện tra `backend/data/menu-tags.json` và
-/// nhận cả khóa mới lẫn tên cũ, nên "Tối", "Cá", "Bình dân" vẫn hiện như trước.
+/// nhận cả khóa mới lẫn tên cũ, nên "Tối", "Cá", "Bình dân" vẫn hiện như trước.""",
+    "AddsCoolingSeasonTagsFromDescriptionAudit": """/// Thêm `season:cooling` cho ba món mà bản rà nhãn tìm ra, và đưa cơ sở dữ liệu về đúng
+/// bộ nhãn của `backend/data/menu-dataset.json`.
+///
+/// Vì sao cần migration THỨ HAI thay vì sửa migration trước: EF ghi migration đã chạy vào
+/// `__EFMigrationsHistory` và không chạy lại. Sửa migration cũ chỉ ảnh hưởng cơ sở dữ liệu
+/// mới tạo — cơ sở dữ liệu đang chạy giữ nhãn cũ mãi, nên **trợ lý AI thấy nhãn mới mà
+/// trang thực đơn của khách thì không**. Đó đúng là lớp lệch hai nguồn mà migration trước
+/// tồn tại để hợp nhất, nên để nó tái diễn là mất luôn ý nghĩa của lần hợp nhất đó.
+///
+/// Ba món, và bằng chứng nằm ngay trong mô tả CỦA CHÍNH MÓN — không suy từ ca đánh giá:
+///
+///     Gỏi cuốn tôm thịt         "Cuốn TƯƠI MÁT ... ít dầu mỡ"
+///     Bánh tráng cuốn thịt heo  "THANH MÁT, không dầu mỡ. PHÙ HỢP MÙA NÓNG"
+///     Đĩa trái cây theo mùa     "Đĩa trái cây tươi ... TƯƠI MÁT, giàu vitamin"
+///
+/// `ai/scripts/audit_season_tags.py` tìm ra chúng bằng cách đối chiếu nhãn với mô tả, và
+/// gắn cờ 10 chỗ — 7 trong 10 là dương tính giả (Trà sen Tây Hồ ghi "hãm nóng", bia ghi
+/// "thanh mát" để mô tả VỊ...), nên bản rà cố tình KHÔNG tự sửa dữ liệu.
+///
+/// `season:cooling` cho món ăn: 2/56 -> 4/56.""",
+}
+
+HEADER = '''using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace RestaurantQrAiOrdering.Api.Data.Migrations;
+
+/// <summary>
+{description}
 ///
 /// Sinh bởi `ai/scripts/build_tag_migration.py` — sửa nhãn thì chạy lại script, đừng sửa
-/// tay tệp này.
+/// tay tệp này. Nhãn đổi SAU khi migration này đã chạy trên cơ sở dữ liệu thật thì phải
+/// thêm một phiên bản mới vào `REVISIONS`, không sửa lại tệp này.
 /// </summary>
 [DbContext(typeof(RestaurantDbContext))]
 [Migration("{stamp}_{cls}")]
@@ -85,7 +136,7 @@ public partial class {cls} : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {{
-        // Trả về đúng bộ nhãn cũ để có thể lùi lại, kể cả bộ cũ vốn đã thiếu và lệch.
+        // Trả về đúng bộ nhãn của phiên bản TRƯỚC để lùi được, kể cả bộ cũ vốn thiếu và lệch.
         migrationBuilder.Sql(
             """
 {down_sql}
@@ -103,10 +154,30 @@ def sql_array(tags: list[str]) -> str:
 
 
 def read_old_tags() -> dict[str, list[str]]:
-    """Đọc nhãn cũ từ migration seed đã chạy trên production — nguồn duy nhất còn giữ
-    trạng thái trước khi gán lại, để `Down()` lùi được."""
-    seed = MIGRATIONS / "20260707233442_SeedOfficialMenuAndThirtyTables.cs"
-    text = seed.read_text(encoding="utf-8-sig")
+    """Đọc nhãn của phiên bản TRƯỚC, để `Down()` lùi được.
+
+    Nguồn là **tệp migration của phiên bản trước**, không phải một bản sao lưu ở đâu khác. Nhờ mỗi
+    phiên bản đặt nhãn cho cả 91 món (không chỉ món đổi), tệp migration TỰ LÀ nguồn trạng thái —
+    không có chỗ thứ hai để lệch.
+
+    Với phiên bản đầu thì nguồn là migration seed gốc, và nó dùng HAI dạng câu lệnh nên phần đọc
+    dưới đây phải chịu cả hai. Với phiên bản sau thì nguồn là các câu `UPDATE ... ARRAY[...]` do
+    chính script này sinh ra, đọc bằng một mẫu riêng vì hình dạng khác hoàn toàn.
+    """
+    text = PREV_MIGRATION.read_text(encoding="utf-8-sig")
+
+    # Phiên bản sinh bởi script này: `UPDATE menu_items SET tags = ARRAY['a', 'b']::text[]
+    #     WHERE id = 'm_001';`
+    tu_update = dict(
+        (m.group(2), [t.strip().strip("'") for t in m.group(1).split(",") if t.strip()])
+        for m in re.finditer(
+            r"UPDATE menu_items SET tags = ARRAY\[([^\]]*)\]::text\[\]\s+WHERE id = '(m_\d+)';",
+            text,
+        )
+    )
+    if tu_update:
+        return tu_update
+
     out: dict[str, list[str]] = {}
     # Migration seed dùng hai dạng: `UpdateData` ghi `keyValue: "m_001"`, còn
     # `InsertData` ghi `{ "m_048", ... }`.
@@ -231,11 +302,35 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.check:
+        # SO tệp sinh ra với tệp đã commit, và trả mã KHÁC 0 khi lệch.
+        #
+        # Bản đầu của `--check` chỉ in số rồi trả 0 — tức nó không kiểm gì cả, và CI vẫn xanh khi
+        # migration đã lạc hậu so với thực đơn. Đúng lỗi đó đã xảy ra: 3 nhãn được thêm vào thực
+        # đơn, `build_tag_dictionary.py --check` đỏ đúng và bắt được tệp seed, nhưng bước này im
+        # lặng — nên nếu chỉ tin CI thì cơ sở dữ liệu sẽ lệch mà không ai biết.
+        #
+        # Mọi `--check` khác trong dự án đều so tệp; bước này phải theo cùng hợp đồng.
+        moi_mig = HEADER.format(stamp=STAMP, cls=CLASS_NAME, up_sql=up_sql, down_sql=down_sql,
+                                description=DESCRIPTIONS[CLASS_NAME])
+        lech = []
+        if not MIGRATION_PATH.exists():
+            lech.append(f"{MIGRATION_PATH.name} CHƯA TỒN TẠI")
+        elif MIGRATION_PATH.read_text(encoding="utf-8-sig") != moi_mig:
+            lech.append(f"{MIGRATION_PATH.name} khác kết quả sinh lại")
+        if new_snapshot is not None and new_snapshot != snap_text:
+            lech.append(f"{SNAPSHOT_PATH.name} khác kết quả sinh lại")
+        if lech:
+            print(f"\nTỆP ĐÃ COMMIT KHÁC KẾT QUẢ SINH LẠI ({len(lech)}):")
+            for l in lech:
+                print(f"  - {l}")
+            print("Chạy `python ai/scripts/build_tag_migration.py` để cập nhật.")
+            return 1
         print("\n--check: không ghi tệp nào.")
         return 0
 
     MIGRATION_PATH.write_text(
-        HEADER.format(stamp=STAMP, cls=CLASS_NAME, up_sql=up_sql, down_sql=down_sql),
+        HEADER.format(stamp=STAMP, cls=CLASS_NAME, up_sql=up_sql, down_sql=down_sql,
+                      description=DESCRIPTIONS[CLASS_NAME]),
         encoding="utf-8",
     )
     if new_snapshot is not None and new_snapshot != snap_text:

@@ -658,7 +658,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             IsAvailable = true,
                             Name = "Gỏi cuốn tôm thịt",
                             Price = 65000m,
-                            Tags = new[] { "allergen:peanut", "allergen:seafood", "audience:child", "health:healthy", "health:light", "health:low_calorie", "health:low_fat", "ingredient:pork", "ingredient:shrimp", "meal:lunch", "method:rolled", "occasion:everyday", "party:family", "party:solo", "price:budget", "promo:popular", "promo:signature", "region:south", "season:all_year", "spice:none" },
+                            Tags = new[] { "allergen:peanut", "allergen:seafood", "audience:child", "health:healthy", "health:light", "health:low_calorie", "health:low_fat", "ingredient:pork", "ingredient:shrimp", "meal:lunch", "method:rolled", "occasion:everyday", "party:family", "party:solo", "price:budget", "promo:popular", "promo:signature", "region:south", "season:all_year", "season:cooling", "spice:none" },
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1256,7 +1256,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             IsAvailable = true,
                             Name = "Bánh tráng cuốn thịt heo",
                             Price = 85000m,
-                            Tags = new[] { "allergen:seafood", "health:healthy", "health:light", "health:low_calorie", "health:low_fat", "ingredient:pork", "meal:dinner", "method:boiled", "method:rolled", "party:friends", "party:share", "party:two_three", "price:mid", "region:central", "region:danang", "season:hot_season", "spice:mild" },
+                            Tags = new[] { "allergen:seafood", "health:healthy", "health:light", "health:low_calorie", "health:low_fat", "ingredient:pork", "meal:dinner", "method:boiled", "method:rolled", "party:friends", "party:share", "party:two_three", "price:mid", "region:central", "region:danang", "season:cooling", "season:hot_season", "spice:mild" },
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1659,7 +1659,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             IsAvailable = true,
                             Name = "Đĩa trái cây theo mùa",
                             Price = 75000m,
-                            Tags = new[] { "audience:child", "diet:vegan", "diet:vegetarian", "flavour:sweet", "health:healthy", "health:light", "health:low_calorie", "meal:dinner", "occasion:banquet", "party:family", "party:friends", "party:share", "party:two_three", "price:mid", "season:all_year", "spice:none" },
+                            Tags = new[] { "audience:child", "diet:vegan", "diet:vegetarian", "flavour:sweet", "health:healthy", "health:light", "health:low_calorie", "meal:dinner", "occasion:banquet", "party:family", "party:friends", "party:share", "party:two_three", "price:mid", "season:all_year", "season:cooling", "spice:none" },
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new

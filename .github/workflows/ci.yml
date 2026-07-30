@@ -153,6 +153,16 @@ jobs:
       - name: Rà nhãn dị nguyên
         run: python ai/scripts/audit_allergen_tags.py
 
+      # Rà nhãn MÙA, cùng khuôn với bản rà dị nguyên và cùng lý do: nhãn phải nhất quán với MÔ TẢ
+      # món. Phép so truy hồi làm lộ `season:cooling` chỉ gắn cho 2/56 món ăn trong khi nhiều món
+      # có mô tả ghi rõ "thanh mát" / "phù hợp mùa nóng" — bản rà tìm ra, và 3 lỗ đã được lấp.
+      #
+      # Rà HAI CHIỀU: thiếu nhãn, VÀ mang nhãn mà mô tả không có bằng chứng. Chỉ rà chiều đầu thì
+      # cách "sửa" dễ nhất là gắn nhãn cho thật nhiều món, và bản rà sẽ luôn sạch trong khi nhãn
+      # thành vô nghĩa.
+      - name: Rà nhãn mùa
+        run: python ai/scripts/audit_season_tags.py
+
       # Tập đánh giá TRUY HỒI — khác tập 119 ca: nó chấm ĐOẠN ĐƯỢC LẤY, không chấm câu trả lời.
       # Khóa đáp án là điều kiện chọn, giải ra chunk_id khi chạy, nên nó không thể trỏ vào tài
       # liệu không tồn tại mà vẫn xanh.

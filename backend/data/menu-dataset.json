@@ -166,6 +166,7 @@
         "promo:signature",
         "region:south",
         "season:all_year",
+        "season:cooling",
         "spice:none"
       ]
     },
@@ -1274,6 +1275,7 @@
         "price:mid",
         "region:central",
         "region:danang",
+        "season:cooling",
         "season:hot_season",
         "spice:mild"
       ]
@@ -2364,6 +2366,7 @@
         "party:two_three",
         "price:mid",
         "season:all_year",
+        "season:cooling",
         "spice:none"
       ]
     },

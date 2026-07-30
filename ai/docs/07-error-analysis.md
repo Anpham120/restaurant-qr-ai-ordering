@@ -425,13 +425,96 @@ Xác nhận cuối qua backend thật (sau khi sửa cả bốn): tham chiếu n
 3. ~~**`last_listed_ids` không đi qua backend.**~~ **Đã sửa** — xem mục 9.4. Nó đi vòng tròn qua
    `constraints`, không cần đổi hợp đồng backend và không cần migration. Đã xác nhận qua backend
    thật, có 3 test chốt gồm một chiều nghịch.
-4. **`season:cooling` chỉ gắn cho 2/49 món ăn** (và 5 đồ uống). Khiếm khuyết gắn nhãn thật, nên cụm
-   "trời nóng / cho mát" map về `season:hot_season` (4 món ăn) để có biên. Không sửa nhãn món cho
-   vừa một ca đánh giá.
+4. ~~**`season:cooling` chỉ gắn cho 2/56 món ăn.**~~ **Đã sửa** — xem mục 10.
 5. **Kho tri thức: 28/84 tài liệu là `demo`.** Chúng không thể sai về **con số** (số lấy từ thực
    đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
 6. **Không có log khách thật.** Mọi ca do người viết. Con số đo được hệ thống có tôn trọng ràng
    buộc hay không; nó **không** đo được khách thật hỏi gì.
+
+---
+
+## 10. Lấp khiếm khuyết gắn nhãn mùa — bằng bản rà, không bằng tay
+
+Phép so truy hồi làm lộ một khiếm khuyết dữ liệu: `season:cooling` gắn cho **5 đồ uống nhưng chỉ
+2/56 món ăn**. Nên câu "trời nóng quá, ăn gì cho mát người" — câu hoàn toàn bình thường — lọc theo
+`cooling` chỉ còn **2 món**, sát ngưỡng đến mức một món đổi nhãn là mất câu trả lời.
+
+Cách xử lý đi theo đúng tiền lệ của bước 1 với nhãn dị nguyên: **viết bản rà đối chiếu nhãn với mô
+tả món**, không chọn tay từng món. Chọn tay thì không kiểm lại được, và cũng không ai biết lần sau
+nhãn có trôi hay không.
+
+### `ai/scripts/audit_season_tags.py` — rà HAI CHIỀU
+
+| chiều | bắt gì | vì sao cần |
+|---|---|---|
+| **thiếu nhãn** | mô tả có bằng chứng mà món không mang nhãn | đây là khiếm khuyết đã đo được |
+| **nhãn lạ** | món mang nhãn mà mô tả không có bằng chứng nào | không có chiều này thì cách "sửa" dễ nhất là gắn nhãn cho thật nhiều món, bản rà luôn sạch mà nhãn thành vô nghĩa |
+
+Bản rà thừa hưởng ba bài học của bản rà dị nguyên: khớp theo **biên từ** (không chuỗi con), bỏ qua
+**câu phủ định**, và **ghi rõ vì sao** mỗi cụm là bằng chứng.
+
+### Kết quả đầu tiên: 10 chỗ, và 7 trong 10 là DƯƠNG TÍNH GIẢ
+
+Đây là phần đáng ghi lại. Bản rà **không** tự sửa dữ liệu, và lần này lý do đó trả lãi ngay:
+
+| món | cụm khớp | đọc mô tả thì thấy | quyết định |
+|---|---|---|---|
+| Trà sen Tây Hồ | "thanh mát" | mô tả ghi **"Hãm nóng trong ấm sứ"** — "thanh mát" là HẬU VỊ | không gắn |
+| Chè bưởi | "ăn lạnh" | ghi "Ăn lạnh **hoặc nóng**" — không dứt khoát | không gắn |
+| Cà phê sữa đá | "đá viên" | ghi "Caffeine cao, phù hợp buổi sáng" — món tỉnh táo | không gắn |
+| Cà phê dừa | "đá viên" | nhấn "béo ngậy", không nói gì về giải nhiệt | không gắn |
+| Bia Hà Nội · Bia hơi · Cocktail | "thanh mát" / "tươi mát" | mô tả **VỊ**, không mô tả chức năng | không gắn |
+
+Hai cụm phủ định (`hãm nóng`, `ăn lạnh hoặc nóng`) được **thêm vào bản rà** nên lần sau chúng bị
+bắt tự động. Năm món còn lại vào `DA_XET_GIU_NGUYEN` kèm lý do — cùng vai với `NOT_ALLERGENS` của
+bản rà dị nguyên: một phán đoán của người, ghi ra để đọc lại và bác được, thay vì để bản rà báo mãi
+một chỗ mà không ai biết đã xem chưa.
+
+Không từ khóa nào phân biệt được *"thanh mát" mô tả vị* với *"thanh mát" mô tả chức năng*. Chỗ đó
+cần người đọc, và điều bản rà làm được là **thu 91 món xuống 10 chỗ để đọc**.
+
+### Ba lỗ thật đã lấp
+
+```
+Gỏi cuốn tôm thịt         "Cuốn TƯƠI MÁT ... ít dầu mỡ"
+Bánh tráng cuốn thịt heo  "THANH MÁT, không dầu mỡ. PHÙ HỢP MÙA NÓNG"
+Đĩa trái cây theo mùa     "Đĩa trái cây tươi ... TƯƠI MÁT, giàu vitamin"
+```
+
+Cả ba có bằng chứng ngay trong mô tả **của chính món**, không phải suy từ ca đánh giá. Đó là ranh
+giới giữa *sửa lỗi dữ liệu* và *chỉnh dữ liệu cho vừa thước đo*.
+
+`season:cooling` món ăn: **2 → 4**. Bản rà cũng tìm ra hai lỗi của **chính nó**: "ăn nóng" bị dùng
+làm bằng chứng cho `cold_season` (nhiệt độ phục vụ **không phải** tính mùa — gần như mọi món Việt
+đều phục vụ nóng, nên một bằng chứng đúng với gần hết thực đơn không phân biệt được gì), và bốn món
+lẩu/cháo/súp mang `cold_season` mà bằng chứng là **LOẠI món** chứ không phải chữ. Không thêm "lẩu"
+vào danh sách bằng chứng, vì đo được: 7 món lẩu thì 3 mang `cold_season` và 4 mang `all_year` — tức
+người gắn nhãn đã phân biệt có ý, và một từ khóa "lẩu" sẽ biến lựa chọn đó thành 4 lỗi giả.
+
+### Hệ quả: từ vựng tách được theo ĐÚNG nghĩa nhãn
+
+Trước đó cả ba cụm nóng gộp vào `season:hot_season`, và lý do là **độ bao** chứ không phải nghĩa.
+Sau khi lấp lỗ thì lý do đó không còn:
+
+```
+"trời nóng"                        -> season:hot_season   (nhãn "Mùa nóng")
+"cho mát", "mát người", "giải nhiệt" -> season:cooling      (nhãn "Giải nhiệt")
+```
+
+Câu "Trời nóng quá, ăn gì cho mát người" giờ cho `require = [hot_season, cooling]`, và phép AND ra
+**3 món** — nhiều hơn **cả hai** phương án gộp trước đó (2 và 4 nhưng lệch nghĩa). Nhãn mùa không
+nằm trong `exclusive_groups` nên một món mang được cả hai, và đó là lý do phép AND ở đây không triệt
+tiêu.
+
+Ba câu đo được sau khi sửa:
+
+| câu | require | nêu ra |
+|---|---|---|
+| "Trời nóng quá, ăn gì cho mát người" | `hot_season` + `cooling` | 3 món, tất cả là món cuốn/gỏi/canh mát |
+| "Có nước gì giải nhiệt không?" | `cooling` | 5 đồ uống, tất cả đúng |
+| "Trời lạnh thế này ăn gì cho ấm" | `cold_season` | 6 món lẩu/cháo/tiềm |
+
+119/119 ca, 82/82 lượt phiên, 0 lỗi an toàn — không ca nào tụt. Bản rà nằm trong CI.
 
 ---
 
@@ -443,6 +526,7 @@ python -m unittest test_rag                       # trong ai/app
 python ai/evaluation/run_retrieval_comparison.py
 python ai/evaluation/analyze_failures.py
 python ai/evaluation/run_session_eval.py --chi-tiet
+python ai/scripts/audit_season_tags.py            # rà nhãn mùa, hai chiều
 
 # Phép so BA phương pháp (tải ~2–3GB)
 python -m pip install -r ai/requirements-rag.txt
