@@ -144,8 +144,8 @@ khách gõ câu → TV5 cổng vào & phiên → TV2 hiểu câu hỏi → TV3 t
 | **1** | **Nền tảng: dữ liệu & đo lường** | `knowledge/*` · `chunker.py` · `build_*.py` · `evaluation/*` | 1–11, 14–15 | **xong phần hiện có** |
 | **2** | Hiểu câu hỏi | `understand.py` · `llm_understand.py` | 4, 12–13, 16 | **xong** |
 | **3** | Truy hồi | `rag/bm25.py` · `embedding.py` · `hybrid.py` | 15 | **chưa có** |
-| **4** | Chọn món & giỏ hàng | `answer.py` · `cart.py` | 12–14 | `answer` xong; `cart` chưa |
-| **5** | Cổng vào & phiên | `service.py` · `session.py` | 16 (một phần) | **chưa có** |
+| **4** | Chọn món & giỏ hàng | `answer.py` · `cart.py` | 12–14 | **xong** |
+| **5** | Cổng vào & phiên | `service.py` · `session.py` | 16 (một phần) | **xong mã**, chưa chạy thật |
 | — | Kết quả, hạn chế, hướng phát triển | — | 17–19 | — |
 
 **Vì sao dữ liệu và đo lường thuộc CÙNG một người.** Chúng giống nhau ở điểm quan trọng nhất: cả
@@ -2064,8 +2064,10 @@ Mọi con số sau đó đo trên tập đã thấy.
    phải bảng thành phần nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
 5. **Độ trễ mô hình ~8,6 giây/lần gọi.** Chỉ 20% ca gọi, nhưng đây là con số đáng lo nhất khi
    dùng thật.
-6. **Chưa chạy thật end-to-end.** Mọi con số tồn tại trong test; chưa có dịch vụ HTTP nên khách
-   quét QR vẫn chưa dùng được.
+6. **Chưa chạy thật end-to-end.** Dịch vụ HTTP đã có (5 endpoint · bộ nhớ phiên 3 quy tắc · thẻ
+   giỏ 5 bất biến · hợp đồng schema — **196 test**), nhưng chưa ai chạy `docker compose up` rồi quét
+   QR. Chạy thật kiểm đúng thứ test **không chạm tới**: container, mạng, và việc backend gọi được
+   dịch vụ. Nên nó **không thay được bằng test**, dù test có bao nhiêu.
 
 ## 19. Hướng phát triển, gắn với từng thành viên
 
@@ -2074,8 +2076,8 @@ Mọi con số sau đó đo trên tập đã thấy.
 | **1** | **~120 ca truy hồi** rồi **~25 kịch bản đa lượt** (chặn TV3 và TV5) · ca giỏ hàng · `analyze_failures.py` | bộ dò lỗ tìm 0 lỗ trên tập mới |
 | **2** | nối tên món dị nguyên còn thiếu · nhận `session_state` | 119 ca không tụt, 0 lỗi an toàn |
 | **3** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
-| **4** | `cart.py` (5 bất biến) | chốt `safety_cart_no_allergen` xanh |
-| **5** | 5 endpoint · `session.py` (3 quy tắc hợp nhất) · chạy thật `docker compose` | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
+| **4** | — (đã xong `cart.py`) | chốt `safety_cart_no_allergen` xanh khi TV1 viết ca |
+| **5** | **chạy thật `docker compose`** (mã đã xong: 5 endpoint, bộ nhớ phiên) | quét QR, hỏi 5 câu, đóng phiên → **bộ nhớ mất** |
 
 ### Ba điều cấm, áp cho cả 5 người, và CI ép
 

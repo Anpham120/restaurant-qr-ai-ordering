@@ -315,8 +315,17 @@ có một số bịa thì mọi số còn lại mất giá trị. Tập niêm ph
 ### Đã xong
 `answer.py` — 6 nhánh, fail-closed, `prefer_tags` chỉ xếp thứ tự. 108/119 ca, 0 lỗi an toàn.
 
-### Việc còn lại
-`ai/app/cart.py` với **5 bất biến**, mỗi cái một test:
+### Đã xong
+`answer.py` 6 nhánh loại trừ, fail-closed. `cart.py` với **5 bất biến**, 20 test — cộng
+`test_answer.py` 13 test cho phần trước đó chỉ được kiểm qua 119 ca.
+
+**Một lỗi thật đã sửa ở khâu này:** câu "Món nào không cay?" trả **sáu loại bia**. Đo được
+**13/119 ca** khách hỏi "món" mà nhận toàn đồ uống, và **cả 13 đều QUA** đánh giá vì khóa đáp án
+không cấm đồ uống. Nguyên nhân là thứ tự sắp: 5 món rẻ nhất thực đơn đều là đồ uống
+(12.000–30.000đ) còn món ăn rẻ nhất 35.000đ. Sửa bằng cách xếp món ăn trước — **ngữ cảnh, không
+phải ràng buộc**, nên "món nào rẻ hơn 20 nghìn" vẫn đúng là trả đồ uống. 13 ca → 2 ca.
+
+### Năm bất biến của `cart.py`
 
 1. Mọi món trong thẻ phải tồn tại trong thực đơn, **giá lấy từ thực đơn**.
 2. `requires_customer_confirmation` **luôn `true`**. Không có nhánh nào đặt `false`.
@@ -371,13 +380,16 @@ phiên (`TableEndpoints.cs:508`), khi hết hạn (`:708`/`:713`), và khi thanh
 có. Backend đọc JSON của AI **hoàn toàn bằng `TryGetProperty`** nên mọi trường đều optional — dịch
 vụ mới chỉ cần trả tập trường nhỏ hơn với **đúng tên cũ**, nên **không phải phá hợp đồng**.
 
+### Đã xong
+1. `ai/app/service.py` — 5 endpoint, 24 test. Ca **thiếu token trả 401**; token trống trong môi
+   trường thì **từ chối mọi yêu cầu** (503), không mở cửa.
+2. `ai/app/session.py` — ba quy tắc hợp nhất, 22 test, rolling summary tất định.
+3. `ai/contracts/ai-chat-v1.schema.json` — viết xong, và `test_contract.py` đối chiếu nó với
+   **phản hồi THẬT** trên 8 dạng câu hỏi. Phép kiểm phía backend đã tự bật lại.
+
 ### Việc còn lại
-1. `ai/app/service.py` — 5 endpoint: `/health`, `/ready`, `/v1/chat`, `/v1/chat/stream`,
-   `/v1/cache/invalidate`. Có ca **thiếu token phải 401**.
-2. `ai/app/session.py` — ba quy tắc hợp nhất trên, cộng rolling summary tất định.
-3. `ai/contracts/ai-chat-v1.schema.json` — viết lại. Việc này **tự bật lại** phép kiểm có điều kiện
-   trong `backend/tests/.../AiContractBoundaryTests.cs`.
-4. `deploy/docker-compose.yml` — bỏ `AI_PIPELINE_PROFILE` (biến giữ chỗ của bản cũ).
+1. `deploy/docker-compose.yml` — bỏ `AI_PIPELINE_PROFILE` (biến giữ chỗ của bản cũ).
+2. **Chạy thật** `docker compose up` — điều kiện chấp nhận không thay được bằng test, xem dưới.
 
 ### Chặn bởi
 Cần **~25 kịch bản đa lượt của TV1** để đo bộ nhớ. Tuần 1 làm được `/health`, `/ready`, xác thực
@@ -457,9 +469,13 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 | **1** | kho 84 tài liệu / 327 đoạn · từ điển 84 nhãn · 119 ca / 41 họ · thước đo 37 test · bộ dò 0 lỗ | ca truy hồi, kịch bản đa lượt, ca giỏ hàng, `analyze_failures.py` |
 | **2** | hiểu câu hỏi + mô hình + cổng kiểm · 0 lỗi an toàn | nhận ngữ cảnh phiên |
 | **3** | — | BM25, embedding, hybrid, phép so trên hai bài toán |
-| **4** | `answer.py` 6 nhánh, fail-closed | `cart.py` + 5 bất biến |
-| **5** | — | 5 endpoint, bộ nhớ phiên, hợp đồng schema |
+| **4** | `answer.py` 6 nhánh · `cart.py` 5 bất biến · sửa lỗi "hỏi món trả toàn bia" | chỉnh theo ca giỏ hàng của TV1 |
+| **5** | 5 endpoint · `session.py` 3 quy tắc · hợp đồng schema | **chạy thật `docker compose`** |
 
 **Số đo hiện tại:** 108/119 (90,8%) chỉ bằng mã tất định · 119/119 khi có mô hình · **0 lỗi an toàn
 ở cả hai chế độ** · nhóm chốt 21/21 · 9/9 cơ chế ablation có giá trị, 5 là hàng rào an toàn ·
-103 test `ai/app` + 37 test `ai/evaluation`.
+**196 test `ai/app`** + 37 test `ai/evaluation`.
+
+**Thứ duy nhất còn chặn khách dùng được:** chưa chạy thật `docker compose up`. Mọi con số trên tồn
+tại trong test; chạy thật là phép kiểm cuối cùng, và nó **không thay được bằng test** vì nó kiểm
+đúng thứ test không chạm tới — container, mạng, và việc backend gọi được dịch vụ.
