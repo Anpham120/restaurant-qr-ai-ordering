@@ -36,14 +36,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 TOKEN = "token-thu-nghiem"
 
-# Đặt THẲNG, không dùng `setdefault`. Bản đầu dùng `setdefault` và nó hỏng ngay khi môi trường đã
-# có `AI_INTERNAL_TOKEN` khác: token thật giữ nguyên, còn test vẫn gửi `TOKEN` — nên mọi phép kiểm
-# xác thực trả **401** và 21 test đỏ.
+# Token của tệp test này. Đặt trong `setUp` của từng lớp, KHÔNG đặt ở cấp module.
 #
-# Đây là lỗi sẽ đỏ đúng ở CI mà không đỏ trên máy: CI đặt `AI_INTERNAL_TOKEN: token-ci`, còn máy
-# phát triển thường không đặt gì. Test **phải sở hữu token của chính nó**, không được phụ thuộc
-# môi trường xung quanh.
-os.environ["AI_INTERNAL_TOKEN"] = TOKEN
+# Vì sao: biến môi trường là trạng thái toàn cục của cả tiến trình. Đặt lúc nạp module thì module
+# nào nạp SAU sẽ thắng, và module kia gửi token cũ nên nhận 401. Đã xảy ra thật: `test_service`
+# và `test_contract` dùng hai token khác nhau, chạy riêng thì cả hai xanh còn chạy chung thì 12
+# lỗi. Mỗi test phải tự dựng điều kiện của mình.
 
 try:
     from fastapi.testclient import TestClient
@@ -73,6 +71,7 @@ class ThuVienPhaiCoKhiCIYEUCAU(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class XacThucToken(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def test_thieu_token_thi_401(self):
@@ -109,6 +108,7 @@ class XacThucToken(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class HealthVaReadyKhacNhau(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def test_health_KHONG_kiem_du_lieu(self):
@@ -155,6 +155,7 @@ class LopVoKhongDuocDoiNoiDung(unittest.TestCase):
     )
 
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def test_qua_http_cho_cung_ket_qua_voi_goi_truc_tiep(self):
@@ -179,6 +180,7 @@ class LopVoKhongDuocDoiNoiDung(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class LoiNoiBoKHONGThanh500(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def test_respond_no_thi_van_200_kem_cau_chuyen_nhan_vien(self):
@@ -229,6 +231,7 @@ class LoiNoiBoKHONGThanh500(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class BoNhoPhienQuaHTTP(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def _turn(self, question: str, state: dict | None):
@@ -276,6 +279,7 @@ class BoNhoPhienQuaHTTP(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class HopDongTraVe(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def _body(self, question="Mình dị ứng hải sản, gợi ý món ăn giúp mình"):
@@ -328,6 +332,7 @@ class HopDongTraVe(unittest.TestCase):
 @unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
 class StreamVaNapLai(unittest.TestCase):
     def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
         self.client = TestClient(service_module.app, raise_server_exceptions=False)
 
     def test_stream_phat_cung_noi_dung_voi_chat(self):
