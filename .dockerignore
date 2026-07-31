@@ -12,9 +12,22 @@ tmp
 ai/.venv
 
 *.log
+
+# Mẫu KHÔNG có `**/` chỉ khớp ở GỐC build context. Bản trước chỉ có `.env` và `.env.*`, nên
+# `ai/.env` LỌT VÀO ẢNH — 917 byte chứa `LLM_API_KEY` (35 ký tự) và `AI_INTERNAL_TOKEN` (41 ký
+# tự). Bí mật nướng vào một lớp ảnh thì không xóa được bằng cách xóa tệp ở lớp sau.
+#
+# Phát hiện được chỉ vì chạy container thật rồi `ls` bên trong: `/ready` báo
+# `model_configured: true` dù tôi truyền `LLM_MODEL=` rỗng — cấu hình đến từ trong ảnh.
+#
+# `ai/app/llm_cache.json` thì CỐ Ý giữ lại: nó được commit vào repo để CI chạy được phép so có
+# mô hình mà không cần proxy. Nó chỉ chứa nhãn ràng buộc, không chứa bí mật.
 .env
 .env.*
+**/.env
+**/.env.*
 !*.example.env
+!**/*.example.env
 !frontend/.env.example
 
 docs

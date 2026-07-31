@@ -9,6 +9,9 @@ on:
       - "feat/**"
       - "fix/**"
       - "chore/**"
+      # Nhánh dựng lại phần AI. Cần CI vì đây là nơi duy nhất biên dịch được backend
+      # .NET — máy phát triển hiện không có .NET SDK.
+      - "rebuild/**"
   workflow_dispatch:
   workflow_call:
 
@@ -84,8 +87,12 @@ jobs:
       - name: Run backend regression tests
         run: dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release --no-restore
 
-  ai-service-build:
-    name: ai-service-build
+  # Phần AI đang được dựng lại trên nhánh `rebuild/**` (xem ai/README.md).  Bốn bước cũ
+  # ở job này gọi ai/app, ai/tests, retrieval_benchmark.py và ci_golden_gates.py — đều đã
+  # bị xóa cùng bản cũ.  Nay job chạy đúng những gì đã dựng lại: dữ liệu, tập đánh giá,
+  # và thước đo.  Chưa có dịch vụ AI nào để biên dịch, và job không giả vờ là có.
+  ai-data-and-eval:
+    name: ai-data-and-eval
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -96,33 +103,273 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install AI service dependencies
-        run: python -m pip install -r ai/requirements.txt nbformat
+      # Bộ sinh dữ liệu và bộ kiểm chỉ dùng thư viện chuẩn — không cần cài gì.
 
-      # The notebook contract is enforced by ai/tests/test_research_notebook.py in
-      # the unittest step below, against the committed notebook.  Re-running the
-      # builder here would overwrite that executed notebook with an output-free
-      # rebuild — and prove nothing about what is committed.
+      # Chạy ở chế độ --check: nếu tệp đã commit khác kết quả sinh lại thì đỏ, tức có ai
+      # sửa tay dữ liệu mà không chạy lại bộ sinh.
+      - name: Kiểm từ điển nhãn và thực đơn sinh lại được
+        run: python ai/scripts/build_tag_dictionary.py --check
 
-      - name: Compile Python service
+      - name: Kiểm migration nhãn khớp thực đơn
+        run: python ai/scripts/build_tag_migration.py --check
+
+      # Kho tri thức có 8/24 chủ đề tính từ thực đơn, nên nó phải sinh lại được — nếu
+      # thực đơn đổi mà tri thức không đổi theo thì con số trong câu trả lời sẽ sai.
+      # 48/60 tài liệu tri thức được SINH từ thực đơn, nên chúng phải sinh lại được — nếu
+      # thực đơn đổi mà tài liệu không đổi theo thì con số trong đó sai. Bước này cũng kiểm
+      # bất biến của kho: audience, mã đoạn liên tục, đoạn tự đủ nghĩa.
+      - name: Kiểm kho tri thức markdown + chia đoạn
+        run: python ai/scripts/build_knowledge.py --check
+
+      # Ảnh Docker là môi trường DUY NHẤT nơi tệp dữ liệu có thể thiếu, và không test nào chạy
+      # ở đó. Bước này đọc ai/Dockerfile rồi đối chiếu với đường dẫn mã lúc chạy thật sự dùng,
+      # nên nó bắt được lỗi đóng gói mà không phải dựng container.
+      - name: Kiểm dữ liệu lúc chạy có trong ảnh Docker
+        run: python -m unittest test_packaging
+        working-directory: ai/app
+
+      # Ký tự điều khiển trong mã nguồn là vô hình trên màn hình VÀ trong git diff, và nếu nó
+      # nằm trong regex thì regex im lặng không khớp gì. Dự án đã mất một cơ chế an toàn theo
+      # đúng cách đó: một byte 0x08 làm `\bkhong ...` thành `<backspace>khong ...`, nên mẫu
+      # "không ⟨chủ đề⟩" là MÃ CHẾT trong khi tài liệu ghi nó là hàng rào dị ứng.
+      #
+      # `pyyaml` được cài ở đây, không để test tự bỏ qua: bước này còn kiểm rằng CHÍNH TỆP NÀY
+      # phân tích được, và test bỏ qua âm thầm thì không khác gì không có test. Đúng lỗi đã xảy
+      # ra: một byte 0x08 trong chú thích của tệp này làm GitHub Actions không phân tích được nó,
+      # nên CẢ CI không chạy — mọi lần đẩy báo "failure" sau 0 giây và không bước nào thực thi.
+      - name: Kiểm vệ sinh mã nguồn và cơ chế an toàn có CHẠY
+        run: |
+          python -m pip install -q "pyyaml>=6.0,<7.0"
+          python -m unittest test_source_hygiene
+        working-directory: ai/app
+
+      # Test dịch vụ HTTP cần fastapi và httpx, còn phần dữ liệu/thước đo chỉ dùng thư viện
+      # chuẩn. Nên chúng tự bỏ qua khi thiếu thư viện — nhưng bỏ qua ÂM THẦM trong CI là test
+      # dối, nên AI_REQUIRE_SERVICE_TESTS=1 biến việc thiếu thư viện thành LỖI.
+      - name: Test dịch vụ HTTP và bộ nhớ phiên
         env:
-          PYTHONPATH: ai
-        run: python -m compileall -q ai/app
+          AI_REQUIRE_SERVICE_TESTS: "1"
+          AI_INTERNAL_TOKEN: token-ci
+        run: |
+          python -m pip install -q "fastapi>=0.115,<1.0" "httpx>=0.27,<1.0"             "uvicorn[standard]>=0.30,<1.0" "pydantic>=2.8,<3.0" "jsonschema>=4.20,<5.0"
+          python -m unittest test_service test_session test_cart test_answer test_contract test_packaging
+        working-directory: ai/app
 
-      - name: Run AI guardrail tests
-        env:
-          PYTHONPATH: ai
-        run: python -m unittest discover -s ai/tests -v
+      # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
+      # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
+      - name: Rà nhãn dị nguyên
+        run: python ai/scripts/audit_allergen_tags.py
 
-      - name: Run reproducible RAG benchmark
-        env:
-          PYTHONPATH: ai
-        run: python ai/evaluation/retrieval_benchmark.py
+      # Rà nhãn MÙA, cùng khuôn với bản rà dị nguyên và cùng lý do: nhãn phải nhất quán với MÔ TẢ
+      # món. Phép so truy hồi làm lộ `season:cooling` chỉ gắn cho 2/56 món ăn trong khi nhiều món
+      # có mô tả ghi rõ "thanh mát" / "phù hợp mùa nóng" — bản rà tìm ra, và 3 lỗ đã được lấp.
+      #
+      # Rà HAI CHIỀU: thiếu nhãn, VÀ mang nhãn mà mô tả không có bằng chứng. Chỉ rà chiều đầu thì
+      # cách "sửa" dễ nhất là gắn nhãn cho thật nhiều món, và bản rà sẽ luôn sạch trong khi nhãn
+      # thành vô nghĩa.
+      - name: Rà nhãn mùa
+        run: python ai/scripts/audit_season_tags.py
 
-      - name: Run golden CI gates
+      # Tập đánh giá TRUY HỒI — khác tập 119 ca: nó chấm ĐOẠN ĐƯỢC LẤY, không chấm câu trả lời.
+      # Khóa đáp án là điều kiện chọn, giải ra chunk_id khi chạy, nên nó không thể trỏ vào tài
+      # liệu không tồn tại mà vẫn xanh.
+      - name: Kiểm tập đánh giá truy hồi sinh lại được
+        run: python ai/scripts/build_retrieval_cases.py --check
+
+      - name: Kiểm ca truy hồi (9 loại lỗi)
+        run: python ai/evaluation/validate_retrieval_cases.py
+
+      - name: Kiểm phép chia tập truy hồi
+        run: python ai/evaluation/build_retrieval_split.py --check
+
+      # Kịch bản ĐA LƯỢT — đo BỘ NHỚ PHIÊN, thứ 119 ca một lượt không thể đo.
+      # Lỗi bộ nhớ chỉ hiện từ lượt 2: khách khai dị ứng ở lượt 1, hỏi tiếp ở lượt 5 không nhắc
+      # lại, và nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được. Bước này trả mã
+      # khác 0 khi có LỖI AN TOÀN, nên nó là CHỐT, không phải theo dõi tỷ lệ.
+      - name: Kiểm kịch bản đa lượt sinh lại được
+        run: python ai/scripts/build_session_scripts.py --check
+
+      - name: Bộ nhớ phiên — 25 kịch bản đa lượt
+        run: python ai/evaluation/run_session_eval.py
+
+      # Ba cách truy hồi. CI chạy BM25 THÔI, có chủ ý: `sentence-transformers` kéo theo torch và
+      # ~2–3GB, tức mỗi lần chạy CI tải bằng cả ảnh Docker. Con số của embedding đo tại máy và ghi
+      # trong `ai/docs/07-error-analysis.md` kèm ngày.
+      #
+      # Bỏ qua như vậy KHÔNG âm thầm: `run_retrieval_comparison.py` in rõ "embedding và hybrid BỊ
+      # BỎ QUA" kèm lý do, và nó vẫn CHẶN nếu BM25 lấy đoạn bị cấm ở nhóm chốt hoặc không biết
+      # KHÔNG trả lời. Cài `ai/requirements.txt` (nay đã gồm embedding) rồi chạy lại để có
+      # phép so ba phương pháp — con số ba phương pháp đo tại máy, xem `07-error-analysis.md`.
+      - name: Test ba cách truy hồi (công thức tính tay được)
+        run: python -m unittest test_rag
+        working-directory: ai/app
+
+      - name: So truy hồi trên hai bài toán (BM25 — xem ghi chú)
+        run: python ai/evaluation/run_retrieval_comparison.py
+
+      # Không trả mã lỗi — nó phân tích chứ không chặn. Chạy trong CI để nó không mục: một công cụ
+      # phân tích hỏng thầm thì lần cần dùng nhất là lần nó không chạy.
+      - name: Phân tích nguyên nhân sai (cả ba tập)
+        run: python ai/evaluation/analyze_failures.py
+
+      - name: Kiểm tập đánh giá
+        run: python ai/evaluation/validate_cases.py
+
+      - name: Kiểm phép chia tập đánh giá
+        run: python ai/evaluation/build_split.py --check
+
+      - name: Test hai chiều cho thước đo
+        run: python -m unittest discover -s ai/evaluation -p "test_*.py" -v
+
+      # Bộ dò lỗ là chốt: nếu một câu trả lời vô nghĩa qua được ca nào thì thước đo có lỗ,
+      # và mọi con số đo bằng nó đều đáng nghi.
+      - name: Dò lỗ trong thước đo
+        run: python ai/evaluation/probe_metric_holes.py
+
+      - name: Test phần hiểu câu hỏi
+        run: python -m unittest discover -s ai/app -p "test_*.py" -v
+
+      # run_baseline trả về mã khác 0 khi có LỖI AN TOÀN, nên bước này là chốt fail-closed
+      # cho dị ứng, bịa món và rò rỉ — không phải chỉ theo dõi tỷ lệ.
+      - name: Số nền — trả lời chỉ bằng tra thực đơn
+        run: python ai/evaluation/run_baseline.py --all
+
+      - name: Giá trị từng cơ chế (ablation)
+        run: python ai/evaluation/run_ablation.py
+
+      # Hai việc, và việc thứ hai được thêm sau khi việc thứ nhất để lọt một lỗi:
+      #
+      #   1. So NGUỒN của từng ô với bộ sinh. Bắt trường hợp ai đó sửa tay notebook — khi đó
+      #      notebook không còn sinh lại được và mọi số trong báo cáo mất đường truy về mã.
+      #   2. Đọc KẾT QUẢ đã commit và báo đỏ nếu có ô nào NỔ. Việc 1 xanh với một ô không chạy
+      #      được — đúng chuyện đã xảy ra: ô mục 15d nổ `TypeError` hai lần liền, `--check` vẫn
+      #      xanh, và notebook mang một traceback đỏ giữa báo cáo. Cùng lớp lỗi "tệp có ≠ nó
+      #      chạy" của dự án, ở dạng "ô có ≠ ô chạy".
+      #
+      # KHÔNG chạy notebook ở đây: chạy mất hàng chục phút vì có mã hóa embedding. Bước này đọc
+      # kết quả đã commit, tức nó ép người commit phải chạy được notebook trước khi commit.
+      # Chỉ cần nbformat.
+      - name: Kiểm notebook báo cáo sinh lại được
+        run: |
+          python -m pip install -q "nbformat>=5.10,<6.0"
+          python ai/notebooks/build_teaching_notebook.py --check
+
+      # BÁO CÁO ĐỒ ÁN cũng phải sinh lại được — và bước này có mặt vì bản trước của nó đã TRÔI hoàn
+      # toàn: nó viết tay 1587 dòng, mô tả một kiến trúc không còn tồn tại, và 11/11 lệnh trong Phụ lục
+      # B trỏ vào tệp đã bị xóa. Không phép kiểm nào bắt được, vì tài liệu viết tay không có cách nào
+      # tự kiểm.
+      #
+      # Bộ sinh còn TỰ KIỂM Phụ lục B: mọi lệnh tái lập được đối chiếu với hệ thống tệp, nên một lệnh
+      # trỏ vào tệp không tồn tại là bước này ĐỎ — không phải một dòng sai lặng lẽ trong bài nộp.
+      #
+      # Không cần `sentence-transformers`: bộ sinh ĐỌC số từ `ai/evaluation/measurements/` thay vì tính
+      # lại. Đó là lý do các bộ so ghi kết quả ra tệp.
+      - name: Kiểm báo cáo đồ án sinh lại được (và Phụ lục B tự kiểm)
+        run: python ai/docs/build_bao_cao_do_an.py --check
+
+      # Chạy trên cache đã commit, KHÔNG gọi mô hình thật: CI không có proxy 9router, và
+      # một bước CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan. Bước này trả mã
+      # khác 0 nếu mô hình làm tụt ca nào hoặc gây lỗi an toàn mới.
+      #
+      # LLM_MODEL là bắt buộc để cache dùng được: khóa cache gồm tên mô hình, nên thiếu nó
+      # thì mọi lần tra đều trượt và cache đã commit thành vô dụng. Tên mô hình không phải
+      # bí mật; KHÓA và URL thì không khai ở đây, nên nếu có câu hỏi thiếu cache thì bước
+      # này suy giảm êm chứ không gọi mạng.
+      - name: Mô hình sinh không được làm tụt ca nào
         env:
-          PYTHONPATH: ai
-        run: python ai/evaluation/ci_golden_gates.py --run-smoke-eval
+          LLM_MODEL: cx/gpt-5.6-luna-review
+        run: python ai/evaluation/run_with_model.py
+
+  golden-e2e:
+    name: golden-e2e
+    runs-on: ubuntu-latest
+    # Dựng stack THẬT rồi hỏi như khách: QR -> phiên bàn -> phiên chat -> backend .NET ->
+    # dịch vụ AI -> câu trả lời -> thẻ giỏ -> giỏ hàng thật.
+    #
+    # Vì sao job này tồn tại: mọi tập khác dừng ở một chặng khác nhau của chuỗi gọi, và cả
+    # `test_service.py` lẫn `ChatAiProviderV2ContractTests` đều tự nhất quán với chính mình —
+    # nên khung SSE của hai bên lệch nhau suốt mà không tập nào đỏ. Khách nhận "Xin lỗi, hệ
+    # thống hơi chậm." trên ĐƯỜNG CHÍNH (frontend gọi stream trước rồi mới lùi về gọi thường).
+    #
+    # KHÔNG cần bí mật thật. `LLM_BASE_URL` trỏ vào cổng không có gì lắng nghe, nên mô hình gọi
+    # thất bại ngay và dịch vụ trả lời bằng mã tất định — đúng đường đã đạt 140/140 ca.
+    #
+    # Và KHÔNG đặt `AI_ENABLE_GENERATION` ở đây, có chủ ý: job này phải đo đường TẤT ĐỊNH. Đường sinh
+    # cần mô hình thật, và một job CI không có mô hình mà bật đường sinh chỉ đo phần lùi về khuôn mẫu.
+    #
+    # CHI PHÍ ĐÃ ĐỔI: ảnh AI nay có tầng embedding, nên bước dựng tải `torch` bản CPU (~200MB) và mô
+    # hình `multilingual-e5-small` (~500MB), rồi tính sẵn vector cho 370 đoạn. Đo tại máy: build 108s
+    # -> ~700s cho lần đầu chưa có cache lớp. Job vẫn trong hạn mặc định của GitHub Actions, nhưng
+    # con số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
+    env:
+      DEPLOY_ENV: ci
+      COMPOSE_PROJECT_NAME: cmc-restaurant-golden
+      FRONTEND_PORT: "8080"
+      BACKEND_PORT: "5000"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: restaurant_qr_golden
+      POSTGRES_USER: restaurant_user
+      POSTGRES_PASSWORD: ci-postgres-placeholder
+      FRONTEND_SERVER_NAMES: cmcrestaurant.app
+      API_SERVER_NAME: api.cmcrestaurant.app
+      PUBLIC_API_BASE_URL: http://127.0.0.1:5000/api
+      PUBLIC_ORDERING_BASE_URL: http://127.0.0.1:8080
+      PUBLIC_MARKETING_BASE_URL: http://127.0.0.1:8080
+      JWT_SIGNING_KEY: ci-placeholder-signing-key-change-me
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:8080
+      PAYMENTS__VIETQR__BANKID: "970436"
+      PAYMENTS__VIETQR__ACCOUNTNUMBER: "ci-placeholder-account"
+      PAYMENTS__VIETQR__ACCOUNTNAME: CMC CI
+      CHAT_AI_PROVIDER: python-rag
+      AI_SERVICE_URL: http://127.0.0.1:8001
+      AI_SERVICE_PORT: "8001"
+      AI_INTERNAL_TOKEN: ci-internal-token-placeholder
+      LLM_PROVIDER: 9router
+      LLM_BASE_URL: http://127.0.0.1:20128/v1
+      LLM_API_KEY: ci-provider-key-placeholder
+      LLM_MODEL: cx/gpt-5.6-luna-review
+      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
+      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
+      AI_PIPELINE_PROFILE: rebuild_placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Bộ chạy golden chỉ dùng thư viện chuẩn — không cài gì.
+
+      - name: Di trú cơ sở dữ liệu
+        run: |
+          docker compose -f deploy/docker-compose.yml --profile migrate run --rm migrate
+
+      - name: Dựng postgres, dịch vụ AI, backend
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --build postgres ai-service api
+
+      - name: Chờ backend và dịch vụ AI sẵn sàng
+        run: python ai/evaluation/wait_for_stack.py
+
+      - name: Golden đầu-cuối — hỏi như khách thật
+        run: |
+          QR=$(docker compose -f deploy/docker-compose.yml exec -T postgres \
+            psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A \
+            -c "select qr_token from restaurant_tables order by table_code limit 1;" | tr -d '\r')
+          test -n "$QR" || { echo "không lấy được mã QR — cơ sở dữ liệu chưa seed bàn nào"; exit 1; }
+          GOLDEN_QR_TOKEN="$QR" python ai/evaluation/run_golden_e2e.py --chi-tiet
+
+      - name: Log khi đỏ
+        if: failure()
+        run: |
+          docker compose -f deploy/docker-compose.yml logs --tail 200 api
+          docker compose -f deploy/docker-compose.yml logs --tail 100 ai-service
+
+      - name: Hạ stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v
 
   docker-compose-config:
     name: docker-compose-config
@@ -160,28 +407,15 @@ jobs:
       # call and fails the readiness contract in deploy/scripts/health-check.sh.
       LLM_RATE_LIMIT_FALLBACK_MODEL: ""
       LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
+      # Trước đây biến này do ai/evaluation/verify_pipeline_selection.py ghi vào
+      # GITHUB_ENV từ artifact nghiên cứu đã được phê duyệt.  Cả script và artifact đã bị
+      # xóa cùng bản AI cũ, và bản dựng lại chưa có khái niệm pipeline profile — bước 6
+      # mới quyết định có cần hay không.  Giá trị dưới đây là chỗ giữ chỗ để `compose
+      # config` kiểm được cú pháp; nó KHÔNG khai báo bất kỳ lựa chọn kiến trúc nào.
+      AI_PIPELINE_PROFILE: rebuild_placeholder
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Python for approved artifact verification
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # CI validates the artifact schema and model/profile contract.  It must
-      # not require the current research hash: a PR that changes the canonical
-      # dataset is what enables the subsequent research run.  Staging and
-      # production enforce current research + canonical dataset hashes.
-      - name: Bind CI config to structurally approved research winner
-        env:
-          PYTHONPATH: ai
-        run: |
-          python ai/evaluation/verify_pipeline_selection.py \
-            ai/evaluation/approved/pipeline_selection.json \
-            --expected-primary-model cx/gpt-5.6-luna-review \
-            --repository-root . \
-            --github-env "$GITHUB_ENV"
 
       - name: Validate Docker Compose config
         run: docker compose -f deploy/docker-compose.yml config

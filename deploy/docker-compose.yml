@@ -28,7 +28,16 @@ x-api-environment: &api-environment
   CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-  AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
+  # KHÔNG đặt biến này. Backend `ReadPipelineProfile()` chỉ nhận đúng ba giá trị
+  # (`llm_first_v1`, `evidence_first_v2`, `planner_state_v3`) và NÉM LỖI với mọi giá trị khác;
+  # để trống thì nó tự dùng `llm_first_v1`.
+  #
+  # Tôi từng ghi ở đây rằng biến này "chỉ để ghi log" rồi đặt nó thành `rebuild-1`. Điều đó SAI:
+  # backend kiểm nó theo danh sách cho phép, nên mọi lượt chat trả **500 Unhandled API
+  # exception**. Chạy thật mới thấy — đọc mã thì tôi đã đọc đúng dòng ghi log và bỏ qua dòng kiểm.
+  #
+  # Dịch vụ AI không đọc biến này: bản dựng lại có đúng một đường xử lý thay vì 8 đường chồng
+  # nhau, nên không có "profile" nào để chọn.
   # Keep the browser-facing API alive slightly longer than the AI service's
   # end-to-end request budget.  Otherwise a valid DeepSeek/Luna response can
   # be discarded by the backend before the AI service returns it.
@@ -107,6 +116,15 @@ services:
       LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-}
       LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-false}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
+      # Đường SINH: mô hình VIẾT chữ cho khách thay vì khuôn mẫu dựng.  Mặc định TẮT, và mặc
+      # định đó dựa trên số đo, không dựa trên thận trọng chung: trên 18 ca loại C, câu sinh
+      # làm TỤT 9 ca so với đường tất định (thua thước đo nội dung: văn xuôi nêu 3 món trong
+      # khi khuôn mẫu nêu 6), mô hình bịa giá ở 3/18 lượt (lớp xác minh chặn được), và độ trễ
+      # là 7 giây mỗi lượt so với gần 0.
+      #
+      # Bật nó là một quyết định phải xem những con số đó trước.  Xem
+      # ai/evaluation/run_llm_rag_eval.py để chạy lại phép đo.
+      AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
       AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}
       AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
@@ -118,7 +136,6 @@ services:
       RAG_RETRIEVAL_METHOD: ${RAG_RETRIEVAL_METHOD:-hybrid}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-e5_small}
       AI_LLM_FIRST: ${AI_LLM_FIRST:-true}
-      AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
       AI_SERVICE_HOST: ${AI_SERVICE_HOST:-127.0.0.1}
       AI_SERVICE_PORT: ${AI_SERVICE_PORT:-8001}
     mem_limit: 3g

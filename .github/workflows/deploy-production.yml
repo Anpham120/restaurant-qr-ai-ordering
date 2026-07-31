@@ -83,29 +83,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Bind production configuration to the research winner
-        env:
-          PYTHONPATH: ai
-        run: |
-          args=()
-          if [ -n "${AI_PIPELINE_PROFILE:-}" ]; then
-            args+=(--expected-profile "$AI_PIPELINE_PROFILE")
-          fi
-          python ai/evaluation/verify_pipeline_selection.py \
-            ai/evaluation/approved/pipeline_selection.json \
-            --expected-primary-model cx/gpt-5.6-luna-review \
-            --verify-current-research-inputs \
-            --verify-current-canonical-dataset \
-            --repository-root . \
-            --github-env "$GITHUB_ENV" \
-            "${args[@]}"
+      # CỔNG DEPLOY: cấu hình sắp dựng có khớp cấu hình mà phép đo đã chạy trên đó không?
+      #
+      # Thay cho `verify_pipeline_selection.py` của hệ thống cũ — cùng mục đích ("fail closed khi
+      # cấu hình runtime trôi khỏi bản nghiên cứu đã duyệt"), nhưng bản cũ đọc `PIPELINE_PROFILES`,
+      # một khái niệm bản dựng lại đã bỏ. Tệp đó nay không còn, nên bước này TỪNG sẽ thất bại.
+      #
+      # Cổng mới đối chiếu `ai/evaluation/measurements/golden_e2e*.json` — bản ghi lần chạy golden qua
+      # HTTP thật, mang nguyên phản hồi `/ready` lúc đo — với cấu hình sắp deploy. Nó CHẶN khi bộ truy
+      # hồi lệch, khi đường sinh lệch, hoặc khi lần đo gần nhất còn lượt đỏ.
+      #
+      # Nó KHÔNG chạy lại golden: việc đó cần cả stack và một khóa mô hình thật.
+      - name: Cổng deploy — cấu hình phải khớp bằng chứng đã đo
+        run: python ai/evaluation/verify_deploy_config.py --moi-truong production
 
-      - name: Upload pipeline selection evidence
+      - name: Tải lên bằng chứng đo (để lần deploy nào cũng truy được số của nó)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-selection-production-${{ github.sha }}
-          path: ai/evaluation/approved/pipeline_selection.json
+          name: bang-chung-do-production-${{ github.sha }}
+          path: ai/evaluation/measurements/
           if-no-files-found: error
 
       - name: Deploy to production VPS
