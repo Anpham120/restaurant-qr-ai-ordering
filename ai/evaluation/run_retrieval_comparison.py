@@ -647,9 +647,31 @@ def main(argv: list[str] | None = None) -> int:
         chay_ablation([c for c in cases if c["family"] in
                        set(split["gate_families"]) | set(split["dev_families"])], runs)
 
-    # Chỉ ghi khi chạy ĐẦY ĐỦ. Một lần chạy `--ablation` ghi đè kết quả đầy đủ sẽ làm báo cáo in con
-    # số của một phạm vi khác — cùng lớp lỗi với `--chi` của golden.
-    if not args.ablation:
+    # Chỉ ghi khi lần chạy này ĐẦY ĐỦ HƠN HOẶC BẰNG bằng chứng đang có.
+    #
+    # Ba điều kiện, và cả ba đến từ một lỗi thật: CI có bước chạy bộ so này **không** `--sealed` và
+    # **không có** `sentence-transformers`. Bản đầu ghi vô điều kiện, nên bước CI đó **ghi đè bằng chứng
+    # đã commit** bằng một bản chỉ có BM25 và không có nhóm niêm phong — rồi bước kiểm báo cáo ngay sau
+    # đó nổ `KeyError: 'NIÊM PHONG'`.
+    #
+    # Hai hậu quả, và hậu quả thứ hai tệ hơn: CI đỏ (thấy được), và **bằng chứng bị làm nghèo đi** trong
+    # thư mục làm việc (không thấy được nếu ai đó commit tiếp).
+    #
+    # Đây cùng lớp lỗi với `--chi` của golden — một lần chạy HẸP ghi đè kết quả RỘNG. Đã chặn ở đó và
+    # bỏ sót ở đây.
+    du_bo = len(retrievers) >= 3
+    du_nhom = bool(args.sealed)
+    if args.ablation or not du_bo or not du_nhom:
+        thieu = []
+        if args.ablation:
+            thieu.append("đang chạy --ablation")
+        if not du_bo:
+            thieu.append(f"chỉ có {len(retrievers)} bộ ({', '.join(r.name for r in retrievers)}), cần 3")
+        if not du_nhom:
+            thieu.append("thiếu --sealed nên không có nhóm niêm phong")
+        print(f"\nKHÔNG ghi bằng chứng: {'; '.join(thieu)}.")
+        print("  Bằng chứng đã commit RỘNG HƠN lần chạy này, nên ghi đè là làm nó nghèo đi.")
+    else:
         import results
 
         duong = results.ghi(
