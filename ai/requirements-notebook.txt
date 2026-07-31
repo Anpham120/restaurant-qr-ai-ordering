@@ -1,11 +1,11 @@
-# Reproducible visual-report environment.  Keep optional chart tooling out of
-# the production service image; CI/report users install this file explicitly.
--r requirements.txt
-pandas>=2.2,<3.0
-matplotlib>=3.9,<4.0
-seaborn>=0.13,<1.0
-plotly>=6.0,<7.0
-networkx>=3.4,<4.0
+# Công cụ chỉ dùng để SINH và CHẠY notebook báo cáo.
+#
+# Tách khỏi ai/requirements.txt có chủ ý: dịch vụ AI chạy thật không cần vẽ biểu đồ hay
+# đọc notebook, nên ảnh Docker không phải mang theo matplotlib và pandas. Bản cũ trộn
+# chung, và ảnh dịch vụ mang cả bộ công cụ báo cáo mà không dùng.
 nbformat>=5.10,<6.0
+jupyter-core>=5.7,<6.0
 nbconvert>=7.16,<8.0
 ipykernel>=6.29,<7.0
+matplotlib>=3.9,<4.0
+pandas>=2.2,<3.0

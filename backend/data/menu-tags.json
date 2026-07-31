@@ -1,0 +1,700 @@
+{
+  "schema_version": 1,
+  "source_of_meaning": "frontend/src/components/menu/MenuItemCard.tsx TAG_LABELS — từ điển 80 nhãn do người làm giao diện viết, phủ đúng 80/80 nhãn trong dữ liệu",
+  "groups": [
+    "allergen",
+    "audience",
+    "diet",
+    "flavour",
+    "health",
+    "ingredient",
+    "meal",
+    "method",
+    "occasion",
+    "party",
+    "price",
+    "promo",
+    "region",
+    "season",
+    "serving",
+    "spice"
+  ],
+  "exclusive_groups": [
+    "spice",
+    "price"
+  ],
+  "tags": {
+    "spice:none": {
+      "group": "spice",
+      "value": "none",
+      "label_vi": "Không cay",
+      "label_en": "Not spicy",
+      "legacy_key": "khong cay",
+      "exclusive": true
+    },
+    "spice:mild": {
+      "group": "spice",
+      "value": "mild",
+      "label_vi": "Cay nhẹ",
+      "label_en": "Mild spicy",
+      "legacy_key": "cay nhe",
+      "exclusive": true
+    },
+    "spice:medium": {
+      "group": "spice",
+      "value": "medium",
+      "label_vi": "Cay vừa",
+      "label_en": "Medium spicy",
+      "legacy_key": "cay vua",
+      "exclusive": true
+    },
+    "spice:hot": {
+      "group": "spice",
+      "value": "hot",
+      "label_vi": "Cay đậm",
+      "label_en": "Served hot",
+      "legacy_key": "cay dam",
+      "exclusive": true
+    },
+    "meal:breakfast": {
+      "group": "meal",
+      "value": "breakfast",
+      "label_vi": "Sáng",
+      "label_en": "Breakfast",
+      "legacy_key": "sang",
+      "exclusive": false
+    },
+    "meal:lunch": {
+      "group": "meal",
+      "value": "lunch",
+      "label_vi": "Trưa",
+      "label_en": "Lunch",
+      "legacy_key": "trua",
+      "exclusive": false
+    },
+    "meal:dinner": {
+      "group": "meal",
+      "value": "dinner",
+      "label_vi": "Tối",
+      "label_en": "Dinner",
+      "legacy_key": "toi",
+      "exclusive": false
+    },
+    "meal:late_night": {
+      "group": "meal",
+      "value": "late_night",
+      "label_vi": "Ăn khuya",
+      "label_en": "Late night",
+      "legacy_key": "an khuya",
+      "exclusive": false
+    },
+    "ingredient:beef": {
+      "group": "ingredient",
+      "value": "beef",
+      "label_vi": "Bò",
+      "label_en": "Beef",
+      "legacy_key": "bo",
+      "exclusive": false
+    },
+    "ingredient:pork": {
+      "group": "ingredient",
+      "value": "pork",
+      "label_vi": "Heo",
+      "label_en": "Pork",
+      "legacy_key": "heo",
+      "exclusive": false
+    },
+    "ingredient:chicken": {
+      "group": "ingredient",
+      "value": "chicken",
+      "label_vi": "Gà",
+      "label_en": "Chicken",
+      "legacy_key": "ga",
+      "exclusive": false
+    },
+    "ingredient:fish": {
+      "group": "ingredient",
+      "value": "fish",
+      "label_vi": "Cá",
+      "label_en": "Fish",
+      "legacy_key": "ca",
+      "exclusive": false
+    },
+    "ingredient:shrimp": {
+      "group": "ingredient",
+      "value": "shrimp",
+      "label_vi": "Tôm",
+      "label_en": "Shrimp",
+      "legacy_key": "tom",
+      "exclusive": false
+    },
+    "ingredient:squid": {
+      "group": "ingredient",
+      "value": "squid",
+      "label_vi": "Mực",
+      "label_en": "Squid",
+      "legacy_key": "muc",
+      "exclusive": false
+    },
+    "ingredient:crab": {
+      "group": "ingredient",
+      "value": "crab",
+      "label_vi": "Cua",
+      "label_en": "Crab",
+      "legacy_key": "cua",
+      "exclusive": false
+    },
+    "ingredient:tofu": {
+      "group": "ingredient",
+      "value": "tofu",
+      "label_vi": "Đậu hũ",
+      "label_en": "Tofu",
+      "legacy_key": "dau hu",
+      "exclusive": false
+    },
+    "ingredient:mushroom": {
+      "group": "ingredient",
+      "value": "mushroom",
+      "label_vi": "Nấm",
+      "label_en": "Mushroom",
+      "legacy_key": "nam",
+      "exclusive": false
+    },
+    "ingredient:vegetable": {
+      "group": "ingredient",
+      "value": "vegetable",
+      "label_vi": "Rau",
+      "label_en": "Vegetables",
+      "legacy_key": "rau",
+      "exclusive": false
+    },
+    "method:grilled": {
+      "group": "method",
+      "value": "grilled",
+      "label_vi": "Nướng",
+      "label_en": "Grilled",
+      "legacy_key": "nuong",
+      "exclusive": false
+    },
+    "method:fried": {
+      "group": "method",
+      "value": "fried",
+      "label_vi": "Chiên",
+      "label_en": "Fried",
+      "legacy_key": "chien",
+      "exclusive": false
+    },
+    "method:steamed": {
+      "group": "method",
+      "value": "steamed",
+      "label_vi": "Hấp",
+      "label_en": "Steamed",
+      "legacy_key": "hap",
+      "exclusive": false
+    },
+    "method:stir_fried": {
+      "group": "method",
+      "value": "stir_fried",
+      "label_vi": "Xào",
+      "label_en": "Stir-fried",
+      "legacy_key": "xao",
+      "exclusive": false
+    },
+    "method:braised": {
+      "group": "method",
+      "value": "braised",
+      "label_vi": "Kho",
+      "label_en": "Braised",
+      "legacy_key": "kho",
+      "exclusive": false
+    },
+    "method:boiled": {
+      "group": "method",
+      "value": "boiled",
+      "label_vi": "Luộc",
+      "label_en": "Boiled",
+      "legacy_key": "luoc",
+      "exclusive": false
+    },
+    "method:roasted": {
+      "group": "method",
+      "value": "roasted",
+      "label_vi": "Rang",
+      "label_en": "Roasted",
+      "legacy_key": "rang",
+      "exclusive": false
+    },
+    "method:stewed": {
+      "group": "method",
+      "value": "stewed",
+      "label_vi": "Tiềm",
+      "label_en": "Slow-braised",
+      "legacy_key": "tiem",
+      "exclusive": false
+    },
+    "method:simmered": {
+      "group": "method",
+      "value": "simmered",
+      "label_vi": "Nấu",
+      "label_en": "Simmered",
+      "legacy_key": "nau",
+      "exclusive": false
+    },
+    "method:rolled": {
+      "group": "method",
+      "value": "rolled",
+      "label_vi": "Cuốn",
+      "label_en": "Rolls",
+      "legacy_key": "cuon",
+      "exclusive": false
+    },
+    "allergen:seafood": {
+      "group": "allergen",
+      "value": "seafood",
+      "label_vi": "Có hải sản",
+      "label_en": "Contains seafood",
+      "legacy_key": "co hai san",
+      "exclusive": false
+    },
+    "allergen:peanut": {
+      "group": "allergen",
+      "value": "peanut",
+      "label_vi": "Có đậu phộng",
+      "label_en": "Contains peanuts",
+      "legacy_key": "co dau phong",
+      "exclusive": false
+    },
+    "allergen:egg": {
+      "group": "allergen",
+      "value": "egg",
+      "label_vi": "Có trứng",
+      "label_en": "Contains egg",
+      "legacy_key": "co trung",
+      "exclusive": false
+    },
+    "allergen:dairy": {
+      "group": "allergen",
+      "value": "dairy",
+      "label_vi": "Có sữa",
+      "label_en": "Contains dairy",
+      "legacy_key": "co sua",
+      "exclusive": false
+    },
+    "allergen:gluten": {
+      "group": "allergen",
+      "value": "gluten",
+      "label_vi": "Có gluten",
+      "label_en": "Contains gluten",
+      "legacy_key": "co gluten",
+      "exclusive": false
+    },
+    "diet:vegetarian": {
+      "group": "diet",
+      "value": "vegetarian",
+      "label_vi": "Chay",
+      "label_en": "Vegetarian",
+      "legacy_key": "chay",
+      "exclusive": false
+    },
+    "diet:vegan": {
+      "group": "diet",
+      "value": "vegan",
+      "label_vi": "Vegan",
+      "label_en": "Vegan",
+      "legacy_key": "vegan",
+      "exclusive": false
+    },
+    "health:healthy": {
+      "group": "health",
+      "value": "healthy",
+      "label_vi": "Healthy",
+      "label_en": "Healthy",
+      "legacy_key": "healthy",
+      "exclusive": false
+    },
+    "health:low_calorie": {
+      "group": "health",
+      "value": "low_calorie",
+      "label_vi": "Ít calo",
+      "label_en": "Low calorie",
+      "legacy_key": "it calo",
+      "exclusive": false
+    },
+    "health:high_protein": {
+      "group": "health",
+      "value": "high_protein",
+      "label_vi": "Giàu protein",
+      "label_en": "High protein",
+      "legacy_key": "giau protein",
+      "exclusive": false
+    },
+    "health:low_fat": {
+      "group": "health",
+      "value": "low_fat",
+      "label_vi": "Ít dầu mỡ",
+      "label_en": "Low fat",
+      "legacy_key": "it dau mo",
+      "exclusive": false
+    },
+    "health:no_msg": {
+      "group": "health",
+      "value": "no_msg",
+      "label_vi": "Không MSG",
+      "label_en": "No MSG",
+      "legacy_key": "khong MSG",
+      "exclusive": false
+    },
+    "health:light": {
+      "group": "health",
+      "value": "light",
+      "label_vi": "Thanh nhẹ",
+      "label_en": "Delicate",
+      "legacy_key": "thanh nhe",
+      "exclusive": false
+    },
+    "flavour:rich": {
+      "group": "flavour",
+      "value": "rich",
+      "label_vi": "Đậm đà",
+      "label_en": "Rich",
+      "legacy_key": "dam da",
+      "exclusive": false
+    },
+    "flavour:fatty": {
+      "group": "flavour",
+      "value": "fatty",
+      "label_vi": "Béo",
+      "label_en": "Creamy",
+      "legacy_key": "beo",
+      "exclusive": false
+    },
+    "flavour:sour": {
+      "group": "flavour",
+      "value": "sour",
+      "label_vi": "Chua",
+      "label_en": "Sour",
+      "legacy_key": "chua",
+      "exclusive": false
+    },
+    "flavour:sweet": {
+      "group": "flavour",
+      "value": "sweet",
+      "label_vi": "Ngọt",
+      "label_en": "Sweet",
+      "legacy_key": "ngot",
+      "exclusive": false
+    },
+    "flavour:salty": {
+      "group": "flavour",
+      "value": "salty",
+      "label_vi": "Mặn",
+      "label_en": "Salty",
+      "legacy_key": "man",
+      "exclusive": false
+    },
+    "flavour:smoky": {
+      "group": "flavour",
+      "value": "smoky",
+      "label_vi": "Thơm khói",
+      "label_en": "Smoky",
+      "legacy_key": "thom khoi",
+      "exclusive": false
+    },
+    "price:budget": {
+      "group": "price",
+      "value": "budget",
+      "label_vi": "Bình dân",
+      "label_en": "Budget",
+      "legacy_key": "binh dan",
+      "exclusive": true
+    },
+    "price:mid": {
+      "group": "price",
+      "value": "mid",
+      "label_vi": "Tầm trung",
+      "label_en": "Mid-range",
+      "legacy_key": "tam trung",
+      "exclusive": true
+    },
+    "price:high": {
+      "group": "price",
+      "value": "high",
+      "label_vi": "Cao cấp",
+      "label_en": "Premium",
+      "legacy_key": "cao cap",
+      "exclusive": true
+    },
+    "price:premium": {
+      "group": "price",
+      "value": "premium",
+      "label_vi": "Premium",
+      "label_en": "Premium plus",
+      "legacy_key": "premium",
+      "exclusive": true
+    },
+    "party:solo": {
+      "group": "party",
+      "value": "solo",
+      "label_vi": "Cá nhân",
+      "label_en": "For one",
+      "legacy_key": "ca nhan",
+      "exclusive": false
+    },
+    "party:two_three": {
+      "group": "party",
+      "value": "two_three",
+      "label_vi": "2-3 người",
+      "label_en": "Serves 2-3",
+      "legacy_key": "2-3 nguoi",
+      "exclusive": false
+    },
+    "party:three_five": {
+      "group": "party",
+      "value": "three_five",
+      "label_vi": "3-5 người",
+      "label_en": "Serves 3-5",
+      "legacy_key": "3-5 nguoi",
+      "exclusive": false
+    },
+    "party:share": {
+      "group": "party",
+      "value": "share",
+      "label_vi": "Chia sẻ",
+      "label_en": "Sharing",
+      "legacy_key": "share",
+      "exclusive": false
+    },
+    "party:friends": {
+      "group": "party",
+      "value": "friends",
+      "label_vi": "Nhóm bạn",
+      "label_en": "Groups",
+      "legacy_key": "nhom ban",
+      "exclusive": false
+    },
+    "party:family": {
+      "group": "party",
+      "value": "family",
+      "label_vi": "Gia đình",
+      "label_en": "Family",
+      "legacy_key": "gia dinh",
+      "exclusive": false
+    },
+    "audience:child": {
+      "group": "audience",
+      "value": "child",
+      "label_vi": "Trẻ em",
+      "label_en": "Kids",
+      "legacy_key": "tre em",
+      "exclusive": false
+    },
+    "audience:elderly": {
+      "group": "audience",
+      "value": "elderly",
+      "label_vi": "Người già",
+      "label_en": "Seniors",
+      "legacy_key": "nguoi gia",
+      "exclusive": false
+    },
+    "occasion:banquet": {
+      "group": "occasion",
+      "value": "banquet",
+      "label_vi": "Tiệc",
+      "label_en": "Celebration",
+      "legacy_key": "tiec",
+      "exclusive": false
+    },
+    "occasion:date": {
+      "group": "occasion",
+      "value": "date",
+      "label_vi": "Hẹn hò",
+      "label_en": "Date night",
+      "legacy_key": "hen ho",
+      "exclusive": false
+    },
+    "occasion:birthday": {
+      "group": "occasion",
+      "value": "birthday",
+      "label_vi": "Sinh nhật",
+      "label_en": "Birthday",
+      "legacy_key": "sinh nhat",
+      "exclusive": false
+    },
+    "occasion:business": {
+      "group": "occasion",
+      "value": "business",
+      "label_vi": "Tiếp khách",
+      "label_en": "Business meal",
+      "legacy_key": "tiep khach",
+      "exclusive": false
+    },
+    "occasion:drinking": {
+      "group": "occasion",
+      "value": "drinking",
+      "label_vi": "Nhậu",
+      "label_en": "Drinks pairing",
+      "legacy_key": "nhau",
+      "exclusive": false
+    },
+    "occasion:everyday": {
+      "group": "occasion",
+      "value": "everyday",
+      "label_vi": "Hàng ngày",
+      "label_en": "Everyday",
+      "legacy_key": "hang ngay",
+      "exclusive": false
+    },
+    "region:north": {
+      "group": "region",
+      "value": "north",
+      "label_vi": "Miền Bắc",
+      "label_en": "Northern Vietnam",
+      "legacy_key": "mien Bac",
+      "exclusive": false
+    },
+    "region:central": {
+      "group": "region",
+      "value": "central",
+      "label_vi": "Miền Trung",
+      "label_en": "Central Vietnam",
+      "legacy_key": "mien Trung",
+      "exclusive": false
+    },
+    "region:south": {
+      "group": "region",
+      "value": "south",
+      "label_vi": "Miền Nam",
+      "label_en": "Southern Vietnam",
+      "legacy_key": "mien Nam",
+      "exclusive": false
+    },
+    "region:mekong": {
+      "group": "region",
+      "value": "mekong",
+      "label_vi": "Miền Tây",
+      "label_en": "Mekong Delta",
+      "legacy_key": "mien Tay",
+      "exclusive": false
+    },
+    "region:hanoi": {
+      "group": "region",
+      "value": "hanoi",
+      "label_vi": "Hà Nội",
+      "label_en": "Hanoi",
+      "legacy_key": "Ha Noi",
+      "exclusive": false
+    },
+    "region:hue": {
+      "group": "region",
+      "value": "hue",
+      "label_vi": "Huế",
+      "label_en": "Hue",
+      "legacy_key": "Hue",
+      "exclusive": false
+    },
+    "region:saigon": {
+      "group": "region",
+      "value": "saigon",
+      "label_vi": "Sài Gòn",
+      "label_en": "Saigon",
+      "legacy_key": "Sai Gon",
+      "exclusive": false
+    },
+    "region:danang": {
+      "group": "region",
+      "value": "danang",
+      "label_vi": "Đà Nẵng",
+      "label_en": "Da Nang",
+      "legacy_key": "Da Nang",
+      "exclusive": false
+    },
+    "region:highlands": {
+      "group": "region",
+      "value": "highlands",
+      "label_vi": "Tây Nguyên",
+      "label_en": "Central Highlands",
+      "legacy_key": "Tay Nguyen",
+      "exclusive": false
+    },
+    "region:hoian": {
+      "group": "region",
+      "value": "hoian",
+      "label_vi": "Hội An",
+      "label_en": "Hoi An",
+      "legacy_key": "Hoi An",
+      "exclusive": false
+    },
+    "season:all_year": {
+      "group": "season",
+      "value": "all_year",
+      "label_vi": "Quanh năm",
+      "label_en": "All year",
+      "legacy_key": "quanh nam",
+      "exclusive": false
+    },
+    "season:hot_season": {
+      "group": "season",
+      "value": "hot_season",
+      "label_vi": "Mùa nóng",
+      "label_en": "Hot season",
+      "legacy_key": "mua nong",
+      "exclusive": false
+    },
+    "season:cold_season": {
+      "group": "season",
+      "value": "cold_season",
+      "label_vi": "Mùa lạnh",
+      "label_en": "Cool season",
+      "legacy_key": "mua lanh",
+      "exclusive": false
+    },
+    "season:cooling": {
+      "group": "season",
+      "value": "cooling",
+      "label_vi": "Giải nhiệt",
+      "label_en": "Refreshing",
+      "legacy_key": "giai nhiet",
+      "exclusive": false
+    },
+    "serving:preorder": {
+      "group": "serving",
+      "value": "preorder",
+      "label_vi": "Đặt trước",
+      "label_en": "Pre-order",
+      "legacy_key": "dat truoc",
+      "exclusive": false
+    },
+    "serving:takeaway": {
+      "group": "serving",
+      "value": "takeaway",
+      "label_vi": "Mang đi",
+      "label_en": "Takeaway",
+      "legacy_key": "mang di",
+      "exclusive": false
+    },
+    "serving:hot": {
+      "group": "serving",
+      "value": "hot",
+      "label_vi": "Nóng",
+      "label_en": "Served hot",
+      "legacy_key": "nong",
+      "exclusive": false
+    },
+    "promo:popular": {
+      "group": "promo",
+      "value": "popular",
+      "label_vi": "Phổ biến",
+      "label_en": "Popular",
+      "legacy_key": "pho bien",
+      "exclusive": false
+    },
+    "promo:signature": {
+      "group": "promo",
+      "value": "signature",
+      "label_vi": "Đặc trưng",
+      "label_en": "Signature",
+      "legacy_key": "signature",
+      "exclusive": false
+    }
+  }
+}

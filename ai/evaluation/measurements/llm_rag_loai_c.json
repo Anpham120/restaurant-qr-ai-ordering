@@ -1,0 +1,27 @@
+{
+  "so": {
+    "ca": 76,
+    "dat_tat_dinh": 76,
+    "dat_co_duong_sinh": 76,
+    "ca_tut": [],
+    "cau_sinh_duoc_dung": 68,
+    "lui_ve_khuon_mau": 8,
+    "ly_do_chan": {
+      "số tiền 200.000đ không phải giá của món nào ": 1,
+      "số tiền 80.000đ không phải giá của món nào t": 1,
+      "số tiền 20.000đ không phải giá của món nào t": 1,
+      "số tiền 500.000đ không phải giá của món nào ": 1,
+      "số tiền 150.000đ không phải giá của món nào ": 1,
+      "số tiền 300.000đ không phải giá của món nào ": 1,
+      "số tiền 400.000đ không phải giá của món nào ": 1,
+      "số tiền 60.000đ không phải giá của món nào t": 1
+    },
+    "tre_p50_ms": 8618,
+    "tre_p95_ms": 13524
+  },
+  "dieu_kien": {
+    "ngay": "2026-07-31",
+    "mo_hinh": "cx/gpt-5.6-luna-review",
+    "base_url": "http://localhost:20128/v1"
+  }
+}

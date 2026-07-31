@@ -64,7 +64,10 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 
 - Candidate menu ≤8 (trước đây prompt có thể nhận danh sách menu không liên quan); câu trả lời ≤4 món.
 - Lịch sử gần nhất ≤12 cùng typed session state và rolling summary có version; câu hỏi hiện tại chỉ xuất hiện một lần và Python không cắt lịch sử lần thứ hai.
-- LLM qua 9router (OpenAI-compatible): `LLM_MODEL=oc/deepseek-v4-flash-free` (triển khai) hoặc `LLM_MODEL=cx/gpt-5.5` (quality gate); `temperature=0.2`, structured response.
+- LLM qua 9router (OpenAI-compatible): `LLM_MODEL=cx/gpt-5.6-luna-review` — một mô hình duy nhất
+  cho cả triển khai và quality gate, không cấu hình fallback. DeepSeek đã bị bỏ sau khi route của
+  nó trong 9router từ chối `response_format:json_object`; xem `docs/ai/AI_DECISION_HISTORY.md`.
+  `temperature=0.2`, structured response.
 - Prompt cấm lặp câu/món; parser/validator Python loại câu hoặc dòng lặp y hệt.
 - Không stream JSON trực tiếp vào UI ở giai đoạn này vì client cần JSON hợp lệ để validate action. Khi muốn giảm perceived latency hơn nữa, thêm server-side streaming với incremental JSON parser và test hủy request riêng.
 
@@ -79,7 +82,7 @@ Với yêu cầu catalog rõ ràng theo category/tag (ví dụ “toàn bộ th�
 
 ## Artefact nghiên cứu
 
-- `ai/notebooks/rag_retrieval_research.ipynb`: notebook duy nhất, được sinh từ artifact đã khóa bằng `ai/scripts/build_research_notebook.py`.
+- `ai/notebooks/rag_llm_system_research.ipynb`: notebook duy nhất, được sinh từ artifact đã khóa bằng `ai/scripts/build_rag_llm_research.py`.
 - `output/reports/Bao_cao_do_an_AI_RAG_CMC_Restaurant.docx`: báo cáo Word học thuật có thể chỉnh sửa, dùng chung dữ liệu với notebook và được sinh bằng `ai/scripts/build_academic_report.py`.
 - `ai/evaluation/run_retrieval_experiment.py`: benchmark BM25/dense/hybrid; `retrieval_benchmark.py` chỉ phục vụ smoke offline.
 - `ai/tests/test_menu_grounding.py` và `backend/tests/RestaurantQrAiOrdering.Api.Tests/ChatMenuGroundingTests.cs`: regression V34.
