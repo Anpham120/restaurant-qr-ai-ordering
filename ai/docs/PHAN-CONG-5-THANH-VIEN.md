@@ -308,7 +308,7 @@ hóa vector · bm25 · cơ chế này DƯ" — BM25 **không có vector nào đ�
 ```bash
 python -m unittest test_rag                        # trong ai/app — công thức tính tay được
 python ai/evaluation/run_retrieval_comparison.py   # BM25 nếu thiếu thư viện, CÓ IN RÕ đã bỏ qua
-python -m pip install -r ai/requirements-rag.txt   # rồi chạy lại để có phép so BA phương pháp
+python -m pip install -r ai/requirements.txt   # nay đã gồm embedding — xem 07-error-analysis mục 15
 python ai/evaluation/run_retrieval_comparison.py --ablation
 ```
 

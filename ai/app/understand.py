@@ -135,6 +135,12 @@ class Request:
     # Khách hỏi so sánh mà KHÔNG nhắc lại tên món ("món nào cay hơn?"). `session.py` lấy lại cặp món
     # của câu so sánh gần nhất.
     asks_comparison: bool = False
+    # Khách hỏi VỀ một thuộc tính, không yêu cầu LỌC theo thuộc tính đó — "Món này có bột ngọt
+    # không?", "Nhãn 'ít calo' dựa trên gì?". Xem bước 5d-bis của `understand()`.
+    #
+    # Cờ này chỉ có MỘT chỗ đọc: cổng `already_understood` của `llm_understand.enrich()`. Nó không đổi
+    # nhánh nào — nó chỉ NGĂN lớp mô hình đổi nhánh mà đường tất định đã chọn đúng.
+    asks_about_attribute: bool = False
     # Khách XIN GỢI Ý MÓN mà chưa nêu ràng buộc nào. Cờ này quyết định giữa HỎI LẠI và TRUY HỒI
     # TOÀN KHO: cả hai nhánh nhận cùng một tập câu "không hiểu được gì", nên phải có cách tách.
     #
@@ -451,7 +457,13 @@ _add("mon cuoi cung|mon cuoi|cai cuoi", "reference", -1)
 #
 # `session.py` phân giải cờ này thành món tiêu điểm nếu có, và LÙI VỀ món thứ nhất nếu chưa có
 # tiêu điểm — nên hành vi cũ vẫn nguyên ở lượt đầu.
-_add("mon vua roi|mon vua noi|mon do|cai do|no co", "flag", "refers_to_focus")
+# `mon nay` / `cai nay` vào danh sách sau khi golden qua stack thật bắt được: khách hỏi "Món này có
+# bột ngọt không?" và nhận về một danh sách 6 món kèm thẻ giỏ — vì câu đó không được nhận là câu
+# tham chiếu, nên nó rơi xuống nhánh lọc và lớp mô hình thêm `prefer: health:no_msg` vào.
+#
+# "này" và "đó" trỏ vào cùng một thứ trong hội thoại: món đang được nói tới. Việc chỉ có "đó" là lỗ
+# từ vựng, không phải một lựa chọn — và nó im lặng, vì câu vẫn được trả lời, chỉ trả lời sai loại.
+_add("mon vua roi|mon vua noi|mon do|cai do|mon nay|cai nay|no co", "flag", "refers_to_focus")
 
 # Cụm thu PHẠM VI. Khác cụm vị trí: "món rẻ nhất TRONG SỐ ĐÓ" không trỏ vào một món, nó giới hạn
 # tập rồi để câu hỏi "rẻ nhất" chạy trên tập đó. Dùng cụm vị trí ở đây là trả sai: nó sẽ trả món
@@ -580,6 +592,21 @@ _add("bao lau thi co mon|bao lau moi co mon", "knowledge", "portion_timing")
 _add("an chia chung|chia chung the nao", "knowledge", "sharing_etiquette")
 _add("lan dau toi day|lan dau den nha hang|thuc don to chuc the nao", "knowledge", "first_visit")
 _add("ghi nhan che do an nao|che do an nao", "knowledge", "dietary_limits")
+
+# "đáng tiền" — cụm này vào từ vựng vì golden qua stack thật cho kết quả KHÁC NHAU giữa hai lần chạy.
+#
+# `value_for_money` là một trong 74 chủ đề KHÔNG có cụm từ vựng, nên nó chỉ tới được qua nhánh truy
+# hồi toàn kho. Nhánh đó nằm gần CUỐI chuỗi nhánh, sau `enrich()`. Nên khi mô hình trả về một nhãn
+# giá cho "Món nào đáng tiền nhất?", câu rơi vào nhánh lọc và không bao giờ tới nhánh tri thức.
+#
+# Và mô hình trả về nhãn đó KHÔNG ỔN ĐỊNH: chạy lại cùng câu, có lần nó trả nhãn, có lần không. Nên
+# nhánh của câu này phụ thuộc một lần tung xúc xắc — đó là lỗi tệ hơn cả việc trả lời sai, vì nó
+# không tái lập được và mọi phép đo trên nó là ngẫu nhiên.
+#
+# Cụm từ vựng sửa tận gốc: `understand` nhận ra chủ đề, `already_understood` chặn mô hình, và câu trả
+# lời giống nhau mọi lần chạy. Đây cũng là hướng đã ghi trong tài liệu — đưa dần các chủ đề chỉ tới
+# được qua truy hồi về đường tất định.
+_add("dang tien|dang gia|duoc gia|xung tien|hop tui tien nhat", "knowledge", "value_for_money")
 _add("noi voi nha hang the nao|khai di ung the nao|nen noi gi ve viec di ung",
      "knowledge", "allergy_guidance")
 _add("goi mon qua ma qr|quet ma qr the nao|dung ung dung the nao", "knowledge", "qr_ordering")
@@ -707,6 +734,19 @@ STRICT_BUDGET_FRAMING = ("re hon", "it hon", "thap hon", "duoi muc", "khong den"
 # vẫn là ngân sách. Hẹp có chủ đích: nó chỉ chặn đúng trường hợp đo được, không đoán rộng ra.
 PRICE_ASSERTION_FRAMING = ("dung khong", "phai khong", "co dung", "co phai", "dung chu",
                            "phai chu", "co đung")
+
+# Cách nói HỎI VỀ một thuộc tính — hỏi định nghĩa hoặc cách nhà hàng ghi nhận nó.
+#
+# Xem bước 5d-bis. Câu hỏi VỀ một thuộc tính KHÔNG phải yêu cầu lọc theo thuộc tính đó, và lớp mô
+# hình đã nhầm hai thứ này ở hai lượt golden thật.
+ATTRIBUTE_DEFINITION_FRAMING = (
+    "dua tren gi", "dua vao gi", "nghia la gi", "hieu the nao", "tinh the nao", "do the nao",
+    "can cu vao", "co nghia gi", "duoc ghi the nao", "ghi nhan the nao",
+)
+
+# Cách nói ĐÒI ỨNG VIÊN. Đây là phép loại trừ của bước 5d-bis, và nó bắt buộc: thiếu nó thì
+# "Có món nào không cay không?" — một câu lọc thật — cũng bị coi là câu hỏi về thuộc tính.
+CANDIDATE_FRAMING = ("mon nao", "co mon nao", "goi y", "cho minh", "co gi", "mon gi", "nao co")
 
 # "<số> món": "cho mình 2 món", "lấy 3 món". Nhận bằng mẫu vì con số là bất kỳ.
 #
@@ -982,6 +1022,37 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     if request.policy_topic == "nutrition" and " nhan " in f" {request.folded} ":
         request.policy_topic = None
         request.matched.append("hỏi VỀ nhãn -> không phải câu dinh dưỡng")
+
+    # 5d-bis. Câu HỎI VỀ một thuộc tính KHÁC câu yêu cầu LỌC theo thuộc tính đó.
+    #
+    # Golden qua stack thật bắt được hai lượt, và cả hai do LỚP MÔ HÌNH làm sai chứ không phải mã
+    # tất định:
+    #
+    #     "Nhãn 'ít calo' dựa trên gì?"   mô hình trả `prefer: health:low_calorie`  -> nhánh filter
+    #     "Món này có bột ngọt không?"    mô hình trả `prefer: health:no_msg`       -> nhánh filter
+    #
+    # Đường tất định định tuyến ĐÚNG cả hai (`knowledge_corpus`), rồi `enrich()` thêm một nhãn ưu
+    # tiên và câu trả lời thành một danh sách 6 món. Khách hỏi "món này có bột ngọt không?" và nhận
+    # về "Mời bạn tham khảo: Cơm chiên chay ngũ sắc (50.000đ), …" — sai loại câu trả lời, kèm thẻ giỏ
+    # cho một câu không hỏi mua gì.
+    #
+    # Mô hình không phân biệt được hai việc đó, và không có lý do để tin nó sẽ phân biệt được: cả hai
+    # câu đều nhắc đúng một khái niệm nhãn. Nên phép phân biệt phải TẤT ĐỊNH.
+    #
+    # Dấu hiệu phân biệt, và nó nằm trong câu chứ không nằm trong nhãn:
+    #
+    #     hỏi VỀ thuộc tính   "món NÀY có bột ngọt không"   trỏ vào MỘT món cụ thể
+    #                         "nhãn 'ít calo' DỰA TRÊN GÌ"   hỏi định nghĩa
+    #     yêu cầu LỌC         "có món NÀO không bột ngọt"    hỏi ỨNG VIÊN
+    #
+    # `mon nao` / `co mon nao` là dấu của câu đòi ứng viên, nên nó loại trừ cờ này. Không có phép
+    # loại trừ đó thì "Có món nào không cay không?" — một câu lọc thật — cũng bị coi là câu hỏi về
+    # thuộc tính, và đó là hỏng nặng hơn lỗi đang sửa.
+    hoi_dinh_nghia = any(c in request.folded for c in ATTRIBUTE_DEFINITION_FRAMING)
+    doi_ung_vien = any(c in request.folded for c in CANDIDATE_FRAMING)
+    if not doi_ung_vien and (hoi_dinh_nghia or (request.refers_to_focus and " khong" in f" {request.folded}")):
+        request.asks_about_attribute = True
+        request.matched.append("hỏi VỀ thuộc tính -> không phải yêu cầu lọc theo thuộc tính")
 
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):

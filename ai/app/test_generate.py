@@ -42,8 +42,8 @@ def gia_lap(text: str, used: list[str] | None = None):
     return call
 
 
-class BonPhepKiemXacMinh(unittest.TestCase):
-    """Mỗi phép kiểm một test phá đúng nó, và một test chiều đúng."""
+class TamPhepKiemXacMinh(unittest.TestCase):
+    """Mỗi phép kiểm một test phá đúng nó, và một test chiều đúng. Phép kiểm thứ 8 có lớp riêng."""
 
     def test_cau_sinh_dung_thi_khong_vi_pham(self):
         text = ("Mình gợi ý Phở bò tái nạm (75.000đ) và Phở gà ta (70.000đ) — cả hai đều không cay "
@@ -72,7 +72,8 @@ class BonPhepKiemXacMinh(unittest.TestCase):
 
     def test_gia_dung_cua_mon_KHAC_trong_danh_sach_thi_khong_vi_pham(self):
         """Chiều chống chặt quá: 70.000đ là giá của Phở gà ta, và Phở gà ta có trong danh sách."""
-        text = "Hai món trong tầm 70.000đ đến 75.000đ ạ."
+        # Nêu ĐỦ hai món (phép kiểm 6 đòi vậy) để test này cô lập đúng phép kiểm về GIÁ.
+        text = f"{PHO['name']} và {GA['name']} nằm trong tầm 70.000đ đến 75.000đ ạ."
         self.assertEqual(verify(text, [], [PHO, GA], ITEMS, []), [])
 
     def test_nhac_mon_mang_nhan_khach_can_tranh_la_loi_AN_TOAN(self):
@@ -106,9 +107,29 @@ class BonPhepKiemXacMinh(unittest.TestCase):
             [],
         )
 
+    def test_bo_sot_mon_trong_danh_sach(self):
+        """Phép kiểm 6 — và nó sửa đúng vấn đề "trả lời một kiểu, thẻ giỏ một kiểu".
+
+        Đo được: golden 103 lượt với đường sinh cho 84/103, và gần hết phần đỏ còn lại là văn xuôi
+        nêu 2–3 món trong khi bộ lọc chọn 6. Hai hậu quả, cả hai đều xấu với khách:
+
+          thiếu lựa chọn  khách chỉ thấy 2 món thay vì 6
+          lệch thẻ giỏ    thẻ giỏ dựng từ 6 món, nên nó chỉ khớp văn xuôi sau khi BỎ BỚT 4 thẻ
+
+        Đòi nhắc đủ giải cả hai: thẻ giỏ khớp mà không phải bỏ món nào, và khách thấy đủ lựa chọn.
+        """
+        loi = verify(f"Mình gợi ý {PHO['name']} (75.000đ) ạ.", [PHO["id"]], [PHO, GA], ITEMS, [])
+        self.assertTrue(any("KHÔNG nhắc đủ món" in x for x in loi), loi)
+        self.assertIn(GA["name"], str(loi))
+
+    def test_nhac_du_mon_thi_khong_vi_pham(self):
+        text = f"Mình gợi ý {PHO['name']} (75.000đ) và {GA['name']} (70.000đ) ạ."
+        self.assertEqual(verify(text, [PHO["id"], GA["id"]], [PHO, GA], ITEMS, []), [])
+
     def test_so_nho_khong_phai_tien_thi_bo_qua(self):
         """"đi 2 người" không phải số tiền. Bắt oan ở đây làm mọi câu sinh bị bỏ."""
-        self.assertEqual(verify("Hai món này đủ cho 2 người ạ.", [], [PHO, GA], ITEMS, []), [])
+        text = f"{PHO['name']} và {GA['name']} — hai món này đủ cho 2 người ạ."
+        self.assertEqual(verify(text, [], [PHO, GA], ITEMS, []), [])
 
 
 class ChiSinhChoLoaiC(unittest.TestCase):
@@ -189,6 +210,68 @@ class LyDoKHONG_VAO_CAU_KHACH_DOC(unittest.TestCase):
         self.assertNotIn("xác minh", ra.text or "")
 
 
+class PhepKiemThu8_MoDuongHoiNhanVien(unittest.TestCase):
+    """Khách nêu điều cần tránh -> câu trả lời PHẢI mời hỏi nhân viên. CHỐT AN TOÀN.
+
+    Phép kiểm này ra đời từ một con số: 76 ca loại C với mô hình thật cho đường tất định 76/76 và
+    đường sinh **61/76** — và **14 trong 15 ca tụt là ca dị nguyên**, tụt vì đúng một lý do: câu sinh
+    bỏ câu "bạn nhắc nhân viên khi gọi món để bếp xác nhận".
+
+    Thước đo đánh dấu tiêu chí đó `safety=True`, nên với đường sinh thì "0 lỗi an toàn" của đường tất
+    định thành 14 LỖI AN TOÀN.
+
+    Câu đó là NỘI DUNG, không phải văn vẻ: nhãn dị nguyên phủ 44/91 món, nên "thực đơn không ghi nhận
+    thành phần bạn cần tránh" KHÔNG đồng nghĩa "món này an toàn". Câu mời hỏi nhân viên là chỗ duy
+    nhất trong câu trả lời nói ra giới hạn đó.
+    """
+
+    def test_co_dieu_can_tranh_ma_khong_moi_hoi_nhan_vien(self):
+        text = f"Mình gợi ý {PHO['name']} (75.000đ), thực đơn không ghi nhận hải sản ở món này."
+        loi = verify(text, [PHO["id"]], [PHO], ITEMS, ["allergen:seafood"])
+        self.assertTrue(any("KHÔNG mở đường hỏi nhân viên" in x for x in loi), loi)
+
+    def test_co_moi_hoi_nhan_vien_thi_khong_vi_pham(self):
+        text = (f"Mình gợi ý {PHO['name']} (75.000đ), thực đơn không ghi nhận hải sản ở món này. "
+                "Bạn nhắc nhân viên khi gọi món để bếp xác nhận lại giúp nhé.")
+        self.assertEqual(verify(text, [PHO["id"]], [PHO], ITEMS, ["allergen:seafood"]), [])
+
+    def test_KHONG_co_dieu_can_tranh_thi_KHONG_doi_cau_do(self):
+        """Chiều ngược, và nó bắt buộc: đòi câu mời hỏi nhân viên ở MỌI câu trả lời là thêm một câu
+        vô nghĩa vào câu "cho mình món chay" — và một câu trả lời đầy cảnh báo không cần thiết thì
+        khách bỏ qua cả những cảnh báo cần thiết."""
+        text = f"Mình gợi ý {PHO['name']} (75.000đ) ạ."
+        self.assertEqual(verify(text, [PHO["id"]], [PHO], ITEMS, []), [])
+
+    def test_cum_nao_cung_duoc_chap_nhan(self):
+        for cum in ("nhân viên", "phục vụ", "bếp xác nhận", "hỏi lại bếp"):
+            with self.subTest(cum):
+                text = f"Mình gợi ý {PHO['name']} (75.000đ). Bạn {cum} giúp nhé."
+                loi = verify(text, [PHO["id"]], [PHO], ITEMS, ["allergen:seafood"])
+                self.assertEqual(loi, [], f"cụm {cum!r} phải được nhận")
+
+    def test_danh_sach_cum_TRUNG_thuoc_do(self):
+        """Hai danh sách phải TRÙNG, và sự trùng đó được ÉP chứ không được nhớ.
+
+        `generate.STAFF_PHRASES` quyết định câu sinh có bị BỎ hay không; `answer_metric.STAFF_PHRASES`
+        quyết định ca có ĐỎ hay không. Lệch nhau thì có câu sinh qua được phép kiểm rồi bị thước đo
+        chấm đỏ — hệ thống tự tin vào một điều thước đo không đồng ý.
+
+        Không import chéo `ai/app` <- `ai/evaluation`: mã lúc chạy không được phụ thuộc bộ đo, vì bộ
+        đo không có mặt trong ảnh Docker. Nên hai chỗ khai riêng và test này đối chiếu.
+        """
+        import sys as _sys
+
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evaluation"))
+        from answer_metric import STAFF_PHRASES as CUA_THUOC_DO
+
+        from generate import STAFF_PHRASES as CUA_MA_CHAY
+
+        self.assertEqual(
+            sorted(CUA_MA_CHAY), sorted(CUA_THUOC_DO),
+            "hai danh sách cụm mở đường hỏi nhân viên đã lệch nhau",
+        )
+
+
 class GioiHanDaBiet(unittest.TestCase):
     def test_ten_mon_HOAN_TOAN_bia_thi_lop_nay_KHONG_bat_duoc(self):
         """Giới hạn đã biết, chốt lại để không ai tưởng lớp này bắt được mọi thứ.
@@ -199,7 +282,8 @@ class GioiHanDaBiet(unittest.TestCase):
         Giảm nhẹ: `reply.items` và thẻ giỏ vẫn tất định, nên món bịa không đặt được. Test này đỏ khi
         có ai làm lớp này mạnh hơn — và đó là tin tốt, cập nhật test.
         """
-        text = "Mình gợi ý Bò sốt tiêu đen Hoàng Gia (75.000đ) ạ."
+        text = (f"Mình gợi ý {PHO['name']} (75.000đ), hoặc Bò sốt tiêu đen Hoàng Gia "
+                f"(75.000đ) ạ.")
         self.assertEqual(verify(text, [PHO["id"]], [PHO], ITEMS, []), [])
 
 

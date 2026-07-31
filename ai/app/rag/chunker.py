@@ -406,6 +406,34 @@ def retrievable_chunks(root: Path) -> list[KnowledgeChunk]:
     return [c for c in all_chunks(root) if c.answer_mode == SYNTHESIZE]
 
 
+def doan_toan_kho(root: Path) -> list[KnowledgeChunk]:
+    """Đúng tập đoạn mà bộ truy hồi TOÀN KHO lúc chạy xếp hạng.
+
+    Vì sao hàm này tồn tại thay vì viết lại phép lọc ở mỗi chỗ dùng
+    --------------------------------------------------------------
+    Phép lọc chỉ là một dòng, nên nó đã bị viết lại ở hai chỗ — và hai chỗ viết KHÁC nhau:
+
+        answer.py::_bo_truy_hoi_toan_kho   [c for c in retrievable_chunks(...) if c.heading]
+        bước tính sẵn vector lúc build     retrievable_chunks(...)          <- KHÔNG lọc heading
+
+    Hậu quả đo được: bước build tính vector cho 425 đoạn, lúc chạy cần vector cho tập ĐÃ LỌC, nên
+    hàm băm nội dung không khớp và hệ thống **tính lại toàn bộ** — 60 giây mỗi lần container khởi
+    động, trong khi log build in "da ghi ... cho 425 doan" và mọi dấu hiệu bề ngoài nói đã có đệm.
+
+    Không có gì báo. Đệm hoạt động đúng như thiết kế (khóa lệch thì tính lại, không dùng vector sai),
+    nên nó im lặng làm điều đúng và che mất việc nó chưa bao giờ được dùng.
+
+    Đây cùng lớp lỗi với `COPY backend/data` từng thiếu và với tên biến `AI_EMBEDDING_CACHE`: hai
+    đầu phải khớp, và cách sửa duy nhất không dựa vào việc ai đó nhớ là để **một nguồn duy nhất**.
+
+    Vì sao lọc `heading` rỗng
+    -------------------------
+    Đoạn không có tiêu đề mục là phần mở đầu tài liệu — với `chunker` thì nó chỉ mang dòng tiêu đề
+    tài liệu, không mang tín hiệu nào để xếp hạng, và trích nó cho khách đọc là trích một cái tên.
+    """
+    return [c for c in retrievable_chunks(root) if c.heading]
+
+
 def verbatim_answers(root: Path) -> dict[str, str]:
     """{khóa chủ đề: câu trả lời nguyên văn} cho mọi tài liệu `verbatim`.
 

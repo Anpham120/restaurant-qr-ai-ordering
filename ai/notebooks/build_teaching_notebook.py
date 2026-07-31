@@ -141,12 +141,30 @@ khách gõ câu → TV5 cổng vào & phiên → TV2 hiểu câu hỏi → TV3 t
 
 | TV | Phụ trách | Module sở hữu | Mục notebook | Trạng thái |
 |---|---|---|---|---|
-| **1** | **Nền tảng: dữ liệu & đo lường** | `knowledge/*` · `chunker.py` · `build_*.py` · `evaluation/*` | 1–11, 14–15 | **xong phần hiện có** |
+| **1** | **Nền tảng: dữ liệu & đo lường** | `knowledge/*` · `chunker.py` · `build_*.py` · `evaluation/*` | 1–11, 14–15, 19 | **xong** |
 | **2** | Hiểu câu hỏi | `understand.py` · `llm_understand.py` | 4, 12–13, 16 | **xong** |
-| **3** | Truy hồi | `rag/bm25.py` · `embedding.py` · `hybrid.py` | 15 | **chưa có** |
-| **4** | Chọn món & giỏ hàng | `answer.py` · `cart.py` | 12–14 | **xong** |
-| **5** | Cổng vào & phiên | `service.py` · `session.py` | 16 (một phần) | **xong mã**, chưa chạy thật |
-| — | Kết quả, hạn chế, hướng phát triển | — | 17–19 | — |
+| **3** | Truy hồi | `rag/bm25.py` · `embedding.py` · `hybrid.py` · `precompute.py` | 15–15d, 20 | **xong** |
+| **4** | Chọn món & giỏ hàng | `answer.py` · `cart.py` · `generate.py` | 12–14, 17–18 | **xong** |
+| **5** | Cổng vào & phiên | `service.py` · `session.py` | 16, 18, 20 | **xong, đã chạy thật** |
+| — | Kết quả, làm được, hạn chế, hướng phát triển | — | 21–23 | — |
+
+### Thứ tự bảy phần, và vì sao đúng thứ tự đó
+
+```
+ 1  dựng DỮ LIỆU            thực đơn · nhãn · kho tri thức · chia đoạn
+ 2  dựng THƯỚC ĐO           tập ca · khóa đáp án kiểm được · chia ba nhóm
+ 3  trả lời KHÔNG mô hình    số nền — mọi thứ sau đó phải hơn số này
+ 4  dựng TRUY HỒI + SO       ba cách × hai bài toán × hai tập  →  CHỌN một
+ 5  mô hình SINH + an toàn   nơi mô hình có giá trị, và lớp xác minh
+ 6  THỬ NGHIỆM THẬT          gọi mô hình · qua HTTP · vào giỏ hàng thật
+                             → phân tích case sai KHÔNG sửa được nữa
+                             → CHỐT phương án production
+ 7  kết quả · làm được · hạn chế · hướng phát triển
+```
+
+Thước đo (2) đứng **trước** thứ được đo (3–5) vì không có thứ tự nào khác cho phép biết một thay đổi
+làm tốt lên hay xấu đi. Và phần chốt production (6) đứng **sau** phần thử nghiệm thật, không phải sau
+phần so trên máy — vì bốn lỗi tích hợp nặng nhất của dự án chỉ hiện ra khi chạy thật.
 
 **Vì sao dữ liệu và đo lường thuộc CÙNG một người.** Chúng giống nhau ở điểm quan trọng nhất: cả
 hai **không phải chặng runtime** — một câu hỏi không "đi qua" từ điển nhãn hay tập đánh giá, nó
@@ -1908,14 +1926,132 @@ filter**, không phải xếp hạng.
 - **Diễn giải:** đây là con số chứng minh **không phải chỗ nào cũng nên dùng RAG**. Với việc chọn
   món, dữ liệu đã có cấu trúc (nhãn + giá), nên đưa nó qua một tầng xếp hạng theo độ tương đồng là
   **bỏ cấu trúc đi rồi cố đoán lại**.
-- **Quyết định kèm theo, và điều kiện để đổi:** embedding thắng bài toán 1 nhưng **KHÔNG** được đưa
-  vào `ai/requirements.txt`. Nó nằm riêng ở `ai/requirements-rag.txt`. Ba lý do đo được: (1) đường
+- **Quyết định cũ, và ĐIỀU KIỆN đã ghi ra để đổi nó:** bước 5 để embedding **ngoài**
+  `ai/requirements.txt`, ở riêng `ai/requirements-rag.txt`, với ba lý do đo được: (1) đường
   `synthesize` mà nó phục vụ **chưa có ai gọi** — `answer.py` trả lời câu chính sách bằng TRA KHÓA
   trên 24 chủ đề, chính xác tuyệt đối và 0 ms; (2) chậm hơn **75 lần** để đổi lấy **0 ca đúng
-  thêm** trên đường hiện tại; (3) **+2–3GB** ảnh Docker. Điều kiện để nhập vào, ghi ra để lần sau
-  không phải đoán: **khi đường `synthesize` được dựng**.
-- **Điều notebook này KHÔNG nói:** không có con số nào về việc khách thật hỏi gì. Cả 138 ca truy
-  hồi và 8 ca chọn món đều do người viết.
+  thêm**; (3) ảnh Docker to hơn nhiều. Và ghi kèm điều kiện để nhập vào: **khi đường `synthesize`
+  được dựng**.
+- **ĐIỀU KIỆN ĐÓ ĐÃ XẢY RA, nên quyết định đã đảo.** Kho nay có **84 chủ đề `synthesize`**, và
+  **74 trong số đó không có cụm từ vựng nào** — tức truy hồi là **đường duy nhất** tới chúng, không
+  còn là một tầng phụ cạnh tra khóa. Mục 15d đo lại và chốt bộ truy hồi cho production.
+- **Vì sao ghi lại cả quyết định cũ thay vì xóa:** nó cho biết **điều kiện nào** làm mỗi lựa chọn
+  đúng. Nếu kho co lại về tra khóa thì lý lẽ của bước 5 lại đúng ngay. Một quyết định không kèm điều
+  kiện thì lần sau phải đoán lại từ đầu.
+- **Điều mục này KHÔNG nói:** không có con số nào về việc khách thật hỏi gì. Cả tập truy hồi và 8 ca
+  chọn món đều do người viết.
+"""))
+
+    out.append(md(r"""
+## 15d. Chốt bộ truy hồi cho production — hai bài toán, hai tập, một quyết định
+
+### Vì sao phải đo trên HAI bài toán chứ không một
+
+Lúc chạy thật, truy hồi được gọi ở hai chỗ khác nhau, và chúng là hai bài toán khác nhau:
+
+| Chỗ gọi | Bài toán | Số ứng viên | `k` |
+|---|---|---|---|
+| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 449 đoạn | 1 |
+| chọn mục trong tài liệu đã biết | mục nào **trong tài liệu này** đúng ý | 3–8 đoạn | 1 |
+
+Cả hai đều dùng `k=1`. Nên **Top-1 là chỉ số quyết định**, không phải Hit@5. Đo Hit@5 rồi chốt theo
+nó là chốt theo một con số hệ thống không dùng: Hit@5 = 1,0 vẫn đúng khi đoạn đúng nằm thứ năm và
+bốn đoạn lạc đề nằm trên nó — mà lúc chạy chỉ đoạn thứ nhất được đọc.
+
+### Vì sao phải đo trên HAI tập
+
+`phát triển` là tập đã xem và đã sửa theo. Con số trên nó **luôn đẹp hơn thực tế**. Tập `niêm phong`
+mở đúng một lần cho câu hỏi cuối, và chỉ nó nói được điều gì về câu hỏi chưa từng thấy.
+
+Bảng dưới in cả hai, cạnh nhau, kèm `n`. Ở `n` cỡ này thì một ca lệch là hơn 1 điểm phần trăm, nên
+chênh lệch nhỏ hơn hai ca **không** là căn cứ để đổi hệ thống — và ô mã tự nói ra điều đó.
+"""))
+
+    out.append(code(r"""
+# Bảng chốt bộ truy hồi — TÍNH LẠI, không chép. Chạy mất ~2 phút vì có mã hóa embedding.
+import statistics
+import run_retrieval_comparison as rrc
+import run_chunk_selection_comparison as rcs
+from rag import embedding as EMB
+
+if not EMB.available():
+    print("KHÔNG có sentence-transformers, nên bảng này chỉ có BM25 —")
+    print(f"và như vậy nó KHÔNG trả lời được câu hỏi của mục này. Lý do: {EMB.why_unavailable()}")
+else:
+    cases = rrc.load_cases()
+    split = rrc.load_split()
+    bo = rrc.build_retrievers()
+
+    # DÙNG LẠI `rrc.in_bang()` thay vì tự định dạng bảng.
+    #
+    # Bản đầu của ô này tự in, và nó sai HAI lần liền — mỗi lần chỉ lộ ra khi CHẠY notebook:
+    #
+    #   1. `rrc.build_retrievers()` trả về LIST các bộ (mỗi bộ có `.name`), còn
+    #      `rcs.build_retrievers()` ở bài toán 2 trả về DICT. Lặp `for ten in bo` cho cả hai cho
+    #      `TypeError: unhashable type: 'Bm25Index'`.
+    #   2. `Ketqua.hit1` là TỔNG TÍCH LŨY (float), không phải danh sách điểm từng ca — nên
+    #      `statistics.fmean(k.hit1)` nổ. Mẫu số đúng là `k.scored_cases`, và `in_bang` biết điều đó.
+    #
+    # Cả hai là cùng một lỗi gốc: viết lại phép định dạng ở chỗ thứ hai. Bộ chạy đã có `in_bang` và
+    # `Ketqua.hang()`; dùng lại chúng thì không có chỗ nào để lệch.
+    #
+    # Và `--check` của bộ sinh KHÔNG bắt được hai lỗi đó vì nó chỉ so NGUỒN từng ô — cùng lớp lỗi
+    # "tệp có ≠ nó chạy", ở dạng "ô có ≠ ô chạy". Nay `--check` đọc cả kết quả và báo đỏ nếu có ô nổ.
+    for ten_tap, khoa in (("phát triển", "dev_families"), ("niêm phong", "test_families")):
+        ho = set(split[khoa])
+        ca = [c for c in cases if c["family"] in ho and not c["expect_nothing"]]
+        kq = rrc.do_bai_toan_1(bo, ca, runs=1)
+        rrc.in_bang(
+            f"BÀI TOÁN 1 — đoạn nào trong CẢ KHO · tập {ten_tap} ({len(ca)} ca)", kq,
+            "Top-1 là chỉ số quyết định: lúc chạy `answer.py` gọi `search(question, k=1)`.",
+        )
+
+    print()
+    print("BÀI TOÁN 2 — mục nào TRONG MỘT TÀI LIỆU đúng ý (đây là việc lúc chạy thật)")
+    print(f"{'tập':12}{'bộ':12}{'Top-1':>8}{'Top-1 dạng B':>14}{'n':>6}")
+    print("-" * 54)
+    bo2 = rcs.build_retrievers()
+    lat_np = None                      # giữ lại lát NIÊM PHONG để kết luận dùng lại
+    for ten_tap, sealed in (("phát triển", False), ("niêm phong", True)):
+        ca, _, theo_doc = rcs.nap(sealed)
+        lat = rcs.do_lat(ca, bo2, theo_doc, runs=1)
+        if sealed:
+            lat_np = lat
+        for ten in bo2:
+            chinh, dangB = lat[("written", "*")][ten], lat[("written", "B")][ten]
+            print(f"{ten_tap:12}{ten:12}{statistics.fmean(chinh.top1):>8.3f}"
+                  f"{statistics.fmean(dangB.top1):>14.3f}{chinh.n:>6}")
+
+    # Kết luận đọc TỪ SỐ, và tự nói ra khi chênh lệch nhỏ hơn hai ca.
+    #
+    # Dùng lại `lat_np` đã tính ở vòng lặp trên. Bản đầu gọi `nap(True)` + `do_lat(...)` lần nữa, tức
+    # đo tập niêm phong HAI lần cho cùng một con số — chậm gấp đôi mà không thêm thông tin nào.
+    diem = {t: statistics.fmean(lat_np[("written", "*")][t].top1) for t in bo2}
+    xep = sorted(diem, key=lambda t: -diem[t])
+    n = lat_np[("written", "*")][xep[0]].n
+    d = diem[xep[0]] - diem[xep[1]]
+    print(f"\nTrên tập NIÊM PHONG của bài toán lúc chạy thật: {xep[0]} dẫn {xep[1]} {d:+.3f} Top-1")
+    print(f"  n={n}, một ca là {1 / n:.3f}")
+    if d < 2 / n:
+        print(f"  CHÊNH LỆCH NHỎ HƠN HAI CA — không đủ căn cứ để đổi hệ thống chỉ vì con số này.")
+    else:
+        print(f"  Chênh lệch lớn hơn hai ca, nên nó là căn cứ dùng được.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 15d
+
+- **Quan sát:** embedding dẫn ở **cả hai bài toán** và ở **cả hai tập**, và khoảng cách **rộng nhất
+  đúng ở chỗ quan trọng nhất** — câu diễn đạt khác từ (dạng B), nơi khách thật không dùng đúng chữ
+  trong tài liệu. BM25 thắng ở dạng A (trùng từ khóa), đúng như bản chất của nó.
+- **Diễn giải:** hai bài toán cho **cùng một kết luận**, nên kết luận không phải hệ quả của một cách
+  đo. Và con số tuyệt đối **tụt** khi kho lớn lên (84 chủ đề thay vì 60) — đó là bài toán khó lên,
+  không phải hệ thống kém đi, vì các chủ đề mới gần nhau hơn (bốn tài liệu vùng miền, bốn tài liệu
+  đồ uống).
+- **Quyết định:** **đưa embedding vào production**, `ai/requirements.txt`. Xem mục 20 cho cái giá đã
+  đo và cách nó được cắt xuống.
+- **Điều bảng này KHÔNG nói:** nó không nói hybrid vô dụng. Hybrid thắng BM25 và gần bằng embedding;
+  nó bị loại vì **thêm chi phí mà không thêm điểm**, chứ không phải vì sai.
 """))
 
     # ================================================================= PHẦN 5
@@ -2190,16 +2326,358 @@ print("thiếu của bảng từ vựng, không đo năng lực mô hình.")
   được, nhưng đó là con số đáng lo nhất khi đưa vào dùng thật.
 """))
 
+    # ======================================================= PHẦN 6 — THỬ NGHIỆM THẬT
+    out.append(md(r"""
+---
+# PHẦN 6 — THỬ NGHIỆM THẬT: GỌI MÔ HÌNH, QUA HTTP, VÀO GIỎ HÀNG
+> Mọi con số của PHẦN 1–5 đo bằng cách gọi hàm Python trực tiếp. Phần này đo **chuỗi gọi đầy đủ**:
+> QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô hình → thẻ giỏ → giỏ hàng thật.
+
+## Vì sao phần này tồn tại, và vì sao nó không thay được bằng test
+
+Chạy thật đã tìm ra **bốn lỗi** mà 196 test không thấy, và cả bốn cùng một lớp: **lệch hợp đồng giữa
+hai bên**. Backend gửi `message`, dịch vụ đòi `question` → 422. Backend gửi
+`Authorization: Bearer`, dịch vụ đọc `X-Internal-Token` → 401 mọi lượt. Hình dạng `session_state`
+khác nhau → bộ nhớ **mất im lặng** giữa các lượt. `AI_PIPELINE_PROFILE` sai giá trị → 500 mọi lượt.
+
+Không test một phía nào bắt được chúng, vì mỗi phía kiểm hợp đồng **mình tưởng**, không kiểm hợp
+đồng **bên kia dùng**.
+
+Phần này thêm hai phép đo mới, và cả hai cần thứ notebook không tự dựng được:
+
+| Phép đo | Cần gì | Đọc từ |
+|---|---|---|
+| golden qua HTTP thật | backend + Postgres + dịch vụ AI đang chạy | `ai/evaluation/measurements/golden_e2e.json` |
+| LLM+RAG loại C | `LLM_API_KEY` thật, tốn tiền mỗi lần chạy | `ai/evaluation/measurements/llm_rag_loai_c.json` |
+
+Hai tệp đó do bộ chạy **ghi ra**, và ô mã dưới **đọc** chúng. Không con số nào chép tay — ba con số
+chép tay của notebook này đã trôi (`122/122` khi tập đã lên 140 ca; `84 tài liệu / 303 đoạn` khi kho
+đã 108 / 449; `Hit@5 0,921` của một kho nhỏ hơn). Xem `ai/evaluation/measurements/README.md`.
+
+## 17. Gọi mô hình thật: câu sinh có giữ được ca đang xanh không?
+
+### Kiến thức
+
+Bật đường sinh là đánh đổi, và phải đo cả hai phía của nó:
+
+| Phía | Câu hỏi | Cách đo |
+|---|---|---|
+| được | câu văn tự nhiên hơn | **KHÔNG đo được** bằng thước đo nội dung — nói ra thay vì giả vờ đo |
+| mất | có ca nào TỤT từ xanh sang đỏ | chạy CÙNG tập ca hai lần, tất định và có sinh |
+
+Chỉ phía "mất" đo được, nên đó là phía quyết định. Và ngưỡng đúng ở đây là **0 ca tụt**: một câu văn
+hay không bù được một câu trả lời sai.
+
+Đường sinh chỉ chạy ở **hai nhánh**: `filter` và `compare` — nơi mô hình có việc thật là diễn đạt một
+danh sách món đã được chọn bằng mã tất định. Nhánh `no_data`, `refuse`, `clarify` **không** sinh: ở
+đó câu trả lời đúng là câu ngắn và cố định, và để mô hình viết lại nó chỉ thêm chỗ để sai.
+"""))
+
+    out.append(code(r"""
+# Kết quả gọi mô hình thật trên ca loại C — ĐỌC từ tệp, vì phép đo này cần LLM_API_KEY thật.
+import results
+
+try:
+    r = results.doc("llm_rag_loai_c")
+except FileNotFoundError as e:
+    print(e)
+else:
+    so, dk = r["so"], r["dieu_kien"]
+    print(f"ĐIỀU KIỆN: {dk['ngay']} · mô hình {dk['mo_hinh']}")
+    print(f"\n1. CÂU SINH CÓ GIỮ CA XANH KHÔNG  ({so['ca']} ca loại C)")
+    print(f"   đường tất định : {so['dat_tat_dinh']}/{so['ca']}")
+    print(f"   có đường sinh  : {so['dat_co_duong_sinh']}/{so['ca']}")
+    if so["ca_tut"]:
+        print(f"   TỤT {len(so['ca_tut'])} ca: {so['ca_tut']}")
+        print("   => Đây là con số quyết định, và nó nói KHÔNG nên bật đường sinh mặc định.")
+    else:
+        print("   không ca nào tụt — nhưng đây là 'KHÔNG LÀM TỤT', không phải 'tốt hơn'.")
+
+    print(f"\n2. LỚP XÁC MINH CHẶN ĐƯỢC GÌ")
+    d, l = so["cau_sinh_duoc_dung"], so["lui_ve_khuon_mau"]
+    print(f"   câu sinh được DÙNG : {d}/{so['ca']}  ({d / so['ca'] * 100:.0f}%)")
+    print(f"   lùi về khuôn mẫu   : {l}/{so['ca']}")
+    for ly_do, n in sorted(so["ly_do_chan"].items(), key=lambda kv: -kv[1]):
+        print(f"      {n:3}  {ly_do}")
+
+    print(f"\n3. GIÁ PHẢI TRẢ")
+    print(f"   độ trễ mỗi câu: p50 {so['tre_p50_ms']} ms, p95 {so['tre_p95_ms']} ms")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 17: phát hiện đáng nhất của cả phần thử nghiệm
+
+Lần chạy đầu trên 76 ca cho **76/76 tất định** so với **61/76 có đường sinh**, và **14 trong 15 ca tụt
+là ca dị nguyên**. Sau khi thêm phép kiểm thứ 8: **76/76**, 0 ca tụt — và **tỷ lệ dùng câu sinh không
+giảm** (68/76 ở cả hai lần), tức quy tắc trong prompt sửa được hành vi ở cả 14 ca còn phép kiểm đứng
+đó làm **bảo đảm** chứ không làm bộ lọc. Chúng tụt vì đúng một lý do: câu khuôn mẫu luôn thêm *"bạn nhắc nhân viên khi gọi
+món để bếp xác nhận"*, còn mô hình viết văn mượt hơn và **bỏ câu đó đi**.
+
+Thước đo đánh dấu tiêu chí đó **`safety=True`**, nên với đường sinh thì "0 lỗi an toàn" của đường tất
+định thành **14 lỗi an toàn**.
+
+**Câu đó là NỘI DUNG, không phải văn vẻ.** Nhãn dị nguyên phủ **44/91 món**, nên *"thực đơn không ghi
+nhận thành phần bạn cần tránh"* **không** đồng nghĩa *"những món này an toàn"* — nó chỉ nói dữ liệu
+không có ghi chép. Câu mời hỏi nhân viên là **chỗ duy nhất** trong câu trả lời nói ra giới hạn đó.
+
+**Sửa bằng phép kiểm thứ 8, không bằng một dòng trong prompt.** Prompt đã có quy tắc yêu cầu điều này,
+nhưng yêu cầu trong prompt là **đề nghị**, không phải **bảo đảm** — đúng bài học trung tâm của mục 16:
+an toàn không được phụ thuộc việc mô hình chịu nghe. Nay thiếu câu đó thì **câu sinh bị bỏ**.
+
+**Và điều phép đo này nói về cách đánh giá:** golden 103 lượt chạy **với đường sinh bật** và đạt
+**103/103**. Nếu chỉ có con số đó thì kết luận sẽ là "đường sinh an toàn" — và nó **sai**, vì golden
+không có tiêu chí `must_offer_staff`. Golden kiểm *không nêu món mang nhãn cần tránh*; tập trả lời kiểm
+*có mở đường hỏi nhân viên*. Hai tập kiểm hai điều khác nhau về cùng một chủ đề an toàn, và **chỉ một
+trong hai bắt được lỗi này**. Đó là lý do dự án giữ **bốn** tập chứ không gộp thành một.
+
+#### Nhận xét — Mục 17
+
+- **Quan sát:** lớp xác minh **chặn thật**, và lý do bị chặn nhiều nhất là **bịa giá** — mô hình viết
+  ra một con số tiền không phải giá của món nào trong danh sách. Đó chính là loại lỗi mà khách không
+  thể tự phát hiện: câu văn mượt, món có thật, chỉ con số sai.
+- **Diễn giải:** tám phép kiểm của `generate.py` không phải hàng rào lý thuyết. Nếu chúng không có,
+  những câu đó **đã đến tay khách**, và hệ thống sẽ báo một con số đẹp hơn con số thật.
+- **Điều mục này KHÔNG nói:** phép kiểm bắt được món và giá **có trong dữ liệu**. Một tên món **hoàn
+  toàn bịa** thì phép so chuỗi không bắt được — `test_generate.py` có ca ghi rõ giới hạn đó bằng tên
+  `test_ten_mon_HOAN_TOAN_bia_thi_lop_nay_KHONG_bat_duoc`. Ghi giới hạn thành test là cách duy nhất
+  để nó không bị quên.
+
+## 18. Golden qua HTTP thật — và phép kiểm "trả lời một kiểu, giỏ một kiểu"
+
+### Kiến thức
+
+Tập golden khác cả ba tập trước ở một điểm: nó **không gọi hàm Python nào**. Nó gửi HTTP như khách
+thật, qua backend .NET, và ở một hội thoại nó **bấm thêm vào giỏ thật** rồi đọc lại giỏ để xác nhận.
+
+Bất biến quan trọng nhất của tập này là bất biến mà ba tập trước **không thể** kiểm:
+
+> Món mà câu trả lời NÊU RA phải TRÙNG món trong thẻ giỏ.
+
+Vì sao nó là một bất biến riêng chứ không hệ quả của hai bất biến khác: câu chữ và thẻ giỏ đi qua
+**hai đường khác nhau** — chữ do đường sinh viết, thẻ do `cart.py` dựng từ danh sách món đã chọn. Hai
+đường thì lệch được, và lệch theo cách khách thấy ngay: đọc thấy tư vấn ba món, bấm vào giỏ thì ra
+món thứ tư.
+
+Cách sửa đã chọn, và cách sửa đã BỎ:
+
+| Cách | Việc nó làm | Vì sao |
+|---|---|---|
+| ~~cắt thẻ giỏ theo món được nêu~~ | giỏ khớp chữ | **BỎ** — nó chữa triệu chứng: khách vẫn mất lựa chọn mà mô hình quên nhắc |
+| bắt câu sinh phải nhắc **ĐỦ** món | chữ khớp giỏ | **CHỌN** — phép kiểm thứ 7 của `generate.py`; thiếu một món thì bỏ cả câu sinh |
+
+Phép kiểm thứ 7 đắt hơn: nó làm tỷ lệ dùng câu sinh giảm. Nhưng nó sửa đúng chỗ hỏng, còn cắt thẻ giỏ
+thì làm con số đẹp lên trong khi khách nhận ít lựa chọn hơn.
+"""))
+
+    out.append(code(r"""
+# Kết quả golden qua HTTP thật — ĐỌC từ tệp, vì phép đo này cần cả stack đang chạy.
+import results
+
+try:
+    r = results.doc("golden_e2e")
+except FileNotFoundError as e:
+    print(e)
+else:
+    so, dk = r["so"], r["dieu_kien"]
+    ready = dk.get("ready") or {}
+    print(f"ĐIỀU KIỆN: {dk['ngay']} · {dk['hoi_thoai']} hội thoại qua {dk['api']}")
+    if isinstance(ready, dict):
+        for k in ("retriever", "retriever_vectors_from_cache", "generation_enabled",
+                  "model_key_set", "knowledge_chunks"):
+            if k in ready:
+                print(f"  {k:30} {ready[k]}")
+    else:
+        print(f"  {ready}")
+
+    print(f"\nKẾT QUẢ: {so['dat']}/{so['luot']} lượt đạt ({so['dat'] / so['luot'] * 100:.1f}%)")
+    if so["luot_do"]:
+        print(f"\n{len(so['luot_do'])} lượt ĐỎ — đây là dữ liệu của mục 19:")
+        for h in so["luot_do"]:
+            print(f"  {h}")
+    else:
+        print("\nKhông lượt nào đỏ qua đủ chuỗi gọi: QR -> phiên bàn -> phiên chat -> backend ->")
+        print("dịch vụ AI -> thẻ giỏ -> giỏ hàng thật.")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 18
+
+- **Quan sát:** cấu hình của lần chạy được in **trước** con số, và đó không phải hình thức. Đã trả
+  giá một lần cho việc thiếu nó: một lần chạy 42 lượt được báo là *"qua mô hình thật"* trong khi
+  `LLM_API_KEY` rỗng nên **mọi lượt đi đường tất định** — `/ready.model_configured` lúc đó không kiểm
+  khóa, nên nó báo `true`. Nay có ba cờ riêng: `model_configured`, `model_base_url_set`,
+  `model_key_set`.
+- **Diễn giải:** một con số không có điều kiện của lần chạy thì không so được với con số sau, tức nó
+  gần như vô dụng. Đó là lý do `results.ghi()` bắt buộc tham số `dieu_kien`.
+- **Điều mục này KHÔNG nói:** 103 lượt là nhiều so với ba tập trước, nhưng vẫn là **kịch bản người
+  viết**. Nó đo hệ thống có giữ ràng buộc qua nhiều lượt hay không; nó **không** đo khách thật hỏi gì.
+
+## 19. Case sai KHÔNG sửa được nữa — và vì sao gộp chúng vào một lớp là sai
+
+### Kiến thức
+
+Bảng nguyên nhân đầu tiên của dự án dồn **62 ca truy hồi vào MỘT lớp** `retrieval_miss`, kèm một cách
+sửa chung: *"sửa cách xếp hạng"*. Bảng đó vô dụng cho câu hỏi đang cần trả lời, vì nó không phân biệt
+được ca nào **còn** sửa được với ca nào **không**.
+
+Chia lại thành bốn lớp, và **ba trong bốn dẫn ra được từ dữ liệu** — không dán tay từng ca:
+
+| Lớp | Dấu hiệu trong dữ liệu | Sửa bằng xếp hạng? |
+|---|---|---|
+| `retrieval_number` | họ ca là `kb-number` | **KHÔNG.** Không phép trùng từ hay embedding nào so được 45.000 với 50.000 |
+| `retrieval_no_overlap` | câu hỏi ∩ đoạn đúng = ∅ (sau khi bỏ từ rỗng) | một phần — embedding hơn BM25 18,2 điểm ở đúng dạng này |
+| `retrieval_twin_section` | đoạn lấy được có **cùng tiêu đề mục** với đoạn đúng, khác tài liệu | **KHÔNG.** Đây là trần đa dạng của KHO |
+| `retrieval_rank` | còn lại | **CÓ** — và đây là lớp duy nhất |
+
+Lớp `twin_section` là phát hiện đáng nói nhất: **184 tiêu đề mục phân biệt trên 449 đoạn**, tức trung
+bình 2,4 đoạn dùng chung một tiêu đề. Khi bốn tài liệu vùng miền đều có mục *"Món tiêu biểu"*, không
+tín hiệu nào trong câu *"Ăn gì đặc trưng phố cổ?"* phân biệt được bốn mục đó — trừ khi câu hỏi nêu
+tên tài liệu. Đổi bộ xếp hạng không chữa được; **viết lại tiêu đề mục** thì chữa được, vì đó là sửa
+dữ liệu.
+
+### Và một điều công cụ này phải làm: KHÔNG phân tích tập niêm phong
+
+Công cụ in kèm "cách sửa", nên đầu ra của nó là một danh sách việc phải làm. Chạy nó trên tập niêm
+phong rồi làm theo = sửa hệ thống theo tập niêm phong, và sau đó con số trên đó không còn là
+held-out. Dự án đã trả đúng giá này một lần ở bước 4. Nay `phan_tich_truy_hoi()` **lọc bỏ** các họ
+niêm phong và **in ra** là đã bỏ bao nhiêu ca.
+"""))
+
+    out.append(code(r"""
+# Phân loại nguyên nhân — TÍNH LẠI. Chỉ tập phát triển + chốt, KHÔNG tập niêm phong.
+import collections
+import analyze_failures as af
+
+items = af.load_menu()
+bo, ten_bo = af.bo_truy_hoi_tot_nhat()
+nn_th, da_xet, bo_qua = af.phan_tich_truy_hoi(bo, ten_bo)
+tat_ca = af.phan_tich_tra_loi(items) + nn_th + af.phan_tich_phien(items)
+
+print(f"bộ truy hồi: {ten_bo}")
+print(f"đã BỎ {bo_qua} ca niêm phong; xét {da_xet} ca truy hồi\n")
+
+theo_lop = collections.Counter(n.lop for n in tat_ca)
+LOP_TH = {af.RETRIEVAL_NUMBER, af.RETRIEVAL_NO_OVERLAP, af.RETRIEVAL_TWIN_SECTION, af.RETRIEVAL_RANK}
+print(f"{'lớp nguyên nhân':24}{'ca':>4}  {'sửa được?':<11} ví dụ")
+print("-" * 84)
+for lop in af.MOI_LOP:
+    ns = [n for n in tat_ca if n.lop == lop]
+    vd = f"{ns[0].ca} — {ns[0].cau[:32]}" if ns else "(rỗng)"
+    sua = "" if lop not in LOP_TH else ("xếp hạng" if lop in af.SUA_DUOC_BANG_XEP_HANG else "KHÔNG")
+    print(f"{lop:24}{theo_lop.get(lop, 0):>4}  {sua:<11} {vd}")
+
+khong_sua = sum(theo_lop.get(l, 0) for l in LOP_TH - af.SUA_DUOC_BANG_XEP_HANG)
+co_sua = sum(theo_lop.get(l, 0) for l in af.SUA_DUOC_BANG_XEP_HANG)
+print(f"\n{khong_sua} ca KHÔNG sửa được bằng xếp hạng · {co_sua} ca còn sửa được")
+if khong_sua:
+    print("Đổi bộ xếp hạng để chữa nhóm thứ nhất là làm việc không có tác dụng,")
+    print("và một bảng gộp chúng vào cùng lớp với nhóm thứ hai đã che mất điều đó.")
+
+# Trần đa dạng của kho — con số đứng sau lớp `twin_section`.
+from rag.chunker import retrievable_chunks
+doan = retrievable_chunks(KNOWLEDGE)
+tieu_de = collections.Counter(c.heading for c in doan if c.heading)
+print(f"\nTRẦN ĐA DẠNG CỦA KHO: {len(tieu_de)} tiêu đề mục phân biệt / {len(doan)} đoạn")
+print(f"  trung bình {len(doan) / max(len(tieu_de), 1):.1f} đoạn dùng chung một tiêu đề")
+print("  năm tiêu đề bị dùng lại nhiều nhất:")
+for t, n in tieu_de.most_common(5):
+    print(f"    {n:3} tài liệu  {t}")
+"""))
+
+    out.append(md(r"""
+#### Nhận xét — Mục 19
+
+- **Quan sát:** phần lớn ca truy hồi còn sai thuộc hai lớp **không** chữa được bằng cách đổi bộ xếp
+  hạng. Chúng chữa được bằng **sửa dữ liệu** — viết lại tiêu đề mục cho đặc thù theo tài liệu.
+- **Diễn giải:** đây là lý do một bảng nguyên nhân gộp là tệ hơn không có bảng: nó làm người đọc tin
+  rằng còn 20 ca nữa để giành bằng cách chỉnh thuật toán, trong khi việc đúng là sửa kho.
+- **Ba lỗi đã có trong công cụ này, và cả ba cùng một lớp:** mẫu số viết tay (`138` khi tập đã 210
+  ca), số niêm phong trích từ lần mở **trước** (kho 303 đoạn), và phân tích **cả tập niêm phong**. Cả
+  ba là "một con số hoặc một phạm vi đúng-lúc-viết, nằm trong chuỗi ký tự". Cách sửa: đếm từ dữ liệu,
+  và không cho phép viết số bằng tay.
+- **Điều mục này KHÔNG nói:** nó không nói 20 ca kia là **không thể** sửa. Nó nói chúng không sửa
+  được **bằng cách đổi bộ xếp hạng** — và phân biệt hai câu đó là toàn bộ giá trị của bảng.
+
+## 20. Chốt phương án triển khai production
+
+### Ba quyết định, mỗi quyết định một con số đã đo
+
+| Quyết định | Chốt | Căn cứ đo được | Cái giá đã đo |
+|---|---|---|---|
+| bộ truy hồi | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB; truy hồi 1,4ms → 67ms |
+| đường sinh | **TẮT mặc định**, bật bằng `AI_ENABLE_GENERATION` | **0 ca tụt** sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** — thước đo không chấm được "văn tự nhiên hơn" | p50 **+8,6s** mỗi lượt gọi mô hình |
+| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn 8/8 ca đúng; ba cách xếp hạng sai 6–7/8 | 0,3ms — rẻ hơn mọi phương án khác |
+
+### Cái giá của embedding, và ba lần đo mới ra con số đúng
+
+| Lần | Ảnh | Vì sao |
+|---|---|---|
+| dự đoán | *"khoảng 3GB"* | con số **đọc ở đâu đó**, không phải con số đo |
+| đo lần 1 | **9,29GB** | `pip install torch` trên Linux lấy bản **CUDA** + mấy GB thư viện driver NVIDIA — cho một dịch vụ chạy CPU |
+| đo lần 2 | **2,74GB** | ghim `--extra-index-url https://download.pytorch.org/whl/cpu` |
+
+Nếu chốt phương án bằng con số dự đoán thì báo cáo sai gấp ba, và chỉ người deploy phát hiện ra.
+
+### Thời gian khởi động: 97,3s → và vì sao nó là vấn đề an toàn, không chỉ vấn đề chậm
+
+| Thành phần | Thời gian |
+|---|---|
+| `import torch` | 1,8s |
+| `import sentence_transformers` | 6,3s |
+| nạp mô hình | 10,6–12,2s |
+| **mã hóa 425 đoạn** | **61,7s** |
+
+`HEALTHCHECK` của Dockerfile có `start_period=15s`, `interval=30s`, `retries=3` → lần kiểm thứ ba rơi
+vào **~105 giây**. Dịch vụ kịp sẵn sàng ở 97 giây, tức **suýt** bị đánh `unhealthy`. Và `api` có
+`depends_on: ai-service: condition: service_healthy`, nên hậu quả trên một máy chậm hơn 8% không phải
+một cảnh báo mà là **cả stack không lên được**.
+
+Hai việc đã làm:
+
+1. **Tính sẵn vector lúc build** (`python -m rag.precompute`). Phần mã hóa: 61,7s → **0,1s**.
+2. **`start-period` 15s → 90s.** Đặt rộng không mất gì: `start-period` chỉ nói "thất bại trong khoảng
+   này thì đừng tính", nó không làm chậm container lên nhanh.
+
+Khởi động sau khi sửa: **19,0s** — và con số này phải kèm điều kiện. Lần khởi động ĐẦU ngay sau khi
+build là **61,9s**, vì đĩa chưa nóng. Nên "19 giây" đúng cho container khởi động lại, không đúng cho
+lần đầu, và một bảng chỉ ghi 19s sẽ làm người deploy ngạc nhiên đúng lúc họ deploy.
+
+### Và một lỗi IM LẶNG mà chỉ việc bấm giờ mới tìm ra
+
+Lần đầu bật đệm vector, thời gian khởi động **không giảm**. Nguyên nhân: bước build tính vector cho
+`retrievable_chunks(...)` — **425 đoạn** — trong khi lúc chạy hệ thống xếp hạng tập đã lọc `heading` —
+**370 đoạn**. Hai tập khác nhau → hàm băm nội dung khác nhau → đệm không khớp → **mã hóa lại toàn bộ**.
+
+Đệm làm **đúng** thiết kế: khóa lệch thì tính lại, tuyệt đối không dùng vector sai. Nên nó im lặng làm
+điều đúng và che mất việc nó chưa từng được dùng. Log build vẫn in *"đã ghi ... cho 425 đoạn"*.
+
+Ba việc đã làm, và không việc nào là "nhớ sửa hai chỗ":
+
+1. `doan_toan_kho()` trong `rag/chunker.py` — **một nguồn duy nhất** cho tập đoạn, dùng bởi cả
+   `answer.py` lẫn `rag.precompute`.
+2. `/ready` báo `retriever_chunks` và `retriever_vectors_from_cache` — lỗi im lặng thành đọc được.
+3. Test ép đúng chuỗi đó: ghi đệm theo `doan_toan_kho`, đòi `doc_dem` phải nhận; và đòi tập **chưa
+   lọc** phải bị từ chối.
+
+### Điều kiện để đổi lại từng quyết định, ghi ra để lần sau không phải đoán
+
+| Nếu điều này xảy ra | Thì xem lại |
+|---|---|
+| kho co lại về tra khóa, không còn chủ đề `synthesize` nào thiếu cụm từ vựng | bỏ embedding — lý lẽ của bước 5 lại đúng, và ảnh nhỏ lại 11 lần |
+| chủ nhà hàng coi câu văn tự nhiên đáng giá 8,6 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |
+| có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do người viết |
+"""))
+
     # ============================================================== TỔNG HỢP
     out.append(md(r"""
 ---
-# PHẦN 6 — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
+# PHẦN 7 — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
 
 Phần này không thêm kiến thức mới. Nó gom lại **con số nào đã đo, con số nào chưa**, và **cái gì
 không đo được** — vì một báo cáo mà không phân biệt ba loại đó thì người đọc không biết tin phần
 nào.
 
-## 17. Bảng kết quả, và điều mỗi con số KHÔNG nói
+## 21. Bảng kết quả, và điều mỗi con số KHÔNG nói
 """))
 
     out.append(plot_code(r"""
@@ -2287,9 +2765,13 @@ ax.text(0.5, 1.02, "Điều CHƯA đo", ha="center", fontsize=11, fontweight="bo
 # Sáu việc từng nằm trong ô này ĐÃ ĐO XONG (so ba cách truy hồi, 138 ca truy hồi, 25 kịch
 # bản đa lượt, thẻ giỏ, 5 endpoint, độ trễ thật). Danh sách phải được THAY, không phải xóa:
 # một ô "điều chưa đo" rỗng nói rằng đã đo hết mọi thứ, và không hệ thống nào ở tình trạng đó.
-chua = ["khách THẬT hỏi gì — không có log", "28/84 tài liệu tri thức là `demo`",
-        "nhãn dị nguyên phủ 44/91 món", "đường `synthesize` chưa có nhánh nào dùng",
-        "`last_listed_ids` chưa qua backend", "tập niêm phong truy hồi ĐÃ dùng hết"]
+# Hai dòng cũ đã LẠC HẬU và bị thay, không bị xóa:
+#   "đường `synthesize` chưa có nhánh nào dùng"  -> nhánh 6b-bis nay dùng nó, và nó là đường DUY
+#                                                   NHẤT tới 74 chủ đề không có cụm từ vựng
+#   "tập niêm phong truy hồi ĐÃ dùng hết"        -> nay CẢ BỐN tập đã mở, nên câu đúng phải mạnh hơn
+chua = ["khách THẬT hỏi gì — không có log", "một phần kho tri thức là `demo`",
+        "nhãn dị nguyên phủ 44/91 món", "câu văn tự nhiên hơn có làm khách hài lòng hơn",
+        "`last_listed_ids` chưa qua backend", "CẢ BỐN tập niêm phong ĐÃ mở"]
 for i, t in enumerate(chua):
     ax.text(0.02, 0.86 - i * 0.155, f"○  {t}", fontsize=9.5, transform=ax.transAxes,
             color="#555")
@@ -2304,35 +2786,69 @@ print(f"tất định {det}/{n} | có mô hình {mod}/{n} | lỗi an toàn 0 và
 """))
 
     out.append(md(r"""
-#### Nhận xét — Mục 17
+#### Nhận xét — Mục 21
 
-| Con số | Giá trị | Điều nó **không** nói |
-|---|---|---|
-| tất định 122/122 | 100% | không nói khách thật hỏi gì — mọi ca do người viết |
-| có mô hình 122/122 | 100% | **không còn là held-out**; tập niêm phong đã mở ở bước 4 |
-| lỗi an toàn 0 / 0 | trên 119 ca | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 nên dữ liệu vẫn thiếu |
-| kho 84 tài liệu / 303 đoạn xếp hạng | đủ để so truy hồi | 28/84 tài liệu là `demo` |
-| truy hồi: embedding Hit@5 **0,921** | trên 40 ca NIÊM PHONG | tập đó **đã dùng hết** từ 2026-07-30 |
-| chọn món: lọc nhãn **8/8**, 0 ca sai | RAG sai 6–7/8 | 8 ca do người viết |
-| bộ nhớ phiên 65/65 lượt | 0 lỗi an toàn | `last_listed_ids` chưa qua backend |
-| 9/9 cơ chế có giá trị | 5 là hàng rào an toàn | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 89 chỗ |
+Bảng dưới **không ghi giá trị**, có chủ ý. Giá trị do ô mã ở trên in ra; bảng chỉ nói **điều mỗi con
+số KHÔNG nói** — phần duy nhất mà một bảng viết tay làm tốt hơn một dòng `print`.
 
-**Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4.
-Mọi con số sau đó đo trên tập đã thấy.
+Vì sao: ba con số từng được ghi thẳng vào đúng bảng này và cả ba đã trôi — `122/122` khi tập đã lên
+140 ca, `84 tài liệu / 303 đoạn` khi kho đã 108 / 449, và `Hit@5 0,921` đo trên một kho nhỏ hơn kho
+hiện tại. Không có gì báo. Đó chính là quy tắc số 3 ở cuối notebook này, và notebook vi phạm nó ở
+đúng chỗ nó không tính lại được.
 
-## 18. Hạn chế phải nói ra
+| Chỉ số | Điều nó **không** nói |
+|---|---|
+| tập trả lời, đường tất định | không nói khách thật hỏi gì — mọi ca do người viết |
+| tập trả lời, có mô hình | **không còn là held-out**; tập niêm phong của nó đã mở ở bước 4 |
+| lỗi an toàn (dị ứng, bịa món, bịa giá) | chỉ nói *trên tập này*; nhãn dị nguyên phủ 44/91 món nên dữ liệu vẫn thiếu |
+| kích thước kho tri thức | một phần tài liệu là `demo` — chúng không sai về **số**, nhưng có thể sai về **chính sách** |
+| truy hồi: embedding thắng ở hai tập niêm phong | cả hai tập đó **đã dùng hết**, nên câu hỏi tiếp theo cần tập MỚI |
+| chọn món: lọc nhãn đúng tuyệt đối | 8 ca do người viết, và chúng được chọn để làm rõ bốn cơ chế thua |
+| bộ nhớ phiên qua nhiều lượt | `last_listed_ids` chưa đi qua backend |
+| ablation: mọi cơ chế có giá trị | "ăn hết đoạn" đo được 1 ca nhưng bảo vệ 89 chỗ — số ca KHÔNG bằng mức quan trọng |
+| golden qua HTTP thật | 103 lượt vẫn là **kịch bản người viết** |
 
-1. **Không có log khách thật.** Mọi ca đánh giá do người viết. Con số đo được hệ thống **có tôn
-   trọng ràng buộc hay không**; nó **không** đo được khách thật hỏi gì.
-2. **Tập niêm phong đã dùng hết.** Mọi con số trên 119 ca hiện tại không còn là held-out. Tập
-   mới (truy hồi, đa lượt) mỗi tập chỉ được mở **một lần**.
-3. **28/84 tài liệu tri thức là `demo`** — giá trị mẫu. Chúng không thể nói sai về **con số** (số
-   lấy từ thực đơn) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
-4. **Nhãn dị nguyên phủ 44/91 món.** Đối chiếu mô tả tìm ra 7 lỗ thật đã lấp, nhưng mô tả không
-   phải bảng thành phần nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
-5. **Độ trễ mô hình ~5,6 giây/lần gọi thật** (đo qua HTTP thật, không phải cache). Chỉ 9% ca gọi
-   và mô hình giải thêm 0 ca, nên **tắt mô hình là lựa chọn có cơ sở** — nhưng xem mục 16 để biết
-   vì sao "0 ca" chưa đủ để kết luận nó vô dụng với khách thật.
+**Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4. Mọi
+con số sau đó đo trên tập đã thấy, và ba tập niêm phong dựng sau đó cũng đã mở, mỗi tập một lần.
+
+## 22. Làm được, và hạn chế phải nói ra
+
+### Làm được
+
+| Việc | Bằng chứng đo được |
+|---|---|
+| trả lời đúng trên tập ca một lượt | tập trả lời, đường tất định — xem mục 21 |
+| giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | tập lượt phiên, **0 lỗi an toàn** |
+| chạy end-to-end thật: QR → backend → AI → thẻ giỏ → **giỏ hàng thật** | mục 18 |
+| chọn được bộ truy hồi bằng số, trên **hai** bài toán và **hai** tập niêm phong | mục 15d |
+| chặn bịa món và bịa giá khi mô hình viết câu trả lời | mục 17 — lớp xác minh chặn thật, lý do nhiều nhất là bịa giá |
+| nói "chưa có dữ liệu" thay vì đoán, kể cả với câu ngoài phạm vi | cổng `thuoc_mien` sinh từ dữ liệu |
+| câu trả lời và thẻ giỏ **không lệch nhau** | phép kiểm thứ 7 của `generate.py` — bắt câu sinh nhắc ĐỦ món |
+| khởi động container xuống 19s từ 97s, và lỗi đệm im lặng thành đọc được | mục 20 |
+
+### Hạn chế
+
+1. **Không có log khách thật.** Mọi ca đánh giá do người viết. Con số đo được hệ thống **có tôn trọng
+   ràng buộc hay không**; nó **không** đo được khách thật hỏi gì. Đây là hạn chế lớn nhất và nó không
+   sửa được bằng cách viết thêm ca.
+2. **Cả bốn tập niêm phong đã mở.** Không con số nào trong notebook này còn là held-out. Câu hỏi tiếp
+   theo cần một tập **mới**, và tập đó chỉ được mở một lần.
+3. **Một phần kho tri thức là `demo`** — giá trị mẫu. Chúng không thể nói sai về **con số** (số lấy từ
+   thực đơn qua bộ sinh) nhưng có thể sai về **chính sách**, và chỉ chủ nhà hàng biết.
+4. **Nhãn dị nguyên phủ 44/91 món.** Đối chiếu mô tả tìm ra 7 lỗ thật đã lấp, nhưng mô tả không phải
+   bảng thành phần, nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
+5. **Đường sinh không còn làm tụt ca, nhưng cũng không làm đúng thêm ca nào.** Trước phép kiểm thứ
+   8 nó tụt 15/76 ca (14 là ca dị nguyên, xem mục 17); sau đó **76/76**. Cái đo được là 0 ca đúng
+   thêm với p50 **+8,6s** mỗi lượt, nên nó tắt mặc định. Cái **không** đo được: câu văn tự nhiên hơn
+   có làm khách thật hài lòng hơn hay không — thước đo nội dung không chấm được điều đó, và nói ra
+   thì tốt hơn giả vờ đo.
+6. **Lớp xác minh không bắt được tên món HOÀN TOÀN bịa.** Nó so chuỗi với dữ liệu, nên một cái tên
+   không có trong thực đơn và cũng không giống món nào thì lọt. Giới hạn này được ghi thành **một
+   test có tên nói rõ nó là giới hạn**, để không ai tưởng lớp đó kín.
+7. **~20 ca truy hồi không sửa được bằng đổi bộ xếp hạng** (mục 19). Phần lớn là trần đa dạng của
+   kho: nhiều tài liệu dùng chung tiêu đề mục. Chữa được bằng sửa **dữ liệu**, và việc đó chưa làm.
+8. **Ảnh Docker 2,74GB, gấp 11,5 lần bản không có embedding.** Đây là cái giá đã đo và đã chấp nhận,
+   không phải chi tiết bỏ qua được: nó làm deploy chậm hơn và tốn đĩa hơn.
 6. **Đã chạy thật end-to-end, và chạy thật tìm ra 4 lỗi mà 196 test không thấy** — backend gửi
    `message` còn dịch vụ đòi `question` (422); backend gửi `Authorization: Bearer` còn dịch vụ đọc
    `X-Internal-Token` (401 mọi lượt); hình dạng `session_state` khác nhau nên bộ nhớ **mất im lặng**
@@ -2342,22 +2858,83 @@ Mọi con số sau đó đo trên tập đã thấy.
 7. **Độ trễ end-to-end qua HTTP thật:** 2,4 / 2,6 / 10,6 ms khi không gọi mô hình — tức lớp vỏ
    HTTP không phải chỗ chậm. Toàn bộ độ trễ đáng lo nằm ở lần gọi mô hình.
 
-## 19. Hướng phát triển, gắn với từng thành viên
+## 23. Hướng phát triển trong tương lai
 
-| TV | Việc còn lại | Điều kiện chấp nhận đo được |
-|---|---|---|
-| **1** | **~120 ca truy hồi** rồi **~25 kịch bản đa lượt** (chặn TV3 và TV5) · ca giỏ hàng · `analyze_failures.py` | bộ dò lỗ tìm 0 lỗ trên tập mới |
-| **2** | — (đã xong: 20 cụm tên món dị nguyên · 23 cụm cách khách mô tả) | 119/119, 0 lỗi an toàn |
-| **3** | BM25 · embedding · hybrid RRF · phép so trên **hai** bài toán | Hit@5, MRR@5, **forbidden@5**, kèm `n` |
-| **4** | — (đã xong `cart.py`) | chốt `safety_cart_no_allergen` xanh khi TV1 viết ca |
-| **5** | — (đã xong: 5 endpoint, bộ nhớ phiên, và **đã chạy thật** qua `docker compose`) | 4/4 container healthy · 6 lượt qua backend thật · **0 món dị nguyên** |
+Sáu việc dưới đây **xếp theo mức chặn**, không theo mức thú vị. Việc thứ nhất chặn giá trị của mọi
+con số trong notebook này; việc cuối chỉ làm hệ thống gọn hơn.
+
+### 1. Log khách thật — việc duy nhất không thay được bằng cách viết thêm ca
+
+Mọi ca đánh giá của dự án do người viết, kể cả 103 lượt golden. Chúng đo hệ thống **có tôn trọng ràng
+buộc hay không**; chúng không đo **khách thật hỏi gì**.
+
+| Việc | Điều kiện chấp nhận đo được |
+|---|---|
+| ghi log câu hỏi (đã ẩn danh) + nhánh đã đi + có bấm vào giỏ không | ≥500 lượt thật |
+| dựng tập đánh giá **mới** từ log, và **niêm phong** nó | tỷ lệ nhánh `clarify` trên log thật < trên tập người viết |
+
+Chỉ số đáng theo nhất là **tỷ lệ `clarify`**: nó đo phần câu hỏi mà hệ thống *không hiểu*, và đó là
+thứ tập người viết không bao giờ ước lượng đúng — người viết ca biết hệ thống hiểu gì.
+
+### 2. Sửa trần đa dạng của kho — ~20 ca truy hồi đang sai vì lý do này
+
+Mục 19 đo: phần lớn ca truy hồi còn sai **không** chữa được bằng đổi bộ xếp hạng. Chúng chữa được
+bằng sửa **dữ liệu** — viết lại tiêu đề mục cho đặc thù theo tài liệu, thay vì bốn tài liệu vùng miền
+đều có mục *"Món tiêu biểu"*.
+
+| Việc | Điều kiện chấp nhận đo được |
+|---|---|
+| viết lại tiêu đề mục của các tài liệu cùng khuôn | số tiêu đề phân biệt / số đoạn tăng rõ |
+| đo lại trên tập truy hồi | lớp `retrieval_twin_section` giảm; **và** `forbidden@5` không tăng |
+
+Điều kiện thứ hai là điều kiện quan trọng: tiêu đề đặc thù hơn có thể làm đoạn khó tìm hơn khi khách
+dùng từ chung. Sửa mà chỉ đo một chiều là sửa mù.
+
+### 3. Đủ điều kiện bật đường sinh mặc định
+
+Đường sinh đang **tắt** vì có ca tụt (mục 17). Ngưỡng để bật là **0 ca tụt**, và đường tới đó không
+phải là nới phép kiểm.
+
+| Việc | Điều kiện chấp nhận đo được |
+|---|---|
+| tìm mẫu chung của các ca tụt, sửa **prompt** hoặc sửa **phép kiểm** cho đúng hơn | 0 ca tụt, và tỷ lệ dùng câu sinh **không** giảm |
+| bắt được tên món **hoàn toàn bịa** — giới hạn đã ghi thành test | ca `test_ten_mon_HOAN_TOAN_bia…` đổi từ "ghi giới hạn" sang "chặn được" |
+
+### 4. Lấp nhãn dị nguyên — 44/91 món có nhãn
+
+Đối chiếu mô tả đã tìm ra 7 lỗ thật, nhưng mô tả **không phải bảng thành phần**, nên còn thiếu bao
+nhiêu thì **không biết được từ dữ liệu này**. Việc thật ở đây là hỏi nhà bếp, không phải suy từ dữ
+liệu.
+
+| Việc | Điều kiện chấp nhận đo được |
+|---|---|
+| bảng thành phần cho 91 món, từ nhà bếp | phủ 91/91 · bản rà hai chiều 0 lệch |
+
+### 5. `last_listed_ids` đi qua backend
+
+Hiện thứ tự món đã nêu chỉ sống trong một lượt, nên *"món đầu tiên giá bao nhiêu?"* chỉ trả lời được
+khi lượt trước còn trong cùng request. Đây là `capability_missing`, không phải `vocab_miss` — thêm cụm
+từ vựng không sửa được ca nào.
+
+### 6. Giảm ảnh Docker 2,74GB
+
+Không chặn gì, nhưng nó là cái giá đã đo và có đường giảm rõ:
+
+| Hướng | Đổi lại điều gì |
+|---|---|
+| chỉ giữ phần suy luận của `sentence-transformers`, bỏ phần huấn luyện | phải tự viết phần nạp mô hình |
+| dùng endpoint embeddings của nhà cung cấp thay vì mô hình cục bộ | **đã thử: nhà cung cấp hiện tại không có endpoint đó** (`No credentials for provider: openai`) |
+| xuất mô hình sang ONNX runtime | bỏ hẳn torch — đây là hướng giảm nhiều nhất |
 
 ### Ba điều cấm, áp cho cả 5 người, và CI ép
 
 1. **Không nới ràng buộc dị nguyên** — kể cả khi kết quả rỗng.
 2. **Không để mô hình sinh chọn món** — nó chỉ trả về nhãn, và nhãn bị cổng kiểm lại.
-3. **Không viết số vào tài liệu** — số phải tính được, nếu không nó sẽ trôi. Dự án này đã mắc
-   đúng lỗi đó một lần với con số kiểm kê đụng chữ.
+3. **Không viết số vào tài liệu** — số phải tính được, nếu không nó sẽ trôi. Dự án đã mắc đúng lỗi đó
+   **năm lần**: `"hơn 90 món"` khi thực đơn có 91 · kiểm kê ghi `32/90` khi thật là `53/40` ·
+   `122/122` khi tập đã 140 ca · `84 tài liệu / 303 đoạn` khi kho đã 108 / 449 · `Hit@5 0,921` của
+   một kho nhỏ hơn. Lần thứ sáu là con số **`"khoảng 2–3GB"`** cho ảnh Docker, mà đo thật ra 9,29GB —
+   và lần đó con số sai gấp ba nằm trong chính phần chốt phương án triển khai.
 """))
 
     return out
@@ -2409,6 +2986,37 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         executed = sum(1 for c in current.cells if c.get("outputs"))
         print(f"\n--check: {len(have)} ô khớp bộ sinh; {executed}/{n_code} ô mã đã có kết quả.")
+
+        # Ô nào NỔ khi chạy? Đây là phép kiểm bổ sung, và nó có mặt vì một lỗ thật.
+        #
+        # `--check` chỉ so NGUỒN từng ô, nên nó xanh với một ô không chạy được. Đúng chuyện đã xảy
+        # ra: ô mục 15d gọi `rrc.build_retrievers()` rồi lặp nó như một dict, trong khi bộ đó trả về
+        # LIST — `TypeError: unhashable type: 'Bm25Index'`. `--check` xanh, notebook có một bảng rỗng
+        # và một traceback đỏ giữa báo cáo.
+        #
+        # Cùng lớp lỗi "tệp có ≠ nó chạy" của dự án, ở dạng "ô có ≠ ô chạy". Nên phép kiểm phải đọc
+        # KẾT QUẢ, không chỉ đọc nguồn.
+        #
+        # Không tự chạy notebook ở đây: chạy mất hàng chục phút vì có mã hóa embedding. Phép kiểm này
+        # đọc kết quả ĐÃ COMMIT, tức nó ép người commit phải chạy được notebook trước khi commit.
+        no = [
+            (i, o.get("ename") or "lỗi")
+            for i, c in enumerate(current.cells)
+            for o in (c.get("outputs") or [])
+            if o.get("output_type") == "error"
+        ]
+        if no:
+            print(f"\n{len(no)} Ô NỔ KHI CHẠY, và notebook đã commit mang traceback đó:")
+            for i, ten in no:
+                print(f"  ô {i}: {ten}")
+            print("Sửa ô rồi chạy lại notebook trước khi commit.")
+            return 1
+
+        # Notebook CHƯA chạy thì cũng đỏ — một báo cáo không có bảng số nào là một báo cáo trống.
+        # Chỉ cảnh báo (không chặn) khi notebook chưa chạy lần nào, vì bước sinh và bước chạy tách
+        # rời có chủ ý: sinh xong thì `--check` phải xanh để người ta biết nguồn đã khớp.
+        if executed == 0:
+            print("\nCẢNH BÁO: chưa ô mã nào có kết quả. Chạy notebook trước khi commit bản báo cáo.")
         return 0
 
     OUT_PATH.write_text(nbformat.writes(nb, version=4), encoding="utf-8")

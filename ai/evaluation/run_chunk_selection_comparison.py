@@ -5,7 +5,7 @@
     python ai/evaluation/run_chunk_selection_comparison.py --sealed
     python ai/evaluation/run_chunk_selection_comparison.py --chi-tiet
 
-Cần `pip install -r ai/requirements-rag.txt` cho phần embedding. Không có thì bộ này in rõ đã bỏ qua
+Cần `pip install -r ai/requirements.txt` cho phần embedding. Không có thì bộ này in rõ đã bỏ qua
 phương pháp nào — nó KHÔNG im lặng so hai phương pháp rồi gọi đó là so ba.
 
 Chỉ số CHÍNH là Top-1, không phải Hit@5
@@ -103,7 +103,7 @@ def build_retrievers() -> dict[str, object]:
         ra["hybrid"] = "hybrid"
     else:
         print(f"BỎ QUA embedding và hybrid: {EMB.why_unavailable()}")
-        print("  Cài `pip install -r ai/requirements-rag.txt` để so đủ ba phương pháp.\n")
+        print("  Cài `pip install -r ai/requirements.txt` để so đủ ba phương pháp.\n")
     return ra
 
 
@@ -139,35 +139,29 @@ def xep_hang(kind: str, doc_id: str, cands: list, query: str) -> list[str]:
     return [h.chunk_id for h in hits]
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--sealed", action="store_true",
-                   help="Chạy trên tập NIÊM PHONG. Mở đúng một lần rồi ghi ngày vào tệp chia.")
-    p.add_argument("--chi-tiet", action="store_true", help="In từng ca sai.")
-    args = p.parse_args(argv)
-
+def nap(sealed: bool) -> tuple[list[dict], set[str], dict[str, list]]:
+    """Ca của một nhóm split, kèm bảng đoạn theo tài liệu. Tách ra để notebook dùng lại được."""
     data = json.loads(CASES_PATH.read_text(encoding="utf-8-sig"))
     split = json.loads(SPLIT_PATH.read_text(encoding="utf-8-sig"))
-    hos = set(split["test_families"] if args.sealed else split["dev_families"])
+    hos = set(split["test_families"] if sealed else split["dev_families"])
     cases = [c for c in data["cases"] if c["family"] in hos]
 
-    if args.sealed and not split.get("sealed_opened"):
-        print("=" * 78)
-        print("MỞ TẬP NIÊM PHONG. Sau lần này con số trên tập đó KHÔNG còn là held-out.")
-        print("Ghi ngày mở vào `chunk_selection_split.json` ngay sau khi chạy.")
-        print("=" * 78 + "\n")
-
-    chunks = retrievable_chunks(KNOWLEDGE)
     theo_doc: dict[str, list] = defaultdict(list)
-    for c in chunks:
+    for c in retrievable_chunks(KNOWLEDGE):
         theo_doc[c.doc_id].append(c)
+    return cases, hos, theo_doc
 
-    retrievers = build_retrievers()
-    ten_tap = "NIÊM PHONG" if args.sealed else "PHÁT TRIỂN"
-    print(f"CHỌN MỤC TRONG TÀI LIỆU — tập {ten_tap}: {len(cases)} ca / {len(hos)} họ\n")
 
-    # 4 lát: written A, written B, derived A, derived B. Cộng hai lát gộp cho nhóm written.
+def do_lat(cases: list[dict], retrievers: dict, theo_doc: dict[str, list],
+           *, runs: int = LATENCY_RUNS) -> dict[tuple[str, str], dict[str, Ketqua]]:
+    """Đo bốn lát (nhóm × dạng câu) cho mọi bộ xếp hạng.
+
+    Tách khỏi `main()` vì notebook phải TÍNH LẠI những con số này, không được chép chúng. Con số
+    chép tay trong notebook đã trôi ba lần trong dự án này — xem `ai/evaluation/measurements/README.md`.
+
+    `runs` để notebook hạ số lần đo độ trễ xuống: notebook cần TỶ LỆ ĐÚNG, còn 7 lần chạy là giao
+    thức đo ĐỘ TRỄ. Giữ 7 lần trong notebook là chờ 7 lần lâu hơn cho một con số notebook không in.
+    """
     lat: dict[tuple[str, str], dict[str, Ketqua]] = {}
     for nhom in ("written", "derived"):
         for dang in ("A", "B", "*"):
@@ -179,16 +173,41 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  ca {case['id']}: ứng viên không khớp kho — bỏ")
             continue
         for ten, kind in retrievers.items():
-            # Đo độ trễ theo giao thức release: 7 lần, lấy trung vị.
             times: list[float] = []
             hang: list[str] = []
-            for _ in range(LATENCY_RUNS):
+            for _ in range(runs):
                 t0 = time.perf_counter()
                 hang = xep_hang(kind, case["doc_id"], cands, case["query"])
                 times.append((time.perf_counter() - t0) * 1000)
             ms = statistics.median(times)
             for dang in (case["dang"], "*"):
                 lat[(case["nhom"], dang)][ten].them(case, hang, ms)
+    return lat
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--sealed", action="store_true",
+                   help="Chạy trên tập NIÊM PHONG. Mở đúng một lần rồi ghi ngày vào tệp chia.")
+    p.add_argument("--chi-tiet", action="store_true", help="In từng ca sai.")
+    args = p.parse_args(argv)
+
+    cases, hos, theo_doc = nap(args.sealed)
+    split = json.loads(SPLIT_PATH.read_text(encoding="utf-8-sig"))
+
+    if args.sealed and not split.get("sealed_opened"):
+        print("=" * 78)
+        print("MỞ TẬP NIÊM PHONG. Sau lần này con số trên tập đó KHÔNG còn là held-out.")
+        print("Ghi ngày mở vào `chunk_selection_split.json` ngay sau khi chạy.")
+        print("=" * 78 + "\n")
+
+    retrievers = build_retrievers()
+    ten_tap = "NIÊM PHONG" if args.sealed else "PHÁT TRIỂN"
+    print(f"CHỌN MỤC TRONG TÀI LIỆU — tập {ten_tap}: {len(cases)} ca / {len(hos)} họ\n")
+
+    # Đo độ trễ theo giao thức release: 7 lần, lấy trung vị.
+    lat = do_lat(cases, retrievers, theo_doc)
 
     def in_lat(nhom: str, tieu_de: str) -> None:
         if not lat[(nhom, "*")][next(iter(retrievers))].n:

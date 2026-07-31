@@ -15,8 +15,12 @@ Nên mỗi cái có một ca chốt bằng số cụ thể.
 """
 from __future__ import annotations
 
+import json
 import math
+import os
+import shutil
 import sys
+import tempfile
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,7 +32,7 @@ if str(APP_DIR) not in sys.path:
 from rag import embedding as E  # noqa: E402
 from rag.base import Hit, tokenize  # noqa: E402
 from rag.bm25 import B, K1, Bm25Index  # noqa: E402
-from rag.chunker import retrievable_chunks  # noqa: E402
+from rag.chunker import doan_toan_kho, retrievable_chunks  # noqa: E402
 from rag.hybrid import RRF_K, HybridRetriever  # noqa: E402
 
 KNOWLEDGE = APP_DIR.parent / "knowledge"
@@ -200,6 +204,170 @@ class EmbeddingSuyGiamEmChuKhongSAP(unittest.TestCase):
 
     def test_vector_khong_thi_khong_chia_cho_0(self):
         self.assertEqual(E.EmbeddingIndex._l2([0.0, 0.0]), [0.0, 0.0])
+
+
+class DemVectorPhaiTU_CHOI_Khi_KhongKhopKho(unittest.TestCase):
+    """Bộ đệm vector: sai chỗ nào cũng phải dẫn tới TÍNH LẠI, không bao giờ tới vector lệch.
+
+    Vì sao lớp này tồn tại
+    ----------------------
+    Đệm vector cắt thời gian khởi động container từ 97,3 giây xuống 19,0 giây (đo thật: 61,7 giây là
+    mã hóa 425 đoạn). Nhưng nó mở ra đúng một lỗi mới, và lỗi đó là loại nặng nhất có thể ở đây:
+
+        vector không khớp kho -> hệ thống VẪN trả 5 đoạn, VẪN có điểm, chỉ trả SAI đoạn.
+        Không lỗi, không log, không cách nào biết trừ khi so từng câu trả lời.
+
+    Nên mọi test dưới đây kiểm cùng một bất biến: **không chắc chắn thì trả `None`** (tức tính lại).
+    Chậm là hậu quả chấp nhận được; trả sai thì không.
+
+    Không cần `sentence-transformers`: `doc_dem` là phép so hàm băm và đọc JSON thuần.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.path = self.tmp / "vectors.json"
+        self.cu = os.environ.get(E._DEM_PATH_ENV)
+        os.environ[E._DEM_PATH_ENV] = str(self.path)
+
+    def tearDown(self):
+        if self.cu is None:
+            os.environ.pop(E._DEM_PATH_ENV, None)
+        else:
+            os.environ[E._DEM_PATH_ENV] = self.cu
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _ghi(self, texts, vectors, *, normalize=True, use_prefix=True, khoa=None):
+        self.path.write_text(
+            json.dumps({
+                "khoa": khoa or E._khoa(texts, normalize=normalize, use_prefix=use_prefix),
+                "vectors": vectors,
+            }),
+            encoding="utf-8",
+        )
+
+    def test_khop_thi_dung_dem(self):
+        texts = ["passage: a", "passage: b"]
+        self._ghi(texts, [[1.0, 0.0], [0.0, 1.0]])
+        self.assertEqual(
+            E.doc_dem(texts, normalize=True, use_prefix=True), [[1.0, 0.0], [0.0, 1.0]]
+        )
+
+    def test_doi_MOT_ky_tu_trong_kho_thi_TU_CHOI(self):
+        """Khóa là hàm băm NỘI DUNG, nên sửa một chữ trong một tài liệu là đủ để vô hiệu đệm."""
+        self._ghi(["passage: a", "passage: b"], [[1.0, 0.0], [0.0, 1.0]])
+        self.assertIsNone(E.doc_dem(["passage: a", "passage: B"],
+                                    normalize=True, use_prefix=True))
+
+    def test_them_doan_thi_TU_CHOI(self):
+        self._ghi(["passage: a"], [[1.0, 0.0]])
+        self.assertIsNone(E.doc_dem(["passage: a", "passage: b"],
+                                    normalize=True, use_prefix=True))
+
+    def test_doi_co_normalize_thi_TU_CHOI(self):
+        """Hai cờ này ĐỔI vector, nên chúng phải nằm trong khóa.
+
+        Thiếu chúng thì phép ablation "tắt chuẩn hóa" lặng lẽ đọc lại vector ĐÃ chuẩn hóa và báo
+        rằng tắt nó không mất gì — một phép đo tự bác bỏ chính nó.
+        """
+        texts = ["passage: a"]
+        self._ghi(texts, [[1.0, 0.0]], normalize=True)
+        self.assertIsNone(E.doc_dem(texts, normalize=False, use_prefix=True))
+        self.assertIsNone(E.doc_dem(texts, normalize=True, use_prefix=False))
+
+    def test_tep_hong_thi_TU_CHOI_chu_khong_nem(self):
+        self.path.write_text("{khong phai json", encoding="utf-8")
+        self.assertIsNone(E.doc_dem(["passage: a"], normalize=True, use_prefix=True))
+
+    def test_so_vector_lech_so_doan_thi_TU_CHOI(self):
+        """Khóa khớp mà số vector lệch: chỉ xảy ra khi tệp bị sửa tay, và vẫn phải từ chối."""
+        texts = ["passage: a", "passage: b"]
+        self._ghi(texts, [[1.0, 0.0]])          # khóa đúng, thiếu một vector
+        self.assertIsNone(E.doc_dem(texts, normalize=True, use_prefix=True))
+
+    def test_khong_dat_bien_moi_truong_thi_KHONG_doc_va_KHONG_ghi(self):
+        """Không có đường dẫn mặc định, có chủ ý.
+
+        Mã tự đoán một đường dẫn thì lúc build ghi chỗ này và lúc chạy đọc chỗ khác — hậu quả là
+        im lặng tính lại 61 giây mỗi lần khởi động trong khi mọi người tin là đã có đệm.
+        """
+        os.environ.pop(E._DEM_PATH_ENV, None)
+        self.assertIsNone(E.doc_dem(["passage: a"], normalize=True, use_prefix=True))
+        with self.assertRaises(RuntimeError):
+            E.ghi_dem([])
+
+    def test_dem_tinh_theo_doan_toan_kho_thi_luc_chay_DUNG_DUOC(self):
+        """Bất biến ĐÃ BỊ VI PHẠM một lần, và đây là test lẽ ra phải có trước.
+
+        Bước build tính vector cho `retrievable_chunks(...)` — 425 đoạn. Lúc chạy `answer.py` xếp
+        hạng `doan_toan_kho(...)` — tập đã lọc `heading`. Hai tập khác nhau nên hàm băm khác nhau,
+        đệm KHÔNG khớp, và container mã hóa lại toàn bộ mỗi lần khởi động: 60 giây.
+
+        Không có gì báo, vì đệm làm ĐÚNG thiết kế: khóa lệch thì tính lại. Nó im lặng làm điều đúng
+        và che mất việc nó chưa từng được dùng. Phát hiện được chỉ vì đo thời gian khởi động thật
+        rồi thấy nó không giảm.
+
+        Test này ép đúng chuỗi đó: ghi đệm theo tập của `doan_toan_kho`, rồi hỏi `doc_dem` bằng đúng
+        cách `EmbeddingIndex.build` hỏi. Nó KHÔNG cần mô hình — chỉ cần hàm băm khớp, mà đó chính là
+        thứ đã lệch.
+        """
+        doan = doan_toan_kho(KNOWLEDGE)
+        self.assertTrue(doan, "kho rỗng thì test này không kiểm được gì")
+        texts = [E.PASSAGE_PREFIX + c.text for c in doan]
+        self._ghi(texts, [[0.0] * 3 for _ in texts])
+
+        self.assertIsNotNone(
+            E.doc_dem(texts, normalize=True, use_prefix=True),
+            "đệm ghi theo `doan_toan_kho` mà `doc_dem` không nhận — hai bên đã lệch lại",
+        )
+
+        # Và chiều ngược lại: tập KHÔNG lọc `heading` phải bị từ chối, vì đó đúng là lỗi đã xảy ra.
+        khong_loc = [E.PASSAGE_PREFIX + c.text for c in retrievable_chunks(KNOWLEDGE)]
+        if len(khong_loc) != len(texts):
+            self.assertIsNone(
+                E.doc_dem(khong_loc, normalize=True, use_prefix=True),
+                "đệm của tập đã lọc lại khớp tập chưa lọc — hàm băm không phân biệt được hai tập",
+            )
+
+    def test_Dockerfile_goi_rag_precompute_chu_khong_viet_lai_phep_loc(self):
+        """Dockerfile phải gọi `rag.precompute`, không viết lại phép lọc đoạn.
+
+        Viết lại phép lọc là chính xác cách hai bên đã lệch nhau. Một điểm vào dùng chung là cách sửa
+        bằng cấu trúc; nhớ sửa hai chỗ thì không phải cách sửa.
+        """
+        text = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(encoding="utf-8")
+        if "sentence_transformers" not in text:
+            self.skipTest("ảnh không có tầng embedding")
+        self.assertIn("python -m rag.precompute", text)
+
+        # Chỉ kiểm dòng LỆNH, không kiểm chú thích. Bản đầu của test này kiểm cả tệp, nên nó báo đỏ
+        # vì chú thích GIẢI THÍCH lỗi cũ có nhắc tên hàm — tức test chặn đúng việc ghi lại lý do.
+        # Một phép kiểm không phân biệt mã với văn xuôi sẽ dạy người sau xóa chú thích cho test xanh.
+        lenh = [
+            line for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        pham = [line for line in lenh if "retrievable_chunks" in line]
+        self.assertEqual(
+            pham, [],
+            "dòng lệnh Dockerfile gọi `retrievable_chunks` — tức nó lại tự chọn tập đoạn thay vì "
+            f"để `rag.precompute` dùng cùng `doan_toan_kho()` mà answer.py dùng: {pham}",
+        )
+
+    def test_Dockerfile_dat_dung_ten_bien_ma_ma_doc(self):
+        """Tên biến ở Dockerfile phải TRÙNG tên mã đọc — lệch nhau là lỗi im lặng.
+
+        Đây là bất biến hai-đầu, cùng loại với `COPY backend/data` và với tên mô hình embedding:
+        một bên ghi, một bên đọc, và không có gì báo khi hai bên ghi khác tên.
+        """
+        text = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(encoding="utf-8")
+        if "sentence_transformers" not in text:
+            self.skipTest("ảnh không có tầng embedding")
+        self.assertIn(
+            f"ENV {E._DEM_PATH_ENV}=",
+            text,
+            f"Dockerfile không đặt {E._DEM_PATH_ENV}, nên lúc chạy KHÔNG có đệm và container mất "
+            "thêm ~62 giây mã hóa mỗi lần khởi động — im lặng.",
+        )
 
 
 class ChayThatTrenKhoTriThuc(unittest.TestCase):

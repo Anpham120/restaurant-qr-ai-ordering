@@ -13,6 +13,12 @@
     "require": [],
     "wants": "food"
   },
+  "11220950bcd2044db7ad80b70897e482": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "food"
+  },
   "11e7dee12f33a732d729086b1bcdc8b2": {
     "avoid": [],
     "prefer": [],
@@ -74,6 +80,12 @@
     "require": [],
     "wants": "food"
   },
+  "6957e21c5ee9a89f106a7c54656e1687": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "food"
+  },
   "698a99603a9840042a6167fede3e839c": {
     "avoid": [],
     "prefer": [
@@ -93,6 +105,20 @@
     "prefer": [],
     "require": [],
     "wants": "any"
+  },
+  "868089425ea51ec55d5a264a8cea4ea0": {
+    "avoid": [],
+    "prefer": [
+      "health:low_calorie"
+    ],
+    "require": [],
+    "wants": "any"
+  },
+  "8d948fd195c620025ee9708df87c127c": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "food"
   },
   "8daaeaf518bb356f4d71bfd9c4e97f5c": {
     "avoid": [
@@ -123,6 +149,12 @@
     "prefer": [],
     "require": [],
     "wants": "any"
+  },
+  "92c8ffc53983d698c40820824daddb42": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "food"
   },
   "9c7309ebb1561e97c8b18219a46b4c59": {
     "avoid": [],
@@ -253,12 +285,34 @@
     ],
     "wants": "food"
   },
+  "e4654f875d096cc0ce8f46bd2dc05061": {
+    "avoid": [],
+    "prefer": [],
+    "require": [
+      "health:no_msg"
+    ],
+    "wants": "food"
+  },
   "e95fdd7275600cd85fa6f6388058d756": {
     "avoid": [],
     "prefer": [],
     "require": [
       "meal:lunch"
     ],
+    "wants": "food"
+  },
+  "f4111b167f384e6cfe57f888cabd4a1b": {
+    "avoid": [],
+    "prefer": [
+      "season:cooling"
+    ],
+    "require": [],
+    "wants": "drink"
+  },
+  "f546b3a9648751251bf79e82e00bee40": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
     "wants": "food"
   },
   "f8873b9411cc5c8881bdaa346f707b72": {

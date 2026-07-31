@@ -135,7 +135,22 @@ def load_env(path: Path | None = None) -> dict[str, str]:
             out[key.strip()] = value.strip()
     for key in ENV_KEYS:
         value = os.environ.get(key)
-        if value is not None and value.strip():
+        # `is not None` chứ KHÔNG kèm `and value.strip()`: biến CÓ MẶT nhưng RỖNG phải ghi đè tệp
+        # thành rỗng, không được lặng lẽ nhường lại cho tệp.
+        #
+        # Bản đầu viết `if value is not None and value.strip()`, tức `LLM_API_KEY=` (rỗng, đặt có
+        # chủ đích) bị BỎ QUA và giá trị trong `ai/.env` thắng. Hai hậu quả:
+        #
+        #   1. Người vận hành muốn TẮT mô hình bằng cách đặt khóa rỗng thì không tắt được, và
+        #      `/ready` báo `model_configured: true`. Đây đúng lớp lỗi với quy tắc
+        #      `AI_INTERNAL_TOKEN` rỗng phải CHẶN mọi request: rỗng nghĩa là rỗng.
+        #   2. `test_model_configured_PHAI_kiem_ca_khoa` chỉ XANH ở nơi KHÔNG có `ai/.env` — tức
+        #      xanh trên CI và đỏ trên mọi máy có khóa thật. Một test phụ thuộc môi trường như vậy
+        #      không kiểm được điều nó nói mình kiểm; nó chỉ chưa gặp môi trường làm nó đỏ.
+        #
+        # Vẫn `.strip()` giá trị, nên `LLM_API_KEY="   "` cũng thành rỗng — khoảng trắng không phải
+        # một khóa.
+        if value is not None:
             out[key] = value.strip()
     return out
 
@@ -270,12 +285,31 @@ def enrich(request: Request, env: dict[str, str], *, use_cache: bool = True) -> 
         or request.budget_max is not None
         or request.named_items
         or request.policy_topic
+        # `knowledge_topic` vắng mặt ở đây suốt một thời gian, và nó là một lỗ thật: mã tất định đã
+        # nhận ra chủ đề tri thức, nhưng mô hình vẫn được gọi và vẫn thêm được nhãn lọc — nhãn đó đẩy
+        # câu sang nhánh lọc, tức chủ đề đã nhận ra bị bỏ.
+        #
+        # Đối xứng với `policy_topic` ngay trên: hai trường này là cùng một loại tín hiệu ("đã biết
+        # câu này hỏi về chủ đề nào"), nên có một mà thiếu một là bỏ sót, không phải lựa chọn.
+        or request.knowledge_topic
         or request.off_topic
         or request.unknown_item
         or request.asks_price
         or request.asks_extreme is not None
         or request.is_comparison
         or request.asks_allergy
+        # Câu HỎI VỀ một thuộc tính. Đây là tín hiệu thứ mười bốn, và nó vào danh sách vì golden qua
+        # stack thật bắt được hai lượt mà mã tất định định tuyến ĐÚNG rồi mô hình làm sai:
+        #
+        #     "Nhãn 'ít calo' dựa trên gì?"   mô hình trả `prefer: health:low_calorie` -> filter
+        #     "Món này có bột ngọt không?"    mô hình trả `prefer: health:no_msg`      -> filter
+        #
+        # Khách nhận về "Mời bạn tham khảo: Cơm chiên chay ngũ sắc (50.000đ), …" cho một câu hỏi
+        # có/không về một món cụ thể — sai loại câu trả lời, kèm thẻ giỏ cho câu không hỏi mua gì.
+        #
+        # Cùng lớp với `asks_extreme` ở trên: mã tất định trả lời đúng, mô hình được gọi vào chỗ không
+        # cần, và nó làm tụt. Mỗi lần thêm một tín hiệu vào đây là một lần trả giá bằng một ca đỏ.
+        or request.asks_about_attribute
     )
     # Chú ý KHÔNG có `request.wants` ở danh sách trên. Biết khách "muốn món ăn" chỉ thu hẹp
     # còn 56/91 món — gần như không phải bộ lọc, nên nó KHÔNG đủ để coi là đã hiểu câu hỏi.

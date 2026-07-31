@@ -382,37 +382,139 @@ class DockerfileKhongDungGoiKhongCoTrongRequirements(unittest.TestCase):
 
         Đây là dòng đã giết build: `from sentence_transformers import SentenceTransformer` với
         gói đã bị bỏ.
+
+        `from X import Y` phải đọc là MỘT mệnh đề, không phải hai
+        --------------------------------------------------------
+        Bản đầu quét `(?:import|from)\\s+(\\w+)`, nên trên đúng dòng ví dụ ở trên nó tìm được HAI
+        tên: `sentence_transformers` (đúng) và `SentenceTransformer` (sai — đó là một CÁI TÊN BÊN
+        TRONG mô-đun, không phải gói cài bằng pip). Tên thứ hai không bao giờ có trong
+        requirements, nên test báo đỏ cho một dòng đúng.
+
+        Lỗi này chỉ lộ ra khi dòng đó được thêm LẠI vào Dockerfile. Trước đó nó ngủ, vì không có
+        dòng `from ... import ...` nào để phân tích sai. Cùng lớp với các lỗi "tệp có ≠ nó chạy":
+        một phép kiểm không gặp đầu vào thật thì chưa ai biết nó đúng.
         """
         import sys as _sys
 
         chuan = set(getattr(_sys, "stdlib_module_names", ()))
         packages = self._packages()
         text = DOCKERFILE.read_text(encoding="utf-8")
+        # Nhánh `from X import` đứng TRƯỚC, và nó ăn luôn chữ `import`, nên tên sau đó không bị
+        # nhánh `import Y` khớp lần nữa. Thứ tự hai nhánh là phần quan trọng của biểu thức này.
+        MAU = re.compile(
+            r"(?:^|[\s;\"'])from\s+([a-zA-Z_][\w.]*)\s+import\b"
+            r"|(?:^|[\s;\"'])import\s+([a-zA-Z_][\w.]*)"
+        )
         vi_pham: list[str] = []
         for i, line in enumerate(text.splitlines(), 1):
             if "python -c" not in line:
                 continue
-            for mod in re.findall(r"(?:^|\s)(?:import|from)\s+([a-zA-Z_][\w.]*)", line):
+            for m in MAU.finditer(line):
+                mod = m.group(1) or m.group(2)
                 goc = mod.split(".")[0].lower().replace("-", "_")
                 if goc in chuan or goc in packages:
                     continue
                 vi_pham.append(f"dòng {i}: import {mod!r} — không phải stdlib, không trong requirements")
         self.assertEqual(vi_pham, [], "\n  ".join(vi_pham))
 
-    def test_khong_con_bien_moi_truong_cua_tang_embedding_da_bo(self):
-        """Biến cho một tầng không tồn tại làm người đọc tưởng hệ thống có tầng đó.
+    def test_phep_phan_tich_import_doc_dung_from_X_import_Y(self):
+        """Phép kiểm ở trên phải đọc `from X import Y` là gói `X`, không phải gói `Y`.
 
-        Bước 5 đã bỏ `sentence-transformers` (~3GB) sau khi đo rằng 24 chủ đề chính sách tra khóa
-        đúng 100%. Giữ `HF_HOME` và `HF_HUB_OFFLINE` lại thì Dockerfile vẫn nói có tầng embedding.
+        Test cho chính phép kiểm, vì bản đầu của nó báo đỏ một dòng Dockerfile ĐÚNG. Một phép kiểm
+        sai làm mất nhiều thời gian hơn không có phép kiểm nào: nó gửi người đọc đi sửa chỗ không
+        hỏng.
+        """
+        MAU = re.compile(
+            r"(?:^|[\s;\"'])from\s+([a-zA-Z_][\w.]*)\s+import\b"
+            r"|(?:^|[\s;\"'])import\s+([a-zA-Z_][\w.]*)"
+        )
+
+        def doc(line: str) -> list[str]:
+            return [m.group(1) or m.group(2) for m in MAU.finditer(line)]
+
+        self.assertEqual(doc('RUN python -c "from a.b import C"'), ["a.b"])
+        self.assertEqual(doc('RUN python -c "import os, sys"'), ["os"])
+        self.assertEqual(doc('RUN python -c "import urllib.request; import json"'),
+                         ["urllib.request", "json"])
+        # Dạng thật trong Dockerfile: một dòng có cả hai kiểu.
+        self.assertEqual(
+            doc('RUN python -c "from sentence_transformers import SentenceTransformer; import os"'),
+            ["sentence_transformers", "os"],
+        )
+
+    def test_bien_moi_truong_embedding_phai_khop_voi_requirements(self):
+        """Dockerfile không được nói SAI về việc có tầng embedding hay không — theo CẢ HAI chiều.
+
+        Bản đầu của test này chỉ chặn một chiều: "có `ENV HF_HOME` mà không có gói thì đỏ", vì
+        bước 5 vừa bỏ `sentence-transformers` và biến còn sót lại làm người đọc tưởng tầng đó còn.
+
+        Nay tầng đó ĐƯỢC BẬT LẠI (đo được: Hit@1 niêm phong 0,391 -> 0,609), nên tiền đề cũ bị đảo
+        và chiều còn lại mới là chiều nguy hiểm: **có gói mà thiếu biến**. Thiếu `HF_HUB_OFFLINE`
+        thì container gọi mạng ra Hugging Face lúc chạy, và mạng chậm làm chậm khởi động — một lỗi
+        chỉ hiện ở môi trường thật, không hiện trong test nào.
+
+        Nên kiểm hai chiều bằng một phép so tương đương, chứ không phải hai test rời:
+
+            có `sentence_transformers`  <->  có `ENV HF_HOME` và `ENV HF_HUB_OFFLINE`
+
+        Cách viết này còn có tính chất em muốn: nó tự đúng nếu ai đó bỏ tầng embedding lần nữa.
+        Bỏ gói mà quên biến -> đỏ; bỏ cả hai -> xanh. Không cần sửa test theo quyết định.
         """
         text = DOCKERFILE.read_text(encoding="utf-8")
-        for bien in ("HF_HOME", "HF_HUB_OFFLINE", "TRANSFORMERS_CACHE"):
-            for i, line in enumerate(text.splitlines(), 1):
-                if line.strip().startswith("ENV") and bien in line:
-                    self.fail(
-                        f"dòng {i}: còn `ENV {bien}` — tầng embedding đã bị bỏ ở bước 5, biến này "
-                        "làm Dockerfile nói sai về thứ hệ thống có"
-                    )
+        co_bien = {
+            bien
+            for bien in ("HF_HOME", "HF_HUB_OFFLINE")
+            for line in text.splitlines()
+            if line.strip().startswith("ENV") and bien in line
+        }
+        co_goi = "sentence_transformers" in self._packages()
+
+        if co_goi and co_bien != {"HF_HOME", "HF_HUB_OFFLINE"}:
+            self.fail(
+                f"requirements có `sentence-transformers` nhưng Dockerfile thiếu "
+                f"{sorted({'HF_HOME', 'HF_HUB_OFFLINE'} - co_bien)}. Thiếu `HF_HOME` thì mô hình "
+                "tải về chỗ người dùng `app` không ghi được; thiếu `HF_HUB_OFFLINE` thì container "
+                "gọi mạng ra Hugging Face lúc chạy."
+            )
+        if not co_goi and co_bien:
+            self.fail(
+                f"Dockerfile còn `ENV {sorted(co_bien)}` nhưng requirements KHÔNG có "
+                "`sentence-transformers` — biến cho một tầng không tồn tại làm Dockerfile nói sai "
+                "về thứ hệ thống có."
+            )
+
+    def test_mo_hinh_embedding_duoc_tai_san_luc_build(self):
+        """Có tầng embedding thì mô hình phải nằm TRONG ẢNH, không tải lúc chạy.
+
+        Tải lúc chạy có hai hậu quả và cả hai chỉ hiện ở môi trường thật: khách ĐẦU TIÊN chờ tải
+        ~500MB, và dịch vụ phụ thuộc mạng ngoài SAU KHI `/ready` đã báo sẵn sàng — tức "sẵn sàng"
+        thành lời nói dối. Cùng lớp lỗi với `HEALTHCHECK` trỏ vào `/ready`: trạng thái báo ra
+        không khớp trạng thái thật.
+
+        Test kiểm tên mô hình trong Dockerfile TRÙNG tên mã lúc chạy dùng — hai chỗ ghi tên khác
+        nhau thì ảnh tải sẵn mô hình A và runtime tải mô hình B, và lỗi đó im lặng.
+        """
+        if "sentence_transformers" not in self._packages():
+            self.skipTest("không có tầng embedding")
+
+        text = DOCKERFILE.read_text(encoding="utf-8")
+        self.assertIn(
+            "SentenceTransformer(",
+            text,
+            "requirements có `sentence-transformers` nhưng Dockerfile KHÔNG tải sẵn mô hình. "
+            "Khách đầu tiên sẽ phải chờ tải ~500MB.",
+        )
+
+        trong_dockerfile = set(re.findall(r"SentenceTransformer\(['\"]([^'\"]+)", text))
+        nguon = (REPO_ROOT / "ai" / "app" / "rag" / "embedding.py").read_text(encoding="utf-8")
+        luc_chay = set(re.findall(r"MODEL_NAME\s*=\s*['\"]([^'\"]+)", nguon))
+        self.assertEqual(
+            trong_dockerfile,
+            luc_chay,
+            f"Dockerfile tải sẵn {sorted(trong_dockerfile)} nhưng lúc chạy mã dùng "
+            f"{sorted(luc_chay)}. Hai tên khác nhau thì ảnh tải một mô hình và runtime tải mô "
+            "hình khác — và với `HF_HUB_OFFLINE=1` thì runtime KHÔNG tải được, nên dịch vụ chết.",
+        )
 
 
 class KhongTepBiMatNaoLotVaoANH(unittest.TestCase):

@@ -18,7 +18,7 @@ Mạnh, đo được, nhưng không còn là bất khả. Ba việc giữ nó �
 1. **Mô hình KHÔNG chọn món.** Danh sách món do `answer.select()` lọc theo nhãn quyết định, và đo
    được là lọc theo nhãn thắng dứt khoát: 8/8 đúng so với RAG sai 6–7/8. Mô hình chỉ VIẾT về những
    món đã được chọn.
-2. **Xác minh trước khi gửi.** Sáu phép kiểm ở `verify()` dưới đây. Vi phạm bất kỳ phép nào thì câu
+2. **Xác minh trước khi gửi.** Tám phép kiểm ở `verify()` dưới đây. Vi phạm bất kỳ phép nào thì câu
    sinh bị BỎ và hệ thống dùng lại câu khuôn mẫu — không sửa, không thử lại.
 3. **Thẻ giỏ vẫn tất định.** Nó dựng từ `reply.items`, không từ chữ mô hình viết. Nên dù một câu
    sinh lọt qua xác minh mà vẫn sai, khách không đặt được món không tồn tại.
@@ -50,6 +50,26 @@ from understand import Request
 # loại A. `no_data`, `refuse`, `clarify` cũng không sinh: chưa hiểu câu hỏi thì không có gì để viết
 # cho hay hơn, và một câu từ chối do mô hình viết là chỗ dễ rò rỉ nhất.
 BRANCHES_ALLOWED = frozenset({"filter", "compare"})
+
+# Cụm mở đường hỏi nhân viên. Phép kiểm thứ 8 đòi một trong những cụm này khi khách nêu điều cần
+# tránh — xem `verify()`.
+#
+# Danh sách này TRÙNG `STAFF_PHRASES` của `ai/evaluation/answer_metric.py`, và sự trùng đó là bắt
+# buộc: thước đo chấm ĐỎ khi câu trả lời thiếu cụm, còn phép kiểm ở đây BỎ câu sinh khi thiếu cụm.
+# Hai danh sách lệch nhau thì có câu sinh qua được phép kiểm rồi bị thước đo chấm đỏ — tức hệ thống
+# tự tin vào một điều thước đo không đồng ý.
+#
+# KHÔNG import từ `answer_metric`: `ai/app` là mã lúc chạy, `ai/evaluation` là bộ đo, và mã lúc chạy
+# import bộ đo nghĩa là bộ đo phải có mặt trong ảnh Docker. Nên hai chỗ khai riêng, và
+# `test_generate.py` có một test đối chiếu hai danh sách — trùng được ÉP, không phải được nhớ.
+STAFF_PHRASES = (
+    "nhân viên",
+    "phục vụ",
+    "nhà hàng xác nhận",
+    "hỏi lại bếp",
+    "bếp xác nhận",
+    "gọi nhân viên",
+)
 
 # Số tiền trong câu trả lời. Dùng để kiểm mọi con số tiền đều là giá THẬT của món đã đưa vào.
 MONEY_IN_TEXT = re.compile(r"\d[\d.]*(?=\s*đ)")
@@ -89,10 +109,16 @@ QUY TẮC BẮT BUỘC:
 5. KHÔNG được viết ra mã nhãn kỹ thuật như `allergen:peanut`, `spice:none`, `diet:vegan`. Khách
    không hiểu chúng. Hãy viết bằng tiếng Việt thường: "thực đơn không ghi nhận đậu phộng", "món
    này không cay".
-6. KHÔNG được nêu số lượng món ("có 6 món lẩu", "3 loại"). Bạn chỉ thấy một phần thực đơn, nên mọi
+6. Bạn PHẢI nhắc TẤT CẢ các món trong danh sách, kèm giá của từng món. Không được bỏ món nào.
+   Khách cần thấy đủ lựa chọn để bấm chọn; một câu văn hay mà thiếu món là câu trả lời thiếu.
+7. KHÔNG được nêu số lượng món ("có 6 món lẩu", "3 loại"). Bạn chỉ thấy một phần thực đơn, nên mọi
    con số đếm bạn viết ra đều có thể sai.
-7. Viết 2–4 câu, tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo.
-8. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
+8. Nếu khách đã nêu điều cần tránh (dị ứng, không ăn được thứ gì), câu trả lời PHẢI mời khách nhắc
+   nhân viên để bếp xác nhận lại. Đây KHÔNG phải câu khách sáo: nhãn dị nguyên của thực đơn chỉ phủ
+   một phần món, nên "thực đơn không ghi nhận" KHÔNG đồng nghĩa "món này an toàn". Bỏ câu đó là để
+   khách tin một điều hệ thống không biết.
+9. Viết 3–5 câu, tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo.
+10. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
 
 Trả về JSON đúng dạng:
 {{"text": "câu trả lời", "used_item_ids": ["mã món đã nhắc"]}}
@@ -148,7 +174,7 @@ def _mo_ta_mon(items: list[dict]) -> str:
 
 def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict],
            avoid_tags: list[str]) -> list[str]:
-    """Sáu phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
+    """Tám phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
 
     Áp cho MỌI câu sinh, không khai từng ca: một phép kiểm chỉ chạy ở vài chỗ là một phép kiểm không
     bảo đảm gì.
@@ -201,7 +227,22 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
     if khoa:
         loi.append(f"in mã nhãn kỹ thuật vào câu khách đọc: {khoa}")
 
-    # 6. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
+    # 6. PHẢI nhắc ĐỦ mọi món trong danh sách.
+    #
+    # Đo được: golden 103 lượt với đường sinh cho 84/103, và gần hết phần đỏ còn lại là văn xuôi nêu
+    # 2–3 món trong khi bộ lọc chọn 6. Hệ quả với khách có hai mặt, và cả hai đều xấu:
+    #
+    #   thiếu lựa chọn  khách chỉ thấy 2 món thay vì 6, tức mất 4 món họ có thể muốn
+    #   lệch thẻ giỏ    thẻ giỏ dựng từ 6 món -> phải thu hẹp còn 2, nên "trả lời một kiểu, thẻ giỏ
+    #                   một kiểu" chỉ hết bằng cách BỎ BỚT thẻ, chứ không phải bằng cách trả đủ
+    #
+    # Đòi nhắc đủ giải cả hai cùng lúc: thẻ giỏ khớp văn xuôi mà không phải bỏ món nào, và khách thấy
+    # đủ lựa chọn. Mô hình bỏ sót món thì câu sinh bị BỎ và khuôn mẫu — vốn luôn nêu đủ — được dùng.
+    thieu = sorted(i["name"] for i in allowed if i["name"] not in text)
+    if thieu:
+        loi.append(f"KHÔNG nhắc đủ món trong danh sách, thiếu: {thieu}")
+
+    # 7. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
     #    Đây là phép kiểm cuối cùng trước khi chữ tới khách, và nó lặp lại điều bộ lọc đã làm —
     #    lặp có chủ ý: bộ lọc chọn món, còn phép này kiểm chữ, và hai thứ đó lệch nhau được.
     for tag in avoid_tags:
@@ -209,6 +250,33 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
                      if i["name"] in text and tag in i["tags"])
         if xau:
             loi.append(f"AN TOÀN: nhắc món mang `{tag}`: {xau}")
+
+    # 8. Khách đã nêu điều cần tránh -> câu trả lời PHẢI mở đường hỏi nhân viên. CHỐT AN TOÀN.
+    #
+    # Vì sao phép kiểm này tồn tại, và nó là phép kiểm đắt giá nhất trong tám
+    # ---------------------------------------------------------------------
+    # Đo trên 76 ca loại C với mô hình thật: đường tất định 76/76, đường sinh **61/76**. Và 14 trong
+    # 15 ca tụt là ca DỊ NGUYÊN — `S-allergen-*` và `P-allergy-*`.
+    #
+    # Chúng tụt vì đúng một lý do: thước đo có `must_offer_staff` với `safety=True`, và câu sinh BỎ
+    # câu "bạn nhắc nhân viên khi gọi món để bếp xác nhận". Khuôn mẫu luôn thêm câu đó khi có
+    # `avoid_tags`; mô hình viết văn mượt hơn và bỏ nó đi.
+    #
+    # Nên với đường sinh, "0 lỗi an toàn" của đường tất định thành **14 lỗi an toàn**. Đó không phải
+    # một con số để báo cáo — đó là một lỗi phải sửa.
+    #
+    # Vì sao câu đó KHÔNG phải văn vẻ mà là NỘI DUNG: nhãn dị nguyên phủ **44/91 món**, nên "thực đơn
+    # không ghi nhận thành phần bạn cần tránh" KHÔNG đồng nghĩa "món này an toàn". Câu mời hỏi nhân
+    # viên là chỗ duy nhất trong câu trả lời nói ra giới hạn đó. Bỏ nó là để khách tin một điều hệ
+    # thống không biết.
+    #
+    # `PROMPT` cũng đã yêu cầu điều này, nhưng yêu cầu trong prompt là **đề nghị**, không phải bảo
+    # đảm — đúng bài học của cả bước 6: an toàn không được phụ thuộc việc mô hình chịu nghe.
+    if avoid_tags and not any(p in text.lower() for p in STAFF_PHRASES):
+        loi.append(
+            "AN TOÀN: khách nêu điều cần tránh mà câu trả lời KHÔNG mở đường hỏi nhân viên "
+            f"(cần một trong {list(STAFF_PHRASES)})"
+        )
     return loi
 
 

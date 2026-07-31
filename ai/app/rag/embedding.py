@@ -81,6 +81,117 @@ def _load_model():
     return _MODEL_CACHE[MODEL_NAME]
 
 
+# --------------------------------------------------------------- vector tính sẵn lúc build
+#
+# Vì sao cần: ĐO ĐƯỢC, không phải phỏng đoán
+# ------------------------------------------
+# Đo trong container thật, từ lúc container `StartedAt` tới lúc uvicorn nhận request:
+#
+#     import torch          2,2s
+#     nạp mô hình          10,6s
+#     đọc 425 đoạn          0,0s
+#     MÃ HÓA 425 đoạn      61,7s   <- 64% của cả thời gian khởi động
+#     ------------------------------
+#     khởi động thật       97,3s
+#
+# 61,7 giây đó tính đi tính lại **cùng một kết quả** mỗi lần container khởi động, vì kho tri thức
+# nằm CỐ ĐỊNH trong ảnh. Nên nó thuộc lúc build, không thuộc lúc chạy.
+#
+# 97 giây khởi động còn có hậu quả thứ hai, tệ hơn chậm: `HEALTHCHECK` của Dockerfile đặt
+# `start_period=15s`, `interval=30s`, `retries=3`. Nghĩa là lần kiểm thứ ba rơi vào ~105 giây — dịch
+# vụ này kịp sẵn sàng ở 97 giây, tức **suýt** bị đánh `unhealthy`. Và `api` có
+# `depends_on: ai-service: condition: service_healthy`, nên một máy chậm hơn 8% làm cả stack không
+# lên. Đây là loại lỗi chỉ chạy thật mới thấy.
+#
+# Vì sao khóa là HÀM BĂM NỘI DUNG, không phải tên tệp hay ngày sửa
+# ---------------------------------------------------------------
+# Vector lệch khỏi kho là lỗi IM LẶNG và nặng nhất có thể ở đây: hệ thống vẫn trả 5 đoạn, vẫn có
+# điểm, chỉ trả SAI đoạn — và không log nào nói gì. Nên khóa phải là chính nội dung đã mã hóa.
+#
+# Băm cả `normalize` và `use_prefix`: hai cờ đó ĐỔI vector. Thiếu chúng trong khóa thì phép ablation
+# "tắt chuẩn hóa" sẽ lặng lẽ đọc lại vector ĐÃ chuẩn hóa và báo rằng tắt nó không mất gì — một phép
+# đo tự bác bỏ chính nó.
+_DEM_PATH_ENV = "AI_EMBEDDING_CACHE"
+
+
+def _khoa(texts: list[str], *, normalize: bool, use_prefix: bool) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    h.update(f"{MODEL_NAME}|{normalize}|{use_prefix}|{len(texts)}\n".encode("utf-8"))
+    for t in texts:
+        h.update(t.encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()
+
+
+def _duong_dem():
+    import os
+    from pathlib import Path
+
+    p = os.environ.get(_DEM_PATH_ENV)
+    return Path(p) if p else None
+
+
+def doc_dem(texts: list[str], *, normalize: bool, use_prefix: bool):
+    """Vector đã tính sẵn, hoặc `None`.
+
+    Trả `None` — tức tính lại — trong MỌI trường hợp không chắc chắn: không có biến môi trường,
+    không có tệp, khóa không khớp, tệp hỏng. Không có nhánh nào "dùng tạm" một bộ vector không khớp.
+    """
+    path = _duong_dem()
+    if path is None or not path.exists():
+        return None
+    try:
+        import json
+
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if data.get("khoa") != _khoa(texts, normalize=normalize, use_prefix=use_prefix):
+        return None
+    vecs = data.get("vectors")
+    if not isinstance(vecs, list) or len(vecs) != len(texts):
+        return None
+    return vecs
+
+
+def ghi_dem(chunks, *, normalize: bool = True, use_prefix: bool = True) -> str:
+    """Tính vector rồi ghi ra tệp đệm. Gọi lúc BUILD, không lúc chạy.
+
+    Trả về đường dẫn đã ghi, để bước build in ra được.
+    """
+    path = _duong_dem()
+    if path is None:
+        raise RuntimeError(
+            f"Chưa đặt {_DEM_PATH_ENV}. Không tự chọn đường dẫn mặc định: ghi vào một chỗ đoán ra "
+            "thì lúc chạy đọc chỗ khác, và hậu quả là im lặng tính lại 61 giây mỗi lần khởi động "
+            "trong khi mọi người tin là đã có đệm."
+        )
+    import json
+
+    model = _load_model()
+    texts = [(PASSAGE_PREFIX if use_prefix else "") + c.text for c in chunks]
+    raw = model.encode(texts, batch_size=32, show_progress_bar=False)
+    vectors = [
+        EmbeddingIndex._l2(list(map(float, v))) if normalize else list(map(float, v)) for v in raw
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "khoa": _khoa(texts, normalize=normalize, use_prefix=use_prefix),
+                "mo_hinh": MODEL_NAME,
+                "so_doan": len(texts),
+                "vectors": vectors,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
 @dataclass
 class EmbeddingIndex:
     """Vector của từng đoạn, đã chuẩn hóa L2.
@@ -96,6 +207,14 @@ class EmbeddingIndex:
     vectors: list[list[float]] = field(default_factory=list)
     normalize: bool = True
     use_prefix: bool = True
+
+    # Vector đến từ đệm tính sẵn lúc build, hay vừa được mã hóa lại?
+    #
+    # Trường này tồn tại vì lỗi đệm-không-khớp là IM LẶNG: hệ thống vẫn đúng, chỉ chậm thêm 60 giây
+    # mỗi lần khởi động, và cách duy nhất phát hiện là bấm giờ container. Một cờ đọc được qua
+    # `/ready` biến nó thành thứ nhìn thấy ngay — cùng lý do `/ready` phải báo `model_key_set` thay
+    # vì chỉ báo `model_configured`.
+    tu_dem: bool = False
     _model: object = None
 
     @staticmethod
@@ -111,6 +230,14 @@ class EmbeddingIndex:
         texts = [
             (PASSAGE_PREFIX if use_prefix else "") + c.text for c in chunks
         ]
+
+        # Đọc vector đã tính sẵn nếu có VÀ khớp kho. Xem `doc_dem`/`ghi_dem` để biết vì sao.
+        dem = doc_dem(texts, normalize=normalize, use_prefix=use_prefix)
+        if dem is not None:
+            index.vectors = dem
+            index.tu_dem = True
+            return index
+
         raw = index._model.encode(texts, batch_size=32, show_progress_bar=False)
         index.vectors = [
             index._l2(list(map(float, v))) if normalize else list(map(float, v)) for v in raw

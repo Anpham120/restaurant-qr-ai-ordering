@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import run_golden_e2e as RGE  # noqa: E402
 from run_golden_e2e import cham_luot, cham_the_gio, suy_ra_kind  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -212,7 +213,7 @@ class TapGoldenPhaiHopLe(unittest.TestCase):
         và `tags_include` là mã chết trong thước đo suốt nhiều tháng.
         """
         HIEU = {
-            "why", "kind", "min_items", "min_chars", "forbid_tags_any", "cart_forbid_tags_any",
+            "why", "kind", "min_items", "max_items", "min_chars", "forbid_tags_any", "cart_forbid_tags_any",
             "must_say_any", "must_not_say_any", "max_price", "must_name_priciest",
             "must_name_priciest_within", "must_state_price_of", "no_invented_item_names",
             "no_cart", "add_first_cart_item_to_cart",
@@ -223,6 +224,32 @@ class TapGoldenPhaiHopLe(unittest.TestCase):
             for j, t in enumerate(c["turns"], 1):
                 la = sorted(set(t.get("expect", {})) - HIEU)
                 self.assertEqual(la, [], f"{c['id']} lượt {j}: khóa lạ {la}")
+
+        # Chiều NGƯỢC LẠI, và nó là chiều nguy hiểm hơn: `HIEU` là bảng VIẾT TAY, nên nó cho phép
+        # khai một khóa mà bộ chạy KHÔNG cài. Khóa như vậy là **tiêu chí chết**: ca nào dùng nó cũng
+        # xanh, và bảng kết quả trông như đã phủ.
+        #
+        # Dự án đã có bốn tiêu chí chết theo đúng cách này (`expect` mức trên trong `validate_cases`,
+        # `memory_budget_max: null`, `must_not_say_any` vắng mặt, `abstain` trong phép so truy hồi), và
+        # cả bốn đều được phát hiện MUỘN — sau khi con số đã được báo ra.
+        #
+        # Nên mỗi khóa trong `HIEU` phải xuất hiện trong mã của `cham_luot`/`cham_the_gio`. Đây là
+        # phép kiểm thô — nó chỉ đọc chuỗi — nhưng nó bắt đúng chỗ hỏng: khai mà không cài.
+        nguon = (Path(RGE.__file__)).read_text(encoding="utf-8")
+        # Tách phần chú thích ra: một khóa chỉ được NHẮC trong chú thích thì vẫn là khóa chết.
+        lenh = "\n".join(
+            line for line in nguon.splitlines() if not line.strip().startswith("#")
+        )
+        chua_cai = sorted(
+            k for k in HIEU
+            if k != "why" and f'"{k}"' not in lenh and f"'{k}'" not in lenh
+        )
+        self.assertEqual(
+            chua_cai, [],
+            f"khóa được khai trong HIEU nhưng KHÔNG có trong mã chấm: {chua_cai}. "
+            "Ca dùng khóa đó sẽ xanh mà không đo gì — tiêu chí chết còn tệ hơn không có tiêu chí, "
+            "vì nó làm bảng kết quả trông như đã phủ.",
+        )
 
     def test_ten_mon_trong_tieu_chi_phai_co_that(self):
         """Mọi tên món viết trong tiêu chí phải có trong thực đơn.

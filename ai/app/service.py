@@ -51,7 +51,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from answer import (STAFF_NOTE, Reply, doan_tri_thuc_lien_quan, ham_nong_truy_hoi,
-                    load_facts, respond)
+                    load_facts, respond, trang_thai_truy_hoi)
 from cart import CartError, build_cart, cart_payload
 from generate import write_reply
 from llm_understand import enrich, load_env
@@ -248,15 +248,23 @@ def ready() -> dict[str, Any]:
         ),
         "model_base_url_set": bool(env.get("LLM_BASE_URL")),
         "model_key_set": bool(env.get("LLM_API_KEY")),
-        # Phương pháp truy hồi ĐANG chạy, không phải phương pháp tốt nhất đã đo.
+        # Trạng thái tầng truy hồi ĐANG chạy, không phải phương pháp tốt nhất đã đo.
         #
-        # Đo được trên 168 ca chọn mục (hai tập): embedding Top-1 0,864–0,921 so với BM25
-        # 0,750–0,803. Nhưng `sentence-transformers` kéo 2–3GB nên nó không nằm trong
-        # `ai/requirements.txt`, và container hiện chạy BM25.
+        # Ba trường, không phải một, và trường thứ ba có mặt vì một lỗi IM LẶNG đã xảy ra thật:
         #
-        # Trường này có mặt để chênh lệch đó ĐỌC ĐƯỢC từ ngoài. Một hệ thống âm thầm chạy bản kém
-        # hơn bản đã đo là hệ thống mà báo cáo và thực tế nói hai chuyện khác nhau.
-        "retriever": RETRIEVER_NAME,
+        #   retriever                     bộ đang chạy. Embedding thắng ở cả hai bài toán và cả hai
+        #                                 tập niêm phong, nên nay nó là bộ trong production.
+        #   retriever_chunks              số đoạn trong chỉ mục. Đối chiếu với con số mà
+        #                                 `python -m rag.precompute` in lúc build: hai số lệch nhau
+        #                                 nghĩa là đệm vector KHÔNG khớp.
+        #   retriever_vectors_from_cache  đệm có được dùng hay không. `False` ở đây nghĩa là container
+        #                                 mã hóa lại 370 đoạn mỗi lần khởi động — hệ thống vẫn ĐÚNG,
+        #                                 chỉ mất thêm ~60 giây, và không log nào nói gì. Đã mất một
+        #                                 vòng đo để tìm ra, nên nó phải đọc được từ ngoài.
+        #
+        # Một hệ thống âm thầm chạy bản kém hơn bản đã đo là hệ thống mà báo cáo và thực tế nói hai
+        # chuyện khác nhau.
+        **trang_thai_truy_hoi(),
         # Đường sinh đang bật hay tắt. Có mặt vì hai cấu hình cho hai hành vi rất khác nhau — một
         # bên câu trả lời do khuôn mẫu dựng, một bên do mô hình viết — và người đọc `/ready` phải
         # biết mình đang xem cái nào.

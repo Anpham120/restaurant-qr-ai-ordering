@@ -198,7 +198,8 @@ jobs:
       #
       # Bỏ qua như vậy KHÔNG âm thầm: `run_retrieval_comparison.py` in rõ "embedding và hybrid BỊ
       # BỎ QUA" kèm lý do, và nó vẫn CHẶN nếu BM25 lấy đoạn bị cấm ở nhóm chốt hoặc không biết
-      # KHÔNG trả lời. Cài `ai/requirements-rag.txt` rồi chạy lại để có phép so ba phương pháp.
+      # KHÔNG trả lời. Cài `ai/requirements.txt` (nay đã gồm embedding) rồi chạy lại để có
+      # phép so ba phương pháp — con số ba phương pháp đo tại máy, xem `07-error-analysis.md`.
       - name: Test ba cách truy hồi (công thức tính tay được)
         run: python -m unittest test_rag
         working-directory: ai/app
@@ -270,6 +271,14 @@ jobs:
     #
     # KHÔNG cần bí mật thật. `LLM_BASE_URL` trỏ vào cổng không có gì lắng nghe, nên mô hình gọi
     # thất bại ngay và dịch vụ trả lời bằng mã tất định — đúng đường đã đạt 140/140 ca.
+    #
+    # Và KHÔNG đặt `AI_ENABLE_GENERATION` ở đây, có chủ ý: job này phải đo đường TẤT ĐỊNH. Đường sinh
+    # cần mô hình thật, và một job CI không có mô hình mà bật đường sinh chỉ đo phần lùi về khuôn mẫu.
+    #
+    # CHI PHÍ ĐÃ ĐỔI: ảnh AI nay có tầng embedding, nên bước dựng tải `torch` bản CPU (~200MB) và mô
+    # hình `multilingual-e5-small` (~500MB), rồi tính sẵn vector cho 370 đoạn. Đo tại máy: build 108s
+    # -> ~700s cho lần đầu chưa có cache lớp. Job vẫn trong hạn mặc định của GitHub Actions, nhưng
+    # con số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
     env:
       DEPLOY_ENV: ci
       COMPOSE_PROJECT_NAME: cmc-restaurant-golden

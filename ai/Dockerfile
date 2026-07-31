@@ -5,22 +5,43 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Chỉ bốn gói cho tầng HTTP. Phần dữ liệu, thước đo và tập đánh giá dùng thư viện chuẩn của Python.
+# Gói cho tầng HTTP + tầng truy hồi bằng embedding. Phần dữ liệu, thước đo và tập đánh giá dùng thư
+# viện chuẩn của Python.
 #
-# Ba dòng của bản cũ đã bị bỏ ở đây, và cả ba đều sẽ làm BUILD THẤT BẠI:
+# LỊCH SỬ, và một chỗ chính em đã ghi sai
+# ---------------------------------------
+# Bản cũ có ba dòng ở đây và cả ba đã bị bỏ ở bước 5. Chú thích cũ nói cả ba "sẽ làm BUILD THẤT
+# BẠI", trong đó có:
 #
-#   pip install torch==2.13.0+cpu               phiên bản đó không tồn tại (torch mới nhất ~2.x
-#                                               thấp hơn nhiều), và không tệp nào trong `ai/`
-#                                               import torch
-#   python -c "from sentence_transformers ..."  gói đó đã bị bỏ khỏi requirements.txt ở bước 5,
-#                                               sau khi đo rằng 24 chủ đề chính sách tra khóa
-#                                               đúng 100% nên tầng embedding là 3GB cho 0 lợi ích
-#   ENV HF_HOME / HF_HUB_OFFLINE                biến cho model không còn tải nữa
+#   pip install torch==2.13.0+cpu    "phiên bản đó không tồn tại (torch mới nhất ~2.x thấp hơn
+#                                    nhiều)"
+#
+# Câu trong ngoặc kép ĐÃ SAI, và kiểm được: `pip install --dry-run --extra-index-url
+# https://download.pytorch.org/whl/cpu 'torch>=2.2,<3.0'` giải ra đúng `torch-2.13.0+cpu`. Phiên bản
+# đó có thật. Cái làm bản cũ thất bại là THIẾU `--extra-index-url` — không có index của PyTorch thì
+# PyPI không có hậu tố `+cpu` nào, nên pin đó không giải được.
+#
+# Giữ đoạn này vì nó là ví dụ đúng chủ đề của dự án: em kết luận "không tồn tại" từ chỗ nó không
+# giải được, thay vì từ việc tra index. Một lý lẽ sai vẫn dẫn tới việc bỏ đúng thứ cần bỏ lúc đó,
+# nhưng nó để lại một câu sai trong tài liệu — và câu đó sống thêm hai bước nữa.
+#
+# Hai dòng còn lại thì lý lẽ đúng lúc đó và nay ĐÃ ĐẢO, xem `requirements.txt`.
 #
 # Không test nào bắt được ba dòng đó, vì test chạy từ mã nguồn chứ không build ảnh. Cùng lớp lỗi
 # với `CMD` trỏ vào `app.main:app` — một module không tồn tại. Xem `test_packaging.py`.
 COPY ai/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
+# TẢI SẴN mô hình embedding lúc BUILD, không lúc chạy.
+#
+# Tải lúc chạy có hai hậu quả, và cả hai đều xấu: khách ĐẦU TIÊN chờ tải ~500MB, và dịch vụ phụ
+# thuộc mạng ra Hugging Face SAU KHI đã báo khởi động xong — tức `/ready` nói sẵn sàng trong khi
+# lượt chat đầu vẫn treo.
+#
+# `HF_HOME` trỏ vào chỗ người dùng `app` đọc được. Đặt TRƯỚC khi tạo user để lớp này cache được.
+ENV HF_HOME=/opt/hf
+ENV SENTENCE_TRANSFORMERS_HOME=/opt/hf
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small')"     && chmod -R a+rX /opt/hf
 
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --create-home app \
@@ -45,10 +66,49 @@ COPY --chown=app:app ai ./ai
 # `COPY ai` ở trên. Đó là cách sửa bằng cấu trúc, không phải bằng việc nhớ thêm một dòng COPY.
 COPY --chown=app:app backend/data ./backend/data
 
+# TÍNH SẴN vector của kho tri thức, lúc BUILD.
+#
+# Đo trong container thật: khởi động mất 97,3 giây, và 61,7 giây trong đó là mã hóa 425 đoạn — 64%.
+# Kho tri thức nằm cố định trong ảnh, nên 61,7 giây đó tính đi tính lại CÙNG một kết quả mỗi lần
+# container khởi động. Nó thuộc lúc build.
+#
+# Hậu quả thứ hai của 97 giây, tệ hơn chậm: `HEALTHCHECK` dưới đây có `start_period=15s`,
+# `interval=30s`, `retries=3`, nên lần kiểm thứ ba rơi vào ~105 giây. Dịch vụ kịp sẵn sàng ở 97 giây,
+# tức **suýt** bị đánh `unhealthy` — và `api` có `depends_on: condition: service_healthy`, nên một
+# máy chậm hơn 8% làm cả stack không lên được.
+#
+# `AI_EMBEDDING_CACHE` đặt ở đây và KHÔNG có giá trị mặc định trong mã: mã tự đoán một đường dẫn thì
+# lúc build ghi chỗ này, lúc chạy đọc chỗ khác, và hậu quả là im lặng tính lại 61 giây trong khi mọi
+# người tin là đã có đệm. Xem `ai/app/rag/embedding.py`.
+#
+# Tệp đệm mang HÀM BĂM nội dung đã mã hóa, nên kho đổi mà quên chạy lại bước này thì lúc chạy khóa
+# không khớp và hệ thống TỰ tính lại — chậm, nhưng ĐÚNG. Không có nhánh nào dùng vector lệch dữ liệu.
+# Gọi `python -m rag.precompute`, KHÔNG viết phép lọc đoạn ở đây.
+#
+# Bản đầu của dòng này là một biểu thức inline gọi `retrievable_chunks(...)` — 425 đoạn — trong khi
+# lúc chạy `answer.py` xếp hạng tập ĐÃ LỌC `heading`. Hai tập khác nhau nên hàm băm nội dung khác
+# nhau, đệm không khớp, và container **mã hóa lại toàn bộ mỗi lần khởi động**: 60 giây, trong khi log
+# build in "đã ghi ... cho 425 đoạn" và mọi dấu hiệu nói là đã có đệm.
+#
+# Đệm làm đúng thiết kế — khóa lệch thì tính lại chứ tuyệt đối không dùng vector sai — nên nó im lặng
+# làm điều đúng và che mất việc nó chưa từng được dùng. Chỉ đo thời gian khởi động thật mới thấy.
+#
+# Mô-đun `rag.precompute` gọi cùng hàm `doan_toan_kho()` mà `answer.py` gọi, nên hai bên không lệch
+# được nữa. Đây là cách sửa bằng cấu trúc, không phải bằng việc nhớ sửa hai chỗ.
+ENV AI_EMBEDDING_CACHE=/opt/hf/corpus-vectors.json
+# `cd /app/ai/app` là bắt buộc để `python -m rag.precompute` tìm được gói `rag` — cùng lý do với
+# `--app-dir app` của `CMD` ở cuối tệp: mọi mô-đun trong `ai/app` dùng import PHẲNG.
+RUN cd /app/ai/app && python -m rag.precompute && chmod -R a+rX /opt/hf
+
 WORKDIR /app/ai
 
 ENV AI_SERVICE_HOST=0.0.0.0
 ENV AI_SERVICE_PORT=8001
+
+# CHẶN mọi lần gọi mạng ra Hugging Face lúc chạy. Mô hình đã có trong ảnh, nên một lần kiểm phiên
+# bản là thuần rủi ro: mạng chậm thì nó làm chậm khởi động, mạng chặn thì nó có thể làm hỏng.
+ENV HF_HUB_OFFLINE=1
+ENV TRANSFORMERS_OFFLINE=1
 
 USER app
 
@@ -56,7 +116,28 @@ USER app
 # `/health` chỉ nói tiến trình còn sống, `/ready` mới kiểm dữ liệu. Nếu healthcheck dùng `/ready`
 # thì một lỗi dữ liệu sẽ làm orchestrator khởi động lại container liên tục — mà khởi động lại
 # không sửa được lỗi dữ liệu.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+#
+# `start-period` 15s -> 90s, vì tầng embedding đổi thời gian khởi động và 15s đã thành SAI
+# ---------------------------------------------------------------------------------------
+# Đo được: khởi động 97,3 giây trước khi có đệm vector, và 19,0 giây sau khi có — con số 19,0 là lần
+# khởi động lại thứ hai, khi đĩa đã nóng; lần đầu ngay sau khi build là 61,9 giây, nên "19 giây" chỉ
+# đúng cho container khởi động lại. Với 15s + 30s × 3 lần
+#
+# ("~35 giây" là con số em ĐOÁN ở bản đầu của chú thích này, trước khi bấm giờ. Đo ra 19,0s. Cùng lớp
+# với "khoảng 2–3GB" cho ảnh Docker mà đo ra 9,29GB rồi 2,74GB: một con số không đo thì sai cả về
+# hướng lẫn về độ lớn, và nó vẫn đọc như một con số.)
+# thì lần kiểm thứ ba rơi vào ~105 giây, tức bản chưa có đệm **suýt** bị đánh `unhealthy`. Và `api`
+# có `depends_on: ai-service: condition: service_healthy`, nên hậu quả không phải "một cảnh báo" mà
+# là **cả stack không lên**.
+#
+# Đặt 90s chứ không phải 40s: `start-period` chỉ nói "trong khoảng này thất bại thì đừng tính", nó
+# KHÔNG làm chậm gì khi dịch vụ lên nhanh — lần kiểm đầu vẫn chạy đúng lịch và container thành
+# `healthy` ngay khi `/health` trả lời. Nên đặt rộng là không mất gì, còn đặt sát là đánh cược vào
+# việc máy chạy production không chậm hơn máy đã đo.
+#
+# Lý do ghi lại: cùng lớp lỗi với `HF_HUB_OFFLINE` và với `AI_EMBEDDING_CACHE` — thêm một tầng vào
+# lúc khởi động thì mọi con số về khởi động phải được xem lại, không chỉ con số bị nhắc tới.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD python -c "import urllib.request,os,sys; \
 sys.exit(0 if b'\"ok\":true' in urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('AI_SERVICE_PORT','8001')+'/health', timeout=3).read().replace(b' ',b'') else 1)"
 

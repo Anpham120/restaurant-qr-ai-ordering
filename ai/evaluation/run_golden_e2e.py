@@ -27,6 +27,7 @@ cách một bộ đo tự vô hiệu hóa — nó sẽ xanh trên máy không c�
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -38,6 +39,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 GOLDEN_PATH = HERE / "golden_e2e.json"
+
+# Phép đo này cần backend + Postgres + dịch vụ AI đang chạy, nên notebook KHÔNG tính lại
+# được và phải ĐỌC số từ tệp. Xem docstring của `results.py`.
+import results  # noqa: E402
 MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
 
 # Cụm nói lên là ngoài phạm vi. Dùng chung định nghĩa với thước đo một lượt để hai bộ không lệch
@@ -215,10 +220,26 @@ def suy_ra_kind(text: str, so_the_gio: int) -> str:
     món hải sản nhắc trong văn xuôi vẫn là món hải sản đã lọt tới mắt khách dị ứng.
     """
     sach = text.lower()
-    if any(p in sach for p in REFUSE_PHRASES):
-        return "refuse"
-    if any(p in sach for p in NO_DATA_PHRASES):
-        return "no_data"
+
+    # `refuse` và `no_data` đòi KHÔNG CÓ THẺ GIỎ, không chỉ đòi cụm từ.
+    #
+    # Đây là một BẤT BIẾN của hệ thống, không phải một phép nới: `cart.py` chỉ sinh thẻ ở nhánh
+    # `filter`, `compare`, `item_detail`. Nhánh `no_data` và `refuse` KHÔNG BAO GIỜ có thẻ. Nên một
+    # câu trả lời CÓ thẻ giỏ không thể thuộc hai dạng đó, dù nó mở đầu bằng cụm gì.
+    #
+    # Vì sao cần: khi đường sinh bật, mô hình mở đầu câu bằng một lời rào rồi vẫn nêu đủ món —
+    #
+    #     "Mình chưa có dữ liệu về tình trạng còn món theo thời gian thực, nhưng thực đơn hiện có
+    #      Canh khổ qua nhồi nấm giá 55.000đ, …"
+    #
+    # Bản đầu đọc cụm "chưa có dữ liệu" ở bất kỳ đâu trong câu và kết luận `no_data`, nên một câu trả
+    # lời ĐÚNG bị chấm sai. Đây là lỗi THƯỚC ĐO, và dự án đã sai thước đo trước khi sai hệ thống bốn
+    # lần — nên phải kiểm giả thuyết "thước đo sai" trước giả thuyết "hệ thống sai".
+    if not so_the_gio:
+        if any(p in sach for p in REFUSE_PHRASES):
+            return "refuse"
+        if any(p in sach for p in NO_DATA_PHRASES):
+            return "no_data"
     # `compare` phải xét TRƯỚC `list`: câu so sánh nêu hai món và sinh hai thẻ giỏ, nên luật
     # "hai thẻ trở lên là danh sách" đọc nó thành `list`. Nhận bằng cụm riêng của nhánh so sánh.
     if any(p in sach for p in COMPARE_PHRASES):
@@ -384,6 +405,27 @@ def cham_luot(msg: dict, exp: dict, items: list[dict], by_id: dict,
 
     if exp.get("min_items") is not None and len(neu_ten) < exp["min_items"]:
         do.append(f"nêu {len(neu_ten)} món, cần ít nhất {exp['min_items']}")
+
+    # `max_items` — chữ ký CẤU TRÚC của câu so sánh, thay cho `kind: compare`.
+    #
+    # Vì sao cần một tiêu chí mới thay vì sửa `suy_ra_kind`: backend KHÔNG chuyển tiếp trường `kind`
+    # của dịch vụ AI (nó không thuộc hợp đồng khách), nên bộ này phải suy dạng từ văn bản. Khi đường
+    # sinh bật, mô hình viết câu so sánh mà không dùng cụm nào của khuôn mẫu:
+    #
+    #     "Nếu bạn thích vị bò đậm đà hơn, Phở bò tái nạm là lựa chọn phù hợp, giá 75.000đ. Nếu muốn
+    #      vị thanh nhẹ hơn, Phở gà ta có nước dùng trong…"
+    #
+    # Đó là một câu so sánh ĐÚNG, và không cụm từ nào phân biệt được nó với một câu liệt kê. Suy dạng
+    # từ văn xuôi tự do là việc không làm được, nên đừng cố.
+    #
+    # Cái phân biệt được, và nó là điều THẬT SỰ quan trọng với khách: câu so sánh nói về ĐÚNG hai món
+    # khách nêu, không kéo món thứ ba vào. `max_items: 2` cộng `must_name_items` hai món pin chặt
+    # điều đó — chặt HƠN `kind`, vì `kind` không nói gì về việc có món lạ hay không.
+    if exp.get("max_items") is not None and len(neu_ten) > exp["max_items"]:
+        do.append(
+            f"nêu {len(neu_ten)} món ({[m['name'] for m in neu_ten]}), "
+            f"nhiều nhất được {exp['max_items']} — câu so sánh không được kéo món thứ ba vào"
+        )
 
     if exp.get("min_chars") is not None and len(text) < exp["min_chars"]:
         do.append(f"câu trả lời {len(text)} ký tự, cần ít nhất {exp['min_chars']}")
@@ -606,6 +648,31 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  lượt : {tong}")
     print(f"  đạt  : {dat}/{tong}  ({dat / tong * 100:.1f}%)" if tong else "  không lượt nào")
     print(f"  đỏ   : {len(hong)}")
+
+    # Ghi TRƯỚC khi rẽ nhánh đỏ/xanh. Chỉ ghi ở nhánh xanh thì lần chạy có đỏ không để lại số nào,
+    # mà đúng lần đó mới là lần cần phân tích — mục "case sai không sửa được nữa" đọc chính
+    # `luot_do` dưới đây.
+    #
+    # Chỉ ghi khi chạy ĐẦY ĐỦ. Một lần chạy `--chi` cho 6 lượt rồi ghi đè kết quả 103 lượt là làm
+    # notebook in "6/6 = 100%" — đúng số, sai điều đang được nói.
+    if not args.chi:
+        duong_ket_qua = results.ghi(
+            "golden_e2e",
+            {
+                "luot": tong,
+                "dat": dat,
+                "do": len(hong),
+                "luot_do": hong,
+            },
+            {
+                "ngay": datetime.date.today().isoformat(),
+                "api": args.api,
+                "ready": cau_hinh or "KHÔNG đọc được /ready",
+                "hoi_thoai": len(hoi_thoais),
+            },
+        )
+        print(f"  đã ghi {duong_ket_qua.relative_to(REPO_ROOT)}")
+
     if hong:
         print("\nlượt đỏ:")
         for h in hong:

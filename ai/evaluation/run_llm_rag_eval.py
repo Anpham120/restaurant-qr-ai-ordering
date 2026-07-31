@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import datetime
 import statistics
 import sys
 import time
@@ -48,6 +49,7 @@ from answer import doan_tri_thuc_lien_quan, respond  # noqa: E402
 from answer_metric import Answer, score  # noqa: E402
 from cart import build_cart  # noqa: E402
 from generate import BRANCHES_ALLOWED, write_reply  # noqa: E402
+import results  # noqa: E402
 from llm_understand import load_env  # noqa: E402
 from understand import understand  # noqa: E402
 
@@ -176,6 +178,33 @@ def main(argv: list[str] | None = None) -> int:
     print(f"   độ trễ mỗi câu: p50 {statistics.median(tre):.0f} ms, "
           f"p95 {sorted(tre)[int(len(tre) * 0.95) - 1]:.0f} ms, "
           f"tổng {sum(tre) / 1000:.1f} s cho {n} ca")
+
+    # Ghi ra tệp: phép đo này cần `LLM_API_KEY` thật và mỗi lần chạy tốn tiền, nên notebook không
+    # tính lại được và phải đọc số từ đây. Xem docstring của `results.py`.
+    #
+    # Ghi cả khi có ca TỤT — lần chạy có ca tụt là lần cần phân tích nhất, và `ca_tut` dưới đây là
+    # dữ liệu của mục "case sai không sửa được nữa".
+    if not args.gioi_han:
+        duong = results.ghi(
+            "llm_rag_loai_c",
+            {
+                "ca": n,
+                "dat_tat_dinh": dat_truoc,
+                "dat_co_duong_sinh": dat_sau,
+                "ca_tut": tut,
+                "cau_sinh_duoc_dung": sinh_dung,
+                "lui_ve_khuon_mau": n - sinh_dung,
+                "ly_do_chan": dict(chan),
+                "tre_p50_ms": round(statistics.median(tre)),
+                "tre_p95_ms": round(sorted(tre)[int(len(tre) * 0.95) - 1]),
+            },
+            {
+                "ngay": datetime.date.today().isoformat(),
+                "mo_hinh": env["LLM_MODEL"],
+                "base_url": env["LLM_BASE_URL"],
+            },
+        )
+        print(f"\n   đã ghi {duong.name}")
 
     # Mã thoát khác 0 khi có ca TỤT. Đó là điều duy nhất ở đây đủ nghiêm để chặn.
     return 1 if tut else 0

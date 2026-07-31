@@ -27,7 +27,7 @@ Nhánh 6 sinh ra câu hỏi lại khi khách chưa nói gì đủ để lọc. H
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from pathlib import Path
 
@@ -224,9 +224,12 @@ def _bo_truy_hoi_toan_kho():
         return _TOAN_KHO
     try:
         from rag.bm25 import Bm25Index
-        from rag.chunker import retrievable_chunks
+        from rag.chunker import doan_toan_kho
 
-        doan = [c for c in retrievable_chunks(KNOWLEDGE_PATH) if c.heading]
+        # `doan_toan_kho` chứ không phải phép lọc viết tại đây: bước tính sẵn vector lúc build phải
+        # dùng ĐÚNG tập này, và khi phép lọc được viết ở hai chỗ thì hai chỗ đã lệch nhau một lần
+        # rồi — đệm vector im lặng không bao giờ khớp. Xem docstring của `doan_toan_kho`.
+        doan = doan_toan_kho(KNOWLEDGE_PATH)
         if not doan:
             _TOAN_KHO = (None, "kho rỗng")
             return _TOAN_KHO
@@ -307,6 +310,29 @@ def thuoc_mien(question: str, items: list[dict]) -> bool:
     return any(t in _TU_MIEN for t in fold(question).split())
 
 
+def trang_thai_truy_hoi() -> dict:
+    """Trạng thái ĐỌC ĐƯỢC của tầng truy hồi, để `/ready` báo ra.
+
+    Vì sao cần: lỗi đệm-vector-không-khớp là IM LẶNG
+    -----------------------------------------------
+    Đã xảy ra thật. Bước build tính vector cho 425 đoạn, lúc chạy cần 370 (tập đã lọc `heading`), nên
+    hàm băm lệch và container mã hóa lại toàn bộ mỗi lần khởi động — 60 giây. Hệ thống vẫn ĐÚNG, chỉ
+    chậm, và log build in "đã ghi ... cho 425 đoạn" nên mọi dấu hiệu nói là đã có đệm.
+
+    Cách duy nhất phát hiện lúc đó là bấm giờ container rồi thấy nó không giảm. Ba trường dưới đây
+    biến nó thành thứ nhìn thấy ngay — cùng lý do `/ready` phải báo `model_key_set` riêng thay vì chỉ
+    báo `model_configured`: một trạng thái nói thiếu điều kiện làm người đọc tin một điều chưa kiểm.
+    """
+    index, cach = _bo_truy_hoi_toan_kho()
+    return {
+        "retriever": cach,
+        "retriever_chunks": len(getattr(index, "chunk_ids", []) or []),
+        # `None` khi bộ đang dùng không phải embedding — khác `False`, vì `False` nghĩa là "có đệm mà
+        # không dùng được", còn `None` nghĩa là "khái niệm này không áp dụng".
+        "retriever_vectors_from_cache": getattr(index, "tu_dem", None) if cach == "embedding" else None,
+    }
+
+
 def ham_nong_truy_hoi() -> str:
     """Dựng chỉ mục toàn kho NGAY, và trả về tên phương pháp đang dùng.
 
@@ -317,9 +343,9 @@ def ham_nong_truy_hoi() -> str:
     khách thật thì đó là một lượt chat treo hàng chục giây, và nó xảy ra đúng lần đầu — tức đúng
     lúc gây ấn tượng xấu nhất.
 
-    Trong container hiện tại không có `sentence-transformers` nên chỗ này dựng BM25 và gần như tức
-    thời. Nhưng hàm vẫn phải tồn tại: ngày nào embedding vào ảnh, chi phí đó chuyển sang lúc khởi
-    động chứ không sang khách.
+    Embedding NAY đã vào ảnh, nên chi phí đó đã chuyển sang lúc khởi động — đúng như dòng này viết
+    từ trước. Đo được trong container: 97,3 giây, và 61,7 giây trong đó là mã hóa. Sau khi vector
+    được tính sẵn lúc build, phần mã hóa còn 0,1 giây.
     """
     _, cach = _bo_truy_hoi_toan_kho()
     return cach
@@ -790,6 +816,40 @@ def respond(request: Request, items: list[dict]) -> Reply:
 
     picked = _order(select(request, items), request.prefer_tags, request.wants)
     if not picked:
+        # Rỗng vì LOẠI TRỪ, hay rỗng vì RÀNG BUỘC? Hai chuyện khác nhau và phải trả lời khác nhau.
+        #
+        # Golden qua stack thật bắt được: khách xem ba lượt danh sách rồi nói "Cho mình món khác đi",
+        # và nhận "Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ" — trong khi có món thỏa
+        # ràng buộc, chỉ là chúng đã được nêu ở ba lượt trước.
+        #
+        # Danh sách loại trừ là một phép LỊCH SỰ: nó tránh gợi lại món khách vừa từ chối. Nó KHÔNG
+        # phải ràng buộc an toàn. Nên khi nó là nguyên nhân duy nhất làm kết quả rỗng, việc đúng là
+        # bỏ nó ra và NÓI RÕ, chứ không phải báo không có món nào.
+        #
+        # Phân biệt này quan trọng vì nó là ranh giới không được nhòe: ràng buộc dị nguyên, cay, giá,
+        # chế độ ăn thì **không bao giờ** được nới — kể cả khi kết quả rỗng, vì nới chúng là mời khách
+        # một món có thể gây hại. Loại trừ thì nới được, vì nới nó chỉ dẫn tới việc nhắc lại một món
+        # khách đã thấy.
+        khong_loai_tru = replace(request, exclude_item_ids=[])
+        con_lai = _order(select(khong_loai_tru, items), request.prefer_tags, request.wants)
+        if con_lai:
+            # KHÔNG nêu lại danh sách. Khách vừa nói "cho mình món khác đi", nên nhắc lại đúng những
+            # món họ vừa từ chối là trả lời ngược câu hỏi — và golden có tiêu chí
+            # `must_not_repeat_turn` đúng để chặn việc đó.
+            #
+            # Bản đầu của nhánh này nêu lại, và golden bắt ngay. Việc đúng là nói ĐÃ HẾT rồi mời bỏ
+            # bớt một điều kiện: khách còn đường đi tiếp, và không món nào bị nhắc lại.
+            #
+            # `items` rỗng nên không có thẻ giỏ — đúng, vì đây là câu hỏi lại chứ không phải câu gợi ý.
+            return Reply(
+                text=(
+                    f"Mình đã nêu hết {len(con_lai)} món thỏa điều bạn cần rồi ạ. Bạn muốn mình bỏ "
+                    "bớt một điều kiện để có thêm lựa chọn không?"
+                ),
+                kind="clarify",
+                asks_back=True,
+                branch="exhausted_after_exclusions",
+            )
         return Reply(
             text=(
                 "Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ. "

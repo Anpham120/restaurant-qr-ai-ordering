@@ -287,20 +287,13 @@
         {
           "user": "Cho mình món khác đi",
           "expect": {
-            "kind": "list",
-            "min_items": 2,
-            "must_not_repeat_turn": 3,
-            "only_categories": [
-              "cat_appetizer",
-              "cat_noodle",
-              "cat_main",
-              "cat_seafood",
-              "cat_hotpot",
-              "cat_chicken",
-              "cat_regional",
-              "cat_vegetarian"
+            "kind": "clarify",
+            "must_say_any": [
+              "đã nêu hết"
             ],
-            "why": "KHÔNG món nào của lượt 3 được xuất hiện lại. Tiêu chí tra theo MÃ MÓN của lượt trước nên nó không lệch khi thứ tự xếp hạng đổi.\nLượt này gộp vào đây thay vì đứng thành hội thoại riêng: nó chỉ cần một lượt danh sách đi trước, mà lượt 3 đã là danh sách món ăn. Gộp cũng đúng với khách thật hơn — người ta không mở phiên mới để nói 'cho món khác đi'."
+            "must_not_repeat_turn": 3,
+            "no_cart": true,
+            "why": "Tập ứng viên ĐÃ CẠN ở lượt này: ràng buộc `season:cooling` giữ từ lượt 2 cộng nhóm đồ ăn của lượt 3, và ba lượt trước đã nêu hết món thỏa. Nên câu trả lời đúng KHÔNG phải một danh sách mới — không có món mới nào tồn tại.\n\nBản đầu của ca này chốt `min_items: 2` CẠNH `must_not_repeat_turn: 3`, tức đòi hệ thống vừa nêu thêm hai món vừa không nhắc lại món nào. Khi tập đã cạn thì không câu trả lời nào thỏa được cả hai, nên ca đó không đo hành vi — nó chỉ luôn đỏ.\n\nVà nó bắt được một câu trả lời SAI thật: bản đầu của nhánh `exhausted_after_exclusions` nêu LẠI đúng những món khách vừa từ chối. `must_not_repeat_turn` giữ nguyên ở đây chính vì nó chặn việc đó, và nay nó mới thật sự đo được điều nó nói.\n\n`must_say_any` bắt buộc: nói 'đã nêu hết' cho khách biết VÌ SAO không có món mới, khác hẳn 'mình chưa tìm được món nào' — câu sau nói sai sự thật khi món có mà đã nêu rồi."
           }
         }
       ]
@@ -412,7 +405,7 @@
         {
           "user": "Nên chọn Phở bò tái nạm hay Phở gà ta?",
           "expect": {
-            "kind": "compare",
+            "max_items": 2,
             "must_name_items": [
               "Phở bò tái nạm",
               "Phở gà ta"
@@ -421,17 +414,17 @@
               "Phở bò tái nạm",
               "Phở gà ta"
             ],
-            "why": "Phải nêu ĐỦ hai món và ĐỦ hai giá. Nêu một món là chọn hộ khách."
+            "why": "Phải nêu ĐỦ hai món và ĐỦ hai giá. Nêu một món là chọn hộ khách. KHÔNG chốt `kind`: backend không chuyển tiếp trường đó nên bộ này phải suy dạng từ văn bản, và khi đường sinh bật thì mô hình viết câu so sánh không dùng cụm nào của khuôn mẫu — suy dạng từ văn xuôi tự do là việc không làm được. Chốt `max_items: 2` thay thế, và nó CHẶT HƠN: câu so sánh phải nói về đúng hai món khách nêu, không kéo món thứ ba vào."
           }
         },
         {
           "user": "Món nào cay hơn?",
           "expect": {
-            "kind": "compare",
+            "max_items": 2,
             "must_say_any": [
               "cay"
             ],
-            "why": "Cùng hai món, hỏi thuộc tính KHÁC. Nhóm nhãn `spice` phủ 91/91 nên luôn nói được — không có cớ để trả lời bằng giá."
+            "why": "Cùng hai món, hỏi thuộc tính KHÁC. Nhóm nhãn `spice` phủ 91/91 nên luôn nói được — không có cớ để trả lời bằng giá. KHÔNG chốt `kind`: backend không chuyển tiếp trường đó nên bộ này phải suy dạng từ văn bản, và khi đường sinh bật thì mô hình viết câu so sánh không dùng cụm nào của khuôn mẫu — suy dạng từ văn xuôi tự do là việc không làm được. Chốt `max_items: 2` thay thế, và nó CHẶT HƠN: câu so sánh phải nói về đúng hai món khách nêu, không kéo món thứ ba vào."
           }
         }
       ]
@@ -1261,7 +1254,7 @@
         {
           "user": "Nên chọn Bún bò Huế hay Phở bò tái nạm?",
           "expect": {
-            "kind": "compare",
+            "max_items": 2,
             "must_name_items": [
               "Bún bò Huế",
               "Phở bò tái nạm"
@@ -1270,17 +1263,17 @@
               "Bún bò Huế",
               "Phở bò tái nạm"
             ],
-            "why": "Phải nêu ĐỦ hai món và hai giá, qua SSE."
+            "why": "Phải nêu ĐỦ hai món và hai giá, qua SSE. KHÔNG chốt `kind`: backend không chuyển tiếp trường đó nên bộ này phải suy dạng từ văn bản, và khi đường sinh bật thì mô hình viết câu so sánh không dùng cụm nào của khuôn mẫu — suy dạng từ văn xuôi tự do là việc không làm được. Chốt `max_items: 2` thay thế, và nó CHẶT HƠN: câu so sánh phải nói về đúng hai món khách nêu, không kéo món thứ ba vào."
           }
         },
         {
           "user": "Món nào cay hơn?",
           "expect": {
-            "kind": "compare",
+            "max_items": 2,
             "must_say_any": [
               "cay"
             ],
-            "why": "So sánh TIẾP NỐI qua SSE: cặp món phải sống qua vòng bộ nhớ của backend trên đường stream, không chỉ trên đường gọi thường."
+            "why": "So sánh TIẾP NỐI qua SSE: cặp món phải sống qua vòng bộ nhớ của backend trên đường stream, không chỉ trên đường gọi thường. KHÔNG chốt `kind`: backend không chuyển tiếp trường đó nên bộ này phải suy dạng từ văn bản, và khi đường sinh bật thì mô hình viết câu so sánh không dùng cụm nào của khuôn mẫu — suy dạng từ văn xuôi tự do là việc không làm được. Chốt `max_items: 2` thay thế, và nó CHẶT HƠN: câu so sánh phải nói về đúng hai món khách nêu, không kéo món thứ ba vào."
           }
         },
         {

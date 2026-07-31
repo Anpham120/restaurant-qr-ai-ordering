@@ -133,6 +133,19 @@ Embedding thắng phép so nhưng **không** được đưa vào phụ thuộc c
 Điều kiện để nhập vào, ghi ra để lần sau không phải đoán: **khi đường `synthesize` được dựng.** Lúc
 đó +21 điểm Hit@5 thành lợi ích thật.
 
+#### ĐIỀU KIỆN ĐÓ ĐÃ XẢY RA — quyết định đã đảo, xem mục 10
+
+Cả ba lý do trên đã bị đo lại và không còn đúng:
+
+| Lý do cũ | Trạng thái nay |
+|---|---|
+| "đường `synthesize` chưa có ai gọi" | nhánh 6b-bis của `answer.py` gọi nó, và nó là đường **duy nhất** tới **74/84** chủ đề không có cụm từ vựng |
+| "0 ca đúng thêm" | +21,8 điểm Hit@1 và +11,4 điểm Top-1 trên **hai** tập niêm phong khác nhau |
+| "+2–3GB" | con số đó **chưa từng được đo**. Đo thật: 9,29GB nếu không ghim, **2,74GB** nếu ghim bản CPU |
+
+Việc giữ nguyên đoạn trên thay vì viết lại là có chủ ý: nó cho biết **điều kiện nào** làm mỗi lựa
+chọn đúng. Kho co lại về tra khóa thì lý lẽ của bước 5 lại đúng ngay.
+
 ---
 
 ## 4. Phân tích nguyên nhân sai — `analyze_failures.py`
@@ -574,7 +587,7 @@ kịch bản trả về `fact`, và cả hai lần đổi được ghi lại tro
 
 Đường `synthesize` đã dựng, nhưng nó dùng **BM25 trong phạm vi 3–8 đoạn**, không phải embedding
 trên 425 đoạn. Phạm vi nhỏ và các mục khác nhau ở **từ khóa** ("khẩu phần" / "thời gian chờ" /
-"mang đi") — đúng chỗ BM25 mạnh. Nên điều kiện ghi trong `ai/requirements-rag.txt` **vẫn chưa
+"mang đi") — đúng chỗ BM25 mạnh. Nên điều kiện ghi ở mục 3 lúc đó **vẫn chưa
 thỏa**: chưa có đường nào cần xếp hạng trên toàn kho.
 
 ---
@@ -826,6 +839,10 @@ Chuỗi gọi thật có 6 chặng, và mỗi tập cũ dừng ở một chặng
 **13 hội thoại / 42 lượt** (bảng năng lực ở 14.3). Kết quả **42/42** qua backend, ở cả hai cấu
 hình mô hình.
 
+> **Cập nhật:** tập nay là **29 hội thoại / 103 lượt**, và nó chạy với **embedding + đường sinh + mô
+> hình thật**. Con số của mỗi lần chạy nằm trong `ai/evaluation/measurements/golden_e2e.json` kèm
+> nguyên phản hồi `/ready` của lần đó — xem mục 14.6 cho ba lỗi mà lần chạy đó tìm ra.
+
 ### 14.1 Bảy bất biến thẻ giỏ, áp cho MỌI lượt
 
 Áp cho mọi lượt chứ không khai từng lượt: tiêu chí khai lẻ là chỗ sinh ra lượt không được kiểm.
@@ -989,6 +1006,208 @@ Mã thoát 2 ("không gọi được stack") khác mã 1 ("hệ thống sai") c�
 cách một bộ đo tự vô hiệu hóa, vì nó sẽ xanh trên máy không có gì chạy.
 
 ---
+---
+
+---
+
+## 15. Triển khai production — embedding vào ảnh, và bốn con số chỉ chạy thật mới ra
+
+Mục 3 ghi điều kiện để đưa embedding vào `ai/requirements.txt`: *"khi đường `synthesize` được
+dựng"*. Điều kiện đó đã xảy ra, nên mục này làm việc đó và **đo cái giá**.
+
+### 15.1 Cái giá của embedding: ba lần đo mới ra con số đúng
+
+| Lần | Ảnh AI | Vì sao |
+|---|---|---|
+| dự đoán | *"khoảng 2–3GB"* | con số **đọc ở đâu đó**, không phải con số đo. Nó đã nằm trong tài liệu suốt ba bước |
+| đo lần 1 | **9,29GB** | `pip install sentence-transformers` kéo `torch` bản **CUDA** trên Linux, kèm `nvidia-cudnn`, `nvidia-cublas` — vài GB thư viện driver GPU cho một dịch vụ chạy CPU và không có GPU nào |
+| đo lần 2 | **2,74GB** | ghim bản CPU: `--extra-index-url https://download.pytorch.org/whl/cpu` + `torch>=2.2,<3.0` |
+
+Kiểm được mà không cần build cả ảnh:
+
+```bash
+docker run --rm python:3.12-slim sh -c \
+  "pip install --dry-run --extra-index-url https://download.pytorch.org/whl/cpu 'torch>=2.2,<3.0'"
+# -> torch-2.13.0+cpu, KHÔNG có gói nvidia nào
+```
+
+Ba điều rút ra:
+
+1. **Nếu chốt phương án bằng con số dự đoán thì báo cáo sai gấp ba**, và chỉ người deploy phát hiện.
+2. `--extra-index-url` chứ **không** `--index-url`: `--index-url` **thay thế** PyPI, nên `fastapi` và
+   `uvicorn` cũng phải tìm trên index của PyTorch — nơi không có chúng — và build thất bại.
+3. Chú thích cũ trong Dockerfile nói `torch==2.13.0+cpu` là *"phiên bản không tồn tại"*. Nó **có
+   thật**; cái làm bản cũ thất bại là thiếu `--extra-index-url`. Kết luận "không tồn tại" được rút ra
+   từ chỗ pin đó không giải được, thay vì từ việc tra index — và câu sai đó sống thêm hai bước.
+
+### 15.2 Thời gian khởi động: 97,3s, và nó là vấn đề AN TOÀN chứ không chỉ chậm
+
+Đo trong container thật, từ `docker inspect .State.StartedAt` tới dòng log `Application startup
+complete`:
+
+| Thành phần | Thời gian | Đo bằng |
+|---|---|---|
+| `import torch` | 1,8s | `time.perf_counter()` trong container |
+| `import sentence_transformers` | 6,3s | " |
+| nạp mô hình | 10,6–12,2s | " |
+| **mã hóa 370 đoạn** | **61,7s** | " |
+| **khởi động thật** | **97,3s** | dấu thời gian log |
+
+61,7 giây là **64%** của thời gian khởi động, và nó tính đi tính lại **cùng một kết quả** mỗi lần
+container lên — kho tri thức nằm cố định trong ảnh.
+
+Hậu quả thứ hai nghiêm trọng hơn: `HEALTHCHECK` có `start-period=15s`, `interval=30s`, `retries=3`,
+nên lần kiểm thứ ba rơi vào **~105 giây**. Dịch vụ kịp sẵn sàng ở 97 giây, tức **suýt** bị đánh
+`unhealthy`. Và `api` có `depends_on: ai-service: condition: service_healthy` — nên trên một máy chậm
+hơn 8%, hậu quả không phải một cảnh báo mà là **cả stack không lên được**.
+
+Hai việc đã làm:
+
+| Việc | Kết quả đo được |
+|---|---|
+| tính sẵn vector lúc build (`python -m rag.precompute`) | mã hóa 61,7s → **0,1s** |
+| `start-period` 15s → 90s | không mất gì: `start-period` chỉ nói "thất bại trong khoảng này thì đừng tính" |
+
+Khởi động sau khi sửa: **19,0s** (lần thứ hai, đĩa đã nóng) và 61,9s ở lần đầu ngay sau khi build —
+tức con số phải kèm điều kiện, và "19 giây" chỉ đúng cho container khởi động lại, không cho lần đầu.
+
+### 15.3 Lỗi IM LẶNG mà chỉ việc bấm giờ mới tìm ra
+
+Lần đầu bật đệm vector, **thời gian khởi động không giảm**. Nguyên nhân:
+
+```
+bước build   retrievable_chunks(...)                            425 đoạn
+lúc chạy     [c for c in retrievable_chunks(...) if c.heading]   370 đoạn
+```
+
+Hai tập khác nhau → hàm băm nội dung khác nhau → đệm **không khớp** → mã hóa lại toàn bộ.
+
+Và đệm làm **đúng** thiết kế: khóa lệch thì tính lại, tuyệt đối không dùng vector lệch dữ liệu. Nên
+nó **im lặng làm điều đúng** và che mất việc nó chưa từng được dùng. Log build vẫn in *"đã ghi …
+cho 425 đoạn"*. Mọi dấu hiệu bề ngoài nói là đã có đệm.
+
+Đây là dạng khó thấy nhất trong lớp lỗi "hai đầu phải khớp" của dự án — cùng lớp với `COPY
+backend/data` từng thiếu, với `message` vs `question`, với header token. Khác ở chỗ: những lỗi kia
+gây ra hành vi **sai**, còn lỗi này chỉ gây ra hành vi **chậm**, nên không phép kiểm đúng/sai nào
+bắt được.
+
+Ba việc đã làm, và không việc nào là "nhớ sửa hai chỗ":
+
+1. **`doan_toan_kho()` trong `rag/chunker.py`** — một nguồn duy nhất cho tập đoạn, dùng bởi cả
+   `answer.py` lẫn `rag.precompute`. Dockerfile không còn chỗ nào viết lại phép lọc.
+2. **`/ready` báo `retriever_chunks` và `retriever_vectors_from_cache`** — lỗi im lặng thành đọc
+   được từ ngoài. Đối chiếu `retriever_chunks` với con số `rag.precompute` in lúc build là biết ngay.
+3. **Test ép đúng chuỗi đó**: ghi đệm theo `doan_toan_kho` rồi đòi `doc_dem` phải nhận; và đòi tập
+   **chưa lọc** phải bị **từ chối** — vì đó đúng là lỗi đã xảy ra.
+
+### 15.4 `LLM_API_KEY=` rỗng bị BỎ QUA, nên không tắt được mô hình bằng biến môi trường
+
+`load_env()` viết `if value is not None and value.strip()`, tức biến môi trường **có mặt nhưng rỗng**
+bị bỏ qua và giá trị trong `ai/.env` thắng. Hai hậu quả:
+
+1. Người vận hành muốn **tắt** mô hình bằng cách đặt khóa rỗng thì không tắt được, và `/ready` báo
+   `model_configured: true`. Đây đúng lớp lỗi với quy tắc `AI_INTERNAL_TOKEN` rỗng phải **chặn** mọi
+   request: **rỗng nghĩa là rỗng**.
+2. `test_model_configured_PHAI_kiem_ca_khoa` chỉ **xanh ở nơi không có `ai/.env`** — tức xanh trên CI
+   và **đỏ trên mọi máy có khóa thật**. Một test phụ thuộc môi trường như vậy không kiểm được điều nó
+   nói mình kiểm; nó chỉ chưa gặp môi trường làm nó đỏ.
+
+Điểm đáng ghi: lỗi này chỉ lộ ra khi **36 test dịch vụ được chạy trên host**. Trước đó chúng bị
+`skipUnless` bỏ qua vì host thiếu `fastapi`, và bộ test báo `OK (skipped=39)` — một con số xanh với 36
+test chưa từng chạy ở đâu ngoài CI.
+
+### 15.5 Chốt: ba quyết định triển khai
+
+| Quyết định | Chốt | Căn cứ | Cái giá |
+|---|---|---|---|
+| bộ truy hồi | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB · truy hồi 1,4ms → 67ms · khởi động ~19s |
+| đường sinh | **TẮT mặc định**, bật bằng `AI_ENABLE_GENERATION` | **0 ca tụt** sau phép kiểm thứ 8, nhưng **0 ca đúng thêm** | p50 **+8,6s** mỗi lượt |
+| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn 8/8; ba cách xếp hạng sai 6–7/8 | 0,3ms |
+
+Điều kiện để đổi lại, ghi ra để lần sau không phải đoán:
+
+| Nếu điều này xảy ra | Thì xem lại |
+|---|---|
+| kho co lại về tra khóa, không còn chủ đề `synthesize` nào thiếu cụm từ vựng | bỏ embedding — ảnh nhỏ lại 11,5 lần |
+| chủ nhà hàng coi câu văn tự nhiên đáng giá 8,6 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |
+| có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do người viết |
+
+---
+
+## 16. Đường sinh làm mất một câu — và câu đó là chốt an toàn
+
+Phép đo 76 ca loại C với mô hình thật cho con số mà không ai đoán trước:
+
+```
+                        TRƯỚC phép kiểm 8      SAU phép kiểm 8
+đường tất định          76/76                  76/76
+đường sinh              61/76   -> TỤT 15 ca   76/76   -> 0 ca tụt
+câu sinh được DÙNG      68/76                  68/76
+```
+
+Và **14 trong 15 ca tụt là ca dị nguyên** — `S-allergen-01..15`, `P-allergy-01`, `P-allergy-02`.
+
+Một chi tiết đáng đọc trong bảng: **tỷ lệ dùng câu sinh KHÔNG giảm** (68/76 ở cả hai lần). Tức quy tắc
+số 8 trong `PROMPT` sửa được hành vi ở **cả 14 ca**, và phép kiểm thứ 8 đứng đó làm **bảo đảm** chứ
+không phải làm bộ lọc. Đó là hình dạng đúng của cặp prompt + xác minh: prompt làm việc, xác minh chịu
+trách nhiệm.
+
+### Chúng tụt vì đúng một lý do
+
+Thước đo có tiêu chí `must_offer_staff` với **`safety=True`**. Câu khuôn mẫu luôn thêm:
+
+> *Bạn nhắc nhân viên khi gọi món để bếp xác nhận lại giúp nhé.*
+
+Mô hình viết văn mượt hơn và **bỏ câu đó đi**. Nên với đường sinh, "0 lỗi an toàn" của đường tất định
+thành **14 lỗi an toàn**.
+
+### Vì sao câu đó là NỘI DUNG, không phải văn vẻ
+
+Nhãn dị nguyên phủ **44/91 món**. Nên câu *"thực đơn không ghi nhận thành phần bạn cần tránh ở những
+món này"* **KHÔNG** đồng nghĩa *"những món này an toàn"* — nó chỉ nói dữ liệu không có ghi chép.
+
+Câu mời hỏi nhân viên là **chỗ duy nhất** trong câu trả lời nói ra giới hạn đó. Bỏ nó là để khách dị
+ứng tin một điều hệ thống không biết. Với một người dị ứng hải sản, khoảng cách giữa hai câu đó là
+khoảng cách giữa "cân nhắc" và "yên tâm gọi".
+
+### Sửa: phép kiểm thứ 8, không phải một dòng trong prompt
+
+`PROMPT` đã được thêm quy tắc số 8 yêu cầu điều này. Nhưng yêu cầu trong prompt là **đề nghị**, không
+phải **bảo đảm** — đúng bài học trung tâm của bước 6: *an toàn không được phụ thuộc việc mô hình chịu
+nghe.*
+
+Nên `verify()` có phép kiểm thứ 8:
+
+```
+khách nêu điều cần tránh  ->  câu sinh PHẢI chứa một cụm mở đường hỏi nhân viên
+                              thiếu  ->  BỎ câu sinh, dùng câu khuôn mẫu
+```
+
+Chiều ngược cũng được ép bằng test: **không** có điều cần tránh thì **không** đòi câu đó. Đòi nó ở mọi
+câu trả lời là thêm một cảnh báo vô nghĩa vào câu "cho mình món chay" — và một câu trả lời đầy cảnh
+báo không cần thiết thì khách bỏ qua cả những cảnh báo cần thiết.
+
+### Hai danh sách cụm phải TRÙNG, và sự trùng đó được ÉP
+
+`generate.STAFF_PHRASES` quyết định câu sinh có bị **bỏ**; `answer_metric.STAFF_PHRASES` quyết định ca
+có **đỏ**. Lệch nhau thì có câu sinh qua được phép kiểm rồi bị thước đo chấm đỏ — hệ thống tự tin vào
+một điều thước đo không đồng ý.
+
+Không import chéo `ai/app` ← `ai/evaluation`: mã lúc chạy không được phụ thuộc bộ đo, vì bộ đo không
+có mặt trong ảnh Docker. Nên hai chỗ khai riêng và `test_generate.py` có một test **đối chiếu hai danh
+sách** — trùng được ép, không được nhớ.
+
+### Điều phép đo này nói về cách đánh giá mô hình sinh
+
+Golden 103 lượt chạy **với đường sinh bật** và đạt **103/103**. Nếu chỉ có con số đó thì kết luận sẽ
+là "đường sinh an toàn". Nó sai, và nó sai vì golden **không có tiêu chí `must_offer_staff`** — golden
+kiểm *không nêu món mang nhãn cần tránh*, còn tập trả lời kiểm *có mở đường hỏi nhân viên*.
+
+Hai tập kiểm hai điều khác nhau về cùng một chủ đề an toàn, và **chỉ một trong hai bắt được lỗi này**.
+Bài học: một tập đánh giá đo điều nó được viết để đo, và "qua hết tập A" không nói gì về tiêu chí chỉ
+có ở tập B. Đó cũng là lý do dự án giữ **bốn** tập chứ không gộp thành một.
+
+---
 
 ## Chạy lại
 
@@ -1007,10 +1226,138 @@ python -m unittest discover -s ai/evaluation -p "test_golden*.py"   # chấm đi
 python ai/scripts/audit_season_tags.py            # rà nhãn mùa, hai chiều
 
 # Phép so BA phương pháp (tải ~2–3GB)
-python -m pip install -r ai/requirements-rag.txt
+python -m pip install -r ai/requirements.txt   # nay đã gồm embedding, xem mục 15
 python ai/evaluation/run_retrieval_comparison.py --ablation
 python ai/evaluation/run_retrieval_comparison.py --latency-protocol release
 ```
 
 `--sealed` **không** có trong danh sách trên: tập niêm phong đã mở ngày 2026-07-30 và mở lại chỉ
 cho một con số không còn nghĩa gì.
+
+---
+
+### 14.6 Ba lỗi mà lần chạy qua embedding + mô hình thật tìm ra
+
+Đổi bộ truy hồi sang embedding và bật đường sinh làm **8/103 lượt** đỏ. Phân loại chúng là phần quan
+trọng hơn con số, vì hai lớp nguyên nhân đòi hai loại hành động khác nhau:
+
+| Lớp | Số lượt | Là lỗi của |
+|---|---|---|
+| thước đo đoán sai DẠNG đáp án từ văn xuôi do mô hình viết | 5 | bộ đo |
+| lớp mô hình đổi nhánh mà mã tất định đã chọn ĐÚNG | 2 | hệ thống |
+| tập ứng viên đã CẠN, và câu trả lời nói sai sự thật | 1 | hệ thống |
+
+Thứ tự kiểm là điều đáng ghi nhất: **kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống
+sai"**, vì thước đo của dự án này đã sai bốn lần trước khi hệ thống sai. Và lần này nó lại đúng — 5
+trong 8 lượt là lỗi bộ đo.
+
+#### (a) Thước đo: `suy_ra_kind` đọc văn xuôi tự do
+
+Backend **không** chuyển tiếp trường `kind` của dịch vụ AI (nó không thuộc hợp đồng khách), nên bộ
+golden phải **suy** dạng đáp án từ văn bản. Khi đường sinh bật, mô hình mở đầu câu bằng một lời rào
+rồi vẫn nêu đủ món:
+
+> "Mình chưa có dữ liệu về tình trạng còn món theo thời gian thực, **nhưng** thực đơn hiện có Canh
+> khổ qua nhồi nấm giá 55.000đ, …"
+
+Bản đầu tìm cụm "chưa có dữ liệu" ở bất kỳ đâu trong câu rồi kết luận `no_data`. Một câu trả lời
+ĐÚNG bị chấm sai.
+
+**Sửa:** `no_data` và `refuse` đòi thêm điều kiện **0 thẻ giỏ**. Đây không phải nới — nó là một bất
+biến của hệ thống: `cart.py` chỉ sinh thẻ ở `filter`, `compare`, `item_detail`, nên một câu trả lời
+CÓ thẻ giỏ không thể thuộc hai dạng đó, dù nó mở đầu bằng cụm gì.
+
+Bốn lượt so sánh thì **không sửa được theo cách đó**, và điều đó phải nói ra: câu so sánh do mô hình
+viết không dùng cụm nào của khuôn mẫu —
+
+> "Nếu bạn thích vị bò đậm đà hơn, Phở bò tái nạm là lựa chọn phù hợp, giá 75.000đ. Nếu muốn vị
+> thanh nhẹ hơn, Phở gà ta có nước dùng trong…"
+
+Đó là câu so sánh đúng, và **không tín hiệu nào trong văn xuôi phân biệt được nó với một câu liệt
+kê**. Suy dạng từ văn xuôi tự do là việc không làm được.
+
+**Sửa:** bỏ `kind: compare` khỏi bốn lượt đó, thay bằng `max_items: 2` — chữ ký **cấu trúc** của câu
+so sánh. Cộng với `must_name_items` hai món, nó pin chặt hơn `kind`: câu so sánh phải nói về đúng hai
+món khách nêu, **không kéo món thứ ba vào**. `kind` không nói gì về việc có món lạ hay không.
+
+#### (b) Hệ thống: mô hình biến câu HỎI VỀ một nhãn thành yêu cầu LỌC theo nhãn
+
+Hai lượt, và cả hai có cùng hình dạng:
+
+| Câu khách hỏi | Mô hình trả về | Nhánh tất định | Nhánh thật |
+|---|---|---|---|
+| "Nhãn 'ít calo' dựa trên gì?" | `prefer: health:low_calorie` | `knowledge_corpus` | `filter` |
+| "Món này có bột ngọt không?" | `prefer: health:no_msg` | `knowledge_corpus` | `filter` |
+
+Khách hỏi một món cụ thể có bột ngọt không, và nhận về *"Mời bạn tham khảo: Cơm chiên chay ngũ sắc
+(50.000đ), Canh khổ qua nhồi nấm (55.000đ), …"* — sai loại câu trả lời, **kèm thẻ giỏ cho một câu
+không hỏi mua gì**.
+
+Mã tất định định tuyến ĐÚNG cả hai. `enrich()` chạy sau nó, thêm một nhãn ưu tiên, và câu rơi sang
+nhánh lọc.
+
+**Sửa, và nó phải tất định** — mô hình không phân biệt được hai việc này, và không có lý do tin nó
+sẽ phân biệt được, vì cả hai câu đều nhắc đúng một khái niệm nhãn:
+
+```
+hỏi VỀ thuộc tính   "món NÀY có bột ngọt không"     trỏ vào MỘT món cụ thể
+                    "nhãn 'ít calo' DỰA TRÊN GÌ"    hỏi định nghĩa
+yêu cầu LỌC         "có món NÀO không bột ngọt"     hỏi ỨNG VIÊN
+```
+
+Cờ `asks_about_attribute` nhận dấu hiệu đó, và nó vào cổng `already_understood` của `enrich()` — tức
+nó **không đổi nhánh nào**, nó chỉ NGĂN mô hình đổi nhánh mà mã tất định đã chọn đúng.
+
+Phép loại trừ `CANDIDATE_FRAMING` là phần bắt buộc: thiếu nó thì "Có món nào không cay không?" — một
+câu lọc THẬT — cũng bị coi là câu hỏi về thuộc tính, và đó là hỏng nặng hơn lỗi đang sửa.
+
+**Và một lỗ từ vựng lộ ra cùng lúc:** `"món này"` không có trong cụm tham chiếu, chỉ có `"món đó"` và
+`"cái đó"`. "Này" và "đó" trỏ vào cùng một thứ trong hội thoại. Lỗ đó im lặng, vì câu vẫn được trả
+lời — chỉ trả lời sai loại.
+
+#### (c) Hệ thống: "chưa tìm được món nào" khi món CÓ mà đã nêu hết
+
+Khách xem ba lượt danh sách rồi nói *"Cho mình món khác đi"*, và nhận *"Mình chưa tìm được món nào
+thỏa hết những điều bạn nêu ạ"*. Câu đó **nói sai sự thật**: có món thỏa ràng buộc, chỉ là chúng đã
+được nêu ở ba lượt trước.
+
+Ranh giới bị nhòe ở đây, và nó là ranh giới quan trọng nhất của cả tầng lọc:
+
+| Loại | Ví dụ | Nới được? |
+|---|---|---|
+| loại trừ món đã gợi ý | "cho mình món khác đi" | **được** — nới nó chỉ dẫn tới việc nhắc lại một món khách đã thấy |
+| ràng buộc an toàn | dị nguyên, cay, giá, chế độ ăn | **KHÔNG BAO GIỜ** — nới nó là mời khách một món có thể gây hại |
+
+**Sửa:** khi kết quả rỗng, thử lại **chỉ** bỏ danh sách loại trừ. Có món thì đi nhánh
+`exhausted_after_exclusions`.
+
+Bản đầu của nhánh đó **nêu lại danh sách**, và golden bắt ngay bằng `must_not_repeat_turn` — khách
+vừa nói "món khác đi" thì nhắc lại đúng những món họ vừa từ chối là trả lời ngược câu hỏi. Câu trả
+lời đúng là nói **đã nêu hết** rồi mời bỏ bớt một điều kiện: khách còn đường đi tiếp, và không món
+nào bị nhắc lại.
+
+Bất biến an toàn được ép bằng một test riêng: dựng tình huống loại trừ đã ăn hết tập ứng viên **VÀ**
+khách có dị nguyên, rồi đòi không món dị nguyên nào lọt vào. Nhánh mới bỏ loại trừ — nếu nó bỏ luôn
+`avoid_tags` thì món dị nguyên quay lại.
+
+#### (d) Và một lỗi KHÔNG tái lập được, đáng lo hơn cả ba lỗi trên
+
+"Món nào đáng tiền nhất?" cho kết quả **khác nhau giữa hai lần chạy**: có lần mô hình trả về một nhãn
+giá, có lần không. Nhánh của câu này phụ thuộc một lần tung xúc xắc.
+
+Nguyên nhân cấu trúc: `value_for_money` là một trong **74 chủ đề không có cụm từ vựng**, nên nó chỉ
+tới được qua nhánh truy hồi toàn kho — và nhánh đó nằm gần CUỐI chuỗi, **sau** `enrich()`. Nên mọi
+chủ đề trong số 74 đó đều có thể bị nhãn của mô hình lấn.
+
+Đây là điều tệ hơn một câu trả lời sai: một câu trả lời sai thì sửa được, còn một nhánh ngẫu nhiên
+làm **mọi phép đo trên nó thành ngẫu nhiên**.
+
+**Sửa, hai phần:**
+
+1. Cụm `"đáng tiền"` vào từ vựng, trỏ chủ đề `value_for_money`. Chủ đề được nhận ra tất định.
+2. `knowledge_topic` vào cổng `already_understood` — nó vắng mặt ở đó suốt một thời gian, trong khi
+   `policy_topic` có. Hai trường là **cùng một loại tín hiệu** ("đã biết câu này hỏi về chủ đề nào"),
+   nên có một mà thiếu một là bỏ sót, không phải lựa chọn.
+
+Phần 2 quan trọng hơn phần 1: nó bịt cả lớp lỗi, không chỉ một câu. Và hướng đi tiếp đã rõ — đưa dần
+74 chủ đề chỉ tới được qua truy hồi về đường tất định, mỗi chủ đề một cụm.

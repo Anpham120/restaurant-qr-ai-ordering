@@ -284,5 +284,113 @@ class CauChuKHACHDOCTHAY(unittest.TestCase):
         self.assertEqual(xau, [], f"{len(xau)} câu không có dấu kết: {xau[:4]}")
 
 
+class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
+    """Hai nguyên nhân làm kết quả rỗng, và chúng phải cho hai câu trả lời khác nhau.
+
+    Golden qua stack thật bắt được: khách xem ba lượt danh sách rồi nói "Cho mình món khác đi", và
+    nhận "Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ" — trong khi CÓ món thỏa ràng
+    buộc, chỉ là chúng đã được nêu ở ba lượt trước.
+
+    Ranh giới không được nhòe, và đó là lý do lớp test này tồn tại:
+
+        loại trừ món đã gợi ý   phép LỊCH SỰ    -> nới được, và phải nới thay vì trả rỗng
+        dị nguyên · cay · giá   ràng buộc AN TOÀN -> KHÔNG BAO GIỜ nới, kể cả khi rỗng
+
+    Nới nhóm thứ nhất dẫn tới việc nhắc lại một món khách đã thấy. Nới nhóm thứ hai dẫn tới việc mời
+    khách một món có thể gây hại. Nên test cuối cùng của lớp này quan trọng hơn ba test đầu.
+    """
+
+    def _req(self, **kw):
+        r = understand("Gợi ý món ăn cho mình với", ITEMS)
+        for k, v in kw.items():
+            setattr(r, k, v)
+        return r
+
+    def test_rong_vi_loai_tru_thi_NOI_va_noi_ro(self):
+        mon_an = [i["id"] for i in ITEMS if i["categoryId"] in FOOD_CATEGORIES]
+        rep = respond(self._req(exclude_item_ids=mon_an), ITEMS)
+        self.assertEqual(rep.branch, "exhausted_after_exclusions")
+        self.assertIn("đã nêu hết", rep.text)
+        # KHÔNG nêu lại danh sách: khách vừa nói "cho mình món khác đi". Bản đầu của nhánh này nêu
+        # lại đúng những món khách vừa từ chối, và golden bắt được bằng `must_not_repeat_turn`.
+        self.assertEqual(rep.items, [], "không được gợi lại món khách vừa từ chối")
+        self.assertTrue(rep.asks_back, "phải mời khách bỏ bớt điều kiện — còn đường đi tiếp")
+
+    def test_khong_bi_loai_tru_thi_khong_vao_nhanh_do(self):
+        """Nhánh mới KHÔNG được lấy ca của nhánh lọc bình thường."""
+        rep = respond(self._req(), ITEMS)
+        self.assertEqual(rep.branch, "filter")
+
+    def test_rong_vi_RANG_BUOC_thi_van_la_empty_result(self):
+        """Ràng buộc không thỏa được thì câu trả lời đúng vẫn là "chưa tìm được món nào"."""
+        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"]), ITEMS)
+        self.assertEqual(rep.branch, "empty_result")
+        self.assertEqual(rep.items, [])
+
+    def test_KHONG_noi_rang_buoc_DI_NGUYEN_de_lap_cho_trong(self):
+        """Bất biến an toàn: nới loại trừ thì được, nới dị nguyên thì KHÔNG.
+
+        Dựng đúng tình huống dễ nhầm nhất: loại trừ ĐÃ ăn hết tập ứng viên, VÀ khách có dị nguyên.
+        Nhánh mới bỏ loại trừ rồi lọc lại — nếu nó bỏ luôn `avoid_tags` thì món dị nguyên quay lại.
+        """
+        seafood = [i for i in ITEMS if "allergen:seafood" in i["tags"]]
+        self.assertTrue(seafood, "thực đơn phải có món hải sản để test này có nghĩa")
+        khong_hai_san = [i["id"] for i in ITEMS if "allergen:seafood" not in i["tags"]]
+        rep = respond(
+            self._req(avoid_tags=["allergen:seafood"], exclude_item_ids=khong_hai_san), ITEMS
+        )
+        ten = {i["id"]: i for i in ITEMS}
+        xau = [ten[i]["name"] for i in rep.items if "allergen:seafood" in ten[i]["tags"]]
+        self.assertEqual(
+            xau, [],
+            "nhánh nới loại trừ đã nới luôn ràng buộc dị nguyên — đây là lỗi AN TOÀN, "
+            f"món lọt: {xau}",
+        )
+
+
+class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):
+    """Cờ `asks_about_attribute` — cổng chặn lớp mô hình đổi nhánh mà mã tất định đã chọn đúng.
+
+    Golden qua stack thật bắt được hai lượt, và cả hai do LỚP MÔ HÌNH làm sai:
+
+        "Nhãn 'ít calo' dựa trên gì?"   mô hình trả `prefer: health:low_calorie` -> nhánh filter
+        "Món này có bột ngọt không?"    mô hình trả `prefer: health:no_msg`      -> nhánh filter
+
+    Khách nhận về "Mời bạn tham khảo: Cơm chiên chay ngũ sắc (50.000đ), …" cho một câu hỏi có/không
+    về MỘT món — sai loại câu trả lời, kèm thẻ giỏ cho một câu không hỏi mua gì.
+
+    Phép loại trừ `CANDIDATE_FRAMING` là phần bắt buộc, và test thứ ba ép nó: thiếu nó thì
+    "Có món nào không cay không?" — một câu lọc THẬT — cũng bị coi là câu hỏi về thuộc tính, và đó là
+    hỏng nặng hơn lỗi đang sửa.
+    """
+
+    def test_hoi_dinh_nghia_nhan(self):
+        self.assertTrue(understand("Nhãn 'ít calo' dựa trên gì?", ITEMS).asks_about_attribute)
+
+    def test_hoi_thuoc_tinh_cua_mon_dang_noi(self):
+        for cau in ("Món này có bột ngọt không?", "Món đó có hành không?",
+                    "Cái này có sữa không?"):
+            with self.subTest(cau):
+                self.assertTrue(understand(cau, ITEMS).asks_about_attribute, cau)
+
+    def test_cau_DOI_UNG_VIEN_thi_KHONG_bat_co(self):
+        for cau in ("Có món nào không cay không?", "Món nào không có bột ngọt?",
+                    "Gợi ý món ăn cho mình với", "Cho mình món gì ít dầu"):
+            with self.subTest(cau):
+                self.assertFalse(understand(cau, ITEMS).asks_about_attribute, cau)
+
+    def test_co_nay_KHONG_tu_doi_nhanh_nao(self):
+        """Cờ này chỉ NGĂN mô hình đổi nhánh; nó không được tự đổi nhánh nào.
+
+        Nếu nó đổi nhánh thì nó thành một luật định tuyến thứ hai chạy song song với sáu nhánh, và
+        không ai đoán được nhánh nào thắng.
+        """
+        cau = "Món này có bột ngọt không?"
+        co = understand(cau, ITEMS)
+        khong = understand(cau, ITEMS)
+        khong.asks_about_attribute = False
+        self.assertEqual(respond(co, ITEMS).branch, respond(khong, ITEMS).branch)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
