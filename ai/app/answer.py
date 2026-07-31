@@ -863,7 +863,20 @@ def respond(request: Request, items: list[dict]) -> Reply:
     # Không chặn `wants` của mô hình ở chỗ khác: khi có ràng buộc khác đi cùng thì nó vẫn LỌC bình
     # thường. Chỉ chặn đúng một chuyện — nó không được một mình thay lời khách.
     khach_neu_wants = request.wants != "any" and not request.wants_from_model
-    said_something = bool(
+    # Câu "HAI THỨ NÀY KHÁC NHAU THẾ NÀO" không có ràng buộc lọc nào — mọi từ trong câu là CHỦ THỂ.
+    #
+    # "Phở với bún khác nhau thế nào?" nêu `cat_noodle`; "Lẩu với nướng khác nhau thế nào?" nêu
+    # `cat_hotpot` và `method:grilled`. Đọc chúng thành ràng buộc thì câu thứ nhất nhận 6 món và câu
+    # thứ hai nhận "chưa tìm được món nào thỏa hết" — cả hai đều trả lời sai câu hỏi.
+    #
+    # Bản đầu của tôi chỉ bỏ `categories` và giữ `require_tags`, với lý do "nhãn vẫn là ràng buộc
+    # thật". Lý do đó SAI, và câu lẩu-với-nướng chỉ ra chỗ sai: trong câu hỏi khác nhau, `method:grilled`
+    # cũng là chủ thể chứ không phải điều kiện. Một quy tắc nửa vời ở đây tệ hơn không có quy tắc, vì
+    # nó đúng ở ví dụ tôi nghĩ ra và sai ở ví dụ tôi chưa nghĩ tới.
+    #
+    # Chỉ áp dụng khi KHÔNG có tên món cụ thể: "Cơm tấm khác cơm chiên chỗ nào?" nêu tên món, và
+    # nhánh so sánh hai món đã xử lý trước bước này.
+    said_something = False if request.loai_mon_la_chu_de else bool(
         request.require_tags
         or request.prefer_tags
         or request.avoid_tags

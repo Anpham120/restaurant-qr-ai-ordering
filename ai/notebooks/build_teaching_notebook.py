@@ -27,6 +27,31 @@ import nbformat
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_PATH = Path(__file__).resolve().parent / "he_thong_ai_tu_van_dat_mon.ipynb"
 
+
+def _kiem_ke_dung_chu() -> dict[str, int]:
+    """Kiểm kê đụng chữ, lấy từ ĐÚNG hàm mà test dùng.
+
+    Vì sao không gõ số vào phần nhận xét: con số này đã trôi ba lần trong dự án —
+    **32 → 61 → 72 → 89 → 92** — và mỗi lần lại sót ở một chỗ khác. Ngay trước lần sửa này, cùng
+    một kiểm kê xuất hiện với BỐN giá trị khác nhau trong repo (61, 89, 90, 92) và hai giá trị cho
+    số cụm nằm trong tên món (40 và 41). Không ai cố ý; chỉ là năm chỗ viết tay thì không cách nào
+    cùng đúng.
+
+    `test_understand.collision_census()` là nguồn duy nhất, và nó CÓ test chốt giá trị — nên số ở
+    notebook không thể lệch số ở test mà không ai biết.
+    """
+    import sys
+
+    for p in (REPO_ROOT / "ai" / "app", REPO_ROOT / "ai" / "evaluation"):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    from test_understand import collision_census  # noqa: PLC0415 - cần sys.path ở trên
+
+    return collision_census()
+
+
+KIEM_KE = _kiem_ke_dung_chu()
+
 # Ô mã nào cũng bắt đầu bằng đoạn này. Lặp lại có chủ ý: mỗi ô tự chạy được, nên người đọc
 # mở giữa notebook cũng không gặp NameError.
 SETUP = '''\
@@ -544,7 +569,7 @@ ax1.set_ylabel("số cụm từ vựng")
 ax1.set_title(f"Chỗ có nguy cơ đụng chữ\n(trên {len(phrases)} cụm từ vựng)", fontsize=11)
 ax1.set_ylim(0, max(gia_tri) * 1.25)
 
-# Ablation đo "mất 1 ca" — nhưng cơ chế bảo vệ 61 chỗ. Đây là khoảng trống của TẬP ĐÁNH GIÁ.
+# Ablation đo "mất 1 ca" — nhưng cơ chế bảo vệ mọi chỗ dưới. Đây là khoảng trống của TẬP ĐÁNH GIÁ.
 co_ca, khong_ca = 1, len(rui_ro) - 1
 ax2.barh(["Cơ chế bảo vệ"], [co_ca], color=DO, label=f"có ca đánh giá ({co_ca})")
 ax2.barh(["Cơ chế bảo vệ"], [khong_ca], left=[co_ca], color=XAM,
@@ -560,23 +585,26 @@ print(f"Cơ chế ăn đoạn bảo vệ {len(rui_ro)} chỗ; tập đánh giá 
 print("=> Con số ablation đo được GIỚI HẠN CỦA TẬP ĐÁNH GIÁ, không đo giá trị cơ chế.")
 """))
 
-    out.append(md(r"""
+    ca_hai = KIEM_KE["trong_cum_khac"] + KIEM_KE["trong_ten_mon"] - KIEM_KE["co_rui_ro"]
+    out.append(md(f"""
 #### Nhận xét — Mục 4
 
 - **Quan sát:** 4/4 cặp chữ thử đều đụng nhau sau khi rút dấu. Sau khi nhãn mang tiền tố nhóm,
   chỉ còn **1 cụm trùng** (`hot` của `serving:hot` và `spice:hot`) và tiền tố phân biệt được nên
-  nó **không còn là lỗi**. Kiểm kê: **89 cụm có nguy cơ** (70 bị chứa trong cụm khác, 41 nằm
-  trong tên món, 21 thuộc cả hai).
+  nó **không còn là lỗi**. Kiểm kê trên {KIEM_KE["tu_vung"]} cụm từ vựng:
+  **{KIEM_KE["co_rui_ro"]} cụm có nguy cơ** ({KIEM_KE["trong_cum_khac"]} bị chứa trong cụm khác,
+  {KIEM_KE["trong_ten_mon"]} nằm trong tên món, {ca_hai} thuộc cả hai).
 - **Diễn giải:** đây là ví dụ rõ nhất của nguyên tắc *sửa cấu trúc thay vì sửa lỗi*. Bảy lỗi bản
   cũ là **một lớp lỗi** xuất hiện bảy lần; đổi hình dạng nhãn xóa cả lớp, còn sửa từng lỗi thì
   không bao giờ hết.
-- **Giới hạn phải nói ra:** ablation báo cơ chế ăn đoạn "chỉ đáng 1 ca", nhưng nó bảo vệ 61 chỗ.
-  Chênh lệch đó là **khoảng trống của tập đánh giá**, không phải bằng chứng cơ chế vô dụng. Đã
-  lấp bằng 9 test riêng, và ba con số trên **được tính lại mỗi lần chạy test** —
-  `test_understand.collision_census()`. Bản trước của tài liệu ghi "32 cụm" và "90 cụm": hai số
-  đó đúng lúc đo, rồi từ vựng lớn lên mà không ai tính lại. Con số hiện tại cũng đã đổi một lần
-  nữa (61 → 72) khi từ vựng thêm 20 cụm tên món cho nhóm dị nguyên — và lần này **test đỏ báo
-  ngay**, đúng như nó được viết ra để làm.
+- **Giới hạn phải nói ra:** ablation báo cơ chế ăn đoạn "chỉ đáng 1 ca", nhưng nó bảo vệ
+  {KIEM_KE["co_rui_ro"]} chỗ. Chênh lệch đó là **khoảng trống của tập đánh giá**, không phải bằng
+  chứng cơ chế vô dụng. Đã lấp bằng 9 test riêng.
+- **Con số này đã trôi bốn lần, nên nay nó được SINH:** kiểm kê từng là 32, rồi 61, 72, 89, và nay
+  {KIEM_KE["co_rui_ro"]}. Mỗi lần từ vựng lớn lên, số cũ vẫn nằm lại trong tài liệu — và ngay trước
+  lần sửa này, cùng một kiểm kê xuất hiện với **bốn giá trị khác nhau** trong repo. Ô nhận xét này
+  giờ gọi `test_understand.collision_census()` lúc sinh notebook, nên nó không thể lệch giá trị mà
+  test đang chốt. **Sinh ra thay vì nhắc nhau cập nhật** — cùng cách chữa với báo cáo đồ án.
 - **Quyết định tiếp theo:** dữ liệu nhãn đã an toàn, sang phần tri thức không nằm trong nhãn.
 """))
 
@@ -1560,7 +1588,7 @@ print("Với chúng thì câu hỏi 'có đáng giữ không' không đặt ra �
 print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng — đo được bằng số ca.")
 """))
 
-    out.append(md(r"""
+    out.append(md(f"""
 #### Nhận xét — Mục 14
 
 - **Quan sát:** 9/9 cơ chế đều có ít nhất một ca chứng minh giá trị — **không cơ chế nào là dư**.
@@ -1573,7 +1601,7 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
 - **Phân biệt hàng rào với tính năng là kết luận quan trọng nhất của mục này:** với 5 cơ chế đỏ,
   câu hỏi "có đáng giữ không" **không đặt ra được** — chúng không đánh đổi với chất lượng.
 - **Giới hạn đã nêu ở Mục 4:** cơ chế "ăn hết đoạn đã khớp" chỉ đo được **1 ca**, nhưng nó bảo
-  vệ **61 chỗ** đụng chữ. Chênh lệch đó là **giới hạn của tập đánh giá**, không phải bằng chứng
+  vệ **{KIEM_KE["co_rui_ro"]} chỗ** đụng chữ. Chênh lệch đó là **giới hạn của tập đánh giá**, không phải bằng chứng
   cơ chế vô dụng — nên con số ablation phải đọc kèm phần kiểm kê.
 """))
 

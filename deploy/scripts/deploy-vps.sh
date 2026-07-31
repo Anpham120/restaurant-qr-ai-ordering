@@ -31,12 +31,19 @@ required_vars=(
   PAYMENTS__VIETQR__ACCOUNTNAME
   AI_SERVICE_URL
   AI_INTERNAL_TOKEN
-  LLM_PROVIDER
   LLM_API_KEY
   LLM_MODEL
-  LLM_RATE_LIMIT_FALLBACK_ENABLED
-  AI_PIPELINE_PROFILE
 )
+# Ba tên vừa RA khỏi danh sách: LLM_PROVIDER, LLM_RATE_LIMIT_FALLBACK_ENABLED, AI_PIPELINE_PROFILE.
+#
+# Không mô-đun nào đọc chúng nữa — `ai/app` chỉ đọc LLM_BASE_URL, LLM_API_KEY, LLM_MODEL,
+# LLM_TIMEOUT_SECONDS, AI_INTERNAL_TOKEN, AI_ENABLE_GENERATION, AI_EMBEDDING_CACHE. Đòi một biến
+# không ai đọc là dựng một cái bẫy: deploy DỪNG vì thiếu thứ không có tác dụng gì, và người sửa
+# phải đi tìm hiểu một biến đã chết để biết nên đặt giá trị nào.
+#
+# `AI_PIPELINE_PROFILE` còn tệ hơn hai cái kia: `ChatAiProvider.ReadPipelineProfile()` NÉM LỖI với
+# bất kỳ giá trị không thuộc ba tên profile cũ, rồi gửi trường đó tới dịch vụ mới — nơi bỏ qua nó.
+# Tức đặt cho nó một tên của hệ thống mới là làm sập mọi lượt chat.
 
 for var_name in "${required_vars[@]}"; do
   if [ -z "${!var_name:-}" ]; then
@@ -112,19 +119,11 @@ CHAT_AI_PROVIDER=$(env_quote "${CHAT_AI_PROVIDER:-python-rag}")
 AI_SERVICE_URL=$(env_quote "$AI_SERVICE_URL")
 AI_SERVICE_PORT=$(env_quote "${AI_SERVICE_PORT:-8001}")
 AI_INTERNAL_TOKEN=$(env_quote "$AI_INTERNAL_TOKEN")
-LLM_PROVIDER=$(env_quote "${LLM_PROVIDER:-9router}")
 LLM_BASE_URL=$(env_quote "${LLM_BASE_URL:-}")
 LLM_API_KEY=$(env_quote "$LLM_API_KEY")
 LLM_MODEL=$(env_quote "$LLM_MODEL")
-LLM_RATE_LIMIT_FALLBACK_MODEL=$(env_quote "${LLM_RATE_LIMIT_FALLBACK_MODEL:-}")
-LLM_RATE_LIMIT_FALLBACK_ENABLED=$(env_quote "$LLM_RATE_LIMIT_FALLBACK_ENABLED")
-AI_PIPELINE_PROFILE=$(env_quote "$AI_PIPELINE_PROFILE")
 AI_TIMEOUT_SECONDS=$(env_quote "${AI_TIMEOUT_SECONDS:-60}")
 LLM_TIMEOUT_SECONDS=$(env_quote "${LLM_TIMEOUT_SECONDS:-${AI_TIMEOUT_SECONDS:-30}}")
-AI_REQUEST_BUDGET_SECONDS=$(env_quote "${AI_REQUEST_BUDGET_SECONDS:-45}")
-AI_MAX_RETRY=$(env_quote "${AI_MAX_RETRY:-1}")
-RAG_TOP_K=$(env_quote "${RAG_TOP_K:-5}")
-AI_LLM_FIRST=$(env_quote "${AI_LLM_FIRST:-true}")
 VITE_USE_MOCK_CHAT=$(env_quote "${VITE_USE_MOCK_CHAT:-false}")
 VITE_USE_MOCK_ORDER=$(env_quote "${VITE_USE_MOCK_ORDER:-false}")
 ENABLE_CERTBOT=$(env_quote "${ENABLE_CERTBOT:-true}")
