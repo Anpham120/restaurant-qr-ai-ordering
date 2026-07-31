@@ -254,6 +254,19 @@ jobs:
           python -m pip install -q "nbformat>=5.10,<6.0"
           python ai/notebooks/build_teaching_notebook.py --check
 
+      # BÁO CÁO ĐỒ ÁN cũng phải sinh lại được — và bước này có mặt vì bản trước của nó đã TRÔI hoàn
+      # toàn: nó viết tay 1587 dòng, mô tả một kiến trúc không còn tồn tại, và 11/11 lệnh trong Phụ lục
+      # B trỏ vào tệp đã bị xóa. Không phép kiểm nào bắt được, vì tài liệu viết tay không có cách nào
+      # tự kiểm.
+      #
+      # Bộ sinh còn TỰ KIỂM Phụ lục B: mọi lệnh tái lập được đối chiếu với hệ thống tệp, nên một lệnh
+      # trỏ vào tệp không tồn tại là bước này ĐỎ — không phải một dòng sai lặng lẽ trong bài nộp.
+      #
+      # Không cần `sentence-transformers`: bộ sinh ĐỌC số từ `ai/evaluation/measurements/` thay vì tính
+      # lại. Đó là lý do các bộ so ghi kết quả ra tệp.
+      - name: Kiểm báo cáo đồ án sinh lại được (và Phụ lục B tự kiểm)
+        run: python ai/docs/build_bao_cao_do_an.py --check
+
       # Chạy trên cache đã commit, KHÔNG gọi mô hình thật: CI không có proxy 9router, và
       # một bước CI phụ thuộc mạng ngoài thì đỏ vì lý do không liên quan. Bước này trả mã
       # khác 0 nếu mô hình làm tụt ca nào hoặc gây lỗi an toàn mới.

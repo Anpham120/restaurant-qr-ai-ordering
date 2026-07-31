@@ -31,6 +31,7 @@ một bài toán dễ kéo con số lên.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import statistics
 import sys
@@ -255,6 +256,41 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"\n{ten} sai {len(k.sai)} ca (nhóm written):")
                 for cid, q, dung, hang in k.sai[:12]:
                     print(f"  {cid}  hạng đúng={hang or 'không có'}  {q}")
+
+    # GHI LẠI cho bộ sinh báo cáo đọc. Xem chú thích cùng chủ đề trong
+    # `run_retrieval_comparison.py`: báo cáo đồ án đã trôi vì số liệu viết tay.
+    #
+    # MỘT tệp cho MỖI nhóm split, vì hai nhóm trả lời hai câu hỏi khác nhau — "phát triển" là tập đã
+    # sửa theo, "niêm phong" mở đúng một lần. Ghi chung thì lần chạy sau xóa bằng chứng của nhóm kia.
+    import results
+
+    duong = results.ghi(
+        "chon_muc_niem_phong" if args.sealed else "chon_muc_phat_trien",
+        {
+            "so_ca": len(cases),
+            "so_ho": len(hos),
+            "nhom": {
+                f"{nhom}|{dang}": {
+                    ten: {
+                        "n": k.n,
+                        "top1": statistics.fmean(k.top1) if k.n else None,
+                        "mrr": statistics.fmean(k.mrr) if k.n else None,
+                        "san_ngau_nhien": (1.0 / statistics.fmean(k.so_ung_vien)) if k.n else None,
+                    }
+                    for ten, k in lat[(nhom, dang)].items()
+                }
+                for nhom in ("written", "derived")
+                for dang in ("*", "A", "B")
+            },
+        },
+        {
+            "ngay": datetime.date.today().isoformat(),
+            "tap": "niem_phong" if args.sealed else "phat_trien",
+            "bo_da_so": sorted(retrievers),
+            "so_lan_do_do_tre": LATENCY_RUNS,
+        },
+    )
+    print(f"\nđã ghi {duong.name}")
     return 0
 
 

@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import datetime
 import json
 import math
 import statistics
@@ -518,9 +519,30 @@ def main(argv: list[str] | None = None) -> int:
         print("\n  !! ĐANG MỞ TẬP NIÊM PHONG. Ghi ngày vào retrieval_split.json và tài liệu.")
 
     chan = 0
+    # GHI LẠI để bộ sinh BÁO CÁO đọc, thay vì người viết chép tay.
+    #
+    # Vì sao cần: `docs/ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md` viết tay toàn bộ số liệu, và sau khi phần AI
+    # được dựng lại nó mô tả một hệ thống KHÔNG CÒN TỒN TẠI — 0 lần nhắc `understand.py`/`answer.py`,
+    # và 11/11 lệnh của Phụ lục B trỏ vào tệp đã xóa. Notebook tránh được vì mọi ô tự tính lại; báo
+    # cáo thì không, nên nó trôi.
+    #
+    # Số cần embedding KHÔNG tính lại được trong bộ sinh báo cáo: CI cài từng gói chứ không cài cả
+    # `requirements.txt`, nên `--check` sẽ đỏ vì lý do không liên quan. Ghi ra tệp là cách đúng —
+    # cùng cách `golden_e2e.json` đã làm.
+    ghi_lai: dict = {"bai_toan_1": {}, "bai_toan_2": {}}
     for ten_nhom, ho in nhom.items():
         cs = [c for c in cases if c["family"] in ho]
         kq = do_bai_toan_1(retrievers, cs, runs)
+        ghi_lai["bai_toan_1"][ten_nhom] = {
+            "so_ca": len(cs),
+            "bo": {
+                ten: {
+                    "n": k.scored_cases, "hit1": k.hit1, "hit5": k.hit5,
+                    "mrr5": k.mrr5, "ndcg5": k.ndcg5, "cam5": k.forbidden_hits,
+                }
+                for ten, k in kq.items()
+            },
+        }
         ghi = "đỏ ở đây là CHẶN, không phải số liệu" if ten_nhom == "chốt" else ""
         in_bang(f"BÀI TOÁN 1 — TRUY HỒI TRI THỨC · nhóm {ten_nhom} ({len(cs)} ca)", kq, ghi)
         if ten_nhom == "chốt":
@@ -556,6 +578,13 @@ def main(argv: list[str] | None = None) -> int:
     rs2.append(LocTheoNhan(items, CA_CHON_MON))
 
     kq2 = do_bai_toan_2(rs2, items, runs)
+    ghi_lai["bai_toan_2"] = {
+        "so_ca": len(CA_CHON_MON),
+        "bo": {
+            ten: {"n": k.scored_cases, "hit1": k.hit1, "hit5": k.hit5, "cam5": k.forbidden_hits}
+            for ten, k in kq2.items()
+        },
+    }
     in_bang(
         f"BÀI TOÁN 2 — CHỌN MÓN ({len(CA_CHON_MON)} ca)", kq2,
         "'cấm@5' ở đây = số ca nêu món KHÔNG thỏa ràng buộc. Đó là câu trả lời SAI, không phải kém.",
@@ -617,6 +646,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.ablation:
         chay_ablation([c for c in cases if c["family"] in
                        set(split["gate_families"]) | set(split["dev_families"])], runs)
+
+    # Chỉ ghi khi chạy ĐẦY ĐỦ. Một lần chạy `--ablation` ghi đè kết quả đầy đủ sẽ làm báo cáo in con
+    # số của một phạm vi khác — cùng lớp lỗi với `--chi` của golden.
+    if not args.ablation:
+        import results
+
+        duong = results.ghi(
+            "truy_hoi_so_sanh",
+            ghi_lai,
+            {
+                "ngay": datetime.date.today().isoformat(),
+                "so_doan": len(CS.corpus()),
+                "bo_da_so": sorted(r.name for r in retrievers),
+                "mo_niem_phong": bool(args.sealed),
+                "giao_thuc_do_tre": args.latency_protocol,
+            },
+        )
+        print(f"\nđã ghi {duong.name}")
 
     if chan:
         print(f"\nCHẶN: {chan} vấn đề ở nhóm chốt.")
