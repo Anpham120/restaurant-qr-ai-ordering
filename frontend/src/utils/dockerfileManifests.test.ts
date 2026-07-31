@@ -6,9 +6,6 @@ const frontendRoot = new URL("../../", import.meta.url);
 const dockerfilePath = fileURLToPath(new URL("Dockerfile", frontendRoot));
 const aiDockerfilePath = fileURLToPath(new URL("../ai/Dockerfile", frontendRoot));
 const aiRequirementsPath = fileURLToPath(new URL("../ai/requirements.txt", frontendRoot));
-const aiRagRequirementsPath = fileURLToPath(
-  new URL("../ai/requirements-rag.txt", frontendRoot),
-);
 const healthCheckPath = fileURLToPath(
   new URL("../deploy/scripts/health-check.sh", frontendRoot),
 );
@@ -27,20 +24,26 @@ describe("frontend Dockerfile workspace manifests", () => {
 });
 
 describe("AI Docker production dependencies", () => {
-  // Test này TỪNG đòi ảnh Docker cài `torch==2.13.0+cpu`. Bản dựng lại phần AI đã BỎ torch và
-  // sentence-transformers khỏi ảnh sau khi ĐO được là không cần: truy hồi tri thức lúc đó là
-  // TRA KHÓA trên 24 chủ đề `answer_mode: verbatim` — chính xác tuyệt đối, 0ms, không xếp hạng.
+  // LỊCH SỬ CỦA HÀNG RÀO NÀY — nó đã đảo chiều HAI lần, và cả hai lần đều theo một phép ĐO.
   //
-  // Phép so ba cách truy hồi (`ai/evaluation/run_retrieval_comparison.py`) cho thấy embedding
-  // THẮNG trên tập niêm phong (Hit@5 0,921 so với BM25 0,711). Nhưng nó vẫn không vào ảnh, vì
-  // đường `synthesize` mà nó phục vụ CHƯA CÓ AI GỌI ở runtime — thêm 2–3GB cho một khả năng
-  // chưa có ai gọi là chi phí không có lợi ích.
+  // Lần 1: test đòi ảnh Docker cài `torch==2.13.0+cpu`. Bước dựng lại BỎ torch và
+  //   sentence-transformers khỏi ảnh sau khi đo rằng truy hồi tri thức lúc đó là TRA KHÓA trên 24
+  //   chủ đề `verbatim` — chính xác tuyệt đối, 0ms, không xếp hạng. Test được ĐẢO CHIỀU thành "giữ
+  //   thư viện nặng NGOÀI ảnh", kèm điều kiện để đảo lại: *khi đường `synthesize` được dựng*.
   //
-  // Nên hàng rào được ĐẢO CHIỀU thay vì xóa. Xóa test thì mất luôn thứ chặn việc ai đó lặng lẽ
-  // thêm lại 3GB vào ảnh sản phẩm; đảo chiều thì hàng rào vẫn còn, chỉ canh quyết định mới.
+  // Lần 2 (đây): điều kiện đó ĐÃ XẢY RA. Kho nay có 84 chủ đề `synthesize` và **74 trong số đó
+  //   không có cụm từ vựng nào**, nên truy hồi là đường DUY NHẤT tới chúng. Embedding thắng ở cả
+  //   hai bài toán và cả hai tập niêm phong, nên nó vào `ai/requirements.txt`.
   //
-  // Điều kiện để đảo lại: khi đường `synthesize` được dựng. Lúc đó +21 điểm Hit@5 thành lợi ích
-  // thật, và test này phải được sửa CÙNG với việc đó — xem `ai/requirements-rag.txt`.
+  // Vì sao vẫn giữ test thay vì xóa: rủi ro chỉ ĐỔI CHỖ, không mất. Trước đây rủi ro là "ai đó
+  // lặng lẽ thêm 3GB vào ảnh". Nay rủi ro là **mất dòng ghim bản CPU**, và nó đắt hơn nhiều:
+  //
+  //     có `--extra-index-url .../whl/cpu`   ảnh 2,74GB
+  //     thiếu nó                             ảnh 9,29GB  (pip lấy torch bản CUDA + gói NVIDIA)
+  //
+  // 6,55GB cho một dịch vụ chạy CPU và không có GPU nào. Và nó IM LẶNG: build vẫn thành công, dịch
+  // vụ vẫn chạy đúng, chỉ ảnh to gấp 3,4 lần. Đúng loại lỗi chỉ người deploy phát hiện.
+  //
   // Chỉ quét DÒNG LỆNH, bỏ dòng chú thích. Bản đầu của test này quét cả tệp và đỏ ngay — vì
   // `ai/Dockerfile` có chữ "torch" trong một CHÚ THÍCH nói rằng torch đã được bỏ.
   //
@@ -54,22 +57,52 @@ describe("AI Docker production dependencies", () => {
       .filter((line) => !line.trimStart().startsWith("#"))
       .join("\n");
 
-  it("keeps heavy ML dependencies OUT of the runtime image", () => {
-    const dockerfile = instructionLines(readFileSync(aiDockerfilePath, "utf8"));
+  it("pins torch to the CPU wheel index whenever torch is a dependency", () => {
+    // Bất biến ĐẮT NHẤT của tệp này: mất dòng index là +6,55GB, im lặng.
     const requirements = instructionLines(readFileSync(aiRequirementsPath, "utf8"));
+    if (!requirements.includes("torch")) return; // không có torch thì không có gì để ghim
 
-    for (const heavy of ["torch", "sentence-transformers", "sentence_transformers"]) {
-      expect(dockerfile, `ai/Dockerfile không được cài ${heavy}`).not.toContain(heavy);
-      expect(requirements, `ai/requirements.txt không được có ${heavy}`).not.toContain(heavy);
-    }
+    expect(
+      requirements,
+      "ai/requirements.txt có torch mà THIẾU `--extra-index-url https://download.pytorch.org/whl/cpu`"
+        + " — pip sẽ lấy bản CUDA và ảnh phình từ 2,74GB lên 9,29GB, im lặng",
+    ).toContain("--extra-index-url https://download.pytorch.org/whl/cpu");
   });
 
-  it("keeps the embedding capability reachable for measurement", () => {
-    // Bỏ khỏi ảnh KHÔNG được bằng bỏ khả năng đo. Nếu tệp này mất thì phép so ba cách truy hồi
-    // im lặng chỉ còn BM25, và bảng kết quả vẫn trông như một phép so đầy đủ.
-    const ragRequirements = instructionLines(readFileSync(aiRagRequirementsPath, "utf8"));
+  it("bakes the embedding model into the image and blocks network at runtime", () => {
+    // Tải mô hình lúc CHẠY có hai hậu quả và cả hai chỉ hiện ở môi trường thật: khách ĐẦU TIÊN chờ
+    // tải ~500MB, và dịch vụ phụ thuộc mạng ra Hugging Face SAU KHI `/ready` đã báo sẵn sàng.
+    const dockerfile = instructionLines(readFileSync(aiDockerfilePath, "utf8"));
+    const requirements = instructionLines(readFileSync(aiRequirementsPath, "utf8"));
+    if (!requirements.includes("sentence-transformers")) return;
 
-    expect(ragRequirements).toMatch(/^sentence-transformers/m);
+    expect(dockerfile, "ai/Dockerfile phải TẢI SẴN mô hình lúc build").toContain(
+      "SentenceTransformer(",
+    );
+    expect(dockerfile, "thiếu HF_HUB_OFFLINE=1 — container sẽ gọi mạng lúc chạy").toContain(
+      "HF_HUB_OFFLINE=1",
+    );
+    // Vector của kho phải được tính SẴN: đo được là mã hóa 370 đoạn mất 61,7s, tức 64% thời gian
+    // khởi động, và nó tính đi tính lại cùng một kết quả mỗi lần container lên.
+    expect(dockerfile, "thiếu bước tính sẵn vector — khởi động mất thêm ~62 giây mỗi lần").toContain(
+      "rag.precompute",
+    );
+  });
+
+  it("gives the AI healthcheck a start period long enough for model load", () => {
+    // 97,3 giây khởi động với `start-period=15s`, `interval=30s`, `retries=3` làm lần kiểm thứ ba
+    // rơi vào ~105s — dịch vụ SUÝT bị đánh `unhealthy`. Và `api` chờ `service_healthy`, nên hậu quả
+    // không phải một cảnh báo mà là CẢ STACK KHÔNG LÊN trên máy chậm hơn 8%.
+    const dockerfile = instructionLines(readFileSync(aiDockerfilePath, "utf8"));
+    const requirements = instructionLines(readFileSync(aiRequirementsPath, "utf8"));
+    if (!requirements.includes("sentence-transformers")) return;
+
+    const match = dockerfile.match(/--start-period=(\d+)s/);
+    expect(match, "ai/Dockerfile không có --start-period").not.toBeNull();
+    expect(
+      Number(match![1]),
+      "start-period quá ngắn cho việc nạp mô hình — đo được 97,3s trước khi có đệm vector",
+    ).toBeGreaterThanOrEqual(60);
   });
 });
 
