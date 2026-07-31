@@ -4,20 +4,48 @@ namespace RestaurantQrAiOrdering.Api.Tests;
 
 public sealed class DeploymentConfigurationTests
 {
+    /// <summary>
+    /// Dịch vụ AI phải hết hạn TRƯỚC backend, để backend còn nhận được câu thoái hóa thay vì tự hết
+    /// hạn rồi trả lỗi cho khách đang ngồi ở bàn.
+    ///
+    /// Vì sao test này phải VIẾT LẠI chứ không xóa: nó từng canh `AI_REQUEST_BUDGET_SECONDS` (45) —
+    /// một biến của hệ thống AI cũ mà bản dựng lại **không đọc**. Tức nó canh một bất biến CHẾT:
+    /// đổi giá trị đó không đổi hành vi nào, và test vẫn xanh.
+    ///
+    /// Quan hệ đáng canh vẫn còn, chỉ đổi tên biến: `LLM_TIMEOUT_SECONDS` (30) là thứ dịch vụ AI
+    /// thật sự đọc (`llm_understand.ENV_KEYS`), và nó phải nhỏ hơn `BACKEND_AI_TIMEOUT_SECONDS`
+    /// (50) mà `ChatAiProvider.ReadPositiveInt` đọc.
+    ///
+    /// So SỐ chứ không so chuỗi: một test so chuỗi `"...:-30}"` sẽ xanh nếu ai đó đổi 30 thành 60
+    /// bằng cách viết khác đi, và đỏ vì lý do vô hại khi chỉ đổi cách viết.
+    /// </summary>
     [Fact]
-    public void DockerCompose_AllowsPythonRequestBudgetToFinishBeforeBackendTimeout()
+    public void DockerCompose_LetsTheAiServiceTimeOutBeforeTheBackendDoes()
     {
         var compose = File.ReadAllText(
             Path.Combine(FindRepositoryRoot(), "deploy", "docker-compose.yml"));
 
-        Assert.Contains(
-            "BACKEND_AI_TIMEOUT_SECONDS: ${BACKEND_AI_TIMEOUT_SECONDS:-50}",
+        var backendTimeout = ReadComposeDefault(compose, "BACKEND_AI_TIMEOUT_SECONDS");
+        var aiTimeout = ReadComposeDefault(compose, "LLM_TIMEOUT_SECONDS");
+
+        Assert.True(
+            aiTimeout < backendTimeout,
+            $"LLM_TIMEOUT_SECONDS ({aiTimeout}) phải nhỏ hơn BACKEND_AI_TIMEOUT_SECONDS "
+                + $"({backendTimeout}); nếu không backend hết hạn trước và khách nhận lỗi thay vì "
+                + "câu thoái hóa");
+    }
+
+    private static int ReadComposeDefault(string compose, string name)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
             compose,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}",
-            compose,
-            StringComparison.Ordinal);
+            $@"{System.Text.RegularExpressions.Regex.Escape(name)}:\s*\$\{{{System.Text.RegularExpressions.Regex.Escape(name)}:-(\d+)\}}");
+
+        Assert.True(
+            match.Success,
+            $"không tìm thấy `{name}: ${{{name}:-<số>}}` trong docker-compose.yml — biến này là "
+                + "một đầu của bất biến hết hạn, nên nó biến mất là điều phải biết");
+        return int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     [Fact]

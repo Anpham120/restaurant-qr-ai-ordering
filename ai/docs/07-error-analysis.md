@@ -1355,6 +1355,199 @@ nhìn giống một lần thành công"*.
 Test đổi theo, và mạnh hơn: kiểm **cả phản hồi HTTP** chứ không chỉ `content`, cộng một test chạy
 **thật** đường lỗi nạp thực đơn — không gán tay `MENU.error`, vì đường lỗi mới là chỗ chuỗi được tạo.
 
+## 18. Deploy staging thành công mà bị báo THẤT BẠI — và ba lỗi thật nó lộ ra
+
+Ngày 2026-07-31, `develop` nhận bản dựng lại và `Deploy Staging` chạy. Nó **deploy xong**: container
+lên, chứng chỉ HTTPS cấp lại, `api/health` và `health/ready` đều `Healthy`, và `/ready` của dịch vụ AI
+trả **đúng từng con số mong đợi**:
+
+```
+retriever=embedding · retriever_vectors_from_cache=True · retriever_chunks=370
+generation_enabled=False · menu_items=91 · knowledge_chunks=449
+```
+
+Rồi bước kiểm sức khỏe **đỏ**, nên job `deploy-staging` bị tính là thất bại.
+
+### 18.1 Phép kiểm hỏi trường của hệ thống đã bị thay
+
+`deploy/scripts/health-check.sh` assert `pipeline_profile`, `model_policy.primary_model`,
+`fallback_model`, `provider_status`, `model_attempts`, `verifier_result`, `resolved_menu_item_ids`,
+`evidence`, `claims`. Bản dựng lại **không trả trường nào** trong số đó.
+
+Đây là lần thứ **tám** trong dự án một bất biến "hai đầu phải khớp" chỉ được sửa ở một đầu, và lần thứ
+tư đầu còn lại nằm ở ngôn ngữ khác — trước đó là TypeScript đọc `requirements-rag.txt`, C# đọc
+`verify_pipeline_selection.py`, và `maxItems` của JSON schema. Điểm chung của cả bốn: **đầu thứ hai
+không có compiler, không có linter, không có test nào chạm tới.** Ở đây nó còn là Python nội tuyến
+trong Bash — không công cụ nào của dự án đọc nó.
+
+Cách sửa không phải viết lại rồi nhắc mình cẩn thận hơn. `ai/app/test_deploy_health_check.py` **bóc mọi
+khóa mà script hỏi** rồi so với phản hồi THẬT của dịch vụ:
+
+| script hỏi | phải có trong |
+|---|---|
+| `payload.get("X")` ở khối `/ready` | phản hồi `/ready` thật |
+| `payload.get("X")`, `decision.get("Y")`, `action.get("Z")` ở khối chat | phản hồi `/v1/chat` thật |
+
+Nó bắt được cả hướng ngược: bỏ một trường khỏi `/ready` mà quên sửa phép kiểm deploy cũng đỏ ở CI.
+
+Một chi tiết của phép kiểm đó đáng ghi riêng: nó gọi `/v1/chat` với `use_model: True`. Với
+`use_model: False` thì `decision.model` là `null`, nên tập khóa rỗng và mọi phép so
+`decision.model.*` **xanh vì không kiểm gì** — đúng lớp "test xanh vì rỗng" đã gặp ở bộ phân tích
+`from X import Y`.
+
+Và câu bị cấm cũng phải là câu hệ thống THẬT nói: bản đầu tôi cấm `"tôi chưa có dữ liệu về câu hỏi
+này"` trong khi hệ thống nói `"Mình chưa có dữ liệu về việc này ạ."` — một phép kiểm chết, xanh mãi
+mãi. Nay test lấy câu từ chối bằng cách **hỏi dịch vụ** rồi đối chiếu.
+
+### 18.2 Ba câu thử của phép kiểm deploy là ba câu khách hỏi nhiều nhất — và hai câu trả lời sai
+
+Sau khi viết lại phép kiểm, chính nó phát hiện hai lỗi mà **103 lượt golden, 140 ca và 87 lượt phiên
+đều không bắt**:
+
+| Câu | Trước | Đúng ra |
+|---|---|---|
+| "Nhà hàng mình có những món phở gì nhỉ?" | `fact` từ kho tri thức, **0 thẻ giỏ** — nêu tên 2 món trong văn xuôi mà không món nào bấm được | liệt kê món phở kèm thẻ giỏ |
+| "Gợi ý cho mình món phở tại nhà hàng đi" | `clarify` — hỏi lại "bạn muốn món ăn hay đồ uống" dù khách **đã nói phở** | gợi ý món phở |
+
+Gốc rễ là **một dòng lệch quy ước**. Danh mục `cat_noodle` tên là "Phở & Bún", và từ vựng chỉ khai cụm
+ghép `pho bun` — thứ không khách nào gõ:
+
+```
+_add("khai vi",              "category", "cat_appetizer")
+_add("pho bun|mon nuoc",     "category", "cat_noodle")     <- chỉ cụm ghép
+_add("ca phe|tra",           "category", "cat_drink")       <- đã tách
+_add("nuoc ep|sinh to",      "category", "cat_juice")       <- đã tách
+_add("bia|ruou|do co con",   "category", "cat_alcohol")     <- đã tách
+```
+
+**Mọi danh mục ghép khác đã tách rồi.** Đúng một dòng sót, nên đây là lỗi rõ ràng chứ không phải một
+lựa chọn thiết kế — và nó nằm ngay giữa những dòng chỉ ra cách làm đúng.
+
+Vì sao không tập nào bắt: cả ba tập đều do người viết, và người viết một tập đánh giá về ẩm thực Việt
+thì hỏi "món nào không cay", "nhóm 4 người ăn gì" — chứ ít khi hỏi "ở đây có phở không". Câu đơn giản
+nhất là câu dễ bỏ sót nhất. Ba câu thử của phép kiểm deploy tồn tại từ hệ thống CŨ, do người khác viết
+cho mục đích khác, và **chính vì thế** chúng hỏi khác đi.
+
+Bài học đo được: một tập đánh giá do một người viết mang đúng thiên lệch của người đó, và cách phá
+thiên lệch không phải viết thêm ca cùng kiểu mà là **lấy câu từ một nguồn khác**.
+
+Cơ chế bảo vệ đi kèm là một bất biến hai chiều, không phải bốn ca thêm vào:
+`test_moi_PHAN_cua_ten_danh_muc_ghep_deu_nhan_duoc_rieng` đọc tên danh mục từ THỰC ĐƠN, tách theo dấu
+`&`, và đòi mỗi phần phải nhận được một mình. Thêm "Mì & Hủ tiếu" mà chỉ khai cụm ghép là đỏ ngay,
+không cần ai nghĩ ra ca. Đã kiểm ngược: bỏ cụm `bun` khỏi từ vựng thì test đỏ với đúng thông điệp
+`'Phở & Bún': cụm 'bun' không dẫn tới cat_noodle`.
+
+### 18.3 Bản sửa gây một hồi quy, và golden bắt ngay lượt đầu
+
+Ba cụm mới (`pho`, `bun`, `com`) làm 140/140 và 87/87 giữ nguyên, nhưng golden tụt còn **102/103**:
+
+```
+khach-hoi-tri-thuc-loai-mon lượt 1: "Phở với bún khác nhau thế nào?"
+```
+
+Câu này là câu TRI THỨC, nhưng "phở" và "bún" nay nêu `cat_noodle`, nên nó có "ràng buộc để lọc" và
+khách nhận **6 món** cho một câu hỏi kiến thức. Trước khi sửa, những chữ ấy không khớp gì nên câu tự
+rơi xuống nhánh tri thức và **tình cờ** đúng.
+
+Đây là lần thứ ba lớp lỗi "hỏi VỀ một thứ không phải lọc THEO thứ đó" xuất hiện: trước đó là nhãn
+("Nhãn 'ít calo' dựa trên gì?") và thuộc tính món. Nên cách sửa dùng lại đúng khuôn đã có —
+`DIFFERENCE_FRAMING` kiểm cách NÓI trên chuỗi đã rút dấu, giống `ATTRIBUTE_DEFINITION_FRAMING`.
+
+Hai chi tiết của bản sửa đáng ghi, vì cả hai là chỗ tôi làm sai trước khi làm đúng:
+
+**Một quy tắc nửa vời tệ hơn không có quy tắc.** Bản đầu chỉ bỏ `categories` và giữ `require_tags`, với
+lý do "nhãn vẫn là ràng buộc thật". Lý do đó sai, và "Lẩu với nướng khác nhau thế nào?" chỉ ra chỗ
+sai: `method:grilled` ở đó cũng là chủ thể, nên câu nhận *"chưa tìm được món nào thỏa hết"*. Quy tắc
+đúng: **trong câu hỏi khác nhau, không có ràng buộc lọc nào** — mọi từ đều là chủ thể.
+
+**Bất biến hai đầu, lần thứ chín, và lần này ở hai hàm trong cùng thư mục.** Tôi viết điều kiện bỏ
+danh mục ở `answer.respond()`, và câu phở **vẫn** đi nhánh lọc — vì `understand()` suy `wants=food`
+TỪ CHÍNH danh mục đó, nên câu vẫn có "ràng buộc khách nêu". Sửa: tính `loai_mon_la_chu_de` **một lần**
+ở `understand()` và đọc ở cả hai chỗ.
+
+### 18.4 Một ca golden ĐẠT vì lý do sai, lần thứ năm
+
+Cùng hội thoại có lượt 4: *"Cơm tấm khác cơm chiên chỗ nào?"* — luôn xanh, cả trước và sau. Nhưng câu
+trả lời thật của nó là:
+
+> Bạn hỏi nhân viên để được hướng dẫn **địa chỉ và đường đi** chính xác nhất nhé.
+
+Cụm `cho nao` ánh xạ vào chính sách `location`, nên khách hỏi hai loại cơm khác nhau ở đâu và nhận
+**thông tin chỗ đậu xe**. Tiêu chí của ca là `kind: fact` + `min_chars: 60` + `no_cart` — và một câu
+trả lời về địa điểm thỏa cả ba.
+
+Đây là lần thứ năm trong dự án một ca đạt vì lý do sai, và nó nhắc lại kết luận cũ: **tiêu chí chỉ
+kiểm HÌNH DẠNG câu trả lời thì không phân biệt được đúng với sai.** `kind=fact` nói câu trả lời là một
+sự thật, không nói đó là sự thật *về điều khách hỏi*.
+
+Sửa bằng mẫu `KHAC_VI_TRI_RE` — phải là mẫu chứ không phải cụm cố định, vì phần giữa là bất kỳ ("khác
+**cơm chiên** chỗ nào"). Tôi đã thử cụm cố định `khac cho nao` trước và nó không khớp câu thật.
+
+### 18.5 Cấu hình NÓI SAI về hệ thống — 11 biến chết, ba biến nói sai
+
+Khối `environment` của `ai-service` truyền 11 biến mà bản dựng lại không đọc. Bảy trong số đó chỉ là
+chết. Ba cái còn lại nói sai, và một cái là bẫy:
+
+| Biến | Nói gì | Thật là gì |
+|---|---|---|
+| `RAG_RETRIEVAL_METHOD: hybrid` | đang chạy hybrid | đang chạy **embedding**, và nó do `requirements.txt` quyết định — không biến nào chọn |
+| `RAG_KNOWLEDGE_BASE_PATH: knowledge-base` | kho ở `knowledge-base/` | thư mục đó **không còn tồn tại** (nay `ai/knowledge/`) |
+| `AI_LLM_FIRST: true` | có chế độ "gọi mô hình trước" | khái niệm đó không còn |
+| `AI_PIPELINE_PROFILE` | chọn pipeline | `ChatAiProvider.ReadPipelineProfile()` **NÉM LỖI** với mọi giá trị ngoài ba tên profile cũ — đặt cho nó một tên của hệ thống mới là **sập mọi lượt chat** |
+
+Người vận hành đọc compose để biết hệ thống chạy thế nào. Ai đọc `RAG_RETRIEVAL_METHOD: hybrid` sẽ kết
+luận triển khai đang chạy hybrid — trái ngược kết luận trung tâm của phép đo (Hit@1 niêm phong
+embedding **0,609** so với hybrid 0,522) — rồi đi sửa biến đó khi muốn đổi bộ truy hồi, và không có gì
+xảy ra. Cùng lớp với hai tài liệu của hệ thống cũ phải dán nhãn LỊCH SỬ: **mô tả sai hiện trạng còn tệ
+hơn không mô tả**, vì nó được tin.
+
+`ComposeChiTruyenBienDichVuTHATSUDoc` canh hai chiều: biến truyền mà không mô-đun nào đọc, và biến mã
+đọc mà compose không truyền. Chiều thứ hai cũng đã sinh lỗi thật một lần — `AI_EMBEDDING_CACHE` chỉ
+đặt ở Dockerfile, và đệm vector trượt im lặng suốt một giai đoạn.
+
+Và một bất biến CHẾT phải viết lại chứ không xóa: `DockerCompose_AllowsPythonRequestBudgetToFinish...`
+canh `AI_REQUEST_BUDGET_SECONDS` — biến bản mới không đọc. Quan hệ đáng canh vẫn còn, chỉ đổi tên biến:
+`LLM_TIMEOUT_SECONDS` (30) < `BACKEND_AI_TIMEOUT_SECONDS` (50). Test nay so **số**, không so chuỗi.
+
+Một chỗ suýt gây hỏng: bỏ ba biến khỏi `required_vars` của `deploy-vps.sh` mà **để nguyên** hai dòng
+`AI_PIPELINE_PROFILE=$(env_quote "$AI_PIPELINE_PROFILE")` trong heredoc dựng `.env`. Dưới `set -u`,
+mở rộng một biến chưa đặt là **dừng deploy**. Bỏ một hàng rào thì phải lần theo hết mọi chỗ dựa vào nó.
+
+### 18.6 Một ký tự vô hình trong mã nguồn — lần thứ mười dấu gạch chéo bị ăn
+
+Mẫu `KHAC_VI_TRI_RE` được sinh qua heredoc của Bash, và hai tầng cùng ăn dấu gạch chéo:
+
+```
+heredoc `<<'PY'`         thu  \\b  ->  \b
+chuỗi Python KHÔNG raw   đọc  \b   ->  ký tự BACKSPACE (0x08)
+```
+
+Nên mã nguồn chứa `re.compile(r"<BS>khac<BS>(?:...)")`. Hậu quả tệ hơn một lỗi cú pháp:
+
+| | |
+|---|---|
+| mẫu không bao giờ khớp | không có lỗi, chỉ có hành vi sai |
+| `Read` in ra như dòng bình thường | ký tự điều khiển bị che |
+| `Edit` không khớp được chuỗi | vì chuỗi thật khác chuỗi hiển thị |
+
+Mất ba lượt sửa mới thấy, và chỉ thấy khi in mã byte. Nay có `MaNguonKhongChuaKyTuDieuKhien` quét toàn
+bộ `ai/app` — một lỗi vô hình với mọi công cụ đọc thì đáng một test. Bài học cũ nhưng nay có bằng chứng
+mạnh hơn: **nội dung có dấu gạch chéo phải ghi bằng công cụ ghi tệp, không sinh qua shell.**
+
+### 18.7 Kết quả sau khi sửa
+
+| Phép đo | Trước | Sau |
+|---|---|---|
+| golden e2e, generation TẮT (mặc định production) | 102/103 | **103/103** |
+| golden e2e, generation BẬT | — | **103/103** |
+| 140 ca trả lời | 140/140 | **140/140** |
+| 87 lượt phiên | 87/87 | **87/87** |
+| test `ai/app` | 309 | **329** |
+| kiểm kê đụng chữ | 487 cụm | **494 cụm**, 93 chỗ có nguy cơ |
+
+Và cổng chất lượng đã làm đúng việc của nó suốt: `deploy-staging` bị **SKIP** khi `ai-data-and-eval`
+đỏ, nên staging không nhận bản lỗi. Đó là lý do bước deploy phụ thuộc cổng.
+
 ## Chạy lại
 
 ```bash

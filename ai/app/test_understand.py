@@ -141,9 +141,13 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 487 cụm từ vựng và 91 tên món: **70 cụm bị chứa trong cụm khác**, **41 cụm nằm
-    trong tên món**, và hợp lại là **89 cụm có nguy cơ** (22 cụm thuộc cả hai). Cơ chế khớp cụm
-    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 89 chỗ đó.
+    Kiểm kê trên 494 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **44 cụm nằm
+    trong tên món**, và hợp lại là **93 cụm có nguy cơ** (25 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 93 chỗ đó.
+
+    Ba cụm mới nhất — `pho`, `bun`, `com` — nằm trong CẢ HAI nhóm nguy cơ, và đó là lý do chúng
+    minh họa cơ chế rõ nhất: `pho`⊂"Phở bò tái nạm" (tên món), `pho`⊂`pho bun` (cụm khác), và
+    `pho`⊂`phong` chỉ KHÔNG đụng vì bộ khớp đệm khoảng trắng hai đầu.
 
     Nhưng tập đánh giá chỉ có ca cho **một** trong số đó — nên phép đo ablation báo "mất 1 ca"
     là **chặn dưới**, không phải giá trị thật của cơ chế. Đây là phát hiện về *tập đánh giá*,
@@ -161,7 +165,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 487, "trong_cum_khac": 70, "trong_ten_mon": 41, "co_rui_ro": 89},
+            {"tu_vung": 494, "trong_cum_khac": 74, "trong_ten_mon": 44, "co_rui_ro": 93},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -465,3 +469,165 @@ class KhoTriThucVaTuVungPhaiKhopNhau(unittest.TestCase):
         request = ask("Có ghế ăn cho em bé không?")
         self.assertEqual(request.policy_topic, "high_chair")
         self.assertNotIn("audience:child", request.require_tags)
+
+
+class TenLoaiMonLaRangBuocHayChuDe(unittest.TestCase):
+    """Cùng chữ "phở", hai câu hỏi khác hẳn nhau — và hệ thống phải trả lời khác nhau.
+
+        "Ở đây có phở không?"            LỌC thực đơn theo `cat_noodle`   (câu về thực đơn)
+        "Phở với bún khác nhau thế nào?" TRI THỨC về hai loại món          (câu về kiến thức)
+
+    Đây là lần thứ ba lớp lỗi "hỏi VỀ một thứ không phải lọc THEO thứ đó" xuất hiện trong dự án —
+    trước đó là nhãn (`Nhãn 'ít calo' dựa trên gì?`) và thuộc tính món.
+
+    Cả hai nhóm test dưới đây bắt đúng hai lỗi THẬT, tìm ra bằng cách chạy hệ thống trên stack:
+
+      1. Tên danh mục ghép ("Phở & Bún", "Cơm Việt") chỉ có cụm ghép trong từ vựng, nên "phở",
+         "bún", "cơm" không nêu được ràng buộc nào. Ba câu thử của `health-check.sh` — tức câu khách
+         thật hỏi nhiều nhất — đều rơi vào nhánh tri thức hoặc hỏi lại.
+      2. Sau khi sửa (1), câu hỏi khác nhau lại rơi vào nhánh LỌC và khách nhận 6 món cho một câu
+         hỏi kiến thức. Golden bắt ngay lượt đầu.
+    """
+
+    def test_ten_loai_mon_don_le_van_loc_duoc_thuc_don(self):
+        for cau, danh_muc in (
+            ("Ở đây có phở không", "cat_noodle"),
+            ("Có món bún nào không", "cat_noodle"),
+            ("Có cơm không ạ", "cat_main"),
+            ("Nhà hàng mình có những món phở gì nhỉ?", "cat_noodle"),
+        ):
+            with self.subTest(cau):
+                request = ask(cau)
+                self.assertIn(danh_muc, request.categories)
+                self.assertFalse(request.loai_mon_la_chu_de)
+
+    def test_moi_PHAN_cua_ten_danh_muc_ghep_deu_nhan_duoc_rieng(self):
+        """Tên danh mục có DẤU PHÂN CÁCH thì mỗi phần phải nhận được một mình.
+
+        Đây là phép kiểm quan trọng hơn bốn ca ở trên, vì nó bắt lỗi ở nhóm CHƯA xảy ra: thêm một
+        danh mục "Mì & Hủ tiếu" mà chỉ khai cụm ghép `mi hu tieu` là đỏ ngay, không cần ai nghĩ ra ca.
+
+        Chỉ kiểm tên có dấu phân cách, và giới hạn đó là có chủ ý
+        --------------------------------------------------------
+        Bản đầu của test này đòi NGUYÊN TÊN phải là một cụm từ vựng, và nó đỏ ở hai chỗ mà cả hai đều
+        là test sai chứ không phải hệ thống sai:
+
+            "Trái cây tươi"  từ vựng có `trai cay`, không có `trai cay tuoi` — và khách gõ "trái cây"
+            "Hải sản"        khai là `allergen_topic` KÈM danh mục, vì "hải sản" có hai nghĩa tùy
+                             cách hỏi (duyệt danh mục / khai dị ứng). Đó là thiết kế, không phải sót.
+
+        Nên phạm vi thu về đúng lớp lỗi đã xảy ra thật: **dấu `&` trong tên danh mục.** "Phở & Bún" là
+        HAI thứ khách gọi riêng, còn "Trái cây tươi" là một thứ có tính từ. Một phép kiểm rộng hơn
+        thế sẽ đỏ vì lý do vô hại, và một phép kiểm hay đỏ oan thì sớm bị nới cho qua.
+        """
+        from understand import VOCAB
+
+        ten_danh_muc = {}
+        for item in ITEMS:
+            ma = str(item.get("categoryId") or "").strip()
+            ten = str(item.get("categoryName") or "").strip()
+            if ma and ten:
+                ten_danh_muc[ma] = ten
+
+        self.assertGreaterEqual(len(ten_danh_muc), 10, "bộ bóc danh mục sai?")
+        co_ghep = [t for t in ten_danh_muc.values() if any(d in t for d in ("&", "/", ","))]
+        self.assertTrue(co_ghep, "không danh mục nào có tên ghép — phép kiểm này không kiểm gì")
+
+        def dan_toi(cum: str, ma: str) -> bool:
+            khai = VOCAB.get(cum)
+            if khai is None:
+                return False
+            loai, gia_tri = khai
+            if loai == "category":
+                return gia_tri == ma
+            # "hải sản" khai là chủ đề dị nguyên KÈM danh mục — vẫn dẫn tới danh mục đúng.
+            if loai == "allergen_topic":
+                return isinstance(gia_tri, tuple) and gia_tri[1] == ma
+            return False
+
+        thieu = []
+        for ma, ten in sorted(ten_danh_muc.items()):
+            if not any(d in ten for d in ("&", "/", ",")):
+                continue
+            for p in ten.replace("&", "|").replace("/", "|").replace(",", "|").split("|"):
+                cum = fold(p.strip())
+                if not cum:
+                    continue
+                if not dan_toi(cum, ma):
+                    thieu.append(f"{ten!r}: cụm {cum!r} không dẫn tới {ma}")
+        self.assertFalse(
+            thieu,
+            "danh mục tên ghép mà từ vựng chỉ nhận cụm ghép — khách gõ từng phần:\n  "
+            + "\n  ".join(thieu),
+        )
+
+    def test_cau_hoi_khac_nhau_KHONG_thanh_cau_loc(self):
+        for cau in (
+            "Phở với bún khác nhau thế nào?",
+            "Lẩu với nướng khác nhau thế nào?",
+            "Phở khác bún điểm nào?",
+        ):
+            with self.subTest(cau):
+                request = ask(cau)
+                self.assertTrue(request.asks_difference, "không nhận ra đây là câu hỏi khác nhau")
+                self.assertTrue(request.loai_mon_la_chu_de, "tên loại món vẫn bị đọc thành ràng buộc")
+
+    def test_khac_cho_nao_KHONG_thanh_cau_hoi_dia_diem(self):
+        """"Cơm tấm khác cơm chiên chỗ nào?" từng được trả lời bằng thông tin CHỖ ĐẬU XE.
+
+        Ca golden của câu đó vẫn XANH, vì tiêu chí chỉ đòi `kind=fact` và độ dài — ca đạt vì lý do
+        sai, lần thứ năm trong dự án. Test này chốt đúng chỗ tiêu chí kia không thấy.
+        """
+        request = ask("Cơm tấm khác cơm chiên chỗ nào?")
+        self.assertTrue(request.asks_difference)
+        self.assertNotEqual(request.policy_topic, "location")
+        self.assertTrue(request.loai_mon_la_chu_de)
+
+    def test_cau_hoi_dia_diem_that_van_la_cau_hoi_dia_diem(self):
+        """Chiều ngược lại. Thiếu nó thì một bộ hiểu không bao giờ nhận ra `location` cũng qua."""
+        for cau in ("Nhà hàng ở chỗ nào?", "Địa chỉ nhà hàng ở đâu?", "Đường đi tới đây thế nào?"):
+            with self.subTest(cau):
+                request = ask(cau)
+                self.assertEqual(request.policy_topic, "location")
+                self.assertFalse(request.asks_difference)
+
+    def test_hai_mon_cu_the_van_di_nhanh_so_sanh(self):
+        """Nêu ĐÚNG hai món thì nhánh so sánh xử lý được, không đẩy sang tri thức."""
+        request = ask("Nên chọn Bún bò Huế hay Phở bò tái nạm?")
+        self.assertEqual(len(request.named_items), 2)
+        self.assertFalse(request.loai_mon_la_chu_de)
+
+    def test_tieu_tu_cuoi_cau_voi_KHONG_lam_mat_rang_buoc(self):
+        """Vì sao không dùng `is_comparison` cho việc này.
+
+        Nhóm `comparison` chứa cả `voi` (với), và "với" là tiểu từ cuối câu rất thường gặp. Dùng cờ
+        đó thì "cho mình xem các món lẩu với" mất luôn ràng buộc lọc.
+        """
+        request = ask("Cho mình xem các món lẩu với")
+        self.assertIn("cat_hotpot", request.categories)
+        self.assertFalse(request.loai_mon_la_chu_de)
+
+
+class MaNguonKhongChuaKyTuDieuKhien(unittest.TestCase):
+    """Mã nguồn không được chứa ký tự điều khiển vô hình.
+
+    Vì sao cần một test cho chuyện nghe như không thể xảy ra: nó ĐÃ xảy ra. Một mẫu regex được sinh
+    qua heredoc của Bash, và hai tầng cùng ăn dấu gạch chéo — heredoc thu `\\b` thành `\b`, rồi
+    chuỗi Python không-raw đọc `\b` thành ký tự BACKSPACE (0x08). Kết quả:
+
+        mã nguồn chứa 0x08     mẫu không bao giờ khớp
+        `Read` in ra bình thường   ký tự điều khiển bị che, nên không ai thấy
+        `Edit` không khớp được     vì chuỗi thật khác chuỗi hiển thị
+
+    Một lỗi vô hình với mọi công cụ đọc là lỗi tốn nhiều thời gian nhất, nên nó đáng một test.
+    """
+
+    def test_khong_co_ky_tu_dieu_khien_trong_ai_app(self):
+        goc = Path(__file__).resolve().parent
+        xau = []
+        for path in sorted(goc.rglob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            bad = sorted({c for c in text if ord(c) < 32 and c not in "\n\t"})
+            if bad:
+                xau.append(f"{path.name}: {[hex(ord(c)) for c in bad]}")
+        self.assertFalse(xau, "ký tự điều khiển trong mã nguồn:\n  " + "\n  ".join(xau))

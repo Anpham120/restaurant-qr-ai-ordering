@@ -147,6 +147,14 @@ class Request:
     # Đề bài mục 5: hỏi lại khi câu thật sự mơ hồ là ĐÚNG. Trả một đoạn tri thức cho câu "cho mình
     # món ngon" là trả lời sai câu hỏi, không phải trả lời tốt hơn.
     asks_suggestion: bool = False
+    # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
+    # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
+    asks_difference: bool = False
+    # Tên loại món là CHỦ THỂ của câu hỏi, không phải ràng buộc. Tính đúng MỘT lần ở `understand()`
+    # và đọc ở hai nơi (`understand` bước 6b, `answer.respond` bước 6), vì đây là một bất biến hai
+    # đầu: bỏ danh mục khỏi phép lọc mà vẫn suy `wants` từ danh mục đó thì câu vẫn đi nhánh lọc —
+    # đúng chuyện đã xảy ra khi tôi viết điều kiện này ở riêng `respond()`.
+    loai_mon_la_chu_de: bool = False
     # Hai tập id do bước hợp nhất bộ nhớ điền, KHÔNG do bộ khớp từ vựng điền. `understand()` chỉ
     # nhận ra khách đang tham chiếu; nó không biết khách đã đọc danh sách nào. Tách vai như vậy để
     # `understand()` giữ được tính chất "chỉ đọc câu của lượt này".
@@ -410,9 +418,28 @@ _add("it tien", "require", "price:budget")
 _add("an sang mot bua", "require", "price:high")
 
 # Danh mục.
+#
+# Tên danh mục GHÉP phải tách thành từng từ đơn, vì khách gõ từ đơn.
+# ------------------------------------------------------------------
+# Danh mục `cat_noodle` tên là "Phở & Bún", `cat_main` là "Cơm Việt". Bản đầu chỉ nhận cụm ghép
+# `"pho bun"` và `"com viet"` — thứ không khách nào gõ. Hậu quả đo được trên chính ba câu thử của
+# phép kiểm deploy, tức câu khách thật hỏi nhiều nhất:
+#
+#     "Ở đây có phở không"                    -> knowledge_corpus, 0 thẻ giỏ
+#     "Nhà hàng mình có những món phở gì nhỉ" -> knowledge_corpus, nêu tên 2 món mà KHÔNG bấm được
+#     "Gợi ý cho mình món phở đi"             -> clarify, hỏi lại "món ăn hay đồ uống" (khách ĐÃ nói)
+#
+# Cả ba cùng một gốc: "phở" không nêu được ràng buộc nào, nên `said_something` là False và câu rơi
+# xuống nhánh truy hồi tri thức hoặc hỏi lại — trong khi câu hỏi là câu về THỰC ĐƠN.
+#
+# Điều làm đây thành lỗi rõ ràng chứ không phải lựa chọn thiết kế: **mọi danh mục ghép khác đã tách
+# rồi** — `bia|ruou`, `ca phe|tra`, `nuoc ep|sinh to`, `trang mieng|do ngot`. Đúng hai dòng này sót.
+#
+# An toàn vì bộ khớp đệm khoảng trắng (`" pho "`): "phòng" -> `" phong "` không chứa `" pho "`. Nếu
+# khớp theo chuỗi con thì thêm "pho" là tạo ra một lỗi đụng chữ; xem `DungChuTimDuocBangKiemKe`.
 _add("khai vi", "category", "cat_appetizer")
-_add("pho bun|mon nuoc", "category", "cat_noodle")
-_add("com viet|mon com", "category", "cat_main")
+_add("pho bun|pho|bun|mon nuoc", "category", "cat_noodle")
+_add("com viet|mon com|com", "category", "cat_main")
 _add("lau", "category", "cat_hotpot")
 _add("mon ga", "category", "cat_chicken")
 _add("dac san vung mien", "category", "cat_regional")
@@ -521,6 +548,37 @@ _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien"
 _add("khau phan the nao|khau phan bao nhieu", "knowledge", "portion_timing")
 _add("cho may nguoi an|may nguoi an|an duoc may nguoi|du cho may nguoi|mot phan cho may nguoi",
      "flag", "asks_serving")
+# Hỏi HAI LOẠI món KHÁC NHAU thế nào — câu tri thức, không phải câu lọc.
+#
+# Đây là nhóm cụm phải có ngay sau khi tên loại món ("pho", "bun", "com") thành từ vựng danh mục:
+# cùng một chữ "phở" nay xuất hiện trong hai câu hỏi khác hẳn nhau.
+#
+#   "Ở đây có phở không?"            -> LỌC thực đơn theo cat_noodle   (câu về thực đơn)
+#   "Phở với bún khác nhau thế nào?" -> TRI THỨC về hai loại món       (câu về kiến thức)
+#
+# Không có nhóm này, câu thứ hai nhận một danh sách 6 món — golden bắt được ngay lượt đầu tiên sau
+# khi tôi thêm ba cụm tên món. Cùng lớp với `asks_about_attribute`: **hỏi VỀ một thứ không phải lọc
+# THEO thứ đó**, và đó là lần thứ ba lớp này xuất hiện trong dự án (nhãn, thuộc tính món, nay loại
+# món).
+#
+# `khac cho nao` phải nằm ở đây, và nó sửa một lỗi RIÊNG: cụm `cho nao` một mình ánh xạ vào chính
+# sách `location`, nên "Cơm tấm khác cơm chiên chỗ nào?" từng được trả lời bằng thông tin CHỖ ĐẬU XE.
+# Ca golden của câu đó vẫn XANH, vì tiêu chí chỉ đòi `kind=fact` và độ dài — một ca đạt vì lý do sai,
+# lần thứ năm trong dự án. Cơ chế cụm dài ăn trước làm phần còn lại: `khac cho nao` khớp trước nên
+# `cho nao` không bao giờ được đọc thành địa điểm.
+# Ở ĐÂY chỉ những cụm PHẢI ĂN chữ, vì phần đuôi của chúng có nghĩa khác khi đứng một mình:
+#
+#     "khac cho nao"  -> nếu không ăn, `cho nao` khớp chính sách `location`
+#     "khac o dau"    -> nếu không ăn, `o dau`   khớp chính sách `location`
+#
+# Đó đúng là lỗi đang có: "Cơm tấm khác cơm chiên chỗ nào?" được trả lời bằng thông tin CHỖ ĐẬU XE.
+# Ca golden của nó vẫn XANH vì tiêu chí chỉ đòi `kind=fact` và độ dài — một ca đạt vì lý do sai, lần
+# thứ năm trong dự án.
+#
+# Những cách nói khác ("khác nhau thế nào", "khác gì nhau") KHÔNG ở đây: chúng đã thuộc nhóm
+# `comparison`/`asks_comparison` từ trước, và nhận chúng lần nữa là cụm trùng. Chúng được nhận qua
+# `DIFFERENCE_FRAMING` bên dưới — kiểm trên chuỗi đã rút dấu, đúng khuôn `ATTRIBUTE_DEFINITION_FRAMING`.
+_add("khac cho nao|khac nhau cho nao|khac o dau|khac nhau o dau", "flag", "asks_difference")
 _add("dat nhat|mac nhat", "flag", "priciest")
 _add("re nhat|thap nhat", "flag", "cheapest")
 
@@ -739,6 +797,32 @@ PRICE_ASSERTION_FRAMING = ("dung khong", "phai khong", "co dung", "co phai", "du
 #
 # Xem bước 5d-bis. Câu hỏi VỀ một thuộc tính KHÔNG phải yêu cầu lọc theo thuộc tính đó, và lớp mô
 # hình đã nhầm hai thứ này ở hai lượt golden thật.
+# Cách nói "hai thứ này KHÁC NHAU thế nào" — câu tri thức, không phải câu lọc thực đơn.
+#
+# Vì sao kiểm trên `folded` chứ không thêm vào từ vựng: hai cách nói phổ biến nhất
+# ("khac nhau the nao", "khac gi nhau") ĐÃ thuộc nhóm `comparison` và `asks_comparison` từ trước, và
+# nhận lại là cụm trùng — `_add` sẽ nổ. Kiểm trên chuỗi đã rút dấu thì hai cơ chế sống cạnh nhau
+# được: cụm vẫn giữ nghĩa so sánh cũ, và thêm nghĩa "đây là câu tri thức".
+#
+# KHÔNG dùng `request.is_comparison` cho việc này, dù nghe như đủ. Nhóm `comparison` chứa cả `voi`
+# (với), và "với" là tiểu từ cuối câu rất thường gặp trong tiếng Việt — "tư vấn giúp mình với", "cho
+# mình xem các món lẩu với". Dùng cờ đó thì những câu ấy mất luôn ràng buộc lọc.
+DIFFERENCE_FRAMING = (
+    "khac nhau the nao", "khac nhau nhu the nao", "khac gi nhau", "co gi khac nhau",
+    "phan biet the nao", "khac nhau ra sao", "khac nhau diem nao",
+)
+
+# "khác ... CHỖ NÀO" / "khác ... Ở ĐÂU" = khác nhau ở ĐIỂM nào, không phải ở ĐÂU.
+#
+# Phải là MẪU chứ không phải cụm cố định, vì phần giữa là bất kỳ: "Cơm tấm khác **cơm chiên** chỗ
+# nào?". Tôi đã thử bằng cụm cố định `khac cho nao` trước, và nó không khớp câu thật vì hai chữ ấy
+# không đứng liền nhau — bài học: cụm cố định chỉ nhận được cách nói mà tôi tình cờ viết ra.
+#
+# Hậu quả khi không nhận ra: `cho nao` khớp chính sách `location`, nên câu này được trả lời bằng
+# thông tin CHỖ ĐẬU XE. Ca golden của nó vẫn XANH vì tiêu chí chỉ đòi `kind=fact` và độ dài — một ca
+# đạt vì lý do sai, lần thứ năm trong dự án này.
+KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem nao)\b")
+
 ATTRIBUTE_DEFINITION_FRAMING = (
     "dua tren gi", "dua vao gi", "nghia la gi", "hieu the nao", "tinh the nao", "do the nao",
     "can cu vao", "co nghia gi", "duoc ghi the nao", "ghi nhan the nao",
@@ -889,6 +973,12 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     request.asks_about_named_dish = asks_about_named
     request.declared_avoidance = bool(wants_to_avoid)
 
+    # Nhận "khác ... chỗ nào" TRƯỚC vòng khớp cụm, vì kết quả của nó chặn một ánh xạ trong vòng đó:
+    # `cho nao` không được đọc thành chính sách `location`.
+    khac_vi_tri = bool(KHAC_VI_TRI_RE.search(request.folded))
+    if khac_vi_tri:
+        request.asks_difference = True
+
     # 3. Cụm từ vựng, dài trước ngắn, ăn hết đoạn đã khớp.
     for phrase in VOCAB_ORDER:
         needle = f" {phrase} "
@@ -922,6 +1012,9 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         elif kind == "wants":
             request.wants = str(value)
         elif kind == "policy":
+            # "Cơm tấm khác cơm chiên chỗ nào?" -> `cho nao` KHÔNG phải câu hỏi địa điểm.
+            if value == "location" and khac_vi_tri:
+                continue
             request.policy_topic = request.policy_topic or str(value)
         elif kind == "knowledge":
             # `policy` THẮNG `knowledge` khi cả hai cùng khớp: chủ đề nguyên văn chính xác tuyệt
@@ -950,6 +1043,8 @@ def understand(question: str, menu_items: list[dict]) -> Request:
                 request.asks_comparison = True
             elif value == "asks_suggestion":
                 request.asks_suggestion = True
+            elif value == "asks_difference":
+                request.asks_difference = True
         elif kind == "reference":
             # Cụm đầu tiên khớp thắng. Cụm dài được khớp trước nên "món thứ hai" thắng "món đó",
             # và không cần thứ tự ưu tiên riêng ở đây.
@@ -1048,6 +1143,11 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # `mon nao` / `co mon nao` là dấu của câu đòi ứng viên, nên nó loại trừ cờ này. Không có phép
     # loại trừ đó thì "Có món nào không cay không?" — một câu lọc thật — cũng bị coi là câu hỏi về
     # thuộc tính, và đó là hỏng nặng hơn lỗi đang sửa.
+    # Câu "hai loại này khác nhau thế nào" là câu TRI THỨC. Đặt cờ ở đây, cạnh phép nhận diện
+    # cùng loại, để hai cơ chế đọc cùng một khuôn: kiểm cách NÓI trên chuỗi đã rút dấu.
+    if any(c in request.folded for c in DIFFERENCE_FRAMING):
+        request.asks_difference = True
+
     hoi_dinh_nghia = any(c in request.folded for c in ATTRIBUTE_DEFINITION_FRAMING)
     doi_ung_vien = any(c in request.folded for c in CANDIDATE_FRAMING)
     if not doi_ung_vien and (hoi_dinh_nghia or (request.refers_to_focus and " khong" in f" {request.folded}")):
@@ -1077,8 +1177,18 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     ):
         request.wants = "food"
 
+    # `< 2` chứ không phải `not`: khách nêu ĐÚNG HAI món cụ thể thì nhánh so sánh hai món xử lý được
+    # (nó nêu dữ kiện cả hai). Nêu một hoặc không nêu món nào thì câu đang hỏi về LOẠI, và loại thì
+    # phải trả lời bằng tri thức — "Cơm tấm khác cơm chiên chỗ nào?" chỉ giải ra được MỘT tên món,
+    # vì "cơm chiên" là kiểu chứ không phải món trong thực đơn.
+    request.loai_mon_la_chu_de = request.asks_difference and len(request.named_items) < 2
+
     # 6b. Danh mục đã nêu ngầm định món ăn hay đồ uống, nếu khách chưa nói rõ.
-    if request.wants == "any" and request.categories:
+    #
+    # KHÔNG suy khi tên loại món là chủ thể câu hỏi: "Phở với bún khác nhau thế nào?" nêu `cat_noodle`,
+    # và suy ra `wants=food` từ đó làm câu có "ràng buộc khách nêu" nên nó đi nhánh LỌC — trả 6 món
+    # cho một câu hỏi kiến thức.
+    if request.wants == "any" and request.categories and not request.loai_mon_la_chu_de:
         if all(c in DRINK_CATEGORIES for c in request.categories):
             request.wants = "drink"
         elif all(c in FOOD_CATEGORIES for c in request.categories):

@@ -54,22 +54,26 @@ jobs:
       AI_SERVICE_URL: http://127.0.0.1:8002
       AI_SERVICE_PORT: "8002"
       AI_INTERNAL_TOKEN: ${{ secrets.AI_INTERNAL_TOKEN }}
-      LLM_PROVIDER: 9router
       LLM_BASE_URL: ${{ vars.NINE_ROUTER_BASE_URL || 'http://127.0.0.1:20128/v1' }}
       LLM_API_KEY: ${{ secrets.NINE_ROUTER_API_KEY }}
       LLM_MODEL: cx/gpt-5.6-luna-review
-      # Single-model deployment: there is no fallback model.  Leave this empty —
-      # the AI service reports fallback_model=null whenever fallback is disabled,
-      # so naming a model here makes the deployment claim a fallback it will never
-      # call and fails the readiness contract in deploy/scripts/health-check.sh.
-      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
+      # 30 giây, và phải nhỏ hơn BACKEND_AI_TIMEOUT_SECONDS (50) để backend còn nhận được câu
+      # thoái hóa thay vì tự hết hạn trước.  DeploymentConfigurationTests canh quan hệ đó.
       LLM_TIMEOUT_SECONDS: "30"
-      AI_REQUEST_BUDGET_SECONDS: "45"
-      AI_PIPELINE_PROFILE: ${{ vars.AI_PIPELINE_PROFILE }}
-      RAG_TOP_K: "5"
-      RAG_RETRIEVAL_METHOD: hybrid
-      AI_LLM_FIRST: "true"
+      # Bảy biến vừa RA khỏi khối này: LLM_PROVIDER, LLM_RATE_LIMIT_FALLBACK_MODEL,
+      # LLM_RATE_LIMIT_FALLBACK_ENABLED, AI_REQUEST_BUDGET_SECONDS, AI_PIPELINE_PROFILE,
+      # RAG_TOP_K, RAG_RETRIEVAL_METHOD, AI_LLM_FIRST.
+      #
+      # Không mô-đun nào của bản dựng lại đọc chúng, và ba cái nói SAI về hệ thống:
+      # RAG_RETRIEVAL_METHOD nói `hybrid` trong khi bộ truy hồi thật là `embedding` (và nó do
+      # requirements.txt quyết định, không do biến); AI_LLM_FIRST nói về một khái niệm không còn.
+      #
+      # AI_PIPELINE_PROFILE là cái nguy hiểm nhất, nên nó phải đi: ChatAiProvider.ReadPipelineProfile()
+      # NÉM LỖI với mọi giá trị không thuộc ba tên profile cũ.  Đặt cho nó một tên của hệ thống mới
+      # là làm sập mọi lượt chat.  Không truyền thì hàm đó trả mặc định và không bao giờ ném.
+      #
+      # `ai/app/test_packaging.py::ComposeChiTruyenBienDichVuTHATSUDoc` canh khối tương ứng trong
+      # docker-compose theo CẢ HAI chiều, nên biến chết không quay lại được mà không ai thấy.
       CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL || '' }}
       BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
       BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}
@@ -127,6 +131,6 @@ jobs:
             echo "- Staff portal: https://staff.cmcrestaurant.app"
             echo "- Kitchen board: https://kitchen.cmcrestaurant.app"
             echo "- API health: https://api.cmcrestaurant.app/api/health"
-            echo "- Pipeline profile: ${AI_PIPELINE_PROFILE}"
+            echo "- AI retriever: $(python ai/evaluation/verify_deploy_config.py --chi-bo-truy-hoi)"
             echo "- Result: workflow reached post-deploy summary"
           } >> "$GITHUB_STEP_SUMMARY"

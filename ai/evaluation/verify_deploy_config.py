@@ -81,7 +81,22 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--moi-truong", default="", help="tên môi trường, chỉ để in ra")
+    p.add_argument(
+        "--chi-bo-truy-hoi",
+        action="store_true",
+        help="in ĐÚNG tên bộ truy hồi sắp deploy rồi thoát, không kiểm gì",
+    )
     args = p.parse_args(argv)
+
+    # Chế độ in một dòng, cho báo cáo deploy.
+    #
+    # Vì sao cần: hai workflow deploy từng in `- Pipeline profile: ${AI_PIPELINE_PROFILE}` — một biến
+    # của hệ thống cũ mà không mô-đun nào đọc, nên dòng báo cáo đó nói về thứ không tồn tại. Thay
+    # bằng thứ THẬT quyết định chất lượng truy hồi, và lấy từ cùng một hàm mà cổng dùng, để dòng báo
+    # cáo không thể lệch khỏi thứ sắp chạy.
+    if args.chi_bo_truy_hoi:
+        print(bo_truy_hoi_se_deploy())
+        return 0
 
     sys.path.insert(0, str(HERE))
     import results  # noqa: E402

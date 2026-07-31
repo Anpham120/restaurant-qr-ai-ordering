@@ -612,6 +612,128 @@ class KhongTepBiMatNaoLotVaoANH(unittest.TestCase):
         )
 
 
+class ComposeChiTruyenBienDichVuTHATSUDoc(unittest.TestCase):
+    """`docker-compose.yml` không được nói SAI về hệ thống — theo CẢ HAI chiều.
+
+    Vì sao test này tồn tại
+    -----------------------
+    Khối `environment` của `ai-service` từng truyền **11 biến mà bản dựng lại không đọc**, và ba
+    trong số đó không chỉ chết mà còn NÓI SAI:
+
+        RAG_RETRIEVAL_METHOD: hybrid              bộ truy hồi thật là `embedding`
+        RAG_KNOWLEDGE_BASE_PATH: knowledge-base   thư mục đó không còn tồn tại
+        AI_LLM_FIRST: true                        khái niệm đó không còn
+
+    Người vận hành đọc compose để biết hệ thống chạy thế nào, nên một biến chết mời họ điều chỉnh
+    một cái núm không nối vào đâu, rồi kết luận sai khi không thấy tác dụng. Đây cùng lớp với hai
+    tài liệu của hệ thống cũ phải dán nhãn LỊCH SỬ: **mô tả sai hiện trạng còn tệ hơn không mô tả**,
+    vì nó được tin.
+
+    Kiểm hai chiều, vì chiều nào cũng có hậu quả thật
+    ------------------------------------------------
+        compose truyền mà không ai đọc   ->  cấu hình nói sai, núm không nối vào đâu
+        mã đọc mà compose không truyền   ->  container chạy với mặc định lập trình viên,
+                                             và không ai thấy vì mặc định vẫn chạy được
+
+    Chiều thứ hai đúng là lỗi đã xảy ra: `AI_EMBEDDING_CACHE` chỉ được đặt trong Dockerfile, và một
+    thời gian đệm vector trượt im lặng — khởi động 61,9s thay vì 19,0s trong khi log báo thành công.
+    """
+
+    COMPOSE = REPO_ROOT / "deploy" / "docker-compose.yml"
+
+    # Biến đặt ở Dockerfile hoặc do hạ tầng dùng, nên compose KHÔNG cần truyền lại.
+    #
+    # Mỗi tên ở đây là một ngoại lệ có lý do, không phải một chỗ để nhét cho test xanh: thêm tên vào
+    # danh sách này mà không có lý do là cách vô hiệu hóa chính test này.
+    NGOAI_LE_KHONG_CAN_TRUYEN = {
+        "AI_EMBEDDING_CACHE",  # Dockerfile đặt, trỏ vào đường dẫn TRONG ảnh
+        "AI_REQUIRE_SERVICE_TESTS",  # chỉ CI đặt, để chặn test bị bỏ qua âm thầm
+        "HF_HOME",  # Dockerfile đặt
+        "HF_HUB_OFFLINE",
+        "TRANSFORMERS_OFFLINE",
+    }
+
+    # Biến compose truyền cho hạ tầng, không cho mã Python.
+    NGOAI_LE_KHONG_CAN_DOC = {
+        "AI_SERVICE_HOST",  # `CMD` của Dockerfile truyền vào uvicorn
+        "AI_SERVICE_PORT",
+        "OMP_NUM_THREADS",  # torch đọc lúc import, không qua mã của dự án
+    }
+
+    def _bien_compose_truyen(self) -> set[str]:
+        """Tên biến trong khối `environment` của dịch vụ `ai-service`.
+
+        Quét theo DÒNG, không `split` theo chuỗi con. Bản đầu viết
+        `text.split("  ai-service:")` và nó khớp dòng `      ai-service:` nằm trong `depends_on:`
+        của dịch vụ `api` — tức bóc sai khối và trả về biến của dịch vụ khác. `test_bo_do_bat_duoc_that`
+        bắt đúng chuyện đó, và đây là lần thứ hai trong dự án một bộ phân tích tự viết đọc sai định
+        dạng rồi báo kết quả trông hợp lý (lần trước: `from X import Y` bị đếm thành hai import).
+        """
+        lines = self.COMPOSE.read_text(encoding="utf-8").splitlines()
+        try:
+            i = lines.index("  ai-service:")
+        except ValueError:
+            self.fail("không tìm được dòng `  ai-service:` trong compose")
+
+        ra: set[str] = set()
+        trong_env = False
+        for line in lines[i + 1 :]:
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if re.match(r"^  \S", line):  # sang dịch vụ kế tiếp
+                break
+            if line == "    environment:":
+                trong_env = True
+                continue
+            if trong_env:
+                if not line.startswith("      "):  # hết khối environment
+                    trong_env = False
+                    continue
+                khop = re.match(r"^ {6}([A-Za-z][A-Za-z0-9_]*):", line)
+                if khop:
+                    ra.add(khop.group(1))
+        return ra
+
+    def _bien_ma_doc(self) -> set[str]:
+        """Tên biến mà mã trong `ai/app` đọc, kể cả qua `ENV_KEYS` của `load_env`."""
+        ra: set[str] = set()
+        for path in sorted(APP_DIR.rglob("*.py")):
+            if path.name.startswith("test_"):
+                continue
+            text = path.read_text(encoding="utf-8")
+            ra |= set(re.findall(r'environ(?:\.get)?[\(\[]\s*"([A-Z][A-Z0-9_]*)"', text))
+
+        from llm_understand import ENV_KEYS
+
+        return ra | set(ENV_KEYS)
+
+    def test_bo_do_bat_duoc_that(self):
+        """Bộ bóc rỗng thì hai test dưới xanh vì KHÔNG KIỂM GÌ — lớp lỗi đã xảy ra một lần."""
+        truyen = self._bien_compose_truyen()
+        doc = self._bien_ma_doc()
+        self.assertIn("LLM_MODEL", truyen, f"bộ bóc compose sai? chỉ thấy {sorted(truyen)}")
+        self.assertIn("AI_INTERNAL_TOKEN", truyen)
+        self.assertIn("LLM_API_KEY", doc, f"bộ bóc mã sai? chỉ thấy {sorted(doc)}")
+        self.assertIn("AI_ENABLE_GENERATION", doc)
+
+    def test_khong_truyen_bien_nao_ma_khong_ai_doc(self):
+        thua = self._bien_compose_truyen() - self._bien_ma_doc() - self.NGOAI_LE_KHONG_CAN_DOC
+        self.assertFalse(
+            thua,
+            f"compose truyền {sorted(thua)} cho ai-service nhưng KHÔNG mô-đun nào đọc. Biến chết "
+            "làm cấu hình nói sai về hệ thống — bỏ nó đi, hoặc nếu nó dành cho hạ tầng thì thêm "
+            "vào NGOAI_LE_KHONG_CAN_DOC kèm lý do.",
+        )
+
+    def test_khong_doc_bien_nao_ma_compose_khong_truyen(self):
+        thieu = self._bien_ma_doc() - self._bien_compose_truyen() - self.NGOAI_LE_KHONG_CAN_TRUYEN
+        self.assertFalse(
+            thieu,
+            f"mã đọc {sorted(thieu)} nhưng compose không truyền — container sẽ chạy với mặc định "
+            "trong mã, và không ai thấy vì mặc định vẫn chạy được.",
+        )
+
+
 class ThuVienPhaiCoKhiCIYEUCAU(unittest.TestCase):
     """Chặn việc phép kiểm điểm vào bị bỏ qua âm thầm trong CI."""
 
