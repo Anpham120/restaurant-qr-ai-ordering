@@ -262,6 +262,15 @@ def main(argv: list[str] | None = None) -> int:
     #
     # MỘT tệp cho MỖI nhóm split, vì hai nhóm trả lời hai câu hỏi khác nhau — "phát triển" là tập đã
     # sửa theo, "niêm phong" mở đúng một lần. Ghi chung thì lần chạy sau xóa bằng chứng của nhóm kia.
+    #
+    # KHÔNG ghi khi thiếu embedding. Một lần chạy chỉ có BM25 sẽ ghi đè bằng chứng có cả ba bộ bằng một
+    # bản nghèo hơn — và báo cáo sau đó in một bảng so sánh **thiếu hai phương pháp** mà vẫn trông như
+    # một bảng đầy đủ. Cùng lỗi đã làm CI đỏ ở bộ so toàn kho: một lần chạy HẸP ghi đè kết quả RỘNG.
+    if len(retrievers) < 3:
+        print(f"\nKHÔNG ghi bằng chứng: chỉ có {len(retrievers)} bộ ({', '.join(retrievers)}), cần 3.")
+        print("  Bằng chứng đã commit rộng hơn lần chạy này, nên ghi đè là làm nó nghèo đi.")
+        return 0
+
     import results
 
     duong = results.ghi(

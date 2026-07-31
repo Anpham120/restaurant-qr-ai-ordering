@@ -1074,18 +1074,25 @@ python ai/docs/build_bao_cao_do_an.py
 
 ## Phụ lục C: Cấu trúc mã nguồn
 
-Đọc từ hệ thống tệp lúc sinh báo cáo, nên nó không thể lệch khỏi repo.
+Mọi mô-đun nhắc dưới đây được **đối chiếu với hệ thống tệp** lúc sinh báo cáo — một tên
+không tồn tại là sinh thất bại. Không in số dòng, có chủ ý: số dòng đổi mỗi lần sửa mã,
+nên nó biến `--check` thành một phép kiểm quá nhạy, và một phép kiểm quá nhạy sẽ bị bỏ.
 
-| Thư mục | Số tệp | Tổng dòng | Vai trò |
-|---|---:|---:|---|
-| `ai/app` | 20 | 9.359 | mã lúc chạy — hiểu câu hỏi. trả lời. thẻ giỏ. sinh có xác minh |
-| `ai/app/rag` | 7 | 1.036 | ba bộ truy hồi. chia đoạn. tính sẵn vector |
-| `ai/evaluation` | 33 | 19.053 | bốn tập đánh giá. thước đo. bộ so. phân tích nguyên nhân |
-| `ai/knowledge` | 0 | 0 | kho tri thức markdown — nguồn của mọi câu trả lời tri thức |
-| `ai/scripts` | 8 | 3.448 | bộ sinh dữ liệu. tất cả có `--check` trong CI |
-| `ai/notebooks` | 2 | 8.146 | notebook giảng dạy + báo cáo. mọi ô tự tính lại |
-| `ai/docs` | 10 | 5.010 | tài liệu từng bước và báo cáo đồ án (tệp này sinh ra) |
-| `ai/contracts` | 1 | 210 | lược đồ JSON của hợp đồng với backend |
+| Thư mục | Vai trò | Mô-đun chính |
+|---|---|---|
+| `ai/app` | mã lúc chạy — không tệp nào ở đây phụ thuộc bộ đo | `understand.py`, `answer.py`, `generate.py`, `cart.py`, `session.py`, `llm_understand.py`, `service.py` |
+| `ai/app/rag` | ba bộ truy hồi và tầng chia đoạn | `bm25.py`, `embedding.py`, `hybrid.py`, `chunker.py`, `precompute.py` |
+| `ai/evaluation` | bốn tập đánh giá, thước đo, bộ so, phân tích nguyên nhân | `cases.json`, `session_scripts.json`, `retrieval_cases.json`, `chunk_selection_cases.json`, `golden_e2e.json`, `answer_metric.py`, `run_baseline.py`, `run_session_eval.py`, `run_retrieval_comparison.py`, `run_chunk_selection_comparison.py`, `run_llm_rag_eval.py`, `run_golden_e2e.py`, `analyze_failures.py`, `results.py`, `verify_deploy_config.py` |
+| `ai/knowledge` | kho tri thức markdown — nguồn của mọi câu trả lời tri thức | 108 tài liệu markdown |
+| `ai/scripts` | bộ sinh dữ liệu, tất cả có `--check` trong CI | `build_tag_dictionary.py`, `build_knowledge.py`, `build_retrieval_cases.py`, `build_chunk_selection_cases.py` |
+| `ai/notebooks` | notebook giảng dạy + báo cáo, mọi ô tự tính lại | `build_teaching_notebook.py` |
+| `ai/docs` | tài liệu từng bước, và bộ sinh của báo cáo này | `build_bao_cao_do_an.py` |
+| `ai/contracts` | lược đồ JSON của hợp đồng với backend | `ai-chat-v1.schema.json` |
+
+**Một chiều phụ thuộc được ép:** `ai/evaluation` được import `ai/app`, nhưng KHÔNG chiều
+ngược lại. Mã lúc chạy không được phụ thuộc bộ đo, vì bộ đo không có mặt trong ảnh Docker.
+Chỗ hai bên cần cùng một danh sách — các cụm mở đường hỏi nhân viên — thì mỗi bên khai
+riêng và **một test đối chiếu chúng**, thay vì import chéo.
 
 ## Phụ lục D: Ma trận chỉ số đầy đủ
 

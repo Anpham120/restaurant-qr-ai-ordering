@@ -247,34 +247,78 @@ def phu_luc_b() -> str:
 
 # ----------------------------------------------------------------- Phụ lục C: cấu trúc mã
 def phu_luc_c(b: Bang) -> str:
-    """Cấu trúc mã nguồn ĐỌC TỪ HỆ THỐNG TỆP, không viết tay."""
+    """Cấu trúc mã nguồn: mô tả VAI TRÒ, và kiểm mọi mô-đun được nhắc là CÓ THẬT.
+
+    Vì sao KHÔNG đếm số dòng
+    ------------------------
+    Bản đầu của phụ lục này in "số tệp / tổng dòng" cho mỗi thư mục. Hậu quả: **mọi lần sửa một dòng
+    mã đều làm báo cáo lạc hậu**, nên `--check` trong CI đỏ cho bất kỳ PR chạm vào `ai/`. Ma sát đó
+    không đổi lấy gì — số dòng là trang trí, và nó tạo cảm giác chính xác giả.
+
+    Kết cục dễ đoán của ma sát vô ích: người ta bỏ chạy bộ sinh, hoặc bỏ luôn bước `--check`. Tức một
+    phép kiểm quá nhạy tự làm mình bị vô hiệu.
+
+    Nên phụ lục này mô tả **cấu trúc** — thư mục nào làm gì, mô-đun nào chịu trách nhiệm gì — và nó
+    chỉ đổi khi **kiến trúc** đổi, đúng lúc báo cáo *nên* đổi. Điều được kiểm là mọi mô-đun được nhắc
+    **tồn tại**, vì đó là thứ có thể sai và có hậu quả.
+    """
+    CAU_TRUC: list[tuple[str, str, list[str]]] = [
+        ("ai/app", "mã lúc chạy — không tệp nào ở đây phụ thuộc bộ đo", [
+            "understand.py", "answer.py", "generate.py", "cart.py", "session.py",
+            "llm_understand.py", "service.py",
+        ]),
+        ("ai/app/rag", "ba bộ truy hồi và tầng chia đoạn", [
+            "bm25.py", "embedding.py", "hybrid.py", "chunker.py", "precompute.py",
+        ]),
+        ("ai/evaluation", "bốn tập đánh giá, thước đo, bộ so, phân tích nguyên nhân", [
+            "cases.json", "session_scripts.json", "retrieval_cases.json",
+            "chunk_selection_cases.json", "golden_e2e.json",
+            "answer_metric.py", "run_baseline.py", "run_session_eval.py",
+            "run_retrieval_comparison.py", "run_chunk_selection_comparison.py",
+            "run_llm_rag_eval.py", "run_golden_e2e.py", "analyze_failures.py",
+            "results.py", "verify_deploy_config.py",
+        ]),
+        ("ai/knowledge", "kho tri thức markdown — nguồn của mọi câu trả lời tri thức", []),
+        ("ai/scripts", "bộ sinh dữ liệu, tất cả có `--check` trong CI", [
+            "build_tag_dictionary.py", "build_knowledge.py",
+            "build_retrieval_cases.py", "build_chunk_selection_cases.py",
+        ]),
+        ("ai/notebooks", "notebook giảng dạy + báo cáo, mọi ô tự tính lại", [
+            "build_teaching_notebook.py",
+        ]),
+        ("ai/docs", "tài liệu từng bước, và bộ sinh của báo cáo này", [
+            "build_bao_cao_do_an.py",
+        ]),
+        ("ai/contracts", "lược đồ JSON của hợp đồng với backend", [
+            "ai-chat-v1.schema.json",
+        ]),
+    ]
+    thieu = [
+        f"{d}/{m}" for d, _, mods in CAU_TRUC for m in mods
+        if not (REPO_ROOT / d / m).exists()
+    ]
+    if thieu:
+        raise FileNotFoundError(
+            "Phụ lục C nhắc những mô-đun KHÔNG TỒN TẠI: " + ", ".join(thieu)
+            + "\nSửa `CAU_TRUC` trong `build_bao_cao_do_an.py`, hoặc khôi phục tệp. Bản trước của báo"
+            " cáo có cả một phụ lục trỏ vào tệp đã xóa và không ai phát hiện."
+        )
+
     ra = ["## Phụ lục C: Cấu trúc mã nguồn", ""]
-    ra.append("Đọc từ hệ thống tệp lúc sinh báo cáo, nên nó không thể lệch khỏi repo.")
+    ra.append("Mọi mô-đun nhắc dưới đây được **đối chiếu với hệ thống tệp** lúc sinh báo cáo — một tên")
+    ra.append("không tồn tại là sinh thất bại. Không in số dòng, có chủ ý: số dòng đổi mỗi lần sửa mã,")
+    ra.append("nên nó biến `--check` thành một phép kiểm quá nhạy, và một phép kiểm quá nhạy sẽ bị bỏ.")
     ra.append("")
-    ra.append("| Thư mục | Số tệp | Tổng dòng | Vai trò |")
-    ra.append("|---|---:|---:|---|")
-    VAI_TRO = {
-        "ai/app": "mã lúc chạy — hiểu câu hỏi, trả lời, thẻ giỏ, sinh có xác minh",
-        "ai/app/rag": "ba bộ truy hồi, chia đoạn, tính sẵn vector",
-        "ai/evaluation": "bốn tập đánh giá, thước đo, bộ so, phân tích nguyên nhân",
-        "ai/knowledge": "kho tri thức markdown — nguồn của mọi câu trả lời tri thức",
-        "ai/scripts": "bộ sinh dữ liệu, tất cả có `--check` trong CI",
-        "ai/notebooks": "notebook giảng dạy + báo cáo, mọi ô tự tính lại",
-        "ai/docs": "tài liệu từng bước và báo cáo đồ án (tệp này sinh ra)",
-        "ai/contracts": "lược đồ JSON của hợp đồng với backend",
-    }
-    for d, vai in VAI_TRO.items():
-        p = REPO_ROOT / d
-        if not p.exists():
-            continue
-        tep = [f for f in p.iterdir() if f.is_file() and f.suffix in {".py", ".md", ".json", ".ipynb"}]
-        dong = 0
-        for f in tep:
-            try:
-                dong += len(f.read_text(encoding="utf-8-sig").splitlines())
-            except Exception:  # noqa: BLE001 — tệp nhị phân không tính, không làm sinh thất bại
-                pass
-        ra.append(f"| `{d}` | {len(tep)} | {dong:,} | {vai} |".replace(",", "."))
+    ra.append("| Thư mục | Vai trò | Mô-đun chính |")
+    ra.append("|---|---|---|")
+    for d, vai, mods in CAU_TRUC:
+        m = ", ".join(f"`{x}`" for x in mods) if mods else f"{len(b.docs)} tài liệu markdown"
+        ra.append(f"| `{d}` | {vai} | {m} |")
+    ra.append("")
+    ra.append("**Một chiều phụ thuộc được ép:** `ai/evaluation` được import `ai/app`, nhưng KHÔNG chiều")
+    ra.append("ngược lại. Mã lúc chạy không được phụ thuộc bộ đo, vì bộ đo không có mặt trong ảnh Docker.")
+    ra.append("Chỗ hai bên cần cùng một danh sách — các cụm mở đường hỏi nhân viên — thì mỗi bên khai")
+    ra.append("riêng và **một test đối chiếu chúng**, thay vì import chéo.")
     return "\n".join(ra)
 
 
