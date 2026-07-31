@@ -507,9 +507,27 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
             add("knowledge_chunk_present", False,
                 f"ca đòi tri thức chủ đề {chunk_topic!r} nhưng kho không có đoạn nào")
         else:
+            # So với BẢN DÀNH CHO KHÁCH của đoạn, không với `c.text` thô.
+            #
+            # `c.text` mang tiền tố "{tiêu đề tài liệu} — {tiêu đề mục}" và dấu `**` của markdown.
+            # Tiền tố đó có chủ ý — nó làm đoạn tự đủ ngữ cảnh KHI TRUY HỒI — nhưng nó chưa bao giờ
+            # dành để hiển thị. `answer.chu_cho_khach()` bỏ nó cùng markdown trước khi trả cho khách.
+            #
+            # So với chuỗi thô thì thước đo đòi câu trả lời phải chứa cả cái nhan đề, tức nó ép hệ
+            # thống hiển thị đúng thứ không nên hiển thị. Đo được: 10 ca đỏ ngay khi phần làm sạch
+            # được thêm, và cả 10 là câu trả lời ĐÚNG.
+            #
+            # Chuẩn hóa CẢ HAI PHÍA bằng ĐÚNG MỘT hàm không làm yếu phép kiểm: nó vẫn là phép so
+            # chuỗi con chính xác, nên một câu do mô hình diễn đạt lại vẫn không trùng. Điều nó bỏ đi
+            # chỉ là yêu cầu về trình bày — thứ không thuộc về phép kiểm này.
+            #
+            # Import từ `ai/app`: hướng này được phép (bộ đo dùng mã lúc chạy). Hướng ngược lại thì
+            # không — xem `generate.STAFF_PHRASES`.
+            from answer import chu_cho_khach
+
             sach = normalise_spaces(strip_accents(text))
             trung = [c for c in kho
-                     if normalise_spaces(strip_accents(" ".join(c.text.split()))) in sach]
+                     if normalise_spaces(strip_accents(chu_cho_khach(c))) in sach]
             add(
                 "knowledge_chunk_quoted",
                 bool(trung),

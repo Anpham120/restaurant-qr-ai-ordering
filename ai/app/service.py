@@ -42,6 +42,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import uuid
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -98,7 +99,18 @@ class MenuCache:
         except (OSError, ValueError, KeyError) as exc:
             self.items = []
             self.category_names = {}
-            self.error = f"{type(exc).__name__}: {exc}"
+            # TÊN LOẠI ra ngoài, CHI TIẾT vào log.
+            #
+            # `self.error` đi vào `/ready.menu_error`, và `/ready` KHÔNG đòi token — bất kỳ ai tới
+            # được cổng 8001 đều đọc được. Phần `{exc}` của `OSError` chứa ĐƯỜNG DẪN TỆP trên máy
+            # chủ, nên chuỗi đầy đủ là rò rỉ thật. CodeQL báo đúng.
+            #
+            # Không bỏ trường đi: mất trường là mất khả năng chẩn đoán, và `/v1/cache/invalidate` trả
+            # số món SAU khi nạp chính vì "trả {ok: true} thì một lần nạp thất bại nhìn giống một lần
+            # thành công". Tên loại đủ để phân biệt `FileNotFoundError` với `JSONDecodeError` với
+            # `KeyError` — tức đủ để biết phải sửa gì — mà không mang đường dẫn nào.
+            self.error = type(exc).__name__
+            print(f"[menu] nạp thất bại: {type(exc).__name__}: {exc}", flush=True)
 
 
 MENU = MenuCache()
@@ -452,6 +464,21 @@ def chat(turn: ChatTurnIn) -> dict[str, Any]:
     try:
         return _run_turn(turn)
     except Exception as exc:  # noqa: BLE001 — xem docstring
+        # TÊN LOẠI + MÃ THAM CHIẾU ra ngoài, CHI TIẾT đầy đủ vào log.
+        #
+        # Chỗ này khác `/ready` ở mức nguy hiểm: nó đòi token nội bộ, và backend KHÔNG chuyển tiếp
+        # `decision` cho khách (`SendChatMessageResponse` không có trường đó). Nên chi tiết chỉ tới
+        # một bên gọi đã xác thực.
+        #
+        # Vẫn sửa, vì "chỉ tới bên đã xác thực" là một lớp bảo vệ dựa vào cấu hình, không dựa vào cấu
+        # trúc: `AI_INTERNAL_TOKEN` bị đặt sai hay backend bị đổi để chuyển tiếp `decision` thì rò rỉ
+        # ngay, và không phép kiểm nào đỏ. Mã tham chiếu bỏ được cả đường đó mà không mất gì:
+        # người vận hành tra mã trong log của dịch vụ AI và thấy nguyên vẹn chi tiết.
+        #
+        # Điều KHÔNG đổi, và nó là cam kết cũ của dự án: chi tiết lỗi không bao giờ vào `content` —
+        # khách vẫn nhận đúng câu "mình chưa có dữ liệu, bạn hỏi nhân viên giúp nhé".
+        ma = uuid.uuid4().hex[:8]
+        print(f"[chat] lỗi nội bộ ref={ma}: {type(exc).__name__}: {exc}", flush=True)
         return {
             "ok": False,
             "provider_available": False,
@@ -461,7 +488,7 @@ def chat(turn: ChatTurnIn) -> dict[str, Any]:
             "suggest_staff_handoff": True,
             "session_updates": {},
             "decision": {"kind": "no_data", "branch": "internal_error",
-                         "error": f"{type(exc).__name__}: {exc}"},
+                         "error": f"{type(exc).__name__} ref={ma}"},
         }
 
 

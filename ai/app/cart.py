@@ -53,8 +53,30 @@ from understand import Request
 # mặc định KHÔNG có thẻ, và người thêm phải chủ động nghĩ xem nó có nên có.
 BRANCHES_WITH_CART = ("filter", "compare", "item_detail", "extreme", "price_lookup")
 
-# Số thẻ tối đa. Giỏ gợi ý dài hơn thế thì khách không đọc, và nó biến câu tư vấn thành danh mục.
-MAX_CART_ACTIONS = 3
+# Số thẻ tối đa = số món câu trả lời NÊU RA. Lấy từ `answer.LIST_SIZE`, không viết lại con số.
+#
+# Vì sao: hai hằng số này PHẢI khớp, và chúng đã lệch — 3 thẻ cho 6 món được nêu
+# -----------------------------------------------------------------------------
+# Bản trước đặt `MAX_CART_ACTIONS = 3` với lý lẽ "giỏ gợi ý dài hơn thế thì khách không đọc, và nó
+# biến câu tư vấn thành danh mục". Lý lẽ đó hợp lý — nhưng nó áp cho SỐ THẺ mà không áp cho SỐ MÓN
+# ĐƯỢC NÊU, và `answer.LIST_SIZE` là 6.
+#
+# Hậu quả đo được khi hỏi stack thật: câu trả lời nêu Bánh mì pate, Cháo lòng, Gỏi cuốn chay, Đậu hũ
+# sốt cà chua, Cơm chiên chay ngũ sắc, Xôi gà Hà Nội — **sáu món** — còn thẻ giỏ có **ba**. Khách đọc
+# sáu lựa chọn và bấm chọn được ba; ba món còn lại phải gõ tay.
+#
+# Đây là dạng NHẸ của đúng vấn đề "trả lời một kiểu, thẻ giỏ một kiểu", và golden KHÔNG bắt được nó:
+# bất biến thẻ giỏ đòi *thẻ ⊆ món được nêu*, không đòi chiều ngược lại. Một bất biến một chiều thì
+# im lặng với chiều còn lại.
+#
+# Vì sao nâng thẻ lên 6 thay vì hạ số món xuống 3: `LIST_SIZE = 6` được chọn vì "ca đòi nhiều nhất là
+# 5 món", nên hạ xuống 3 làm hỏng những ca đó. Giữa hai hằng số, cái có căn cứ đo được thì giữ.
+#
+# Cái giá phải nói ra: 6 thẻ dài hơn 3 trên điện thoại. Nhưng nó thẳng thắn — khách thấy đúng số
+# lựa chọn mình đọc được, thay vì thấy sáu rồi bấm được ba.
+from answer import LIST_SIZE  # noqa: E402  (không có vòng: `answer` không import `cart`)
+
+MAX_CART_ACTIONS = LIST_SIZE
 
 _TAG_VI = {
     "spice:none": "không cay", "spice:mild": "cay nhẹ", "spice:medium": "cay vừa",

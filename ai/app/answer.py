@@ -27,6 +27,8 @@ Nhánh 6 sinh ra câu hỏi lại khi khách chưa nói gì đủ để lọc. H
 """
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field, replace
 
 from pathlib import Path
@@ -133,6 +135,82 @@ _SERVING_VI = {
 }
 
 
+_MARKDOWN_NHAN_MANH = re.compile(r"\*\*|__|`")
+_GACH_DAU_DONG = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
+
+
+def chu_cho_khach(chunk) -> str:
+    """Đoạn tri thức, viết lại cho KHÁCH ĐỌC. Không đổi nội dung, chỉ đổi cách trình bày.
+
+    Vì sao cần: đoạn được trích ra là dán THÔ trước khi có hàm này
+    -------------------------------------------------------------
+    Hỏi stack thật "Phở với bún khác nhau thế nào?" và khách nhận:
+
+        Phở, bún, mì, hủ tiếu — khác nhau thế nào — Khác nhau ở SỢI, không ở nước dùng Người mới
+        thường nghĩ các món nước Việt khác nhau ở nước dùng. Thực tế điều phân biệt chúng trước
+        tiên là **sợi**: - **Phở** — sợi dẹt, mềm, làm từ gạo. Nước dùng trong. - **Bún** — ...
+
+    Nội dung ĐÚNG. Trình bày thì sai ba chỗ, và cả ba đến từ `" ".join(text.split())`:
+
+        1. tên tài liệu + tiêu đề mục dính vào đầu câu ("Phở, bún, mì, hủ tiếu — khác nhau thế nào
+           — Khác nhau ở SỢI...") — khách hỏi một câu và nhận về một cái nhan đề
+        2. dấu `**` của markdown lọt nguyên vào chữ khách đọc
+        3. gạch đầu dòng bị nối thành một đoạn dài, nên "- **Phở** — sợi dẹt" thành "... là **sợi**:
+           - **Phở** — sợi dẹt"
+
+    Chỗ 1 đáng nói nhất vì nó là hệ quả của một quyết định ĐÚNG ở chỗ khác: `chunker` cố ý gắn tiêu
+    đề tài liệu vào `text` để đoạn **tự đủ ngữ cảnh khi truy hồi**. Đúng cho việc xếp hạng, sai cho
+    việc đọc. Hai mục đích khác nhau trên cùng một chuỗi, và trước đây chỉ có một cách trình bày.
+
+    Vì sao KHÔNG bỏ tiêu đề khỏi `chunk.text`: làm vậy là làm yếu truy hồi để làm đẹp trình bày —
+    đổi một thứ đo được lấy một thứ không đo được. Tách hai mục đích ra là cách đúng.
+
+    Điều hàm này KHÔNG làm: nó không viết lại câu, không tóm tắt, không diễn đạt lại. Nội dung tri
+    thức phải giữ nguyên chữ của người viết tài liệu — đó là toàn bộ lý do đường này không đi qua mô
+    hình sinh.
+    """
+    tho = chunk.text
+    # Bỏ dòng tiền tố (tiêu đề tài liệu — tiêu đề mục). Nó luôn là dòng ĐẦU, xem `chunker`.
+    dong = tho.split("\n", 1)
+    than = dong[1] if len(dong) > 1 else dong[0]
+
+    than = _MARKDOWN_NHAN_MANH.sub("", than)
+    # Gạch đầu dòng thành câu riêng: thay "- " bằng chỗ ngắt, rồi nối bằng "; " để đọc liền mạch mà
+    # vẫn thấy đây là một danh sách. Không giữ ký tự "-" vì khách đọc trên điện thoại thấy nó lạc.
+    than = _GACH_DAU_DONG.sub("\n• ", than)
+
+    y = [d.strip() for d in than.split("\n") if d.strip()]
+    ra = " ".join(y)
+    return " ".join(ra.split())
+
+
+def _chon_muc(co_muc: list, question: str):
+    """Mục sát nhất trong MỘT tài liệu. Embedding khi được, BM25 khi không.
+
+    Không dựng chỉ mục mới: dùng lại vector của chỉ mục TOÀN KHO, vốn đã nạp sẵn lúc khởi động. Xem
+    docstring của `_knowledge_chunk` cho lý do đầy đủ và cho hai trường hợp lùi về BM25.
+    """
+    from rag.bm25 import Bm25Index
+
+    theo_id = {c.chunk_id: c for c in co_muc}
+    index, cach = _bo_truy_hoi_toan_kho()
+
+    if cach == "embedding" and index is not None:
+        co_vector = set(getattr(index, "chunk_ids", ()) or ())
+        # ĐỦ ứng viên phải có vector, không phải một phần. Chấm điểm trên tập con thiếu vài đoạn là
+        # lặng lẽ loại chúng khỏi cuộc thi — và đoạn bị loại có thể là đoạn đúng.
+        if theo_id.keys() <= co_vector:
+            diem = index.scores(question)
+            # Phá thế theo `chunk_id` TĂNG DẦN — cùng luật với `Bm25Index.search` và với bộ so
+            # (`sorted(..., key=lambda kv: (-kv[1], kv[0]))`). Dùng `max` với khóa `(điểm, chunk_id)`
+            # sẽ chọn id LỚN nhất khi hòa, tức hai đường xếp hạng phá thế ngược nhau — và một hệ
+            # thống có hai luật phá thế là hệ thống không lặp lại được kết quả của chính nó.
+            return min(co_muc, key=lambda c: (-diem.get(c.chunk_id, 0.0), c.chunk_id))
+
+    hits = Bm25Index.build(co_muc).search(question, k=1)
+    return theo_id[hits[0].chunk_id] if hits else co_muc[0]
+
+
 def _knowledge_chunk(topic: str, question: str) -> str | None:
     """Đoạn của tài liệu `topic` trả lời `question` sát nhất, hoặc None nếu không có tài liệu.
 
@@ -141,10 +219,40 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     cái gì*, chỉ quyết định *mục nào của tài liệu đó*. Đó là lý do không cần ngưỡng tương đồng:
     tài liệu nào cũng có ít nhất một mục, và mục sát nhất luôn tốt hơn không trả lời.
 
-    Dùng BM25 chứ không embedding: phạm vi 3–8 đoạn cùng chủ đề nên chúng khác nhau ở TỪ KHÓA của
-    từng mục ("khẩu phần" so với "thời gian chờ" so với "mang đi"), đúng chỗ BM25 mạnh. Và nó không
-    thêm 2–3GB vào ảnh Docker. Nếu phép đo cho thấy embedding chọn đoạn tốt hơn thì đổi — nhưng
-    phải đổi vì SỐ.
+    ĐÃ ĐỔI SANG EMBEDDING, vì SỐ — và vì chính dòng này dặn phải đổi khi có số
+    ------------------------------------------------------------------------
+    Bản trước dùng BM25 với hai lý lẽ: "3–8 đoạn cùng chủ đề khác nhau ở TỪ KHÓA của từng mục, đúng
+    chỗ BM25 mạnh", và "nó không thêm 2–3GB vào ảnh Docker". Kèm điều kiện xét lại: *có tập ca ĐỦ
+    LỚN cho việc chọn đoạn trong phạm vi tài liệu*.
+
+    Cả hai lý lẽ nay đã hết, và điều kiện đã xảy ra:
+
+        tập ca      168 ca / 13 họ, hai tập chia theo họ (`chunk_selection_cases.json`)
+        Top-1       niêm phong  bm25 0,750  ->  embedding 0,864     +11,4 điểm
+                    riêng câu diễn đạt khác từ  0,636 -> 0,818      +18,2 điểm
+        ảnh Docker  đã có embedding cho nhánh truy hồi toàn kho, nên phần "thêm 2–3GB" là 0
+
+    Đây là chỗ lệch đáng nói nhất còn lại sau khi đổi bộ truy hồi toàn kho: bộ so 168 ca đo ĐÚNG
+    đường này, còn đường này vẫn chạy BM25. Tức báo cáo nói một bộ, hệ thống chạy bộ khác — đúng lớp
+    lỗi mà `/ready.retriever` được thêm vào để chặn.
+
+    Và nó KHÔNG tốn thêm gì lúc chạy
+    -------------------------------
+    Cách hiển nhiên là dựng một `EmbeddingIndex` cho mỗi tài liệu — nhưng đo được là mã hóa 3–8 đoạn
+    mất ~91ms MỖI LƯỢT, tức đắt hơn BM25 gần 1000 lần cho cùng một việc.
+
+    Cách ở đây không dựng gì: chỉ mục TOÀN KHO đã có vector của cả 370 đoạn và đã nạp sẵn lúc khởi
+    động. Xếp hạng trong một tài liệu chỉ là **giới hạn phép chấm điểm đó vào tập con** — cosine trên
+    vector đã chuẩn hóa L2 nên điểm của một đoạn không phụ thuộc việc có bao nhiêu đoạn khác trong
+    chỉ mục. Chi phí thật: **một** lần mã hóa CÂU HỎI, thứ nhánh truy hồi toàn kho cũng phải làm.
+
+    Lùi về BM25 ở hai trường hợp, và cả hai đều nói ra qua `/ready.retriever`:
+      1. không có `sentence-transformers`
+      2. ứng viên có đoạn MỞ ĐẦU — chúng không nằm trong chỉ mục toàn kho (`doan_toan_kho` lọc
+         `heading` rỗng), nên không có vector để chấm. Chỉ xảy ra với tài liệu không có mục nào.
+
+    CHIẾN LƯỢC ĐÃ ĐO NHƯNG KHÔNG NHẬN (giữ lại, vẫn đúng): "ưu tiên mục có TIÊU ĐỀ trùng nhiều từ với
+    câu hỏi nhất" — xem đoạn dưới.
 
     CHIẾN LƯỢC ĐÃ ĐO NHƯNG KHÔNG NHẬN: "ưu tiên mục có TIÊU ĐỀ trùng nhiều từ với câu hỏi nhất".
     Nó đạt 6/7 so với 5/7 của bản hiện tại trên 7 câu có khóa đáp án — nhưng **n=7 thì một ca lệch
@@ -180,10 +288,8 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     # "chưa có dữ liệu" khi tài liệu có nội dung.
     co_muc = [c for c in cua_tai_lieu if c.heading] or cua_tai_lieu
 
-    hits = Bm25Index.build(co_muc).search(question, k=1)
-    theo_id = {c.chunk_id: c for c in co_muc}
-    chon = theo_id[hits[0].chunk_id] if hits else co_muc[0]
-    return " ".join(chon.text.split())
+    chon = _chon_muc(co_muc, question)
+    return chu_cho_khach(chon)
 
 
 def _bo_truy_hoi_toan_kho():
@@ -366,7 +472,7 @@ def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
     except (KnowledgeError, OSError):
         return None
     chon = theo_id.get(hits[0].chunk_id)
-    return (" ".join(chon.text.split()), cach) if chon else None
+    return (chu_cho_khach(chon), cach) if chon else None
 
 
 def select(request: Request, items: list[dict]) -> list[dict]:

@@ -187,6 +187,33 @@ class PhanHoiTHATPhaiKhopSchema(unittest.TestCase):
         with self.assertRaises(jsonschema.ValidationError):
             self._check(body)
 
+    def test_BA_cho_giu_so_mon_phai_KHOP_nhau(self):
+        """`LIST_SIZE` (số món NÊU) == `MAX_CART_ACTIONS` (số thẻ) == `maxItems` (hợp đồng).
+
+        Ba chỗ, và chúng ĐÃ lệch: `LIST_SIZE = 6` còn hai chỗ kia là 3. Hậu quả đo được khi hỏi stack
+        thật — câu trả lời nêu SÁU món, thẻ giỏ có BA, nên khách đọc sáu lựa chọn và bấm chọn được ba;
+        ba món còn lại phải gõ tay.
+
+        Golden KHÔNG bắt được: bất biến thẻ giỏ đòi *thẻ ⊆ món được nêu*, không đòi chiều ngược lại.
+        Một bất biến một chiều chỉ canh một nửa — nay golden có thêm bất biến số 8 cho chiều còn lại.
+
+        `cart.MAX_CART_ACTIONS` nay LẤY TỪ `answer.LIST_SIZE` nên hai chỗ đó không lệch được nữa. Chỗ
+        thứ ba là JSON, không import được — nên nó cần đúng test này. Đây là dạng "hai đầu phải khớp"
+        thứ năm trong dự án, và lần này đầu thứ hai là một tệp không phải mã.
+        """
+        from answer import LIST_SIZE
+        from cart import MAX_CART_ACTIONS
+
+        trong_hop_dong = (
+            self.schema["$defs"]["ChatResponse"]["properties"]["suggested_cart_actions"]["maxItems"]
+        )
+        self.assertEqual(
+            (LIST_SIZE, MAX_CART_ACTIONS, trong_hop_dong),
+            (LIST_SIZE, LIST_SIZE, LIST_SIZE),
+            f"ba chỗ giữ số món đã lệch: LIST_SIZE={LIST_SIZE}, "
+            f"MAX_CART_ACTIONS={MAX_CART_ACTIONS}, maxItems={trong_hop_dong}",
+        )
+
     def test_yeu_cau_gui_len_cung_khop_schema_ChatRequest(self):
         request_schema = {**self.schema, "$ref": "#/$defs/ChatRequest"}
         request_schema.pop("oneOf", None)

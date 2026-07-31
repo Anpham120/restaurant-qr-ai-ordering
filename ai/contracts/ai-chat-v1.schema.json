@@ -95,9 +95,9 @@
         },
         "suggested_cart_actions": {
           "type": "array",
-          "maxItems": 3,
+          "maxItems": 6,
           "items": { "$ref": "#/$defs/SuggestedCartAction" },
-          "description": "Thẻ giỏ gợi ý, sinh từ ĐÚNG danh sách món answer.py đã chọn. Rỗng ở nhánh clarify/no_data/refuse: gợi ý đặt món khi chưa hiểu câu hỏi là sai."
+          "description": "Thẻ giỏ gợi ý, sinh từ ĐÚNG danh sách món answer.py đã chọn. Rỗng ở nhánh clarify/no_data/refuse: gợi ý đặt món khi chưa hiểu câu hỏi là sai. maxItems PHẢI bằng answer.LIST_SIZE (số món câu trả lời nêu ra) — từng là 3 trong khi LIST_SIZE là 6, nên khách đọc SÁU lựa chọn và bấm chọn được BA. Ba chỗ giữ con số này (LIST_SIZE, cart.MAX_CART_ACTIONS, maxItems ở đây) bị test_contract ép phải khớp."
         },
         "guardrail_flags": {
           "type": "array",

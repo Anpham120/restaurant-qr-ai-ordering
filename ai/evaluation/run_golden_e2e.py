@@ -306,6 +306,28 @@ def cham_the_gio(the: list[dict], text: str, by_id: dict, exp: dict) -> list[str
     # 7. Nhánh chưa hiểu câu hỏi thì KHÔNG được gợi ý đặt món.
     if exp.get("no_cart") and the:
         do.append(f"GIỎ: lượt này không được có thẻ, mà có {[a.get('name') for a in the]}")
+
+    # 8. CHIỀU NGƯỢC của bất biến 4: món câu trả lời NÊU RA phải BẤM ĐƯỢC.
+    #
+    # Bất biến 4 đòi *thẻ ⊆ món được nêu*. Nó im lặng với chiều còn lại, và chiều còn lại đã hỏng
+    # thật: hỏi stack thật thì câu trả lời nêu SÁU món còn thẻ giỏ có BA — `MAX_CART_ACTIONS = 3`
+    # trong khi `answer.LIST_SIZE = 6`. Khách đọc sáu lựa chọn và bấm chọn được ba.
+    #
+    # Đây là dạng nhẹ của đúng vấn đề "trả lời một kiểu, thẻ giỏ một kiểu", và 103/103 không thấy nó.
+    # Bài học lặp lại lần thứ hai trong dự án: **một bất biến một chiều chỉ canh một nửa.**
+    #
+    # Chỉ áp khi lượt này CÓ thẻ — lượt tri thức không có thẻ và không cần có, và nó vẫn nhắc tên món
+    # trong văn xuôi ("Trà đào cam sả hoặc trà sen: vị chua nhẹ cắt được vị đậm"). Áp cho lượt không
+    # thẻ là đòi thẻ ở nhánh cấm sinh thẻ.
+    if the and not exp.get("no_cart"):
+        trong_the = {a.get("name") for a in the}
+        thieu = [m["name"] for m in mon_theo_thu_tu(text, list(by_id.values()))
+                 if m["name"] not in trong_the]
+        if thieu:
+            do.append(
+                f"GIỎ: câu trả lời nêu {thieu} mà KHÔNG có thẻ để bấm — khách đọc được nhiều lựa "
+                "chọn hơn số lựa chọn bấm được, nên phần dư phải gõ tay"
+            )
     return do
 
 
@@ -657,7 +679,19 @@ def main(argv: list[str] | None = None) -> int:
     # notebook in "6/6 = 100%" — đúng số, sai điều đang được nói.
     if not args.chi:
         duong_ket_qua = results.ghi(
-            "golden_e2e",
+            # MỘT tệp bằng chứng cho MỖI cấu hình, không phải một tệp cho lần chạy gần nhất.
+            #
+            # Đường sinh bật và tắt là HAI hành vi khác nhau — một bên chữ do khuôn mẫu dựng, một bên
+            # do mô hình viết. Ghi chung một tệp thì lần chạy sau xóa bằng chứng của cấu hình trước,
+            # và cổng deploy (`verify_deploy_config.py`) không còn gì để đối chiếu cho cấu hình nó
+            # sắp dựng.
+            #
+            # Đã suýt xảy ra: đo với đường sinh BẬT, còn production mặc định TẮT — tức không có bằng
+            # chứng nào cho đúng cấu hình sắp deploy. Cổng bắt được, và đó là lý do nó tồn tại.
+            #
+            # Hậu tố suy từ CHÍNH `/ready` của dịch vụ đang đo, không từ biến môi trường của máy chạy
+            # bộ đo: hai chỗ đó lệch nhau được, và cái đúng là cái dịch vụ báo.
+            "golden_e2e_sinh" if (cau_hinh or {}).get("generation_enabled") else "golden_e2e",
             {
                 "luot": tong,
                 "dat": dat,

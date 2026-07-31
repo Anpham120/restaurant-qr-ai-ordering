@@ -116,9 +116,17 @@ def chi_muc(kind: str, doc_id: str, cands: list):
     Dựng lại cho từng ca thì embedding phải mã hóa lại 3–7 đoạn mỗi lần, và phép đo độ trễ sẽ đo
     việc mã hóa chứ không đo việc tìm. Một triển khai embedding thật tính vector đoạn lúc khởi động.
 
-    Lưu ý một điều LỆCH giữa phép đo và runtime hiện tại: `answer.py::_knowledge_chunk` **dựng lại**
-    chỉ mục BM25 mỗi lượt. Với BM25 trên 3–7 đoạn thì việc đó rẻ, nhưng nó có nghĩa là số p50 dưới
-    đây thấp hơn chi phí thật của BM25 trong runtime. Ghi ra chứ không lặng lẽ so hai thứ khác nhau.
+    Ba cách dựng chỉ mục, và p50 dưới đây chỉ đo MỘT trong ba — ghi ra chứ không lặng lẽ so
+    -----------------------------------------------------------------------------------
+        phép đo này            dựng chỉ mục cho MỖI tài liệu, một lần rồi dùng lại (bảng `_CHI_MUC`)
+        runtime · embedding    KHÔNG dựng gì. `answer.py::_chon_muc` dùng lại vector của chỉ mục
+                               TOÀN KHO đã nạp sẵn lúc khởi động, chỉ mã hóa CÂU HỎI một lần. Nên
+                               chi phí thật của embedding lúc chạy **thấp hơn** p50 dưới đây.
+        runtime · BM25 (lùi)   dựng lại mỗi lượt. Rẻ với 3–7 đoạn, nhưng nó có nghĩa là p50 của BM25
+                               dưới đây **thấp hơn** chi phí thật.
+
+    Hai chiều lệch ngược nhau, nên p50 ở đây không dùng để so chi phí runtime giữa hai phương pháp.
+    Nó chỉ dùng để so ĐỘ CHÍNH XÁC dưới cùng một điều kiện.
     """
     key = (kind, doc_id)
     if key not in _CHI_MUC:

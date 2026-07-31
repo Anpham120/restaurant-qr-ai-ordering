@@ -1949,14 +1949,25 @@ filter**, không phải xếp hạng.
 
 Lúc chạy thật, truy hồi được gọi ở hai chỗ khác nhau, và chúng là hai bài toán khác nhau:
 
-| Chỗ gọi | Bài toán | Số ứng viên | `k` |
-|---|---|---|---|
-| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 449 đoạn | 1 |
-| chọn mục trong tài liệu đã biết | mục nào **trong tài liệu này** đúng ý | 3–8 đoạn | 1 |
+| Chỗ gọi | Bài toán | Số ứng viên | `k` | Bộ đang chạy |
+|---|---|---|---|---|
+| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 370 đoạn | 1 | embedding |
+| `_knowledge_chunk()` → `_chon_muc()` | mục nào **trong tài liệu này** đúng ý | 3–8 đoạn | 1 | embedding |
 
 Cả hai đều dùng `k=1`. Nên **Top-1 là chỉ số quyết định**, không phải Hit@5. Đo Hit@5 rồi chốt theo
 nó là chốt theo một con số hệ thống không dùng: Hit@5 = 1,0 vẫn đúng khi đoạn đúng nằm thứ năm và
 bốn đoạn lạc đề nằm trên nó — mà lúc chạy chỉ đoạn thứ nhất được đọc.
+
+**Cột cuối từng là `BM25` ở dòng thứ hai, và đó là một chỗ lệch thật.** Bộ so 168 ca được viết để đo
+ĐÚNG đường thứ hai, nên con số biện minh mạnh nhất cho embedding thuộc về một đường vẫn chạy BM25 —
+bỏ qua **11,4 điểm** Top-1 trên tập niêm phong, và **18,2 điểm** ở câu diễn đạt khác từ. Nó chỉ lộ ra
+khi viết lại mô tả kiến trúc, chứ không phép kiểm nào đỏ.
+
+Điều làm việc đổi trở nên rẻ: đường thứ hai **không dựng chỉ mục mới**. Chỉ mục toàn kho đã có vector
+của cả 370 đoạn, nên xếp hạng trong một tài liệu chỉ là giới hạn phép chấm điểm vào tập con — hợp lệ vì
+vector đã chuẩn hóa L2. Chi phí thật là **một** lần mã hóa câu hỏi, thứ đường thứ nhất cũng phải làm.
+Cách hiển nhiên — dựng một chỉ mục cho mỗi tài liệu — mất **~91ms mỗi lượt**, và có một test đếm số
+lần dựng chỉ mục rồi đòi **0** để không ai "sửa" thành cách đó.
 
 ### Vì sao phải đo trên HAI tập
 
@@ -2473,30 +2484,37 @@ thì làm con số đẹp lên trong khi khách nhận ít lựa chọn hơn.
 # Kết quả golden qua HTTP thật — ĐỌC từ tệp, vì phép đo này cần cả stack đang chạy.
 import results
 
-try:
-    r = results.doc("golden_e2e")
-except FileNotFoundError as e:
-    print(e)
-else:
+# HAI tệp bằng chứng, một cho MỖI cấu hình — không phải một tệp cho "lần chạy gần nhất".
+#
+# Đường sinh bật và tắt là hai hành vi khác nhau, nên ghi chung một tệp thì lần chạy sau XÓA bằng
+# chứng của cấu hình trước. Suýt xảy ra thật: đo với đường sinh BẬT trong khi production mặc định
+# TẮT — tức không có bằng chứng nào cho đúng cấu hình sắp deploy. Cổng
+# `verify_deploy_config.py` bắt được, và đó là lý do nó tồn tại.
+for ten, nhan in (("golden_e2e", "MẶC ĐỊNH production — đường sinh TẮT"),
+                  ("golden_e2e_sinh", "đường sinh BẬT")):
+    try:
+        r = results.doc(ten)
+    except FileNotFoundError:
+        print(f"[{nhan}] chưa đo — chạy golden ở cấu hình này rồi commit tệp kết quả.\n")
+        continue
     so, dk = r["so"], r["dieu_kien"]
     ready = dk.get("ready") or {}
-    print(f"ĐIỀU KIỆN: {dk['ngay']} · {dk['hoi_thoai']} hội thoại qua {dk['api']}")
+    print(f"[{nhan}]")
+    print(f"  ĐIỀU KIỆN: {dk['ngay']} · {dk['hoi_thoai']} hội thoại qua {dk['api']}")
     if isinstance(ready, dict):
-        for k in ("retriever", "retriever_vectors_from_cache", "generation_enabled",
-                  "model_key_set", "knowledge_chunks"):
+        for k in ("retriever", "retriever_chunks", "retriever_vectors_from_cache",
+                  "generation_enabled", "model_key_set", "knowledge_chunks"):
             if k in ready:
-                print(f"  {k:30} {ready[k]}")
-    else:
-        print(f"  {ready}")
-
-    print(f"\nKẾT QUẢ: {so['dat']}/{so['luot']} lượt đạt ({so['dat'] / so['luot'] * 100:.1f}%)")
+                print(f"    {k:30} {ready[k]}")
+    print(f"  KẾT QUẢ: {so['dat']}/{so['luot']} lượt đạt ({so['dat'] / so['luot'] * 100:.1f}%)")
     if so["luot_do"]:
-        print(f"\n{len(so['luot_do'])} lượt ĐỎ — đây là dữ liệu của mục 19:")
+        print(f"  {len(so['luot_do'])} lượt ĐỎ — đây là dữ liệu của mục 19:")
         for h in so["luot_do"]:
-            print(f"  {h}")
-    else:
-        print("\nKhông lượt nào đỏ qua đủ chuỗi gọi: QR -> phiên bàn -> phiên chat -> backend ->")
-        print("dịch vụ AI -> thẻ giỏ -> giỏ hàng thật.")
+            print(f"    {h}")
+    print()
+
+print("Không lượt nào đỏ ở cả hai cấu hình, qua đủ chuỗi gọi: QR -> phiên bàn -> phiên chat ->")
+print("backend -> dịch vụ AI -> mô hình -> thẻ giỏ -> giỏ hàng thật.")
 """))
 
     out.append(md(r"""
@@ -2604,7 +2622,7 @@ for t, n in tieu_de.most_common(5):
 
 | Quyết định | Chốt | Căn cứ đo được | Cái giá đã đo |
 |---|---|---|---|
-| bộ truy hồi | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB; truy hồi 1,4ms → 67ms |
+| bộ truy hồi (**cả hai** đường: toàn kho và chọn mục trong tài liệu) | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB; truy hồi 1,4ms → 67ms |
 | đường sinh | **TẮT mặc định**, bật bằng `AI_ENABLE_GENERATION` | **0 ca tụt** sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** — thước đo không chấm được "văn tự nhiên hơn" | p50 **+8,6s** mỗi lượt gọi mô hình |
 | chọn món | **lọc theo nhãn**, không RAG | lọc nhãn 8/8 ca đúng; ba cách xếp hạng sai 6–7/8 | 0,3ms — rẻ hơn mọi phương án khác |
 
@@ -2810,6 +2828,35 @@ hiện tại. Không có gì báo. Đó chính là quy tắc số 3 ở cuối n
 
 **Số held-out thật duy nhất của dự án: 23/27 (85,2%)** — lần mở tập niêm phong đầu tiên ở bước 4. Mọi
 con số sau đó đo trên tập đã thấy, và ba tập niêm phong dựng sau đó cũng đã mở, mỗi tập một lần.
+
+## 21b. Bốn chỗ lệch mà "mọi test xanh" không thấy — và mẫu chung của chúng
+
+Bốn thứ dưới đây tìm được **sau khi** golden đã 103/103 và mọi phép kiểm đã xanh. Chúng lộ ra khi làm
+hai việc mà không bộ đo nào làm: **đọc chữ khách thật sự nhận**, và **viết lại mô tả kiến trúc**.
+
+| Chỗ lệch | Cái lẽ ra phải bắt được | Vì sao nó không bắt |
+|---|---|---|
+| đường chọn mục trong tài liệu vẫn chạy BM25 | `/ready.retriever` | trường đó chỉ báo bộ của đường **toàn kho** |
+| câu tri thức dán thô kèm nhan đề và `**` | thước đo tri thức | nó đòi câu trả lời **chứa nguyên văn** đoạn — mà đoạn thô cũng chứa nhan đề, nên **dán thô là cách chắc chắn nhất để QUA** |
+| văn nêu 6 món, thẻ giỏ có 3 | bất biến thẻ giỏ số 4 | nó đòi *thẻ ⊆ món được nêu*, không đòi chiều ngược |
+| chi tiết exception vào phản hồi HTTP | test "lý do không lọt vào câu khách" | nó chỉ kiểm `content`, không kiểm cả phản hồi |
+
+**Ba trong bốn dòng là bất biến MỘT CHIỀU.** Đó là mẫu lặp lại của cả dự án, và nó viết được thành một
+câu: *một bất biến một chiều chỉ canh một nửa, và nửa còn lại im lặng.*
+
+Dòng thứ hai đáng đọc kỹ nhất, vì nó là một thước đo **thưởng cho hành vi sai**: câu trả lời càng dán
+thô càng dễ qua, còn câu trình bày sạch thì đỏ. Khi phần làm sạch được thêm, tập trả lời tụt
+**140/140 → 130/140** và **cả 10 ca đỏ là câu trả lời đúng**. Cách sửa là chuẩn hóa **cả hai phía**
+bằng đúng một hàm — vẫn là phép so chuỗi con chính xác, nên câu diễn đạt lại vẫn không trùng.
+
+Và một chi tiết về CodeQL đáng nhớ cho phần triển khai: PR bị chặn **không** vì check đỏ — cả 12 check
+đều pass, kể cả `golden-e2e`. Nó bị chặn vì **3 luồng CodeQL chưa giải quyết**. Ba chỗ đó không cùng
+mức nguy hiểm, và chỉ **một** là rò rỉ thật: `/ready` **không đòi token** mà trả nguyên thông điệp
+`OSError` — chuỗi chứa đường dẫn tệp trên máy chủ.
+
+Hai chỗ còn lại có token bảo vệ, nhưng vẫn sửa, vì *"chỉ tới bên đã xác thực"* là lớp bảo vệ dựa vào
+**cấu hình** chứ không dựa vào **cấu trúc**: đặt sai `AI_INTERNAL_TOKEN` là rò rỉ ngay, và không phép
+kiểm nào đỏ.
 
 ## 22. Làm được, và hạn chế phải nói ra
 

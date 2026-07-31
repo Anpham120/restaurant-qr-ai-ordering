@@ -22,7 +22,7 @@
       "retriever": "embedding",
       "retriever_chunks": 370,
       "retriever_vectors_from_cache": true,
-      "generation_enabled": false,
+      "generation_enabled": true,
       "memory_version": "v3"
     },
     "hoi_thoai": 29

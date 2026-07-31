@@ -282,8 +282,27 @@ class LoiNoiBoKHONGThanh500(unittest.TestCase):
         self.assertTrue(body["suggest_staff_handoff"])
         self.assertIn("RuntimeError", body["decision"]["error"])
 
-    def test_ly_do_that_KHONG_lot_vao_cau_khach_thay(self):
-        """Lý do lỗi nằm trong `decision.error` cho người vận hành, không nằm trong câu khách."""
+    def test_ly_do_that_KHONG_lot_vao_PHAN_HOI_nao(self):
+        """Chi tiết lỗi không vào câu khách, và nay cũng KHÔNG vào cả `decision.error`.
+
+        Bất biến cũ chỉ đòi "không vào `content`", và `decision.error` mang nguyên `f"{exc}"`. CodeQL
+        báo đúng ba chỗ như vậy (`service.py` dòng 273, 465, 518), và cả ba là *Information exposure
+        through an exception*.
+
+        Ba chỗ KHÔNG cùng mức nguy hiểm, và phân biệt được là phần quan trọng:
+
+            /ready.menu_error            KHÔNG cần token       -> rò rỉ THẬT, `{exc}` của OSError
+                                                                   chứa đường dẫn tệp máy chủ
+            /v1/cache/invalidate.error   cần token
+            decision.error của /v1/chat  cần token, VÀ backend không chuyển tiếp `decision` cho khách
+
+        Chỗ thứ ba vẫn được sửa, vì "chỉ tới bên đã xác thực" là lớp bảo vệ dựa vào CẤU HÌNH, không
+        dựa vào cấu trúc: đặt sai `AI_INTERNAL_TOKEN`, hay đổi backend để chuyển tiếp `decision`, là rò
+        rỉ ngay và không phép kiểm nào đỏ.
+
+        Cách sửa giữ đủ khả năng chẩn đoán: TÊN LOẠI + MÃ THAM CHIẾU ra ngoài, chi tiết đầy đủ vào
+        log. Người vận hành tra mã trong log dịch vụ AI.
+        """
         goc = service_module.respond
 
         def no(*_a, **_k):
@@ -295,8 +314,40 @@ class LoiNoiBoKHONGThanh500(unittest.TestCase):
                                     headers={"x-internal-token": TOKEN}).json()
         finally:
             service_module.respond = goc
-        self.assertNotIn("chi-tiet-noi-bo-khong-duoc-lo", body["content"])
-        self.assertIn("chi-tiet-noi-bo-khong-duoc-lo", body["decision"]["error"])
+
+        ca_phan_hoi = json.dumps(body, ensure_ascii=False)
+        self.assertNotIn(
+            "chi-tiet-noi-bo-khong-duoc-lo", ca_phan_hoi,
+            "chi tiết lỗi lọt vào phản hồi HTTP — kiểm CẢ phản hồi, không chỉ `content`",
+        )
+        # Vẫn phải chẩn đoán được: tên loại lỗi và một mã tra log.
+        loi = body["decision"]["error"]
+        self.assertIn("RuntimeError", loi)
+        self.assertRegex(loi, r"ref=[0-9a-f]{8}", f"thiếu mã tham chiếu để tra log: {loi!r}")
+
+    def test_menu_error_chi_mang_TEN_LOAI_khong_mang_duong_dan(self):
+        """`/ready` KHÔNG đòi token, nên `menu_error` là chỗ rò rỉ dễ nhất của cả dịch vụ."""
+        goc = service_module.MENU.error
+        try:
+            service_module.MENU.error = "FileNotFoundError"
+            body = self.client.get("/ready").json()
+            self.assertEqual(body["menu_error"], "FileNotFoundError")
+            self.assertNotIn("/", body["menu_error"] or "", "còn đường dẫn trong menu_error")
+            self.assertNotIn("\\", body["menu_error"] or "")
+        finally:
+            service_module.MENU.error = goc
+
+    def test_nap_that_bai_thi_error_KHONG_chua_duong_dan(self):
+        """Chạy THẬT đường lỗi, không chỉ gán tay — đường lỗi mới là chỗ chuỗi được tạo ra."""
+        goc_path = service_module.MENU_PATH
+        try:
+            service_module.MENU_PATH = Path("/khong/ton/tai/menu-dataset.json")
+            cache = service_module.MenuCache()
+            self.assertTrue(cache.error, "tiền đề: nạp phải thất bại")
+            self.assertNotIn("khong/ton/tai", cache.error)
+            self.assertNotIn(":", cache.error, f"error phải là TÊN LOẠI trơn: {cache.error!r}")
+        finally:
+            service_module.MENU_PATH = goc_path
 
     def test_cau_hoi_rong_thi_422_khong_phai_500(self):
         r = self.client.post("/v1/chat", json={"question": ""},

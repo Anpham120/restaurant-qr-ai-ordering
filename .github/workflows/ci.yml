@@ -237,9 +237,18 @@ jobs:
       - name: Giá trị từng cơ chế (ablation)
         run: python ai/evaluation/run_ablation.py
 
-      # So NGUỒN của từng ô notebook với bộ sinh, bỏ qua kết quả chạy. Bắt trường hợp ai đó
-      # sửa tay notebook — khi đó notebook không còn sinh lại được và mọi số trong báo cáo
-      # mất đường truy về mã. Chỉ cần nbformat, không cần chạy notebook.
+      # Hai việc, và việc thứ hai được thêm sau khi việc thứ nhất để lọt một lỗi:
+      #
+      #   1. So NGUỒN của từng ô với bộ sinh. Bắt trường hợp ai đó sửa tay notebook — khi đó
+      #      notebook không còn sinh lại được và mọi số trong báo cáo mất đường truy về mã.
+      #   2. Đọc KẾT QUẢ đã commit và báo đỏ nếu có ô nào NỔ. Việc 1 xanh với một ô không chạy
+      #      được — đúng chuyện đã xảy ra: ô mục 15d nổ `TypeError` hai lần liền, `--check` vẫn
+      #      xanh, và notebook mang một traceback đỏ giữa báo cáo. Cùng lớp lỗi "tệp có ≠ nó
+      #      chạy" của dự án, ở dạng "ô có ≠ ô chạy".
+      #
+      # KHÔNG chạy notebook ở đây: chạy mất hàng chục phút vì có mã hóa embedding. Bước này đọc
+      # kết quả đã commit, tức nó ép người commit phải chạy được notebook trước khi commit.
+      # Chỉ cần nbformat.
       - name: Kiểm notebook báo cáo sinh lại được
         run: |
           python -m pip install -q "nbformat>=5.10,<6.0"

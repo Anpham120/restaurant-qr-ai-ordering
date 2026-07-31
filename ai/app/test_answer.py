@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -346,6 +347,170 @@ class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
             "nhánh nới loại trừ đã nới luôn ràng buộc dị nguyên — đây là lỗi AN TOÀN, "
             f"món lọt: {xau}",
         )
+
+
+class CHU_CHO_KHACH_DOC(unittest.TestCase):
+    """`chu_cho_khach` — đoạn tri thức trình bày cho khách, KHÔNG đổi nội dung.
+
+    Vì sao có lớp này: hỏi stack thật "Phở với bún khác nhau thế nào?" và khách nhận về
+
+        Phở, bún, mì, hủ tiếu — khác nhau thế nào — Khác nhau ở SỢI... là **sợi**: - **Phở** — sợi dẹt
+
+    Nội dung ĐÚNG, trình bày sai ba chỗ: nhan đề dính đầu câu, `**` markdown lọt nguyên, gạch đầu dòng
+    nối thành đoạn dài. Cả ba đến từ `" ".join(text.split())`.
+
+    Test cuối là test quan trọng nhất: hàm này **không được làm mất chữ nào**. Nếu nó cắt nội dung thì
+    nó thành một dạng tóm tắt — và tóm tắt tri thức nhà hàng là đúng điều đường này tồn tại để tránh.
+    """
+
+    @dataclass
+    class Doan:
+        chunk_id: str = "kb.x#1"
+        heading: str = "Khác nhau ở SỢI"
+        text: str = (
+            "Phở, bún, mì — khác nhau thế nào — Khác nhau ở SỢI\n"
+            "Điều phân biệt chúng là **sợi**:\n"
+            "- **Phở** — sợi dẹt, mềm.\n"
+            "- **Bún** — sợi tròn nhỏ.\n"
+        )
+
+    def test_bo_nhan_de_o_dau_cau(self):
+        from answer import chu_cho_khach
+
+        ra = chu_cho_khach(self.Doan())
+        self.assertFalse(ra.startswith("Phở, bún, mì —"), f"còn nhan đề: {ra[:60]!r}")
+        self.assertTrue(ra.startswith("Điều phân biệt"), ra[:60])
+
+    def test_bo_dau_markdown(self):
+        from answer import chu_cho_khach
+
+        ra = chu_cho_khach(self.Doan())
+        for dau in ("**", "__", "`"):
+            self.assertNotIn(dau, ra, f"còn {dau!r} trong chữ khách đọc")
+
+    def test_gach_dau_dong_thanh_dau_liet_ke_doc_duoc(self):
+        from answer import chu_cho_khach
+
+        ra = chu_cho_khach(self.Doan())
+        self.assertIn("• Phở — sợi dẹt", ra)
+        self.assertNotIn("- **Phở**", ra)
+
+    def test_KHONG_lam_mat_chu_nao(self):
+        """Bất biến quan trọng nhất: đây là làm sạch TRÌNH BÀY, không phải tóm tắt.
+
+        So theo TỪ, bỏ những ký tự trình bày mà hàm này có quyền bỏ. Một chữ nội dung bị mất là hàm
+        này đã thành một dạng tóm tắt — và tóm tắt tri thức nhà hàng là đúng điều đường này tránh.
+        """
+        import re
+
+        from answer import chu_cho_khach
+
+        d = self.Doan()
+        than = d.text.split("\n", 1)[1]
+
+        def tu(s):
+            # So TỪ CÓ NGHĨA, bỏ hết dấu câu và ký tự trình bày.
+            #
+            # Bản đầu của phép tách này thay `*` bằng khoảng trắng rồi `split()`, nên `**sợi**:` cho
+            # hai token `sợi` và `:`, còn bản đã làm sạch cho một token `sợi:` — test đỏ vì CÁCH TÁCH
+            # TỪ, không vì mất chữ. Đúng lớp lỗi "phép kiểm sai trước khi hệ thống sai", và lần này
+            # nó xảy ra trong chính test tôi vừa viết.
+            return re.findall(r"\w+", s, re.UNICODE)
+
+        self.assertEqual(tu(than), tu(chu_cho_khach(d)))
+
+    def test_doan_khong_co_dong_nao_ngoai_tien_to_thi_van_tra_chu(self):
+        """Đoạn chỉ có một dòng: không được trả rỗng vì "bỏ dòng đầu"."""
+        from answer import chu_cho_khach
+
+        ra = chu_cho_khach(self.Doan(text="Chỉ một dòng duy nhất, không có nội dung sau."))
+        self.assertTrue(ra.strip(), "trả rỗng thì khách nhận một câu trắng")
+
+
+class CHON_MUC_TRONG_TAI_LIEU(unittest.TestCase):
+    """`_chon_muc` — xếp hạng mục TRONG một tài liệu, nay bằng embedding.
+
+    Vì sao đổi: bộ so 168 ca (`chunk_selection_cases.json`) đo ĐÚNG đường này, và trên tập niêm phong
+    embedding đạt Top-1 0,864 so với BM25 0,750 — riêng câu diễn đạt khác từ là 0,818 so với 0,636.
+    Docstring của `_knowledge_chunk` từ trước đã ghi điều kiện: *"Nếu phép đo cho thấy embedding chọn
+    đoạn tốt hơn thì đổi — nhưng phải đổi vì SỐ"*, và *"điều kiện để xét lại là có tập ca ĐỦ LỚN"*.
+    Cả hai đã có.
+
+    Ba bất biến, và bất biến thứ nhất là bảo đảm CHI PHÍ — không phải chi tiết tối ưu:
+    dựng một `EmbeddingIndex` cho mỗi tài liệu mất ~91ms MỖI LƯỢT, tức đắt hơn BM25 gần 1000 lần cho
+    cùng một việc. Cách ở đây dùng lại vector của chỉ mục toàn kho đã nạp sẵn.
+    """
+
+    def _doan_co_muc(self, topic: str):
+        from answer import KNOWLEDGE_PATH
+        from rag.chunker import retrievable_chunks
+
+        return [c for c in retrievable_chunks(KNOWLEDGE_PATH) if topic in c.topic_keys and c.heading]
+
+    def test_KHONG_dung_chi_muc_embedding_moi(self):
+        """Bảo đảm chi phí: mỗi lượt chat không được trả giá mã hóa 3–8 đoạn."""
+        from rag import embedding as EMB
+
+        if not EMB.available():
+            self.skipTest("không có sentence-transformers")
+        cand = self._doan_co_muc("ordering_guide")
+        self.assertTrue(cand, "tiền đề: chủ đề này phải có mục")
+
+        from answer import _bo_truy_hoi_toan_kho, _chon_muc
+
+        _bo_truy_hoi_toan_kho()          # hâm nóng trước khi đếm, như lúc chạy thật
+        goc = EMB.EmbeddingIndex.build
+        dem = {"n": 0}
+
+        def dem_lai(*a, **kw):
+            dem["n"] += 1
+            return goc(*a, **kw)
+
+        EMB.EmbeddingIndex.build = staticmethod(dem_lai)
+        try:
+            _chon_muc(cand, "Gọi bao nhiêu món cho nhóm đông?")
+        finally:
+            EMB.EmbeddingIndex.build = goc
+        self.assertEqual(
+            dem["n"], 0,
+            "đã dựng chỉ mục embedding mới — mỗi lượt chat sẽ mất thêm ~91ms cho việc đã làm sẵn",
+        )
+
+    def test_pha_the_theo_chunk_id_TANG_DAN(self):
+        """Cùng luật phá thế với `Bm25Index.search` và với bộ so.
+
+        Hai đường xếp hạng phá thế ngược nhau thì hệ thống không lặp lại được kết quả của chính nó —
+        và bản đầu của hàm này dùng `max((điểm, chunk_id))`, tức chọn id LỚN nhất khi hòa.
+        """
+        from answer import _chon_muc
+
+        @dataclass
+        class Doan:
+            chunk_id: str
+            text: str
+            heading: str = "x"
+
+        # Ba đoạn văn bản GIỐNG NHAU -> mọi bộ xếp hạng cho điểm bằng nhau -> chỉ còn luật phá thế.
+        doan = [Doan("z#1", "cay"), Doan("a#1", "cay"), Doan("m#1", "cay")]
+        self.assertEqual(_chon_muc(doan, "cay").chunk_id, "a#1")
+
+    def test_doan_MO_DAU_thi_lui_ve_bm25_chu_khong_bo_no(self):
+        """Đoạn mở đầu không có vector (chỉ mục toàn kho lọc `heading` rỗng).
+
+        Chấm điểm trên tập con thiếu vài đoạn là lặng lẽ LOẠI chúng khỏi cuộc thi — và đoạn bị loại
+        có thể là đoạn đúng. Nên thiếu vector cho BẤT KỲ ứng viên nào thì cả lượt lùi về BM25.
+        """
+        from answer import _chon_muc
+
+        @dataclass
+        class Doan:
+            chunk_id: str
+            text: str
+            heading: str = ""
+
+        doan = [Doan("kb.gia#0", "phần dẫn nhập của tài liệu", "")]
+        chon = _chon_muc(doan, "bất kỳ")
+        self.assertEqual(chon.chunk_id, "kb.gia#0", "phải trả đoạn duy nhất, không được trả None")
 
 
 class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):

@@ -1120,7 +1120,7 @@ test chưa từng chạy ở đâu ngoài CI.
 
 | Quyết định | Chốt | Căn cứ | Cái giá |
 |---|---|---|---|
-| bộ truy hồi | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB · truy hồi 1,4ms → 67ms · khởi động ~19s |
+| bộ truy hồi (**cả hai** đường: toàn kho và chọn mục trong tài liệu) | **embedding** | thắng ở **cả hai** bài toán và **cả hai** tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh 238MB → 2,74GB · truy hồi 1,4ms → 67ms · khởi động ~19s |
 | đường sinh | **TẮT mặc định**, bật bằng `AI_ENABLE_GENERATION` | **0 ca tụt** sau phép kiểm thứ 8, nhưng **0 ca đúng thêm** | p50 **+8,6s** mỗi lượt |
 | chọn món | **lọc theo nhãn**, không RAG | lọc nhãn 8/8; ba cách xếp hạng sai 6–7/8 | 0,3ms |
 
@@ -1132,6 +1132,58 @@ test chưa từng chạy ở đâu ngoài CI.
 | chủ nhà hàng coi câu văn tự nhiên đáng giá 8,6 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |
 | có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do người viết |
 
+### 15.6 Chỗ lệch còn lại sau khi đổi bộ truy hồi — và nó chỉ lộ ra khi mô tả kiến trúc
+
+Mục 15.5 chốt "bộ truy hồi: embedding". Nhưng lúc viết lại kiến trúc để trả lời một câu hỏi, mới thấy
+quyết định đó chỉ được thực hiện ở **một** trong **hai** đường truy hồi:
+
+| Đường | Ứng viên | Bộ đo tốt nhất | Bộ ĐANG chạy |
+|---|---|---|---|
+| `_bo_truy_hoi_toan_kho()` — đoạn nào trong cả kho | 370 đoạn | embedding (Hit@1 0,609 vs 0,391) | embedding ✅ |
+| `_knowledge_chunk()` — mục nào trong một tài liệu | 3–8 đoạn | embedding (Top-1 0,864 vs 0,750) | **BM25** ❌ |
+
+Dòng thứ hai là chỗ lệch, và nó lệch ở chỗ khó chấp nhận nhất: **bộ so 168 ca
+(`chunk_selection_cases.json`) được viết để đo ĐÚNG đường đó**. Tức con số biện minh mạnh nhất cho
+embedding thuộc về một đường vẫn chạy BM25. Đúng lớp lỗi mà `/ready.retriever` được thêm vào để chặn —
+*báo cáo nói một bộ, hệ thống chạy bộ khác* — chỉ khác là lần này `/ready` cũng không thấy, vì nó chỉ
+báo bộ của đường thứ nhất.
+
+Chênh lệch bỏ qua: **11,4 điểm Top-1** trên tập niêm phong, và **18,2 điểm** ở câu diễn đạt khác từ.
+
+#### Đổi mà KHÔNG tốn thêm gì — và vì sao cách hiển nhiên thì tốn
+
+Cách hiển nhiên là dựng một `EmbeddingIndex` cho mỗi tài liệu. Nhưng phép đo nói ngay đó là sai:
+mã hóa 3–8 đoạn mất **~91ms mỗi lượt**, tức đắt hơn BM25 gần 1000 lần cho cùng một việc.
+
+Cách đã làm không dựng gì. Chỉ mục toàn kho **đã có vector của cả 370 đoạn** và đã nạp sẵn lúc khởi
+động. Xếp hạng trong một tài liệu chỉ là **giới hạn phép chấm điểm đó vào tập con** — hợp lệ vì vector
+đã chuẩn hóa L2, nên điểm cosine của một đoạn không phụ thuộc việc có bao nhiêu đoạn khác trong chỉ
+mục. Chi phí thật: **một** lần mã hóa câu hỏi, thứ đường thứ nhất cũng phải làm.
+
+Một test ép đúng điều đó: đếm số lần `EmbeddingIndex.build` được gọi trong `_chon_muc` và đòi **0**.
+Không có test đó thì ai cũng có thể "sửa" hàm này thành dựng chỉ mục mới, và mỗi lượt chat mất thêm
+91ms mà không phép kiểm nào đỏ.
+
+#### Hai chỗ lùi về BM25, và cả hai là quyết định chứ không phải sót
+
+1. **Không có `sentence-transformers`** — cùng nguyên tắc với đường thứ nhất.
+2. **Ứng viên có đoạn MỞ ĐẦU.** Chúng không nằm trong chỉ mục toàn kho, vì `doan_toan_kho()` lọc
+   `heading` rỗng. Không có vector thì không chấm được.
+
+Điểm quan trọng của trường hợp 2: lùi cho **cả lượt**, không phải chấm điểm cho những đoạn có vector
+rồi bỏ qua phần còn lại. Chấm trên tập con thiếu vài đoạn là **lặng lẽ loại chúng khỏi cuộc thi**, và
+đoạn bị loại có thể là đoạn đúng — một lỗi tệ hơn việc dùng BM25.
+
+#### Và một lỗi tôi tự tạo ra trong 5 phút, rồi tự bắt
+
+Bản đầu của `_chon_muc` phá thế bằng `max(..., key=(điểm, chunk_id))` — tức chọn `chunk_id` **lớn
+nhất** khi hai đoạn cùng điểm. `Bm25Index.search` và bộ so đều phá thế theo `chunk_id` **tăng dần**.
+
+Hai đường xếp hạng phá thế ngược nhau thì hệ thống **không lặp lại được kết quả của chính nó**: cùng
+một câu hỏi cho hai câu trả lời khác nhau tùy đường nào chạy. Đây cùng lớp với lỗi "nhánh phụ thuộc
+tung xúc xắc" ở mục 14.6(d), chỉ nhỏ hơn.
+
+Có một test cho nó: ba đoạn văn bản giống nhau → mọi bộ cho điểm bằng nhau → chỉ còn luật phá thế.
 ---
 
 ## 16. Đường sinh làm mất một câu — và câu đó là chốt an toàn
@@ -1208,6 +1260,100 @@ Bài học: một tập đánh giá đo điều nó được viết để đo, v
 có ở tập B. Đó cũng là lý do dự án giữ **bốn** tập chứ không gộp thành một.
 
 ---
+
+---
+
+## 17. Ba chỗ lệch chỉ lộ ra khi ĐỌC CHỮ, và ba cảnh báo CodeQL chặn merge
+
+Mục này gom bốn thứ tìm được **sau khi** golden đã 103/103 và mọi phép kiểm đã xanh. Điểm chung của
+cả bốn: **không phép kiểm nào đỏ**, và chúng chỉ lộ ra khi làm hai việc mà không bộ đo nào làm —
+**đọc chữ khách thật sự nhận**, và **viết lại mô tả kiến trúc**.
+
+### 17.1 Vì sao "mọi test xanh" không đủ, nói bằng bốn ví dụ
+
+| Chỗ lệch | Cái gì lẽ ra phải bắt được | Vì sao nó không bắt |
+|---|---|---|
+| chọn mục trong tài liệu vẫn chạy BM25 | `/ready.retriever` | trường đó chỉ báo bộ của đường **toàn kho** |
+| câu tri thức dán thô kèm nhan đề và `**` | thước đo tri thức | nó đòi câu trả lời **chứa nguyên văn** đoạn, mà đoạn thô cũng chứa nhan đề — nên dán thô là cách chắc chắn nhất để **qua** |
+| văn nêu 6 món, thẻ giỏ 3 | bất biến thẻ giỏ số 4 | nó đòi *thẻ ⊆ món được nêu*, không đòi chiều ngược |
+| chi tiết exception vào phản hồi | test "lý do không lọt vào câu khách" | nó chỉ kiểm `content`, không kiểm cả phản hồi |
+
+Ba trong bốn dòng là **bất biến một chiều**. Đó là mẫu lặp lại, và bài học viết được thành câu:
+*một bất biến một chiều chỉ canh một nửa, và nửa còn lại im lặng.*
+
+### 17.2 Chọn mục trong tài liệu — xem mục 15.6
+
+Đã ghi riêng ở 15.6 vì nó thuộc quyết định triển khai bộ truy hồi.
+
+### 17.3 Câu tri thức dán thô — và vì sao thước đo phải chuẩn hóa CẢ HAI PHÍA
+
+Khách hỏi *"Phở với bún khác nhau thế nào?"* và nhận:
+
+> Phở, bún, mì, hủ tiếu — khác nhau thế nào — Khác nhau ở SỢI, không ở nước dùng Người mới thường
+> nghĩ… là \*\*sợi\*\*: - \*\*Phở\*\* — sợi dẹt, mềm…
+
+Nội dung **đúng**. Trình bày sai ba chỗ, và cả ba đến từ một dòng: `" ".join(text.split())`.
+
+Chỗ thứ nhất — nhan đề dính đầu câu — là hệ quả của một quyết định **đúng** ở chỗ khác: `chunker` cố
+ý gắn tiêu đề tài liệu vào `text` để đoạn **tự đủ ngữ cảnh khi truy hồi**. Đúng cho xếp hạng, sai cho
+việc đọc. Hai mục đích trên cùng một chuỗi.
+
+Cách sửa là **tách hai mục đích** (`answer.chu_cho_khach()`), KHÔNG phải bỏ tiêu đề khỏi `chunk.text`
+— làm vậy là làm yếu truy hồi để làm đẹp trình bày, tức đổi một thứ đo được lấy một thứ không đo được.
+
+**Và thước đo phải đổi theo.** Nó so với `c.text` thô, nên khi phần làm sạch được thêm thì
+**140/140 → 130/140**, và cả 10 ca đỏ là câu trả lời **đúng**. Chuẩn hóa cả hai phía bằng **đúng một
+hàm** không làm yếu phép kiểm: nó vẫn là phép so chuỗi con chính xác, nên câu do mô hình diễn đạt lại
+vẫn không trùng. Điều nó bỏ đi chỉ là yêu cầu về **trình bày** — thứ không thuộc về phép kiểm đó.
+
+Điều `chu_cho_khach()` **không** làm, và có test ép: nó không viết lại câu, không tóm tắt, **không
+làm mất chữ nào**. Mất một chữ là nó thành một dạng tóm tắt — và tóm tắt tri thức nhà hàng là đúng
+điều đường này tồn tại để tránh.
+
+### 17.4 Ba chỗ giữ cùng một con số, và chúng đã lệch
+
+```
+answer.LIST_SIZE            6   số món câu trả lời NÊU RA
+cart.MAX_CART_ACTIONS       3   số món khách BẤM ĐƯỢC
+schema maxItems             3   hợp đồng với backend
+```
+
+Khách đọc sáu lựa chọn và bấm chọn được ba. Đây là dạng **nhẹ** của đúng vấn đề *"trả lời một kiểu,
+thẻ giỏ một kiểu"*, và nó sống sót qua 103/103 vì bất biến thẻ giỏ chỉ canh một chiều.
+
+Nâng thẻ lên 6 chứ không hạ số món xuống 3, vì `LIST_SIZE = 6` có căn cứ đo được (*"ca đòi nhiều nhất
+là 5 món"*) còn 3 thì không. Cái giá nói ra: sáu thẻ dài hơn ba trên điện thoại — nhưng thẳng thắn
+hơn việc cho khách đọc sáu rồi bấm được ba.
+
+`MAX_CART_ACTIONS` nay **lấy từ** `LIST_SIZE`. Chỗ thứ ba là JSON nên không import được, và đó chính
+là chỗ cần một test — `test_contract` ép cả ba khớp nhau. Đây là dạng "hai đầu phải khớp" thứ năm của
+dự án, và lần này một đầu không phải mã.
+
+### 17.5 Ba cảnh báo CodeQL — lý do DUY NHẤT chặn merge
+
+`mergeStateStatus = BLOCKED` của PR #377 **không** phải vì check đỏ: cả 12 check đều pass, kể cả
+`golden-e2e`. Nó bị chặn vì ruleset bật `required_review_thread_resolution` và có **3 luồng chưa giải
+quyết** — cả ba là CodeQL *Information exposure through an exception*.
+
+Ba chỗ **không cùng mức nguy hiểm**, và phân biệt được là phần quan trọng nhất của mục này:
+
+| Chỗ | Cần token? | Mức thật |
+|---|---|---|
+| `/ready.menu_error` | **không** | **rò rỉ thật** — `{exc}` của `OSError` chứa đường dẫn tệp máy chủ |
+| `/v1/cache/invalidate.error` | có | rò rỉ với bên đã có token nội bộ |
+| `decision.error` của `/v1/chat` | có, và backend **không** chuyển tiếp `decision` cho khách | thấp nhất |
+
+Chỗ thứ ba vẫn được sửa, và lý do đáng ghi: *"chỉ tới bên đã xác thực"* là lớp bảo vệ dựa vào **cấu
+hình**, không dựa vào **cấu trúc**. Đặt sai `AI_INTERNAL_TOKEN`, hay đổi backend để chuyển tiếp
+`decision`, là rò rỉ ngay — và không phép kiểm nào đỏ.
+
+Sửa: **tên loại lỗi ra ngoài, chi tiết vào log**, và với `/v1/chat` thêm **mã tham chiếu**
+(`RuntimeError ref=b5ea3d6a`). Không bỏ trường đi: mất trường là mất khả năng chẩn đoán, và
+`/v1/cache/invalidate` trả số món sau khi nạp chính vì *"trả `{ok: true}` thì một lần nạp thất bại
+nhìn giống một lần thành công"*.
+
+Test đổi theo, và mạnh hơn: kiểm **cả phản hồi HTTP** chứ không chỉ `content`, cộng một test chạy
+**thật** đường lỗi nạp thực đơn — không gán tay `MENU.error`, vì đường lỗi mới là chỗ chuỗi được tạo.
 
 ## Chạy lại
 
