@@ -34,9 +34,6 @@ public sealed class DeploymentConfigurationTests
         Assert.Contains("AI_PROVIDER_UNAVAILABLE", script, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("deploy-staging.yml")]
-    [InlineData("deploy-production.yml")]
     /// <summary>
     /// Deploy phải đi qua một CỔNG đối chiếu cấu hình với bằng chứng đã đo, và KHÔNG được tự chạy
     /// lại phép đo trong bước deploy.
