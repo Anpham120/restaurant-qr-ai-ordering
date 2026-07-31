@@ -123,6 +123,19 @@ _SPICE_VI = {
 }
 
 
+def _thuoc_ho(item: dict, ho_mon: list[str]) -> bool:
+    """Món này có thuộc một trong những họ món khách gọi tên không.
+
+    So theo TỪ ĐẦU của tên món, không phải chứa-ở-bất-kỳ-đâu. "Bún đậu mắm tôm" bắt đầu bằng "bun"
+    nên nó là món bún; còn nếu so kiểu chứa thì một họ tên ngắn sẽ quét sang món khác chỉ vì trùng
+    chữ — đúng lớp lỗi đụng chữ mà cả `understand.py` được thiết kế để tránh.
+    """
+    from understand import fold
+
+    ten = fold(item["name"])
+    return any(ten == h or ten.startswith(h + " ") for h in ho_mon)
+
+
 def _spice_of(item: dict) -> str:
     tag = next((t for t in item["tags"] if t.startswith("spice:")), "")
     return _SPICE_VI.get(tag, "")
@@ -491,7 +504,20 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     if request.exclude_item_ids:
         bo = set(request.exclude_item_ids)
         picked = [i for i in picked if i["id"] not in bo]
-    if request.categories:
+    # HỌ MÓN khách gọi tên thắng danh mục.
+    #
+    # Khách hỏi "có phở không" nhận về cả bún, vì "phở" ánh xạ vào danh mục `cat_noodle` — mà danh
+    # mục ấy tên là **"Phở & Bún"**. Đúng nhóm, sai câu hỏi: khách nêu tên một họ món cụ thể.
+    #
+    # Phép kiểm sức khỏe deploy bắt được, và nó bắt bằng một bất biến rất chặt: mọi thẻ giỏ của câu
+    # hỏi phở phải là món CÓ CHỮ PHỞ trong tên. Bốn món bún trong giỏ làm nó đỏ — trong khi 103 lượt
+    # golden, 140 ca và 87 lượt phiên đều xanh.
+    #
+    # Lọc theo tên THAY danh mục, không cộng thêm: "Phở chay nấm đông cô" nằm ở `cat_vegetarian`, và
+    # nó VẪN là phở. Giao hai điều kiện thì mất đúng món mà khách sẽ thấy thiếu.
+    if request.ho_mon:
+        picked = [i for i in picked if _thuoc_ho(i, request.ho_mon)]
+    elif request.categories:
         picked = [i for i in picked if i["categoryId"] in request.categories]
     elif request.wants == "food":
         picked = [i for i in picked if i["categoryId"] in FOOD_CATEGORIES]

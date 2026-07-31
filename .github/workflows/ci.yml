@@ -361,6 +361,21 @@ jobs:
           test -n "$QR" || { echo "không lấy được mã QR — cơ sở dữ liệu chưa seed bàn nào"; exit 1; }
           GOLDEN_QR_TOKEN="$QR" python ai/evaluation/run_golden_e2e.py --chi-tiet
 
+      # Ba câu thử của phép kiểm sức khỏe deploy, chạy Ở ĐÂY thay vì chờ tới staging.
+      #
+      # Vì sao bước này tồn tại: `deploy/scripts/health-check.sh` chỉ chạy trên staging, tức chỉ đỏ
+      # SAU khi đã merge, đã đẩy, đã dựng ảnh và đã thay container — vòng phản hồi dài nhất của dự
+      # án. Nó đã đỏ hai lần liên tiếp, và lần thứ hai đáng nói: khách hỏi "có PHỞ không" mà thẻ giỏ
+      # có 4 món BÚN, trong khi **103 lượt golden, 140 ca và 87 lượt phiên đều xanh** trên đúng bản
+      # đó. Ba câu thử kia tồn tại từ hệ thống CŨ, do người khác viết cho mục đích khác, nên chúng
+      # hỏi khác đi — và chính vì thế chúng bắt được thứ ba tập kia không bắt.
+      #
+      # Bộ này KHÔNG sao chép phép khẳng định: nó bóc các khối Python nội tuyến từ chính
+      # `health-check.sh` rồi chạy lại nguyên văn. Sao chép thì nó thành đầu thứ hai của cùng một bất
+      # biến, và dự án đã trả giá tám lần cho đúng chuyện đó.
+      - name: Ba câu thử của phép kiểm deploy — bắt ở CI, không chờ staging
+        run: python ai/evaluation/run_deploy_probes.py
+
       - name: Log khi đỏ
         if: failure()
         run: |
