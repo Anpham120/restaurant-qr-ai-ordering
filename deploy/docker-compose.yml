@@ -28,7 +28,16 @@ x-api-environment: &api-environment
   CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-python-rag}
   AI_SERVICE_URL: ${AI_SERVICE_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}}
   AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-  AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
+  # KHÔNG đặt biến này. Backend `ReadPipelineProfile()` chỉ nhận đúng ba giá trị
+  # (`llm_first_v1`, `evidence_first_v2`, `planner_state_v3`) và NÉM LỖI với mọi giá trị khác;
+  # để trống thì nó tự dùng `llm_first_v1`.
+  #
+  # Tôi từng ghi ở đây rằng biến này "chỉ để ghi log" rồi đặt nó thành `rebuild-1`. Điều đó SAI:
+  # backend kiểm nó theo danh sách cho phép, nên mọi lượt chat trả **500 Unhandled API
+  # exception**. Chạy thật mới thấy — đọc mã thì tôi đã đọc đúng dòng ghi log và bỏ qua dòng kiểm.
+  #
+  # Dịch vụ AI không đọc biến này: bản dựng lại có đúng một đường xử lý thay vì 8 đường chồng
+  # nhau, nên không có "profile" nào để chọn.
   # Keep the browser-facing API alive slightly longer than the AI service's
   # end-to-end request budget.  Otherwise a valid DeepSeek/Luna response can
   # be discarded by the backend before the AI service returns it.
@@ -96,29 +105,48 @@ services:
       context: ..
       dockerfile: ai/Dockerfile
     restart: unless-stopped
+    # Chỉ những biến dịch vụ THẬT SỰ đọc.
+    # ----------------------------------
+    # Khối này từng truyền 11 biến mà bản dựng lại không đọc, và ba trong số đó NÓI SAI về hệ thống:
+    #
+    #     RAG_RETRIEVAL_METHOD: hybrid        bộ truy hồi thật là `embedding`, và nó do
+    #                                         `requirements.txt` quyết định — không biến nào chọn
+    #     RAG_KNOWLEDGE_BASE_PATH: knowledge-base   thư mục đó KHÔNG CÒN TỒN TẠI (nay `ai/knowledge`)
+    #     AI_LLM_FIRST: true                  không còn khái niệm "gọi mô hình trước"
+    #
+    # Người vận hành đọc compose để biết hệ thống chạy thế nào. Một tệp cấu hình nói sai còn tệ hơn
+    # không nói: nó ĐƯỢC TIN. Ai đọc dòng `RAG_RETRIEVAL_METHOD: hybrid` sẽ kết luận triển khai đang
+    # chạy hybrid, trong khi kết luận trung tâm của phép đo là embedding (Hit@1 niêm phong 0,609 so
+    # với 0,522 của hybrid) — và sẽ đi sửa biến đó khi muốn đổi bộ truy hồi, mà không có gì xảy ra.
+    #
+    # Bảy biến còn lại (`AI_MAX_TOKENS`, `AI_REASONING_EFFORT`, `AI_REQUEST_BUDGET_SECONDS`,
+    # `AI_MAX_RETRY`, `RAG_TOP_K`, `AI_EMBEDDING_MODEL`, `LLM_RATE_LIMIT_FALLBACK_*`) chỉ là chết:
+    # đặt hay không đặt đều không đổi gì. Biến chết mời người ta điều chỉnh một cái núm không nối
+    # vào đâu, rồi kết luận sai về hệ thống khi không thấy tác dụng.
+    #
+    # Danh sách dưới đối chiếu được: `ai/app/test_packaging.py` bắt mọi biến compose truyền mà không
+    # mô-đun nào đọc, và ngược lại.
     environment:
-      LLM_PROVIDER: ${LLM_PROVIDER:-9router}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:20128/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-cx/gpt-5.6-luna-review}
-      # Single-model deployment: no fallback model, fallback off.  The previous
-      # defaults still described the retired DeepSeek-primary policy, so a compose
-      # run without explicit env picked up a model the deployment no longer uses.
-      LLM_RATE_LIMIT_FALLBACK_MODEL: ${LLM_RATE_LIMIT_FALLBACK_MODEL:-}
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: ${LLM_RATE_LIMIT_FALLBACK_ENABLED:-false}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
+      # Đường SINH: mô hình VIẾT chữ cho khách thay vì khuôn mẫu dựng.  Mặc định TẮT, và mặc
+      # định đó dựa trên số đo, không dựa trên thận trọng chung: trên 18 ca loại C, câu sinh
+      # làm TỤT 9 ca so với đường tất định (thua thước đo nội dung: văn xuôi nêu 3 món trong
+      # khi khuôn mẫu nêu 6), mô hình bịa giá ở 3/18 lượt (lớp xác minh chặn được), và độ trễ
+      # là 7 giây mỗi lượt so với gần 0.
+      #
+      # Bật nó là một quyết định phải xem những con số đó trước.  Xem
+      # ai/evaluation/run_llm_rag_eval.py để chạy lại phép đo.
+      AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-}
+      # 30 giây, và phải NHỎ HƠN `BACKEND_AI_TIMEOUT_SECONDS` (50) ở trên: backend phải còn thời
+      # gian nhận câu thoái hóa của dịch vụ AI thay vì tự hết hạn trước và trả lỗi cho khách.
+      # `DeploymentConfigurationTests` canh đúng quan hệ đó.
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
-      AI_REQUEST_BUDGET_SECONDS: ${AI_REQUEST_BUDGET_SECONDS:-45}
-      AI_MAX_RETRY: ${AI_MAX_RETRY:-0}
-      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-700}
-      AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-low}
+      # Giới hạn số luồng CPU của torch. Đây là biến DUY NHẤT còn lại trong nhóm "điều chỉnh hiệu
+      # năng", và nó thật: mô hình embedding chạy trên CPU cùng máy với backend và Postgres.
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
-      RAG_KNOWLEDGE_BASE_PATH: ${RAG_KNOWLEDGE_BASE_PATH:-knowledge-base}
-      RAG_TOP_K: ${RAG_TOP_K:-5}
-      RAG_RETRIEVAL_METHOD: ${RAG_RETRIEVAL_METHOD:-hybrid}
-      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-e5_small}
-      AI_LLM_FIRST: ${AI_LLM_FIRST:-true}
-      AI_PIPELINE_PROFILE: ${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}
       AI_SERVICE_HOST: ${AI_SERVICE_HOST:-127.0.0.1}
       AI_SERVICE_PORT: ${AI_SERVICE_PORT:-8001}
     mem_limit: 3g

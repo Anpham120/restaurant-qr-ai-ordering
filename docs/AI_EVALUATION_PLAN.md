@@ -2,9 +2,9 @@
 
 ## Bộ dữ liệu canonical
 
-- **Quality gate:** `ai/evaluation/golden/cases.jsonl` (325 case, dev/test split)
+- **Quality gate:** `ai/evaluation/golden/cases.jsonl` (338 case / 26 họ, dev/test split theo họ)
 - **CI smoke retrieval:** `ai/evaluation/golden/smoke_retrieval.jsonl`
-- **Legacy archived:** `golden_questions.csv` (see `golden_questions.ARCHIVED.md`)
+- **Đã gỡ:** `golden_questions.csv` và ghi chú lưu trữ của nó không còn trong repo.
 
 ## Thước đo theo lớp
 

@@ -1,21 +1,38 @@
 #!/usr/bin/env bash
+# Phép kiểm sau deploy: dịch vụ vừa dựng có ĐANG phục vụ đúng cấu hình đã đo không.
+#
+# Vì sao tệp này phải viết lại
+# ----------------------------
+# Bản trước assert theo hợp đồng của hệ thống AI CŨ: `pipeline_profile`, `model_policy`,
+# `provider_status`, `model_attempts`, `verifier_result`, `resolved_menu_item_ids`, `evidence`,
+# `claims`.  Bản dựng lại không trả trường nào trong số đó, nên phép kiểm đỏ **trong khi dịch vụ
+# hoàn toàn khỏe** — lần chạy 2026-07-31 in ra đúng `/ready` mong đợi rồi vẫn thất bại:
+#
+#     retriever=embedding · retriever_vectors_from_cache=True · generation_enabled=False
+#     menu_items=91 · knowledge_chunks=449          <- tất cả đều đúng
+#     AssertionError                                <- vì phép kiểm hỏi trường của hệ cũ
+#
+# Đây là lần thứ tám trong dự án này một bất biến "hai đầu phải khớp" chỉ được sửa ở MỘT đầu, và đầu
+# thứ hai lại viết bằng ngôn ngữ khác — ở đây là Python nội tuyến trong Bash.  Nên phép kiểm mới
+# **không viết tay kỳ vọng nào**: nó lấy `retriever` và `generation` mong đợi từ chính hàm mà cổng
+# deploy dùng (`ai/evaluation/verify_deploy_config.py`), tức từ `requirements.txt` và biến môi
+# trường thật.  Không có số nào ở đây để trôi.
+#
+# Điều phép kiểm này cố ý KHÔNG làm
+# ---------------------------------
+# Không chạy lại bộ golden.  Golden cần cả stack và một khóa mô hình thật; nó đã chạy ở CI trước
+# khi deploy, và `verify_deploy_config.py` đối chiếu cấu hình sắp deploy với bằng chứng đó.  Việc
+# của tệp này là hỏi câu khác: **dịch vụ ĐANG CHẠY có đúng là cấu hình ấy không.**
 set -euo pipefail
 
 : "${DEPLOY_ENV:?DEPLOY_ENV is required}"
 : "${FRONTEND_SERVER_NAMES:?FRONTEND_SERVER_NAMES is required}"
 : "${API_SERVER_NAME:?API_SERVER_NAME is required}"
 : "${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}"
-: "${AI_PIPELINE_PROFILE:?AI_PIPELINE_PROFILE is required}"
 : "${LLM_MODEL:?LLM_MODEL is required}"
-: "${LLM_RATE_LIMIT_FALLBACK_ENABLED:?LLM_RATE_LIMIT_FALLBACK_ENABLED is required}"
-# A single-model deployment has no fallback model, and the service reports
-# fallback_model=null whenever fallback is disabled.  Demanding a non-empty value
-# here forced deployments to name a fallback they would never call, which then
-# failed the readiness assertion below.  Require it only when it can be used.
-if [ "$(printf '%s' "${LLM_RATE_LIMIT_FALLBACK_ENABLED}" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
-  : "${LLM_RATE_LIMIT_FALLBACK_MODEL:?LLM_RATE_LIMIT_FALLBACK_MODEL is required when fallback is enabled}"
-fi
-LLM_RATE_LIMIT_FALLBACK_MODEL="${LLM_RATE_LIMIT_FALLBACK_MODEL:-}"
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/../.." && pwd)"
 
 primary_frontend_domain="$(printf '%s\n' "$FRONTEND_SERVER_NAMES" | awk '{print $1}')"
 frontend_url="${FRONTEND_HEALTH_URL:-https://${primary_frontend_domain}/}"
@@ -34,31 +51,65 @@ curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors 
 echo "Checking API readiness (database and AI dependency): ${api_ready_url}"
 curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors "$api_ready_url"
 
+# Kỳ vọng lấy từ mã, không viết tay.  `bo_truy_hoi_se_deploy()` đọc `requirements.txt` vì bộ truy hồi
+# do NỘI DUNG ẢNH quyết định, không do biến môi trường; `duong_sinh_se_bat()` đọc đúng biến mà
+# `service._bat_duong_sinh` đọc.  Cả hai chỉ dùng thư viện chuẩn nên python3 hệ thống chạy được.
+expectations="$(cd "$repo_root" && python3 - <<'PY'
+import sys
+sys.path.insert(0, "ai/evaluation")
+import verify_deploy_config as gate
+
+print(gate.bo_truy_hoi_se_deploy())
+print("true" if gate.duong_sinh_se_bat() else "false")
+PY
+)"
+expected_retriever="$(printf '%s\n' "$expectations" | sed -n '1p')"
+expected_generation="$(printf '%s\n' "$expectations" | sed -n '2p')"
+echo "Expecting retriever=${expected_retriever} generation_enabled=${expected_generation} (derived from the repo, not hard-coded)"
+
 echo "Checking AI readiness: ${ai_ready_url}"
 probe_dir="$(mktemp -d)"
 trap 'rm -rf "$probe_dir"' EXIT
 ready_payload="${probe_dir}/ready.json"
 curl --fail --show-error --silent --retry 10 --retry-delay 5 --retry-all-errors \
   "$ai_ready_url" > "$ready_payload"
-python3 - "$ready_payload" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" "$LLM_RATE_LIMIT_FALLBACK_ENABLED" <<'PY'
+python3 - "$ready_payload" "$LLM_MODEL" "$expected_retriever" "$expected_generation" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-expected_profile, expected_model = sys.argv[2], sys.argv[3]
-# The service reports fallback_model=null when fallback is disabled, so an empty
-# configured value means "no fallback model" rather than "unchecked".
-expected_fallback_model = sys.argv[4].strip() or None
-expected_fallback_enabled = sys.argv[5].strip().lower() == "true"
-policy = dict(payload.get("model_policy") or {})
+expected_model, expected_retriever = sys.argv[2], sys.argv[3]
+expected_generation = sys.argv[4].strip().lower() == "true"
+
 assert payload.get("ready") is True, payload
-assert payload.get("pipeline_profile") == expected_profile, payload
+
+# Con số, không chỉ `true/false`.  Một dịch vụ báo `ready: true` với 0 món hoặc 0 đoạn tri thức là
+# dịch vụ sẽ trả "chưa có dữ liệu" cho mọi câu — và đó đúng là lỗi đã xảy ra một lần: kho tri thức
+# nằm ngoài phạm vi COPY của Dockerfile, container im lặng phục vụ với kho rỗng.
+assert payload.get("menu_error") is None, payload
+assert int(payload.get("menu_items") or 0) > 0, payload
+assert int(payload.get("knowledge_chunks") or 0) > 0, payload
+assert int(payload.get("verbatim_topics") or 0) > 0, payload
+
+# Mô hình: PHẢI gồm cả khóa.  Bản trước chỉ kiểm URL và tên, nên một container chạy với
+# `LLM_API_KEY=` rỗng vẫn báo cấu hình đủ, và một phép đo đầu-cuối đã bị kết luận sai là "có mô
+# hình thật" trong khi mọi lượt đi đường tất định.
 assert str(payload.get("model") or "") == expected_model, payload
-assert policy.get("primary_model") == expected_model, payload
-assert policy.get("fallback_model") == expected_fallback_model, payload
-assert bool(policy.get("fallback_enabled")) is expected_fallback_enabled, payload
-assert policy.get("fallback_trigger") == "http_429", payload
-assert int(policy.get("max_fallbacks_per_operation") or 0) == 1, payload
+assert payload.get("model_base_url_set") is True, payload
+assert payload.get("model_key_set") is True, payload
+assert payload.get("model_configured") is True, payload
+
+# Cấu hình đang chạy phải khớp cấu hình đã ĐO.  `verify_deploy_config.py` đã chặn ở CI nếu bằng
+# chứng không khớp thứ sắp deploy; đây là đầu còn lại — thứ THẬT SỰ đang chạy.
+assert payload.get("retriever") == expected_retriever, payload
+assert bool(payload.get("generation_enabled")) is expected_generation, payload
+
+if expected_retriever == "embedding":
+    assert int(payload.get("retriever_chunks") or 0) > 0, payload
+    # Đệm vector trượt là một hồi quy THẬT dù không câu nào trả lời sai: khởi động 61,9s thay vì
+    # 19,0s, mỗi lần khởi động lại.  Nó từng trượt im lặng suốt một giai đoạn (đệm ghi theo 425
+    # đoạn, chạy theo 370) trong khi log báo thành công.
+    assert payload.get("retriever_vectors_from_cache") is True, payload
 PY
 
 echo "Running protected basic AI smoke request"
@@ -75,11 +126,11 @@ run_semantic_probe() {
   local request_file="${probe_dir}/${probe_name}-request.json"
   local response_file="${probe_dir}/${probe_name}-response.json"
 
-  python3 - "$menu_dataset" "$request_file" "$probe_message" "$AI_PIPELINE_PROFILE" <<'PY'
+  python3 - "$menu_dataset" "$request_file" "$probe_message" "$probe_name" <<'PY'
 import json
 import sys
 
-source, target, message, profile = sys.argv[1:5]
+source, target, message, probe_name = sys.argv[1:5]
 raw = json.load(open(source, encoding="utf-8-sig"))
 menu_items = [
     {
@@ -97,16 +148,14 @@ menu_items = [
 payload = {
     "contract_version": "v2",
     "message": message,
-    "session_id": f"deploy-smoke-{profile}",
-    "pipeline_profile": profile,
+    "session_id": f"deploy-smoke-{probe_name}",
     "session_state": {
         "facts": [],
         "constraints": {},
-        "memory_version": "v2",
+        "memory_version": "v3",
         "conversation_frame": {"turn_sequence": 0},
     },
     "live_context": {
-        "catalog_version": "deploy-smoke-menu",
         "menu_items": menu_items,
         "table_code": "SMOKE",
     },
@@ -121,70 +170,52 @@ PY
     --data-binary "@${request_file}" \
     "$ai_chat_url" > "$response_file"
 
-  python3 - "$response_file" "$menu_dataset" "$probe_name" "$AI_PIPELINE_PROFILE" "$LLM_MODEL" "$LLM_RATE_LIMIT_FALLBACK_MODEL" <<'PY'
+  python3 - "$response_file" "$menu_dataset" "$probe_name" <<'PY'
 import json
 import sys
 import unicodedata
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-menu_source, probe_name, expected_profile, expected_model = sys.argv[2:6]
-# Empty means the deployment runs a single model, and the response then reports
-# fallback_model=null; see the readiness assertions above.
-expected_fallback_model = sys.argv[6].strip() or None
-content = str(payload.get("content") or "").casefold()
-assert payload.get("pipeline_profile") == expected_profile, payload
-assert payload.get("primary_model") == expected_model, payload
-assert payload.get("fallback_model") == expected_fallback_model, payload
-model = str(payload.get("model") or "")
-# A factual live-menu response may be deliberately deterministic even if an
-# earlier semantic planner attempt hit a rate limit.  It is safe because the
-# verifier has grounded every claim in the supplied menu; do not turn that
-# valid no-LLM route into a false deployment failure.
-is_deterministic = model.startswith("deterministic-")
-allowed_models = {expected_model}
-if expected_fallback_model:
-    allowed_models.add(expected_fallback_model)
-assert model in allowed_models or is_deterministic, payload
-if is_deterministic:
-    assert payload.get("provider_status") == "not_called", payload
-else:
-    assert payload.get("provider_status") == "available", payload
-    successful_attempts = [
-        attempt
-        for attempt in (payload.get("model_attempts") or [])
-        if attempt.get("outcome") == "success"
-    ]
-    assert successful_attempts, payload
-    assert successful_attempts[-1].get("model") == model, payload
-    if model == expected_fallback_model:
-        assert payload.get("fallback_used") is True, payload
-        assert payload.get("fallback_reason") == "rate_limit_429", payload
-        assert any(
-            attempt.get("model") == expected_model
-            and attempt.get("outcome") == "http_429"
-            for attempt in payload.get("model_attempts") or []
-        ), payload
-        assert any(
-            attempt.get("model") == expected_fallback_model
-            and attempt.get("role") == "rate_limit_fallback"
-            and attempt.get("outcome") == "success"
-            for attempt in payload.get("model_attempts") or []
-        ), payload
+menu_source, probe_name = sys.argv[2:4]
+content = str(payload.get("content") or "")
+decision = dict(payload.get("decision") or {})
+
+assert payload.get("ok") is True, payload
+assert payload.get("provider_available") is True, payload
+assert content.strip(), payload
+assert isinstance(payload.get("guardrail_flags"), list), payload
+
+# Ba câu thử đều hỏi về món CÓ trong thực đơn, nên từ chối là sai.  Câu từ chối của hệ thống là một
+# câu cố định và đã có test bảo vệ nguyên văn; kiểm nó ở đây là kiểm dịch vụ đang thấy dữ liệu.
+assert decision.get("kind") not in ("no_data", "refuse"), payload
+# `chưa có dữ liệu` là phần chung của mọi biến thể câu từ chối ("Mình chưa có dữ liệu về việc này
+# ạ."), nên cấm đúng phần đó thay vì gõ lại nguyên câu — nguyên câu đổi một chữ là phép kiểm chết.
+# `ai/app/test_deploy_health_check.py` đối chiếu danh sách này với câu từ chối THẬT của dịch vụ.
 for forbidden_phrase in (
-    "mình chưa đủ bằng chứng",
-    "chưa có dữ liệu thực đơn",
-    "không có dữ liệu thực đơn",
+    "chưa có dữ liệu",
     "hệ thống hơi chậm",
 ):
-    assert forbidden_phrase not in content, payload
-assert payload.get("verifier_result") != "failed", payload
-assert payload.get("resolved_menu_item_ids"), payload
-assert payload.get("evidence"), payload
-assert all(bool(claim.get("verified")) for claim in payload.get("claims") or []), payload
+    assert forbidden_phrase not in content.casefold(), payload
+
+# Mô hình được gọi thì phải gọi ĐƯỢC.  Không đòi nó phải được gọi: một câu mà từ vựng tất định đã
+# hiểu trọn thì bỏ qua lần gọi là đúng thiết kế, không phải thiếu sót.  Nhưng "gọi rồi lỗi, âm thầm
+# rơi về đường tất định" thì phải đỏ, vì bề ngoài hai trường hợp giống nhau.
+model = dict(decision.get("model") or {})
+if model.get("used") is True:
+    assert model.get("ok") is True, payload
+
+# Bất biến quan trọng nhất của phản hồi: MỌI thẻ giỏ phải trỏ vào món CÓ THẬT trong thực đơn vừa
+# gửi, với đúng giá của nó, và luôn cần khách xác nhận.  Đây là ranh giới "AI không tự đặt món".
+raw_menu = json.load(open(menu_source, encoding="utf-8-sig"))
+by_id = {str(item.get("id") or "").strip(): item for item in raw_menu.get("items") or []}
+actions = payload.get("suggested_cart_actions") or []
+for action in actions:
+    item_id = str(action.get("menu_item_id") or "").strip()
+    assert item_id in by_id, (action, payload)
+    assert action.get("requires_customer_confirmation") is True, (action, payload)
+    assert int(action.get("price") or 0) == int(by_id[item_id].get("price") or 0), (action, payload)
 
 if probe_name.startswith("pho"):
-    raw_menu = json.load(open(menu_source, encoding="utf-8-sig"))
-
     def normalize_text(value):
         decomposed = unicodedata.normalize("NFD", str(value or "")).casefold()
         return "".join(char for char in decomposed if not unicodedata.combining(char))
@@ -194,18 +225,9 @@ if probe_name.startswith("pho"):
         for item in raw_menu.get("items") or []
         if "pho" in normalize_text(item.get("name"))
     }
-    resolved_ids = {
-        str(item_id).strip()
-        for item_id in payload.get("resolved_menu_item_ids") or []
-        if str(item_id).strip()
-    }
-    action_ids = {
-        str(action.get("menu_item_id") or "").strip()
-        for action in payload.get("suggested_cart_actions") or []
-        if str(action.get("menu_item_id") or "").strip()
-    }
     assert pho_allowed_ids, raw_menu
-    assert resolved_ids.issubset(pho_allowed_ids), payload
+    action_ids = {str(action.get("menu_item_id") or "").strip() for action in actions}
+    assert action_ids, payload
     assert action_ids.issubset(pho_allowed_ids), payload
 PY
 }
@@ -299,17 +321,17 @@ cat > "${report_dir}/last-deployment.md" <<EOF
 - API readiness URL: ${api_ready_url}
 - AI readiness URL: ${ai_ready_url}
 - Protected semantic AI smoke (3 production cases): PASS
-- Pipeline profile: ${AI_PIPELINE_PROFILE}
+- AI retriever: ${expected_retriever}
+- AI generation enabled: ${expected_generation}
 - LLM model: ${LLM_MODEL}
-- LLM fallback model: ${LLM_RATE_LIMIT_FALLBACK_MODEL}
 - Checked at UTC: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 - Result: PASS
 
 ## Compose Status
 
-```json
+\`\`\`json
 ${compose_status}
-```
+\`\`\`
 EOF
 
 echo "Health check passed for ${DEPLOY_ENV}"

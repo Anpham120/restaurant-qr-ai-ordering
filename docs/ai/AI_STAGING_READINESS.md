@@ -11,7 +11,7 @@ The release architecture is now selected by
 single-model comparison of all three pipeline profiles under the runtime's
 primary model (`cx/gpt-5.6-luna-review`; DeepSeek was dropped after its
 9router route rejected `response_format:json_object` — see
-`docs/ai/AI_ASSISTANT_QUALITY_FIX_REPORT.md`). `planner_state_v3` may
+`docs/ai/AI_DECISION_HISTORY.md`). `planner_state_v3` may
 remain in the codebase for research, but it cannot be enabled unless it is the
 artifact winner. A missing winner, profile drift, commit drift, or failed
 post-deploy semantic smoke blocks/rolls back the release.
