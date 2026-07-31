@@ -631,3 +631,61 @@ class MaNguonKhongChuaKyTuDieuKhien(unittest.TestCase):
             if bad:
                 xau.append(f"{path.name}: {[hex(ord(c)) for c in bad]}")
         self.assertFalse(xau, "ký tự điều khiển trong mã nguồn:\n  " + "\n  ".join(xau))
+
+
+class HoMonThangDanhMuc(unittest.TestCase):
+    """Khách hỏi "có phở không" phải nhận PHỞ, không nhận cả bún.
+
+    Danh mục `cat_noodle` tên là "Phở & Bún", nên lọc theo danh mục trả về cả hai họ — đúng nhóm,
+    sai câu hỏi. Phép kiểm sức khỏe deploy bắt được bằng một bất biến rất chặt (mọi thẻ giỏ của câu
+    hỏi phở phải là món có chữ "phở" trong tên), trong khi 103 lượt golden, 140 ca và 87 lượt phiên
+    đều xanh.
+
+    Họ món SINH từ thực đơn, nên nó phủ cả họ thêm sau — nhưng chỉ nhận họ nào ĐỒNG THỜI là một cụm
+    danh mục đã rà soát, vì danh sách thô chứa `goi` (Gỏi), `ca`, `ga`, `mi`, `nuoc`. Nhận thẳng thì
+    "nhà hàng GỌI món thế nào?" lọc ra toàn món gỏi.
+    """
+
+    def test_ho_mon_sinh_tu_thuc_don_chua_dung_nhung_ho_co_that(self):
+        from understand import ho_mon_trong_thuc_don
+
+        ho = ho_mon_trong_thuc_don(ITEMS)
+        self.assertIn("pho", ho)
+        self.assertIn("bun", ho)
+        self.assertIn("lau", ho)
+        # Từ đầu chỉ MỘT món dùng thì không phải họ — món đó nhận được qua tên đầy đủ.
+        dem = {}
+        for item in ITEMS:
+            w = fold(item["name"]).split()
+            if w:
+                dem[w[0]] = dem.get(w[0], 0) + 1
+        for h in ho:
+            with self.subTest(h):
+                self.assertGreaterEqual(dem.get(h, 0), 2, f"{h!r} chỉ có 1 món mà thành họ")
+
+    def test_hoi_pho_KHONG_nhan_bun(self):
+        request = ask("Nhà hàng mình có những món phở gì nhỉ?")
+        self.assertEqual(request.ho_mon, ["pho"])
+
+    def test_hoi_tra_KHONG_nhan_ca_phe(self):
+        """`cat_drink` tên "Cà phê & Trà" — cùng lớp lỗi với "Phở & Bún"."""
+        request = ask("Nhà hàng có trà gì?")
+        self.assertEqual(request.ho_mon, ["tra"])
+
+    def test_hoi_bia_KHONG_nhan_ruou(self):
+        request = ask("Có bia không")
+        self.assertEqual(request.ho_mon, ["bia"])
+
+    def test_goi_mon_KHONG_thanh_mon_goi(self):
+        """`goi` (Gỏi) là họ món có thật trong thực đơn, và "gọi món" rút dấu thành "goi mon".
+
+        Đây là lý do họ món phải giao với từ vựng danh mục thay vì nhận thẳng từ thực đơn.
+        """
+        request = ask("Nhà hàng gọi món thế nào?")
+        self.assertEqual(request.ho_mon, [])
+
+    def test_mon_nuoc_KHONG_thanh_nuoc_ep(self):
+        """`nuoc` là từ đầu của "Nước ép..." nhưng "món nước" nghĩa là món có nước dùng."""
+        request = ask("Có món nước gì không")
+        self.assertEqual(request.ho_mon, [])
+        self.assertIn("cat_noodle", request.categories)

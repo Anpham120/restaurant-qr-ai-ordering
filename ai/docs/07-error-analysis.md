@@ -1548,6 +1548,100 @@ mạnh hơn: **nội dung có dấu gạch chéo phải ghi bằng công cụ gh
 Và cổng chất lượng đã làm đúng việc của nó suốt: `deploy-staging` bị **SKIP** khi `ai-data-and-eval`
 đỏ, nên staging không nhận bản lỗi. Đó là lý do bước deploy phụ thuộc cổng.
 
+## 19. Khách hỏi PHỞ mà nhận BÚN — và vòng phản hồi 8 phút đã đóng lại
+
+Sau mục 18, `develop` xanh, staging deploy lại, và phép kiểm sức khỏe **đỏ lần thứ hai** — lần này ở
+một chỗ khác, và lần này nó bắt được một lỗi sản phẩm thật.
+
+Câu thử `pho-list` hỏi *"Nhà hàng mình có những món phở gì nhỉ?"*. Hệ thống trả về **6 thẻ giỏ**, và
+đây là danh sách:
+
+```
+Phở gà ta · Bún riêu cua đồng · Phở bò tái nạm · Bún chả Hà Nội · Bún bò Huế · Bún mắm miền Tây
+                ^^^^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+```
+
+Bốn trong sáu món là **bún**. Khách hỏi phở.
+
+### 19.1 Nguyên nhân: danh mục gộp hai họ món
+
+Bản sửa ở mục 18 cho "phở" ánh xạ tới danh mục `cat_noodle`. Nhưng danh mục ấy tên là **"Phở & Bún"** —
+nên lọc theo danh mục trả về cả hai họ. Đúng nhóm, sai câu hỏi.
+
+Điều làm phép kiểm deploy bắt được mà ba tập kia không: bất biến của nó **rất chặt** — mọi thẻ giỏ của
+câu hỏi phở phải là món **có chữ "phở" trong tên**. Còn tiêu chí của golden cho câu tương tự chỉ đòi
+`kind=list` và số món tối thiểu, nên 6 món trong đó 4 sai họ vẫn xanh.
+
+### 19.2 Cách sửa: HỌ MÓN sinh từ thực đơn, thắng danh mục
+
+`_name_candidates` đã tính đúng thứ cần rồi **bỏ đi**. Nó gom mọi tiền tố tên món và giữ lại tiền tố
+ứng **đúng một** món (để biết khách đang nói về món nào). Nhánh `len(ids) != 1` bị `continue` — nhưng
+đó chính là **họ món**:
+
+> `bun` ứng 6 món không phải vì nó nhập nhằng, mà vì nhà hàng có 6 món bún.
+
+`ho_mon_trong_thuc_don()` lấy từ đầu của mọi tên món và giữ những từ có **≥2 món** dùng. Sinh từ dữ
+liệu, nên nó phủ cả họ thêm sau: thêm 5 món "Mì Quảng..." là "mì" thành họ món ngay, không ai phải nhớ.
+
+Và lọc theo họ **THAY** danh mục, không cộng thêm:
+
+| Câu | Theo danh mục | Theo họ món |
+|---|---|---|
+| "có phở không" | 6 món (4 món bún) | **3 món phở**, kể cả "Phở chay nấm đông cô" ở `cat_vegetarian` |
+| "nhà hàng có trà gì" | 7 món (có cà phê) | **3 món trà** |
+| "có bia không" | 7 món (có rượu) | **4 món bia** |
+
+Giao hai điều kiện thì mất "Phở chay nấm đông cô" — nó ở danh mục Món chay, và nó **vẫn là phở**.
+
+### 19.3 Hàng rào bắt buộc: giao với từ vựng, không nhận thẳng từ dữ liệu
+
+Danh sách họ món thô có 18 phần tử, và một số **đụng chữ nguy hiểm**:
+
+```
+banh canh nuoc ruou sinh bia bun che com goi lau pho tom tra xoi ca ga mi
+                                          ^^^                        ^^ ^^
+```
+
+`goi` là "Gỏi" — và "nhà hàng **gọi** món thế nào?" rút dấu thành `goi mon`. Nhận thẳng thì câu hỏi về
+cách gọi món lọc ra toàn món gỏi. `nuoc` là "Nước ép", nhưng "món nước" nghĩa là món có nước dùng.
+`ca`, `ga`, `mi` thì quá ngắn.
+
+Nên họ món chỉ được nhận khi nó **đồng thời là một cụm danh mục trong từ vựng** — tức đã có người viết
+ra và có test canh. Phép giao ấy là hàng rào, và nó giữ đúng lớp lỗi mà bảy vụ đụng chữ của bản cũ dạy:
+**dữ liệu tự động thì rộng, và rộng ở tiếng Việt rút dấu nghĩa là sai.**
+
+### 19.4 Điều quan trọng nhất của mục này: vòng phản hồi, không phải bản sửa
+
+Hai lần đỏ liên tiếp đều **chỉ lộ ra sau khi merge**, vì `health-check.sh` chỉ chạy trên staging. Mỗi
+lần mất khoảng 8 phút và một lần merge — vòng phản hồi dài nhất của dự án.
+
+`ai/evaluation/run_deploy_probes.py` đóng nó lại: chạy ở job `golden-e2e` của CI, nơi đã có stack thật.
+Điều quyết định chất lượng của bộ này là **nó không sao chép phép khẳng định** — nó đọc
+`health-check.sh`, bóc các khối Python nội tuyến và cả danh sách câu thử, rồi chạy lại **nguyên văn**:
+
+```
+_PROBE_RE = re.compile(r'run_semantic_probe "([^"]+)" "([^"]+)"')
+```
+
+Sao chép thì nó thành **đầu thứ hai** của cùng một bất biến, và mục 18 vừa kể dự án đã trả giá tám lần
+cho đúng chuyện đó. Bóc thì nó không lệch được: lệch được thì đã không cần nó.
+
+Đã kiểm ngược — tắt phép lọc theo họ món rồi chạy lại: 2 khối đỏ, mã thoát 1, và thông điệp in ra đúng
+danh sách 4 món bún trong giỏ.
+
+### 19.5 Bài học về TẬP ĐÁNH GIÁ
+
+Ba câu thử này tồn tại từ hệ thống **cũ**, do người khác viết cho mục đích khác. Chúng bắt được thứ mà
+103 lượt golden + 140 ca + 87 lượt phiên — **toàn bộ do một người viết** — không bắt.
+
+Không phải vì chúng khó hơn. Vì chúng hỏi **khác**. Người viết một tập đánh giá về ẩm thực Việt sẽ hỏi
+"món nào không cay", "nhóm 4 người ăn gì" — những câu thể hiện hiểu biết về bài toán. Câu "ở đây có phở
+không" thì quá đơn giản để nghĩ tới, và chính vì thế nó bị bỏ sót.
+
+Cách phá thiên lệch của một tập không phải viết thêm ca cùng kiểu, mà là **lấy câu từ một nguồn khác**.
+Và nếu không có nguồn khác thì phải nói ra rằng con số đo được mang thiên lệch của người viết — đó là
+điều mục "Hạn chế" của báo cáo phải ghi.
+
 ## Chạy lại
 
 ```bash

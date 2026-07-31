@@ -150,6 +150,9 @@ class Request:
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
     asks_difference: bool = False
+    # HỌ MÓN khách gọi tên: "phở", "bún", "cơm"... Lọc theo đây THAY danh mục, vì danh mục có thể
+    # gộp nhiều họ ("Phở & Bún") và khách hỏi phở thì không muốn thấy bún.
+    ho_mon: list[str] = field(default_factory=list)
     # Tên loại món là CHỦ THỂ của câu hỏi, không phải ràng buộc. Tính đúng MỘT lần ở `understand()`
     # và đọc ở hai nơi (`understand` bước 6b, `answer.respond` bước 6), vì đây là một bất biến hai
     # đầu: bỏ danh mục khỏi phép lọc mà vẫn suy `wants` từ danh mục đó thì câu vẫn đi nhánh lọc —
@@ -886,6 +889,45 @@ DRINK_CATEGORIES = ("cat_drink", "cat_juice", "cat_alcohol")
 
 
 _NAME_CACHE: dict[int, list[tuple[str, str, str]]] = {}
+_HO_MON_CACHE: dict[int, list[str]] = {}
+
+
+def ho_mon_trong_thuc_don(menu_items: list[dict]) -> list[str]:
+    """HỌ MÓN — từ đầu tên món mà NHIỀU món cùng dùng: "phở", "bún", "cơm", "lẩu", "trà"...
+
+    Vì sao cơ chế này cần tồn tại riêng
+    -----------------------------------
+    Khách hỏi "có phở không" và nhận về cả bún, vì "phở" chỉ ánh xạ được tới DANH MỤC `cat_noodle` —
+    mà danh mục ấy tên là **"Phở & Bún"**. Đúng nhóm, sai câu hỏi.
+
+    `_name_candidates` ngay dưới đã tính đúng thứ cần, rồi **bỏ đi**: nó gom tiền tố tên món và giữ
+    lại tiền tố ứng ĐÚNG MỘT món (để nhận "khách đang nói về món nào"). Nhánh `len(ids) != 1` —
+    tiền tố ứng nhiều món — bị `continue`. Nhưng đó chính là **họ món**: `bun` ứng 6 món không phải
+    vì nó nhập nhằng, mà vì nhà hàng có 6 món bún.
+
+    Sinh từ THỰC ĐƠN, không viết tay
+    --------------------------------
+    Đây là lý do cơ chế này đúng hơn cách sửa đầu tiên của tôi (thêm `pho|bun|com` vào từ vựng danh
+    mục): nó phủ mọi họ món nhà hàng có, kể cả họ thêm sau, và không ai phải nhớ cập nhật. Thêm 5
+    món "Mì Quảng..." vào thực đơn là "mì" thành họ món ngay.
+
+    Chỉ nhận từ ĐẦU TIÊN của tên. "Gà nướng mật ong" và "Cơm gà Hội An" đều có chữ "gà", nhưng "gà"
+    không phải từ đầu của món thứ hai — nên nó không thành họ. Lấy mọi từ ở mọi vị trí thì "nướng",
+    "chay", "sả" đều thành họ món, và câu lọc theo nhãn sẽ bị họ món giành mất.
+    """
+    key = id(menu_items)
+    if key in _HO_MON_CACHE:
+        return _HO_MON_CACHE[key]
+
+    dem: dict[str, int] = {}
+    for item in menu_items:
+        words = fold(item["name"]).split()
+        if words:
+            dem[words[0]] = dem.get(words[0], 0) + 1
+    # Từ đầu chỉ một món dùng thì không phải "họ" — món đó đã nhận được qua tên đầy đủ.
+    ra = sorted((w for w, n in dem.items() if n >= 2 and len(w) >= 2), key=lambda w: (-len(w), w))
+    _HO_MON_CACHE[key] = ra
+    return ra
 
 
 def _name_candidates(menu_items: list[dict]) -> list[tuple[str, str, str]]:
@@ -979,6 +1021,9 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     if khac_vi_tri:
         request.asks_difference = True
 
+    # Họ món có thật trong thực đơn — tính từ dữ liệu, dùng làm hàng rào cho bước 3 dưới.
+    ho_mon_co_that = set(ho_mon_trong_thuc_don(menu_items))
+
     # 3. Cụm từ vựng, dài trước ngắn, ăn hết đoạn đã khớp.
     for phrase in VOCAB_ORDER:
         needle = f" {phrase} "
@@ -1009,6 +1054,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         elif kind == "category":
             if value not in request.categories:
                 request.categories.append(str(value))
+            # Cụm này có ĐỒNG THỜI là một họ món trong thực đơn không (từ đầu của nhiều tên món)?
+            #
+            # Giao HAI nguồn, và cả hai đều cần thiết:
+            #
+            #   thực đơn  -> "pho" là từ đầu của 3 món, "bun" của 6 -> đây là họ món THẬT
+            #   từ vựng   -> cụm này đã được rà soát và khai là danh mục
+            #
+            # Vì sao không lấy trực tiếp danh sách họ món: nó chứa `goi` (Gỏi), `ca`, `ga`, `mi`,
+            # `nuoc`. Nhận thẳng thì "nhà hàng GỌI món thế nào?" lọc ra toàn món gỏi, và "món NƯỚC"
+            # lọc ra Nước ép. Đúng lớp lỗi đụng chữ đã giết bản cũ bảy lần — nên phép giao là hàng
+            # rào: mỗi họ món được nhận đều là một cụm có người viết ra và có test canh.
+            if phrase in ho_mon_co_that and phrase not in request.ho_mon:
+                request.ho_mon.append(phrase)
         elif kind == "wants":
             request.wants = str(value)
         elif kind == "policy":
