@@ -86,8 +86,8 @@ Hà Nội, ngày 01 tháng 08 năm 2026
 # TÓM TẮT
 
 Đồ án xây dựng trợ lý AI tư vấn thực đơn cho khách quét mã QR tại bàn, trên thực đơn thật gồm
-**91 món** với **84 nhãn**, và kho tri thức **108 tài liệu /
-449 đoạn**.
+**91 món** với **85 nhãn**, và kho tri thức **109 tài liệu /
+452 đoạn**.
 
 Đóng góp trung tâm không phải "dùng RAG cho nhà hàng", mà là **xác định chỗ nào RAG là câu trả lời sai**
 và đo điều đó bằng số. Trên bài toán chọn món, lọc theo nhãn đạt
@@ -404,7 +404,7 @@ khách gõ câu
 
 **Mô hình #1 và #2 là cùng một mô hình**, gọi ở hai chỗ cho hai việc khác nhau.
 
-Chặng 3 đọc câu hỏi và trả về **danh sách nhãn** lấy từ từ điển nhãn (84 nhãn), không phải
+Chặng 3 đọc câu hỏi và trả về **danh sách nhãn** lấy từ từ điển nhãn (85 nhãn), không phải
 câu văn. Bốn cơ chế giữ nó trong tầm kiểm soát:
 
 - **Cổng `already_understood`** (14 tín hiệu): mã tất định hiểu đủ rồi thì **không gọi**. Gọi mô hình
@@ -424,12 +424,12 @@ Bộ nhớ phiên hợp nhất theo **ba quy tắc**, và sự khác nhau giữa
 
 ## 3.2 Kho tri thức: một kho, hai chế độ trả lời
 
-**108 tài liệu / 449 đoạn**, markdown có frontmatter, chia đoạn theo tiêu đề `##`.
+**109 tài liệu / 452 đoạn**, markdown có frontmatter, chia đoạn theo tiêu đề `##`.
 
 | Chế độ | Tài liệu | Cách trả lời | Mô hình chạm chữ? |
 |---|---:|---|---|
 | `verbatim` | 24 | TRA KHÓA, trả **nguyên văn** | **0%** |
-| `synthesize` | 84 | truy hồi, xếp hạng | không — chỉ trình bày lại |
+| `synthesize` | 85 | truy hồi, xếp hạng | không — chỉ trình bày lại |
 
 `verbatim` là chế độ tin mô hình **0%**: giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng — một
 chữ số lệch ở đây là sai sự thật về nhà hàng. Truy hồi ở đó là **tra khóa**, không xếp hạng, nên không
@@ -444,7 +444,7 @@ Hai quy tắc chia đoạn đáng ghi:
    là từ chối — để không ai thêm được nội dung hướng dẫn nội bộ vào kho khách đọc. Bản cũ của dự án có
    5/27 tệp `audience: ai` nằm cùng chỉ mục, và 47/221 đoạn bị trích cho khách đọc.
 
-Số đoạn được xếp hạng là **370**, không phải 449: bỏ đoạn `verbatim`
+Số đoạn được xếp hạng là **372**, không phải 452: bỏ đoạn `verbatim`
 (chúng đã có đường riêng) và bỏ đoạn **mở đầu** — một mục không có tiêu đề là phần dẫn nhập của tài
 liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 
@@ -511,13 +511,13 @@ Lúc chạy, truy hồi được gọi ở hai chỗ, và chúng là hai bài to
 
 | Chỗ gọi | Bài toán | Ứng viên | `k` |
 |---|---|---:|---:|
-| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 370 | 1 |
+| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 372 | 1 |
 | `_knowledge_chunk()` → `_chon_muc()` | mục nào **trong tài liệu này** đúng ý | 3–8 | 1 |
 
 Cả hai dùng `k=1`, nên **Top-1 là chỉ số quyết định** ở cả hai. Và cả hai chạy **embedding** — quyết
 định này đến từ số liệu ở mục 4.2 và 4.3.
 
-Đường thứ hai **không dựng chỉ mục mới**: chỉ mục toàn kho đã có vector của cả 370
+Đường thứ hai **không dựng chỉ mục mới**: chỉ mục toàn kho đã có vector của cả 372
 đoạn, nên xếp hạng trong một tài liệu chỉ là giới hạn phép chấm điểm vào tập con — hợp lệ vì vector đã
 chuẩn hoá L2 (mục 2.2). Chi phí thật là **một** lần mã hoá câu hỏi. Cách hiển nhiên — dựng một chỉ mục
 cho mỗi tài liệu — mất **~91ms mỗi lượt**, và có một test **đếm số lần dựng chỉ mục rồi đòi 0**.
@@ -555,8 +555,8 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 | Điều kiện | Giá trị |
 |---|---|
 | Ngày đo | 2026-07-31 |
-| Thực đơn | 91 món, 84 nhãn |
-| Kho tri thức | 108 tài liệu / 449 đoạn, 370 đoạn được xếp hạng |
+| Thực đơn | 91 món, 85 nhãn |
+| Kho tri thức | 109 tài liệu / 452 đoạn, 372 đoạn được xếp hạng |
 | Bộ truy hồi đã so | `bm25`, `embedding`, `hybrid` |
 | Mô hình sinh | `cx/gpt-5.6-luna-review` |
 | Giao thức đo độ trễ | screening |
@@ -567,7 +567,7 @@ kiện của lần chạy. Báo cáo này **không** chứa số nào do ngườ
 ## 4.2 So ba phương pháp truy hồi trên hai tập
 
 Bài toán: **đoạn nào trong cả kho trả lời câu hỏi này.** Đây là chỗ RAG *đúng là* câu trả lời,
-vì 84 chủ đề `synthesize` phần lớn **không có cụm từ vựng** nên
+vì 85 chủ đề `synthesize` phần lớn **không có cụm từ vựng** nên
 truy hồi là đường **duy nhất** tới chúng.
 
 **Nhóm CHỐT** — 20 ca
@@ -772,7 +772,7 @@ Ba trong bốn lớp **dẫn ra được từ dữ liệu**, không dán tay t�
 phép giao tập từ cho lớp `no_overlap`, tiêu đề mục cho lớp `twin_section`.
 
 **Trần đa dạng của kho** là phát hiện đáng nói nhất: 178
-tiêu đề mục phân biệt trên 449 đoạn — trung bình
+tiêu đề mục phân biệt trên 452 đoạn — trung bình
 2,5 đoạn dùng chung một
 tiêu đề. Khi bốn tài liệu vùng miền đều có mục *"Món tiêu biểu"*, **không tín hiệu nào** trong
 câu *"Ăn gì đặc trưng phố cổ?"* phân biệt được chúng — trừ khi câu hỏi nêu tên tài liệu. Đổi bộ
@@ -807,7 +807,7 @@ Nếu chốt phương án bằng con số dự đoán thì báo cáo **sai gấp
 | `import torch` | 1,8s |
 | `import sentence_transformers` | 6,3s |
 | nạp mô hình | 10,6–12,2s |
-| **mã hoá 370 đoạn** | **61,7s** |
+| **mã hoá 372 đoạn** | **61,7s** |
 | **khởi động thật** | **97,3s** |
 
 `HEALTHCHECK` có `start-period=15s`, `interval=30s`, `retries=3`, nên lần kiểm thứ ba rơi vào
@@ -876,7 +876,7 @@ Hai việc đã làm: **tính sẵn vector lúc build** (mã hoá 61,7s → **0,
    có trong thực đơn dưới bất kỳ dạng nào thì lọt. Giới hạn này được ghi thành **một test có tên nói rõ
    nó là giới hạn**.
 7. **Phần lớn ca truy hồi còn sai KHÔNG sửa được bằng đổi bộ xếp hạng.** Trần đa dạng của kho:
-   178 tiêu đề mục phân biệt trên 449 đoạn. Chữa được bằng sửa **dữ liệu**, và việc đó
+   178 tiêu đề mục phân biệt trên 452 đoạn. Chữa được bằng sửa **dữ liệu**, và việc đó
    chưa làm.
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
@@ -922,7 +922,7 @@ Sau khi ghim bản CPU: **2,74GB**.
 
 Đây là một trong sáu lần dự án có số viết tay rồi trôi. Năm lần kia: `"hơn 90 món"` khi thực đơn có
 91; một bản kiểm kê ghi `32/90` khi thật là `53/40`; notebook in `122/122` khi tập đã
-140 ca; `84 tài liệu / 303 đoạn` khi kho đã 108/449; và một chỉ số
+140 ca; `84 tài liệu / 303 đoạn` khi kho đã 109/452; và một chỉ số
 truy hồi của kho nhỏ hơn được trích cho kho hiện tại.
 
 **Và lần thứ bảy là chính báo cáo này.** Bản trước viết tay 1587 dòng và đã trôi hoàn toàn: nó mô tả một
@@ -951,6 +951,25 @@ Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá tr�
 5. **Đưa thứ tự món đã nêu qua backend**, để câu "món đầu tiên giá bao nhiêu?" trỏ được vào đâu.
 6. **Giảm ảnh Docker**: xuất mô hình sang ONNX runtime để bỏ hẳn torch. Hướng dùng endpoint embeddings
    của nhà cung cấp **đã thử và không dùng được** — nhà cung cấp hiện tại không có endpoint đó.
+
+### Giới hạn đã biết của bộ nhãn
+
+Ba điều tìm ra khi soát lại 85 nhãn trên 91 món. Ghi ra vì **một giới hạn không được
+nói thì người đọc sẽ tưởng nó không tồn tại**.
+
+1. **`diet:vegan` và `diet:vegetarian` gắn đúng cùng 17 món.** Một trong hai không phân biệt
+   được gì *trong bộ dữ liệu này* — nhưng cả hai đều ĐÚNG, và thêm một món chay có sữa là nhãn thứ
+   hai có nghĩa lại ngay. Nên đây không phải lỗi dữ liệu, và cách xử lý là ở lớp diễn đạt: mô tả
+   đưa mô hình đọc bỏ nhãn nào mà mọi món trong danh sách đều mang.
+
+2. **`spice` phủ 91/91 món, và 5 danh mục có toàn bộ món `spice:none`**
+   — Cà phê & Trà, Nước ép & Sinh tố, Tráng miệng, Trái cây tươi, Bia & Rượu. Nói "không cay" về
+   một ly nước ép mang đúng 0 bit thông tin. Cùng cách xử lý như trên, và cùng lý do: **một nhãn chỉ
+   đáng nói khi nó phân biệt.**
+
+3. **85 nhãn đến từ mô tả món, không từ bảng thành phần hay từ bếp.** Bộ soát cách chế
+   biến (`audit_method_tags.py`) chặn được nhóm `method` vì tên món tự nói ra đáp án; các nhóm còn
+   lại thì không có nguồn kiểm tự động nào tương đương.
 
 ### Ba điều cấm, áp cho cả nhóm và CI ép
 
@@ -1083,7 +1102,7 @@ nên nó biến `--check` thành một phép kiểm quá nhạy, và một phép
 | `ai/app` | mã lúc chạy — không tệp nào ở đây phụ thuộc bộ đo | `understand.py`, `answer.py`, `generate.py`, `cart.py`, `session.py`, `llm_understand.py`, `service.py` |
 | `ai/app/rag` | ba bộ truy hồi và tầng chia đoạn | `bm25.py`, `embedding.py`, `hybrid.py`, `chunker.py`, `precompute.py` |
 | `ai/evaluation` | bốn tập đánh giá, thước đo, bộ so, phân tích nguyên nhân | `cases.json`, `session_scripts.json`, `retrieval_cases.json`, `chunk_selection_cases.json`, `golden_e2e.json`, `answer_metric.py`, `run_baseline.py`, `run_session_eval.py`, `run_retrieval_comparison.py`, `run_chunk_selection_comparison.py`, `run_llm_rag_eval.py`, `run_golden_e2e.py`, `analyze_failures.py`, `results.py`, `verify_deploy_config.py` |
-| `ai/knowledge` | kho tri thức markdown — nguồn của mọi câu trả lời tri thức | 108 tài liệu markdown |
+| `ai/knowledge` | kho tri thức markdown — nguồn của mọi câu trả lời tri thức | 109 tài liệu markdown |
 | `ai/scripts` | bộ sinh dữ liệu, tất cả có `--check` trong CI | `build_tag_dictionary.py`, `build_knowledge.py`, `build_retrieval_cases.py`, `build_chunk_selection_cases.py` |
 | `ai/notebooks` | notebook giảng dạy + báo cáo, mọi ô tự tính lại | `build_teaching_notebook.py` |
 | `ai/docs` | tài liệu từng bước, và bộ sinh của báo cáo này | `build_bao_cao_do_an.py` |
