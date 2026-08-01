@@ -50,11 +50,32 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           if [ "$BASE" != "main" ]; then
             echo "base=$BASE, không phải production — không cần kiểm migration."
             echo "chan=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # VÀO `main` THÌ CHỈ `develop` ĐƯỢC TỰ MERGE.
+          #
+          # Đường lên production là `develop -> Deploy Staging -> main`. Một PR nhắm thẳng `main` từ
+          # nhánh khác là đường vòng qua staging, nên nó không được hưởng auto-merge dù CI xanh —
+          # CI không thay được một lần chạy trên máy thật.
+          #
+          # Lỗ hổng có thật, không phải giả định: lúc mở auto-merge cho `main` thì có **11 PR
+          # Dependabot đang nhắm thẳng `main`** (EF Core, Npgsql, fastapi, pandas...). Dependabot đẩy
+          # một cập nhật vào bất kỳ PR nào trong đó là sinh sự kiện `synchronize`, và bản nâng thư
+          # viện vào production mà chưa từng chạy staging. Chốt migration không đỡ được vì chúng
+          # không đụng migration.
+          #
+          # `dependabot.yml` đã chuyển sang nhắm `develop`, nhưng cấu hình chỉ áp cho PR MỚI. Hàng
+          # rào phải nằm ở đây để nó đúng cho cả PR cũ lẫn mọi nhánh lạ về sau.
+          if [ "$HEAD" != "develop" ]; then
+            echo "chan=true" >> "$GITHUB_OUTPUT"
+            echo "PR nhắm `main` từ nhánh '$HEAD', không phải từ 'develop' — không tự merge."
             exit 0
           fi
           # `|| true` vì `grep -q` trả 1 khi không khớp, và `set -e` sẽ giết bước.
