@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from generate import BRANCHES_ALLOWED, verify, write_reply  # noqa: E402
+from generate import _mo_ta_mon, BRANCHES_ALLOWED, verify, write_reply  # noqa: E402
 from understand import understand  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -289,3 +289,51 @@ class GioiHanDaBiet(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NhanChiDangNoiKhiPhanBietDuoc(unittest.TestCase):
+    """"Không cay" về một ly nước ép không phân biệt được gì — đừng đưa mô hình.
+
+    `spice` phủ 91/91 món, và **5 danh mục có toàn bộ 7/7 món là `spice:none`**: Cà phê & Trà,
+    Nước ép & Sinh tố, Tráng miệng, Trái cây tươi, Bia & Rượu. Nên mô hình được đưa "không cay" cho
+    nước ép, và nó nói đúng thứ được đưa:
+
+        "Nước mía Sài Gòn giá 25.000đ, không cay"
+        "Bánh flan caramel 30.000đ, có sữa và trứng, không cay"
+
+    Câu không sai, nhưng vô nghĩa — không ly nước ép nào cay. Một câu tư vấn nói toàn điều hiển
+    nhiên thì đọc như máy.
+
+    Phân biệt là chuyện của DANH SÁCH đang trả lời, không phải của danh mục: nước ép nêu cạnh Bún bò
+    Huế thì "không cay" lại có nghĩa. Bốn test dưới giữ cả bốn hướng của ranh giới đó.
+    """
+
+    def _ten(self, ten: str) -> dict:
+        for i in ITEMS:
+            if i["name"] == ten:
+                return i
+        raise AssertionError(f"thực đơn không có {ten!r}")
+
+    def test_ca_danh_sach_deu_khong_cay_thi_BO(self):
+        mo_ta = _mo_ta_mon([self._ten("Nước mía Sài Gòn"), self._ten("Bánh flan caramel"),
+                            self._ten("Dưa hấu lạnh")])
+        self.assertNotIn("Không cay", mo_ta,
+                         "mọi món đều không cay thì nhãn đó không phân biệt được gì")
+        self.assertIn("Có sữa", mo_ta, "nhãn PHÂN BIỆT được thì phải giữ")
+
+    def test_tron_loai_thi_GIU_vi_no_phan_biet(self):
+        mo_ta = _mo_ta_mon([self._ten("Nước mía Sài Gòn"), self._ten("Bún bò Huế")])
+        self.assertIn("Không cay", mo_ta)
+        self.assertIn("Cay đậm", mo_ta)
+
+    def test_nhan_KHACH_DA_HOI_khong_bao_gio_bi_loc(self):
+        """Khách xin món không cay thì câu trả lời phải nói được "không cay như bạn cần"."""
+        mo_ta = _mo_ta_mon([self._ten("Phở gà ta"), self._ten("Bánh cuốn Thanh Trì")],
+                           frozenset({"spice"}))
+        self.assertIn("Không cay", mo_ta,
+                      "im lặng ở đúng chỗ khách vừa hỏi là bỏ mất lý do của câu")
+
+    def test_MOT_mon_thi_mo_ta_day_du(self):
+        """Danh sách một món thì không có gì để so — lọc là làm mô tả rỗng."""
+        mo_ta = _mo_ta_mon([self._ten("Trà đào cam sả")])
+        self.assertIn("Không cay", mo_ta)
