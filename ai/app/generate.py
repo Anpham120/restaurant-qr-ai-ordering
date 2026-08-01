@@ -40,6 +40,7 @@ import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from understand import Request
 
@@ -162,18 +163,57 @@ def _mo_ta_rang_buoc(request: Request) -> str:
     return "; ".join(phan) or "chưa nêu ràng buộc cụ thể"
 
 
+_NHAN_VI: dict[str, str] | None = None
+
+
+def _nhan_tieng_viet() -> dict[str, str]:
+    """Bảng `spice:none` -> "Không cay", ĐỌC TỪ `menu-tags.json`.
+
+    Vì sao đọc từ dữ liệu chứ không viết bảng thứ tư: dự án đã có ba bảng tên tiếng Việt viết tay
+    (`answer._ALLERGEN_VI`, `answer._SPICE_VI`, `intent._TEN_VI`), và mỗi bảng viết tay là một chỗ
+    trôi khỏi dữ liệu. `menu-tags.json` có sẵn `label_vi` cho đủ **84 nhãn** — nó đã là nguồn.
+
+    Hỏng thì trả `{}` và phần gọi rơi về nhãn thô: xấu nhưng không sập, cùng nguyên tắc với
+    `load_facts()`.
+    """
+    global _NHAN_VI
+    if _NHAN_VI is None:
+        try:
+            duong = Path(__file__).resolve().parents[2] / "backend" / "data" / "menu-tags.json"
+            data = json.loads(duong.read_text(encoding="utf-8-sig"))
+            _NHAN_VI = {
+                k: v["label_vi"]
+                for k, v in (data.get("tags") or {}).items()
+                if isinstance(v, dict) and v.get("label_vi")
+            }
+        except (OSError, ValueError, KeyError, TypeError):
+            _NHAN_VI = {}
+    return _NHAN_VI
+
+
 def _mo_ta_mon(items: list[dict]) -> str:
+    """Mô tả món cho mô hình đọc — nhãn bằng TIẾNG VIỆT.
+
+    Bản trước đưa nhãn thô, và mô hình lặp lại chúng nguyên xi vào câu tiếng Việt gửi khách. Đo được
+    trên stack thật:
+
+        "Canh khổ qua nhồi nấm giá 55.000đ vì món được nấu **simmered** và không cay"
+
+    Không phải lỗi của mô hình: nó được đưa chữ `method:simmered` và không có gì khác để gọi tên cách
+    chế biến ấy. Đưa đúng chữ thì nó dùng đúng chữ.
+    """
+    vi = _nhan_tieng_viet()
     dong: list[str] = []
     for i in items:
         gia = f"{i['price']:,}".replace(",", ".") + "đ"
-        nhan = [t for t in i["tags"]
+        nhan = [vi.get(t, t) for t in i["tags"]
                 if t.startswith(("spice:", "allergen:", "diet:", "region:", "method:"))]
         dong.append(f"- {i['id']} | {i['name']} | {gia} | {', '.join(sorted(nhan))}")
     return "\n".join(dong)
 
 
 def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict],
-           avoid_tags: list[str]) -> list[str]:
+           avoid_tags: list[str], budget_max: int | None = None) -> list[str]:
     """Tám phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
 
     Áp cho MỌI câu sinh, không khai từng ca: một phép kiểm chỉ chạy ở vài chỗ là một phép kiểm không
@@ -197,13 +237,30 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
     if ngoai:
         loi.append(f"nhắc món ngoài danh sách đã lọc: {ngoai}")
 
-    # 3. Mọi số tiền phải là giá THẬT của một món đã đưa vào.
+    # 3. Mọi số tiền phải là giá THẬT của một món đã đưa vào — HOẶC chính con số khách vừa nêu.
+    #
+    # Ngoại lệ thứ hai là bản sửa của một phép chặn OAN, đo được trên stack thật:
+    #
+    #     khách: "Có món chay nào dưới 60 nghìn không?"
+    #     sinh : bị BỎ, lý do "số tiền 60.000đ không phải giá của món nào trong danh sách"
+    #
+    # Mô hình không bịa gì — nó nhắc lại đúng ngân sách khách vừa nói, và nhắc lại ràng buộc là điều
+    # một câu tư vấn tốt NÊN làm. Phép kiểm chặn nó, nên câu sinh bị bỏ và khách nhận lại khuôn mẫu.
+    #
+    # Đây là lớp lỗi "thước đo phạt hành vi đúng" mà dự án đã gặp: một phép kiểm quá chặt không làm
+    # hệ thống an toàn hơn, nó chỉ làm đường tốt hơn không bao giờ được dùng.
+    #
+    # Vẫn chặn đúng thứ cần chặn: một con số KHÔNG phải giá món và KHÔNG phải điều khách nói thì vẫn
+    # là số bịa. `budget_max` là con số duy nhất khách nêu mà hệ thống đọc được thành số.
+    gia_cho_phep_va_khach_neu = set(gia_cho_phep)
+    if budget_max is not None:
+        gia_cho_phep_va_khach_neu.add(budget_max)
     for so in MONEY_IN_TEXT.findall(text):
         try:
             gia = int(so.replace(".", ""))
         except ValueError:
             continue
-        if gia >= 1000 and gia not in gia_cho_phep:
+        if gia >= 1000 and gia not in gia_cho_phep_va_khach_neu:
             loi.append(f"số tiền {so}đ không phải giá của món nào trong danh sách")
 
     # 4. KHÔNG được nêu số lượng, trừ khi con số trùng số món trong danh sách.
@@ -311,7 +368,8 @@ def write_reply(request: Request, chosen: list[dict], all_items: list[dict], bra
     if not isinstance(used, list) or not all(isinstance(x, str) for x in used):
         return GenOutcome(reason="`used_item_ids` sai kiểu", called=True)
 
-    loi = verify(text, used, chosen, all_items, list(request.avoid_tags))
+    loi = verify(text, used, chosen, all_items, list(request.avoid_tags),
+                 request.budget_max)
     if loi:
         # BỎ câu sinh, không sửa và không thử lại. Sửa là đoán ý mô hình; thử lại là để một câu sai
         # có cơ hội thứ hai trong lúc khách đang chờ, và câu khuôn mẫu đã đúng sẵn.
