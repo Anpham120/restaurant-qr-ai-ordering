@@ -151,6 +151,54 @@ _XOA_TAT_CA = (
     "lam lai tu dau", "quen het di", "bo qua nhung gi minh noi",
 )
 
+# NỚI BỘ LỌC — khác `_XOA_TAT_CA` ở chỗ nó KHÔNG đụng dị nguyên.
+#
+# Khi không còn món nào thỏa, hệ thống hỏi: *"Bạn muốn mình bỏ bớt một điều kiện để có thêm lựa
+# chọn không?"* Câu trả lời "có" phải nới **điều kiện lọc** (số người, độ cay, giá, chế độ ăn) —
+# tuyệt đối KHÔNG nới dị nguyên. Khách đồng ý xem thêm lựa chọn không có nghĩa là họ hết dị ứng.
+#
+# Tách thành nhóm riêng chứ không dùng lại `all` chính vì điều đó: `all` bỏ cả dị nguyên, và dùng nó
+# ở đây là hạ chốt an toàn dựa trên một câu "ừ".
+_NOI_BO_LOC = (
+    "bo bot dieu kien", "bo bot mot dieu kien", "bo bot rang buoc", "bo bot",
+    "noi dieu kien", "noi bot dieu kien", "bo dieu kien do",
+)
+
+# Câu ĐỒNG Ý với đề nghị hệ thống vừa đưa ra.
+#
+# Vì sao cần: hệ thống hỏi một câu có/không rồi KHÔNG hiểu câu trả lời. Đo được trên production:
+#
+#     hệ thống: "Bạn muốn mình bỏ bớt một điều kiện để có thêm lựa chọn không?"
+#     khách   : "bỏ và tư vấn thêm đi"
+#     hệ thống: "Mình đã nêu hết 1 món thỏa điều bạn cần rồi ạ. Bạn muốn mình bỏ bớt…"  (lặp)
+#
+# Tệ hơn: chữ "bỏ" rút dấu thành `bo`, và `bo` là nhãn `ingredient:beef` — nên khách xin BỎ điều
+# kiện lại bị THÊM ràng buộc thịt bò. Vụ đụng chữ thứ chín, lần thứ hai ở cùng một chữ.
+#
+# Vá thêm cụm là đánh chuột: mỗi cách nói "đồng ý" trong tiếng Việt là một cụm mới. Cách đúng là
+# nhận diện theo NGỮ CẢNH — chỉ khi hệ thống VỪA hỏi một câu có/không thì mới đọc câu ngắn của khách
+# là lời đồng ý. Xem `session.merge_into_request`.
+_DONG_Y = (
+    "co", "u", "um", "uh", "ok", "oke", "okie", "duoc", "dong y", "vang", "da",
+    "co di", "u di", "lam di", "di", "the di", "vay di", "bo di", "bo",
+)
+
+
+def la_dong_y(cau: str) -> bool:
+    """Câu này có phải lời ĐỒNG Ý với đề nghị vừa rồi không.
+
+    CHỈ dùng khi hệ thống vừa hỏi một câu có/không — xem `SessionState.cho_doi`. Ngoài ngữ cảnh đó,
+    "được" hay "đi" là chữ bình thường và đọc chúng thành lời đồng ý là đọc bừa.
+
+    Đòi câu NGẮN (≤ 6 từ): "bỏ và tư vấn thêm đi" là đồng ý; "bỏ qua món bò, cho mình món gà" thì
+    không — nó là một yêu cầu mới, và người viết câu dài là người đang nói điều cụ thể.
+    """
+    f = fold(cau)
+    tu = f.split()
+    if not tu or len(tu) > 6:
+        return False
+    return any(t in _DONG_Y for t in tu)
+
 # Ngoài phạm vi — bắt tay với `understand`'s `off_topic`, không thay nó. Ở đây chỉ nhận nhóm TÁN GẪU
 # về cảm xúc, thứ `off_topic` (thời tiết, tin tức, tỷ giá) không phủ.
 _TAN_GAU = (
@@ -162,6 +210,7 @@ _TAN_GAU = (
 _MOI_NHOM = (
     (_XOA_DI_NGUYEN, XOA_RANG_BUOC, "allergen"),
     (_XOA_TAT_CA, XOA_RANG_BUOC, "all"),
+    (_NOI_BO_LOC, XOA_RANG_BUOC, "loc"),
     (_CHAO, CHAO_HOI, ""),
     (_CAM_ON, CAM_ON, ""),
     (_XIN_THEM, XIN_THEM, ""),

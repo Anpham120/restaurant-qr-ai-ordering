@@ -632,6 +632,57 @@ def build() -> dict:
         ],
     })
 
+    scripts.append({
+        "id": "answer-own-question-01",
+        "group": "clear_constraint",
+        "why": ("Hệ thống HỎI một câu có/không rồi KHÔNG hiểu câu trả lời. Đo được trên production: "
+                "nó hỏi 'Bạn muốn mình bỏ bớt một điều kiện để có thêm lựa chọn không?', khách đáp "
+                "'bỏ và tư vấn thêm đi', và nhận lại ĐÚNG câu hỏi đó — lặp mãi. Tệ hơn: chữ 'bỏ' rút "
+                "dấu thành `bo`, mà `bo` là nhãn ingredient:beef, nên khách xin BỎ điều kiện lại bị "
+                "THÊM ràng buộc thịt bò."),
+        "turns": [
+            {"user": "gợi ý món cho 2 người",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "memory_must_have_require": ["party:two_three"],
+                        "why": "Lượt nền, và nó đặt một ràng buộc để lượt sau nới được."}},
+            {"user": "tư vấn thêm đi",
+             "expect": {"must_not_repeat_turn": 1,
+                        "why": "Xin thêm phải ra món mới."}},
+            {"user": "tư vấn thêm món cho mình",
+             "expect": {"expect_kind": "clarify", "must_say_any": ["hết", "bỏ bớt"],
+                        "why": "Hết món thì NÓI RÕ và đặt một đề nghị. Lượt này tạo ra câu hỏi mà "
+                               "lượt sau phải trả lời được."}},
+            {"user": "bỏ và tư vấn thêm đi",
+             "expect": {"min_items": 2, "expect_kind": "list",
+                        "memory_must_not_have_require": ["party:two_three"],
+                        "why": "Đây là lượt bắt lỗi. Hệ thống phải hiểu đây là lời ĐỒNG Ý với đề "
+                               "nghị nó vừa đưa ra, nới ràng buộc lọc, và nêu món mới — chứ không "
+                               "lặp lại câu hỏi."}},
+        ],
+    })
+    scripts.append({
+        "id": "answer-own-question-02",
+        "group": "clear_constraint",
+        "why": ("CHỐT AN TOÀN của cơ chế trên: lời đồng ý nới điều kiện KHÔNG được hạ hàng rào dị "
+                "nguyên. Khách đồng ý xem thêm lựa chọn không có nghĩa là họ hết dị ứng."),
+        "turns": [
+            {"user": "Mình dị ứng hải sản, cho mình món cay đậm cho 3-5 người",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "Ràng buộc chồng nhau để dễ cạn món."}},
+            {"user": "còn gì nữa không",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "Dù cạn hay không, dị nguyên phải còn."}},
+            {"user": "ừ bỏ bớt đi",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "LƯỢT QUAN TRỌNG NHẤT: nới điều kiện lọc thì được, nhưng dị nguyên "
+                               "phải giữ. Một cơ chế tiện lợi hạ mất chốt an toàn là cách tệ nhất "
+                               "để nó hỏng, vì nó hỏng trong lúc trông như đang giúp khách."}},
+        ],
+    })
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",

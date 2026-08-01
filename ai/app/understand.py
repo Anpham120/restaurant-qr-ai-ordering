@@ -307,7 +307,21 @@ _add("ban chay nhat|ban chay|pho bien nhat|pho bien|duoc goi nhieu", "require", 
 _add("dac trung|dac san cua nha hang|mon tu hao|signature", "require", "promo:signature")
 
 # Nguyên liệu.
-_add("thit bo|bo|beef", "require", "ingredient:beef")
+# KHÔNG có cụm `bo` một âm tiết, và đó là bản sửa của một lỗi đo được trên production HAI LẦN.
+#
+# "bỏ", "bó", "bơ" đều rút dấu thành `bo`. Nên:
+#
+#     "bỏ hết điều kiện đi"    -> khách xin BỎ ràng buộc, nhận thêm ràng buộc THỊT BÒ
+#     "bỏ và tư vấn thêm đi"   -> như trên, lần thứ hai, ở một chỗ khác
+#
+# Đây đúng tiền lệ chữ `chay`: từ vựng cố ý KHÔNG có `chay` một mình mà tách thành `an chay` /
+# `mon chay`, vì "bán chạy" rút dấu cũng thành `ban chay`. Một âm tiết tiếng Việt sau khi rút dấu
+# gần như luôn đụng một âm tiết khác — nên cụm một âm tiết là cụm phải chứng minh mình an toàn,
+# không phải mặc định được nhận.
+#
+# Đã kiểm cả 15 chỗ dùng chữ "bò" trong ba tập đánh giá: tất cả nằm trong TÊN MÓN ("Phở bò tái nạm",
+# "Bún bò Huế") hoặc trong cụm "thịt bò". Không ca nào dùng "bò" đứng một mình làm bộ lọc.
+_add("thit bo|mon bo|beef", "require", "ingredient:beef")
 _add("thit heo|heo|thit lon", "require", "ingredient:pork")
 _add("thit ga|ga", "require", "ingredient:chicken")
 _add("nam|nam huong", "require", "ingredient:mushroom")

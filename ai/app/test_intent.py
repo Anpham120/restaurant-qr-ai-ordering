@@ -46,7 +46,7 @@ def hoi(cau: str, state: SessionState | None = None):
     st = state or SessionState()
     merged = merge_into_request(understand(cau, ITEMS), st)
     reply = respond(merged, ITEMS)
-    return merged, reply, update_state(st, merged, reply.items, reply.kind)
+    return merged, reply, update_state(st, merged, reply.items, reply.kind, reply.branch)
 
 
 class DocDungYDinh(unittest.TestCase):

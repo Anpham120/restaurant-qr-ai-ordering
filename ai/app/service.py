@@ -55,6 +55,7 @@ from answer import (STAFF_NOTE, Reply, doan_tri_thuc_lien_quan, ham_nong_truy_ho
                     load_facts, respond, trang_thai_truy_hoi)
 from cart import CartError, build_cart, cart_payload
 from generate import write_reply
+from intent import CAM_ON, CHAO_HOI, NGOAI_PHAM_VI, cau_xac_nhan_da_bo
 from llm_understand import enrich, load_env
 from rag.chunker import all_chunks, load_all
 from session import MEMORY_VERSION, SessionState, merge_into_request, session_updates, update_state
@@ -343,7 +344,17 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
         )
 
     outcome = None
-    if turn.use_model:
+    # Lượt XÃ GIAO không gọi mô hình.
+    #
+    # `understand()` đã nhận ra "xin chào" bằng danh sách cụm, và `respond()` trả câu chào có sẵn —
+    # nên lần gọi mô hình ở đây không đổi được gì. Nhưng nó vẫn tốn: đo trên staging, một lời chào
+    # mất **5,0 giây**, và khách nhìn màn hình chờ 5 giây để nghe "Dạ em chào anh/chị".
+    #
+    # `enrich()` gọi mô hình khi mã tất định chưa rút được ràng buộc nào — và một lời chào thì đúng
+    # là không có ràng buộc nào, nên nó rơi thẳng vào điều kiện đó. Đây là chỗ điều kiện "chưa hiểu
+    # gì" và "không có gì để hiểu" trùng hình dạng mà khác hẳn ý nghĩa.
+    _xa_giao = merged.y_dinh in (CHAO_HOI, CAM_ON, NGOAI_PHAM_VI)
+    if turn.use_model and not _xa_giao:
         # Không bọc `try` ở đây: `enrich()` tự thoái hóa êm và trả `LlmOutcome` kể cả khi gọi
         # thất bại. Bọc thêm một lớp `try` sẽ che mất lý do thất bại khỏi `decision.model`.
         outcome = enrich(merged, load_env(), use_cache=True)
@@ -379,12 +390,37 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     # Chỉ chữ đổi. Đó là ranh giới làm cho việc bật đường sinh có thể chấp nhận được.
     gen = None
     if _bat_duong_sinh(turn.use_generation):
+        # Món khách ĐÃ xem ở lượt trước — để câu sinh mở đúng cách thay vì giới thiệu lại như mới.
+        #
+        # Lấy từ `state` (bộ nhớ TRƯỚC lượt này), không từ `new_state`: cái sau đã gồm món của chính
+        # lượt này, và đưa nó vào là bảo mô hình "đừng nhắc lại" đúng những món nó đang phải nhắc.
+        _theo_id = {i["id"]: i for i in MENU.items}
+        _da_neu = [_theo_id[i] for i in state.last_listed_ids if i in _theo_id]
         gen = write_reply(
             merged, chosen, MENU.items, reply.branch, load_env(),
             knowledge=_tri_thuc_kem(merged),
+            da_neu_truoc=_da_neu,
         )
         if gen.text:
-            reply = replace(reply, text=gen.text, branch=f"{reply.branch}+gen")
+            # Câu XÁC NHẬN đã bỏ ràng buộc phải SỐNG QUA đường sinh.
+            #
+            # `answer.respond()` ghép câu đó vào đầu bản khuôn mẫu, rồi dòng dưới THAY toàn bộ
+            # `text` bằng câu sinh — nên bật đường sinh làm biến mất đúng câu ấy. Đo được trên
+            # staging ngay lượt đầu:
+            #
+            #     tắt sinh:  "Dạ em đã bỏ điều kiện 2–3 người theo yêu cầu của anh/chị. Mời bạn…"
+            #     bật sinh:  "Nếu muốn món ăn nhẹ kiểu Sài Gòn, Bánh mì pate…"     <- MẤT
+            #
+            # Đây không phải chuyện văn phong. Toàn bộ lý do câu xác nhận tồn tại là: hạ một hàng
+            # rào an toàn thì khách phải THẤY nó được hạ, để sửa được nếu hệ thống hiểu sai. Mất nó
+            # là quay về "im lặng bỏ ràng buộc" — thứ mà cả cơ chế xóa ràng buộc được thiết kế để
+            # tránh.
+            #
+            # Ghép ở đây chứ không nhờ mô hình viết: một câu bảo đảm an toàn không được phụ thuộc
+            # vào việc mô hình có chịu viết nó hay không. Cùng nguyên tắc với `verify()` —
+            # **prompt là lời nhờ, mã mới là bảo đảm.**
+            _xac_nhan = cau_xac_nhan_da_bo(list(getattr(merged, "da_bo_rang_buoc", ()) or ()))
+            reply = replace(reply, text=_xac_nhan + gen.text, branch=f"{reply.branch}+gen")
             # THU HẸP thẻ giỏ về những món câu sinh THẬT SỰ nêu.
             #
             # Thẻ giỏ dựng từ 6 món bộ lọc chọn, còn văn xuôi nêu 2–3 món. Nên khách đọc về 2 món
@@ -400,7 +436,7 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
             neu_ten = [m for m in chosen if m["name"] in gen.text]
             cart = [a for a in cart if a.menu_item_id in {m["id"] for m in neu_ten}]
 
-    new_state = update_state(state, merged, reply.items, reply.kind)
+    new_state = update_state(state, merged, reply.items, reply.kind, reply.branch)
     return _to_payload(reply, new_state, outcome, cart, gen)
 
 
@@ -590,3 +626,48 @@ def invalidate() -> dict[str, Any]:
     """
     MENU.reload()
     return {"ok": MENU.error is None, "menu_items": len(MENU.items), "error": MENU.error}
+
+
+@app.post("/v1/model-check", dependencies=[Depends(require_token)])
+def model_check() -> dict[str, Any]:
+    """Mô hình có GỌI ĐƯỢC không — bằng một lần gọi THẬT, không bằng cách đọc lại cấu hình.
+
+    Vì sao cần một endpoint riêng thay vì một trường trong `/ready`
+    ---------------------------------------------------------------
+    `/ready` báo `model_configured: true` khi có đủ URL, tên mô hình và khóa. Ba thứ đó là **đã cấu
+    hình**, không phải **gọi được** — và khoảng cách giữa hai điều đó vừa nuốt trọn một tính năng:
+
+        staging  0,5–1,0s, câu khuôn mẫu     mọi lần gọi mô hình thất bại rồi âm thầm rơi về tất định
+        cục bộ   5,5–9,6s, câu sinh tự nhiên  cùng mã, cùng câu hỏi
+
+    `LLM_BASE_URL` của staging trỏ vào `http://127.0.0.1:20128/v1` — một dịch vụ trên chính VPS. Nó
+    không chạy, và **không có gì báo**: `/ready` vẫn xanh, health check vẫn xanh, golden vẫn 103/103
+    (golden chạy được không cần mô hình, có chủ ý). Đúng lớp thoái hóa im lặng mà cả dự án chống, và
+    lần này nó nằm trong chính `/ready`.
+
+    Vì sao KHÔNG nhét phép gọi này vào `/ready`: `/ready` bị healthcheck của Docker gọi mỗi 30 giây.
+    Một lần gọi mô hình tốn 5–9 giây, nên làm vậy là tự tạo tải và tự làm chậm chính phép kiểm sống.
+
+    Nên nó là một endpoint RIÊNG, gọi MỘT lần lúc deploy. Có token vì nó tiêu tiền mô hình.
+    """
+    env = load_env()
+    if not (env.get("LLM_BASE_URL") and env.get("LLM_MODEL") and env.get("LLM_API_KEY")):
+        return {"ok": False, "configured": False, "reason": "thiếu LLM_BASE_URL/LLM_MODEL/LLM_API_KEY"}
+
+    # Dùng đúng đường gọi mà hệ thống thật dùng, và TẮT cache: cache trả lời được thì phép kiểm này
+    # xanh trong khi mạng đứt — tức nó kiểm cache, không kiểm mô hình.
+    from llm_understand import call_model
+
+    bat_dau = time.time()
+    try:
+        parsed = call_model("Mình dị ứng hải sản", env, use_cache=False)
+    except Exception as exc:  # noqa: BLE001 — phép kiểm KHÔNG được làm sập dịch vụ
+        return {"ok": False, "configured": True, "reason": f"{type(exc).__name__}",
+                "latency_ms": int((time.time() - bat_dau) * 1000)}
+
+    ms = int((time.time() - bat_dau) * 1000)
+    if parsed is None:
+        return {"ok": False, "configured": True, "latency_ms": ms,
+                "reason": "gọi thất bại hoặc trả về thứ không phân tích được",
+                "base_url_set": bool(env.get("LLM_BASE_URL"))}
+    return {"ok": True, "configured": True, "latency_ms": ms, "model": env.get("LLM_MODEL")}
