@@ -9,17 +9,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
-  contents: write
+  contents: read
   pull-requests: write
 
-# Workflow này FORCE-PUSH một nhánh dùng chung (`release/promote-develop-to-main`) rồi tạo/sửa một PR
-# duy nhất. Nó chạy sau MỖI lần Deploy Staging xong, nên hai lần deploy gần nhau sinh ra hai tiến
-# trình cùng ghi đè một nhánh và cùng thao tác trên một PR.
+# Chạy sau MỖI lần Deploy Staging xong, nên hai lần deploy gần nhau sinh ra hai tiến trình cùng thao
+# tác trên một PR.
 #
 # `cancel-in-progress: true` ở đây là đúng, khác với các workflow deploy: lần chạy sau luôn mang
-# `develop` MỚI HƠN, nên hủy lần cũ không mất gì — bản nó định đẩy đã lạc hậu. Ngược lại, một lần
-# deploy bị hủy giữa chừng là để lại máy thật ở trạng thái dở.
+# `develop` MỚI HƠN, nên hủy lần cũ không mất gì. Ngược lại, một lần deploy bị hủy giữa chừng là để
+# lại máy thật ở trạng thái dở.
 concurrency:
   group: promote-production
   cancel-in-progress: true
@@ -36,44 +34,63 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Open or refresh the develop -> main release PR
+      # PR mở THẲNG từ `develop`, không qua nhánh phát hành trung gian.
+      #
+      # Vì sao bỏ nhánh `release/promote-develop-to-main`
+      # ------------------------------------------------
+      # Bản trước `git push --force-with-lease` một nhánh do BOT đẩy, và GitHub giữ mọi lần chạy
+      # workflow do bot kích hoạt ở trạng thái `action_required` — chờ người bấm "Approve and run".
+      # Đo được trên PR #386:
+      #
+      #     07:26  actor=Anpham120            CI success
+      #     08:12  actor=github-actions[bot]  CI action_required
+      #
+      # Trước đây điều đó chỉ gây phiền. Từ khi `ai-data-and-eval` và `golden-e2e` thành check BẮT
+      # BUỘC thì nó thành **chặn cứng**: PR phát hành không bao giờ có đủ check để merge, và nó nằm
+      # đó ở trạng thái "Expected — waiting for status to be reported".
+      #
+      # PR `develop -> main` không có vấn đề đó: `develop` chỉ đổi khi một người merge một PR, nên
+      # lần chạy CI mang actor là người thật.
+      #
+      # Bỏ nhánh trung gian còn xóa luôn ba thứ khác:
+      #
+      #     force-push một nhánh dùng chung   -> hết đua giữa hai lần chạy
+      #     `contents: write`                 -> workflow này không còn cần quyền ghi mã
+      #     một nhánh phải bảo trì            -> ít một chỗ để lệch
+      #
+      # Kết quả trên `main` giống hệt: merge commit của `develop`. Repo đã làm đúng cách này một lần
+      # — PR #382 là `develop -> main` và merge sạch.
+      - name: Mở hoặc làm mới PR develop -> main
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
-          RELEASE_BRANCH: release/promote-develop-to-main
         run: |
           set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           git fetch origin main develop
 
           if git diff --quiet origin/main..origin/develop; then
-            echo "No changes between develop and main; nothing to promote."
+            echo "Không có gì để đưa lên: develop trùng main."
             exit 0
           fi
 
-          git checkout -B "$RELEASE_BRANCH" origin/main
-          git merge --no-ff --no-edit origin/develop
-          git push --force-with-lease origin "$RELEASE_BRANCH"
+          so_commit="$(git rev-list --count origin/main..origin/develop)"
 
-          body=$'Automated release PR: staging deployment from `develop` passed.\n\n'
-          body+=$'**Production is gated — this PR does NOT auto-merge.**\n'
-          body+=$'A maintainer must review CI + staging, then merge manually.\n'
-          body+=$'Merging to `main` triggers Deploy Production (with post-deploy health check and auto-rollback).'
+          body=$'PR tự động: bản trên `develop` đã deploy staging thành công.\n\n'
+          body+=$'**Production được CHẶN — PR này KHÔNG tự merge.**\n'
+          body+=$'Một người phải xem CI và staging rồi merge tay.\n\n'
+          body+=$'Merge vào `main` sẽ kích hoạt Deploy Production, kèm health check sau deploy và '
+          body+=$'auto-rollback nếu health check đỏ.\n\n'
+          body+="Đang chênh **${so_commit} commit** so với \`main\`."
 
-          existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json number --jq '.[0].number // empty')"
+          existing_pr="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing_pr" ]; then
-            gh pr create \
-              --base main \
-              --head "$RELEASE_BRANCH" \
-              --title "chore: promote develop to production" \
-              --body "$body"
-            echo "Release PR opened for manual review."
+            gh pr create --base main --head develop \
+              --title "chore: đưa develop lên production" --body "$body"
+            echo "Đã mở PR phát hành, chờ người duyệt."
           else
-            gh pr comment "$existing_pr" --body "Staging passed again; release PR refreshed and awaiting manual approval."
-            echo "Release PR #${existing_pr} refreshed; awaiting manual approval."
+            gh pr comment "$existing_pr" \
+              --body "Staging vừa xanh lại. PR phát hành đang chênh ${so_commit} commit so với \`main\`."
+            echo "PR #${existing_pr} đã có; đã ghi chú và chờ người duyệt."
           fi
 
-          echo "::notice::Release PR is ready. Production deploys only after a human merges it to main."
+          echo "::notice::PR phát hành sẵn sàng. Production chỉ deploy sau khi một người merge vào main."
