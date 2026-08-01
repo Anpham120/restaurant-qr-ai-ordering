@@ -904,6 +904,24 @@ KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem na
 # "mình mới ăn xong" không đi cùng một câu xin gợi ý, và `nua` gần như luôn là "nữa".
 XIN_MON_KHAC_TU = ("khac", "nua", "moi", "tiep")
 
+# «khác» có HAI nghĩa hoàn toàn khác nhau, và golden bắt được ngay lượt đầu sau khi tôi thêm tín
+# hiệu trên:
+#
+#     "tư vấn món chay KHÁC đi"            -> lệnh: cho tôi món khác     (đúng ý tín hiệu)
+#     "Vị miền Bắc KHÁC miền Nam thế nào?" -> câu hỏi: chúng khác ra sao (NGƯỢC hẳn)
+#
+# Câu thứ hai đáng được trả bằng một đoạn tri thức, nhưng tín hiệu mới đọc nó thành "bỏ những món
+# vừa nêu" và đẩy nó xuống nhánh lọc. Golden tụt 103/103 -> 102/103.
+#
+# `DIFFERENCE_FRAMING` không bắt được vì mọi cụm ở đó đều đòi chữ "nhau" ("khác nhau thế nào"), còn
+# `KHAC_VI_TRI_RE` chỉ nhận "chỗ nào|ở đâu|điểm nào". Câu này là "khác <X> thế nào" — không có
+# "nhau", không có "chỗ nào".
+#
+# Phân biệt bằng thứ ĐỨNG SAU: có từ hỏi thì là câu hỏi. Đây là hàng rào hẹp và kiểm được, thay vì
+# một danh sách cụm dài mãi không đủ.
+KHAC_LA_CAU_HOI_RE = re.compile(
+    r"\bkhac\b(?:\s+\S+){0,5}\s+(?:the nao|nhu the nao|ra sao|cho nao|o dau|diem nao|gi)\b")
+
 PHU_NHAN_FRAMING = (
     # a) khung LIỀN MẠCH — cụm phủ định đứng ngay trước điều bị phủ nhận
     "dau co noi", "dau co bao", "dau co keu", "dau co yeu cau", "dau co doi",
@@ -1457,7 +1475,9 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #   - phải là câu ĐÒI MÓN: có ràng buộc, có danh mục, có họ món, hoặc đã là ý định xin thêm.
     #     Thiếu hàng rào này thì "quán mới mở à" cũng thành lệnh loại trừ.
     if not request.wants_similar and not request.asks_difference:
-        _co_dau = any(f" {t} " in f" {request.folded} " for t in XIN_MON_KHAC_TU)
+        _tu = [t for t in XIN_MON_KHAC_TU
+               if not (t == "khac" and KHAC_LA_CAU_HOI_RE.search(request.folded))]
+        _co_dau = any(f" {t} " in f" {request.folded} " for t in _tu)
         _doi_mon = bool(request.require_tags or request.prefer_tags or request.categories
                         or request.ho_mon or request.budget_max is not None
                         or request.asks_suggestion)
