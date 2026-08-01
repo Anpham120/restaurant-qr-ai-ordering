@@ -13,6 +13,17 @@ permissions:
   contents: write
   pull-requests: write
 
+# Workflow này FORCE-PUSH một nhánh dùng chung (`release/promote-develop-to-main`) rồi tạo/sửa một PR
+# duy nhất. Nó chạy sau MỖI lần Deploy Staging xong, nên hai lần deploy gần nhau sinh ra hai tiến
+# trình cùng ghi đè một nhánh và cùng thao tác trên một PR.
+#
+# `cancel-in-progress: true` ở đây là đúng, khác với các workflow deploy: lần chạy sau luôn mang
+# `develop` MỚI HƠN, nên hủy lần cũ không mất gì — bản nó định đẩy đã lạc hậu. Ngược lại, một lần
+# deploy bị hủy giữa chừng là để lại máy thật ở trạng thái dở.
+concurrency:
+  group: promote-production
+  cancel-in-progress: true
+
 jobs:
   open-release-pr:
     name: open-release-pr
