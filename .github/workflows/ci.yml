@@ -3,15 +3,24 @@ name: CI
 on:
   pull_request:
   push:
+    # CHỈ hai nhánh đích. Nhánh tính năng cố ý KHÔNG có ở đây.
+    #
+    # Trước đây danh sách này còn `feat/** fix/** chore/** rebuild/**`, và vì mọi PR đều đến từ một
+    # trong số đó nên **mỗi lần đẩy chạy CI hai lần** — một lần do `push`, một lần do `pull_request`.
+    # Đo được trên PR #385:
+    #
+    #     pull_request  success  12ace33  07:16:47
+    #     push          success  12ace33  07:16:43     <- cùng commit, cùng job, chạy lại từ đầu
+    #
+    # Gấp đôi mọi thứ, và job đắt nhất là `golden-e2e`: nó dựng ảnh Docker 2,75GB có `torch`.
+    #
+    # Việc này đắt hơn kể từ khi `ai-data-and-eval` và `golden-e2e` thành check BẮT BUỘC.
+    #
+    # Đánh đổi phải nói rõ: đẩy một nhánh mà CHƯA mở PR thì không có CI. Chấp nhận được vì mọi thay
+    # đổi đều đi qua PR (`main` và `develop` đều bị ruleset chặn push thẳng), và đây là nếp chuẩn.
     branches:
       - develop
       - main
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      # Nhánh dựng lại phần AI. Cần CI vì đây là nơi duy nhất biên dịch được backend
-      # .NET — máy phát triển hiện không có .NET SDK.
-      - "rebuild/**"
   workflow_dispatch:
   workflow_call:
 

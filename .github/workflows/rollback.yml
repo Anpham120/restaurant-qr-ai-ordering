@@ -14,6 +14,23 @@ on:
 permissions:
   contents: read
 
+# CÙNG nhóm khóa với deploy của chính môi trường đó.
+#
+# `deploy-staging` dùng `group: deploy-staging`, `deploy-production` dùng `group: deploy-production`.
+# Rollback trước đây KHÔNG thuộc nhóm nào, nên nó chạy song song được với một lần deploy — và cả hai
+# đều `ssh` vào `/opt/cmc-restaurant/<env>` rồi `docker compose up`.
+#
+# Điều làm chỗ này nguy hiểm chứ không chỉ là thiếu sót lý thuyết: rollback được gọi **TỰ ĐỘNG**.
+# `deploy-production.yml` có bước `if: failure()` chạy `gh workflow run rollback.yml`. Nên kịch bản
+# hai tiến trình cùng sửa một thư mục không cần ai bấm nhầm — chỉ cần một lần deploy đỏ đúng lúc có
+# một lần deploy khác đang chạy.
+#
+# `cancel-in-progress: false`: một lần rollback ĐANG chạy dở không được hủy giữa chừng, vì nó đang
+# đổi trạng thái trên máy thật.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   rollback:
     name: rollback-${{ inputs.environment }}
