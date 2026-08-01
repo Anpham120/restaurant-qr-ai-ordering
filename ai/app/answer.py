@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 
 from dataclasses import dataclass, field, replace
+from itertools import zip_longest
 
 from pathlib import Path
 
@@ -488,6 +489,17 @@ def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
     return (chu_cho_khach(chon), cach) if chon else None
 
 
+def _hai_ve(request: Request, items: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Hai vế của câu «A hay B». Vế trái là loại món, vế phải là nhãn.
+
+    `hai_lua_chon=False` ở cả hai vế: thiếu nó thì mỗi vế lại tách đôi tiếp và hàm tự gọi mãi. Đệ
+    quy vô hạn ngay lần chạy đầu — một lỗi ồn ào, may hơn là một lỗi im lặng.
+    """
+    ve_loai = replace(request, require_tags=[], hai_lua_chon=False)
+    ve_nhan = replace(request, categories=[], ho_mon=[], wants="any", hai_lua_chon=False)
+    return select(ve_loai, items), select(ve_nhan, items)
+
+
 def _ap_duoc(tag: str, cua_nhom: set[str]) -> bool:
     """Nhãn này có món nào trong nhóm mang không. Nhãn ghép thì chỉ cần MỘT mức có mặt."""
     if "|" in tag:
@@ -555,6 +567,26 @@ def select(request: Request, items: list[dict]) -> list[dict]:
             # Nhãn không loại nào trong nhóm mang -> bỏ khỏi bộ lọc. Giữ nó chỉ đảm bảo kết quả rỗng.
             require_tags=[t for t in request.require_tags if _ap_duoc(t, cua_nhom)],
         )
+
+    # «A hay B» — lấy HỢP của hai vế thay vì GIAO.
+    #
+    # "nên gọi lẩu hay nướng": vế một là danh mục Lẩu, vế hai là `method:grilled`. Giao chúng là đi
+    # tìm món vừa là lẩu vừa nướng — không có, nên khách nhận 0 món cho một câu hỏi hoàn toàn bình
+    # thường. Hợp chúng là đưa ra cả hai nhóm để khách chọn, tức trả lời đúng điều được hỏi.
+    #
+    # Dị nguyên và ngân sách KHÔNG nằm trong phép hợp: chúng được áp SAU, trên kết quả đã hợp. Nới
+    # một hàng rào an toàn vì câu có chữ "hay" là cách tệ nhất để cơ chế này hỏng.
+    if getattr(request, "hai_lua_chon", False):
+        trai, phai = _hai_ve(request, picked)
+        hop = {i["id"] for i in [*trai, *phai]}
+        picked = [i for i in picked if i["id"] in hop]
+        if request.budget_max is not None:
+            picked = [i for i in picked
+                      if (i["price"] < request.budget_max if request.budget_strict
+                          else i["price"] <= request.budget_max)]
+        for tag in request.avoid_tags:
+            picked = [i for i in picked if tag not in i["tags"]]
+        return picked
 
     # HỌ MÓN khách gọi tên thắng danh mục.
     #
@@ -906,9 +938,43 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
         # hàm chữ nào được chạy qua nó. Tiêu chí `must_name_item` của bộ chạy phiên bắt đúng lỗi
         # này, vì nó so tên món tra từ thực đơn chứ không so chuỗi viết tay.
         mo_dau = "Trong phạm vi bạn nêu, m" if len(pool) < len(items) else "M"
+
+        # KHÁCH HỎI "MÓN" MÀ ĐÁP ÁN LÀ ĐỒ UỐNG.
+        #
+        # Đo được: "rẻ nhất là món nào" -> **Bia hơi Hà Nội (12.000đ)**. Năm món ăn rẻ nhất thực đơn
+        # đều đắt hơn năm đồ uống rẻ nhất, nên mọi câu hỏi "rẻ nhất" không nêu rõ loại đều rơi vào
+        # đồ uống. Đây đúng lớp lỗi mà `MonAnXepTruocDoUongKhiKhachChuaNoiRo` được viết ra để chặn —
+        # nhưng nhánh này KHÔNG đi qua `_order()`, nó gọi thẳng `min()` theo giá, nên phép xếp thứ
+        # tự kia không chạm tới.
+        #
+        # Cách sửa KHÔNG phải bỏ đồ uống đi. "Món rẻ nhất là Bánh mì pate 35.000đ" trong khi bia
+        # 12.000đ vẫn nằm trên thực đơn là một khẳng định TUYỆT ĐỐI sai — đúng thứ mà đoạn chú thích
+        # ngay trên vừa cấm. Giấu một đáp án rẻ hơn còn tệ hơn trả lời lệch loại.
+        #
+        # Nên trả lời cả hai: đáp án của loại khách hỏi, kèm đáp án tuyệt đối. Khách được thứ họ
+        # muốn mà câu vẫn đúng.
+        khac_loai = None
+        if request.wants == "any" and item["categoryId"] in DRINK_CATEGORIES:
+            mon_an = [i for i in pool if i["categoryId"] in FOOD_CATEGORIES]
+            if mon_an:
+                khac_loai = item
+                item = (min(mon_an, key=lambda i: i["price"])
+                        if request.asks_extreme == "cheapest"
+                        else max(mon_an, key=lambda i: i["price"]))
+
+        text = f"{mo_dau}ón ăn {label} là {item['name']}, giá {money(item['price'])} ạ." \
+            if khac_loai else \
+            f"{mo_dau}ón {label} là {item['name']}, giá {money(item['price'])} ạ."
+        neu = [item["id"]]
+        if khac_loai:
+            hon = "rẻ hơn" if request.asks_extreme == "cheapest" else "đắt hơn"
+            text += (f" Tính cả đồ uống thì {khac_loai['name']} "
+                     f"{money(khac_loai['price'])} {hon} ạ.")
+            neu.append(khac_loai["id"])
+
         return Reply(
-            text=f"{mo_dau}ón {label} là {item['name']}, giá {money(item['price'])} ạ.",
-            items=[item["id"]],
+            text=text,
+            items=neu,
             kind="fact",
             branch=f"extreme:{request.asks_extreme}",
         )
@@ -1202,6 +1268,31 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
             kind="no_data",
             branch="empty_result",
         )
+
+    # Câu «A hay B»: danh sách phải nêu CẢ HAI bên.
+    #
+    # Đo được sau bản sửa đầu: "nên gọi lẩu hay nướng" ra 6 món — và **không món lẩu nào**. Phép
+    # hợp đúng, nhưng thứ tự chung sắp theo giá tăng dần, mà lẩu là 250–380k còn món nướng rẻ nhất
+    # 30k. Cả sáu chỗ bị bên rẻ hơn chiếm hết.
+    #
+    # Trả 0 món là trả lời sai; trả 6 món của một bên là trả lời NỬA câu hỏi — khách hỏi nên chọn
+    # bên nào mà chỉ được thấy một bên thì không so được.
+    #
+    # Xen kẽ hai vế, mỗi bên lấy luân phiên. Bên nào hết thì bên kia lấp nốt, nên câu hỏi mà một vế
+    # không có món vẫn trả về đủ danh sách.
+    if getattr(request, "hai_lua_chon", False):
+        trai, phai = _hai_ve(request, items)
+        cho_phep = {i["id"] for i in picked}
+        t = [i for i in _order(trai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
+        p = [i for i in _order(phai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
+        xen: list[dict] = []
+        da_co: set[str] = set()
+        for cap in zip_longest(t, p):
+            for i in cap:
+                if i is not None and i["id"] not in da_co:
+                    xen.append(i)
+                    da_co.add(i["id"])
+        picked = xen + [i for i in picked if i["id"] not in da_co]
 
     shown = picked[:LIST_SIZE]
     lead = "Mời bạn tham khảo" if not request.avoid_tags else \

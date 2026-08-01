@@ -834,6 +834,85 @@ def build() -> dict:
         ],
     })
 
+    # ---------------------------------------------------------------------------------------
+    # HỎI LIÊN TỤC, PHỦ NHẬN, ĐỔI CHỦ ĐỀ — ba hội thoại DÀI, không phải ba lượt lẻ.
+    #
+    # Bốn lỗi dưới đây chỉ hiện ở lượt thứ 3 trở đi, khi bộ nhớ đã tích đủ thứ để va vào nhau. Kịch
+    # bản hai lượt không chạm tới được, và cả 140 ca một lượt cũng vậy.
+    # ---------------------------------------------------------------------------------------
+    scripts.append({
+        "id": "hoi-lien-tuc-01",
+        "group": "hoi_lien_tuc",
+        "why": ("Khách hỏi tiếp bằng những cách rất ngắn. `hết chưa` không cụm nào bắt được nên nó "
+                "lặp Y NGUYÊN danh sách vừa nêu."),
+        "turns": [
+            {"user": "gợi ý món cho 2 người",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "món khác đi",
+             "expect": {"must_not_repeat_turn": 1, "min_items": 1}},
+            {"user": "còn nữa không",
+             "expect": {"must_not_repeat_turn": 2,
+                        "why": "Hết món thì nói ĐÃ HẾT và mời bỏ bớt điều kiện — vẫn không được "
+                               "nhắc lại món khách vừa xem."}},
+            {"user": "nữa đi",
+             "expect": {"min_items": 3, "must_say_all": ["đã bỏ"],
+                        "why": "Trả lời câu hỏi có/không của lượt trước. Bỏ điều kiện thì phải NÓI "
+                               "RA, để khách sửa được nếu hệ thống hiểu sai."}},
+            {"user": "hết chưa",
+             "expect": {"must_not_repeat_turn": 4, "min_items": 1,
+                        "why": "LƯỢT BẮT LỖI: `hết chưa` là hỏi tiếp, không phải hỏi lại. Lặp y "
+                               "nguyên là câu trả lời vô nghĩa với khách đang chờ món mới."}},
+        ],
+    })
+    scripts.append({
+        "id": "phu-nhan-roi-doi-chu-de-01",
+        "group": "hoi_lien_tuc",
+        "safety": True,
+        "why": ("Khách tự sửa lời khai dị ứng giữa phiên. Bỏ hàng rào xong mà mất luôn chủ đề đang "
+                "xem thì khách gỡ đúng thứ che tầm nhìn của mình rồi vẫn không thấy gì."),
+        "turns": [
+            {"user": "giờ cho mình món hải sản",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "mình dị ứng tôm nhé",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "CHỐT AN TOÀN. Khai dị ứng là hàng rào dựng lên ngay, kể cả khi nó "
+                               "xóa sạch chủ đề khách vừa chọn."}},
+            {"user": "à mình đâu có dị ứng tôm",
+             "expect": {"memory_must_not_have_avoid": ["allergen:seafood"],
+                        "must_say_any": ["đã bỏ"], "min_items": 3,
+                        "why": "LƯỢT BẮT LỖI: khách gỡ hàng rào là để THẤY LẠI món bị che. Trả 1 "
+                               "món sót hoặc trả danh sách không liên quan đều là trả lời hụt."}},
+            {"user": "cho mình món cay vào",
+             "expect": {"min_items": 1, "forbid_tags_any": ["spice:none"],
+                        "why": "Và sau đó vẫn nhận được ràng buộc mới bình thường."}},
+        ],
+    })
+    scripts.append({
+        "id": "doi-chu-de-lien-tuc-01",
+        "group": "hoi_lien_tuc",
+        "why": ("`wants` kéo từ lượt trước đè lên danh mục khách vừa gọi tên: hỏi tráng miệng mà "
+                "nhận lại đúng 6 đồ uống của lượt trước."),
+        "turns": [
+            {"user": "cho mình món lẩu",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "uống gì hợp với lẩu",
+             "expect": {"min_items": 3, "memory_wants": "drink",
+                        "why": "Món đang ăn là NGỮ CẢNH, câu hỏi là về đồ uống."}},
+            {"user": "tráng miệng có gì",
+             "expect": {"must_not_repeat_turn": 2, "min_items": 3,
+                        "why": "LƯỢT BẮT LỖI: khách gọi tên một nhóm món là đã nói rõ mình muốn gì. "
+                               "`wants` kế thừa chỉ có nghĩa cho câu KHÔNG nói gì."}},
+            {"user": "quán mấy giờ đóng cửa",
+             "expect": {"expect_kind": "fact", "max_items": 0,
+                        "why": "Câu chính sách không được kéo theo danh sách món."}},
+            {"user": "quay lại món ăn đi, cho mình món nướng",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Và quay lại được: một câu chính sách xen giữa không được làm mất "
+                               "khả năng tư vấn món."}},
+        ],
+    })
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",

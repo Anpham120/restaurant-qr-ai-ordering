@@ -112,7 +112,7 @@ Hai điều bất ngờ đáng ghi lại:
   thì "mấy giờ mở cửa**?**" không khớp cụm `mo cua`, và 13 ca đổ — trong đó 5 ca an toàn.
   Sáu test đầu của `test_understand.py` đã đỏ đúng vì lý do này.
 - **Con số của "ăn hết đoạn đã khớp" là chặn dưới, không phải giá trị thật.** Kiểm kê trên
-  499 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
+  507 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
   `trung`⊂`mien trung`, `nam`⊂`mien nam`, `nam`⊂`nam nguoi`, `tra`⊂`tra tien`,
   `trung`⊂`dac trung`, `ga`⊂`mon ga`, `pho`⊂`pho bun`), **44 cụm nằm trong tên món**
   (`lac`⊂"Cơm bò lúc lắc", `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá", `pho`⊂"Phở gà ta"),

@@ -330,7 +330,26 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     prefer = list(dict.fromkeys([*request.prefer_tags, *state.context_tags]))[:MAX_CONTEXT_TAGS]
 
     # `wants` (món ăn / đồ uống) là ràng buộc cứng nhưng không mang dạng nhãn, nên xử riêng.
-    wants = request.wants if request.wants != "any" else state.wants
+    # CHỈ kế thừa `wants` khi lượt này KHÔNG nêu chủ đề nào.
+    #
+    # Đo được trong một hội thoại đổi chủ đề liên tục:
+    #
+    #     "cho mình món lẩu"        -> 6 món lẩu
+    #     "uống gì hợp với lẩu"     -> 6 đồ uống          (đúng, `wants=drink`)
+    #     "tráng miệng có gì"       -> 6 ĐỒ UỐNG y nguyên  <- SAI
+    #
+    # `understand()` đọc đúng `cat_dessert` cho lượt ba, nhưng `wants=drink` kéo từ lượt hai đè lên
+    # nó: Tráng miệng không thuộc `FOOD_CATEGORIES` lẫn `DRINK_CATEGORIES`, nên phép lọc theo loại
+    # gạt nó đi rồi trả về đồ uống của lượt trước.
+    #
+    # Khách gọi tên một nhóm món là họ đã nói rõ mình muốn gì. Kế thừa `wants` chỉ có nghĩa cho câu
+    # KHÔNG nói gì ("còn nữa không") — đúng chỗ nó sinh ra để phục vụ.
+    if request.wants != "any":
+        wants = request.wants
+    elif request.categories or request.ho_mon:
+        wants = "any"
+    else:
+        wants = state.wants
 
     # XIN THÊM = XIN MÓN GIỐNG. Dùng lại đúng cơ chế `wants_similar` đã có và đã đo, thay vì dựng
     # đường loại trừ thứ hai — hai đường sẽ lệch nhau.
@@ -342,6 +361,29 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     xin_them = request.y_dinh == XIN_THEM
     if xin_them:
         request = replace(request, wants_similar=True)
+
+    # BỎ MỘT RÀNG BUỘC KHÔNG ĐƯỢC LÀM MẤT CHỦ ĐỀ ĐANG XEM.
+    #
+    # Đo được trong hội thoại khách tự sửa lời khai:
+    #
+    #     "giờ cho mình món hải sản"      -> 6 món hải sản
+    #     "mình dị ứng tôm nhé"           -> đổi sang món không hải sản
+    #     "à mình đâu có dị ứng tôm"      -> lặp Y NGUYÊN danh sách không hải sản  <- SAI
+    #
+    # Khách gỡ đúng hàng rào đang che mất thứ họ muốn xem, rồi vẫn không thấy nó. Câu "à mình đâu
+    # có dị ứng tôm" tự nó không mang danh mục nào, nên không có gì kéo `cat_seafood` trở lại.
+    #
+    # Kéo lại DANH MỤC, nhưng KHÔNG bật `wants_similar`.
+    #
+    # `wants_similar` làm hai việc cùng lúc: khôi phục chủ đề VÀ loại những món đã nêu. Ở đây chỉ
+    # cần việc thứ nhất. Bật cả hai thì đo được kết quả này:
+    #
+    #     "à mình đâu có dị ứng tôm"  ->  1 món (Tôm hùm nướng mỡ hành 890.000đ)
+    #
+    # Khách gỡ hàng rào là để THẤY LẠI những món bị che, không phải để xem đúng một món sót lại.
+    # Đây là chỗ tái dùng một cơ chế sẵn có sẽ mang theo cả phần không muốn — nên tách ra.
+    if da_bo and not request.categories:
+        request = replace(request, categories=list(state.last_categories))
 
     # Danh mục chỉ được kéo lại khi khách xin món GIỐNG. Kéo lại mọi lượt là sai: "cho mình món
     # chay" rồi "cho mình đồ uống" thì lượt sau không được vẫn bị giới hạn trong danh mục chay.
