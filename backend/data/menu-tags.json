@@ -224,6 +224,14 @@
       "legacy_key": "rang",
       "exclusive": false
     },
+    "method:whole_roast": {
+      "group": "method",
+      "value": "whole_roast",
+      "label_vi": "Quay",
+      "label_en": "Whole roast",
+      "legacy_key": "quay",
+      "exclusive": false
+    },
     "method:stewed": {
       "group": "method",
       "value": "stewed",

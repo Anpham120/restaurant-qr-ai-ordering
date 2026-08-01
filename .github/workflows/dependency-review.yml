@@ -1,0 +1,54 @@
+name: Dependency review
+
+# CHỈ chạy trên pull request, và đó là lý do workflow này tồn tại riêng.
+#
+# `dependency-review-action` so danh sách phụ thuộc giữa nhánh GỐC và nhánh MỚI. Một cú `push`
+# không có nhánh gốc để so, nên nó không chạy được — trước đây job này nằm trong workflow `Security`
+# (vốn kích cả `push`, `pull_request` và `schedule`) và tự loại mình bằng `if: pull_request`.
+#
+# Cách đó CHẠY ĐÚNG nhưng đọc sai: mỗi PR hiện một dòng `Security / dependency-review (push)` màu
+# xám "Skipped" nằm cạnh dòng đã pass. Người đọc thấy chữ "Security ... Skipped" và tưởng có phép
+# kiểm an ninh nào đó không chạy.
+#
+# Vì sao đáng tách chứ không đáng giải thích: một ô "skipped" VĨNH VIỄN dạy người ta bỏ qua ô
+# skipped — và lần sau có một ô skipped THẬT SỰ đáng lo thì không ai nhìn. Cùng một lý do với việc
+# repo này không giữ cổng nào báo xanh mà không kiểm gì.
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        # KHÔNG có `continue-on-error`. Job này từng có, và trong suốt thời gian đó nó báo
+        #
+        #     ##[error] Dependency review is not supported on this repository.
+        #               Please ensure that Dependency graph is enabled
+        #
+        # mà vẫn hiện PASS. Một ô xanh không quét gì còn tệ hơn không có ô nào, vì người ta tin nó.
+        # Dependency graph đã được bật, nên giờ nó chạy thật và được phép chặn.
+        #
+        # Chặn ở `critical` thôi: mức thấp hơn mở PR liên tục, người ta ghi đè khi gấp, và một cổng
+        # bị học cách ghi đè là một cổng không còn chặn.
+        with:
+          fail-on-severity: critical
+          comment-summary-in-pr: on-failure

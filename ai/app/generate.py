@@ -218,7 +218,7 @@ def _nhan_tieng_viet() -> dict[str, str]:
 
     Vì sao đọc từ dữ liệu chứ không viết bảng thứ tư: dự án đã có ba bảng tên tiếng Việt viết tay
     (`answer._ALLERGEN_VI`, `answer._SPICE_VI`, `intent._TEN_VI`), và mỗi bảng viết tay là một chỗ
-    trôi khỏi dữ liệu. `menu-tags.json` có sẵn `label_vi` cho đủ **84 nhãn** — nó đã là nguồn.
+    trôi khỏi dữ liệu. `menu-tags.json` có sẵn `label_vi` cho đủ **85 nhãn** — nó đã là nguồn.
 
     Hỏng thì trả `{}` và phần gọi rơi về nhãn thô: xấu nhưng không sập, cùng nguyên tắc với
     `load_facts()`.
@@ -238,8 +238,44 @@ def _nhan_tieng_viet() -> dict[str, str]:
     return _NHAN_VI
 
 
-def _mo_ta_mon(items: list[dict]) -> str:
-    """Mô tả món cho mô hình đọc — nhãn bằng TIẾNG VIỆT.
+# Tối đa bao nhiêu nhãn "phụ" cho mỗi món — xem `_mo_ta_mon`.
+#
+# Hai, không phải ba: một câu tư vấn nêu ba đặc điểm cho mỗi món trong danh sách sáu món là mười tám
+# mệnh đề, và khách đọc trên điện thoại giữa lúc đang đói. Con số này là PHÁN ĐOÁN, không phải phép
+# đo — ghi rõ để ai đổi nó biết mình đang đổi một phán đoán chứ không phải một kết quả.
+SO_NHAN_PHU = 2
+
+
+def _nhom_khach_hoi(request) -> frozenset[str]:
+    """Những NHÓM nhãn khách đã nhắc tới ở lượt này (`spice`, `diet`, `region`...).
+
+    Theo NHÓM chứ không theo nhãn: khách xin "món cay" thì mức cay của mọi món trong danh sách đều
+    đáng nói, kể cả món `spice:mild` khi họ hỏi `spice:hot` — đó chính là thứ giúp họ chọn.
+    """
+    return frozenset(
+        t.split(":", 1)[0]
+        for t in (*request.require_tags, *request.prefer_tags, *request.avoid_tags)
+        if ":" in t
+    )
+
+
+def _mo_ta_mon(items: list[dict], giu: frozenset[str] = frozenset()) -> str:
+    """Mô tả món cho mô hình đọc — nhãn bằng TIẾNG VIỆT, và CHỈ nhãn đáng nói.
+
+    Ba mức, theo đúng thứ tự quan trọng:
+
+        1. DỊ NGUYÊN — luôn nói. Khách cần biết kể cả khi không hỏi, và đây là chỗ duy nhất trong
+           mô tả có hậu quả sức khỏe.
+        2. NHÓM KHÁCH HỎI (`giu`) — luôn nói.
+        3. Còn lại — tối đa `SO_NHAN_PHU` nhãn, và chỉ những nhãn PHÂN BIỆT ĐƯỢC.
+
+    Vì sao có mức 3: bản trước đưa **mọi** nhãn, nên mô hình đọc lại mọi nhãn. Khách hỏi "tráng
+    miệng có gì" và nhận một bản kê:
+
+        "Bánh flan caramel 30.000đ, có sữa và trứng, không cay; Bánh chuối nướng 30.000đ, có gluten
+         và sữa, không cay; Chè bưởi 35.000đ, không cay, phong cách miền Nam."
+
+    Không câu nào sai. Cái sai là **không câu nào trả lời điều được hỏi**.
 
     Bản trước đưa nhãn thô, và mô hình lặp lại chúng nguyên xi vào câu tiếng Việt gửi khách. Đo được
     trên stack thật:
@@ -248,14 +284,64 @@ def _mo_ta_mon(items: list[dict]) -> str:
 
     Không phải lỗi của mô hình: nó được đưa chữ `method:simmered` và không có gì khác để gọi tên cách
     chế biến ấy. Đưa đúng chữ thì nó dùng đúng chữ.
+
+    Vì sao lọc thêm nhãn KHÔNG PHÂN BIỆT
+    ------------------------------------
+    `spice` phủ 91/91 món, và **5 danh mục có toàn bộ 7/7 món là `spice:none`** — Cà phê & Trà,
+    Nước ép & Sinh tố, Tráng miệng, Trái cây tươi, Bia & Rượu. Nên mô hình được đưa "không cay" cho
+    một ly nước ép, và nó nói đúng thứ được đưa:
+
+        "Nước mía Sài Gòn giá 25.000đ, không cay"
+        "Bánh flan caramel 30.000đ, có sữa và trứng, không cay"
+
+    Câu không sai, nhưng vô nghĩa: không ly nước ép nào cay, nên "không cay" không giúp khách chọn
+    giữa chúng. Một câu tư vấn nói toàn điều hiển nhiên thì đọc như máy.
+
+    **Một nhãn chỉ đáng nói khi nó PHÂN BIỆT** — và phân biệt là chuyện của DANH SÁCH đang trả lời,
+    không phải của danh mục. Nhãn mà mọi món trong danh sách đều mang thì mang đúng 0 bit thông tin
+    cho lần trả lời này. Tính theo danh sách còn đúng ở ca trộn loại: một ly nước ép nêu cạnh Bún bò
+    Huế thì "không cay" lại có nghĩa, và nó được giữ.
+
+    `giu` — nhãn KHÁCH ĐÃ HỎI, không bao giờ bị lọc. Khách xin món không cay thì câu trả lời phải
+    nói được "không cay như bạn cần"; im lặng ở đúng chỗ khách vừa hỏi là bỏ mất lý do của câu.
+
+    Chỉ lọc phần MÔ TẢ đưa mô hình đọc. `verify()` và bộ lọc vẫn thấy đủ nhãn — bỏ nhãn khỏi hai chỗ
+    đó là hạ một hàng rào, còn bỏ khỏi mô tả chỉ là thôi nói một câu thừa.
     """
     vi = _nhan_tieng_viet()
+    QUAN_TAM = ("spice:", "allergen:", "diet:", "region:", "method:")
+    # Thứ tự ƯU TIÊN khi phải cắt bớt — nhóm nào giúp khách chọn nhiều hơn thì giữ trước.
+    #
+    # Không dùng thứ tự bảng chữ cái: `spice:` xếp CUỐI, nên giới hạn hai nhãn cắt đúng độ cay —
+    # thứ khách quan tâm nhất sau dị nguyên — để giữ lại cách chế biến và vùng miền. Test bắt được
+    # ngay: "Bún bò Huế | Nấu, Miền Trung" trong khi món này **cay đậm**.
+    UU_TIEN = {"spice": 0, "diet": 1, "method": 2, "region": 3}
+
+    # Nhãn mà MỌI món trong danh sách đều mang. Danh sách một món thì không có gì để so, nên không
+    # lọc gì — mô tả một món phải đủ.
+    chung: set[str] = set()
+    if len(items) > 1:
+        chung = set.intersection(*(set(i["tags"]) for i in items))
+
     dong: list[str] = []
     for i in items:
         gia = f"{i['price']:,}".replace(",", ".") + "đ"
-        nhan = [vi.get(t, t) for t in i["tags"]
-                if t.startswith(("spice:", "allergen:", "diet:", "region:", "method:"))]
-        dong.append(f"- {i['id']} | {i['name']} | {gia} | {', '.join(sorted(nhan))}")
+        # Ba mức, theo đúng thứ tự quan trọng — xem docstring.
+        buoc: list[str] = []
+        phu: list[tuple[int, str]] = []
+        for t in sorted(i["tags"]):
+            if not t.startswith(QUAN_TAM):
+                continue
+            nhom = t.split(":", 1)[0]
+            if nhom == "allergen" or nhom in giu:
+                buoc.append(vi.get(t, t))
+            elif t not in chung:
+                phu.append((UU_TIEN.get(nhom, 9), vi.get(t, t)))
+        nhan = buoc + [ten for _, ten in sorted(phu)[:SO_NHAN_PHU]]
+        phan = [f"- {i['id']}", i["name"], gia]
+        if nhan:
+            phan.append(", ".join(nhan))
+        dong.append(" | ".join(phan))
     return "\n".join(dong)
 
 
@@ -419,7 +505,8 @@ def write_reply(request: Request, chosen: list[dict], all_items: list[dict], bra
         question=request.text,
         constraints=_mo_ta_rang_buoc(request),
         ngu_canh=f"\nNGỮ CẢNH HỘI THOẠI:\n{_ngu_canh}" if _ngu_canh else "",
-        items=_mo_ta_mon(chosen),
+        # Nhãn khách ĐÃ HỎI thì không được lọc mất — xem `_mo_ta_mon`.
+        items=_mo_ta_mon(chosen, _nhom_khach_hoi(request)),
         knowledge=f"\nTRI THỨC LIÊN QUAN:\n{knowledge}" if knowledge else "",
     )
     goi = call or _call_model

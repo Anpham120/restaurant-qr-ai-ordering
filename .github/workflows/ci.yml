@@ -179,6 +179,18 @@ jobs:
       - name: Rà nhãn mùa
         run: python ai/scripts/audit_season_tags.py
 
+      # Rà nhãn CÁCH CHẾ BIẾN, và đây là bản rà DUY NHẤT chạy `--check` (chặn khi còn lệch).
+      #
+      # Được phép chặn vì nó gần như không có dương tính giả: nó chỉ đọc TÊN món, nơi bếp đã nói
+      # thẳng cách chế biến. Đọc cả mô tả thì 12 cảnh báo mà 11 là giả — mô tả nhắc động từ của cả
+      # món ăn kèm ("cuốn bánh tráng", "heo quay giòn da" là topping). Chỉ đọc tên: 1 cảnh báo,
+      # và nó đúng — "Gà rô ti kiểu Việt" mang `method:grilled` trong khi rô ti là QUAY.
+      #
+      # Hai bản rà trên không `--check` vì chúng suy từ mô tả nên còn dương tính giả; chúng in ra
+      # cho người đọc. Ranh giới: **chỉ bản rà nào đủ sạch để không ai muốn tắt nó mới được chặn.**
+      - name: Rà nhãn cách chế biến
+        run: python ai/scripts/audit_method_tags.py --check
+
       # Tập đánh giá TRUY HỒI — khác tập 119 ca: nó chấm ĐOẠN ĐƯỢC LẤY, không chấm câu trả lời.
       # Khóa đáp án là điều kiện chọn, giải ra chunk_id khi chạy, nên nó không thể trỏ vào tài
       # liệu không tồn tại mà vẫn xanh.

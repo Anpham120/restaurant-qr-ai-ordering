@@ -52,25 +52,15 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
 
-  dependency-review:
-    name: dependency-review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@v4
-        # Requires "Dependency graph" enabled in repo Settings → Code security.
-        # Kept non-blocking so the pipeline stays green until it is turned on.
-        continue-on-error: true
-        with:
-          fail-on-severity: critical
-          comment-summary-in-pr: on-failure
+  # `dependency-review` đã CHUYỂN sang `.github/workflows/dependency-review.yml`.
+  #
+  # Nó chỉ chạy được trên pull request (cần nhánh gốc để so danh sách phụ thuộc), nên khi nằm ở đây
+  # nó phải tự loại mình bằng `if: pull_request` — và mỗi PR hiện một dòng
+  # `Security / dependency-review (push)` màu xám "Skipped" cạnh dòng đã pass. Đọc như thể có phép
+  # kiểm an ninh không chạy.
+  #
+  # Tách ra một workflow chỉ kích trên PR thì không còn dòng skip nào, và ý nghĩa của "skipped"
+  # được giữ lại cho lúc nó thật sự đáng lo.
 
   secret-scan:
     name: secret-scan
