@@ -194,15 +194,33 @@ def _save_cache() -> None:
         )
 
 
-def call_model(question: str, env: dict[str, str], *, use_cache: bool = True) -> dict | None:
+def call_model(
+    question: str,
+    env: dict[str, str],
+    *,
+    use_cache: bool = True,
+    prompt: str | None = None,
+    nhan: str = "",
+    max_tokens: int = 300,
+) -> dict | None:
     """Gọi mô hình, trả về JSON đã phân tích hoặc None nếu thất bại.
 
     Có cache trên đĩa vì mô hình sinh **không tất định**, mà cả dự án này dựa trên tính
     chất "chạy lại cho cùng kết quả". Cache làm phép đo tái lập được; xóa tệp cache là đo
     lại từ đầu.
+
+    `prompt` và `nhan` cho phép dùng lại toàn bộ phần gọi mạng cho một CÔNG VIỆC KHÁC —
+    hiện là lớp đọc ý định (`intent.doc_y_dinh_bang_mo_hinh`). Hai tham số phải đi cùng nhau:
+
+        prompt   câu hệ thống khác  -> câu trả lời khác
+        nhan     KHÔNG GIAN cache   -> hai công việc không đọc nhầm kết quả của nhau
+
+    `nhan` rỗng giữ NGUYÊN khóa cache cũ, có chủ ý: cache đã commit là thứ CI dựa vào để
+    chạy không cần mạng, nên đổi cách tính khóa là làm mọi mục đã lưu thành vô dụng và
+    làm CI đỏ vì một lý do không liên quan gì tới thay đổi.
     """
     model = env.get("LLM_MODEL", "")
-    key = _cache_key(question, model)
+    key = _cache_key(f"{nhan}::{question}" if nhan else question, model)
     if use_cache and key in _cache():
         return _cache()[key]
 
@@ -218,16 +236,18 @@ def call_model(question: str, env: dict[str, str], *, use_cache: bool = True) ->
     if not base_url or not env.get("LLM_API_KEY", "").strip() or not model:
         return None
 
-    vocabulary, _ = build_vocabulary()
+    if prompt is None:
+        vocabulary, _ = build_vocabulary()
+        prompt = PROMPT.format(vocabulary=vocabulary)
     body = json.dumps(
         {
             "model": model,
             "messages": [
-                {"role": "system", "content": PROMPT.format(vocabulary=vocabulary)},
+                {"role": "system", "content": prompt},
                 {"role": "user", "content": question},
             ],
             "temperature": 0,
-            "max_tokens": 300,
+            "max_tokens": max_tokens,
         }
     ).encode()
     # Toàn bộ phần gọi mạng nằm TRONG try, kể cả việc dựng Request — dựng Request cũng ném

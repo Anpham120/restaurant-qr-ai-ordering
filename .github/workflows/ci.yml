@@ -3,15 +3,24 @@ name: CI
 on:
   pull_request:
   push:
+    # CHỈ hai nhánh đích. Nhánh tính năng cố ý KHÔNG có ở đây.
+    #
+    # Trước đây danh sách này còn `feat/** fix/** chore/** rebuild/**`, và vì mọi PR đều đến từ một
+    # trong số đó nên **mỗi lần đẩy chạy CI hai lần** — một lần do `push`, một lần do `pull_request`.
+    # Đo được trên PR #385:
+    #
+    #     pull_request  success  12ace33  07:16:47
+    #     push          success  12ace33  07:16:43     <- cùng commit, cùng job, chạy lại từ đầu
+    #
+    # Gấp đôi mọi thứ, và job đắt nhất là `golden-e2e`: nó dựng ảnh Docker 2,75GB có `torch`.
+    #
+    # Việc này đắt hơn kể từ khi `ai-data-and-eval` và `golden-e2e` thành check BẮT BUỘC.
+    #
+    # Đánh đổi phải nói rõ: đẩy một nhánh mà CHƯA mở PR thì không có CI. Chấp nhận được vì mọi thay
+    # đổi đều đi qua PR (`main` và `develop` đều bị ruleset chặn push thẳng), và đây là nếp chuẩn.
     branches:
       - develop
       - main
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      # Nhánh dựng lại phần AI. Cần CI vì đây là nơi duy nhất biên dịch được backend
-      # .NET — máy phát triển hiện không có .NET SDK.
-      - "rebuild/**"
   workflow_dispatch:
   workflow_call:
 
@@ -324,13 +333,9 @@ jobs:
       AI_SERVICE_URL: http://127.0.0.1:8001
       AI_SERVICE_PORT: "8001"
       AI_INTERNAL_TOKEN: ci-internal-token-placeholder
-      LLM_PROVIDER: 9router
       LLM_BASE_URL: http://127.0.0.1:20128/v1
       LLM_API_KEY: ci-provider-key-placeholder
       LLM_MODEL: cx/gpt-5.6-luna-review
-      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
-      AI_PIPELINE_PROFILE: rebuild_placeholder
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -412,22 +417,9 @@ jobs:
       AI_SERVICE_URL: http://127.0.0.1:8001
       AI_SERVICE_PORT: "8001"
       AI_INTERNAL_TOKEN: ci-internal-token-placeholder
-      LLM_PROVIDER: 9router
       LLM_BASE_URL: http://127.0.0.1:20128/v1
       LLM_API_KEY: ci-provider-key-placeholder
       LLM_MODEL: cx/gpt-5.6-luna-review
-      # Single-model deployment: there is no fallback model.  Leave this empty —
-      # the AI service reports fallback_model=null whenever fallback is disabled,
-      # so naming a model here makes the deployment claim a fallback it will never
-      # call and fails the readiness contract in deploy/scripts/health-check.sh.
-      LLM_RATE_LIMIT_FALLBACK_MODEL: ""
-      LLM_RATE_LIMIT_FALLBACK_ENABLED: "false"
-      # Trước đây biến này do ai/evaluation/verify_pipeline_selection.py ghi vào
-      # GITHUB_ENV từ artifact nghiên cứu đã được phê duyệt.  Cả script và artifact đã bị
-      # xóa cùng bản AI cũ, và bản dựng lại chưa có khái niệm pipeline profile — bước 6
-      # mới quyết định có cần hay không.  Giá trị dưới đây là chỗ giữ chỗ để `compose
-      # config` kiểm được cú pháp; nó KHÔNG khai báo bất kỳ lựa chọn kiến trúc nào.
-      AI_PIPELINE_PROFILE: rebuild_placeholder
     steps:
       - name: Checkout
         uses: actions/checkout@v4

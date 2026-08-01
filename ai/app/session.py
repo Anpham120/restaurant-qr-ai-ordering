@@ -228,8 +228,39 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     Trả về một `Request` MỚI thay vì sửa tại chỗ, để chỗ gọi còn giữ được yêu cầu gốc của lượt
     này — cần nó để biết lượt này khách nói gì mới, tách khỏi cái đã nhớ từ trước.
     """
+    # QUY TẮC 0 — KHÁCH BẢO BỎ. Đường duy nhất hạ được hàng rào ở quy tắc 1.
+    #
+    # "Không bao giờ bỏ" khác "không có đường bỏ", và dự án đã lẫn hai thứ đó. Đo được trên
+    # production: khách khai dị ứng hải sản, rồi nói "tôi không còn dị ứng nữa" — mô hình ĐỌC ĐÚNG
+    # (`decision.model.reason` = "mô hình đọc được ràng buộc") mà câu trả lời vẫn lọc, vì dòng ngay
+    # dưới lấy HỢP hai tập. Rồi "vậy gợi ý món hải sản đi" nhận `no_data`: khách bị kẹt trong một
+    # ràng buộc không có cách nào gỡ.
+    #
+    # Ba điều kiện giữ cho việc này KHÔNG làm yếu chốt an toàn:
+    #
+    #   1. chỉ bỏ khi khách nói RÕ RÀNG   `intent._XOA_DI_NGUYEN` là danh sách cụm, không suy diễn
+    #   2. chỉ bỏ thứ ĐANG CÓ             không bao giờ bỏ nhãn của chính lượt này
+    #   3. câu trả lời phải NÊU RA        `da_bo_rang_buoc` -> `answer` nói ra, khách sửa được
+    #
+    # Điều 3 là điều phân biệt việc này với "im lặng bỏ ràng buộc": một hàng rào an toàn được hạ
+    # xuống thì khách phải THẤY nó được hạ.
+    from intent import XOA_RANG_BUOC
+
+    da_bo: list[str] = []
+    ke_thua_avoid = list(state.avoid_tags)
+    ke_thua_hard = list(state.hard_tags)
+    ke_thua_budget = state.budget_max
+    if request.y_dinh == XOA_RANG_BUOC:
+        if "allergen" in request.y_dinh_bo or "all" in request.y_dinh_bo:
+            da_bo.extend(ke_thua_avoid)
+            ke_thua_avoid = []
+        if "all" in request.y_dinh_bo:
+            da_bo.extend(ke_thua_hard)
+            ke_thua_hard = []
+            ke_thua_budget = None
+
     # QUY TẮC 1 — dị nguyên: CỘNG DỒN, không bao giờ bỏ. Đây là chốt an toàn của khâu này.
-    avoid = list(dict.fromkeys([*state.avoid_tags, *request.avoid_tags]))
+    avoid = list(dict.fromkeys([*ke_thua_avoid, *request.avoid_tags]))
 
     # QUY TẮC 2 — ràng buộc cứng: lượt mới GHI ĐÈ cùng NHÓM.
     #
@@ -237,14 +268,14 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     # không phải nằm cạnh nó. Nằm cạnh thì phép lọc AND cho kết quả rỗng và khách nhận "không
     # có món nào" cho một yêu cầu hoàn toàn hợp lệ.
     new_groups = {_group(t) for t in request.require_tags}
-    carried_hard = [t for t in state.hard_tags if _group(t) not in new_groups]
+    carried_hard = [t for t in ke_thua_hard if _group(t) not in new_groups]
     require = list(dict.fromkeys([*carried_hard, *request.require_tags]))
 
     # Ngân sách cũng là ràng buộc cứng: lượt mới có nêu thì thay, không nêu thì giữ.
     if request.budget_max is not None:
         budget_max, budget_strict = request.budget_max, request.budget_strict
     else:
-        budget_max, budget_strict = state.budget_max, state.budget_strict
+        budget_max, budget_strict = ke_thua_budget, state.budget_strict
 
     # QUY TẮC 3 — ngữ cảnh: cộng vào, giữ MAX_CONTEXT_TAGS gần nhất.
     #
@@ -254,6 +285,17 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
 
     # `wants` (món ăn / đồ uống) là ràng buộc cứng nhưng không mang dạng nhãn, nên xử riêng.
     wants = request.wants if request.wants != "any" else state.wants
+
+    # XIN THÊM = XIN MÓN GIỐNG. Dùng lại đúng cơ chế `wants_similar` đã có và đã đo, thay vì dựng
+    # đường loại trừ thứ hai — hai đường sẽ lệch nhau.
+    #
+    # Đây là lỗi số 1 người dùng nêu: "tư vấn thêm đi" trả lại y nguyên 6 món của lượt trước, vì từ
+    # vựng chỉ nhận `mon khac|cai khac|thu khac` mà không nhận "thêm", "còn gì nữa".
+    from intent import XIN_THEM
+
+    xin_them = request.y_dinh == XIN_THEM
+    if xin_them:
+        request = replace(request, wants_similar=True)
 
     # Danh mục chỉ được kéo lại khi khách xin món GIỐNG. Kéo lại mọi lượt là sai: "cho mình món
     # chay" rồi "cho mình đồ uống" thì lượt sau không được vẫn bị giới hạn trong danh mục chay.
@@ -305,6 +347,7 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
 
     return replace(
         request,
+        da_bo_rang_buoc=da_bo,
         avoid_tags=avoid,
         require_tags=require,
         prefer_tags=prefer,
@@ -363,8 +406,19 @@ def update_state(
         #
         # Vì sao đây KHÔNG phải nới ràng buộc an toàn: nới là bỏ một điều khách ĐÃ khai. Ở đây
         # không có lời khai nào để bỏ — có một câu hỏi, và nó đã được trả lời đầy đủ.
+        # Khách bảo BỎ thì bộ nhớ phải ghi lại việc bỏ.
+        #
+        # Dòng này từng lấy `state.avoid_tags` — bộ nhớ TRƯỚC lượt này — nên nó **ghi lại đúng cái
+        # `merge_into_request` vừa xóa**. Kết quả đo được: câu trả lời của lượt xóa nói "đã bỏ điều
+        # kiện hải sản", rồi lượt kế tiếp "vậy gợi ý món hải sản đi" nhận `no_data` vì ràng buộc đã
+        # sống lại. Bất biến hai đầu lần thứ mười, và lần này hai đầu nằm trong CÙNG MỘT TỆP.
+        #
+        # Cách sửa ĐÚNG là trừ đi đúng phần đã bỏ, KHÔNG phải đọc `merged.avoid_tags` thay cho
+        # `state.avoid_tags`. Bản đầu của tôi làm thế và mất ngay một bất biến khác: `merged` mang
+        # dị nguyên cả khi khách chỉ HỎI ("món này có hải sản không?"), nên câu hỏi bị biến thành
+        # lời khai — 4 lượt kịch bản đỏ, và test `KhongBienCauHoiThanhLoiKhai` bắt đúng chỗ đó.
         avoid_tags=list(dict.fromkeys([
-            *state.avoid_tags,
+            *[t for t in state.avoid_tags if t not in merged.da_bo_rang_buoc],
             *([t for t in merged.avoid_tags if t.startswith(ALLERGEN_PREFIX)]
               if merged.declared_avoidance else []),
         ])),

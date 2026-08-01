@@ -590,6 +590,23 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
 
 
 def respond(request: Request, items: list[dict]) -> Reply:
+    """Câu trả lời cho một lượt. Lớp mỏng bọc `_chon_cau_tra_loi` để ghép câu XÁC NHẬN.
+
+    Vì sao phải bọc thay vì ghép ở từng nhánh: `_chon_cau_tra_loi` có **22 điểm trả về**. Ghép ở
+    từng chỗ thì chắc chắn sót một, và chỗ sót sẽ là chỗ im lặng bỏ mất một hàng rào an toàn mà
+    khách không được biết. Một chỗ duy nhất thì không sót được.
+    """
+    reply = _chon_cau_tra_loi(request, items)
+
+    from intent import cau_xac_nhan_da_bo
+
+    xac_nhan = cau_xac_nhan_da_bo(list(getattr(request, "da_bo_rang_buoc", ()) or ()))
+    if xac_nhan:
+        reply = replace(reply, text=xac_nhan + reply.text)
+    return reply
+
+
+def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
     by_id = {i["id"]: i for i in items}
     named = [by_id[i] for i in request.named_items if i in by_id]
 
@@ -603,6 +620,27 @@ def respond(request: Request, items: list[dict]) -> Reply:
             kind="refuse",
             branch="off_topic",
         )
+
+    # 1b. XÃ GIAO — chào hỏi, cảm ơn, tán gẫu.
+    #
+    # Đứng ngay sau `off_topic` để nhánh đã đo kia không đổi hành vi, và đứng TRƯỚC mọi nhánh chọn
+    # món vì một lời chào không phải một yêu cầu lọc.
+    #
+    # Vì sao nhánh này phải tồn tại: không có nó, "xin chào" rơi xuống bước 6b-bis (truy hồi toàn
+    # kho, KHÔNG có ngưỡng tương đồng) và khách nhận về một đoạn tri thức gần nhất. Đo được trên
+    # production:
+    #
+    #     "xin chào"        -> danh sách rượu nếp cẩm, cà phê trứng, trà sen...
+    #     "cảm ơn bạn nhé"  -> một đoạn giảng về kết cấu món mềm và ít dầu mỡ
+    #
+    # Cổng `thuoc_mien()` lẽ ra chặn được, nhưng nó là phép OR trên TỪNG TỪ ĐƠN của mọi tên món sau
+    # khi rút dấu — nên `chao` của "xin chào" khớp món **"Cháo lòng Sài Gòn"**, và gần như mọi câu
+    # tiếng Việt đều lọt. Vụ đụng chữ thứ tám.
+    from intent import cau_tra_loi_xa_giao
+
+    _xa_giao = cau_tra_loi_xa_giao(request)
+    if _xa_giao is not None:
+        return Reply(text=_xa_giao, kind="fact", branch=f"xa_giao:{request.y_dinh}")
 
     # 2. Câu chính sách và câu dinh dưỡng — chưa có kho tri thức nào.
     if request.policy_topic is not None:
@@ -911,6 +949,21 @@ def respond(request: Request, items: list[dict]) -> Reply:
         or khach_neu_wants
     )
     if not said_something:
+        # 6b-truoc. Khách vừa bảo BỎ ràng buộc, và bỏ xong thì không còn gì để lọc.
+        #
+        # Không được rơi xuống nhánh truy hồi tri thức bên dưới: đo được, "tôi không còn dị ứng nữa"
+        # nhận câu xác nhận ĐÚNG rồi dính thêm một đoạn giảng về độ phủ nhãn dị nguyên. Câu xác nhận
+        # là toàn bộ nội dung khách cần ở lượt đó; phần còn lại là nhiễu.
+        from intent import XOA_RANG_BUOC
+
+        if request.y_dinh == XOA_RANG_BUOC:
+            return Reply(
+                text="Anh/chị muốn em gợi ý món gì tiếp ạ?",
+                kind="clarify",
+                asks_back=True,
+                branch="da_bo_rang_buoc",
+            )
+
         # 6b-bis. TRUY HỒI TOÀN KHO trước khi hỏi lại.
         #
         # Câu tới được đây là câu không có ràng buộc nào để lọc thực đơn — tức lựa chọn còn lại là

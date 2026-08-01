@@ -49,7 +49,6 @@ public sealed record ChatAiResult(
     IReadOnlyList<ChatVerifiedClaim>? Claims = null,
     ChatSessionUpdates? SessionUpdates = null,
     string? Model = null,
-    string? PipelineProfile = null,
     IReadOnlyList<string>? ResolvedMenuItemIds = null,
     string? VerifierResult = null);
 
@@ -152,7 +151,6 @@ public sealed class PythonRagChatProvider : IChatAiProvider
 
     private sealed record ChatRequestV2Payload(
         string ContractVersion,
-        string PipelineProfile,
         string Message,
         string? TableCode,
         string SessionId,
@@ -369,10 +367,12 @@ public sealed class PythonRagChatProvider : IChatAiProvider
                 return SlowFallback();
             }
 
+            // `profile=` đã bỏ khỏi dòng log này: dịch vụ mới không trả `pipeline_profile`, nên nó
+            // in `profile=unknown` ở MỌI lượt — một trường luôn "unknown" làm người đọc log tưởng
+            // có gì đó chưa cấu hình xong, trong khi thực ra khái niệm đó không còn.
             logger.LogInformation(
-                "Python AI chat completed in {ElapsedMs}ms profile={PipelineProfile} model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
+                "Python AI chat completed in {ElapsedMs}ms model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
                 stopwatch.ElapsedMilliseconds,
-                result.PipelineProfile ?? "unknown",
                 result.Model ?? "unknown",
                 result.Decision?.Route ?? "unknown",
                 string.Join(",", result.ResolvedMenuItemIds ?? []),
@@ -473,7 +473,6 @@ public sealed class PythonRagChatProvider : IChatAiProvider
         // Keep the legacy top-level aliases for one release while V2 consumers move to typed state/context.
         return new ChatRequestV2Payload(
             "v2",
-            ReadPipelineProfile(),
             request.UserMessage,
             request.TableCode,
             request.ChatSessionId ?? "",
@@ -506,20 +505,16 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             PendingClarification: null,
             ConstraintProvenance: new Dictionary<string, JsonElement>());
 
-    private string ReadPipelineProfile()
-    {
-        const string fallback = "llm_first_v1";
-        var profile = configuration["AI_PIPELINE_PROFILE"]?.Trim();
-        if (string.IsNullOrWhiteSpace(profile))
-        {
-            return fallback;
-        }
-
-        return profile is "llm_first_v1" or "evidence_first_v2" or "planner_state_v3"
-            ? profile
-            : throw new InvalidOperationException(
-                $"Unsupported AI_PIPELINE_PROFILE '{profile}'.");
-    }
+    // `ReadPipelineProfile()` đã bị bỏ cùng khái niệm "pipeline profile".
+    //
+    // Nó đọc `AI_PIPELINE_PROFILE` và NÉM LỖI với mọi giá trị ngoài ba tên profile của hệ thống AI
+    // cũ, rồi gửi trường đó tới dịch vụ mới — nơi bỏ qua nó. Tức nó là một cái bẫy im lặng: đặt cho
+    // biến ấy một tên hợp lý của hệ thống mới sẽ làm **mọi lượt chat sập**, và không phép kiểm nào
+    // bắt vì giá trị hợp lệ duy nhất là tên của một hệ thống không còn tồn tại.
+    //
+    // Bỏ cả trường `PipelineProfile` khỏi `ChatRequestV2Payload`: gửi một trường mà bên nhận bỏ qua
+    // làm hợp đồng nói sai về thứ nó dùng — cùng lý do `ai-chat-v1.schema.json` chỉ còn ba trường
+    // thay vì 24.
 
     internal static string ComputeCatalogVersion(IReadOnlyList<ChatMenuItemContext> menuItems)
     {
@@ -653,7 +648,6 @@ public sealed class PythonRagChatProvider : IChatAiProvider
             Claims: ExtractClaims(root),
             SessionUpdates: hasSessionUpdates ? ExtractSessionUpdates(sessionUpdatesElement) : null,
             Model: ExtractOptionalString(root, "model"),
-            PipelineProfile: ExtractOptionalString(root, "pipeline_profile"),
             ResolvedMenuItemIds: ExtractStringArray(root, "resolved_menu_item_ids"),
             VerifierResult: ExtractOptionalString(root, "verifier_result"));
     }
@@ -1126,8 +1120,7 @@ public sealed class ChatAssistantService : IChatAssistantService
 
         var providerResult = ParseStreamFinal(finalPayload.Value, prepared.AvailableMenuItems, prepared.Request.ExcludedMenuItemIds ?? excludedMenuItemIds);
         logger.LogInformation(
-            "Python AI stream profile={PipelineProfile} model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
-            providerResult.PipelineProfile ?? "unknown",
+            "Python AI stream model={Model} route={Route} resolved_menu_item_ids={ResolvedMenuItemIds} verifier_result={VerifierResult}",
             providerResult.Model ?? "unknown",
             providerResult.Decision?.Route ?? "unknown",
             string.Join(",", providerResult.ResolvedMenuItemIds ?? []),
