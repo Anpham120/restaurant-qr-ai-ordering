@@ -1356,6 +1356,25 @@ Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá tr�
 6. **Giảm ảnh Docker**: xuất mô hình sang ONNX runtime để bỏ hẳn torch. Hướng dùng endpoint embeddings
    của nhà cung cấp **đã thử và không dùng được** — nhà cung cấp hiện tại không có endpoint đó.
 
+### Giới hạn đã biết của bộ nhãn
+
+Ba điều tìm ra khi soát lại {len(b.tags)} nhãn trên {len(b.items)} món. Ghi ra vì **một giới hạn không được
+nói thì người đọc sẽ tưởng nó không tồn tại**.
+
+1. **`diet:vegan` và `diet:vegetarian` gắn đúng cùng {sum(1 for i in b.items if 'diet:vegetarian' in i['tags'])} món.** Một trong hai không phân biệt
+   được gì *trong bộ dữ liệu này* — nhưng cả hai đều ĐÚNG, và thêm một món chay có sữa là nhãn thứ
+   hai có nghĩa lại ngay. Nên đây không phải lỗi dữ liệu, và cách xử lý là ở lớp diễn đạt: mô tả
+   đưa mô hình đọc bỏ nhãn nào mà mọi món trong danh sách đều mang.
+
+2. **`spice` phủ {sum(1 for i in b.items if any(t.startswith('spice:') for t in i['tags']))}/{len(b.items)} món, và {sum(1 for c in {i['categoryId'] for i in b.items} if all('spice:none' in i['tags'] for i in b.items if i['categoryId'] == c))} danh mục có toàn bộ món `spice:none`**
+   — Cà phê & Trà, Nước ép & Sinh tố, Tráng miệng, Trái cây tươi, Bia & Rượu. Nói "không cay" về
+   một ly nước ép mang đúng 0 bit thông tin. Cùng cách xử lý như trên, và cùng lý do: **một nhãn chỉ
+   đáng nói khi nó phân biệt.**
+
+3. **{len(b.tags)} nhãn đến từ mô tả món, không từ bảng thành phần hay từ bếp.** Bộ soát cách chế
+   biến (`audit_method_tags.py`) chặn được nhóm `method` vì tên món tự nói ra đáp án; các nhóm còn
+   lại thì không có nguồn kiểm tự động nào tương đương.
+
 ### Ba điều cấm, áp cho cả nhóm và CI ép
 
 1. **Không nới ràng buộc dị nguyên** — kể cả khi kết quả rỗng.

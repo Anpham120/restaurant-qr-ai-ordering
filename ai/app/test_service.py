@@ -173,8 +173,8 @@ class HealthVaReadyKhacNhau(unittest.TestCase):
         body = self.client.get("/ready").json()
         self.assertTrue(body["ready"])
         self.assertEqual(body["menu_items"], 91)
-        self.assertEqual(body["knowledge_docs"], 108)
-        self.assertEqual(body["knowledge_chunks"], 449)
+        self.assertEqual(body["knowledge_docs"], 109)
+        self.assertEqual(body["knowledge_chunks"], 452)
         self.assertEqual(body["verbatim_topics"], 24)
 
     def test_model_configured_PHAI_kiem_ca_khoa(self):

@@ -99,6 +99,10 @@ GROUPS: dict[str, dict[str, tuple[str, str]]] = {
         "kho": ("braised", "Kho"),
         "luoc": ("boiled", "Luộc"),
         "rang": ("roasted", "Rang"),
+        # "Quay" KHAC "Rang" va khac "Nuong": rang la dao chao kho, nuong la lua truc tiep,
+        # quay la lam chin nguyen con cho gion da. Thieu gia tri nay thi "Ga ro ti" phai muon mot
+        # trong hai nhan kia, va ca hai deu sai theo mot huong khac nhau.
+        "quay": ("whole_roast", "Quay"),
         "tiem": ("stewed", "Tiềm"),
         "nau": ("simmered", "Nấu"),
         "cuon": ("rolled", "Cuốn"),
@@ -247,6 +251,7 @@ LABELS_EN: dict[str, str] = {
     "preorder": "Pre-order",
     "rich": "Rich",
     "roasted": "Roasted",
+    "whole_roast": "Whole roast",
     "rolled": "Rolls",
     "saigon": "Saigon",
     "salty": "Salty",

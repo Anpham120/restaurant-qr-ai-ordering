@@ -329,7 +329,7 @@ class ChiGoiMoHinhKhiCanThiet(unittest.TestCase):
 class TuVungGuiChoMoHinh(unittest.TestCase):
     def test_moi_khoa_trong_tu_vung_deu_co_nhom(self):
         text, key_group = llm.build_vocabulary()
-        self.assertEqual(len(key_group), 84)
+        self.assertEqual(len(key_group), 85)
         for key, group in key_group.items():
             self.assertIn(":", key)
             self.assertTrue(group)

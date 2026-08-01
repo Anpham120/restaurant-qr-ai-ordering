@@ -688,7 +688,7 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
 def _TEN_RANG_BUOC_VI(tag: str) -> str:
     """`spice:none` -> "không cay". Trả về chuỗi RỖNG nếu không dịch được.
 
-    Nguồn tên là `menu-tags.json` — **84 nhãn**, cùng bảng mà `generate._mo_ta_mon()` dùng. Bản đầu
+    Nguồn tên là `menu-tags.json` — **85 nhãn**, cùng bảng mà `generate._mo_ta_mon()` dùng. Bản đầu
     của hàm này đọc `intent._TEN_VI` (13 nhãn) và rơi về nhãn thô khi thiếu, nên câu cho khách in ra
     nguyên văn:
 

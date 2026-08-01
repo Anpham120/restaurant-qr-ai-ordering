@@ -56,6 +56,7 @@ SNAPSHOT_PATH = MIGRATIONS / "RestaurantDbContextModelSnapshot.cs"
 REVISIONS: list[tuple[str, str]] = [
     ("20260729120000", "RelabelsMenuTagsWithNamespacedKeys"),
     ("20260730090000", "AddsCoolingSeasonTagsFromDescriptionAudit"),
+    ("20260802090000", "AddsWholeRoastMethodTag"),
 ]
 STAMP, CLASS_NAME = REVISIONS[-1]
 MIGRATION_PATH = MIGRATIONS / f"{STAMP}_{CLASS_NAME}.cs"
@@ -85,6 +86,31 @@ DESCRIPTIONS: dict[str, str] = {
 ///
 /// Nhãn hiển thị cho khách không đổi: giao diện tra `backend/data/menu-tags.json` và
 /// nhận cả khóa mới lẫn tên cũ, nên "Tối", "Cá", "Bình dân" vẫn hiện như trước.""",
+    "AddsWholeRoastMethodTag": """/// Thêm giá trị nhãn `method:whole_roast` ("Quay") và gán nó cho "Gà rô ti kiểu Việt".
+///
+/// Thực đơn có "Rang" và "Nướng" nhưng KHÔNG có "Quay", nên món duy nhất là quay phải mượn
+/// một trong hai — và cả hai đều sai theo một hướng khác nhau:
+///
+///     Rang   đảo chảo khô với muối/me/bơ tỏi (Cua rang me, Tôm rang muối)
+///     Nướng  lửa trực tiếp
+///     Quay   làm chín nguyên con cho giòn da  <- "ướp ngũ vị hương, mật ong ... rồi QUAY giòn"
+///
+/// Trước migration này món mang `method:grilled`, nên câu "cho mình món nướng" trả về một món
+/// quay. Sai nhỏ, nhưng nó là loại sai không có cách nào tự lộ ra: không ca đánh giá nào hỏi
+/// "món quay", và tài liệu tri thức `method-*.md` sinh từ chính bộ nhãn này nên nó cũng đếm
+/// theo nhãn sai.
+///
+/// Tìm ra bằng bộ soát đối chiếu TÊN món với nhãn chế biến — `ai/scripts/audit_method_tags.py`,
+/// thêm vào CI cùng migration này. Bộ soát chỉ đọc TÊN, không đọc mô tả: tên do bếp đặt và nói
+/// đúng cách chế biến chính, còn mô tả nhắc cả món ăn kèm ("cuốn bánh tráng", "heo quay giòn
+/// da" là topping của bún mắm). Đọc cả mô tả thì 12 cảnh báo mà 11 là dương tính giả; chỉ đọc
+/// tên thì 1 cảnh báo và nó đúng.
+///
+/// Migration này cũng là phiên bản đầu tiên có `Down()` ĐÚNG. Hai phiên bản trước lùi về nhãn
+/// seed gốc thay vì về phiên bản liền trước, do bộ đọc quét cả tệp migration trước và giữ lần
+/// khớp cuối — tức phần `Down()` của nó. Không đường chạy nào gọi `Down()` nên lỗi nằm im. Sửa
+/// được an toàn ở đây vì script chỉ ghi lại migration CUỐI, nên hai phiên bản đã chạy trên
+/// production không bị đụng tới.""",
     "AddsCoolingSeasonTagsFromDescriptionAudit": """/// Thêm `season:cooling` cho ba món mà bản rà nhãn tìm ra, và đưa cơ sở dữ liệu về đúng
 /// bộ nhãn của `backend/data/menu-dataset.json`.
 ///
@@ -165,6 +191,26 @@ def read_old_tags() -> dict[str, list[str]]:
     chính script này sinh ra, đọc bằng một mẫu riêng vì hình dạng khác hoàn toàn.
     """
     text = PREV_MIGRATION.read_text(encoding="utf-8-sig")
+
+    # CHỈ đọc phần `Up()` của phiên bản trước.
+    #
+    # Docstring ngay trên nói "`Down()` của phiên bản N chỉ cần đọc `Up()` của phiên bản N-1" —
+    # nhưng mã lại quét CẢ TỆP, và `dict()` giữ lần khớp CUỐI. `Down()` nằm sau `Up()`, nên thứ
+    # thắng là nhãn mà phiên bản trước dùng để LÙI, tức nhãn seed gốc.
+    #
+    # Hậu quả: `Down()` của mọi phiên bản đều đưa cơ sở dữ liệu về nhãn tiếng Việt trần thời seed
+    # đầu (`'nuong'`, `'hap'`, `'gia dinh'`) thay vì về phiên bản liền trước. Lùi một phiên bản nhãn
+    # sẽ xoá sạch toàn bộ nhãn có không gian tên — đúng thứ migration đầu tiên tồn tại để dựng lên,
+    # và là thứ trợ lý AI đọc.
+    #
+    # Lỗi có sẵn từ trước; không đường chạy nào gọi `Down()` nên không ai thấy. Đây là lớp "mã trái
+    # với tài liệu của chính nó", và phần trái là phần không có test — nên bản sửa này đi kèm một
+    # test đọc thẳng SQL sinh ra.
+    #
+    # Sửa được AN TOÀN chỉ vì cùng lúc có phiên bản MỚI: script chỉ ghi lại migration cuối trong
+    # `REVISIONS`, nên hai phiên bản đã chạy trên production không bị đụng tới.
+    if "void Up" in text and "void Down" in text:
+        text = text[text.index("void Up"):text.index("void Down")]
 
     # Phiên bản sinh bởi script này: `UPDATE menu_items SET tags = ARRAY['a', 'b']::text[]
     #     WHERE id = 'm_001';`
@@ -278,7 +324,20 @@ def main(argv: list[str] | None = None) -> int:
     dictionary = json.loads(
         (REPO_ROOT / "backend" / "data" / "menu-tags.json").read_text(encoding="utf-8-sig")
     )
-    legacy_vocab = {e["legacy_key"] for e in dictionary["tags"].values()}
+    # Từ vựng để kiểm nhãn cũ phải theo ĐÚNG NGUỒN đang đọc.
+    #
+    # Phiên bản ĐẦU đọc migration seed, nơi nhãn là tiếng Việt trần (`nuong`, `hap`) — từ vựng là
+    # `legacy_key`. Phiên bản SAU đọc migration do chính script này sinh, nơi nhãn đã có không gian
+    # tên (`method:grilled`) — từ vựng là chính khóa nhãn.
+    #
+    # Dùng nhầm từ vựng thì phép kiểm báo cả 91 món "nhãn lạ" và chặn việc sinh, dù dữ liệu đúng.
+    # Bất biến giữ nguyên ý nghĩa: nhãn đọc được phải nằm trong một từ vựng ĐÃ BIẾT, để lỗi đọc sai
+    # khối lộ ra ở đây thay vì đi vào `Down()` của một migration đã chạy trên production.
+    legacy_vocab = (
+        {e["legacy_key"] for e in dictionary["tags"].values()}
+        if PREV_MIGRATION == SEED_MIGRATION
+        else set(dictionary["tags"])
+    )
     old = read_old_tags()
     up_sql, down_sql, problems = build(menu, old, legacy_vocab)
 

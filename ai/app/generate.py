@@ -218,7 +218,7 @@ def _nhan_tieng_viet() -> dict[str, str]:
 
     Vì sao đọc từ dữ liệu chứ không viết bảng thứ tư: dự án đã có ba bảng tên tiếng Việt viết tay
     (`answer._ALLERGEN_VI`, `answer._SPICE_VI`, `intent._TEN_VI`), và mỗi bảng viết tay là một chỗ
-    trôi khỏi dữ liệu. `menu-tags.json` có sẵn `label_vi` cho đủ **84 nhãn** — nó đã là nguồn.
+    trôi khỏi dữ liệu. `menu-tags.json` có sẵn `label_vi` cho đủ **85 nhãn** — nó đã là nguồn.
 
     Hỏng thì trả `{}` và phần gọi rơi về nhãn thô: xấu nhưng không sập, cùng nguyên tắc với
     `load_facts()`.

@@ -1191,7 +1191,7 @@ namespace RestaurantQrAiOrdering.Api.Data.Migrations
                             IsAvailable = true,
                             Name = "Gà rô ti kiểu Việt",
                             Price = 320000m,
-                            Tags = new[] { "flavour:rich", "flavour:smoky", "flavour:sweet", "health:high_protein", "ingredient:chicken", "meal:dinner", "method:grilled", "occasion:banquet", "occasion:birthday", "occasion:business", "party:family", "party:share", "party:three_five", "price:high", "season:all_year", "serving:preorder", "spice:none" },
+                            Tags = new[] { "flavour:rich", "flavour:smoky", "flavour:sweet", "health:high_protein", "ingredient:chicken", "meal:dinner", "method:whole_roast", "occasion:banquet", "occasion:birthday", "occasion:business", "party:family", "party:share", "party:three_five", "price:high", "season:all_year", "serving:preorder", "spice:none" },
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 13, 7, 30, 44, 705, DateTimeKind.Unspecified).AddTicks(968), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
