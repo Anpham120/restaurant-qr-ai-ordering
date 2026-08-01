@@ -334,11 +334,38 @@ class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
 
         `rep.items` phải RỖNG: đây là câu hỏi lại, không phải câu gợi ý, nên không có thẻ giỏ.
         """
-        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"]), ITEMS)
+        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
         self.assertEqual(rep.branch, "empty_result_offer_drop")
         self.assertTrue(rep.asks_back, "phải mời khách bỏ điều kiện chặn")
         self.assertEqual(rep.items, [], "câu hỏi lại thì không kèm thẻ giỏ")
         self.assertIn("cay đậm", rep.text, "phải GỌI TÊN điều kiện chặn bằng tiếng Việt")
+
+    def test_CHI_moi_bo_rang_buoc_KE_THUA(self):
+        """Không mời bỏ điều khách VỪA NÓI ở lượt này — đó là câu trả lời vô nghĩa.
+
+        Golden bắt được ngay lượt đầu sau khi thêm nhánh mời-bỏ:
+
+            "Vị miền Bắc khác miền Nam thế nào?"
+            -> Điều kiện "miền bắc" đang chặn — bỏ nó ra thì có 35 món.
+
+        Khách vừa nêu miền Bắc trong chính câu đó. Đây là câu hỏi tri thức, và hai nhãn "chặn" nó
+        là hai nhãn của chính nó. Rơi qua nhánh này thì câu về `empty_result` như cũ, và đường sinh
+        viết lại bằng đoạn tri thức truy hồi được — tức câu hỏi vẫn được trả lời đúng.
+
+        Ranh giới này cũng khớp với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        """
+        r = self._req(require_tags=["region:north", "region:south"])
+        rep = respond(r, ITEMS)
+        self.assertEqual(rep.branch, "empty_result",
+                         "ràng buộc do chính lượt này nêu thì KHÔNG được mời bỏ")
+
+        r2 = self._req(require_tags=["region:north", "region:south"],
+                       rang_buoc_ke_thua=["region:north"])
+        rep2 = respond(r2, ITEMS)
+        self.assertEqual(rep2.branch, "empty_result_offer_drop",
+                         "ràng buộc KẾ THỪA thì phải mời bỏ — đây là chiều còn lại của bất biến")
 
     def test_KHONG_BAO_GIO_moi_bo_di_nguyen(self):
         """CHỐT AN TOÀN. Dị nguyên không được xuất hiện trong lời mời bỏ, kể cả khi nó là thứ chặn.
@@ -349,7 +376,8 @@ class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
         """
         moi_nhan = sorted({t for i in ITEMS for t in i["tags"] if t.startswith("allergen:")})
         self.assertTrue(moi_nhan, "thực đơn phải có nhãn dị nguyên thì test mới có nghĩa")
-        rep = respond(self._req(avoid_tags=moi_nhan, require_tags=["spice:hot"]), ITEMS)
+        rep = respond(self._req(avoid_tags=moi_nhan, require_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
         for nhan in moi_nhan:
             self.assertNotIn(nhan.split(":", 1)[1], rep.text.lower(),
                              f"lời mời bỏ nhắc tới dị nguyên {nhan}")

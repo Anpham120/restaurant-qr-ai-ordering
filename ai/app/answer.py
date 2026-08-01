@@ -1101,8 +1101,17 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
         #
         # Dị nguyên KHÔNG bao giờ nằm trong danh sách mời bỏ: nới nó là mời khách một món có thể
         # gây hại, và đó là ranh giới không đổi.
+        # CHỈ mời bỏ ràng buộc KẾ THỪA. Ràng buộc khách vừa nói ở lượt này thì không được mời bỏ —
+        # "bỏ điều kiện miền bắc" cho câu "Vị miền Bắc khác miền Nam thế nào?" là câu trả lời vô
+        # nghĩa, và golden bắt được ngay lượt đầu.
+        #
+        # Ranh giới này cũng đúng với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        # TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        #
+        # Rơi qua nhánh này thì câu trả lời là `empty_result` như cũ — và với đường sinh bật, nó
+        # được viết lại bằng đoạn tri thức truy hồi được, tức câu hỏi tri thức vẫn được trả lời.
         thu_bo: list[tuple[str, int]] = []
-        for tag in request.require_tags:
+        for tag in getattr(request, "rang_buoc_ke_thua", ()) or ():
             # Chỉ mời bỏ ràng buộc GỌI TÊN ĐƯỢC bằng tiếng Việt. Không dịch được thì không mời —
             # thà nói "chưa tìm được món nào" còn hơn hỏi khách một câu chứa khóa nhãn nội bộ.
             if not _TEN_RANG_BUOC_VI(tag):
@@ -1111,7 +1120,8 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                                                         if t != tag]), items)
             if con:
                 thu_bo.append((tag, len(con)))
-        if request.budget_max is not None:
+        if (request.budget_max is not None
+                and "__ngan_sach__" in (getattr(request, "rang_buoc_ke_thua", ()) or ())):
             con = select(replace(request, budget_max=None), items)
             if con:
                 thu_bo.append(("__ngan_sach__", len(con)))

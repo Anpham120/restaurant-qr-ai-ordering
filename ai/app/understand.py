@@ -155,6 +155,17 @@ class Request:
     # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
     # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
     y_dinh_bo: list[str] = field(default_factory=list)
+    # Ràng buộc KÉO TỪ LƯỢT TRƯỚC, do `session.merge_into_request` điền. `understand()` không bao
+    # giờ đặt trường này — nó chỉ đọc câu của lượt hiện tại.
+    #
+    # Dùng cho đúng một việc: nhánh mời-bỏ chỉ được mời bỏ thứ khách KHÔNG nói ở lượt này. Mời bỏ
+    # điều họ vừa nói ra là một câu trả lời vô nghĩa — golden bắt được ngay:
+    #
+    #     "Vị miền Bắc khác miền Nam thế nào?"
+    #     -> Điều kiện "miền bắc" đang chặn — bỏ nó ra thì có 35 món.   <- khách VỪA nêu miền Bắc
+    #
+    # Câu đó là câu hỏi tri thức, và ràng buộc "chặn" nó là hai nhãn của chính nó.
+    rang_buoc_ke_thua: list[str] = field(default_factory=list)
     # Nhãn ĐÃ bị bỏ ở lượt này, do `session.merge_into_request` điền. Câu trả lời phải NÊU RA chúng:
     # một hàng rào an toàn được hạ xuống thì khách phải THẤY nó được hạ, để sửa được nếu hiểu sai.
     da_bo_rang_buoc: list[str] = field(default_factory=list)

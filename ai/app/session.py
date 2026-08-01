@@ -394,6 +394,15 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     return replace(
         request,
         da_bo_rang_buoc=da_bo,
+        # Ràng buộc kéo từ bộ nhớ, KHÔNG do câu lượt này nêu. Tính ở đây vì đây là chỗ duy nhất
+        # biết được cả hai nguồn.
+        rang_buoc_ke_thua=[
+            *[t for t in carried_hard if t not in request.require_tags],
+            # Ngân sách kế thừa dùng chung danh sách này bằng một mã canh, để không phải thêm
+            # trường thứ hai cho cùng một câu hỏi "thứ này do lượt nào nêu".
+            *(["__ngan_sach__"] if (request.budget_max is None and ke_thua_budget is not None)
+              else []),
+        ],
         avoid_tags=avoid,
         require_tags=require,
         prefer_tags=prefer,
