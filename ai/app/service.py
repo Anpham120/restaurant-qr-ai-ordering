@@ -400,7 +400,7 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
             neu_ten = [m for m in chosen if m["name"] in gen.text]
             cart = [a for a in cart if a.menu_item_id in {m["id"] for m in neu_ten}]
 
-    new_state = update_state(state, merged, reply.items, reply.kind)
+    new_state = update_state(state, merged, reply.items, reply.kind, reply.branch)
     return _to_payload(reply, new_state, outcome, cart, gen)
 
 

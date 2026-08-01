@@ -125,6 +125,16 @@ class SessionState:
     # có gì để giống, và hệ thống liệt kê lại cả thực đơn — đúng điều đã đo được ở
     # `context-reference-08`.
     last_categories: list[str] = field(default_factory=list)
+    # Hệ thống VỪA HỎI gì. Rỗng nghĩa là lượt trước không hỏi câu có/không nào.
+    #
+    # Có vì một lỗi đo được trên production: hệ thống hỏi *"Bạn muốn mình bỏ bớt một điều kiện để có
+    # thêm lựa chọn không?"* rồi KHÔNG hiểu câu trả lời — khách nói "bỏ và tư vấn thêm đi" và nhận
+    # lại đúng câu hỏi đó, lặp mãi. Tệ hơn: chữ "bỏ" rút dấu thành `bo`, mà `bo` là nhãn
+    # `ingredient:beef`, nên khách xin BỎ điều kiện lại bị THÊM ràng buộc thịt bò.
+    #
+    # Vá bằng cách thêm cụm là đánh chuột: mỗi cách nói "đồng ý" trong tiếng Việt là một cụm mới.
+    # Nhớ CÂU MÌNH VỪA HỎI thì chỉ cần một cơ chế, và nó đúng cho mọi cách nói ngắn.
+    cho_doi: str = ""
     turn_count: int = 0
 
     @classmethod
@@ -194,6 +204,8 @@ class SessionState:
             rejected_item_ids=ids("rejected_item_ids")[:MAX_SUGGESTED_MEMORY],
             last_listed_ids=ids("last_listed_ids")[:MAX_LISTED_MEMORY],
             last_categories=ids("last_categories"),
+            cho_doi=(payload.get("cho_doi")
+                     if isinstance(payload.get("cho_doi"), str) else ""),
             last_focus_id=(payload.get("last_focus_id")
                            if isinstance(payload.get("last_focus_id"), str) else None),
             last_compared_ids=ids("last_compared_ids")[:2],
@@ -214,6 +226,7 @@ class SessionState:
             "rejected_item_ids": list(self.rejected_item_ids),
             "last_listed_ids": list(self.last_listed_ids),
             "last_categories": list(self.last_categories),
+            "cho_doi": self.cho_doi,
             "turn_count": self.turn_count,
         }
 
@@ -244,7 +257,17 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     #
     # Điều 3 là điều phân biệt việc này với "im lặng bỏ ràng buộc": một hàng rào an toàn được hạ
     # xuống thì khách phải THẤY nó được hạ.
-    from intent import XOA_RANG_BUOC
+    from intent import XOA_RANG_BUOC, la_dong_y
+
+    # Khách ĐỒNG Ý với đề nghị hệ thống vừa đưa ra.
+    #
+    # Hệ thống hỏi "Bạn muốn mình bỏ bớt một điều kiện để có thêm lựa chọn không?" rồi trước đây
+    # KHÔNG hiểu câu trả lời — khách nói "bỏ và tư vấn thêm đi" và nhận lại đúng câu hỏi đó, lặp mãi.
+    #
+    # Nới ở đây là nới BỘ LỌC (`loc`), tuyệt đối không phải `all`: khách đồng ý xem thêm lựa chọn
+    # KHÔNG có nghĩa là họ hết dị ứng. Đây là chỗ một cơ chế tiện lợi dễ hạ mất chốt an toàn nhất.
+    if state.cho_doi == "bo_bot_dieu_kien" and la_dong_y(request.text):
+        request = replace(request, y_dinh=XOA_RANG_BUOC, y_dinh_bo=["loc"])
 
     da_bo: list[str] = []
     ke_thua_avoid = list(state.avoid_tags)
@@ -254,7 +277,9 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
         if "allergen" in request.y_dinh_bo or "all" in request.y_dinh_bo:
             da_bo.extend(ke_thua_avoid)
             ke_thua_avoid = []
-        if "all" in request.y_dinh_bo:
+        # `loc` bỏ ràng buộc LỌC (số người, độ cay, giá, chế độ ăn) nhưng GIỮ dị nguyên.
+        # `all` bỏ cả hai. Tách hai nhóm chính vì điều đó — xem `intent._NOI_BO_LOC`.
+        if "all" in request.y_dinh_bo or "loc" in request.y_dinh_bo:
             da_bo.extend(ke_thua_hard)
             ke_thua_hard = []
             ke_thua_budget = None
@@ -384,6 +409,7 @@ def update_state(
     merged: Request,
     replied_item_ids: list[str],
     reply_kind: str,
+    reply_branch: str = "",
 ) -> SessionState:
     """Ghi bộ nhớ sau khi đã trả lời. Nhận `Request` ĐÃ hợp nhất, không phải bản gốc.
 
@@ -469,6 +495,12 @@ def update_state(
             if (reply_kind == "compare" and len(replied_item_ids) == 2)
             else list(state.last_compared_ids)
         ),
+        # Hệ thống VỪA HỎI gì — để lượt sau hiểu được câu trả lời.
+        #
+        # Chỉ ghi cho nhánh `exhausted_after_exclusions`, vì đó là nhánh DUY NHẤT đặt một câu có/không
+        # mà câu trả lời làm hệ thống phải hành động khác đi. Các nhánh `clarify` khác hỏi câu MỞ
+        # ("bạn muốn món ăn hay đồ uống?") và câu trả lời của chúng tự mang ràng buộc.
+        cho_doi=("bo_bot_dieu_kien" if reply_branch == "exhausted_after_exclusions" else ""),
         turn_count=state.turn_count + 1,
     )
 
@@ -554,6 +586,11 @@ def session_updates(state: SessionState, replied_item_ids: list[str]) -> dict[st
             "wants": state.wants,
             "last_listed_ids": list(state.last_listed_ids),
             "last_categories": list(state.last_categories),
+            # Câu hệ thống VỪA HỎI. Phải đi qua vòng backend, nếu không cơ chế "hiểu câu trả lời cho
+            # câu mình vừa hỏi" chỉ chạy trong test và MẤT ở hệ thống thật — đúng lớp lỗi mà
+            # `test_MOI_truong_bo_nho_deu_song_qua_vong_JSON` tồn tại để chặn, và nó đã bắt được
+            # trường này ngay lần thêm đầu tiên.
+            "cho_doi": state.cho_doi,
             # `last_focus_id` và `last_compared_ids` cũng phải nằm ở đây, và cùng một lý do — chỉ
             # có điều lần này lỗi đã xảy ra TRƯỚC khi tôi kịp nhớ ra: hai trường được thêm vào
             # `SessionState`, chạy đúng trong tiến trình, và **sai qua backend**. Golden đầu-cuối

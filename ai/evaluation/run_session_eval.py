@@ -155,7 +155,7 @@ def chay_kich_ban(script: dict, items: list[dict]) -> list[dict]:
         request = understand(turn["user"], items)
         merged = S.merge_into_request(request, state)
         reply = answer.respond(merged, items)
-        state = S.update_state(state, merged, list(reply.items), reply.kind)
+        state = S.update_state(state, merged, list(reply.items), reply.kind, reply.branch)
         ghi.append({
             "user": turn["user"],
             "expect": turn.get("expect", {}),
