@@ -267,7 +267,17 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     # Nới ở đây là nới BỘ LỌC (`loc`), tuyệt đối không phải `all`: khách đồng ý xem thêm lựa chọn
     # KHÔNG có nghĩa là họ hết dị ứng. Đây là chỗ một cơ chế tiện lợi dễ hạ mất chốt an toàn nhất.
     if state.cho_doi == "bo_bot_dieu_kien" and la_dong_y(request.text):
-        request = replace(request, y_dinh=XOA_RANG_BUOC, y_dinh_bo=["loc"])
+        # `wants_similar=True` để GIỮ CHỦ ĐỀ qua câu đồng ý.
+        #
+        # "ừ bỏ đi" tự nó không mang danh mục nào, nên nếu không kéo `last_categories` thì lượt sau
+        # rơi về toàn thực đơn. Đo được, và hỏng theo cách tệ nhất có thể:
+        #
+        #     "chuyển sang món chay đi"  -> 0 món, mời bỏ điều kiện 2-3 người
+        #     "ừ bỏ đi"                  -> 6 món KHÔNG chay
+        #
+        # Khách xin món chay, đồng ý bỏ một điều kiện, và nhận về thịt. Bỏ điều kiện phải bỏ ĐÚNG
+        # điều kiện được hỏi, không được cuốn theo cả chủ đề khách vừa nêu.
+        request = replace(request, y_dinh=XOA_RANG_BUOC, y_dinh_bo=["loc"], wants_similar=True)
 
     da_bo: list[str] = []
     ke_thua_avoid = list(state.avoid_tags)
@@ -283,6 +293,17 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
             da_bo.extend(ke_thua_hard)
             ke_thua_hard = []
             ke_thua_budget = None
+        else:
+            # BỎ ĐÚNG MỘT NHÓM. Dùng cho khung phủ nhận ("tôi đâu có nói là không ăn được cay"):
+            # khách phủ nhận độ cay thì bỏ độ cay, không bỏ luôn số người và ngân sách họ đã nêu.
+            #
+            # `loc` là bỏ TẤT CẢ ràng buộc lọc, đúng cho câu "bỏ bớt điều kiện đi" vì lúc đó khách
+            # không chỉ định nhóm nào. Ở đây khách chỉ định rất rõ, nên bỏ rộng hơn điều họ nói là
+            # tự ý gỡ thêm hàng rào — đúng thứ mà cả cơ chế này được viết ra để tránh.
+            nhom_bo = {n for n in request.y_dinh_bo if n not in ("allergen", "loc", "all")}
+            if nhom_bo:
+                da_bo.extend([t for t in ke_thua_hard if _group(t) in nhom_bo])
+                ke_thua_hard = [t for t in ke_thua_hard if _group(t) not in nhom_bo]
 
     # QUY TẮC 1 — dị nguyên: CỘNG DỒN, không bao giờ bỏ. Đây là chốt an toàn của khâu này.
     avoid = list(dict.fromkeys([*ke_thua_avoid, *request.avoid_tags]))
@@ -500,7 +521,12 @@ def update_state(
         # Chỉ ghi cho nhánh `exhausted_after_exclusions`, vì đó là nhánh DUY NHẤT đặt một câu có/không
         # mà câu trả lời làm hệ thống phải hành động khác đi. Các nhánh `clarify` khác hỏi câu MỞ
         # ("bạn muốn món ăn hay đồ uống?") và câu trả lời của chúng tự mang ràng buộc.
-        cho_doi=("bo_bot_dieu_kien" if reply_branch == "exhausted_after_exclusions" else ""),
+        # `empty_result_offer_drop` cũng đặt một câu CÓ/KHÔNG ("bỏ điều kiện 2-3 người không?"),
+        # nên nó phải ghi cùng cờ. Thiếu dòng này thì hệ thống hỏi rồi không hiểu câu trả lời của
+        # chính nó — đúng lớp lỗi mà cờ `cho_doi` được viết ra để chấm dứt.
+        cho_doi=("bo_bot_dieu_kien"
+                 if reply_branch in ("exhausted_after_exclusions", "empty_result_offer_drop")
+                 else ""),
         turn_count=state.turn_count + 1,
     )
 

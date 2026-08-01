@@ -158,7 +158,10 @@ def _mo_ta_rang_buoc(request: Request) -> str:
     if request.avoid_tags:
         phan.append("cần tránh: " + ", ".join(request.avoid_tags))
     if request.require_tags:
-        phan.append("yêu cầu: " + ", ".join(request.require_tags))
+        # Nhãn ghép `spice:mild|medium|hot` đưa thẳng vào prompt thì mô hình đọc ra một chuỗi kỹ
+        # thuật và có thể chép nguyên vào câu cho khách. Dịch sang "cay nhẹ hoặc cay vừa hoặc cay
+        # đậm" trước, dùng đúng bảng `label_vi` mà `_mo_ta_mon()` dùng.
+        phan.append("yêu cầu: " + ", ".join(_yeu_cau_doc_duoc(t) for t in request.require_tags))
     if request.prefer_tags:
         phan.append("thích: " + ", ".join(request.prefer_tags))
     return "; ".join(phan) or "chưa nêu ràng buộc cụ thể"
@@ -198,6 +201,16 @@ def _mo_ta_ngu_canh(request: Request, da_neu: list[dict]) -> str:
 
 
 _NHAN_VI: dict[str, str] | None = None
+
+
+def _yeu_cau_doc_duoc(tag: str) -> str:
+    """Một nhãn yêu cầu, viết bằng tiếng Việt. Nhận cả nhãn ghép có dấu `|`."""
+    nhan = _nhan_tieng_viet()
+    if "|" not in tag:
+        return nhan.get(tag, tag)
+    nhom, cac_muc = tag.split(":", 1)
+    ten = [nhan.get(f"{nhom}:{m}", f"{nhom}:{m}") for m in cac_muc.split("|")]
+    return " hoặc ".join(t.lower() for t in ten)
 
 
 def _nhan_tieng_viet() -> dict[str, str]:
@@ -248,7 +261,7 @@ def _mo_ta_mon(items: list[dict]) -> str:
 
 def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict],
            avoid_tags: list[str], budget_max: int | None = None) -> list[str]:
-    """Tám phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
+    """Chín phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
 
     Áp cho MỌI câu sinh, không khai từng ca: một phép kiểm chỉ chạy ở vài chỗ là một phép kiểm không
     bảo đảm gì.
@@ -332,6 +345,23 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
     thieu = sorted(i["name"] for i in allowed if i["name"] not in text)
     if thieu:
         loi.append(f"KHÔNG nhắc đủ món trong danh sách, thiếu: {thieu}")
+
+    # 6b. KHÔNG được nhắc CÙNG MỘT MÓN hai lần.
+    #
+    # Đo được trên bản chạy thật, ngay lượt đầu của một khách:
+    #
+    #     "Món phụ gợi ý gồm Gà hấp lá chanh giá 280.000đ vì không cay, Gà rô ti kiểu Việt giá
+    #      320.000đ vì không cay, và **Gà hấp lá chanh** giá 280.000đ vì có cách chế biến hấp nhẹ"
+    #
+    # Tám phép kiểm cũ đều cho qua: tên món đúng, giá đúng, không thiếu món, không thừa món. Không
+    # phép nào hỏi "có món nào nêu HAI LẦN không" — nên câu lặp đi thẳng tới khách.
+    #
+    # Đây là bản sao của phép kiểm 6 ở chiều ngược lại. Phép 6 hỏi "đã nêu đủ chưa"; thiếu một câu
+    # hỏi "có nêu thừa không", và một bất biến chỉ canh một chiều thì chỉ canh được một nửa — lớp
+    # lỗi đã lặp lại nhiều lần trong dự án này.
+    lap = sorted(i["name"] for i in allowed if text.count(i["name"]) > 1)
+    if lap:
+        loi.append(f"nhắc lặp cùng một món trong một câu: {lap}")
 
     # 7. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
     #    Đây là phép kiểm cuối cùng trước khi chữ tới khách, và nó lặp lại điều bộ lọc đã làm —

@@ -141,8 +141,8 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 494 cụm từ vựng và 91 tên món: **73 cụm bị chứa trong cụm khác**, **43 cụm nằm
-    trong tên món**, và hợp lại là **92 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 499 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **43 cụm nằm
+    trong tên món**, và hợp lại là **93 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 92 chỗ đó.
 
     Con số vừa GIẢM một, và đó là tin tốt: cụm `bo` một âm tiết bị bỏ khỏi từ vựng sau khi nó gây
@@ -168,7 +168,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 494, "trong_cum_khac": 73, "trong_ten_mon": 43, "co_rui_ro": 92},
+            {"tu_vung": 499, "trong_cum_khac": 74, "trong_ten_mon": 43, "co_rui_ro": 93},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
