@@ -131,15 +131,34 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-cx/gpt-5.6-luna-review}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN is required}
-      # Đường SINH: mô hình VIẾT chữ cho khách thay vì khuôn mẫu dựng.  Mặc định TẮT, và mặc
-      # định đó dựa trên số đo, không dựa trên thận trọng chung: trên 18 ca loại C, câu sinh
-      # làm TỤT 9 ca so với đường tất định (thua thước đo nội dung: văn xuôi nêu 3 món trong
-      # khi khuôn mẫu nêu 6), mô hình bịa giá ở 3/18 lượt (lớp xác minh chặn được), và độ trễ
-      # là 7 giây mỗi lượt so với gần 0.
+      # Đường SINH: mô hình VIẾT chữ cho khách thay vì khuôn mẫu dựng.  Nay mặc định BẬT.
       #
-      # Bật nó là một quyết định phải xem những con số đó trước.  Xem
-      # ai/evaluation/run_llm_rag_eval.py để chạy lại phép đo.
-      AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-}
+      # Mặc định cũ là TẮT, dựa trên phép đo "câu sinh làm TỤT 9 ca so với đường tất định".  Kết
+      # luận đó đúng trên thước đo lúc ấy và SAI về chất lượng hội thoại: thước đo chấm NỘI DUNG
+      # LIỆT KÊ, nên văn xuôi nêu 3 món luôn thua khuôn mẫu nêu 6 — nó đo độ dài danh sách, không
+      # đo câu trả lời có giúp được khách không.
+      #
+      # Đo lại sau khi sửa hai lỗi thật của đường sinh (nhãn thô tiếng Anh lọt vào chữ khách đọc;
+      # lớp xác minh chặn OAN con số khách vừa nêu):
+      #
+      #     golden e2e generation BẬT   103/103      không tụt ca nào
+      #     golden e2e generation TẮT   103/103
+      #     câu sinh được DÙNG          6/6          trước khi sửa: 5/6
+      #     độ trễ                      trung vị 7,9s mỗi lượt  (5,5–9,6s)
+      #
+      # Cái đổi lấy 8 giây đó, đọc được:
+      #
+      #     khuôn: "Mời bạn tham khảo: Gỏi cuốn chay (45.000đ), Đậu hũ sốt cà chua (45.000đ)…"
+      #     sinh : "Các món chay dưới 60.000đ gồm Gỏi cuốn chay 45.000đ và Đậu hũ sốt cà chua
+      #             45.000đ; cả hai đều không cay, nhưng Gỏi cuốn chay CÓ GHI NHẬN ĐẬU PHỘNG…"
+      #
+      # Ba lớp giữ bảo đảm không đổi khi bật: mô hình KHÔNG chọn món (danh sách do lọc theo nhãn
+      # quyết định), 8 phép xác minh chạy trước khi gửi, và thẻ giỏ vẫn dựng từ `reply.items` chứ
+      # không từ chữ mô hình viết.  Câu sinh vi phạm bất kỳ phép nào thì bị BỎ và khuôn mẫu thay thế.
+      #
+      # Tắt lại: đặt `AI_ENABLE_GENERATION=0`.  Cổng deploy sẽ tự đối chiếu với bằng chứng của đúng
+      # cấu hình đó (`golden_e2e.json` thay vì `golden_e2e_sinh.json`).
+      AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-1}
       # 30 giây, và phải NHỎ HƠN `BACKEND_AI_TIMEOUT_SECONDS` (50) ở trên: backend phải còn thời
       # gian nhận câu thoái hóa của dịch vụ AI thay vì tự hết hạn trước và trả lỗi cho khách.
       # `DeploymentConfigurationTests` canh đúng quan hệ đó.

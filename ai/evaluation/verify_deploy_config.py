@@ -49,6 +49,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -69,12 +70,39 @@ def bo_truy_hoi_se_deploy() -> str:
     return "embedding" if co else "bm25"
 
 
-def duong_sinh_se_bat() -> bool:
-    """Đường sinh có bật không, đọc như `service._bat_duong_sinh` đọc.
+_BAT = {"1", "true", "yes", "on"}
+COMPOSE = REPO_ROOT / "deploy" / "docker-compose.yml"
 
-    `docker-compose.yml` truyền `AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-}`, nên rỗng = tắt.
+
+def duong_sinh_se_bat() -> bool:
+    """Đường sinh có bật không — đọc đúng thứ QUYẾT ĐỊNH, không đọc thứ tiện đọc.
+
+    Thứ quyết định là mặc định trong `docker-compose.yml`:
+
+        AI_ENABLE_GENERATION: ${AI_ENABLE_GENERATION:-1}
+
+    `deploy-vps.sh` KHÔNG ghi biến này vào `.env` trên máy chủ (đã kiểm), nên trên môi trường thật
+    mặc định của compose là giá trị duy nhất có hiệu lực. Biến môi trường vẫn thắng nếu ai đó đặt
+    tường minh — đó là cách tắt lại.
+
+    Bản trước CHỈ đọc biến môi trường, và đó là một lỗi im lặng chờ xảy ra: sau khi mặc định compose
+    đổi thành BẬT, cổng vẫn thấy biến rỗng nên nó đối chiếu với bằng chứng của cấu hình TẮT — tức
+    xác nhận một cấu hình khác với cấu hình sắp chạy, và báo "khớp".
+
+    Cùng nguyên tắc với `bo_truy_hoi_se_deploy()`: bộ truy hồi do `requirements.txt` quyết định nên
+    hàm đó đọc `requirements.txt`. Đọc đúng nguồn quyết định là điều làm một cổng có ích thật.
     """
-    return (os.environ.get("AI_ENABLE_GENERATION") or "").strip().lower() in {"1", "true", "yes", "on"}
+    moi_truong = (os.environ.get("AI_ENABLE_GENERATION") or "").strip().lower()
+    if moi_truong:
+        return moi_truong in _BAT
+
+    if not COMPOSE.exists():
+        return False
+    khop = re.search(
+        r"AI_ENABLE_GENERATION:\s*\$\{AI_ENABLE_GENERATION:-([^}]*)\}",
+        COMPOSE.read_text(encoding="utf-8"),
+    )
+    return bool(khop) and khop.group(1).strip().lower() in _BAT
 
 
 def main(argv: list[str] | None = None) -> int:

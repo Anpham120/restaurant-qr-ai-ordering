@@ -379,9 +379,16 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     # Chỉ chữ đổi. Đó là ranh giới làm cho việc bật đường sinh có thể chấp nhận được.
     gen = None
     if _bat_duong_sinh(turn.use_generation):
+        # Món khách ĐÃ xem ở lượt trước — để câu sinh mở đúng cách thay vì giới thiệu lại như mới.
+        #
+        # Lấy từ `state` (bộ nhớ TRƯỚC lượt này), không từ `new_state`: cái sau đã gồm món của chính
+        # lượt này, và đưa nó vào là bảo mô hình "đừng nhắc lại" đúng những món nó đang phải nhắc.
+        _theo_id = {i["id"]: i for i in MENU.items}
+        _da_neu = [_theo_id[i] for i in state.last_listed_ids if i in _theo_id]
         gen = write_reply(
             merged, chosen, MENU.items, reply.branch, load_env(),
             knowledge=_tri_thuc_kem(merged),
+            da_neu_truoc=_da_neu,
         )
         if gen.text:
             reply = replace(reply, text=gen.text, branch=f"{reply.branch}+gen")
