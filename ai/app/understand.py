@@ -150,6 +150,14 @@ class Request:
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
     asks_difference: bool = False
+    # Ý ĐỊNH của lượt này — xem `intent.py`. Mặc định `hoi_mon`, tức "đi tiếp xuống tầng chọn món".
+    y_dinh: str = "hoi_mon"
+    # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
+    # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
+    y_dinh_bo: list[str] = field(default_factory=list)
+    # Nhãn ĐÃ bị bỏ ở lượt này, do `session.merge_into_request` điền. Câu trả lời phải NÊU RA chúng:
+    # một hàng rào an toàn được hạ xuống thì khách phải THẤY nó được hạ, để sửa được nếu hiểu sai.
+    da_bo_rang_buoc: list[str] = field(default_factory=list)
     # HỌ MÓN khách gọi tên: "phở", "bún", "cơm"... Lọc theo đây THAY danh mục, vì danh mục có thể
     # gộp nhiều họ ("Phở & Bún") và khách hỏi phở thì không muốn thấy bún.
     ho_mon: list[str] = field(default_factory=list)
@@ -1021,6 +1029,37 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     if khac_vi_tri:
         request.asks_difference = True
 
+    # 2b. Ý ĐỊNH — đọc TRƯỚC vòng khớp từ vựng, và ĂN hết đoạn đã khớp.
+    #
+    # Phải ăn chữ, không chỉ nhận diện: "bỏ hết điều kiện đi" rút dấu thành `bo het dieu kien di`,
+    # và `bo` là nhãn `ingredient:beef` ("bò"). Không ăn thì khách xin BỎ ràng buộc lại nhận thêm
+    # ràng buộc **thịt bò** — vụ đụng chữ thứ chín, xuất hiện ngay trong cơ chế vừa dựng để sửa một
+    # vụ khác. Đúng lý do dự án có quy tắc "khớp cụm dài trước rồi ăn hết đoạn".
+    from intent import doc_y_dinh_tu_chuoi_dem
+
+    _y = doc_y_dinh_tu_chuoi_dem(working)
+    if _y.cum_khop:
+        _needle = f" {_y.cum_khop} "
+        _sau = working.replace(_needle, " " * len(_needle))
+        # CHỈ ăn khi việc ăn không phá mất một cụm từ vựng NẰM NGOÀI đoạn bị ăn.
+        #
+        # "cho mình thêm món chay": cụm ý định `them mon` khớp, và ăn nó làm mất `mon chay` — một
+        # cụm KHÔNG nằm trong `them mon`. Khách xin món chay thì bị loại đúng những món chay.
+        #
+        # Còn "bỏ hết điều kiện đi": ăn `bo het dieu kien` làm mất cụm `bo` (ingredient:beef), nhưng
+        # `bo` NẰM TRONG đoạn bị ăn — tức nó là một phần của chính cụm ý định, mất là đúng.
+        #
+        # Phân biệt hai trường hợp bằng đúng câu hỏi đó, thay vì bằng một bảng kiểm kê: bảng kiểm kê
+        # tĩnh cho 200+ cặp chồng chữ mà chỉ một cặp có thật, và một thước đo như vậy sẽ bị tắt.
+        _pha = [
+            v for v in VOCAB
+            if f" {v} " in working and f" {v} " not in _sau and v not in _y.cum_khop
+        ]
+        if _pha:
+            _y = _y.__class__()
+        else:
+            working = _sau
+
     # Họ món có thật trong thực đơn — tính từ dữ liệu, dùng làm hàng rào cho bước 3 dưới.
     ho_mon_co_that = set(ho_mon_trong_thuc_don(menu_items))
 
@@ -1257,4 +1296,38 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #    xanh, món nào cay hơn?" bị đọc thành câu hỏi về một món. Từ nối tiếng Việt quá đa
     #    dạng để liệt kê, còn "khách nêu tên đúng hai món" thì đếm được.
     request.is_comparison = len(request.named_items) == 2
+
+    # 8. Ý ĐỊNH — khách đang LÀM GÌ, tách khỏi câu hỏi khách MUỐN MÓN NÀO.
+    #
+    # Đặt ở CUỐI, vì nó cần biết câu này đã nêu được thứ gì khác chưa. Đặt trong `understand()` chứ
+    # không trong `service.py`, vì mọi bộ đánh giá gọi thẳng `understand`/`respond` — nối ở lớp vỏ
+    # thì phép đo không chạm tới, đúng cái bẫy "hai đầu" đã trả giá tám lần trong dự án này.
+    #
+    # Nhập trong hàm để tránh vòng nhập: `intent` dùng `fold` của tệp này.
+    from intent import CAM_ON, CHAO_HOI, NGOAI_PHAM_VI, XIN_THEM, YDinh
+
+    y = _y
+
+    # Câu có nêu thứ gì khác không. Dùng để CHẶN ý định xã giao chiếm mất một câu hỏi thật:
+    # "cảm ơn bạn, cho mình xem món chay" phải là câu hỏi món, không phải lời cảm ơn.
+    co_thu_khac = bool(
+        request.require_tags
+        or request.prefer_tags
+        or request.avoid_tags
+        or request.categories
+        or request.named_items
+        or request.policy_topic
+        or request.knowledge_topic
+        or request.budget_max is not None
+    )
+    if co_thu_khac and y.ten in (CHAO_HOI, CAM_ON, NGOAI_PHAM_VI, XIN_THEM):
+        # `XIN_THEM` cũng bị chặn ở đây, và vì lý do riêng: "cho mình thêm món chay" là RÀNG BUỘC
+        # MỚI, không phải "thêm nữa của cùng thứ". Đọc nhầm nó thành xin-thêm sẽ loại đúng những
+        # món chay vừa nêu — tức khách xin món chay và bị loại món chay.
+        y = YDinh()
+
+    request.y_dinh = y.ten
+    request.y_dinh_bo = list(y.bo_rang_buoc)
+    if y.cum_khop:
+        request.matched.append(f"ý định: {y.cum_khop!r} -> {y.ten}")
     return request
