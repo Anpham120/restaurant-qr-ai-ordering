@@ -30,6 +30,7 @@ import json
 import os
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -531,3 +532,104 @@ class StreamVaNapLai(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+@unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
+class DuongSinhKhongDuocLAMMATHanhViDaDo(unittest.TestCase):
+    """Bật đường sinh KHÔNG được xóa thứ bản khuôn mẫu đã bảo đảm.
+
+    Hai lỗi thật, tìm ra bằng cách chạy staging chứ không phải bằng test — nên viết test ở đây:
+
+        1. câu XÁC NHẬN "đã bỏ điều kiện …" biến mất, vì câu sinh THAY toàn bộ `text`
+        2. lời chào tốn 5,0 giây, vì `enrich()` vẫn gọi mô hình cho một câu không có gì để hiểu
+
+    Cả hai đều là dạng đã gặp nhiều lần trong dự án: **một bất biến chỉ được bảo đảm ở MỘT đầu**.
+    `respond()` ghép câu xác nhận, còn đường sinh ghi đè — hai đầu, một đầu biết luật.
+    """
+
+    def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
+        self.client = TestClient(service_module.app, raise_server_exceptions=False)
+
+    def _turn(self, question, state=None, use_generation=None):
+        payload = {"question": question, "session_state": state, "use_model": False}
+        if use_generation is not None:
+            payload["use_generation"] = use_generation
+        return self.client.post("/v1/chat", json=payload,
+                                headers={"x-internal-token": TOKEN}).json()
+
+    def _den_luc_can_bo_rang_buoc(self):
+        """Đưa phiên tới ĐÚNG trạng thái đã đo trên staging: hết món, và đã hỏi khách có bỏ bớt không.
+
+        Ba lượt này là bản chép lại phiên staging thật đã phát hiện lỗi — không phải một chuỗi
+        nghĩ ra cho test. Lượt 3 phải dừng ở nhánh `exhausted_after_exclusions`, vì chỉ nhánh đó
+        mới đặt `cho_doi="bo_bot_dieu_kien"`, và chỉ khi có cờ đó thì "bỏ" ở lượt sau mới được
+        hiểu là ĐỒNG Ý bỏ ràng buộc.
+        """
+        state = None
+        for cau in ("gợi ý món cho 2 người", "tư vấn thêm đi", "tư vấn thêm món cho mình"):
+            body = self._turn(cau, state)
+            state = body["session_updates"]["session_state"]
+        self.assertEqual(
+            body["decision"]["branch"], "exhausted_after_exclusions",
+            "kịch bản không còn tới được chỗ hỏi bỏ ràng buộc — sửa kịch bản, đừng bỏ test",
+        )
+        return state
+
+    def test_cau_XAC_NHAN_bo_rang_buoc_song_qua_duong_sinh(self):
+        state = self._den_luc_can_bo_rang_buoc()
+
+        moc = "đã bỏ điều kiện"
+        khuon = self._turn("bỏ và tư vấn thêm đi", state, use_generation=False)
+        self.assertIn(moc, khuon["content"], "bản khuôn mẫu phải nói ra ràng buộc đã bỏ")
+
+        # Mô hình trả một câu KHÔNG hề nhắc tới việc bỏ ràng buộc — đúng như staging đã trả.
+        goc = service_module.write_reply
+
+        def gia(*a, **kw):
+            that = goc(*a, **kw)
+            return replace(that, text="Nếu muốn món ăn nhẹ kiểu Sài Gòn, bạn thử Bánh mì pate nhé.")
+
+        service_module.write_reply = gia
+        try:
+            sinh = self._turn("bỏ và tư vấn thêm đi", state, use_generation=True)
+        finally:
+            service_module.write_reply = goc
+
+        self.assertTrue(sinh["decision"]["branch"].endswith("+gen"),
+                        f"đường sinh không chạy: {sinh['decision']['branch']}")
+        self.assertIn(moc, sinh["content"],
+                      "bật đường sinh làm MẤT câu xác nhận đã bỏ ràng buộc — khách không còn "
+                      "biết một hàng rào vừa bị hạ")
+
+    def test_luot_xa_giao_KHONG_goi_mo_hinh(self):
+        """Lời chào không được tốn một lần gọi mô hình — nó không đổi được câu trả lời."""
+        goc = service_module.enrich
+        dem = []
+
+        def dem_goi(*a, **kw):
+            dem.append(a[0].text if a else "")
+            return goc(*a, **kw)
+
+        service_module.enrich = dem_goi
+        try:
+            for cau in ("xin chào", "cảm ơn bạn nhé"):
+                dem.clear()
+                self.client.post(
+                    "/v1/chat",
+                    json={"question": cau, "use_model": True},
+                    headers={"x-internal-token": TOKEN},
+                )
+                with self.subTest(cau):
+                    self.assertEqual(dem, [], f"{cau!r} vẫn gọi mô hình")
+
+            # Và phải KHÔNG tắt nhầm phần còn lại: câu thật vẫn được hỏi mô hình.
+            dem.clear()
+            self.client.post(
+                "/v1/chat",
+                json={"question": "nhà hàng đông không bạn", "use_model": True},
+                headers={"x-internal-token": TOKEN},
+            )
+            self.assertEqual(len(dem), 1, "câu ngoài danh sách cụm phải vẫn được hỏi mô hình")
+        finally:
+            service_module.enrich = goc

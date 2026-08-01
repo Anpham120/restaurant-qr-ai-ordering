@@ -237,6 +237,52 @@ run_semantic_probe "pho-list" "Nhà hàng mình có những món phở gì nhỉ
 run_semantic_probe "pho-recommend" "Gợi ý cho mình món phở tại nhà hàng đi"
 run_semantic_probe "nhau" "Mình có món nhậu không?"
 
+# Mô hình có GỌI ĐƯỢC không — một lần gọi THẬT, không phải đọc lại cấu hình.
+#
+# Vì sao bước này phải tồn tại: `/ready` báo `model_configured: true` khi có đủ URL, tên mô hình và
+# khóa. Ba thứ đó là ĐÃ CẤU HÌNH, không phải GỌI ĐƯỢC — và khoảng cách đó vừa nuốt trọn một tính
+# năng mà không có gì báo:
+#
+#     staging  0,5–1,0s, câu khuôn mẫu     mọi lần gọi thất bại rồi âm thầm rơi về đường tất định
+#     cục bộ   5,5–9,6s, câu sinh tự nhiên  cùng mã, cùng câu hỏi
+#
+# `/ready` xanh, health check xanh, golden 103/103 — golden chạy được KHÔNG cần mô hình, có chủ ý.
+# Nên không phép kiểm nào trong dự án nhìn thấy chuyện này. Bước dưới đây là phép kiểm đó.
+#
+# FAIL CLOSED: mô hình đã cấu hình mà gọi không được là CHẶN deploy. Một dịch vụ chạy với lớp mô
+# hình nằm im nhưng vẫn báo khỏe là thứ tệ hơn một deploy đỏ — deploy đỏ thì có người sửa.
+#
+# Chỉ chặn khi ĐÃ cấu hình. Môi trường cố ý không có mô hình (CI) thì `configured=false` và bước này
+# chỉ ghi chú, không chặn.
+echo "Checking AI model REACHABILITY (one real call)"
+model_check_file="${probe_dir}/model-check.json"
+curl --fail --show-error --silent --retry 2 --retry-delay 3 --retry-all-errors \
+  -H "Authorization: Bearer ${AI_INTERNAL_TOKEN}" \
+  -H "Content-Type: application/json" \
+  --data '{}' \
+  "${AI_MODEL_CHECK_URL:-http://127.0.0.1:${AI_SERVICE_PORT:-8001}/v1/model-check}" \
+  > "$model_check_file"
+python3 - "$model_check_file" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+
+if not payload.get("configured"):
+    print(f"  mô hình KHÔNG được cấu hình ({payload.get('reason')}) — bỏ qua phép kiểm gọi được.")
+    print("  Dịch vụ vẫn trả lời bằng đường tất định; đường sinh và lớp đọc ý định sẽ nằm im.")
+    raise SystemExit(0)
+
+assert payload.get("ok") is True, (
+    "MÔ HÌNH ĐÃ CẤU HÌNH NHƯNG GỌI KHÔNG ĐƯỢC.\n"
+    f"  lý do    : {payload.get('reason')}\n"
+    f"  độ trễ   : {payload.get('latency_ms')}ms\n"
+    "  Hậu quả: mọi lượt rơi về đường tất định, IM LẶNG — `/ready` vẫn xanh, golden vẫn 103/103.\n"
+    "  Kiểm `LLM_BASE_URL` có trỏ vào một dịch vụ ĐANG CHẠY không."
+)
+print(f"  mô hình gọi được: {payload.get('model')} · {payload.get('latency_ms')}ms")
+PY
+
 echo "Running backend-integrated AI smoke request"
 backend_session_request="${probe_dir}/backend-session-request.json"
 backend_session_response="${probe_dir}/backend-session-response.json"
