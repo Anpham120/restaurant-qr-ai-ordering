@@ -39,7 +39,7 @@ def turn(state: SessionState, question: str):
     """Chạy một lượt trọn vẹn: hiểu → hợp nhất → trả lời → ghi bộ nhớ."""
     merged = merge_into_request(understand(question, ITEMS), state)
     reply = respond(merged, ITEMS)
-    return merged, reply, update_state(state, merged, reply.items, reply.kind)
+    return merged, reply, update_state(state, merged, reply.items, reply.kind, reply.branch)
 
 
 class ChotAnToanDiNguyenGiuSuotPhien(unittest.TestCase):

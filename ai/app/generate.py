@@ -127,6 +127,7 @@ Trả về JSON đúng dạng:
 KHÁCH HỎI: {question}
 
 ĐIỀU KHÁCH ĐÃ NÓI: {constraints}
+{ngu_canh}
 
 DANH SÁCH MÓN (chỉ được nhắc những món này):
 {items}
@@ -161,6 +162,39 @@ def _mo_ta_rang_buoc(request: Request) -> str:
     if request.prefer_tags:
         phan.append("thích: " + ", ".join(request.prefer_tags))
     return "; ".join(phan) or "chưa nêu ràng buộc cụ thể"
+
+
+def _mo_ta_ngu_canh(request: Request, da_neu: list[dict]) -> str:
+    """Ngữ cảnh HỘI THOẠI — thứ lớp sinh trước đây hoàn toàn không biết.
+
+    Vì sao cần: prompt cũ chỉ có bốn thứ (câu hỏi, ràng buộc, danh sách món, tri thức). Không có
+    lượt trước, không có món đã gợi, không có ý định. Nên khi khách nói "tư vấn thêm đi", mô hình
+    viết một đoạn văn hay về **đúng những món vừa nêu** — nó không có cách nào biết là đang lặp.
+
+    Nguyên tắc: **phát hiện bằng mã, diễn đạt bằng mô hình.** Lặp là một phép so tập hợp — chính
+    xác, tốn 0 giây, test được. Hỏi mô hình "bạn có đang lặp không" thì tốn một lần gọi, không tất
+    định, và không viết test được. Nên mô hình được BÁO, không được HỎI.
+
+    Cái nó dùng thông tin này để làm: mở câu đúng cách — "Ngoài những món vừa rồi, còn…" thay vì
+    "Mời bạn tham khảo…" như chưa từng nói gì.
+    """
+    from intent import XIN_THEM
+
+    phan: list[str] = []
+    if request.y_dinh == XIN_THEM:
+        phan.append(
+            "Khách vừa xin gợi ý THÊM. Hãy mở câu bằng ý 'ngoài những món vừa rồi' — đừng viết như "
+            "đây là lần đầu tư vấn."
+        )
+    if request.da_bo_rang_buoc:
+        phan.append(
+            "Khách vừa yêu cầu BỎ một điều kiện, và hệ thống đã bỏ. Câu trả lời đã có sẵn phần xác "
+            "nhận việc đó ở đầu, bạn KHÔNG cần nhắc lại."
+        )
+    if da_neu:
+        ten = ", ".join(i["name"] for i in da_neu[:8])
+        phan.append(f"Những món khách ĐÃ xem ở lượt trước (đừng giới thiệu lại như mới): {ten}.")
+    return "\n".join(f"- {p}" for p in phan)
 
 
 _NHAN_VI: dict[str, str] | None = None
@@ -339,7 +373,7 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
 
 def write_reply(request: Request, chosen: list[dict], all_items: list[dict], branch: str,
                 env: dict[str, str], knowledge: str = "", *,
-                call=None) -> GenOutcome:
+                da_neu_truoc: list[dict] | None = None, call=None) -> GenOutcome:
     """Nhờ mô hình viết câu trả lời cho loại C. Trả `GenOutcome` với `text=None` nếu không dùng được.
 
     `call` cho phép test thay đường gọi mạng bằng một hàm giả — cùng cách `llm_understand` làm, và
@@ -350,9 +384,11 @@ def write_reply(request: Request, chosen: list[dict], all_items: list[dict], bra
     if not chosen:
         return GenOutcome(reason="không có món nào để viết về")
 
+    _ngu_canh = _mo_ta_ngu_canh(request, da_neu_truoc or [])
     prompt = PROMPT.format(
         question=request.text,
         constraints=_mo_ta_rang_buoc(request),
+        ngu_canh=f"\nNGỮ CẢNH HỘI THOẠI:\n{_ngu_canh}" if _ngu_canh else "",
         items=_mo_ta_mon(chosen),
         knowledge=f"\nTRI THỨC LIÊN QUAN:\n{knowledge}" if knowledge else "",
     )
