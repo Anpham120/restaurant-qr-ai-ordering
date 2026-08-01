@@ -488,6 +488,28 @@ def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
     return (chu_cho_khach(chon), cach) if chon else None
 
 
+def _ap_duoc(tag: str, cua_nhom: set[str]) -> bool:
+    """Nhãn này có món nào trong nhóm mang không. Nhãn ghép thì chỉ cần MỘT mức có mặt."""
+    if "|" in tag:
+        nhom, cac_muc = tag.split(":", 1)
+        return any(f"{nhom}:{m}" in cua_nhom for m in cac_muc.split("|"))
+    return tag in cua_nhom
+
+
+def _ho_mon_khac_loai(ho_mon: list[str], items: list[dict], nhom_dung: frozenset | set) -> bool:
+    """Họ món khách gọi tên có nằm NGOÀI loại đang hỏi không.
+
+    "ăn lẩu thì uống gì" — `lau` là họ món ĂN, còn câu hỏi là về ĐỒ UỐNG. Kiểm bằng thực đơn chứ
+    không bằng danh sách viết tay: một họ món mà không món nào của nhóm thuộc về thì nó là họ của
+    nhóm kia.
+    """
+    if not ho_mon:
+        return False
+    return not any(
+        _thuoc_ho(i, ho_mon) for i in items if i["categoryId"] in nhom_dung
+    )
+
+
 def select(request: Request, items: list[dict]) -> list[dict]:
     """Lọc thực đơn theo đúng những gì khách đã nói.
 
@@ -504,6 +526,36 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     if request.exclude_item_ids:
         bo = set(request.exclude_item_ids)
         picked = [i for i in picked if i["id"] not in bo]
+    # KHÁCH NÓI MÌNH ĐANG ĂN GÌ, VÀ HỎI UỐNG GÌ. Món đang ăn là NGỮ CẢNH, không phải bộ lọc.
+    #
+    # Đo được, và cả bốn ca đều trả lời ngược câu hỏi:
+    #
+    #     "ăn lẩu thì uống gì hợp"        -> 6 món LẨU        (khách hỏi uống)
+    #     "ăn phở uống gì ngon"           -> 3 món PHỞ
+    #     "món nướng hợp với đồ uống gì"  -> 0 món            (không đồ uống nào `method:grilled`)
+    #     "đồ uống nào hợp món cay"       -> 0 món            (không đồ uống nào cay)
+    #
+    # `wants` được nhận ĐÚNG là `drink` ở cả bốn. Hỏng ở chỗ khác: `ho_mon` và `categories` được áp
+    # TRƯỚC `wants`, nên tên món ăn trong câu thắng chính điều khách đang hỏi. Và với hai ca cuối,
+    # nhãn suy từ món ăn (`method:grilled`, độ cay) không món uống nào mang, nên giao ra rỗng.
+    #
+    # Quy tắc: **loại đang hỏi thắng loại được nhắc tới.** Nhắc "lẩu" trong câu hỏi về đồ uống là để
+    # nói mình đang ăn gì, không phải để xin thêm lẩu.
+    #
+    # Nhãn nào là "chỉ của món ăn" thì SUY TỪ THỰC ĐƠN, không viết tay: nhãn mà không đồ uống nào
+    # mang thì áp vào một câu hỏi đồ uống chắc chắn cho kết quả rỗng. Suy từ dữ liệu nên nó không
+    # thể lệch khi thực đơn đổi — cùng nguyên tắc với `ho_mon_trong_thuc_don()`.
+    if request.wants in ("food", "drink") and not request.asks_difference:
+        nhom_dung = FOOD_CATEGORIES if request.wants == "food" else DRINK_CATEGORIES
+        cua_nhom = {t for i in items if i["categoryId"] in nhom_dung for t in i["tags"]}
+        request = replace(
+            request,
+            ho_mon=[] if _ho_mon_khac_loai(request.ho_mon, items, nhom_dung) else request.ho_mon,
+            categories=[c for c in request.categories if c in nhom_dung],
+            # Nhãn không loại nào trong nhóm mang -> bỏ khỏi bộ lọc. Giữ nó chỉ đảm bảo kết quả rỗng.
+            require_tags=[t for t in request.require_tags if _ap_duoc(t, cua_nhom)],
+        )
+
     # HỌ MÓN khách gọi tên thắng danh mục.
     #
     # Khách hỏi "có phở không" nhận về cả bún, vì "phở" ánh xạ vào danh mục `cat_noodle` — mà danh
