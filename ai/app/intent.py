@@ -105,19 +105,23 @@ _CAM_ON = (
 # Nhưng KHÔNG có "thêm", "còn gì nữa", "xem tiếp" — nên "tư vấn thêm đi" rơi vào nhánh lọc bình
 # thường và trả lại **y nguyên** danh sách cũ. Đo được trên production: lượt 2 và lượt 4 của một hội
 # thoại bốn lượt đều lặp lại đúng 6 món của lượt 1.
-# KHÔNG có "them mon" và "cho them" trong danh sách này, và đó là một bài học phải trả giá ngay
-# trong lần dựng đầu:
+# `them mon` nằm trong danh sách này, và nó là cụm đã dạy tôi cơ chế ăn chữ sai chỗ nào:
 #
-#     "cho mình thêm món chay"   -> cụm `them mon` khớp và bị ĂN
-#                                -> còn lại "cho minh ___ ___ chay", mà `chay` một mình KHÔNG phải
-#                                   cụm từ vựng (nó được tách thành `an chay` / `mon chay`)
-#                                -> mất sạch ràng buộc chay, và câu thành "xin thêm của thứ cũ"
+#     "cho mình thêm món chay"   -> `them mon` khớp, ĂN -> còn "cho minh ___ ___ chay"
+#                                -> `chay` một mình KHÔNG phải cụm từ vựng (nó được tách thành
+#                                   `an chay` / `mon chay`) -> mất sạch ràng buộc chay
 #
-# Tức khách xin món chay thì bị loại đúng những món chay vừa xem. Cơ chế ăn chữ là cần thiết (xem
-# `doc_y_dinh_tu_chuoi_dem`), nhưng nó biến mọi cụm quá rộng thành một cách phá ràng buộc — nên cụm
-# ở đây phải là cụm **tự nó đã đủ nghĩa "thêm nữa"**, không mượn chữ của câu sau.
+# Tôi đã thử hai cách sửa sai trước khi tìm ra cách đúng:
+#
+#     bỏ cụm `them mon`      -> "cho mình thêm món chay NỮA" không còn nhận ra là xin thêm,
+#                               và nó trả lại y nguyên 6 món chay vừa xem
+#     bỏ Ý ĐỊNH khi va chạm  -> cùng hậu quả, chỉ đổi chỗ
+#
+# Cách đúng: **giữ ý định, chỉ không ăn chữ.** Ăn chữ có đúng một mục đích — chặn chữ của chính cụm
+# ý định sinh ra nhãn sai (`bo` của "bỏ hết điều kiện" là `ingredient:beef`). Khi việc ăn sẽ phá một
+# cụm NẰM NGOÀI, không ăn là đủ; bỏ ý định là mất hẳn một cơ chế.
 _XIN_THEM = (
-    "them di", "tu van them", "tu van them di", "goi y them", "them nua",
+    "them di", "tu van them", "tu van them di", "goi y them", "them nua", "them mon",
     "con gi nua", "con gi nua khong", "con mon nao khac", "con gi khac",
     "xem them", "xem tiep", "cho xem them", "nua di", "tiep di",
     "con nua khong", "the con gi", "gi nua",
@@ -208,6 +212,86 @@ def doc_y_dinh_tu_chuoi_dem(folded_padded: str) -> YDinh:
         nguon="tat_dinh",
         cum_khop=cum_khop,
     )
+
+
+# ------------------------------------------------------------------------------------------------
+# ĐUÔI DÀI — chỗ duy nhất trong lớp này dùng mô hình.
+#
+# Danh sách cụm ở trên phủ phần ĐÃ BIẾT: chào hỏi, cảm ơn, xin thêm, xóa ràng buộc. Nó không phủ
+# được phần đuôi, và đuôi thì vô hạn:
+#
+#     "nhà hàng đông không bạn"   -> hiện nhận về một đoạn tri thức về phạm vi trợ lý
+#     "quán mình mở lâu chưa"     -> câu xã giao, không phải câu hỏi món
+#     "bạn tư vấn có chuẩn không" -> nói về chính trợ lý
+#
+# Mô hình chỉ được hỏi khi danh sách cụm KHÔNG nhận ra và mã tất định cũng không rút được ràng buộc
+# nào — tức đúng những câu mà hệ thống sắp trả lời bằng một đoạn tri thức gần nhất. Ba hệ quả:
+#
+#     độ trễ    câu đã hiểu không tốn thêm giây nào; chỉ phần đuôi mới chờ
+#     an toàn   mô hình KHÔNG được gán nhãn lọc ở đây, nên nó không lặp lại được lớp lỗi cũ
+#     thoái hóa mô hình hỏng -> trả `HOI_MON` -> hệ thống chạy y như trước
+_PROMPT_Y_DINH = """Bạn đọc MỘT câu của khách trong nhà hàng Việt Nam và phân loại Ý ĐỊNH.
+
+Bạn KHÔNG chọn món, KHÔNG gán nhãn, KHÔNG viết câu trả lời. Chỉ phân loại.
+
+Trả về JSON đúng dạng này, không thêm chữ nào ngoài JSON:
+{"y_dinh": "...", "bo": []}
+
+"y_dinh" nhận ĐÚNG một trong các giá trị sau:
+- "chao_hoi"       khách chào, mở lời
+- "cam_on"         khách cảm ơn, kết thúc
+- "xin_them"       khách xin gợi ý THÊM hoặc gợi ý KHÁC với những gì vừa nêu
+- "xoa_rang_buoc"  khách nói không còn một điều kiện đã nêu trước đó (hết dị ứng, bỏ điều kiện)
+- "ngoai_pham_vi"  khách nói chuyện không liên quan món ăn, đồ uống của nhà hàng
+- "hoi_mon"        MỌI trường hợp còn lại: hỏi về món, về thực đơn, về nhà hàng
+
+"bo" chỉ dùng khi y_dinh là "xoa_rang_buoc", nhận "allergen" hoặc "all". Còn lại để mảng rỗng.
+
+Không chắc thì trả "hoi_mon". Đó là mặc định an toàn: nó để phần còn lại của hệ thống xử lý.
+
+Ví dụ:
+Khách: "nhà hàng đông không bạn"
+{"y_dinh": "ngoai_pham_vi", "bo": []}
+
+Khách: "còn món nào nữa không"
+{"y_dinh": "xin_them", "bo": []}
+
+Khách: "giờ mình ăn hải sản được rồi"
+{"y_dinh": "xoa_rang_buoc", "bo": ["allergen"]}
+
+Khách: "có món nào không cay không"
+{"y_dinh": "hoi_mon", "bo": []}
+"""
+
+_HOP_LE = {CHAO_HOI, CAM_ON, XIN_THEM, XOA_RANG_BUOC, NGOAI_PHAM_VI, HOI_MON}
+_NHOM_HOP_LE = {"allergen", "all"}
+
+
+def doc_y_dinh_bang_mo_hinh(cau: str, env: dict, *, use_cache: bool = True) -> YDinh:
+    """Hỏi mô hình khi danh sách cụm không nhận ra. Thất bại thì trả `HOI_MON`.
+
+    Mọi giá trị lạ bị BỎ, không được sửa thành giá trị gần nhất: một ý định đoán bừa sẽ định tuyến
+    khách sang một nhánh sai, và nhánh sai ở đây nghĩa là câu trả lời sai loại. `HOI_MON` là mặc
+    định đúng vì nó chuyển việc lại cho phần đã đo được.
+    """
+    from llm_understand import call_model
+
+    parsed = call_model(
+        cau, env, use_cache=use_cache, prompt=_PROMPT_Y_DINH, nhan="y_dinh", max_tokens=80
+    )
+    if not isinstance(parsed, dict):
+        return YDinh(nguon="mo_hinh_that_bai")
+
+    ten = str(parsed.get("y_dinh") or "").strip()
+    if ten not in _HOP_LE:
+        return YDinh(nguon="mo_hinh_that_bai")
+
+    bo = [str(x).strip() for x in (parsed.get("bo") or []) if isinstance(x, str)]
+    bo = [x for x in bo if x in _NHOM_HOP_LE]
+    # Nói "xóa" mà không nói xóa GÌ thì không xóa gì — chốt an toàn, không đoán hộ khách.
+    if ten == XOA_RANG_BUOC and not bo:
+        return YDinh(nguon="mo_hinh_that_bai")
+    return YDinh(ten=ten, bo_rang_buoc=bo, nguon="mo_hinh", cum_khop="")
 
 
 # ------------------------------------------------------------------------------------------------

@@ -1056,7 +1056,16 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             if f" {v} " in working and f" {v} " not in _sau and v not in _y.cum_khop
         ]
         if _pha:
-            _y = _y.__class__()
+            # Phá cụm khác thì KHÔNG ăn — nhưng vẫn GIỮ ý định.
+            #
+            # Bản đầu bỏ luôn ý định ở đây, và nó làm mất đúng thứ cần: "cho mình thêm món chay nữa"
+            # có cụm `them mon`, ăn nó sẽ phá `mon chay`, nên ý định bị bỏ và câu trả lại y nguyên
+            # 6 món chay vừa xem — đúng lỗi đang sửa, chỉ đổi chỗ.
+            #
+            # Ăn chữ chỉ có MỘT mục đích: chặn chữ của cụm ý định tự nó sinh ra nhãn sai (`bo` của
+            # "bỏ hết điều kiện" là `ingredient:beef`). Không ăn thì rủi ro là nhãn sai đó; bỏ ý
+            # định thì mất hẳn một cơ chế. Rủi ro thứ nhất nhỏ hơn và nhìn thấy được.
+            pass
         else:
             working = _sau
 
@@ -1320,10 +1329,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         or request.knowledge_topic
         or request.budget_max is not None
     )
-    if co_thu_khac and y.ten in (CHAO_HOI, CAM_ON, NGOAI_PHAM_VI, XIN_THEM):
-        # `XIN_THEM` cũng bị chặn ở đây, và vì lý do riêng: "cho mình thêm món chay" là RÀNG BUỘC
-        # MỚI, không phải "thêm nữa của cùng thứ". Đọc nhầm nó thành xin-thêm sẽ loại đúng những
-        # món chay vừa nêu — tức khách xin món chay và bị loại món chay.
+    if co_thu_khac and y.ten in (CHAO_HOI, CAM_ON, NGOAI_PHAM_VI):
+        # `XIN_THEM` cố ý KHÔNG nằm trong danh sách chặn này, và tôi đã thử cả hai cách.
+        #
+        # Lo ngại ban đầu: "cho mình thêm món chay" là ràng buộc MỚI, đọc thành xin-thêm sẽ loại
+        # đúng những món chay vừa nêu. Lo ngại đó SAI, và kịch bản `ask-for-more-02` chỉ ra chỗ sai:
+        # loại món ĐÃ NÊU luôn đúng khi khách xin thêm, vì
+        #
+        #     ràng buộc mới KHÁC   -> món cũ không khớp bộ lọc mới, đã bị loại sẵn
+        #     ràng buộc mới GIỐNG  -> "thêm ... nữa" chính là xin món mới của cùng thứ
+        #
+        # Chặn nó thì "cho mình thêm món chay nữa" trả lại y nguyên 6 món chay vừa xem — đúng lỗi
+        # đang sửa, chỉ đổi chỗ. Thứ THẬT SỰ phải bảo vệ là ràng buộc, và nó được bảo vệ ở chỗ
+        # khác: cơ chế ăn chữ chỉ ăn khi không phá cụm nằm ngoài đoạn bị ăn.
         y = YDinh()
 
     request.y_dinh = y.ten

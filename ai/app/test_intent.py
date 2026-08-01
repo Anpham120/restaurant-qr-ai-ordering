@@ -107,15 +107,22 @@ class YDinhXaGiaoKHONGDuocChiemCauHoiThat(unittest.TestCase):
         self.assertEqual(merged.y_dinh, HOI_MON)
         self.assertIn("cat_hotpot", merged.categories)
 
-    def test_xin_them_kem_rang_buoc_MOI_khong_phai_xin_them(self):
-        """"cho mình thêm món chay" là ràng buộc MỚI, không phải 'thêm nữa của cùng thứ'.
+    def test_xin_them_kem_rang_buoc_van_GIU_rang_buoc(self):
+        """"cho mình thêm món chay" vừa là XIN THÊM vừa mang ràng buộc — phải giữ CẢ HAI.
 
-        Đọc nhầm thì hệ thống loại đúng những món chay vừa nêu — khách xin món chay và bị loại
-        món chay.
+        Bản đầu của test này khẳng định ngược lại: nó đòi `HOI_MON`, với lý do "đây là ràng buộc
+        MỚI nên đọc thành xin-thêm sẽ loại đúng những món chay vừa nêu". Lý do đó SAI, và kịch bản
+        `ask-for-more-02` chỉ ra chỗ sai — loại món ĐÃ NÊU luôn đúng khi khách xin thêm:
+
+            ràng buộc mới KHÁC   -> món cũ không khớp bộ lọc mới, đã bị loại sẵn
+            ràng buộc mới GIỐNG  -> "thêm ... nữa" chính là xin món mới của cùng thứ
+
+        Giữ khẳng định cũ thì "cho mình thêm món chay NỮA" trả lại y nguyên 6 món chay vừa xem.
         """
         merged, _, _ = hoi("cho mình thêm món chay")
-        self.assertEqual(merged.y_dinh, HOI_MON)
-        self.assertFalse(merged.wants_similar)
+        self.assertEqual(merged.y_dinh, XIN_THEM)
+        self.assertTrue(merged.wants_similar)
+        self.assertIn("cat_vegetarian", merged.categories, "ràng buộc chay phải còn nguyên")
 
 
 class ChaoHoiKHONGDuocThanhDanhSachMon(unittest.TestCase):
@@ -258,7 +265,8 @@ class CumYDinhPhaiAnCHU(unittest.TestCase):
         self.assertEqual(merged.y_dinh, XOA_RANG_BUOC)
         self.assertNotIn("ingredient:beef", merged.require_tags + merged.prefer_tags)
 
-        # KHÔNG được ăn, vì `mon chay` nằm ngoài `them mon`.
+        # KHÔNG được ăn, vì `mon chay` nằm ngoài `them mon`. Nhưng Ý ĐỊNH vẫn phải GIỮ: bỏ nó là
+        # mất hẳn cơ chế xin-thêm, và "cho mình thêm món chay nữa" lại trả về danh sách cũ.
         for cau, nhan in (
             ("cho mình thêm món chay", "cat_vegetarian"),
             ("cho mình thêm món lẩu", "cat_hotpot"),
@@ -266,7 +274,7 @@ class CumYDinhPhaiAnCHU(unittest.TestCase):
             with self.subTest(cau):
                 m, _, _ = hoi(cau)
                 self.assertIn(nhan, m.categories, "ăn chữ đã làm mất ràng buộc của khách")
-                self.assertEqual(m.y_dinh, HOI_MON)
+                self.assertEqual(m.y_dinh, XIN_THEM, "không ăn được thì vẫn phải giữ ý định")
 
     def test_khong_cum_y_dinh_nao_nam_trong_ten_mon(self):
         """Kiểm kê, không chờ lỗi xảy ra — cùng khuôn với `collision_census`."""

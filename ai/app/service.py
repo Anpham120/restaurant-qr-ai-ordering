@@ -285,6 +285,44 @@ def ready() -> dict[str, Any]:
     }
 
 
+def _y_dinh_duoi_dai(merged):
+    """Hỏi mô hình về ý định, CHỈ với câu mà mọi cơ chế tất định đều không nhận ra.
+
+    Trả về `Request` mới nếu mô hình đọc được ý định xã giao; ngược lại trả nguyên bản.
+
+    Vì sao điều kiện phải hẹp đến thế: mỗi lần gọi tốn ~8,6 giây. Gọi cho mọi lượt là bắt khách chờ
+    8 giây để nghe một lời chào, và bắt cả những lượt mã tất định đã trả lời đúng phải chờ theo.
+
+    Vì sao lớp này KHÔNG gán nhãn lọc: 14 tín hiệu `already_understood` của `llm_understand` tồn tại
+    vì mỗi cái tương ứng một ca đỏ thật khi mô hình được giao việc gán nhãn. Ở đây mô hình chỉ được
+    nói khách đang LÀM GÌ.
+    """
+    from dataclasses import replace as _replace
+
+    from intent import HOI_MON, XOA_RANG_BUOC, doc_y_dinh_bang_mo_hinh
+
+    if merged.y_dinh != HOI_MON:
+        return merged
+    # Câu đã có ràng buộc thì nhánh lọc lo được — không hỏi mô hình.
+    if (
+        merged.require_tags or merged.prefer_tags or merged.avoid_tags or merged.categories
+        or merged.named_items or merged.policy_topic or merged.knowledge_topic
+        or merged.budget_max is not None or merged.off_topic or merged.asks_price
+        or merged.asks_extreme is not None or merged.is_comparison or merged.asks_suggestion
+    ):
+        return merged
+
+    y = doc_y_dinh_bang_mo_hinh(merged.text, load_env(), use_cache=True)
+    if y.ten == HOI_MON or y.nguon != "mo_hinh":
+        return merged
+    # Mô hình KHÔNG được tự bỏ ràng buộc dị nguyên. Đó là chốt an toàn quan trọng nhất của bộ nhớ
+    # phiên, và một mô hình đọc nhầm phủ định sẽ hạ nó xuống mà không ai thấy. Đường tất định (danh
+    # sách cụm rõ ràng) vẫn là đường DUY NHẤT bỏ được dị nguyên.
+    if y.ten == XOA_RANG_BUOC:
+        return merged
+    return _replace(merged, y_dinh=y.ten)
+
+
 def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
     """Một lượt trọn vẹn. Đây là chỗ DUY NHẤT trong tệp này gọi vào phần đã đo được.
 
@@ -309,6 +347,15 @@ def _run_turn(turn: ChatTurnIn) -> dict[str, Any]:
         # Không bọc `try` ở đây: `enrich()` tự thoái hóa êm và trả `LlmOutcome` kể cả khi gọi
         # thất bại. Bọc thêm một lớp `try` sẽ che mất lý do thất bại khỏi `decision.model`.
         outcome = enrich(merged, load_env(), use_cache=True)
+
+        # ĐUÔI DÀI của lớp ý định. Chỉ hỏi mô hình khi danh sách cụm không nhận ra VÀ mã tất định
+        # cũng không rút được ràng buộc nào — tức đúng những câu sắp bị trả lời bằng một đoạn tri
+        # thức gần nhất ("nhà hàng đông không bạn").
+        #
+        # Điều kiện hẹp là điều làm lớp này dùng được: câu đã hiểu không tốn thêm giây nào, nên độ
+        # trễ 8,6s chỉ rơi vào phần đuôi. Và mô hình ở đây KHÔNG được gán nhãn lọc, nên nó không lặp
+        # lại được lớp lỗi đã làm 14 tín hiệu `already_understood` phải tồn tại.
+        merged = _y_dinh_duoi_dai(merged)
 
     reply = respond(merged, MENU.items)
 

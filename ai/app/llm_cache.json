@@ -49,6 +49,10 @@
     "require": [],
     "wants": "food"
   },
+  "35b03300ea775f4ac17b43f5b960f317": {
+    "bo": [],
+    "y_dinh": "ngoai_pham_vi"
+  },
   "4c2ac98d8a633c1df1e0dd05d5f96933": {
     "avoid": [],
     "prefer": [],
@@ -105,6 +109,10 @@
     "prefer": [],
     "require": [],
     "wants": "any"
+  },
+  "7e3ec327621762364d6536d9573cf9d5": {
+    "bo": [],
+    "y_dinh": "hoi_mon"
   },
   "868089425ea51ec55d5a264a8cea4ea0": {
     "avoid": [],
@@ -260,6 +268,10 @@
     "prefer": [],
     "require": [],
     "wants": "any"
+  },
+  "d9a3255ebe33bf3945f2be8a262ffe87": {
+    "bo": [],
+    "y_dinh": "hoi_mon"
   },
   "dca49961b0965368efee82fc047bb35c": {
     "avoid": [],
