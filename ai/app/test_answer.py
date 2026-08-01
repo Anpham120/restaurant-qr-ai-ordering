@@ -666,3 +666,43 @@ class LoaiDangHOI_thang_loai_duoc_NHAC_toi(unittest.TestCase):
         self.assertTrue(reply.items)
         for i in reply.items:
             self.assertIn("Trà", BY_ID[i]["name"], "hỏi trà mà ra thứ khác")
+
+
+class CauHaiLuaChon(unittest.TestCase):
+    """«A hay B» là hai LỰA CHỌN, không phải hai điều kiện phải thỏa cùng lúc.
+
+    Đo được: "nên gọi lẩu hay nướng" -> **0 món**. "lẩu" thành danh mục, "nướng" thành
+    `method:grilled`, và phép lọc là AND nên nó đi tìm món vừa là lẩu vừa nướng.
+
+    "chọn cơm hay phở" thì lại ra món — vì cả hai rơi vào `ho_mon`, vốn đã là phép HOẶC. Nên lỗi
+    chỉ hiện khi hai vế rơi vào HAI LOẠI ràng buộc khác nhau, và không tổ hợp nào trong 140 ca
+    chạm tới.
+    """
+
+    def test_hai_ve_khac_loai_KHONG_duoc_ra_rong(self):
+        for cau in ("nên gọi lẩu hay nướng", "ăn lẩu hay ăn nướng", "lẩu hay nướng ngon hơn"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items, f"{cau!r} ra RỖNG — hai lựa chọn bị giao bằng AND")
+
+    def test_danh_sach_phai_neu_CA_HAI_ben(self):
+        """Trả 6 món của một bên là trả lời NỬA câu hỏi — khách không so được."""
+        _, reply = reply_for("nên gọi lẩu hay nướng")
+        nhom = {BY_ID[i]["categoryName"] for i in reply.items}
+        self.assertIn("Lẩu", nhom, "không món lẩu nào — bên rẻ hơn chiếm hết danh sách")
+        self.assertTrue(nhom - {"Lẩu"}, "chỉ có lẩu — vế còn lại biến mất")
+
+    def test_KHONG_noi_cau_loc_binh_thuong(self):
+        """Chiều ngược, bắt buộc: câu không có "hay" thì phép lọc vẫn là AND."""
+        for cau in ("cho mình món chay", "món lẩu nào không cay", "gợi ý món ăn giúp mình"):
+            with self.subTest(cau):
+                request, reply = reply_for(cau)
+                self.assertFalse(request.hai_lua_chon)
+                self.assertTrue(reply.items)
+
+    def test_di_nguyen_VAN_duoc_ap_tren_ket_qua_hop(self):
+        """CHỐT AN TOÀN: nới phép lọc vì câu có chữ "hay" không được nới hàng rào dị ứng."""
+        request, reply = reply_for("mình dị ứng hải sản, cho món nướng hay lẩu")
+        self.assertTrue(request.avoid_tags, "tiền đề: câu này phải khai dị ứng")
+        xau = [BY_ID[i]["name"] for i in reply.items if "allergen:seafood" in BY_ID[i]["tags"]]
+        self.assertEqual(xau, [], f"lọt món mang nhãn hải sản: {xau}")

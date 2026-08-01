@@ -155,6 +155,8 @@ class Request:
     # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
     # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
     y_dinh_bo: list[str] = field(default_factory=list)
+    # Câu «A hay B» — hai vế là LỰA CHỌN, `select()` lấy HỢP thay vì GIAO. Xem `HAI_LUA_CHON_RE`.
+    hai_lua_chon: bool = False
     # Ràng buộc KÉO TỪ LƯỢT TRƯỚC, do `session.merge_into_request` điền. `understand()` không bao
     # giờ đặt trường này — nó chỉ đọc câu của lượt hiện tại.
     #
@@ -439,7 +441,13 @@ _add("co khoi|mui than|thom mui than", "require", "flavour:smoky")
 # tới mức có câu ra rỗng, mà tiêu chí của ca chỉ đòi thỏa MỘT trong các nhãn hợp lý.
 _add("giam can|an kieng", "require", "health:low_calorie")
 _add("tap gym|nhieu dam", "require", "health:high_protein")
-_add("thanh thanh", "require", "health:light")
+_add("thanh thanh|thanh dam|nhe bung", "require", "health:light")
+# Kiêng dầu mỡ -> `health:low_fat`. Nhãn có sẵn (8/91 món) nhưng không cụm nào trỏ tới, nên câu
+# "mình kiêng dầu mỡ" rơi xuống nhánh truy hồi toàn kho và khách nhận một đoạn văn thay vì món.
+#
+# Đây là lớp `vocab_miss` mà `analyze_failures.py` phân loại: nhãn có, dữ liệu có, chỉ thiếu cách
+# nói của khách. Sửa ở từ vựng (tất định) chứ không chờ mô hình đoán.
+_add("kieng dau mo|it dau mo|khong dau mo|it beo|khong beo|it mo", "require", "health:low_fat")
 
 # Thời tiết. Khách nói thời tiết chứ không nói mùa, nên cụm được tách theo ĐÚNG nghĩa của nhãn:
 #
@@ -913,6 +921,19 @@ KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem na
 # Nên tín hiệu được đọc ở mức TỪ RỜI thay vì cụm liền. Ba từ này chỉ mang nghĩa "thêm/khác" khi
 # đứng riêng: `khac` trong "khác nhau chỗ nào" đã bị `asks_difference` chặn trước, `moi` trong
 # "mình mới ăn xong" không đi cùng một câu xin gợi ý, và `nua` gần như luôn là "nữa".
+# «A HAY B» — hai LỰA CHỌN, không phải hai điều kiện phải thỏa cùng lúc.
+#
+# Đo được: "nên gọi lẩu hay nướng" -> **0 món**. "lẩu" thành `cat_hotpot`, "nướng" thành
+# `method:grilled`, và phép lọc là AND nên nó đi tìm món vừa là lẩu vừa nướng.
+#
+# "chọn cơm hay phở" thì lại ra 11 món — vì cả hai rơi vào `ho_mon`, mà `ho_mon` vốn là phép HOẶC.
+# Nên lỗi chỉ hiện khi hai vế rơi vào HAI LOẠI ràng buộc khác nhau. Đúng kiểu lỗi chỉ lộ ra ở một
+# tổ hợp dữ liệu cụ thể, và không tổ hợp nào trong 140 ca chạm tới.
+#
+# Chỉ nhận khi có "hay"/"hoặc" đứng RỜI giữa câu. `hay` còn nghĩa "hay ho" nhưng lúc đó nó không
+# đứng giữa hai vế ràng buộc, và điều kiện dưới đòi phải có ĐỦ HAI nguồn ràng buộc.
+HAI_LUA_CHON_RE = re.compile(r"\b(?:hay|hoac)\b")
+
 XIN_MON_KHAC_TU = ("khac", "nua", "moi", "tiep")
 
 # «khác» có HAI nghĩa hoàn toàn khác nhau, và golden bắt được ngay lượt đầu sau khi tôi thêm tín
@@ -1495,6 +1516,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         if _co_dau and _doi_mon:
             request.wants_similar = True
             request.matched.append("dấu xin món khác (từ rời) -> bỏ món đã nêu")
+
+    # Khung «A hay B»: đánh dấu để `answer.select()` biết đây là hai lựa chọn.
+    #
+    # Chỉ bật khi câu có ĐỦ HAI nguồn ràng buộc khác loại — một vế `categories`/`ho_mon` và một vế
+    # `require_tags`. Một nguồn thôi thì "hay" không nối hai điều kiện nào, và bật nhầm sẽ nới lỏng
+    # một câu lọc bình thường.
+    _nguon = [
+        bool(request.categories or request.ho_mon),
+        bool(request.require_tags),
+    ]
+    request.hai_lua_chon = (
+        sum(_nguon) >= 2 and bool(HAI_LUA_CHON_RE.search(request.folded))
+    )
 
     _nhan_phu_nhan = [*request.require_tags, *request.avoid_tags]
     if _nhan_phu_nhan and la_cau_phu_nhan(request.folded):
