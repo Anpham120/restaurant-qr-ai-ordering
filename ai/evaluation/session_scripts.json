@@ -1082,6 +1082,217 @@
           }
         }
       ]
+    },
+    {
+      "id": "social-intent-01",
+      "group": "social_intent",
+      "why": "Lời chào phải là lời chào. Cổng `answer.thuoc_mien()` lẽ ra chặn, nhưng nó là phép OR trên TỪNG TỪ ĐƠN của mọi tên món sau khi rút dấu — nên `chao` của 'xin chào' khớp món 'Cháo lòng Sài Gòn' và câu lọt xuống nhánh truy hồi toàn kho, nơi KHÔNG có ngưỡng tương đồng. Vụ đụng chữ thứ tám của dự án.",
+      "turns": [
+        {
+          "user": "xin chào",
+          "expect": {
+            "expect_kind": "fact",
+            "max_items": 0,
+            "must_say_all": [
+              "món ăn"
+            ],
+            "why": "Chào lại và NÊU PHẠM VI. Lượt đầu là chỗ khách học được trợ lý này làm gì."
+          }
+        },
+        {
+          "user": "tư vấn tôi món cho 4-5 người",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Chào xong vẫn phải tư vấn được — nhánh xã giao không được nuốt lượt sau."
+          }
+        },
+        {
+          "user": "cảm ơn bạn nhé",
+          "expect": {
+            "expect_kind": "fact",
+            "max_items": 0,
+            "why": "Lời cảm ơn không phải câu hỏi. Trả một danh sách món là sai LOẠI đáp án, không phải sai nội dung."
+          }
+        }
+      ]
+    },
+    {
+      "id": "social-intent-02",
+      "group": "social_intent",
+      "why": "Chiều ngược: một chữ xã giao lọt vào đầu câu KHÔNG được nuốt yêu cầu thật.",
+      "turns": [
+        {
+          "user": "xin chào, cho mình xem món chay",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "must_say_all": [
+              "chay"
+            ],
+            "why": "Câu này có ràng buộc `diet:vegetarian`, nên nó là câu hỏi món chứ không phải lời chào. Kiểm bằng chính món nêu ra — đây LÀ lượt đầu nên không mượn được lượt trước."
+          }
+        },
+        {
+          "user": "nhà hàng có cháo không",
+          "expect": {
+            "min_items": 1,
+            "expect_kind": "list",
+            "why": "`chao` là món CHÁO, không phải lời chào. Đây là chiều còn lại của vụ đụng chữ thứ tám."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ask-for-more-01",
+      "group": "ask_for_more",
+      "why": "'tư vấn thêm đi' trả lại Y NGUYÊN 6 món của lượt trước. Từ vựng có `mon khac|cai khac|thu khac` nhưng KHÔNG có 'thêm', 'còn gì nữa'.",
+      "turns": [
+        {
+          "user": "tư vấn tôi món cho 4-5 người",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nền, để lượt sau có gì mà lặp."
+          }
+        },
+        {
+          "user": "tư vấn thêm đi",
+          "expect": {
+            "must_not_repeat_turn": 1,
+            "why": "Lượt bắt lỗi. Lặp lại danh sách cũ là đúng điều đã đo trên production, và với khách thì hệ thống trông như không nghe."
+          }
+        },
+        {
+          "user": "còn gì nữa không",
+          "expect": {
+            "must_not_repeat_turn": 2,
+            "expect_kind": "clarify",
+            "must_say_any": [
+              "hết",
+              "bỏ bớt"
+            ],
+            "why": "Cách nói thứ hai của cùng ý định. Sau khi đã duyệt hết, câu ĐÚNG là NÓI RÕ đã hết và mời nới điều kiện — không phải im lặng, cũng không phải lặp danh sách."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ask-for-more-02",
+      "group": "ask_for_more",
+      "why": "Chiều ngược: xin THÊM phải GIỮ ràng buộc, không được đọc thành 'bỏ ràng buộc rồi lấy món khác'. Đây là chỗ cơ chế loại-món-đã-gợi dễ đi quá tay nhất.",
+      "turns": [
+        {
+          "user": "gợi ý món chay cho mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nền, và nó mang ràng buộc rõ để lượt sau đối chiếu được."
+          }
+        },
+        {
+          "user": "cho mình thêm món chay nữa",
+          "expect": {
+            "must_match_turn_constraint": 1,
+            "must_not_repeat_turn": 1,
+            "why": "Hai điều cùng lúc, và đó là toàn bộ ý nghĩa của 'xin thêm': món MỚI (không lặp) mà VẪN chay (giữ ràng buộc). Mất điều thứ nhất là hệ thống trông như không nghe; mất điều thứ hai là khách xin món chay và nhận món mặn."
+          }
+        }
+      ]
+    },
+    {
+      "id": "clear-constraint-01",
+      "group": "clear_constraint",
+      "why": "Khách khai dị ứng rồi nói hết dị ứng. `session` hợp nhất dị nguyên bằng phép HỢP và không có đường bỏ, nên khách KẸT: câu sau hỏi món hải sản nhận `no_data`.",
+      "turns": [
+        {
+          "user": "Mình dị ứng hải sản, gợi ý món ăn giúp mình",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai. Phải vào bộ nhớ ngay."
+          }
+        },
+        {
+          "user": "Cho mình món khác đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "CHỐT AN TOÀN: xin món khác KHÔNG phải xin bỏ dị ứng."
+          }
+        },
+        {
+          "user": "tôi không còn dị ứng nữa",
+          "expect": {
+            "memory_must_not_have_avoid": [
+              "allergen:seafood"
+            ],
+            "must_say_all": [
+              "hải sản"
+            ],
+            "why": "Bỏ được, VÀ phải NÓI RA thứ vừa bỏ. Hạ một hàng rào an toàn mà im lặng thì khách không có cách nào biết để sửa nếu hệ thống hiểu sai câu của họ — và với dị nguyên, hiểu sai theo hướng này là lỗi nguy hiểm nhất hệ thống có thể mắc."
+          }
+        },
+        {
+          "user": "vậy gợi ý món hải sản đi",
+          "expect": {
+            "min_items": 2,
+            "expect_kind": "list",
+            "why": "Bỏ ràng buộc xong mà vẫn không gợi được món là chưa bỏ THẬT. Lượt này bắt đúng lỗi 'bộ nhớ ghi lại chính cái vừa xóa'."
+          }
+        }
+      ]
+    },
+    {
+      "id": "clear-constraint-02",
+      "group": "clear_constraint",
+      "why": "CHỐT AN TOÀN theo chiều ngược: dị nguyên chỉ được bỏ khi khách nói RÕ.",
+      "turns": [
+        {
+          "user": "Mình không ăn được đồ tanh",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Cách nói dân dã của lời khai dị ứng."
+          }
+        },
+        {
+          "user": "cảm ơn bạn",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lời cảm ơn KHÔNG được bỏ ràng buộc an toàn."
+          }
+        },
+        {
+          "user": "còn gì nữa không",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Xin thêm cũng không. Chỉ câu nói RÕ mới bỏ được."
+          }
+        }
+      ]
     }
   ]
 }

@@ -144,12 +144,28 @@ class TepWORKFLOWPhaiPhanTichDuoc(unittest.TestCase):
                               f"{str(exc)[:200]}")
                 self.assertTrue(data.get("jobs"), f"{path.name} không có job nào")
 
-    def test_ci_chay_tren_nhanh_dang_lam(self):
-        """Nhánh không nằm trong danh sách trigger thì CI không bao giờ chạy cho nó.
+    def test_moi_thay_doi_deu_co_MOT_lan_CI(self):
+        """Mọi thay đổi phải được CI chạy — ĐÚNG MỘT lần.
 
-        Đây là chỗ dễ mất hàng tháng mà không ai biết: mã xanh ở máy, CI im lặng vì nó không được
-        gọi. Nhánh `rebuild/**` từng cần thêm vào danh sách vì đó là chỗ DUY NHẤT biên dịch được
-        backend .NET — máy phát triển không có .NET SDK.
+        Bất biến này có hai vế, và mất vế nào cũng tốn:
+
+            thiếu CI    mã xanh ở máy, CI im lặng vì không được gọi — mất hàng tháng không ai biết
+            CI TRÙNG    mỗi lần đẩy chạy hai lần trọn vẹn, và job đắt nhất dựng ảnh Docker 2,75GB
+
+        Bản trước của test này chỉ canh vế thứ nhất, và nó canh bằng cách đòi `rebuild/**` nằm trong
+        trigger `push` — với lý do "đây là chỗ DUY NHẤT biên dịch được backend .NET".
+
+        Tiền đề đó đã đổi. Máy phát triển vẫn không có .NET SDK, nhưng CI cho một nhánh tính năng nay
+        đến từ trigger `pull_request`, không từ `push`. Giữ cả hai là mỗi PR chạy hai lần — đo được
+        trên PR #385: cùng commit `12ace33`, hai lần chạy cách nhau 4 giây.
+
+        Nên test canh bất biến THẬT thay vì canh một danh sách nhánh:
+
+            có `pull_request` KHÔNG giới hạn nhánh   -> nhánh nào mở PR cũng có CI
+            `push` CHỈ `develop` và `main`           -> không nhân đôi, và vẫn có CI sau khi merge
+
+        Vế thứ hai còn cần cho việc khác: `deploy-staging`/`deploy-production` kích hoạt theo `push`
+        lên hai nhánh đó, và `promote-production` chờ Deploy Staging xong.
         """
         try:
             import yaml
@@ -161,10 +177,24 @@ class TepWORKFLOWPhaiPhanTichDuoc(unittest.TestCase):
         data = yaml.safe_load(ci.read_text(encoding="utf-8"))
         # `on` là từ khóa YAML cho True, nên nó có thể vào dict dưới khóa `True`.
         on = data.get("on") or data.get(True) or {}
-        nhanh = (on.get("push") or {}).get("branches") or []
+
         self.assertIn(
-            "rebuild/**", nhanh,
-            "nhánh `rebuild/**` phải nằm trong trigger: đây là chỗ duy nhất biên dịch .NET",
+            "pull_request", on,
+            "thiếu trigger `pull_request` — nhánh tính năng sẽ không có CI nào",
+        )
+        pr = on.get("pull_request") or {}
+        self.assertFalse(
+            (pr or {}).get("branches"),
+            "trigger `pull_request` KHÔNG được giới hạn nhánh: giới hạn là tạo ra một nhóm nhánh "
+            "lặng lẽ không có CI",
+        )
+
+        nhanh = set((on.get("push") or {}).get("branches") or [])
+        self.assertEqual(
+            nhanh, {"develop", "main"},
+            f"`push` phải đúng {{develop, main}}, đang là {sorted(nhanh)}. Thêm nhánh tính năng vào "
+            "đây là chạy CI HAI LẦN cho mọi PR; bớt `develop`/`main` là mất cả CI sau merge lẫn "
+            "trigger của deploy-staging / deploy-production.",
         )
 
 
