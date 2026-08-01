@@ -52,33 +52,15 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
 
-  dependency-review:
-    name: dependency-review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@v4
-        # Dependency graph is now enabled in repo settings, so this job can finally do its work —
-        # and `continue-on-error` is gone with it.
-        #
-        # Why it was there, and why removing it matters: while the graph was off the action failed
-        # with `Dependency review is not supported on this repository`, yet the check reported
-        # PASS. A green check that scans nothing is worse than no check, because people trust it.
-        # This repo has hit that class three times already — a required check that never reports,
-        # a metric that punishes correct behaviour, and a doc gate reading stale numbers.
-        #
-        # Blocking only on `critical`: lower severities open PRs that get overridden under time
-        # pressure, and a gate people learn to override is a gate that no longer gates.
-        with:
-          fail-on-severity: critical
-          comment-summary-in-pr: on-failure
+  # `dependency-review` đã CHUYỂN sang `.github/workflows/dependency-review.yml`.
+  #
+  # Nó chỉ chạy được trên pull request (cần nhánh gốc để so danh sách phụ thuộc), nên khi nằm ở đây
+  # nó phải tự loại mình bằng `if: pull_request` — và mỗi PR hiện một dòng
+  # `Security / dependency-review (push)` màu xám "Skipped" cạnh dòng đã pass. Đọc như thể có phép
+  # kiểm an ninh không chạy.
+  #
+  # Tách ra một workflow chỉ kích trên PR thì không còn dòng skip nào, và ý nghĩa của "skipped"
+  # được giữ lại cho lúc nó thật sự đáng lo.
 
   secret-scan:
     name: secret-scan
