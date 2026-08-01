@@ -141,8 +141,8 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 494 cụm từ vựng và 91 tên món: **73 cụm bị chứa trong cụm khác**, **43 cụm nằm
-    trong tên món**, và hợp lại là **92 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 499 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **43 cụm nằm
+    trong tên món**, và hợp lại là **93 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 92 chỗ đó.
 
     Con số vừa GIẢM một, và đó là tin tốt: cụm `bo` một âm tiết bị bỏ khỏi từ vựng sau khi nó gây
@@ -168,7 +168,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 494, "trong_cum_khac": 73, "trong_ten_mon": 43, "co_rui_ro": 92},
+            {"tu_vung": 499, "trong_cum_khac": 74, "trong_ten_mon": 43, "co_rui_ro": 93},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -692,3 +692,51 @@ class HoMonThangDanhMuc(unittest.TestCase):
         request = ask("Có món nước gì không")
         self.assertEqual(request.ho_mon, [])
         self.assertIn("cat_noodle", request.categories)
+
+
+class KhacLaLenhHayLaCauHoi(unittest.TestCase):
+    """«khác» có hai nghĩa ngược nhau, và ranh giới là thứ ĐỨNG SAU nó.
+
+        "tư vấn món chay KHÁC đi"             lệnh   -> cho tôi món khác
+        "Vị miền Bắc KHÁC miền Nam thế nào?"  hỏi    -> chúng khác ra sao
+
+    Golden bắt được đúng lượt này khi tôi thêm tín hiệu xin-món-khác ở mức từ rời: câu hỏi tri thức
+    bị đọc thành lệnh loại trừ và tụt 103/103 -> 102/103. `DIFFERENCE_FRAMING` không che được vì mọi
+    cụm ở đó đòi chữ "nhau", còn câu này là "khác <X> thế nào".
+
+    Lớp test này giữ cả HAI chiều. Chỉ giữ một chiều thì lần sửa sau sẽ đổi chiều còn lại mà không
+    ai thấy — đúng lớp lỗi "bất biến một chiều" đã lặp nhiều lần trong dự án.
+    """
+
+    CAU_HOI = (
+        "Vị miền Bắc khác miền Nam thế nào?",
+        "phở với bún khác nhau chỗ nào",
+        "món Huế khác món Hà Nội ở điểm nào",
+        "hai món này khác nhau ra sao",
+        "lẩu thái khác lẩu chua thế nào",
+        "món này khác gì món kia",
+    )
+    LENH = (
+        "tư vấn món chay khác đi",
+        "gợi ý món khác xem",
+        "tư vấn thêm món cay khác",
+        "đổi chủ đề khác đi",
+    )
+
+    def test_cau_hoi_so_sanh_KHONG_thanh_lenh_loai_tru(self):
+        for cau in self.CAU_HOI:
+            with self.subTest(cau):
+                r = understand(cau, ITEMS)
+                self.assertFalse(
+                    r.wants_similar,
+                    f"{cau!r} là câu HỎI về sự khác nhau, không phải lệnh xin món khác",
+                )
+
+    def test_lenh_xin_mon_khac_VAN_duoc_nhan(self):
+        for cau in self.LENH:
+            with self.subTest(cau):
+                r = understand(cau, ITEMS)
+                self.assertTrue(
+                    r.wants_similar or r.y_dinh == "xin_them",
+                    f"{cau!r} là LỆNH xin món khác — hàng rào chặn nhầm cả chiều này",
+                )

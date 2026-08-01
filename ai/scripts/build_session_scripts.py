@@ -683,6 +683,157 @@ def build() -> dict:
         ],
     })
 
+    # ---------------------------------------------------------------------------------------
+    # BA NHÓM DƯỚI ĐÂY RA ĐỜI TỪ MỘT PHIÊN GÕ TAY, KHÔNG PHẢI TỪ TEST.
+    #
+    # Sáu lỗi bị bắt trong một hội thoại duy nhất của người dùng, và **không lỗi nào** bị 140 ca
+    # trả lời hay 111 lượt phiên bắt được. Lý do rất cụ thể: bộ đánh giá cũ toàn câu VIẾT ĐÚNG
+    # KIỂU — "cho mình món chay dưới 100 nghìn". Khách thật thì phủ nhận, đổi ý, nhắc lại chủ đề,
+    # và chuyển chủ đề giữa chừng.
+    #
+    # Nên ba nhóm này không phải "thêm ca cho đủ số". Chúng là hình dạng câu mà bộ cũ không có.
+    # ---------------------------------------------------------------------------------------
+    scripts.append({
+        "id": "denial-frame-01",
+        "group": "denial_frame",
+        "why": ("Câu PHỦ ĐỊNH chứa nguyên văn cụm bị phủ định. Bộ khớp cụm thấy `khong an duoc cay` "
+                "trong 'tôi đâu có nói là không ăn được cay' và gán `spice:none` — đúng thứ khách "
+                "vừa chối. Va chạm chữ ở tầng CÂU thay vì tầng từ."),
+        "turns": [
+            {"user": "tư vấn cho mình thực đơn cho bàn 4-5 người",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nền, chưa nói gì về độ cay."}},
+            {"user": "tôi đâu có nói là không ăn được cay",
+             "expect": {"memory_must_not_have_require": ["spice:none"],
+                        "why": "LƯỢT QUAN TRỌNG NHẤT: phủ nhận phải BỎ ràng buộc, không được ÁP nó. "
+                               "Áp nó là gán cho khách một điều kiện họ vừa chối, và họ không có "
+                               "cách nào gỡ ngoài việc đoán ra câu thần chú."}},
+            {"user": "tư vấn cho tôi các món cay đi",
+             "expect": {"min_items": 1, "expect_kind": "list",
+                        "forbid_tags_any": ["spice:none"],
+                        "memory_must_not_have_require": ["spice:none"],
+                        "why": "Từ vựng nói được 'không cay' nhưng không nói được 'cay' — bất đối "
+                               "xứng một chiều: khách vào được ràng buộc mà không có đường ra."}},
+        ],
+    })
+    scripts.append({
+        "id": "denial-frame-02",
+        "group": "denial_frame",
+        "why": "Khung phủ định RỜI: 'tôi CÓ nói … ĐÂU'. Phần bị phủ nhận nằm giữa hai mảnh.",
+        "turns": [
+            {"user": "cho mình món chay",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "mình có nói là ăn chay đâu",
+             "expect": {"memory_must_not_have_require": ["diet:vegetarian"],
+                        "why": "'đâu' cuối câu là dấu phủ định; 'đâu' giữa câu là từ để hỏi "
+                               "('ăn ở đâu'). Phân biệt bằng VỊ TRÍ, không bằng danh sách ngoại lệ."}},
+        ],
+    })
+    scripts.append({
+        "id": "denial-frame-03-allergen",
+        "group": "denial_frame",
+        "safety": True,
+        "why": ("Phủ nhận DỊ NGUYÊN. Đây là ca phải rất cẩn thận: không được ÁP nhãn dị nguyên từ "
+                "một câu chối, nhưng cũng không được bỏ nó trong im lặng."),
+        "turns": [
+            {"user": "mình dị ứng hải sản, gợi ý món giúp mình",
+             "expect": {"memory_must_have_avoid": ["allergen:seafood"],
+                        "forbid_tags_any": ["allergen:seafood"],
+                        "why": "Lượt nền: hàng rào phải dựng lên đã, thì mới đo được việc hạ nó."}},
+            {"user": "à mình nhầm, mình đâu có dị ứng hải sản",
+             "expect": {"memory_must_not_have_avoid": ["allergen:seafood"],
+                        "must_say_any": ["đã bỏ"],
+                        "why": "Khách TỰ SỬA lời khai. Bỏ được, nhưng phải NÓI RA — hạ một hàng rào "
+                               "an toàn trong im lặng là cách tệ nhất để hạ nó, vì khách không có "
+                               "cách nào biết để sửa lại nếu hệ thống hiểu nhầm."}},
+        ],
+    })
+    scripts.append({
+        "id": "ask-new-same-topic-01",
+        "group": "ask_new_same_topic",
+        "why": ("Khách nhắc lại chủ đề khi xin thêm. Cụm `mon khac` đòi hai chữ ĐI LIỀN, nên "
+                "'tư vấn món CHAY khác đi' mất tín hiệu và trả lại y nguyên 6 món vừa đọc."),
+        "turns": [
+            {"user": "cho mình món chay",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "tư vấn món chay khác đi",
+             "expect": {"must_not_repeat_turn": 1, "min_items": 1,
+                        "why": "Nhắc lại chủ đề là để GIỮ ràng buộc, không phải để xin lại đúng "
+                               "những món vừa đọc. Hỏi thêm tức là muốn món khác."}},
+        ],
+    })
+    scripts.append({
+        "id": "ask-new-same-topic-02",
+        "group": "ask_new_same_topic",
+        "why": "Cùng nguyên tắc, diễn đạt bằng 'còn … nữa không' và bằng ngân sách thay vì danh mục.",
+        "turns": [
+            {"user": "cho mình món dưới 100 nghìn",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "còn món nào dưới 100 nghìn nữa không",
+             "expect": {"must_not_repeat_turn": 1, "memory_budget_max": 100000,
+                        "why": "Vừa không lặp, vừa GIỮ ngân sách. Không lặp mà bỏ ràng buộc thì "
+                               "khách nhận món ngoài tầm tiền — sai theo hướng khác. Dùng "
+                               "`memory_budget_max` vì `must_match_turn_constraint` chỉ đọc "
+                               "`require_tags`, mà ngân sách không nằm ở đó."}},
+        ],
+    })
+    scripts.append({
+        "id": "ask-new-same-topic-03",
+        "group": "ask_new_same_topic",
+        "why": "'món mới' là XIN THÊM, không phải một ràng buộc — thực đơn không có nhãn 'mới'.",
+        "turns": [
+            {"user": "gợi ý món cho 2 người",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "cho mình món mới đi",
+             "expect": {"must_not_repeat_turn": 1, "min_items": 1}},
+        ],
+    })
+    scripts.append({
+        "id": "topic-switch-01",
+        "group": "topic_switch",
+        "why": ("Hỏng NẶNG NHẤT trong nhóm: ràng buộc số người từ lượt trước giao với chủ đề mới ra "
+                "RỖNG, và câu 'chưa tìm được món nào' là ngõ cụt — khách tưởng nhà hàng không có "
+                "món chay, trong khi thực đơn có 17 món."),
+        "turns": [
+            {"user": "gợi ý món cho 2 người",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "chuyển sang món chay đi",
+             "expect": {"must_say_any": ["bỏ điều kiện", "đang chặn"],
+                        "why": "Rỗng thì phải NÊU điều kiện chặn và MỜI bỏ. Mời khác nới: nới là hệ "
+                               "thống tự hạ hàng rào, mời là khách quyết."}},
+            {"user": "ừ bỏ đi",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "must_say_all": ["đã bỏ"],
+                        "why": "Đồng ý thì phải ra món CHAY. Bỏ điều kiện được hỏi, không được cuốn "
+                               "theo cả chủ đề khách vừa nêu — đo được là nó trả về 6 món có thịt."}},
+        ],
+    })
+    scripts.append({
+        "id": "topic-switch-02",
+        "group": "topic_switch",
+        "why": "Đổi sang ĐỒ UỐNG — ranh giới món ăn/đồ uống là thứ hệ thống phải phân biệt được.",
+        "turns": [
+            {"user": "cho mình món chay",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "cho mình đồ uống",
+             "expect": {"min_items": 3, "memory_wants": "drink",
+                        "why": "Chủ đề mới thay chủ đề cũ hoàn toàn. Đồ chay không được kéo sang."}},
+        ],
+    })
+    scripts.append({
+        "id": "topic-switch-03",
+        "group": "topic_switch",
+        "why": "'đổi chủ đề khác đi' không nhắc chữ 'món' nên không cụm xin-thêm nào bắt được.",
+        "turns": [
+            {"user": "gợi ý món cho 2 người",
+             "expect": {"min_items": 3, "expect_kind": "list"}},
+            {"user": "đổi chủ đề khác đi",
+             "expect": {"must_not_repeat_turn": 1, "min_items": 1,
+                        "why": "Khách nói rõ muốn thứ khác. Trả lại y nguyên danh sách cũ là câu "
+                               "trả lời ngược với điều vừa được yêu cầu."}},
+        ],
+    })
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",

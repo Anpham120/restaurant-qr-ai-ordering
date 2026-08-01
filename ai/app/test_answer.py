@@ -322,10 +322,66 @@ class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
         rep = respond(self._req(), ITEMS)
         self.assertEqual(rep.branch, "filter")
 
-    def test_rong_vi_RANG_BUOC_thi_van_la_empty_result(self):
-        """Ràng buộc không thỏa được thì câu trả lời đúng vẫn là "chưa tìm được món nào"."""
-        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"]), ITEMS)
-        self.assertEqual(rep.branch, "empty_result")
+    def test_rong_vi_RANG_BUOC_thi_MOI_BO_chu_khong_tu_noi(self):
+        """Rỗng vì ràng buộc thì NÊU điều kiện chặn và MỜI bỏ — nhưng không tự bỏ.
+
+        Ranh giới: **mời khác nới.** Nới là hệ thống tự hạ hàng rào; mời là khách quyết định. Câu
+        trả lời cũ ("chưa tìm được món nào") không nới, nhưng nó là ngõ cụt — đo được trên bản chạy
+        thật, khách đổi chủ đề rồi nhận 0 món và không có gì để sửa:
+
+            "gợi ý món cho 2 người"     -> 6 món, `party:two_three` vào bộ nhớ
+            "chuyển sang món chay đi"   -> 0 món, trong khi thực đơn có 17 món chay
+
+        `rep.items` phải RỖNG: đây là câu hỏi lại, không phải câu gợi ý, nên không có thẻ giỏ.
+        """
+        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
+        self.assertEqual(rep.branch, "empty_result_offer_drop")
+        self.assertTrue(rep.asks_back, "phải mời khách bỏ điều kiện chặn")
+        self.assertEqual(rep.items, [], "câu hỏi lại thì không kèm thẻ giỏ")
+        self.assertIn("cay đậm", rep.text, "phải GỌI TÊN điều kiện chặn bằng tiếng Việt")
+
+    def test_CHI_moi_bo_rang_buoc_KE_THUA(self):
+        """Không mời bỏ điều khách VỪA NÓI ở lượt này — đó là câu trả lời vô nghĩa.
+
+        Golden bắt được ngay lượt đầu sau khi thêm nhánh mời-bỏ:
+
+            "Vị miền Bắc khác miền Nam thế nào?"
+            -> Điều kiện "miền bắc" đang chặn — bỏ nó ra thì có 35 món.
+
+        Khách vừa nêu miền Bắc trong chính câu đó. Đây là câu hỏi tri thức, và hai nhãn "chặn" nó
+        là hai nhãn của chính nó. Rơi qua nhánh này thì câu về `empty_result` như cũ, và đường sinh
+        viết lại bằng đoạn tri thức truy hồi được — tức câu hỏi vẫn được trả lời đúng.
+
+        Ranh giới này cũng khớp với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        """
+        r = self._req(require_tags=["region:north", "region:south"])
+        rep = respond(r, ITEMS)
+        self.assertEqual(rep.branch, "empty_result",
+                         "ràng buộc do chính lượt này nêu thì KHÔNG được mời bỏ")
+
+        r2 = self._req(require_tags=["region:north", "region:south"],
+                       rang_buoc_ke_thua=["region:north"])
+        rep2 = respond(r2, ITEMS)
+        self.assertEqual(rep2.branch, "empty_result_offer_drop",
+                         "ràng buộc KẾ THỪA thì phải mời bỏ — đây là chiều còn lại của bất biến")
+
+    def test_KHONG_BAO_GIO_moi_bo_di_nguyen(self):
+        """CHỐT AN TOÀN. Dị nguyên không được xuất hiện trong lời mời bỏ, kể cả khi nó là thứ chặn.
+
+        Đây là test quan trọng nhất của lớp này. Nhánh mời-bỏ đi tìm "bỏ cái gì thì có món", và nếu
+        nó xét cả `avoid_tags` thì nó sẽ mời khách bỏ chính hàng rào dị ứng — biến một cơ chế tiện
+        lợi thành đường hạ chốt an toàn.
+        """
+        moi_nhan = sorted({t for i in ITEMS for t in i["tags"] if t.startswith("allergen:")})
+        self.assertTrue(moi_nhan, "thực đơn phải có nhãn dị nguyên thì test mới có nghĩa")
+        rep = respond(self._req(avoid_tags=moi_nhan, require_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
+        for nhan in moi_nhan:
+            self.assertNotIn(nhan.split(":", 1)[1], rep.text.lower(),
+                             f"lời mời bỏ nhắc tới dị nguyên {nhan}")
+        self.assertNotIn("dị ứng", rep.text.lower())
         self.assertEqual(rep.items, [])
 
     def test_KHONG_noi_rang_buoc_DI_NGUYEN_de_lap_cho_trong(self):

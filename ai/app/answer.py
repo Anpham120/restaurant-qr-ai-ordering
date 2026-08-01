@@ -524,7 +524,19 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     elif request.wants == "drink":
         picked = [i for i in picked if i["categoryId"] in DRINK_CATEGORIES]
     for tag in request.require_tags:
-        picked = [i for i in picked if tag in i["tags"]]
+        # Dấu `|` là PHÉP HOẶC TRONG CÙNG MỘT NHÓM: `spice:mild|medium|hot` nghĩa là "cay ở bất kỳ
+        # mức nào". Cần đúng một chỗ này vì `spice` là nhóm loại trừ — mỗi món mang đúng một mức,
+        # nên phép AND thông thường không diễn đạt được "cay" mà không thu về một mức duy nhất.
+        #
+        # `session._group()` cắt ở dấu ":" đầu tiên nên nhãn ghép vẫn thuộc nhóm `spice`, và quy
+        # tắc "lượt mới ghi đè cùng nhóm" vẫn đẩy được `spice:none` ra. Đó là điều làm cách biểu
+        # diễn này dùng được mà không phải thêm trường mới vào `Request`.
+        if "|" in tag:
+            nhom, cac_muc = tag.split(":", 1)
+            chap_nhan = {f"{nhom}:{m}" for m in cac_muc.split("|")}
+            picked = [i for i in picked if chap_nhan & set(i["tags"])]
+        else:
+            picked = [i for i in picked if tag in i["tags"]]
     if request.budget_max is not None:
         if request.budget_strict:
             picked = [i for i in picked if i["price"] < request.budget_max]
@@ -587,6 +599,29 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
         return (-matched, bac, item["price"], item["id"])
 
     return sorted(items, key=key)
+
+
+def _TEN_RANG_BUOC_VI(tag: str) -> str:
+    """`spice:none` -> "không cay". Trả về chuỗi RỖNG nếu không dịch được.
+
+    Nguồn tên là `menu-tags.json` — **84 nhãn**, cùng bảng mà `generate._mo_ta_mon()` dùng. Bản đầu
+    của hàm này đọc `intent._TEN_VI` (13 nhãn) và rơi về nhãn thô khi thiếu, nên câu cho khách in ra
+    nguyên văn:
+
+        Điều kiện "method:grilled" đang chặn — bỏ nó ra thì có 21 món.
+
+    Rò khóa nhãn nội bộ vào chữ khách đọc là thứ `generate.verify()` có hẳn một phép kiểm để chặn ở
+    đường sinh. Đường khuôn mẫu không được phép làm đúng điều đó — nên ở đây dịch được thì nói, không
+    dịch được thì **im**, và bên gọi bỏ qua ứng viên ấy.
+    """
+    from generate import _nhan_tieng_viet
+
+    bang = _nhan_tieng_viet()
+    if "|" in tag:
+        nhom, cac_muc = tag.split(":", 1)
+        ten = [bang.get(f"{nhom}:{m}", "") for m in cac_muc.split("|")]
+        return " hoặc ".join(t.lower() for t in ten if t)
+    return bang.get(tag, "").lower()
 
 
 def respond(request: Request, items: list[dict]) -> Reply:
@@ -1048,6 +1083,65 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                 asks_back=True,
                 branch="exhausted_after_exclusions",
             )
+        # RỖNG THẬT — không món nào thỏa. Nhưng "không có món nào" chưa phải câu trả lời đầy đủ:
+        # nó không cho khách biết ĐIỀU KIỆN NÀO đang chặn, nên họ không có gì để sửa.
+        #
+        # Đo được trên bản chạy thật, và đây là hỏng nặng nhất trong nhóm lỗi vừa tìm:
+        #
+        #     "gợi ý món cho 2 người"        -> 6 món, và `party:two_three` vào bộ nhớ
+        #     "chuyển sang món chay đi"      -> **0 món**, ngõ cụt
+        #
+        # Khách đổi chủ đề hoàn toàn hợp lệ; thứ giết câu hỏi là một ràng buộc từ lượt TRƯỚC mà họ
+        # không còn nghĩ tới. Trả "chưa tìm được món nào" ở đây làm khách tưởng nhà hàng không có
+        # món chay — trong khi thực đơn có 17 món.
+        #
+        # Nên nhánh này đi tìm ràng buộc chặn: bỏ THỬ từng ràng buộc, cái nào bỏ ra thì có món.
+        # Tìm bằng cách chạy lại chính `select()`, không bằng một bảng suy luận riêng — hai đường
+        # suy ra kết quả khác nhau là lớp lỗi dự án này đã gặp nhiều lần.
+        #
+        # Dị nguyên KHÔNG bao giờ nằm trong danh sách mời bỏ: nới nó là mời khách một món có thể
+        # gây hại, và đó là ranh giới không đổi.
+        # CHỈ mời bỏ ràng buộc KẾ THỪA. Ràng buộc khách vừa nói ở lượt này thì không được mời bỏ —
+        # "bỏ điều kiện miền bắc" cho câu "Vị miền Bắc khác miền Nam thế nào?" là câu trả lời vô
+        # nghĩa, và golden bắt được ngay lượt đầu.
+        #
+        # Ranh giới này cũng đúng với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        # TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        #
+        # Rơi qua nhánh này thì câu trả lời là `empty_result` như cũ — và với đường sinh bật, nó
+        # được viết lại bằng đoạn tri thức truy hồi được, tức câu hỏi tri thức vẫn được trả lời.
+        thu_bo: list[tuple[str, int]] = []
+        for tag in getattr(request, "rang_buoc_ke_thua", ()) or ():
+            # Chỉ mời bỏ ràng buộc GỌI TÊN ĐƯỢC bằng tiếng Việt. Không dịch được thì không mời —
+            # thà nói "chưa tìm được món nào" còn hơn hỏi khách một câu chứa khóa nhãn nội bộ.
+            if not _TEN_RANG_BUOC_VI(tag):
+                continue
+            con = select(replace(request, require_tags=[t for t in request.require_tags
+                                                        if t != tag]), items)
+            if con:
+                thu_bo.append((tag, len(con)))
+        if (request.budget_max is not None
+                and "__ngan_sach__" in (getattr(request, "rang_buoc_ke_thua", ()) or ())):
+            con = select(replace(request, budget_max=None), items)
+            if con:
+                thu_bo.append(("__ngan_sach__", len(con)))
+
+        if thu_bo:
+            # Mời bỏ ràng buộc mở ra NHIỀU món nhất — đó là ràng buộc chặn chính.
+            tag, so = max(thu_bo, key=lambda x: x[1])
+            ten = (f"ngân sách {request.budget_max:,}".replace(",", ".") + "đ"
+                   if tag == "__ngan_sach__" else _TEN_RANG_BUOC_VI(tag))
+            return Reply(
+                text=(
+                    f"Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ. Điều kiện "
+                    f"\u201c{ten}\u201d đang chặn — bỏ nó ra thì có {so} món. "
+                    "Bạn muốn mình bỏ điều kiện đó không?"
+                ),
+                kind="clarify",
+                asks_back=True,
+                branch="empty_result_offer_drop",
+            )
+
         return Reply(
             text=(
                 "Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ. "

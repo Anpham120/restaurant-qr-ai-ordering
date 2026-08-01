@@ -115,7 +115,7 @@ hình → thẻ giỏ → giỏ hàng thật):
 | Golden 103 lượt, đường sinh TẮT (mặc định) | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 140 ca (tất định) | **140/140** |
-| Bộ nhớ phiên 111 lượt | **111/111**, 0 lỗi an toàn |
+| Bộ nhớ phiên 131 lượt | **131/131**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 
 Hạn chế lớn nhất phải nói ngay: **không có log khách thật**. Mọi ca đánh giá do nhóm viết, và cả bốn
@@ -453,7 +453,7 @@ liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | 140 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 41 kịch bản / 111 lượt | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | 50 kịch bản / 131 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 210 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -838,7 +838,7 @@ Hai việc đã làm: **tính sẵn vector lúc build** (mã hoá 61,7s → **0,
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 140 ca, đường tất định | **140/140** |
-| Bộ nhớ phiên 111 lượt | **111/111**, 0 lỗi an toàn |
+| Bộ nhớ phiên 131 lượt | **131/131**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **0,609** so với bm25 0,391 |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **0,864** so với bm25 0,750 |
@@ -849,7 +849,7 @@ Hai việc đã làm: **tính sẵn vector lúc build** (mã hoá 61,7s → **0,
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | 140/140, và sàn để so là 8/140 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 111/111, **0 lỗi an toàn** |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 131/131, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |
