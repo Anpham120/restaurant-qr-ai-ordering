@@ -322,10 +322,66 @@ class RONG_VI_LOAI_TRU_KHAC_RONG_VI_RANG_BUOC(unittest.TestCase):
         rep = respond(self._req(), ITEMS)
         self.assertEqual(rep.branch, "filter")
 
-    def test_rong_vi_RANG_BUOC_thi_van_la_empty_result(self):
-        """Ràng buộc không thỏa được thì câu trả lời đúng vẫn là "chưa tìm được món nào"."""
-        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"]), ITEMS)
-        self.assertEqual(rep.branch, "empty_result")
+    def test_rong_vi_RANG_BUOC_thi_MOI_BO_chu_khong_tu_noi(self):
+        """Rỗng vì ràng buộc thì NÊU điều kiện chặn và MỜI bỏ — nhưng không tự bỏ.
+
+        Ranh giới: **mời khác nới.** Nới là hệ thống tự hạ hàng rào; mời là khách quyết định. Câu
+        trả lời cũ ("chưa tìm được món nào") không nới, nhưng nó là ngõ cụt — đo được trên bản chạy
+        thật, khách đổi chủ đề rồi nhận 0 món và không có gì để sửa:
+
+            "gợi ý món cho 2 người"     -> 6 món, `party:two_three` vào bộ nhớ
+            "chuyển sang món chay đi"   -> 0 món, trong khi thực đơn có 17 món chay
+
+        `rep.items` phải RỖNG: đây là câu hỏi lại, không phải câu gợi ý, nên không có thẻ giỏ.
+        """
+        rep = respond(self._req(require_tags=["spice:hot"], avoid_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
+        self.assertEqual(rep.branch, "empty_result_offer_drop")
+        self.assertTrue(rep.asks_back, "phải mời khách bỏ điều kiện chặn")
+        self.assertEqual(rep.items, [], "câu hỏi lại thì không kèm thẻ giỏ")
+        self.assertIn("cay đậm", rep.text, "phải GỌI TÊN điều kiện chặn bằng tiếng Việt")
+
+    def test_CHI_moi_bo_rang_buoc_KE_THUA(self):
+        """Không mời bỏ điều khách VỪA NÓI ở lượt này — đó là câu trả lời vô nghĩa.
+
+        Golden bắt được ngay lượt đầu sau khi thêm nhánh mời-bỏ:
+
+            "Vị miền Bắc khác miền Nam thế nào?"
+            -> Điều kiện "miền bắc" đang chặn — bỏ nó ra thì có 35 món.
+
+        Khách vừa nêu miền Bắc trong chính câu đó. Đây là câu hỏi tri thức, và hai nhãn "chặn" nó
+        là hai nhãn của chính nó. Rơi qua nhánh này thì câu về `empty_result` như cũ, và đường sinh
+        viết lại bằng đoạn tri thức truy hồi được — tức câu hỏi vẫn được trả lời đúng.
+
+        Ranh giới này cũng khớp với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        """
+        r = self._req(require_tags=["region:north", "region:south"])
+        rep = respond(r, ITEMS)
+        self.assertEqual(rep.branch, "empty_result",
+                         "ràng buộc do chính lượt này nêu thì KHÔNG được mời bỏ")
+
+        r2 = self._req(require_tags=["region:north", "region:south"],
+                       rang_buoc_ke_thua=["region:north"])
+        rep2 = respond(r2, ITEMS)
+        self.assertEqual(rep2.branch, "empty_result_offer_drop",
+                         "ràng buộc KẾ THỪA thì phải mời bỏ — đây là chiều còn lại của bất biến")
+
+    def test_KHONG_BAO_GIO_moi_bo_di_nguyen(self):
+        """CHỐT AN TOÀN. Dị nguyên không được xuất hiện trong lời mời bỏ, kể cả khi nó là thứ chặn.
+
+        Đây là test quan trọng nhất của lớp này. Nhánh mời-bỏ đi tìm "bỏ cái gì thì có món", và nếu
+        nó xét cả `avoid_tags` thì nó sẽ mời khách bỏ chính hàng rào dị ứng — biến một cơ chế tiện
+        lợi thành đường hạ chốt an toàn.
+        """
+        moi_nhan = sorted({t for i in ITEMS for t in i["tags"] if t.startswith("allergen:")})
+        self.assertTrue(moi_nhan, "thực đơn phải có nhãn dị nguyên thì test mới có nghĩa")
+        rep = respond(self._req(avoid_tags=moi_nhan, require_tags=["spice:hot"],
+                                rang_buoc_ke_thua=["spice:hot"]), ITEMS)
+        for nhan in moi_nhan:
+            self.assertNotIn(nhan.split(":", 1)[1], rep.text.lower(),
+                             f"lời mời bỏ nhắc tới dị nguyên {nhan}")
+        self.assertNotIn("dị ứng", rep.text.lower())
         self.assertEqual(rep.items, [])
 
     def test_KHONG_noi_rang_buoc_DI_NGUYEN_de_lap_cho_trong(self):
@@ -559,3 +615,94 @@ class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class LoaiDangHOI_thang_loai_duoc_NHAC_toi(unittest.TestCase):
+    """Khách nói mình đang ăn gì rồi hỏi uống gì — món đang ăn là NGỮ CẢNH, không phải bộ lọc.
+
+    Đo được, và cả bốn ca đều trả lời NGƯỢC câu hỏi:
+
+        "ăn lẩu thì uống gì hợp"        -> 6 món LẨU
+        "ăn phở uống gì ngon"           -> 3 món PHỞ
+        "món nướng hợp với đồ uống gì"  -> 0 món   (không đồ uống nào `method:grilled`)
+        "đồ uống nào hợp món cay"       -> 0 món   (không đồ uống nào cay)
+
+    `wants` được nhận ĐÚNG là `drink` ở cả bốn. Hỏng ở chỗ khác: `ho_mon` và `categories` áp TRƯỚC
+    `wants`, nên tên món ăn trong câu thắng chính điều khách đang hỏi.
+
+    Đây là phân biệt món ăn / đồ uống — một ràng buộc đứng từ đầu dự án — nên nó phải có test riêng
+    thay vì dựa vào tỷ lệ chung của tập đánh giá.
+    """
+
+    GHEP_UONG = (
+        "ăn lẩu thì uống gì hợp",
+        "món nướng hợp với đồ uống gì",
+        "ăn cay thì uống gì",
+        "đồ uống nào hợp món cay",
+        "ăn phở uống gì ngon",
+    )
+
+    def test_hoi_uong_thi_chi_nhan_do_uong(self):
+        for cau in self.GHEP_UONG:
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items, f"{cau!r} trả RỖNG — nhãn của món ăn giết câu hỏi")
+                sai = [BY_ID[i]["name"] for i in reply.items
+                       if BY_ID[i]["categoryId"] not in DRINK_CATEGORIES]
+                self.assertEqual(sai, [], f"{cau!r} trả về món ĂN: {sai}")
+
+    def test_hoi_mon_an_KHONG_bi_pha(self):
+        """Chiều ngược, bắt buộc: quy tắc mới không được đụng câu hỏi món ăn."""
+        for cau in ("cho mình món chay", "gợi ý món ăn giúp mình",
+                    "cho mình món lẩu", "có món phở gì"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items)
+                self.assertEqual(drinks_in(reply), [], f"{cau!r} lẫn đồ uống")
+
+    def test_hoi_do_uong_cu_the_van_dung(self):
+        """Và không được nới quá tay: hỏi trà thì vẫn chỉ ra trà."""
+        _, reply = reply_for("nhà hàng có trà gì")
+        self.assertTrue(reply.items)
+        for i in reply.items:
+            self.assertIn("Trà", BY_ID[i]["name"], "hỏi trà mà ra thứ khác")
+
+
+class CauHaiLuaChon(unittest.TestCase):
+    """«A hay B» là hai LỰA CHỌN, không phải hai điều kiện phải thỏa cùng lúc.
+
+    Đo được: "nên gọi lẩu hay nướng" -> **0 món**. "lẩu" thành danh mục, "nướng" thành
+    `method:grilled`, và phép lọc là AND nên nó đi tìm món vừa là lẩu vừa nướng.
+
+    "chọn cơm hay phở" thì lại ra món — vì cả hai rơi vào `ho_mon`, vốn đã là phép HOẶC. Nên lỗi
+    chỉ hiện khi hai vế rơi vào HAI LOẠI ràng buộc khác nhau, và không tổ hợp nào trong 140 ca
+    chạm tới.
+    """
+
+    def test_hai_ve_khac_loai_KHONG_duoc_ra_rong(self):
+        for cau in ("nên gọi lẩu hay nướng", "ăn lẩu hay ăn nướng", "lẩu hay nướng ngon hơn"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items, f"{cau!r} ra RỖNG — hai lựa chọn bị giao bằng AND")
+
+    def test_danh_sach_phai_neu_CA_HAI_ben(self):
+        """Trả 6 món của một bên là trả lời NỬA câu hỏi — khách không so được."""
+        _, reply = reply_for("nên gọi lẩu hay nướng")
+        nhom = {BY_ID[i]["categoryName"] for i in reply.items}
+        self.assertIn("Lẩu", nhom, "không món lẩu nào — bên rẻ hơn chiếm hết danh sách")
+        self.assertTrue(nhom - {"Lẩu"}, "chỉ có lẩu — vế còn lại biến mất")
+
+    def test_KHONG_noi_cau_loc_binh_thuong(self):
+        """Chiều ngược, bắt buộc: câu không có "hay" thì phép lọc vẫn là AND."""
+        for cau in ("cho mình món chay", "món lẩu nào không cay", "gợi ý món ăn giúp mình"):
+            with self.subTest(cau):
+                request, reply = reply_for(cau)
+                self.assertFalse(request.hai_lua_chon)
+                self.assertTrue(reply.items)
+
+    def test_di_nguyen_VAN_duoc_ap_tren_ket_qua_hop(self):
+        """CHỐT AN TOÀN: nới phép lọc vì câu có chữ "hay" không được nới hàng rào dị ứng."""
+        request, reply = reply_for("mình dị ứng hải sản, cho món nướng hay lẩu")
+        self.assertTrue(request.avoid_tags, "tiền đề: câu này phải khai dị ứng")
+        xau = [BY_ID[i]["name"] for i in reply.items if "allergen:seafood" in BY_ID[i]["tags"]]
+        self.assertEqual(xau, [], f"lọt món mang nhãn hải sản: {xau}")

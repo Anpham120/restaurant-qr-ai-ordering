@@ -143,7 +143,15 @@ def _reason(item: dict, request: Request, category_names: dict[str, str]) -> str
             parts.append(f"thuộc nhóm {ten}")
 
     for tag in request.require_tags:
-        if tag in item["tags"]:
+        if "|" in tag:
+            # Nhãn ghép ("cay ở bất kỳ mức nào") thì lý do nêu MỨC THẬT của món này — "Cay vừa" —
+            # chứ không nêu lại điều kiện. Lý do thẻ giỏ là để khách kiểm được món có đúng thứ họ
+            # xin không, nên nó phải nói về MÓN, không nói về câu hỏi.
+            nhom, cac_muc = tag.split(":", 1)
+            khop = [f"{nhom}:{m}" for m in cac_muc.split("|") if f"{nhom}:{m}" in item["tags"]]
+            if khop:
+                parts.append(_TAG_VI.get(khop[0], khop[0]))
+        elif tag in item["tags"]:
             parts.append(_TAG_VI.get(tag, tag))
     for tag in request.avoid_tags:
         if tag not in item["tags"]:

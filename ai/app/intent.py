@@ -125,6 +125,22 @@ _XIN_THEM = (
     "con gi nua", "con gi nua khong", "con mon nao khac", "con gi khac",
     "xem them", "xem tiep", "cho xem them", "nua di", "tiep di",
     "con nua khong", "the con gi", "gi nua",
+    # "món mới" là XIN THÊM chứ không phải một ràng buộc: thực đơn không có nhãn "mới", nên câu này
+    # chỉ có một nghĩa dùng được — món khác những món vừa nêu. Không có cụm nào ở trên bắt được nó,
+    # và đo được là nó trả lại y nguyên 6 món của lượt trước.
+    "mon moi", "mon nao moi", "cai moi", "do moi",
+    # "đổi chủ đề khác đi" — khách nói rõ là muốn thứ khác, nhưng không cụm nào ở trên bắt được vì
+    # câu không nhắc chữ "món". Đo được: nó trả lại y nguyên 6 món của lượt trước.
+    "doi chu de", "chu de khac", "chuyen chu de", "noi chuyen khac", "hoi cai khac",
+    # Cách khách hỏi tiếp khi đang xem một danh sách. Đo được trong hội thoại hỏi liên tục:
+    #
+    #   "hết chưa"              -> lặp Y NGUYÊN 6 món vừa nêu
+    #   "vậy còn món gì không"  -> "Mình chưa có dữ liệu về việc này ạ."
+    #
+    # Câu thứ hai còn tệ hơn: nó rơi vào nhánh chính sách "còn hàng không" vì có cả "còn" lẫn
+    # "không", nên khách xin thêm món mà nhận câu từ chối về tồn kho.
+    "het chua", "con mon gi khong", "con mon gi nua", "con mon nao nua",
+    "con gi de goi", "the con gi nua", "con bao nhieu mon",
 )
 
 # XÓA RÀNG BUỘC — nhóm mà hợp đồng của `llm_understand` KHÔNG diễn đạt được.

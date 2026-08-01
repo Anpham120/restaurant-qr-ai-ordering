@@ -155,6 +155,19 @@ class Request:
     # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
     # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
     y_dinh_bo: list[str] = field(default_factory=list)
+    # Câu «A hay B» — hai vế là LỰA CHỌN, `select()` lấy HỢP thay vì GIAO. Xem `HAI_LUA_CHON_RE`.
+    hai_lua_chon: bool = False
+    # Ràng buộc KÉO TỪ LƯỢT TRƯỚC, do `session.merge_into_request` điền. `understand()` không bao
+    # giờ đặt trường này — nó chỉ đọc câu của lượt hiện tại.
+    #
+    # Dùng cho đúng một việc: nhánh mời-bỏ chỉ được mời bỏ thứ khách KHÔNG nói ở lượt này. Mời bỏ
+    # điều họ vừa nói ra là một câu trả lời vô nghĩa — golden bắt được ngay:
+    #
+    #     "Vị miền Bắc khác miền Nam thế nào?"
+    #     -> Điều kiện "miền bắc" đang chặn — bỏ nó ra thì có 35 món.   <- khách VỪA nêu miền Bắc
+    #
+    # Câu đó là câu hỏi tri thức, và ràng buộc "chặn" nó là hai nhãn của chính nó.
+    rang_buoc_ke_thua: list[str] = field(default_factory=list)
     # Nhãn ĐÃ bị bỏ ở lượt này, do `session.merge_into_request` điền. Câu trả lời phải NÊU RA chúng:
     # một hàng rào an toàn được hạ xuống thì khách phải THẤY nó được hạ, để sửa được nếu hiểu sai.
     da_bo_rang_buoc: list[str] = field(default_factory=list)
@@ -291,9 +304,34 @@ AVOID_FRAMING = (
 # Độ cay — `spice` nằm trong `exclusive_groups` và phủ 91/91, nên đây là nhóm lọc dứt khoát
 # nhất: mỗi món đúng một mức, và "không có món nào" là câu trả lời thật chứ không phải thiếu nhãn.
 _add("khong an duoc cay|khong an cay|khong cay|k cay|it cay", "require", "spice:none")
-_add("cay nhe", "require", "spice:mild")
+_add("cay nhe|hoi cay", "require", "spice:mild")
 _add("cay vua", "require", "spice:medium")
 _add("cay dam|cay nhieu|that cay", "require", "spice:hot")
+# "MÓN CAY" — từ vựng nói được "không cay" nhưng KHÔNG nói được "cay", và đó là một bất đối xứng
+# một chiều đúng nghĩa: khách vào được ràng buộc độ cay nhưng không có đường ra.
+#
+# Đo được trên bản chạy thật. Khách hỏi thực đơn cho bàn 4–5 người, hệ thống dính `spice:none`, và
+# khi khách nói **"tư vấn cho tôi các món cay đi"** thì câu đó rút ra **rỗng** — không nhãn nào.
+# Quy tắc ghi đè theo nhóm của `session` hoàn toàn đúng, nhưng nó chỉ chạy khi lượt mới CÓ một nhãn
+# cùng nhóm. Không có nhãn thì không có gì để ghi đè, nên `spice:none` sống mãi và mọi câu sau đó
+# đều mở bằng "Vì bạn muốn món không cay…" — trong khi khách vừa xin điều ngược lại.
+#
+# Nhãn phải là "cay ở bất kỳ mức nào" chứ không phải một mức cụ thể: thực đơn có 14 món cay nhẹ,
+# 6 cay vừa, 3 cay đậm. Gán "món cay" vào `spice:hot` là trả 3 món cho một câu đáng được 23 món.
+# `select()` đọc dấu `|` là PHÉP HOẶC TRONG CÙNG NHÓM — xem chú thích ở đó.
+#
+# `an cay` an toàn dù `khong an cay` chứa nó: `VOCAB_ORDER` khớp cụm DÀI TRƯỚC và ăn hết đoạn đã
+# khớp, nên cụm phủ định luôn được tiêu thụ trước.
+#
+# `do cay` và `an cay` bị BỎ khỏi danh sách này sau khi soát chồng chữ, đúng luật đã đặt từ lần
+# `chay` va chạm: **một cụm phải tự chứng minh là an toàn, không được mặc định chấp nhận.**
+#
+#     do cay   "độ cay" và "đồ cay" rút dấu thành CÙNG một chuỗi. "món này độ cay thế nào" là câu
+#              hỏi thuộc tính, biến nó thành yêu cầu lọc là trả lời sai câu hỏi.
+#     an cay   "ít khi ăn cay", "đâu có ăn cay" đều mang nghĩa ngược. Cụm dài phủ định được tiêu
+#              thụ trước nên `khong an cay` an toàn, nhưng hai cách nói trên thì không có cụm dài
+#              nào che. `an duoc cay` diễn đạt đúng ý mà không dính hai câu đó.
+_add("mon cay|vi cay|thich cay|an duoc cay", "require", "spice:mild|medium|hot")
 
 # Chế độ ăn.
 _add("an chay|do chay|thuan chay|nguoi an chay", "require", "diet:vegetarian")
@@ -403,7 +441,13 @@ _add("co khoi|mui than|thom mui than", "require", "flavour:smoky")
 # tới mức có câu ra rỗng, mà tiêu chí của ca chỉ đòi thỏa MỘT trong các nhãn hợp lý.
 _add("giam can|an kieng", "require", "health:low_calorie")
 _add("tap gym|nhieu dam", "require", "health:high_protein")
-_add("thanh thanh", "require", "health:light")
+_add("thanh thanh|thanh dam|nhe bung", "require", "health:light")
+# Kiêng dầu mỡ -> `health:low_fat`. Nhãn có sẵn (8/91 món) nhưng không cụm nào trỏ tới, nên câu
+# "mình kiêng dầu mỡ" rơi xuống nhánh truy hồi toàn kho và khách nhận một đoạn văn thay vì món.
+#
+# Đây là lớp `vocab_miss` mà `analyze_failures.py` phân loại: nhãn có, dữ liệu có, chỉ thiếu cách
+# nói của khách. Sửa ở từ vựng (tất định) chứ không chờ mô hình đoán.
+_add("kieng dau mo|it dau mo|khong dau mo|it beo|khong beo|it mo", "require", "health:low_fat")
 
 # Thời tiết. Khách nói thời tiết chứ không nói mùa, nên cụm được tách theo ĐÚNG nghĩa của nhãn:
 #
@@ -847,6 +891,93 @@ DIFFERENCE_FRAMING = (
 # thông tin CHỖ ĐẬU XE. Ca golden của nó vẫn XANH vì tiêu chí chỉ đòi `kind=fact` và độ dài — một ca
 # đạt vì lý do sai, lần thứ năm trong dự án này.
 KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem nao)\b")
+
+# KHÁCH PHỦ NHẬN một ràng buộc mà hệ thống đang gán cho họ.
+#
+# "tôi đâu có nói là không ăn được cay" chứa nguyên văn cụm `khong an duoc cay`, nên bộ khớp cụm
+# gán `spice:none` — đúng cái khách vừa phủ nhận. Đo được trên bản chạy thật, và lượt sau đó mở
+# bằng "Vì bạn muốn món không cay…" trong khi khách vừa nói ngược lại.
+#
+# Đây là lớp va chạm đã gặp nhiều lần ở dự án (`chào` ⊂ `Cháo lòng`, `bỏ` -> `ingredient:beef`),
+# nhưng ở tầng CÂU chứ không phải tầng chữ: cụm khớp đúng, chỉ là nó nằm trong một khung phủ định.
+# Bộ khớp cụm không đọc được khung — nên khung phải được nhận ra TRƯỚC, ở đây.
+#
+# Xử lý: nhãn rút ra không được ÁP, mà thành lệnh BỎ ràng buộc cùng nhóm. Đó đúng là điều khách
+# muốn, và nó dùng lại nguyên cơ chế `y_dinh_bo` + `da_bo_rang_buoc` sẵn có — nên khách còn nhận
+# được câu xác nhận "Dạ em đã bỏ điều kiện không cay…", tức thấy được hệ thống đã sửa.
+# DẤU XIN MÓN KHÁC, ĐỨNG RỜI KHỎI CHỦ ĐỀ.
+#
+# Từ vựng đã có cụm `mon khac|cai khac|mon nao khac`, nhưng chúng đòi hai chữ ĐI LIỀN NHAU. Khách
+# thật thì chèn chủ đề vào giữa, và cả câu mất tín hiệu:
+#
+#     "tư vấn món khác đi"              -> nhận ra, 0 món trùng
+#     "tư vấn món CHAY khác đi"         -> KHÔNG nhận ra, trả lại y nguyên 6 món vừa nêu
+#     "còn món CHAY nào nữa không"      -> KHÔNG nhận ra
+#     "còn món nào DƯỚI 100 NGHÌN nữa"  -> KHÔNG nhận ra
+#
+# Nguyên tắc đúng là: **hỏi thêm tức là muốn món khác** — dù khách có nhắc lại chủ đề hay không.
+# Nhắc lại chủ đề là để giữ ràng buộc, không phải để xin lại đúng những món vừa đọc.
+#
+# Nên tín hiệu được đọc ở mức TỪ RỜI thay vì cụm liền. Ba từ này chỉ mang nghĩa "thêm/khác" khi
+# đứng riêng: `khac` trong "khác nhau chỗ nào" đã bị `asks_difference` chặn trước, `moi` trong
+# "mình mới ăn xong" không đi cùng một câu xin gợi ý, và `nua` gần như luôn là "nữa".
+# «A HAY B» — hai LỰA CHỌN, không phải hai điều kiện phải thỏa cùng lúc.
+#
+# Đo được: "nên gọi lẩu hay nướng" -> **0 món**. "lẩu" thành `cat_hotpot`, "nướng" thành
+# `method:grilled`, và phép lọc là AND nên nó đi tìm món vừa là lẩu vừa nướng.
+#
+# "chọn cơm hay phở" thì lại ra 11 món — vì cả hai rơi vào `ho_mon`, mà `ho_mon` vốn là phép HOẶC.
+# Nên lỗi chỉ hiện khi hai vế rơi vào HAI LOẠI ràng buộc khác nhau. Đúng kiểu lỗi chỉ lộ ra ở một
+# tổ hợp dữ liệu cụ thể, và không tổ hợp nào trong 140 ca chạm tới.
+#
+# Chỉ nhận khi có "hay"/"hoặc" đứng RỜI giữa câu. `hay` còn nghĩa "hay ho" nhưng lúc đó nó không
+# đứng giữa hai vế ràng buộc, và điều kiện dưới đòi phải có ĐỦ HAI nguồn ràng buộc.
+HAI_LUA_CHON_RE = re.compile(r"\b(?:hay|hoac)\b")
+
+XIN_MON_KHAC_TU = ("khac", "nua", "moi", "tiep")
+
+# «khác» có HAI nghĩa hoàn toàn khác nhau, và golden bắt được ngay lượt đầu sau khi tôi thêm tín
+# hiệu trên:
+#
+#     "tư vấn món chay KHÁC đi"            -> lệnh: cho tôi món khác     (đúng ý tín hiệu)
+#     "Vị miền Bắc KHÁC miền Nam thế nào?" -> câu hỏi: chúng khác ra sao (NGƯỢC hẳn)
+#
+# Câu thứ hai đáng được trả bằng một đoạn tri thức, nhưng tín hiệu mới đọc nó thành "bỏ những món
+# vừa nêu" và đẩy nó xuống nhánh lọc. Golden tụt 103/103 -> 102/103.
+#
+# `DIFFERENCE_FRAMING` không bắt được vì mọi cụm ở đó đều đòi chữ "nhau" ("khác nhau thế nào"), còn
+# `KHAC_VI_TRI_RE` chỉ nhận "chỗ nào|ở đâu|điểm nào". Câu này là "khác <X> thế nào" — không có
+# "nhau", không có "chỗ nào".
+#
+# Phân biệt bằng thứ ĐỨNG SAU: có từ hỏi thì là câu hỏi. Đây là hàng rào hẹp và kiểm được, thay vì
+# một danh sách cụm dài mãi không đủ.
+KHAC_LA_CAU_HOI_RE = re.compile(
+    r"\bkhac\b(?:\s+\S+){0,5}\s+(?:the nao|nhu the nao|ra sao|cho nao|o dau|diem nao|gi)\b")
+
+PHU_NHAN_FRAMING = (
+    # a) khung LIỀN MẠCH — cụm phủ định đứng ngay trước điều bị phủ nhận
+    "dau co noi", "dau co bao", "dau co keu", "dau co yeu cau", "dau co doi",
+    "khong he noi", "khong he bao", "khong noi la", "khong bao la", "chua he noi",
+    "dau phai", "khong phai la", "khong phai minh", "khong phai toi", "co phai dau",
+    "ai bao", "ai noi", "nao co noi", "nao co bao", "lam gi co",
+    "toi dau co", "minh dau co", "em dau co", "toi khong co", "minh khong co",
+    "hieu nham", "hieu sai", "nham roi", "sai roi", "khong dung",
+)
+
+# b) khung RỜI — "tôi CÓ nói … ĐÂU", "mình CÓ … ĐÂU". Phần bị phủ nhận nằm GIỮA hai mảnh, nên
+#    không cụm liền mạch nào bắt được; phải khớp bằng mẫu.
+#
+#    `\bdau\s*$` neo vào CUỐI câu có chủ ý: "đâu" giữa câu là từ để hỏi ("ăn ở đâu"), chỉ "đâu"
+#    cuối câu mới là dấu phủ định. Đây đúng kiểu bẫy rút dấu mà dự án đã gặp nhiều lần, nên nó được
+#    thu hẹp bằng vị trí thay vì bằng một danh sách ngoại lệ.
+PHU_NHAN_ROI_RE = re.compile(r"\b(?:co|da)\b.{0,40}\bdau\s*$")
+
+
+def la_cau_phu_nhan(folded: str) -> bool:
+    """Câu có phải là PHỦ NHẬN một ràng buộc không."""
+    return (any(k in folded for k in PHU_NHAN_FRAMING)
+            or bool(PHU_NHAN_ROI_RE.search(folded)))
+
 
 ATTRIBUTE_DEFINITION_FRAMING = (
     "dua tren gi", "dua vao gi", "nghia la gi", "hieu the nao", "tinh the nao", "do the nao",
@@ -1327,7 +1458,7 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # thì phép đo không chạm tới, đúng cái bẫy "hai đầu" đã trả giá tám lần trong dự án này.
     #
     # Nhập trong hàm để tránh vòng nhập: `intent` dùng `fold` của tệp này.
-    from intent import CAM_ON, CHAO_HOI, NGOAI_PHAM_VI, XIN_THEM, YDinh
+    from intent import CAM_ON, CHAO_HOI, NGOAI_PHAM_VI, XIN_THEM, XOA_RANG_BUOC, YDinh
 
     y = _y
 
@@ -1362,4 +1493,58 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     request.y_dinh_bo = list(y.bo_rang_buoc)
     if y.cum_khop:
         request.matched.append(f"ý định: {y.cum_khop!r} -> {y.ten}")
+
+    # KHUNG PHỦ NHẬN — xem `PHU_NHAN_FRAMING`. Đặt SAU vòng khớp cụm chứ không trước, vì phải biết
+    # cụm nào đã khớp thì mới biết khách đang phủ nhận NHÓM nào.
+    #
+    # Nhãn rút ra không bị vứt đi lặng lẽ — nó thành lệnh BỎ ràng buộc cùng nhóm. Khác biệt quan
+    # trọng: vứt đi thì `spice:none` kế thừa từ bộ nhớ vẫn còn nguyên và khách vẫn nhận đúng câu
+    # sai; bỏ nhóm thì bộ nhớ được dọn, và `da_bo_rang_buoc` làm khách THẤY được điều đó.
+    # DẤU XIN MÓN KHÁC — xem `XIN_MON_KHAC_TU`.
+    #
+    # Hai hàng rào, cả hai đều cần:
+    #   - `asks_difference`: "hai món này khác nhau chỗ nào" là câu SO SÁNH, không phải xin thêm.
+    #   - phải là câu ĐÒI MÓN: có ràng buộc, có danh mục, có họ món, hoặc đã là ý định xin thêm.
+    #     Thiếu hàng rào này thì "quán mới mở à" cũng thành lệnh loại trừ.
+    if not request.wants_similar and not request.asks_difference:
+        _tu = [t for t in XIN_MON_KHAC_TU
+               if not (t == "khac" and KHAC_LA_CAU_HOI_RE.search(request.folded))]
+        _co_dau = any(f" {t} " in f" {request.folded} " for t in _tu)
+        _doi_mon = bool(request.require_tags or request.prefer_tags or request.categories
+                        or request.ho_mon or request.budget_max is not None
+                        or request.asks_suggestion)
+        if _co_dau and _doi_mon:
+            request.wants_similar = True
+            request.matched.append("dấu xin món khác (từ rời) -> bỏ món đã nêu")
+
+    # Khung «A hay B»: đánh dấu để `answer.select()` biết đây là hai lựa chọn.
+    #
+    # Chỉ bật khi câu có ĐỦ HAI nguồn ràng buộc khác loại — một vế `categories`/`ho_mon` và một vế
+    # `require_tags`. Một nguồn thôi thì "hay" không nối hai điều kiện nào, và bật nhầm sẽ nới lỏng
+    # một câu lọc bình thường.
+    _nguon = [
+        bool(request.categories or request.ho_mon),
+        bool(request.require_tags),
+    ]
+    request.hai_lua_chon = (
+        sum(_nguon) >= 2 and bool(HAI_LUA_CHON_RE.search(request.folded))
+    )
+
+    _nhan_phu_nhan = [*request.require_tags, *request.avoid_tags]
+    if _nhan_phu_nhan and la_cau_phu_nhan(request.folded):
+        # Gồm cả `avoid_tags`, tức cả DỊ NGUYÊN. "mình đâu có dị ứng hải sản" mà bị đọc thành khai
+        # dị ứng thì khách bị chặn mất đúng những món họ muốn, và không có cách nào gỡ ngoài việc
+        # đoán ra câu thần chú "bỏ hết điều kiện".
+        #
+        # Hạ một hàng rào dị nguyên là việc phải làm rất dè dặt — nhưng ở đây khách nói THẲNG là họ
+        # không có dị ứng đó. Cùng loại với "tôi hết dị ứng rồi", vốn đã được chấp nhận từ trước. Và
+        # nó KHÔNG im lặng: `da_bo_rang_buoc` bắt câu trả lời phải mở bằng "Dạ em đã bỏ điều kiện
+        # hải sản theo yêu cầu của anh/chị", nên hiểu sai thì khách thấy ngay và sửa được.
+        request.y_dinh = XOA_RANG_BUOC
+        request.y_dinh_bo = list(dict.fromkeys(
+            t.split(":", 1)[0] for t in _nhan_phu_nhan))
+        request.matched.append(
+            f"phủ nhận: bỏ nhóm {request.y_dinh_bo} thay vì áp {_nhan_phu_nhan}")
+        request.require_tags = []
+        request.avoid_tags = []
     return request

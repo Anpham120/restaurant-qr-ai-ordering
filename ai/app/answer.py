@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 
 from dataclasses import dataclass, field, replace
+from itertools import zip_longest
 
 from pathlib import Path
 
@@ -488,6 +489,39 @@ def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
     return (chu_cho_khach(chon), cach) if chon else None
 
 
+def _hai_ve(request: Request, items: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Hai vế của câu «A hay B». Vế trái là loại món, vế phải là nhãn.
+
+    `hai_lua_chon=False` ở cả hai vế: thiếu nó thì mỗi vế lại tách đôi tiếp và hàm tự gọi mãi. Đệ
+    quy vô hạn ngay lần chạy đầu — một lỗi ồn ào, may hơn là một lỗi im lặng.
+    """
+    ve_loai = replace(request, require_tags=[], hai_lua_chon=False)
+    ve_nhan = replace(request, categories=[], ho_mon=[], wants="any", hai_lua_chon=False)
+    return select(ve_loai, items), select(ve_nhan, items)
+
+
+def _ap_duoc(tag: str, cua_nhom: set[str]) -> bool:
+    """Nhãn này có món nào trong nhóm mang không. Nhãn ghép thì chỉ cần MỘT mức có mặt."""
+    if "|" in tag:
+        nhom, cac_muc = tag.split(":", 1)
+        return any(f"{nhom}:{m}" in cua_nhom for m in cac_muc.split("|"))
+    return tag in cua_nhom
+
+
+def _ho_mon_khac_loai(ho_mon: list[str], items: list[dict], nhom_dung: frozenset | set) -> bool:
+    """Họ món khách gọi tên có nằm NGOÀI loại đang hỏi không.
+
+    "ăn lẩu thì uống gì" — `lau` là họ món ĂN, còn câu hỏi là về ĐỒ UỐNG. Kiểm bằng thực đơn chứ
+    không bằng danh sách viết tay: một họ món mà không món nào của nhóm thuộc về thì nó là họ của
+    nhóm kia.
+    """
+    if not ho_mon:
+        return False
+    return not any(
+        _thuoc_ho(i, ho_mon) for i in items if i["categoryId"] in nhom_dung
+    )
+
+
 def select(request: Request, items: list[dict]) -> list[dict]:
     """Lọc thực đơn theo đúng những gì khách đã nói.
 
@@ -504,6 +538,56 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     if request.exclude_item_ids:
         bo = set(request.exclude_item_ids)
         picked = [i for i in picked if i["id"] not in bo]
+    # KHÁCH NÓI MÌNH ĐANG ĂN GÌ, VÀ HỎI UỐNG GÌ. Món đang ăn là NGỮ CẢNH, không phải bộ lọc.
+    #
+    # Đo được, và cả bốn ca đều trả lời ngược câu hỏi:
+    #
+    #     "ăn lẩu thì uống gì hợp"        -> 6 món LẨU        (khách hỏi uống)
+    #     "ăn phở uống gì ngon"           -> 3 món PHỞ
+    #     "món nướng hợp với đồ uống gì"  -> 0 món            (không đồ uống nào `method:grilled`)
+    #     "đồ uống nào hợp món cay"       -> 0 món            (không đồ uống nào cay)
+    #
+    # `wants` được nhận ĐÚNG là `drink` ở cả bốn. Hỏng ở chỗ khác: `ho_mon` và `categories` được áp
+    # TRƯỚC `wants`, nên tên món ăn trong câu thắng chính điều khách đang hỏi. Và với hai ca cuối,
+    # nhãn suy từ món ăn (`method:grilled`, độ cay) không món uống nào mang, nên giao ra rỗng.
+    #
+    # Quy tắc: **loại đang hỏi thắng loại được nhắc tới.** Nhắc "lẩu" trong câu hỏi về đồ uống là để
+    # nói mình đang ăn gì, không phải để xin thêm lẩu.
+    #
+    # Nhãn nào là "chỉ của món ăn" thì SUY TỪ THỰC ĐƠN, không viết tay: nhãn mà không đồ uống nào
+    # mang thì áp vào một câu hỏi đồ uống chắc chắn cho kết quả rỗng. Suy từ dữ liệu nên nó không
+    # thể lệch khi thực đơn đổi — cùng nguyên tắc với `ho_mon_trong_thuc_don()`.
+    if request.wants in ("food", "drink") and not request.asks_difference:
+        nhom_dung = FOOD_CATEGORIES if request.wants == "food" else DRINK_CATEGORIES
+        cua_nhom = {t for i in items if i["categoryId"] in nhom_dung for t in i["tags"]}
+        request = replace(
+            request,
+            ho_mon=[] if _ho_mon_khac_loai(request.ho_mon, items, nhom_dung) else request.ho_mon,
+            categories=[c for c in request.categories if c in nhom_dung],
+            # Nhãn không loại nào trong nhóm mang -> bỏ khỏi bộ lọc. Giữ nó chỉ đảm bảo kết quả rỗng.
+            require_tags=[t for t in request.require_tags if _ap_duoc(t, cua_nhom)],
+        )
+
+    # «A hay B» — lấy HỢP của hai vế thay vì GIAO.
+    #
+    # "nên gọi lẩu hay nướng": vế một là danh mục Lẩu, vế hai là `method:grilled`. Giao chúng là đi
+    # tìm món vừa là lẩu vừa nướng — không có, nên khách nhận 0 món cho một câu hỏi hoàn toàn bình
+    # thường. Hợp chúng là đưa ra cả hai nhóm để khách chọn, tức trả lời đúng điều được hỏi.
+    #
+    # Dị nguyên và ngân sách KHÔNG nằm trong phép hợp: chúng được áp SAU, trên kết quả đã hợp. Nới
+    # một hàng rào an toàn vì câu có chữ "hay" là cách tệ nhất để cơ chế này hỏng.
+    if getattr(request, "hai_lua_chon", False):
+        trai, phai = _hai_ve(request, picked)
+        hop = {i["id"] for i in [*trai, *phai]}
+        picked = [i for i in picked if i["id"] in hop]
+        if request.budget_max is not None:
+            picked = [i for i in picked
+                      if (i["price"] < request.budget_max if request.budget_strict
+                          else i["price"] <= request.budget_max)]
+        for tag in request.avoid_tags:
+            picked = [i for i in picked if tag not in i["tags"]]
+        return picked
+
     # HỌ MÓN khách gọi tên thắng danh mục.
     #
     # Khách hỏi "có phở không" nhận về cả bún, vì "phở" ánh xạ vào danh mục `cat_noodle` — mà danh
@@ -524,7 +608,19 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     elif request.wants == "drink":
         picked = [i for i in picked if i["categoryId"] in DRINK_CATEGORIES]
     for tag in request.require_tags:
-        picked = [i for i in picked if tag in i["tags"]]
+        # Dấu `|` là PHÉP HOẶC TRONG CÙNG MỘT NHÓM: `spice:mild|medium|hot` nghĩa là "cay ở bất kỳ
+        # mức nào". Cần đúng một chỗ này vì `spice` là nhóm loại trừ — mỗi món mang đúng một mức,
+        # nên phép AND thông thường không diễn đạt được "cay" mà không thu về một mức duy nhất.
+        #
+        # `session._group()` cắt ở dấu ":" đầu tiên nên nhãn ghép vẫn thuộc nhóm `spice`, và quy
+        # tắc "lượt mới ghi đè cùng nhóm" vẫn đẩy được `spice:none` ra. Đó là điều làm cách biểu
+        # diễn này dùng được mà không phải thêm trường mới vào `Request`.
+        if "|" in tag:
+            nhom, cac_muc = tag.split(":", 1)
+            chap_nhan = {f"{nhom}:{m}" for m in cac_muc.split("|")}
+            picked = [i for i in picked if chap_nhan & set(i["tags"])]
+        else:
+            picked = [i for i in picked if tag in i["tags"]]
     if request.budget_max is not None:
         if request.budget_strict:
             picked = [i for i in picked if i["price"] < request.budget_max]
@@ -587,6 +683,29 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
         return (-matched, bac, item["price"], item["id"])
 
     return sorted(items, key=key)
+
+
+def _TEN_RANG_BUOC_VI(tag: str) -> str:
+    """`spice:none` -> "không cay". Trả về chuỗi RỖNG nếu không dịch được.
+
+    Nguồn tên là `menu-tags.json` — **84 nhãn**, cùng bảng mà `generate._mo_ta_mon()` dùng. Bản đầu
+    của hàm này đọc `intent._TEN_VI` (13 nhãn) và rơi về nhãn thô khi thiếu, nên câu cho khách in ra
+    nguyên văn:
+
+        Điều kiện "method:grilled" đang chặn — bỏ nó ra thì có 21 món.
+
+    Rò khóa nhãn nội bộ vào chữ khách đọc là thứ `generate.verify()` có hẳn một phép kiểm để chặn ở
+    đường sinh. Đường khuôn mẫu không được phép làm đúng điều đó — nên ở đây dịch được thì nói, không
+    dịch được thì **im**, và bên gọi bỏ qua ứng viên ấy.
+    """
+    from generate import _nhan_tieng_viet
+
+    bang = _nhan_tieng_viet()
+    if "|" in tag:
+        nhom, cac_muc = tag.split(":", 1)
+        ten = [bang.get(f"{nhom}:{m}", "") for m in cac_muc.split("|")]
+        return " hoặc ".join(t.lower() for t in ten if t)
+    return bang.get(tag, "").lower()
 
 
 def respond(request: Request, items: list[dict]) -> Reply:
@@ -819,9 +938,43 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
         # hàm chữ nào được chạy qua nó. Tiêu chí `must_name_item` của bộ chạy phiên bắt đúng lỗi
         # này, vì nó so tên món tra từ thực đơn chứ không so chuỗi viết tay.
         mo_dau = "Trong phạm vi bạn nêu, m" if len(pool) < len(items) else "M"
+
+        # KHÁCH HỎI "MÓN" MÀ ĐÁP ÁN LÀ ĐỒ UỐNG.
+        #
+        # Đo được: "rẻ nhất là món nào" -> **Bia hơi Hà Nội (12.000đ)**. Năm món ăn rẻ nhất thực đơn
+        # đều đắt hơn năm đồ uống rẻ nhất, nên mọi câu hỏi "rẻ nhất" không nêu rõ loại đều rơi vào
+        # đồ uống. Đây đúng lớp lỗi mà `MonAnXepTruocDoUongKhiKhachChuaNoiRo` được viết ra để chặn —
+        # nhưng nhánh này KHÔNG đi qua `_order()`, nó gọi thẳng `min()` theo giá, nên phép xếp thứ
+        # tự kia không chạm tới.
+        #
+        # Cách sửa KHÔNG phải bỏ đồ uống đi. "Món rẻ nhất là Bánh mì pate 35.000đ" trong khi bia
+        # 12.000đ vẫn nằm trên thực đơn là một khẳng định TUYỆT ĐỐI sai — đúng thứ mà đoạn chú thích
+        # ngay trên vừa cấm. Giấu một đáp án rẻ hơn còn tệ hơn trả lời lệch loại.
+        #
+        # Nên trả lời cả hai: đáp án của loại khách hỏi, kèm đáp án tuyệt đối. Khách được thứ họ
+        # muốn mà câu vẫn đúng.
+        khac_loai = None
+        if request.wants == "any" and item["categoryId"] in DRINK_CATEGORIES:
+            mon_an = [i for i in pool if i["categoryId"] in FOOD_CATEGORIES]
+            if mon_an:
+                khac_loai = item
+                item = (min(mon_an, key=lambda i: i["price"])
+                        if request.asks_extreme == "cheapest"
+                        else max(mon_an, key=lambda i: i["price"]))
+
+        text = f"{mo_dau}ón ăn {label} là {item['name']}, giá {money(item['price'])} ạ." \
+            if khac_loai else \
+            f"{mo_dau}ón {label} là {item['name']}, giá {money(item['price'])} ạ."
+        neu = [item["id"]]
+        if khac_loai:
+            hon = "rẻ hơn" if request.asks_extreme == "cheapest" else "đắt hơn"
+            text += (f" Tính cả đồ uống thì {khac_loai['name']} "
+                     f"{money(khac_loai['price'])} {hon} ạ.")
+            neu.append(khac_loai["id"])
+
         return Reply(
-            text=f"{mo_dau}ón {label} là {item['name']}, giá {money(item['price'])} ạ.",
-            items=[item["id"]],
+            text=text,
+            items=neu,
             kind="fact",
             branch=f"extreme:{request.asks_extreme}",
         )
@@ -1048,6 +1201,65 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                 asks_back=True,
                 branch="exhausted_after_exclusions",
             )
+        # RỖNG THẬT — không món nào thỏa. Nhưng "không có món nào" chưa phải câu trả lời đầy đủ:
+        # nó không cho khách biết ĐIỀU KIỆN NÀO đang chặn, nên họ không có gì để sửa.
+        #
+        # Đo được trên bản chạy thật, và đây là hỏng nặng nhất trong nhóm lỗi vừa tìm:
+        #
+        #     "gợi ý món cho 2 người"        -> 6 món, và `party:two_three` vào bộ nhớ
+        #     "chuyển sang món chay đi"      -> **0 món**, ngõ cụt
+        #
+        # Khách đổi chủ đề hoàn toàn hợp lệ; thứ giết câu hỏi là một ràng buộc từ lượt TRƯỚC mà họ
+        # không còn nghĩ tới. Trả "chưa tìm được món nào" ở đây làm khách tưởng nhà hàng không có
+        # món chay — trong khi thực đơn có 17 món.
+        #
+        # Nên nhánh này đi tìm ràng buộc chặn: bỏ THỬ từng ràng buộc, cái nào bỏ ra thì có món.
+        # Tìm bằng cách chạy lại chính `select()`, không bằng một bảng suy luận riêng — hai đường
+        # suy ra kết quả khác nhau là lớp lỗi dự án này đã gặp nhiều lần.
+        #
+        # Dị nguyên KHÔNG bao giờ nằm trong danh sách mời bỏ: nới nó là mời khách một món có thể
+        # gây hại, và đó là ranh giới không đổi.
+        # CHỈ mời bỏ ràng buộc KẾ THỪA. Ràng buộc khách vừa nói ở lượt này thì không được mời bỏ —
+        # "bỏ điều kiện miền bắc" cho câu "Vị miền Bắc khác miền Nam thế nào?" là câu trả lời vô
+        # nghĩa, và golden bắt được ngay lượt đầu.
+        #
+        # Ranh giới này cũng đúng với vấn đề gốc: thứ giết câu hỏi của khách là ràng buộc từ lượt
+        # TRƯỚC mà họ không còn nghĩ tới. Ràng buộc họ vừa gõ thì họ tự sửa được.
+        #
+        # Rơi qua nhánh này thì câu trả lời là `empty_result` như cũ — và với đường sinh bật, nó
+        # được viết lại bằng đoạn tri thức truy hồi được, tức câu hỏi tri thức vẫn được trả lời.
+        thu_bo: list[tuple[str, int]] = []
+        for tag in getattr(request, "rang_buoc_ke_thua", ()) or ():
+            # Chỉ mời bỏ ràng buộc GỌI TÊN ĐƯỢC bằng tiếng Việt. Không dịch được thì không mời —
+            # thà nói "chưa tìm được món nào" còn hơn hỏi khách một câu chứa khóa nhãn nội bộ.
+            if not _TEN_RANG_BUOC_VI(tag):
+                continue
+            con = select(replace(request, require_tags=[t for t in request.require_tags
+                                                        if t != tag]), items)
+            if con:
+                thu_bo.append((tag, len(con)))
+        if (request.budget_max is not None
+                and "__ngan_sach__" in (getattr(request, "rang_buoc_ke_thua", ()) or ())):
+            con = select(replace(request, budget_max=None), items)
+            if con:
+                thu_bo.append(("__ngan_sach__", len(con)))
+
+        if thu_bo:
+            # Mời bỏ ràng buộc mở ra NHIỀU món nhất — đó là ràng buộc chặn chính.
+            tag, so = max(thu_bo, key=lambda x: x[1])
+            ten = (f"ngân sách {request.budget_max:,}".replace(",", ".") + "đ"
+                   if tag == "__ngan_sach__" else _TEN_RANG_BUOC_VI(tag))
+            return Reply(
+                text=(
+                    f"Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ. Điều kiện "
+                    f"\u201c{ten}\u201d đang chặn — bỏ nó ra thì có {so} món. "
+                    "Bạn muốn mình bỏ điều kiện đó không?"
+                ),
+                kind="clarify",
+                asks_back=True,
+                branch="empty_result_offer_drop",
+            )
+
         return Reply(
             text=(
                 "Mình chưa tìm được món nào thỏa hết những điều bạn nêu ạ. "
@@ -1056,6 +1268,31 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
             kind="no_data",
             branch="empty_result",
         )
+
+    # Câu «A hay B»: danh sách phải nêu CẢ HAI bên.
+    #
+    # Đo được sau bản sửa đầu: "nên gọi lẩu hay nướng" ra 6 món — và **không món lẩu nào**. Phép
+    # hợp đúng, nhưng thứ tự chung sắp theo giá tăng dần, mà lẩu là 250–380k còn món nướng rẻ nhất
+    # 30k. Cả sáu chỗ bị bên rẻ hơn chiếm hết.
+    #
+    # Trả 0 món là trả lời sai; trả 6 món của một bên là trả lời NỬA câu hỏi — khách hỏi nên chọn
+    # bên nào mà chỉ được thấy một bên thì không so được.
+    #
+    # Xen kẽ hai vế, mỗi bên lấy luân phiên. Bên nào hết thì bên kia lấp nốt, nên câu hỏi mà một vế
+    # không có món vẫn trả về đủ danh sách.
+    if getattr(request, "hai_lua_chon", False):
+        trai, phai = _hai_ve(request, items)
+        cho_phep = {i["id"] for i in picked}
+        t = [i for i in _order(trai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
+        p = [i for i in _order(phai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
+        xen: list[dict] = []
+        da_co: set[str] = set()
+        for cap in zip_longest(t, p):
+            for i in cap:
+                if i is not None and i["id"] not in da_co:
+                    xen.append(i)
+                    da_co.add(i["id"])
+        picked = xen + [i for i in picked if i["id"] not in da_co]
 
     shown = picked[:LIST_SIZE]
     lead = "Mời bạn tham khảo" if not request.avoid_tags else \
