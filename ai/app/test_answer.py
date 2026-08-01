@@ -615,3 +615,54 @@ class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class LoaiDangHOI_thang_loai_duoc_NHAC_toi(unittest.TestCase):
+    """Khách nói mình đang ăn gì rồi hỏi uống gì — món đang ăn là NGỮ CẢNH, không phải bộ lọc.
+
+    Đo được, và cả bốn ca đều trả lời NGƯỢC câu hỏi:
+
+        "ăn lẩu thì uống gì hợp"        -> 6 món LẨU
+        "ăn phở uống gì ngon"           -> 3 món PHỞ
+        "món nướng hợp với đồ uống gì"  -> 0 món   (không đồ uống nào `method:grilled`)
+        "đồ uống nào hợp món cay"       -> 0 món   (không đồ uống nào cay)
+
+    `wants` được nhận ĐÚNG là `drink` ở cả bốn. Hỏng ở chỗ khác: `ho_mon` và `categories` áp TRƯỚC
+    `wants`, nên tên món ăn trong câu thắng chính điều khách đang hỏi.
+
+    Đây là phân biệt món ăn / đồ uống — một ràng buộc đứng từ đầu dự án — nên nó phải có test riêng
+    thay vì dựa vào tỷ lệ chung của tập đánh giá.
+    """
+
+    GHEP_UONG = (
+        "ăn lẩu thì uống gì hợp",
+        "món nướng hợp với đồ uống gì",
+        "ăn cay thì uống gì",
+        "đồ uống nào hợp món cay",
+        "ăn phở uống gì ngon",
+    )
+
+    def test_hoi_uong_thi_chi_nhan_do_uong(self):
+        for cau in self.GHEP_UONG:
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items, f"{cau!r} trả RỖNG — nhãn của món ăn giết câu hỏi")
+                sai = [BY_ID[i]["name"] for i in reply.items
+                       if BY_ID[i]["categoryId"] not in DRINK_CATEGORIES]
+                self.assertEqual(sai, [], f"{cau!r} trả về món ĂN: {sai}")
+
+    def test_hoi_mon_an_KHONG_bi_pha(self):
+        """Chiều ngược, bắt buộc: quy tắc mới không được đụng câu hỏi món ăn."""
+        for cau in ("cho mình món chay", "gợi ý món ăn giúp mình",
+                    "cho mình món lẩu", "có món phở gì"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items)
+                self.assertEqual(drinks_in(reply), [], f"{cau!r} lẫn đồ uống")
+
+    def test_hoi_do_uong_cu_the_van_dung(self):
+        """Và không được nới quá tay: hỏi trà thì vẫn chỉ ra trà."""
+        _, reply = reply_for("nhà hàng có trà gì")
+        self.assertTrue(reply.items)
+        for i in reply.items:
+            self.assertIn("Trà", BY_ID[i]["name"], "hỏi trà mà ra thứ khác")
