@@ -67,6 +67,20 @@
     "require": [],
     "wants": "any"
   },
+  "5c2a39aa203dba8d5e07855975ffa80c": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
+  "5cafb691ed2140d1923607cbc999b8af": {
+    "avoid": [
+      "allergen:seafood"
+    ],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
   "61ed9f8c73ceb85d84e6af908db7c729": {
     "avoid": [],
     "prefer": [
@@ -104,7 +118,19 @@
     "require": [],
     "wants": "food"
   },
+  "73ee999619ab9ac5e87f1bdef0883873": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
   "757824e22b27a5319743313b6147dede": {
+    "avoid": [],
+    "prefer": [],
+    "require": [],
+    "wants": "any"
+  },
+  "766cae9a02fae89d5a9eb37f77219445": {
     "avoid": [],
     "prefer": [],
     "require": [],

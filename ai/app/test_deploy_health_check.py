@@ -242,3 +242,68 @@ class KhoaScriptHoiPhaiCoThat(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class MoHinhGoiDuocHayKhong(unittest.TestCase):
+    """`/v1/model-check` và phép chặn của nó ở health check deploy.
+
+    Vì sao cần: `/ready` báo `model_configured: true` khi có đủ URL, tên mô hình và khóa. Ba thứ đó
+    là **đã cấu hình**, không phải **gọi được** — và khoảng cách giữa hai điều đó nuốt trọn một tính
+    năng mà không có gì báo:
+
+        staging  0,5–1,0s, câu khuôn mẫu     mọi lần gọi thất bại, âm thầm rơi về đường tất định
+        cục bộ   5,5–9,6s, câu sinh tự nhiên  cùng mã, cùng câu hỏi
+
+    `/ready` xanh, health check xanh, golden 103/103 — vì golden chạy được KHÔNG cần mô hình, có chủ
+    ý. Nên không phép kiểm nào trong dự án nhìn thấy chuyện đó.
+    """
+
+    def test_health_check_CO_buoc_kiem_goi_duoc(self):
+        than = SCRIPT.read_text(encoding="utf-8").split("set -euo pipefail", 1)[-1]
+        self.assertIn("/v1/model-check", than,
+                      "health check deploy không kiểm mô hình có gọi được không")
+        self.assertIn("configured", than)
+
+    def test_buoc_do_CHI_chan_khi_da_cau_hinh(self):
+        """Fail closed khi đã cấu hình; im lặng khi cố ý không có mô hình (CI).
+
+        Chặn cả khi chưa cấu hình thì CI — nơi cố ý không có mô hình — đỏ mãi, và một bước luôn đỏ
+        sẽ bị bỏ đi. Đó là cách một hàng rào tự vô hiệu hóa.
+        """
+        khoi = [k for k in _khoi_python(SCRIPT.read_text(encoding="utf-8"))
+                if "configured" in k and "latency_ms" in k]
+        self.assertEqual(len(khoi), 1, "cần đúng một khối kiểm gọi được")
+        ma = khoi[0]
+        self.assertIn("if not payload.get(\"configured\")", ma)
+        self.assertIn("raise SystemExit(0)", ma)
+        self.assertIn('assert payload.get("ok") is True', ma)
+
+
+@unittest.skipUnless(HAVE_DEPS, f"thiếu fastapi/httpx ({IMPORT_ERROR})")
+class EndpointModelCheck(unittest.TestCase):
+    def setUp(self):
+        os.environ["AI_INTERNAL_TOKEN"] = TOKEN
+        self.client = TestClient(service_module.app, raise_server_exceptions=False)
+
+    def test_doi_token(self):
+        """Nó gọi mô hình thật nên tốn tiền — không được để mở."""
+        self.assertEqual(self.client.post("/v1/model-check").status_code, 401)
+
+    def test_tra_du_truong_health_check_doc(self):
+        """Hai đầu phải khớp: script đọc khóa nào thì endpoint phải trả khóa đó."""
+        khoi = [k for k in _khoi_python(SCRIPT.read_text(encoding="utf-8"))
+                if "configured" in k and "latency_ms" in k][0]
+        hoi = _khoa(khoi, "payload")
+
+        body = self.client.post(
+            "/v1/model-check", headers={"x-internal-token": TOKEN}
+        ).json()
+        thieu = hoi - set(body)
+        # `model` chỉ có khi gọi được; `reason` chỉ có khi không. Miễn hai khóa đó khỏi phép so.
+        thieu -= {"model", "reason"}
+        self.assertFalse(
+            thieu,
+            f"health check đọc {sorted(thieu)} nhưng /v1/model-check không trả: {sorted(body)}",
+        )
+        self.assertIn("configured", body)
+        self.assertIn("ok", body)
