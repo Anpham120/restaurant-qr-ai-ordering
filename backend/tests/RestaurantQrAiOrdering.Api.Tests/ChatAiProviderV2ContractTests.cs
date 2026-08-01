@@ -141,7 +141,10 @@ public sealed class ChatAiProviderV2ContractTests
         var root = first.RootElement;
 
         Assert.Equal("v2", root.GetProperty("contract_version").GetString());
-        Assert.Equal("planner_state_v3", root.GetProperty("pipeline_profile").GetString());
+        // Khong con gui `pipeline_profile`: khai niem "pipeline profile" da bi bo cung he thong
+        // AI cu. Kiem no VANG chu khong xoa dong nay — mot truong bi bo phai co phep kiem canh,
+        // neu khong thi no quay lai duoc ma khong ai thay.
+        Assert.False(root.TryGetProperty("pipeline_profile", out _));
         var boundedHistory = root.GetProperty("history");
         Assert.Equal(12, boundedHistory.GetArrayLength());
         Assert.Equal("turn 2", boundedHistory[0].GetProperty("content").GetString());
@@ -243,7 +246,6 @@ public sealed class ChatAiProviderV2ContractTests
         Assert.Equal(["m-2"], result.RejectedMenuItemIds);
         Assert.Equal("V2 summary", result.UpdatedRollingSummary);
         Assert.Equal("oc/deepseek-v4-flash-free", result.Model);
-        Assert.Equal("planner_state_v3", result.PipelineProfile);
         Assert.Equal(["m-1"], result.ResolvedMenuItemIds);
         Assert.Equal("passed", result.VerifierResult);
 
@@ -521,8 +523,7 @@ public sealed class ChatAiProviderV2ContractTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["AI_SERVICE_URL"] = "https://ai.internal",
-                ["AI_INTERNAL_TOKEN"] = "test-token",
-                ["AI_PIPELINE_PROFILE"] = "planner_state_v3"
+                ["AI_INTERNAL_TOKEN"] = "test-token"
             })
             .Build();
         return new PythonRagChatProvider(

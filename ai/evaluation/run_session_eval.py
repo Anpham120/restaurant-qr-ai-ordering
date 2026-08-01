@@ -66,6 +66,7 @@ KHOA_HIEU = frozenset({
     "aspirational",
     "forbid_tags_any",
     "min_items",
+    "max_items",
     "expect_kind",
     "must_name_item",
     "must_say_any",
@@ -186,6 +187,12 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
     if exp.get("min_items") is not None and len(reply.items) < exp["min_items"]:
         do.append(f"nêu {len(reply.items)} món, cần ít nhất {exp['min_items']}")
 
+    # `max_items` — trần, đối xứng với `min_items`. Có vì nhóm `social_intent` cần khẳng định
+    # KHÔNG có món nào: một lời chào kèm danh sách 6 món là đúng lỗi đang sửa, và `min_items`
+    # không diễn đạt được điều đó.
+    if exp.get("max_items") is not None and len(reply.items) > exp["max_items"]:
+        do.append(f"nêu {len(reply.items)} món, không được quá {exp['max_items']}")
+
     if exp.get("expect_kind") and reply.kind != exp["expect_kind"]:
         do.append(f"dạng đáp án `{reply.kind}`, cần `{exp['expect_kind']}`")
 
@@ -283,7 +290,15 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
         k = exp["must_not_repeat_turn"]
         cu = {i["id"] for i in truoc[k - 1]["items"]}
         moi = [i for i in ban_ghi["items"] if i["id"] not in cu]
-        if not moi:
+        # Chỉ chấm đỏ khi câu trả lời CÓ liệt kê mà không món nào mới.
+        #
+        # Bản đầu chấm đỏ cả khi câu trả lời nêu 0 món, và nó lẫn hai kết cục hoàn toàn khác nhau:
+        # "lặp lại danh sách cũ" với "đã hết món, và nói rõ là hết". Kết cục thứ hai là câu trả lời
+        # ĐÚNG cho "còn gì nữa không" sau khi đã duyệt hết — chấm nó đỏ là ép hệ thống bịa thêm món.
+        #
+        # Lượt nêu 0 món vẫn phải chứng minh nó nói rõ, nhưng bằng tiêu chí KHÁC (`expect_kind`,
+        # `must_say_any`) — một tiêu chí đo một việc.
+        if ban_ghi["items"] and not moi:
             do.append(
                 f"nêu lại đúng {len(cu)} món của lượt {k}, không món nào mới — "
                 "liệt kê lại danh sách cũ không phải trả lời 'còn món nào giống vậy'"
