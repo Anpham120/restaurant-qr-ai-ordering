@@ -23,7 +23,7 @@ cấu trúc và xác minh, không bằng lời nhắc mô hình
 | 4 | Lê Anh | BIT240017 |
 | 5 | Nguyễn Quang Hiếu | BIT240091 |
 
-Hà Nội, ngày 31 tháng 07 năm 2026
+Hà Nội, ngày 01 tháng 08 năm 2026
 
 > **Tài liệu này được SINH RA từ mã nguồn và bằng chứng đo, không viết tay.**
 > Sinh lại bằng `python ai/docs/build_bao_cao_do_an.py`. Mọi con số trong báo cáo đến từ một trong ba
@@ -115,7 +115,7 @@ hình → thẻ giỏ → giỏ hàng thật):
 | Golden 103 lượt, đường sinh TẮT (mặc định) | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 140 ca (tất định) | **140/140** |
-| Bộ nhớ phiên 87 lượt | **87/87**, 0 lỗi an toàn |
+| Bộ nhớ phiên 104 lượt | **104/104**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 
 Hạn chế lớn nhất phải nói ngay: **không có log khách thật**. Mọi ca đánh giá do nhóm viết, và cả bốn
@@ -453,7 +453,7 @@ liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | 140 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 33 kịch bản / 87 lượt | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | 39 kịch bản / 104 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 210 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -838,7 +838,7 @@ Hai việc đã làm: **tính sẵn vector lúc build** (mã hoá 61,7s → **0,
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 140 ca, đường tất định | **140/140** |
-| Bộ nhớ phiên 87 lượt | **87/87**, 0 lỗi an toàn |
+| Bộ nhớ phiên 104 lượt | **104/104**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **0,609** so với bm25 0,391 |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **0,864** so với bm25 0,750 |
@@ -849,7 +849,7 @@ Hai việc đã làm: **tính sẵn vector lúc build** (mã hoá 61,7s → **0,
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | 140/140, và sàn để so là 8/140 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 87/87, **0 lỗi an toàn** |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 104/104, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |
@@ -1144,7 +1144,7 @@ Mọi phép đo cần stack hoặc mô hình thật đều được **ghi ra t�
 
 | Tệp bằng chứng | Ngày đo | Điều kiện |
 |---|---|---|
-| `golden_e2e.json` | 2026-07-31 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=False |
+| `golden_e2e.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=False |
 | `golden_e2e_sinh.json` | 2026-07-31 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
 | `llm_rag_loai_c.json` | 2026-07-31 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://localhost:20128/v1 |
 | `truy_hoi_so_sanh.json` | 2026-07-31 | so_doan=425 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
