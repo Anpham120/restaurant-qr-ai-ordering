@@ -18,7 +18,7 @@ nbformat>=5.10,<6.0
 
 # Chạy notebook và nhúng kết quả vào tệp.
 jupyter-core>=5.7,<6.0
-nbconvert>=7.16,<8.0
+nbconvert>=7.17.1,<8.0
 ipykernel>=6.29,<7.0
 
 # Vẽ biểu đồ cho báo cáo. Font mặc định DejaVu Sans có dấu tiếng Việt nên không cần cài font.
