@@ -41,6 +41,8 @@ Hà Nội, ngày 01 tháng 08 năm 2026
 
 - [TÓM TẮT](#tóm-tắt)
 - [DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT](#danh-mục-thuật-ngữ-và-viết-tắt)
+- [DANH MỤC HÌNH ẢNH](#danh-mục-hình-ảnh)
+- [DANH MỤC BẢNG BIỂU](#danh-mục-bảng-biểu)
 - [PHÂN CÔNG CÔNG VIỆC](#phân-công-công-việc)
 - **[CHƯƠNG 1: GIỚI THIỆU](#chương-1-giới-thiệu)**
   - 1.1 Bối cảnh và động lực
@@ -79,10 +81,13 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
-  - 5.2 Làm được
-  - 5.3 Hạn chế
-  - 5.4 Bài học kinh nghiệm
-  - 5.5 Hướng phát triển
+  - 5.2 Phân tích chi tiết theo từng thành phần
+    - 5.2.1 → 5.2.5 Nhận xét của từng thành viên
+  - 5.3 Làm được
+  - 5.4 Hạn chế của nghiên cứu
+  - 5.5 Bài học kinh nghiệm
+  - 5.6 Khó khăn gặp phải
+  - 5.7 Hướng phát triển tương lai
 - [TÀI LIỆU THAM KHẢO](#tài-liệu-tham-khảo)
 - [PHỤ LỤC](#phụ-lục)
 
@@ -123,6 +128,10 @@ hình → thẻ giỏ → giỏ hàng thật):
 | Bộ nhớ phiên 149 lượt | **149/149**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 
+**Từ khoá:** Trợ lý ảo nhà hàng, Sinh văn bản có tăng cường truy hồi (RAG), Truy hồi thông tin,
+BM25, Biểu diễn nhúng đa ngữ, Hợp nhất theo nghịch đảo thứ hạng (RRF), Lọc theo nhãn, An toàn dị
+nguyên, Tiếng Việt, Đánh giá hệ thống hội thoại.
+
 Hạn chế lớn nhất phải nói ngay: **không có log khách thật**. Mọi ca đánh giá do nhóm viết, và cả bốn
 tập niêm phong đã mở. Con số held-out thật duy nhất của dự án là **23/27 (85,2%)** ở lần mở đầu tiên.
 
@@ -150,6 +159,60 @@ tập niêm phong đã mở. Con số held-out thật duy nhất của dự án 
 | Tập niêm phong | Tập chỉ mở MỘT lần để chốt kết quả; mở rồi thì hết là held-out |
 | p50 / p95 | Phân vị 50 / 95 của phân bố độ trễ |
 
+---
+
+# DANH MỤC HÌNH ẢNH
+
+**14 hình**, tất cả **sinh từ ô mã** của notebook
+`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb` — không hình nào là ảnh chụp màn hình hay
+vẽ tay. Chạy lại notebook là vẽ lại từ dữ liệu thật.
+
+| Ký hiệu | Mô tả | Tệp |
+|---|---|---|
+| Hình 11.1 | Biểu đồ sinh từ ô mã mục 11 của notebook | `figures/hinh11_1.png` |
+| Hình 13.1 | Biểu đồ sinh từ ô mã mục 13 của notebook | `figures/hinh13_1.png` |
+| Hình 14.1 | Biểu đồ sinh từ ô mã mục 14 của notebook | `figures/hinh14_1.png` |
+| Hình 15.1 | Biểu đồ sinh từ ô mã mục 15 của notebook | `figures/hinh15_1.png` |
+| Hình 16.1 | Biểu đồ sinh từ ô mã mục 16 của notebook | `figures/hinh16_1.png` |
+| Hình 17.1 | Biểu đồ sinh từ ô mã mục 17 của notebook | `figures/hinh17_1.png` |
+| Hình 18.1 | Biểu đồ sinh từ ô mã mục 18 của notebook | `figures/hinh18_1.png` |
+| Hình 21.1 | Biểu đồ sinh từ ô mã mục 21 của notebook | `figures/hinh21_1.png` |
+| Hình 2.1 | Biểu đồ sinh từ ô mã mục 2 của notebook | `figures/hinh2_1.png` |
+| Hình 4.1 | Biểu đồ sinh từ ô mã mục 4 của notebook | `figures/hinh4_1.png` |
+| Hình 6.1 | Biểu đồ sinh từ ô mã mục 6 của notebook | `figures/hinh6_1.png` |
+| Hình 6.2 | Biểu đồ sinh từ ô mã mục 6 của notebook | `figures/hinh6_2.png` |
+| Hình 6.3 | Biểu đồ sinh từ ô mã mục 6 của notebook | `figures/hinh6_3.png` |
+| Hình 7.1 | Biểu đồ sinh từ ô mã mục 7 của notebook | `figures/hinh7_1.png` |
+
+---
+---
+
+# DANH MỤC BẢNG BIỂU
+
+Mọi con số trong các bảng dưới đây **được tính lúc sinh báo cáo**, từ tệp dữ liệu và từ
+`ai/evaluation/measurements/`. Không con số nào gõ tay.
+
+| Ký hiệu | Mô tả | Mục |
+|---|---|---|
+| Bảng 2.1 | Ba dạng ràng buộc mà xếp hạng theo độ giống không diễn đạt được | 2.4.1 |
+| Bảng 2.2 | Bảy quyết định thiết kế — phương án đã bỏ và bằng chứng | 2.8 |
+| Bảng 3.1 | Bốn tập đánh giá và kỷ luật chia tập | 3.3 |
+| Bảng 3.2 | Mười bảy nhánh trả lời, loại trừ nhau | 3.4 |
+| Bảng 4.1 | Điều kiện thực nghiệm | 4.1 |
+| Bảng 4.2 | So ba phương pháp truy hồi trên tập phát triển | 4.2 |
+| Bảng 4.3 | So ba phương pháp truy hồi trên tập niêm phong | 4.2 |
+| Bảng 4.4 | Chọn mục trong tài liệu — hai nhóm báo cáo riêng | 4.3 |
+| Bảng 4.5 | Chọn món: lọc theo nhãn so với RAG | 4.4 |
+| Bảng 4.6 | Kết quả gọi LLM+RAG thật trên câu loại C | 4.5 |
+| Bảng 4.7 | Golden 103 lượt qua chuỗi gọi đầy đủ | 4.6 |
+| Bảng 4.8 | Phân loại nguyên nhân sai | 4.7 |
+| Bảng 4.9 | Chốt phương án triển khai, kèm giá đã đo | 4.8 |
+| Bảng 4.10 | Chiều A — 50 câu tri thức, ba kết cục của mã tất định | 4.9.1 |
+| Bảng 4.11 | Chiều B — 50 câu chọn món, số món vi phạm ràng buộc | 4.9.2 |
+| Bảng 4.12 | Ba lần bộ đo của nhóm sai trước khi ra số đúng | 4.9.4 |
+| Bảng 5.1 | Tổng hợp kết quả cuối | 5.1 |
+
+---
 ---
 
 # PHÂN CÔNG CÔNG VIỆC
@@ -1453,7 +1516,171 @@ Bảng đầy đủ 100 câu: `ai/evaluation/measurements/hai_chieu.csv`.
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **0,864** so với bm25 0,750 |
 | Chọn món | lọc nhãn **0 ca sai** so với xếp hạng 6–7/8 |
 
-## 5.2 Làm được
+## 5.2 Phân tích chi tiết theo từng thành phần
+
+Mỗi thành viên tự viết nhận xét về chặng mình phụ trách: **điều đo được**, **điều làm sai rồi phải
+sửa**, và **giới hạn còn lại**. Phần này viết ở ngôi thứ nhất, và cố ý giữ cả những chỗ nhóm làm
+sai — một báo cáo chỉ kể phần thành công thì không cho người đọc biết gì về cách nhóm làm việc.
+
+### 5.2.1 Nhận xét — Phạm Duy An (BIT240002)
+
+**Phụ trách:** Dữ liệu, bộ nhãn, kho tri thức, và lớp hiểu câu hỏi
+
+Qua chặng dữ liệu và lớp hiểu câu hỏi, em rút ra các nhận xét sau:
+
+- **Hai nguồn dữ liệu lệch nhau là vấn đề đầu tiên phải giải.** Thực đơn tồn tại ở hai nơi — tệp
+  JSON cho AI và cơ sở dữ liệu cho backend — và chúng **không khớp**. Em giải bằng cách sinh cả hai
+  từ một nguồn, kèm cổng `--check` trong CI để không ai sửa tay một bên. Nếu không làm việc này
+  trước, mọi con số của bốn chặng sau đều đo trên dữ liệu sai.
+
+- **Rút dấu tiếng Việt là phép MẤT thông tin, và em đã trả giá cho nó nhiều lần.** Bỏ dấu cho phép
+  khớp "mo cua" với "mở cửa", nhưng nó cũng làm `"bò"` và `"bơ"` thành cùng một chuỗi. Dự án này ghi
+  nhận **mười vụ va chạm** kiểu đó, trong đó vụ em nhớ nhất là `fold("có cồn") == fold("có con")` —
+  câu *"mình có con 5 tuổi"* trả về danh sách rượu bia. Bài học: mỗi lần thêm cụm từ vựng phải chạy
+  lại bản kiểm kê va chạm, không được tin vào mắt mình.
+
+- **Từ điển 85 nhãn / 16 nhóm, và khoá phải có không gian tên.** Ban đầu em định dùng khoá phẳng
+  (`none`, `mild`, `hot`), nhưng như vậy thì không biết `none` thuộc nhóm cay hay nhóm chế độ ăn.
+  Khoá `spice:none` giải quyết, và quan trọng hơn: nó cho phép **ghi đè theo NHÓM** ở bộ nhớ phiên —
+  `spice:none` đẩy `spice:hot` ra thay vì nằm cạnh nó.
+
+- **Chỗ khó nhất không phải kỹ thuật mà là phân biệt RÀNG BUỘC với NGỮ CẢNH.** "Không cay" là ràng
+  buộc — món cay phải bị **loại**. "Đi hẹn hò" là ngữ cảnh — món hợp dịp chỉ **xếp lên trước**, không
+  được loại món khác. Nhầm hai thứ này thì hoặc lọc mất món đúng, hoặc để lọt món khách không ăn
+  được. Em phải tách chúng thành hai trường riêng trong `Request` thay vì gộp làm một danh sách.
+
+- **Giới hạn còn lại, và em nói ra thay vì giấu:** nhãn dị nguyên chỉ phủ **44/91 món**. Bản rà em
+  viết tìm ra **7 lỗ thật**, đã lấp, nhưng **7/26 món hải sản vẫn không có nhãn nguyên liệu nào**.
+  Đây là việc của bếp, không phải của mã — và nó là lý do hệ thống phải chặn rộng thay vì lọc hẹp.
+
+### 5.2.2 Nhận xét — Bùi Đào Đức Anh (BIT240025)
+
+**Phụ trách:** Truy hồi — BM25, embedding, hybrid RRF
+
+Qua chặng truy hồi, em rút ra các nhận xét sau:
+
+- **Embedding thắng BM25 rõ rệt trên tập niêm phong: Hit@1 0,609 so với 0,391.** Lý do rất cụ thể và
+  em kiểm được bằng ví dụ: khách gõ *"món chín bằng hơi nước, nhẹ bụng"* trong khi tài liệu viết
+  *"món hấp"* — **không chung một chữ nào**, nên BM25 không có gì để đếm. Embedding tìm đúng vì hai
+  cách nói nằm gần nhau trong không gian ngữ nghĩa.
+
+- **Nhưng embedding có một tính chất nguy hiểm: nó KHÔNG BAO GIỜ TRƯỢT.** Câu hỏi lạc đề hoàn toàn
+  vẫn nhận về 5 đoạn với điểm số đàng hoàng. BM25 thì trả rỗng khi không có từ chung. Phát hiện này
+  đổi cách em chọn chỉ số: `cấm@5` (số đoạn **không được phép** lọt vào top-5) quan trọng hơn Hit@5,
+  vì một bộ trả 1 đoạn đúng + 4 đoạn lạc đề vẫn đạt Hit@5 = 1,0 tuyệt đối.
+
+- **Hybrid RRF không thắng như em nghĩ ban đầu.** Em kỳ vọng trộn hai phương pháp sẽ tốt hơn cả hai,
+  nhưng số đo cho thấy nó **không hơn embedding** ở bài toán chính. Em giữ nguyên kết quả này trong
+  báo cáo thay vì chỉnh tham số cho tới khi ra số đẹp — một kết quả âm tính vẫn là kết quả.
+
+- **Cái giá phải trả, và nhóm chấp nhận có ý thức:** embedding kéo ảnh Docker từ 238MB lên
+  **2,74GB** (gấp 11 lần) và thêm 19 giây khởi động. Em xử lý bằng cách **tính sẵn vector lúc build
+  ảnh** thay vì lúc chạy, nên độ trễ mỗi câu hỏi không tăng — chỉ thời gian khởi động tăng.
+
+- **Thí nghiệm em tâm đắc nhất lại là thí nghiệm THẤT BẠI.** Khi bị hỏi *"chưa tối ưu tài liệu thì
+  sao dám kết luận truy hồi kém"*, em viết lại tiêu đề mục của toàn kho cho đặc thù theo từng tài
+  liệu: số tiêu đề khác nhau **179 → 365**, đoạn dùng chung tiêu đề **283/452 → 93/452**, lớp lỗi
+  nhắm tới giảm **19 ca → 1 ca**. Kho cải thiện rõ ràng. Nhưng **Hit@1 không đổi — 0,609 cả trước
+  lẫn sau**. Các ca kia không được sửa; chúng chỉ **đổi tên lỗi**. Kết luận em rút ra: trần không
+  nằm ở dữ liệu, mà ở chỗ một hàm xếp hạng không diễn đạt được một vị từ.
+
+### 5.2.3 Nhận xét — Đỗ Tuấn Anh (BIT240015)
+
+**Phụ trách:** Chọn món và ba lớp an toàn
+
+Qua chặng chọn món và an toàn, em rút ra các nhận xét sau:
+
+- **Phát hiện quan trọng nhất của cả đồ án nằm ở chặng này: an toàn KHÔNG được phụ thuộc mô hình
+  sinh.** Ban đầu nhóm định dặn mô hình trong lời nhắc rằng "không được nhắc món gây dị ứng". Nhưng
+  lời nhắc là **đề nghị**, không phải **ràng buộc** — mô hình có thể bỏ qua và không có gì báo.
+  Nhóm chuyển sang **lọc trước khi sinh**: mô hình chỉ nhận danh sách món **đã** an toàn, nên nó
+  không có gì để nhắc sai.
+
+- **10 phép kiểm xác minh, và mỗi phép kiểm sinh ra từ một lần mô hình làm sai thật.** Ví dụ em nhớ
+  nhất: mô hình viết *"Nhà hàng có **6 món lẩu**"* trong khi thực đơn có **7**. Ba phép kiểm đầu
+  không chạm tới lỗi này — nó không phải tên món, không phải giá, không phải nhãn. Phải thêm một
+  phép kiểm riêng **cấm mô hình nêu số lượng**. Bài học: không đoán trước được mô hình sẽ sai kiểu
+  gì; phải đo rồi mới biết.
+
+- **Câu sinh vi phạm thì BỎ, không sửa.** Em từng định viết mã tự sửa câu mô hình viết sai, nhưng
+  bỏ ý đó: sửa một câu sai thành câu đúng đòi hỏi biết đúng là gì, mà nếu đã biết thì đâu cần mô
+  hình. Vi phạm thì rơi về câu khuôn mẫu — kém tự nhiên nhưng **đúng**.
+
+- **Chỗ em bị bắt lỗi và phải nhận sai:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Em định
+  lọc riêng con tôm ra để vẫn còn 14 món hải sản gợi ý được. Nhưng kiểm dữ liệu thì **7/26 món hải
+  sản không có nhãn nguyên liệu nào**, và hai trong số đó **chứa tôm thật**: *Bún đậu mắm tôm* và
+  *Bún bò Huế* (mắm ruốc). Lọc hẹp sẽ mời đúng hai món đó cho người dị ứng tôm. Em giữ chặn rộng và
+  sửa phần **im lặng** thay vì nới hàng rào.
+
+- **Thẻ giỏ hàng dựng từ danh sách món, không từ chữ mô hình viết.** Đây là ranh giới cuối: kể cả
+  khi mọi phép kiểm trên đều lọt, món trong giỏ vẫn không thể là món mô hình bịa ra, vì giỏ không
+  đọc chữ của mô hình.
+
+### 5.2.4 Nhận xét — Lê Anh (BIT240017)
+
+**Phụ trách:** Dịch vụ HTTP, bộ nhớ phiên, tích hợp với backend
+
+Qua chặng phiên và tích hợp, em rút ra các nhận xét sau:
+
+- **Bộ nhớ phiên cần BA quy tắc hợp nhất khác nhau, không phải một.** Đây là chỗ em làm sai lần đầu:
+  em dùng chung một quy tắc "cộng dồn" cho mọi loại ràng buộc. Hậu quả: khách nói *"dưới 200 nghìn"*
+  rồi *"rẻ hơn nữa"* thì hệ thống **giữ cả hai ngân sách** thay vì thay. Sửa xong thành ba quy tắc:
+  dị nguyên **cộng dồn không bao giờ bỏ**, ràng buộc cứng **ghi đè theo nhóm**, ngữ cảnh **tích lũy
+  có trần 5**.
+
+- **Dị nguyên phải cộng dồn — và đây là bất biến an toàn quan trọng nhất của chặng em.** Khách khai
+  dị ứng ở lượt 1, hỏi tiếp ở lượt 5 **mà không nhắc lại**. Nếu bộ nhớ ghi đè thì "dị ứng hải sản"
+  bị "không ăn được sữa" xoá mất. Tập đánh giá phiên có riêng một nhóm kịch bản đo đúng điều này.
+
+- **Dịch vụ phải trả lời được KHI MÔ HÌNH HỎNG.** Em thiết kế để mã tất định chạy trước, mô hình chỉ
+  được gọi ở nhánh cần diễn đạt. Nhờ vậy khi khoá API hết hạn hoặc nhà cung cấp lỗi, khách vẫn nhận
+  được câu trả lời đúng — chỉ là câu khuôn mẫu thay vì câu mượt. Một trợ lý im lặng vì mô hình hỏng
+  là một trợ lý hỏng.
+
+- **Tích hợp là chỗ lộ ra lỗi mà không tập đánh giá nào bắt được.** Ba tập đầu đều gọi thẳng hàm
+  Python, không đi qua backend. Khi ghép thật, em phát hiện những lỗi chỉ tồn tại ở lớp nối — ví dụ
+  nhánh `combo` trả về giỏ hàng rỗng vì thiếu tên nhánh trong danh sách trắng, một lỗi mà **394 test
+  đơn vị không chạm tới**.
+
+- **Giới hạn:** độ trễ khi bật mô hình là **~8,6 giây mỗi lượt**. Em chưa giải được, và nó là lý do
+  chính khiến nhóm để đường sinh **tắt mặc định**.
+
+### 5.2.5 Nhận xét — Nguyễn Quang Hiếu (BIT240091)
+
+**Phụ trách:** Bốn tập đánh giá, thước đo, golden đầu-cuối, cổng CI
+
+Qua chặng đánh giá, em rút ra các nhận xét sau:
+
+- **Bài học lớn nhất của em: kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống sai".** Dự án
+  này ghi nhận **tám lần** thước đo sai trước khi hệ thống sai, và lần gần nhất là bộ đo hai chiều
+  do chính em viết — nó sai **ba lần liên tiếp**, và cả ba đều sai theo hướng làm kết quả **đẹp hơn
+  thực tế**: (a) cột "tất định" tính cả nhánh truy hồi nên 4/8 câu hiện đúng nhờ chính bên kia làm;
+  (b) chiều B tìm trên kho tri thức thay vì chỉ mục món nên truy hồi ra **0 vi phạm** — một con số
+  đẹp và vô nghĩa; (c) `getattr` lấy một thuộc tính không tồn tại nên luôn rỗng, tức em đo phép chấm
+  chứ không đo truy hồi. Đó là hướng sai mà người đo **có động cơ không kiểm lại**.
+
+- **Golden 103 lượt là bộ bắt được nhiều lỗi nhất, và lý do rất cụ thể: nó không mock gì cả.** Nó
+  chạy đúng đường khách đi — quét QR → backend → dịch vụ AI → thẻ giỏ → giỏ hàng. Ba tập còn lại gọi
+  thẳng hàm Python nên một lỗi ở lớp ghép hai hệ thống sẽ không tập nào thấy.
+
+- **Chia tập theo HỌ, không theo ca.** Nếu chia ngẫu nhiên theo từng ca thì hai ca cùng một họ — ví
+  dụ hai cách hỏi về món nướng — có thể rơi vào hai tập khác nhau, và tập niêm phong không còn
+  "chưa từng thấy". Chia theo họ giữ được ý nghĩa của phép đo.
+
+- **Mỗi tập chỉ đo đúng thứ nó được viết ra để đo, và điều này em học được theo cách khó.** Trong
+  một phiên thử nghiệm với người dùng thật, **17 lỗi lọt qua** 140 ca và 111 lượt phiên. Không phải
+  vì tập kém, mà vì mọi ca trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý, và
+  hỏi liên tục. Tập phiên phải lớn từ **111 → 149 lượt** mới bắt được chúng.
+
+- **Hạn chế nghiêm trọng nhất của toàn đồ án, và em phải nói rõ:** **không có log khách thật**. Mọi
+  ca đánh giá đều do nhóm viết. Con số đo được hệ thống có tôn trọng ràng buộc hay không; nó
+  **không** đo được khách thật sẽ hỏi gì. Thêm nữa, **cả bốn tập niêm phong đã được mở**, nên con số
+  trên chúng không còn là held-out cho các thay đổi sau đó. Con số held-out thật duy nhất của dự án
+  là **23/27 (85,2%)** ở lần mở đầu tiên.
+
+---
+
+## 5.3 Làm được
 
 | Việc | Bằng chứng |
 |---|---|
@@ -1467,7 +1694,7 @@ Bảng đầy đủ 100 câu: `ai/evaluation/measurements/hai_chieu.csv`.
 | Câu trả lời và thẻ giỏ **không lệch nhau, cả hai chiều** | phép kiểm thứ 6 và bất biến thẻ giỏ thứ 8 |
 | Cắt khởi động container 97,3s → 19,0s | mục 4.8 |
 
-## 5.3 Hạn chế
+## 5.4 Hạn chế của nghiên cứu
 
 1. **Không có log khách thật.** Mọi ca đánh giá do nhóm viết. Con số đo được hệ thống **có tôn trọng
    ràng buộc hay không**; nó **không** đo được khách thật hỏi gì. Đây là hạn chế lớn nhất, và nó không
@@ -1490,7 +1717,7 @@ Bảng đầy đủ 100 câu: `ai/evaluation/measurements/hai_chieu.csv`.
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
 
-## 5.4 Bài học kinh nghiệm
+## 5.5 Bài học kinh nghiệm
 
 ### Bài học 1 — thước đo sai TRƯỚC khi hệ thống sai
 
@@ -1544,7 +1771,20 @@ kỷ luật mà notebook của dự án đã có từ đầu và nhờ đó khô
 `PROMPT` yêu cầu mô hình mời khách hỏi nhân viên khi có ràng buộc dị ứng. Mô hình **bỏ câu đó ở 14 ca**.
 Yêu cầu trong prompt là **đề nghị**; chỉ phép kiểm sau khi sinh mới là **bảo đảm**.
 
-## 5.5 Hướng phát triển
+## 5.6 Khó khăn gặp phải
+
+| Khó khăn | Cách nhóm xử lý |
+|---|---|
+| **Không có log khách thật** — mọi ca đánh giá do nhóm viết, nên chúng phản ánh cách nhóm nghĩ khách sẽ hỏi, không phải cách khách hỏi thật | Thử nghiệm trực tiếp với người dùng ngoài nhóm; một phiên như vậy làm lộ **17 lỗi** mà 140 ca và 111 lượt không bắt được, và tập phiên phải lớn lên **149 lượt** |
+| **Rút dấu tiếng Việt gây va chạm** — `fold("có cồn") == fold("có con")`, `fold("cua") == fold("của")` | Bản kiểm kê va chạm chạy trong CI; mỗi lần thêm cụm từ vựng phải chạy lại. Dự án ghi nhận **mười vụ** kiểu này |
+| **Độ trễ mô hình ~8,6 giây mỗi lượt** | Để đường sinh **tắt mặc định**; mã tất định trả lời trước, mô hình chỉ được gọi ở nhánh cần diễn đạt |
+| **Ảnh Docker 2,74GB vì embedding** | Tính sẵn vector lúc **build ảnh** thay vì lúc chạy — độ trễ mỗi câu không tăng, chỉ thời gian khởi động; và cắt được khởi động từ 97,3s xuống **19,0s** |
+| **Nhãn dị nguyên chỉ phủ 44/91 món** | Chặn rộng thay vì lọc hẹp, và **nói ra lý do** cho khách thay vì im lặng. Đây là giới hạn dữ liệu, không sửa được bằng mã |
+| **Thước đo sai trước hệ thống sai — tám lần** | Viết `probe_metric_holes.py` để dò lỗ của chính thước đo; và đặt thành nếp: kiểm giả thuyết "đo sai" trước |
+
+---
+
+## 5.7 Hướng phát triển tương lai
 
 Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá trị của mọi con số trong báo cáo này.
 
