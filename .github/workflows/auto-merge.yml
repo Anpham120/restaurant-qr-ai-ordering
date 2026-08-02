@@ -2,10 +2,15 @@ name: Auto Merge
 
 on:
   pull_request_target:
-    # Only PRs targeting develop merge automatically. Promotion to main
-    # (production) stays a deliberate, manually-approved step.
+    # `develop` VÀ `main`. Trước đây chỉ có `develop`, với lý do "đưa lên production phải là một
+    # bước người duyệt có chủ ý" — nhưng trên thực tế bước đó chỉ còn là bấm một nút trên một PR mà
+    # 13 phép kiểm và một lần deploy staging đã xanh. Một nút mà lần nào cũng bấm thì không phải
+    # chốt an toàn, nó là ma sát.
+    #
+    # Chốt được giữ lại ở ĐÚNG chỗ nó còn nghĩa: PR đụng migration cơ sở dữ liệu (xem bước dưới).
     branches:
       - develop
+      - main
     types:
       - opened
       - synchronize
@@ -27,7 +32,89 @@ jobs:
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
+      # MIGRATION LÊN PRODUCTION THÌ DỪNG LẠI CHỜ NGƯỜI.
+      #
+      # Vì sao đúng chỗ này mà không phải chỗ khác: mọi thứ khác trong PR đều hoàn tác được bằng một
+      # lần deploy lại — mã sai thì đẩy bản sửa, cấu hình sai thì đổi biến. Migration thì không: nó
+      # đổi dữ liệu THẬT trong cơ sở dữ liệu, và `Down()` chỉ chạy khi có người chủ động chạy nó.
+      #
+      # Repo này vừa sửa xong một lỗi đúng loại đó — `Down()` của hai phiên bản nhãn trước lùi về
+      # nhãn seed tháng 7 thay vì về phiên bản liền trước, và không ai thấy vì không đường chạy nào
+      # gọi `Down()`. Một bước người ở đây là chỗ rẻ nhất để bắt lớp lỗi ấy.
+      #
+      # Chỉ chặn khi base là `main`: PR vào `develop` vẫn tự merge, vì staging không phải dữ liệu
+      # khách.
+      - name: Kiểm PR có đụng migration không
+        id: migration
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$BASE" != "main" ]; then
+            echo "base=$BASE, không phải production — không cần kiểm migration."
+            echo "chan=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # VÀO `main` THÌ CHỈ `develop` ĐƯỢC TỰ MERGE.
+          #
+          # Đường lên production là `develop -> Deploy Staging -> main`. Một PR nhắm thẳng `main` từ
+          # nhánh khác là đường vòng qua staging, nên nó không được hưởng auto-merge dù CI xanh —
+          # CI không thay được một lần chạy trên máy thật.
+          #
+          # Lỗ hổng có thật, không phải giả định: lúc mở auto-merge cho `main` thì có **11 PR
+          # Dependabot đang nhắm thẳng `main`** (EF Core, Npgsql, fastapi, pandas...). Dependabot đẩy
+          # một cập nhật vào bất kỳ PR nào trong đó là sinh sự kiện `synchronize`, và bản nâng thư
+          # viện vào production mà chưa từng chạy staging. Chốt migration không đỡ được vì chúng
+          # không đụng migration.
+          #
+          # `dependabot.yml` đã chuyển sang nhắm `develop`, nhưng cấu hình chỉ áp cho PR MỚI. Hàng
+          # rào phải nằm ở đây để nó đúng cho cả PR cũ lẫn mọi nhánh lạ về sau.
+          if [ "$HEAD" != "develop" ]; then
+            echo "chan=true" >> "$GITHUB_OUTPUT"
+            echo "PR nhắm `main` từ nhánh '$HEAD', không phải từ 'develop' — không tự merge."
+            exit 0
+          fi
+          # `|| true` vì `grep -q` trả 1 khi không khớp, và `set -e` sẽ giết bước.
+          FILES="$(gh pr diff "$PR_URL" --name-only || true)"
+          if printf '%s\n' "$FILES" | grep -q 'Data/Migrations/'; then
+            echo "chan=true" >> "$GITHUB_OUTPUT"
+            echo "PR này đụng migration cơ sở dữ liệu:"
+            printf '%s\n' "$FILES" | grep 'Data/Migrations/' | sed 's/^/  - /'
+          else
+            echo "chan=false" >> "$GITHUB_OUTPUT"
+            echo "Không đụng migration."
+          fi
+
+      - name: Nói rõ vì sao KHÔNG bật auto-merge
+        if: steps.migration.outputs.chan == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          # Bình luận thay vì im lặng: một PR không tự merge mà không nói lý do thì người ta ngồi
+          # chờ. Cùng nguyên tắc với việc hệ thống phải NÓI RA khi nó bỏ một ràng buộc.
+          #
+          # Soạn bằng `printf` ra tệp rồi `--body-file`, KHÔNG dùng heredoc: heredoc lồng trong
+          # block scalar của YAML phải thụt lề theo khối, mà dấu kết thúc `EOF` thì lại không được
+          # thụt — hai đòi hỏi mâu thuẫn. Bản đầu viết vậy và YAML hỏng ngay.
+          {
+            printf '**Auto-merge KHÔNG được bật cho PR này** — nó đụng migration cơ sở dữ liệu.\n\n'
+            printf 'Mọi thứ khác trong một PR đều hoàn tác được bằng một lần deploy lại. Migration '
+            printf 'thì không: nó đổi dữ liệu THẬT, và `Down()` chỉ chạy khi có người chủ động '
+            printf 'chạy nó.\n\n'
+            printf 'Kiểm rồi bấm **Merge** khi thấy ổn. Muốn xem trước nó làm gì thì đọc `Up()` và '
+            printf '`Down()` trong tệp `Data/Migrations/` của PR.\n'
+          } > /tmp/auto-merge-body.md
+          gh pr comment "$PR_URL" --body-file /tmp/auto-merge-body.md \
+            || echo "Không bình luận được (không chặn bước sau)."
+
       - name: Enable auto-merge for eligible PR
+        if: steps.migration.outputs.chan != 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}

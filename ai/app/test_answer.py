@@ -278,10 +278,24 @@ class CauChuKHACHDOCTHAY(unittest.TestCase):
         self.assertEqual(xau, [], f"{len(xau)} câu có khoảng trắng/dấu câu lặp: {xau[:4]}")
 
     def test_moi_cau_ket_thuc_bang_dau_cau(self):
-        xau = [
-            f"{cid}: {text[-30:]!r}" for cid, text in self.tra_loi
-            if text and text.rstrip()[-1] not in ".?!"
-        ]
+        """Câu trả lời không được đứt giữa chừng.
+
+        Danh sách món giờ xuống dòng có gạch đầu dòng, nên câu có thể kết thúc bằng một mục
+        `- Tên món (85.000đ)`. Đó là một đơn vị TRỌN VẸN, không phải câu bị cụt — nên phép kiểm
+        chấp nhận nó, và chỉ nó.
+
+        Nới đúng một hình dạng chứ không nới cả phép kiểm: mục đích của test là bắt câu bị cắt
+        ngang, và một câu văn xuôi kết thúc bằng `)` vẫn phải đỏ.
+        """
+        xau = []
+        for cid, text in self.tra_loi:
+            if not text:
+                continue
+            dong_cuoi = text.rstrip().splitlines()[-1].strip()
+            if dong_cuoi.startswith("- ") and dong_cuoi.endswith("đ)"):
+                continue
+            if text.rstrip()[-1] not in ".?!":
+                xau.append(f"{cid}: {text[-30:]!r}")
         self.assertEqual(xau, [], f"{len(xau)} câu không có dấu kết: {xau[:4]}")
 
 
@@ -706,3 +720,93 @@ class CauHaiLuaChon(unittest.TestCase):
         self.assertTrue(request.avoid_tags, "tiền đề: câu này phải khai dị ứng")
         xau = [BY_ID[i]["name"] for i in reply.items if "allergen:seafood" in BY_ID[i]["tags"]]
         self.assertEqual(xau, [], f"lọt món mang nhãn hải sản: {xau}")
+
+
+class ComboNhieuSuat(unittest.TestCase):
+    """Khách xin một BỘ món, mỗi loại một suất — không phải một danh sách để tự chọn.
+
+        "Mình đi một mình, muốn tư vấn 1 món ăn nhẹ gồm 1 món chính, 1 thức uống, 1 tráng miệng"
+
+    Trước khi có nhánh này, câu trên cho `categories=['cat_dessert']`, `wants='drink'` và trả 6 món
+    khai vị/chay — **không có đồ uống nào**. Nhiều danh mục trong một câu chỉ thành phép HOẶC, mà
+    khách đang xin phép CỘNG.
+    """
+
+    COMBO = ("Mình đi một mình, mình muốn tư vấn 1 món ăn nhẹ gồm 1 món chính, "
+             "1 thức uống, 1 tráng miệng")
+
+    def test_moi_suat_deu_co_mon(self):
+        request, reply = reply_for(self.COMBO)
+        self.assertTrue(request.combo, "tiền đề: câu này phải được đọc là combo")
+        self.assertEqual(reply.branch, "combo")
+        nhom = {BY_ID[i]["categoryId"] for i in reply.items}
+        self.assertTrue(nhom & set(DRINK_CATEGORIES), "thiếu suất đồ uống")
+        self.assertIn("cat_dessert", nhom, "thiếu suất tráng miệng")
+        self.assertTrue(nhom - set(DRINK_CATEGORIES) - {"cat_dessert"}, "thiếu suất món chính")
+
+    def test_cau_tra_loi_neu_TONG_TIEN(self):
+        _, reply = reply_for(self.COMBO)
+        tong = sum(BY_ID[i]["price"] for i in reply.items)
+        self.assertIn("Tổng:", reply.text)
+        self.assertIn(f"{tong:,}".replace(",", "."), reply.text,
+                      "tổng in ra phải khớp tổng giá các món đã chọn")
+
+    def test_di_nguyen_VAN_chan_trong_combo(self):
+        """CHỐT AN TOÀN: nhánh mới không được là đường vòng qua bộ lọc dị nguyên."""
+        request, reply = reply_for(
+            "mình dị ứng hải sản, cho 1 món chính 1 nước 1 tráng miệng")
+        self.assertTrue(request.avoid_tags, "tiền đề: câu này phải khai dị ứng")
+        xau = [BY_ID[i]["name"] for i in reply.items if "allergen:seafood" in BY_ID[i]["tags"]]
+        self.assertEqual(xau, [], f"lọt món mang nhãn hải sản: {xau}")
+
+    def test_MOT_suat_KHONG_thanh_combo(self):
+        """Một suất là câu lọc bình thường — biến nó thành combo sẽ phá một đường đã đo."""
+        for cau in ("cho mình 2 món chay", "gợi ý món cho 2 người", "cho mình 3 món dưới 100 nghìn"):
+            with self.subTest(cau):
+                request, _ = reply_for(cau)
+                self.assertEqual(request.combo, [])
+
+
+class TrinhBayGachDauDong(unittest.TestCase):
+    """Danh sách món xuống dòng, mỗi món một gạch đầu dòng.
+
+    Trước đây nối bằng dấu phẩy thành một khối chữ, và khách phải tự tách sáu món ra để so giá —
+    trên điện thoại, giữa lúc đang đói.
+    """
+
+    def test_moi_mon_mot_dong(self):
+        _, reply = reply_for("Cho mình món chay")
+        self.assertGreaterEqual(len(reply.items), 3, "tiền đề: câu này phải nêu nhiều món")
+        dong_mon = [d for d in reply.text.splitlines() if d.startswith("- ")]
+        self.assertEqual(len(dong_mon), len(reply.items),
+                         "số dòng gạch đầu dòng phải bằng số món nêu ra")
+
+    def test_gia_nam_cung_dong_voi_ten(self):
+        _, reply = reply_for("Cho mình món chay")
+        for d in [x for x in reply.text.splitlines() if x.startswith("- ")]:
+            self.assertRegex(d, r"^- .+ \(\d[\d.]*đ\)$", f"dòng sai dạng: {d!r}")
+
+
+class NoiRaKhiKhachXinDungThuHoTranh(unittest.TestCase):
+    """Khách xin món hải sản trong khi đang tránh hải sản -> phải NÓI RA, không im lặng đổi món.
+
+        "Con tôi không ăn được tôm hãy tư vấn món hải sản khác"
+        -> Bánh mì pate, Cháo lòng, Gỏi cuốn chay...   (không một lời giải thích)
+
+    Hệ thống làm đúng về an toàn — nhãn `allergen:seafood` phủ cả 26 món hải sản nên không còn món
+    nào — nhưng nó không nói ra, nên khách tưởng nhà hàng hết món hoặc hệ thống hỏng.
+    """
+
+    def test_noi_ra_ly_do(self):
+        request, reply = reply_for("Con tôi không ăn được tôm hãy tư vấn món hải sản khác")
+        self.assertIn("allergen:seafood", request.avoid_tags, "tiền đề: phải nhận ra dị ứng")
+        self.assertIn("hải sản", reply.text.lower())
+        self.assertTrue(
+            any(c in reply.text.lower() for c in ("cần tránh", "không lọc ra được")),
+            "câu trả lời phải giải thích vì sao không có món hải sản nào",
+        )
+
+    def test_cau_binh_thuong_KHONG_bi_them_cau_thua(self):
+        """Chiều ngược: khách không nhắc dị nguyên thì không được chèn lời giải thích."""
+        _, reply = reply_for("Cho mình món chay")
+        self.assertNotIn("cần tránh", reply.text.lower())
