@@ -14,7 +14,7 @@
 #   kiểm sinh lại được:          python ai/notebooks/build_teaching_notebook.py --check
 
 # Đọc/ghi định dạng .ipynb. Đây là gói DUY NHẤT mà `--check` cần.
-nbformat>=5.10,<6.0
+nbformat>=5.10.4,<6.0
 
 # Chạy notebook và nhúng kết quả vào tệp.
 jupyter-core>=5.7,<6.0
