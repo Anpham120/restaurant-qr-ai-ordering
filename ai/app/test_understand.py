@@ -91,6 +91,72 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
             with self.subTest(cau=cau):
                 self.assertIsNone(ask(cau).policy_topic)
 
+    def test_cau_HOI_VE_su_viec_khong_bi_doc_thanh_cau_XIN_MON(self):
+        """Bộ đo hai chiều: 25/50 câu tri thức bị trả lời SAI DẠNG vì câu chứa tên nhóm món.
+
+        Mã tất định không im lặng — nó trả về một danh sách món, mọi món có thật, mọi giá đúng, và
+        không câu nào trả lời điều được hỏi. Hàng rào này đưa 25 xuống 15.
+        """
+        for cau in ("Gọi khai vị trước có làm no bụng không?",
+                    "Uống cà phê buổi tối có bị mất ngủ không?",
+                    "Cùng là gà mà sao món thì mềm món thì dai vậy?"):
+            with self.subTest(cau=cau):
+                self.assertTrue(ask(cau).hoi_ve_su_viec, "phải nhận là câu HỎI VỀ")
+
+    def test_GIOI_HAN_da_biet_cua_hang_rao_HOI_VE(self):
+        """Hai giới hạn còn lại, ghi ra thay vì giấu — chúng là đánh đổi có ý thức.
+
+        1. Câu vừa HỎI VỀ vừa mang RÀNG BUỘC, với dấu hiệu YẾU: "Đồ chay ở đây có thật sự chay
+           không?" mang `diet:vegetarian`, nên hàng rào không áp dụng và câu vào nhánh lọc. Nới quy
+           tắc cho dấu hiệu yếu sẽ nuốt cả "Có món chay nào không?" — một nhánh đang đúng.
+
+        2. Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này
+           vẫn tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
+
+        Ca này chốt HÀNH VI HIỆN TẠI. Nếu ai đó nới hàng rào, ca này đỏ và buộc họ đọc lý do.
+        """
+        r1 = ask("Đồ chay ở đây có thật sự chay không?")
+        self.assertFalse(r1.hoi_ve_su_viec, "dấu hiệu YẾU + có ràng buộc -> không áp dụng")
+        self.assertIn("diet:vegetarian", r1.require_tags)
+
+        r2 = ask("Phở với bún với hủ tiếu thì khác nhau chỗ nào?")
+        self.assertFalse(r2.hoi_ve_su_viec, "có tên món -> hàng rào không áp dụng")
+        self.assertTrue(r2.named_items, "nhưng câu vẫn tới truy hồi qua nhánh so sánh")
+
+    def test_hang_rao_HOI_VE_khong_nuot_cau_hoi_thuc_don(self):
+        """Chiều ngược, và đây là chiều suýt phá bốn nhánh đang đúng.
+
+        "Ở đây có phở không" khớp cụm `có ... không` nhưng là câu HỎI THỰC ĐƠN — khách hỏi quán có
+        bán món đó không. Phân biệt bằng ĐỘ DÀI phần giữa: danh từ một từ là hỏi thực đơn, cụm động
+        từ ba từ trở lên là hỏi sự việc.
+        """
+        for cau in ("Ở đây có phở không",
+                    "Có cơm không ạ",
+                    "có bia gì không",
+                    "Món nào không cay?",
+                    "Có món chay nào không?",
+                    "Cho mình món khai vị",
+                    "Món đặc trưng của nhà hàng là gì?"):
+            with self.subTest(cau=cau):
+                self.assertFalse(ask(cau).hoi_ve_su_viec, "KHÔNG được nhận là câu HỎI VỀ")
+
+    def test_dau_hieu_MANH_thang_ca_khi_co_rang_buoc(self):
+        """"tiêu tầm hai trăm mỗi người thì TÍNH SAO" vừa có ngân sách vừa là câu hỏi cách làm.
+
+        Dấu hiệu mạnh (hỏi cách thức/lý do) không xuất hiện trong câu xin món, nên nó thắng cả khi
+        câu mang ràng buộc. Dấu hiệu yếu ("có ... không") thì không được phép.
+        """
+        r = ask("Đi bốn người mà chỉ muốn tiêu tầm hai trăm mỗi người thì tính sao?")
+        self.assertTrue(r.hoi_ve_su_viec)
+
+    def test_LA_GI_o_nhom_YEU_vi_no_mo_ho(self):
+        """`là gì` dùng chung cho hai loại câu, nên nó không được là dấu hiệu mạnh.
+
+        "Món đặc trưng của nhà hàng là gì?" là câu HỎI THỰC ĐƠN — ca `A-promo-02` của tập 140 ca.
+        Đưa `là gì` vào nhóm mạnh làm tập tụt còn 139/140.
+        """
+        self.assertFalse(ask("Món đặc trưng của nhà hàng là gì?").hoi_ve_su_viec)
+
     def test_di_ung_hai_san_van_la_di_ung(self):
         request = ask("Mình dị ứng hải sản, gợi ý món ăn giúp mình")
         self.assertIn("allergen:seafood", request.avoid_tags)

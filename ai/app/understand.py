@@ -146,6 +146,12 @@ class Request:
     #
     # Đề bài mục 5: hỏi lại khi câu thật sự mơ hồ là ĐÚNG. Trả một đoạn tri thức cho câu "cho mình
     # món ngon" là trả lời sai câu hỏi, không phải trả lời tốt hơn.
+    # Câu HỎI VỀ một sự việc ("có ... không", "thế nào", "vì sao"), khác câu XIN MÓN.
+    #
+    # `answer.respond` dùng cờ này để đưa câu xuống nhánh truy hồi TRƯỚC nhánh lọc. Không có cờ thì
+    # sau khi bỏ tín hiệu nhóm món, `select()` trả về CẢ thực đơn và câu vẫn vào nhánh lọc — tức
+    # vẫn trả lời sai dạng, chỉ khác là danh sách dài hơn.
+    hoi_ve_su_viec: bool = False
     asks_suggestion: bool = False
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
@@ -1091,6 +1097,109 @@ XIN_MON_KHAC_TU = ("khac", "nua", "moi", "tiep")
 KHAC_LA_CAU_HOI_RE = re.compile(
     r"\bkhac\b(?:\s+\S+){0,5}\s+(?:the nao|nhu the nao|ra sao|cho nao|o dau|diem nao|gi)\b")
 
+# ------------------------------------------------------------------------------------------------
+# CÂU HỎI VỀ MỘT SỰ VIỆC, khác CÂU XIN MÓN — và đây là chỗ mã tất định sai nhiều nhất.
+#
+# Bộ đo hai chiều (mục 4.9 của báo cáo) cho thấy: trên 50 câu tri thức, mã tất định trả lời SAI DẠNG
+# 25 câu. Nó không im lặng — nó trả về một danh sách món, mọi món có thật, mọi giá đúng, và không
+# câu nào trả lời điều được hỏi:
+#
+#     hỏi : "Gọi khai vị trước có làm no bụng không ăn được món chính không?"
+#     đáp : "Mời bạn tham khảo: Bánh mì pate Sài Gòn (35.000đ), Bánh cuốn Thanh Trì..."
+#
+# Nguyên nhân: câu chứa chữ "khai vị", và "khai vị" là một cụm từ vựng NHÓM MÓN. Nhánh lọc món khớp
+# trước nhánh tri thức, nên câu đi sai đường.
+#
+# CÁCH PHÂN BIỆT: không phải bằng nội dung mà bằng DẠNG CÂU.
+#
+#     xin món  : "món nào không cay", "cho mình món chay", "gợi ý món khai vị"
+#                -> hỏi VỀ MỘT TẬP MÓN, mong đợi danh sách
+#     hỏi về   : "gọi khai vị trước CÓ làm no bụng KHÔNG", "cùng là gà MÀ SAO món dai"
+#                -> hỏi VỀ MỘT SỰ VIỆC, mong đợi lời giải thích
+#
+# Hàng rào phải có HAI CHIỀU. Chỉ nhận diện chiều "hỏi về" thì câu "có món nào không cay không?"
+# — vốn là câu xin món — cũng khớp, và ta phá một nhánh đang đúng để sửa một nhánh đang sai.
+# ------------------------------------------------------------------------------------------------
+
+# Chiều 1 — dấu hiệu HỎI VỀ một sự việc: hỏi cách thức, lý do, hay tình trạng.
+_HOI_VE_SU_VIEC = (
+    r"the nao", r"nhu the nao", r"ra sao", r"lam sao", r"cach nao",
+    r"vi sao", r"tai sao", r"sao lai", r"ma sao", r"sao ma",
+    r"co nen", r"nen .{0,20} khong", r"co phai", r"phai khong",
+    r"bao lau", r"bao gio", r"khi nao", r"tinh sao", r"the a",
+    # "có ... không" đòi ÍT NHẤT BA TỪ ở giữa.
+    #
+    # Đây là chỗ hàng rào suýt phá bốn nhánh đang đúng. "Ở đây có phở không", "Có cơm không ạ",
+    # "có bia gì không" đều khớp mẫu rộng, nhưng chúng là câu HỎI THỰC ĐƠN — khách hỏi quán có bán
+    # món đó không, và câu trả lời đúng là một danh sách món.
+    #
+    # Phân biệt bằng ĐỘ DÀI phần ở giữa, vì nó phản ánh khác biệt ngữ pháp thật:
+    #     "có PHỞ không"            danh từ, 1 từ  -> hỏi thực đơn
+    #     "có LÀM NO BỤNG không"    cụm động từ    -> hỏi sự việc
+    r"co(?:\s+\S+){3,8}?\s+khong",
+    r"duoc khong", r"co duoc", r"co the .{0,20} khong",
+    r"khac nhau", r"khac gi", r"la gi", r"nghia la",
+)
+HOI_VE_SU_VIEC_RE = re.compile(
+    r"(?<![a-z])(?:" + "|".join(_HOI_VE_SU_VIEC) + r")(?![a-z])")
+
+# Chiều 2 — dấu hiệu XIN MÓN. Khớp cái nào ở đây thì KHÔNG phải câu hỏi tri thức, dù chiều 1 khớp.
+#
+# `mon nao` là dấu hiệu mạnh nhất: "có MÓN NÀO không cay không?" khớp cả `co .* khong` ở chiều 1,
+# nhưng nó là câu xin món rõ ràng.
+_XIN_MON = (
+    # "mon ... nao" chịu được từ chèn giữa: "món CHAY nào", "món NƯỚNG nào có" — cùng lớp lỗi với
+    # cụm giờ mở cửa, và nếu thiếu thì "Có món chay nào không?" bị đọc thành câu hỏi tri thức.
+    r"mon(?:\s+\S+){0,3}?\s+nao", r"mon(?:\s+\S+){0,3}?\s+gi",
+    r"nhung mon nao",
+    r"cho minh", r"cho toi", r"cho em", r"cho anh", r"cho chi",
+    r"goi y", r"tu van", r"de xuat", r"lay cho", r"mang cho",
+    r"minh muon an", r"toi muon an", r"em muon an", r"muon goi",
+    r"co gi ngon", r"an gi", r"goi gi", r"uong gi", r"chon gi",
+)
+XIN_MON_RE = re.compile(r"(?<![a-z])(?:" + "|".join(_XIN_MON) + r")(?![a-z])")
+
+
+# Dấu hiệu MẠNH — hỏi cách thức hoặc lý do. Những cụm này không bao giờ xuất hiện trong câu xin
+# món, nên chúng thắng cả khi câu có ràng buộc:
+#
+#     "tiêu tầm hai trăm mỗi người thì TÍNH SAO?"   có ngân sách, nhưng đang hỏi CÁCH LÀM
+#     "cùng là gà MÀ SAO món thì mềm món thì dai?"  có nguyên liệu, nhưng đang hỏi LÝ DO
+#
+# Dấu hiệu YẾU ("có ... không", "được không") thì mơ hồ hơn, nên chỉ áp dụng khi câu KHÔNG có ràng
+# buộc nào — có ràng buộc thì khách đang lọc thật.
+_HOI_MANH = (
+    r"the nao", r"nhu the nao", r"ra sao", r"lam sao", r"cach nao",
+    r"vi sao", r"tai sao", r"sao lai", r"ma sao", r"sao ma", r"tinh sao",
+    r"sao cho", r"sao gio", r"khac nhau", r"khac gi",
+    # `la gi` và `nghia la` KHÔNG nằm ở đây, dù chúng là câu hỏi định nghĩa.
+    #
+    # Lý do đo được: ca `A-promo-02` "Món đặc trưng của nhà hàng là gì?" — đây là câu HỎI THỰC ĐƠN,
+    # và câu trả lời đúng là danh sách 2 món mang `promo:signature`. Đưa `la gi` vào nhóm mạnh làm
+    # câu này rơi xuống truy hồi và tập 140 ca tụt còn 139.
+    #
+    # Cùng cụm chữ, hai loại câu: "nhãn ít calo LÀ GÌ" hỏi định nghĩa; "món đặc trưng LÀ GÌ" hỏi
+    # danh sách. Chúng chỉ phân biệt được bằng thứ đứng trước, nên `la gi` ở lại nhóm YẾU — nơi nó
+    # chỉ có hiệu lực khi câu không có ràng buộc nào.
+)
+HOI_MANH_RE = re.compile(r"(?<![a-z])(?:" + "|".join(_HOI_MANH) + r")(?![a-z])")
+
+
+def la_cau_hoi_manh(folded: str) -> bool:
+    """Dấu hiệu hỏi cách thức/lý do — thắng cả khi câu có ràng buộc."""
+    return bool(HOI_MANH_RE.search(folded)) and not XIN_MON_RE.search(folded)
+
+
+def la_cau_hoi_tri_thuc(folded: str) -> bool:
+    """Câu này hỏi VỀ một sự việc, hay xin một danh sách món?
+
+    Trả `True` chỉ khi chiều 1 khớp và chiều 2 KHÔNG khớp. Hàng rào hẹp có chủ ý: thà bỏ sót một
+    câu tri thức (nó rơi về nhánh lọc như cũ) còn hơn nuốt một câu xin món (làm hỏng nhánh đang
+    đúng trên 140 ca và 149 lượt).
+    """
+    return bool(HOI_VE_SU_VIEC_RE.search(folded)) and not XIN_MON_RE.search(folded)
+
+
 PHU_NHAN_FRAMING = (
     # a) khung LIỀN MẠCH — cụm phủ định đứng ngay trước điều bị phủ nhận
     "dau co noi", "dau co bao", "dau co keu", "dau co yeu cau", "dau co doi",
@@ -1502,6 +1611,36 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # Phân biệt bằng chữ "nhãn": khách hỏi VỀ nhãn thì đó là câu meta về thực đơn, không phải câu
     # đòi một con số. Bỏ chủ đề dinh dưỡng để câu rơi xuống nhánh truy hồi toàn kho, nơi có câu
     # trả lời thật.
+    # 5c-bis. Câu HỎI VỀ một sự việc, dù có chứa tên nhóm món.
+    #
+    # Bộ đo hai chiều: 25/50 câu tri thức bị trả lời SAI DẠNG — mã tất định đưa ra một danh sách
+    # món cho câu hỏi "thế nào / vì sao / có ... không". Nguyên nhân: câu chứa tên nhóm món ("khai
+    # vị", "cà phê", "lẩu") nên nhánh lọc khớp trước nhánh tri thức.
+    #
+    # Bỏ tín hiệu NHÓM MÓN để câu rơi xuống truy hồi. Chỉ bỏ khi:
+    #   - dạng câu là HỎI VỀ, không phải XIN MÓN (hàng rào hai chiều, xem `la_cau_hoi_tri_thuc`)
+    #   - và KHÔNG có ràng buộc cứng nào — có ràng buộc thì khách đang lọc thật, không phải hỏi
+    #
+    # Điều kiện thứ hai quan trọng: câu "món chay nào dưới 100 nghìn có cay không?" vừa hỏi vừa lọc,
+    # và ở đó nhánh lọc mới là nhánh đúng.
+    _manh = la_cau_hoi_manh(request.folded)
+    if ((_manh or la_cau_hoi_tri_thuc(request.folded))
+            and not request.named_items
+            and not request.policy_topic
+            # Dấu hiệu MẠNH thắng cả khi có ràng buộc; dấu hiệu yếu thì không.
+            and (_manh or (not request.require_tags
+                           and not request.avoid_tags
+                           and request.budget_max is None))):
+        if request.categories or request.wants:
+            request.matched.append(
+                f"dạng câu HỎI VỀ -> bỏ tín hiệu nhóm món ({request.categories or request.wants})")
+            request.categories = []
+            # `wants` về "any", KHÔNG về None — hợp đồng JSON chỉ nhận food|drink|any, và đặt None
+            # làm phản hồi trượt lược đồ. Test hợp đồng bắt được ngay ở câu "Hôm nay thời tiết thế
+            # nào?", nơi cờ này bật rồi đi tiếp xuống nhánh off_topic.
+            request.wants = "any"
+        request.hoi_ve_su_viec = True
+
     # Giờ mở/đóng cửa với CHỦ NGỮ CHÈN GIỮA — "mấy giờ QUÁN đóng cửa", "nhà hàng mở cửa mấy giờ".
     #
     # Bảng từ vựng chỉ khớp cụm LIỀN NHAU, nên bốn trong sáu cách hỏi tự nhiên rơi xuống nhánh truy

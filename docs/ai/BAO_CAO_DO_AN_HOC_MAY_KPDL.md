@@ -1604,11 +1604,11 @@ bằng hai ca kiểm — một ca cho sáu cách hỏi, một ca chiều ngượ
 | Lớp | Kết quả |
 |---|---|
 | 1. Nhận câu hỏi | không nhãn lọc, không chủ đề chính sách, không chủ đề tri thức |
-| 3. Chọn nhánh | `filter` |
-| 4b/4a | nhánh `filter` trả về 6 món |
+| 3. Chọn nhánh | `knowledge_corpus:embedding` |
+| 4b/4a | không trả về món nào |
 
 **Đây là ca minh hoạ giới hạn quan trọng nhất của hệ thống**, và mục 4.9 đo nó trên 50 câu: mã tất
-định **không im lặng** khi gặp câu nó không xử lý được. Nó trả về 6 món khai vị —
+định **không im lặng** khi gặp câu nó không xử lý được. Nó trả về 0 món khai vị —
 mọi món có thật, mọi giá đúng — nhưng **không trả lời câu được hỏi**. Khách hỏi *"có làm no bụng
 không"*, nhận về một danh sách món.
 
@@ -1616,10 +1616,53 @@ Về nguyên tắc, câu này nên rơi xuống nhánh 10 và đi truy hồi, v�
 đúng điều đó. Nhưng câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món** — nên
 nhánh 9 khớp trước nhánh 10.
 
-Đây là **đánh đổi có ý thức của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi
-lấy tính tất định và khả năng dự đoán. Cách sửa không phải đổi thứ tự (làm vậy thì câu *"cho mình món
-khai vị"* sẽ đi truy hồi), mà là **nhận diện dạng câu hỏi**: câu có *"có… không"*, *"thế nào"*, *"vì
-sao"* là câu hỏi tri thức kể cả khi chứa tên nhóm món. Đây là hướng phát triển nêu ở mục 5.7.
+Đây là **đánh đổi của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi lấy tính
+tất định và khả năng dự đoán.
+
+**Đã sửa một phần, và cách sửa đáng ghi lại.** Không đổi thứ tự nhánh — làm vậy thì câu *"cho mình
+món khai vị"* sẽ đi truy hồi. Thay vào đó nhận diện **DẠNG CÂU**, bằng một hàng rào **hai chiều**:
+
+| Chiều | Dấu hiệu | Vai trò |
+|---|---|---|
+| **Hỏi về sự việc** | *"thế nào"*, *"vì sao"*, *"mà sao"*, *"có … không"* | đưa câu xuống truy hồi |
+| **Xin món** | *"món nào"*, *"cho mình"*, *"gợi ý"*, *"ăn gì"* | **chặn** chiều trên |
+
+Chiều thứ hai là phần quan trọng. Chỉ nhận diện chiều thứ nhất thì câu *"Có món chay nào không?"* —
+vốn là câu xin món — cũng khớp, và ta phá một nhánh đang đúng để sửa một nhánh đang sai.
+
+Dấu hiệu còn tách thành **mạnh** và **yếu**:
+
+- **Mạnh** (*"tính sao"*, *"mà sao"*, *"khác nhau"*): thắng cả khi câu có ràng buộc, vì chúng không
+  bao giờ xuất hiện trong câu xin món. Ví dụ *"tiêu tầm hai trăm mỗi người thì **tính sao**?"* vừa
+  mang ngân sách vừa là câu hỏi cách làm.
+- **Yếu** (*"có … không"*, *"được không"*): chỉ áp dụng khi câu **không có ràng buộc nào**.
+
+Hai chi tiết đo được trong lúc làm hàng rào này:
+
+1. *"có … không"* phải đòi **ít nhất ba từ ở giữa**. Mẫu rộng làm *"Ở đây có phở không"* và *"Có cơm
+   không ạ"* — câu hỏi thực đơn — bị đọc thành câu tri thức, và bốn nhánh đang đúng bị phá.
+2. *"là gì"* **không** được là dấu hiệu mạnh. Ca `A-promo-02` *"Món đặc trưng của nhà hàng là gì?"*
+   là câu hỏi thực đơn, và đưa *"là gì"* vào nhóm mạnh làm tập 140 ca tụt còn 139.
+
+**Kết quả đo trên chiều A của bộ hai chiều:**
+
+| | trước | sau |
+|---|---:|---:|
+| Trả lời **SAI DẠNG** | 25/50 | **15/50** |
+| Đi đúng đường truy hồi | 20/50 | **30/50** |
+| Trả lời đúng dạng | 5/50 | 5/50 |
+
+Số câu trả lời sai dạng giảm **40%**, và không tập nào tụt: 140/140 ca, 149/149 lượt, 0 lỗi an toàn.
+
+**Hai giới hạn còn lại, ghi ra thay vì giấu:**
+
+1. Câu vừa hỏi vừa mang ràng buộc, với dấu hiệu yếu — *"Đồ chay ở đây có thật sự chay không?"* mang
+   `diet:vegetarian` nên hàng rào không áp dụng. Nới quy tắc sẽ nuốt cả *"Có món chay nào không?"*.
+2. Câu nêu tên món bị chặn — nhưng *"Phở với bún khác nhau chỗ nào?"* vẫn tới đúng đích qua nhánh so
+   sánh, nên không cần sửa.
+
+Cả hai được chốt bằng một ca kiểm ghi rõ hành vi hiện tại: ai nới hàng rào thì ca đó đỏ và buộc họ
+đọc lý do.
 
 ---
 
@@ -2095,14 +2138,14 @@ Phủ hết chứ không chọn tay: chọn tay thì người viết vô thức 
 
 | kết cục của mã tất định | số câu |
 |---|---:|
-| **SAI DẠNG** — trả danh sách món cho câu "thế nào / vì sao" | **25** |
-| **KHÔNG XỬ LÝ ĐƯỢC** — phải nhờ truy hồi | **20** |
+| **SAI DẠNG** — trả danh sách món cho câu "thế nào / vì sao" | **15** |
+| **KHÔNG XỬ LÝ ĐƯỢC** — phải nhờ truy hồi | **30** |
 | đúng dạng | 5 |
 
 Truy hồi tìm đúng tài liệu: **top-1 22/50**, **top-5 37/50**.
 
 **Kết quả đáng chú ý của bộ đo này nằm ở DẠNG lỗi, không nằm ở tỷ lệ.**
-Mã tất định **không im lặng** ở chiều A. 25 câu nó trả lời TỰ TIN
+Mã tất định **không im lặng** ở chiều A. 15 câu nó trả lời TỰ TIN
 bằng một danh sách món — mọi món có thật, mọi giá đúng — và **không câu nào trả lời điều
 được hỏi**:
 
