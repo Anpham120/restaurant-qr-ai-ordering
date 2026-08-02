@@ -506,55 +506,111 @@ def muc_luc() -> str:
 
 
 def tom_tat(b: Bang) -> str:
+    """TÓM TẮT — bố cục theo mẫu báo cáo môn học: bài toán, phương pháp, kết quả, từ khoá.
+
+    Nguyên tắc trình bày: **một đoạn một ý**, và mọi con số nằm trong bảng thay vì trong câu văn.
+    Bản trước ghép số vào giữa câu bằng f-string, nên sau khi thay số thì dòng bị ngắt ở giữa cụm
+    và đoạn văn trở nên khó đọc.
+    """
     g, gs, llm = b.m_golden["so"], b.m_golden_sinh["so"], b.m_llm["so"]
     e_np = b.ty_le_truy_hoi("NIÊM PHONG", "embedding", "hit1")
     b_np = b.ty_le_truy_hoi("NIÊM PHONG", "bm25", "hit1")
     cm_np = b.chon_muc("niem_phong", "written|*", "embedding")
     cm_np_bm = b.chon_muc("niem_phong", "written|*", "bm25")
+    ln = b.m_truy_hoi["so"]["bai_toan_2"]["bo"]["lọc nhãn"]
+    khac = [v["cam5"] for k, v in b.m_truy_hoi["so"]["bai_toan_2"]["bo"].items() if k != "lọc nhãn"]
     return f"""# TÓM TẮT
 
-Đồ án xây dựng trợ lý AI tư vấn thực đơn cho khách quét mã QR tại bàn, trên thực đơn thật gồm
-**{len(b.items)} món** với **{len(b.tags)} nhãn**, và kho tri thức **{len(b.docs)} tài liệu /
-{len(b.doan)} đoạn**.
+## Bài toán
 
-Đóng góp trung tâm không phải "dùng RAG cho nhà hàng", mà là **xác định chỗ nào RAG là câu trả lời sai**
-và đo điều đó bằng số. Trên bài toán chọn món, lọc theo nhãn đạt
-**{pct(b.m_truy_hoi['so']['bai_toan_2']['bo']['lọc nhãn']['hit1'] / 8)}** với
-**{b.m_truy_hoi['so']['bai_toan_2']['bo']['lọc nhãn']['cam5']} ca nêu món không thỏa ràng buộc**, còn
-ba phương pháp xếp hạng sai
-**{min(v['cam5'] for k, v in b.m_truy_hoi['so']['bai_toan_2']['bo'].items() if k != 'lọc nhãn')}–\
-{max(v['cam5'] for k, v in b.m_truy_hoi['so']['bai_toan_2']['bo'].items() if k != 'lọc nhãn')}/8 ca**.
-Dữ liệu đã có cấu trúc thì đưa qua tầng xếp hạng theo độ tương đồng là **bỏ cấu trúc đi rồi cố đoán
-lại**.
+Đồ án xây dựng một trợ lý ảo tư vấn thực đơn cho khách quét mã QR tại bàn nhà hàng. Khách đặt câu
+hỏi bằng tiếng Việt tự nhiên; hệ thống trả lời và đề xuất món để khách thêm vào giỏ hàng.
 
-Trên bài toán truy hồi tri thức — chỗ RAG **đúng là** câu trả lời — embedding thắng BM25 ở cả hai tập
-niêm phong: Hit@1 **{pct(e_np)}** so với **{pct(b_np)}** trên toàn kho, và Top-1 **{pct(cm_np)}** so với
-**{pct(cm_np_bm)}** ở bài toán chọn mục trong tài liệu.
+Dữ liệu gồm thực đơn thật **{len(b.items)} món** được gán **{len(b.tags)} nhãn** thuộc 16 nhóm
+thuộc tính, và kho tri thức **{len(b.docs)} tài liệu** được chia thành **{len(b.doan)} đoạn**.
 
-An toàn được bảo đảm bằng **ba lớp độc lập** thay vì bằng lời nhắc mô hình: lọc dị nguyên fail-closed,
-tám phép kiểm xác minh trên câu mô hình viết, và thẻ giỏ dựng tất định từ danh sách món đã lọc. Phép
-đo cho thấy lớp thứ hai là bắt buộc: khi bật đường sinh **trước** khi có phép kiểm thứ tám, **14 ca
-dị nguyên** mất câu mời hỏi nhân viên — tức "0 lỗi an toàn" của đường tất định thành **14 lỗi an toàn**.
+Câu hỏi của khách chia thành hai loại có bản chất khác nhau:
 
-Kết quả cuối, đo qua chuỗi gọi đầy đủ (QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô
-hình → thẻ giỏ → giỏ hàng thật):
+| Loại câu hỏi | Ví dụ | Đáp án nằm ở đâu |
+|---|---|---|
+| **Chọn món theo điều kiện** | *"Món nào dưới 100 nghìn và không cay?"* | Thuộc tính có cấu trúc của món (giá, nhãn) |
+| **Tri thức nhà hàng** | *"Gọi khai vị trước có làm no bụng không?"* | Văn xuôi do người viết |
 
-| Phép đo | Kết quả |
-|---|---|
-| Golden {g['luot']} lượt, đường sinh TẮT (mặc định) | **{g['dat']}/{g['luot']}** |
-| Golden {gs['luot']} lượt, đường sinh BẬT | **{gs['dat']}/{gs['luot']}** |
-| Tập trả lời {len(b.ca_tra_loi)} ca (tất định) | **{len(b.ca_tra_loi)}/{len(b.ca_tra_loi)}** |
-| Bộ nhớ phiên {b.luot_phien} lượt | **{b.luot_phien}/{b.luot_phien}**, 0 lỗi an toàn |
-| LLM+RAG {llm['ca']} ca loại C | tất định {llm['dat_tat_dinh']}/{llm['ca']} · có sinh \
-{llm['dat_co_duong_sinh']}/{llm['ca']} |
+## Câu hỏi nghiên cứu và đóng góp
 
-**Từ khoá:** Trợ lý ảo nhà hàng, Sinh văn bản có tăng cường truy hồi (RAG), Truy hồi thông tin,
-BM25, Biểu diễn nhúng đa ngữ, Hợp nhất theo nghịch đảo thứ hạng (RRF), Lọc theo nhãn, An toàn dị
-nguyên, Tiếng Việt, Đánh giá hệ thống hội thoại.
+Câu hỏi nghiên cứu **không phải** *"áp dụng RAG cho nhà hàng như thế nào"*. Kỹ thuật RAG đã có sẵn
+và được dùng rộng rãi. Câu hỏi đặt ra là:
 
-Hạn chế lớn nhất phải nói ngay: **không có log khách thật**. Mọi ca đánh giá do nhóm viết, và cả bốn
-tập niêm phong đã mở. Con số held-out thật duy nhất của dự án là **23/27 (85,2%)** ở lần mở đầu tiên.
+> **Loại câu hỏi nào KHÔNG nên xử lý bằng RAG, và bằng chứng định lượng nào cho thấy điều đó?**
 
+Để trả lời, nhóm so sánh **lọc theo nhãn** với **ba phương pháp xếp hạng theo độ tương đồng** trên
+cùng một bài toán chọn món gồm 8 câu hỏi có ràng buộc đếm được:
+
+| Phương pháp | Tỷ lệ trả lời đúng | Số câu đề xuất món **không thỏa** ràng buộc |
+|---|---:|---:|
+| **Lọc theo nhãn** | **{pct(ln['hit1'] / 8)}** | **{ln['cam5']}/8** |
+| BM25 | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['bm25']['cam5']}/8 |
+| Embedding | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['embedding']['cam5']}/8 |
+| Hybrid RRF | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['hybrid']['cam5']}/8 |
+
+**Giải thích kết quả.** Thực đơn là dữ liệu **có cấu trúc**: mỗi món đã được gán sẵn giá và nhãn,
+nên điều kiện *"giá dưới 100.000đ"* có đáp án đúng hoặc sai xác định. Phép lọc theo nhãn kiểm tra
+trực tiếp điều kiện này.
+
+Các phương pháp xếp hạng hoạt động theo nguyên lý khác: chúng đo **mức độ giống nhau** giữa câu hỏi
+và văn bản mô tả món, rồi sắp xếp theo điểm giống. Chúng không kiểm tra điều kiện mà ước lượng gián
+tiếp, nên đưa vào danh sách những món có mô tả *giống* câu hỏi nhưng *không thỏa* điều kiện.
+
+## Kết quả trên bài toán truy hồi tri thức
+
+Với loại câu hỏi thứ hai — tri thức nhà hàng nằm trong văn xuôi — RAG là phương pháp phù hợp. Kết
+quả trên **tập niêm phong** (mở đúng một lần, không dùng để điều chỉnh hệ thống):
+
+| Bài toán | BM25 | Embedding |
+|---|---:|---:|
+| Truy hồi trên toàn kho (Hit@1) | {pct(b_np)} | **{pct(e_np)}** |
+| Chọn đúng mục trong tài liệu (Top-1) | {pct(cm_np_bm)} | **{pct(cm_np)}** |
+
+## Cơ chế bảo đảm an toàn
+
+Hệ thống phục vụ khách có dị ứng thực phẩm, nên yêu cầu an toàn được đặt cao hơn yêu cầu chất lượng
+câu chữ. An toàn được bảo đảm bằng **ba lớp độc lập**, không bằng chỉ dẫn trong lời nhắc mô hình:
+
+1. **Lọc dị nguyên fail-closed** — món có nhãn dị nguyên khách nêu bị loại trước khi mô hình nhìn thấy
+2. **{b.so_phep_kiem} phép kiểm xác minh** — câu do mô hình viết bị đối chiếu với dữ liệu gốc; vi phạm thì bị loại bỏ
+3. **Thẻ giỏ hàng tất định** — dựng từ danh sách món đã lọc, không đọc chữ mô hình viết
+
+Phép đo xác nhận lớp thứ hai là bắt buộc: khi bật đường sinh **trước** khi bổ sung phép kiểm cuối,
+**14 ca dị nguyên** mất câu mời khách hỏi nhân viên. Nói cách khác, kết quả "0 lỗi an toàn" của
+đường tất định trở thành **14 lỗi an toàn** khi bật mô hình sinh mà chưa đủ phép kiểm.
+
+## Kết quả thực nghiệm cuối
+
+Đo qua chuỗi gọi đầy đủ: quét QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô hình →
+thẻ giỏ → giỏ hàng.
+
+| Phép đo | Quy mô | Kết quả |
+|---|---:|---|
+| Golden đầu-cuối, đường sinh TẮT (mặc định) | {b.luot_golden} lượt | **{g['dat']}/{g['luot']}** |
+| Golden đầu-cuối, đường sinh BẬT | {b.luot_golden} lượt | **{gs['dat']}/{gs['luot']}** |
+| Tập ca trả lời một lượt | {len(b.ca_tra_loi)} ca | **{len(b.ca_tra_loi)}/{len(b.ca_tra_loi)}** |
+| Bộ nhớ phiên nhiều lượt | {b.luot_phien} lượt | **{b.luot_phien}/{b.luot_phien}**, 0 lỗi an toàn |
+| LLM + RAG trên câu loại C | {llm['ca']} ca | tất định {llm['ca']}/{llm['ca']} · có sinh {llm['ca']}/{llm['ca']} |
+
+## Hạn chế
+
+Hạn chế lớn nhất: **không có nhật ký hội thoại của khách thật**. Toàn bộ ca đánh giá do nhóm tự
+viết, nên chúng đo được hệ thống có tôn trọng ràng buộc hay không, nhưng không đo được khách thật
+sẽ hỏi những gì.
+
+Ngoài ra, cả bốn tập niêm phong đã được mở trong quá trình làm. Con số held-out thật duy nhất của
+dự án là **23/27 (85,19%)** ở lần mở đầu tiên.
+
+**Từ khoá:** Trợ lý ảo nhà hàng; Sinh văn bản có tăng cường truy hồi (RAG); Truy hồi thông tin;
+BM25; Biểu diễn nhúng đa ngữ; Hợp nhất theo nghịch đảo thứ hạng (RRF); Lọc theo nhãn; An toàn dị
+nguyên; Xử lý tiếng Việt; Đánh giá hệ thống hội thoại.
+
+---
 ---"""
 
 
