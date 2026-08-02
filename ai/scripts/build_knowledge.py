@@ -144,6 +144,22 @@ def build_derived_doc(
         "",
         f"Tài liệu này nói về nhóm {group_label} **{label}**. {group_note}",
         "",
+        # Tiêu đề mục dùng CHUNG một khuôn cho cả 57 tài liệu `derived`.
+        #
+        # Đã thử đổi sang tiêu đề đặc thù theo tài liệu ("Gợi ý chọn" -> "Gợi ý chọn món gà") vì
+        # `analyze_failures.py` xếp 19/43 ca hỏng vào lớp `retrieval_twin_section`. Kho cải thiện
+        # rõ — 179 -> 365 tiêu đề khác nhau, 283/452 -> 93/452 đoạn dùng chung — nhưng **truy hồi
+        # KHÔNG khá hơn**:
+        #
+        #     Hit@1 niêm phong  0,609 -> 0,609   (không đổi)
+        #     Hit@5 niêm phong  0,674 -> 0,630   (tụt)
+        #     tổng ca hỏng         43 -> 46      (tăng)
+        #
+        # 19 ca kia không được sửa — chúng ĐỔI TÊN LỖI từ `twin_section` sang `retrieval_rank`.
+        # Trần không nằm ở tiêu đề. Và việc đổi còn xoá mất tiền đề của họ `derived` trong
+        # `build_chunk_selection_cases.py`, vốn tồn tại CHÍNH VÌ các tài liệu này dùng chung khuôn.
+        #
+        # Giữ khuôn chung, và ghi kết quả thí nghiệm ở đây để không ai phải chạy lại.
         "## Tổng quan",
         "",
         f"Thực đơn có **{len(matched)} món** {label.lower()}"
