@@ -182,6 +182,30 @@ class Bang:
                 ra.append((a, b_, mcnemar(bo[a]["hit1_theo_ca"], bo[b_]["hit1_theo_ca"])))
         return ra
 
+    def ktc_chon_mon(self) -> dict:
+        """Khoảng tin cậy Wilson cho bài toán chọn món (bài toán 2)."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import khoang_wilson
+        bo = self.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+        return {ten: khoang_wilson(v["hit1"], v["n"]) for ten, v in bo.items()}
+
+    def mcnemar_chon_mon(self) -> list:
+        """McNemar so lọc nhãn với từng bộ xếp hạng trên bài toán chọn món."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import mcnemar
+        bo = self.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+        if not bo["lọc nhãn"].get("hit1_theo_ca"):
+            raise SystemExit(
+                "Thiếu `hit1_theo_ca` ở bài toán 2. "
+                "Chạy: python ai/evaluation/run_retrieval_comparison.py --sealed"
+            )
+        return [("lọc nhãn", t, mcnemar(bo["lọc nhãn"]["hit1_theo_ca"], bo[t]["hit1_theo_ca"]))
+                for t in ("bm25", "embedding", "hybrid") if t in bo]
+
     def n_can(self, nua_rong: float) -> int:
         import sys as _s
         if str(AI / "evaluation") not in _s.path:
@@ -1832,6 +1856,28 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "- Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu",
         "  kết luận đó, dù con số tuyệt đối của embedding cao hơn.",
         "",
+        "**Vì sao khoảng tin cậy rộng mà kết luận vẫn vững — hai câu hỏi khác nhau.**",
+        "",
+        "Khoảng tin cậy và kiểm định ghép cặp trả lời hai câu hỏi khác nhau, và chúng cần quy mô mẫu",
+        "khác nhau:",
+        "",
+        "| Câu hỏi | Công cụ | Cần n lớn không |",
+        "|---|---|---|",
+        "| *\"Tỷ lệ THẬT của embedding là bao nhiêu?\"* | khoảng tin cậy | **Có** — ước lượng một đại lượng tuyệt đối luôn cần nhiều quan sát |",
+        "| *\"Embedding có tốt hơn BM25 không?\"* | McNemar ghép cặp | **Ít hơn** — nó loại bỏ phần biến thiên chung của hai bên |",
+        "",
+        "Cụ thể ở đây: khoảng tin cậy của embedding rộng **±"
+        f"{so(b.ktc_truy_hoi('NIÊM PHONG')['embedding'].nua_rong * 100, 1)} điểm**, nên báo cáo",
+        "**không** khẳng định *\"tỷ lệ thật của embedding là 60,87%\"*. Nhưng McNemar cho p = "
+        f"{so(dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].p, 4)},",
+        "nên báo cáo **có** khẳng định *\"embedding tốt hơn BM25\"*. Hai câu này khác nhau, và chỉ câu",
+        "thứ hai là câu đồ án cần trả lời.",
+        "",
+        "Lý do kiểm định ghép cặp cần ít mẫu hơn: hai bộ chạy trên cùng danh sách câu hỏi, nên phần",
+        "khó/dễ của từng câu ảnh hưởng **cả hai bên như nhau** và bị triệt tiêu khi so từng cặp. Chỉ",
+        f"còn lại {dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].n_lech} câu mà hai bên khác nhau,",
+        "và toàn bộ thông tin so sánh nằm ở đó.",
+        "",
         "**Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng",
         f"**{b.n_can(0.10)} ca**; tới ±5 điểm cần khoảng **{b.n_can(0.05)} ca**. Tập niêm phong hiện",
         f"có **{b.ktc_truy_hoi('NIÊM PHONG')['embedding'].n} ca**, tương ứng nửa khoảng khoảng",
@@ -1907,6 +1953,35 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "",
         "`cấm@5` ở bài toán này mang nghĩa khác bài toán 4.2: nó là số ca **nêu món không thỏa ràng",
         "buộc**, tức câu trả lời **SAI**, không phải kém. Với ca dị ứng thì đó là **lỗi an toàn**.",
+        "",
+        "#### Khoảng tin cậy và kiểm định",
+        "",
+        "**Bộ đo này được SINH TỪ BỘ NHÃN**, không viết tay. Bản đầu chỉ có 8 ca do người viết chọn;",
+        "với n = 8 thì nửa khoảng tin cậy 95% là ±28,50 điểm phần trăm — quá thô để kết luận. Vấn đề",
+        "thứ hai nghiêm trọng hơn quy mô: khi tự chọn câu hỏi, người viết có xu hướng chọn những câu",
+        "mình đã biết trước kết quả. Sinh từ nhãn thì **dữ liệu quyết định danh sách câu hỏi**.",
+        "",
+        "| Phương pháp | Trả lời đúng | Tỷ lệ | Khoảng tin cậy 95% |",
+        "|---|---:|---:|:---:|",
+    ] + [
+        f"| `{ten}` | {b2[ten]['hit1']:.0f}/{k.n} | **{pct(k.ty_le)}** | {pct(k.duoi)} – {pct(k.tren)} |"
+        for ten, k in b.ktc_chon_mon().items()
+    ] + [
+        "",
+        "Khoảng tin cậy của lọc theo nhãn (**"
+        f"{pct(b.ktc_chon_mon()['lọc nhãn'].duoi)} – {pct(b.ktc_chon_mon()['lọc nhãn'].tren)}**)",
+        "**không chồng lấn** với khoảng của bất kỳ bộ xếp hạng nào. Kiểm định ghép cặp xác nhận:",
+        "",
+        "| So sánh | Số câu hai bên khác nhau | p | Kết luận |",
+        "|---|---:|---:|---|",
+    ] + [
+        f"| lọc nhãn so với {t} | {r.n_lech}/{r.n} | **{so(r.p, 4)}** | "
+        f"{'**có ý nghĩa** (p < 0,05)' if r.co_y_nghia else 'chưa đủ ý nghĩa'} |"
+        for _, t, r in b.mcnemar_chon_mon()
+    ] + [
+        "",
+        "Cả ba so sánh đều đạt mức ý nghĩa. Kết luận **lọc theo nhãn vượt trội trên bài toán chọn",
+        "món** do đó có bằng chứng thống kê đầy đủ, không phụ thuộc vào việc chọn câu hỏi nào.",
         "",
         "Bốn lý do xếp hạng thua đã nêu ở mục 2.4. Đáng nhắc lại ca dị ứng: câu hỏi chứa chữ \"hải sản\"",
         "nên cả BM25 và embedding kéo món hải sản **LÊN ĐẦU** — đúng ngược điều khách cần. Cơ chế đúng",

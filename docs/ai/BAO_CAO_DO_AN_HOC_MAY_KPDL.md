@@ -1309,6 +1309,26 @@ hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.
 - Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu
   kết luận đó, dù con số tuyệt đối của embedding cao hơn.
 
+**Vì sao khoảng tin cậy rộng mà kết luận vẫn vững — hai câu hỏi khác nhau.**
+
+Khoảng tin cậy và kiểm định ghép cặp trả lời hai câu hỏi khác nhau, và chúng cần quy mô mẫu
+khác nhau:
+
+| Câu hỏi | Công cụ | Cần n lớn không |
+|---|---|---|
+| *"Tỷ lệ THẬT của embedding là bao nhiêu?"* | khoảng tin cậy | **Có** — ước lượng một đại lượng tuyệt đối luôn cần nhiều quan sát |
+| *"Embedding có tốt hơn BM25 không?"* | McNemar ghép cặp | **Ít hơn** — nó loại bỏ phần biến thiên chung của hai bên |
+
+Cụ thể ở đây: khoảng tin cậy của embedding rộng **±13,6 điểm**, nên báo cáo
+**không** khẳng định *"tỷ lệ thật của embedding là 60,87%"*. Nhưng McNemar cho p = 0,0020,
+nên báo cáo **có** khẳng định *"embedding tốt hơn BM25"*. Hai câu này khác nhau, và chỉ câu
+thứ hai là câu đồ án cần trả lời.
+
+Lý do kiểm định ghép cặp cần ít mẫu hơn: hai bộ chạy trên cùng danh sách câu hỏi, nên phần
+khó/dễ của từng câu ảnh hưởng **cả hai bên như nhau** và bị triệt tiêu khi so từng cặp. Chỉ
+còn lại 10 câu mà hai bên khác nhau,
+và toàn bộ thông tin so sánh nằm ở đó.
+
 **Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng
 **97 ca**; tới ±5 điểm cần khoảng **385 ca**. Tập niêm phong hiện
 có **46 ca**, tương ứng nửa khoảng khoảng
@@ -1354,21 +1374,47 @@ MỘT quyết định lặp trên nhiều tài liệu — gộp vào số chính
 Phép đo này trả lời trực tiếp câu hỏi nghiên cứu nêu ở mục 1.4: xác định phạm vi KHÔNG nên
 dùng RAG.
 
-Bài toán: **món nào thỏa ràng buộc khách nêu.** 8 ca,
+Bài toán: **món nào thỏa ràng buộc khách nêu.** 50 ca,
 mỗi ca chọn để làm rõ một cơ chế. Ba bộ xếp hạng được thấy **đủ dữ liệu** — văn bản của mỗi món
 gồm tên, danh mục, mô tả, toàn bộ nhãn và giá. Cho chúng ít hơn thì kết luận không công bằng.
 
 | Phương pháp | Hit@1 | Hit@5 | **cấm@5** = số ca nêu món KHÔNG thỏa ràng buộc |
 |---|---:|---:|---:|
-| `bm25` | 50,00% | 75,00% | 6 |
-| `embedding` | 50,00% | 75,00% | 7 |
-| `hybrid` | 37,50% | 87,50% | 6 |
+| `bm25` | 68,00% | 92,00% | 37 |
+| `embedding` | 58,00% | 84,00% | 42 |
+| `hybrid` | 66,00% | 90,00% | 40 |
 | **`lọc nhãn`** | 100,00% | 100,00% | **0** |
 
-Trên **8 câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng **8/8 câu (100,00%)** và **không câu nào** nêu món vi phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **6 đến 7 trong 8 câu**, tương ứng 75,00% đến 87,50%.
+Trên **50 câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng **50/50 câu (100,00%)** và **không câu nào** nêu món vi phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **37 đến 42 trong 50 câu**, tương ứng 74,00% đến 84,00%.
 
 `cấm@5` ở bài toán này mang nghĩa khác bài toán 4.2: nó là số ca **nêu món không thỏa ràng
 buộc**, tức câu trả lời **SAI**, không phải kém. Với ca dị ứng thì đó là **lỗi an toàn**.
+
+#### Khoảng tin cậy và kiểm định
+
+**Bộ đo này được SINH TỪ BỘ NHÃN**, không viết tay. Bản đầu chỉ có 8 ca do người viết chọn;
+với n = 8 thì nửa khoảng tin cậy 95% là ±28,50 điểm phần trăm — quá thô để kết luận. Vấn đề
+thứ hai nghiêm trọng hơn quy mô: khi tự chọn câu hỏi, người viết có xu hướng chọn những câu
+mình đã biết trước kết quả. Sinh từ nhãn thì **dữ liệu quyết định danh sách câu hỏi**.
+
+| Phương pháp | Trả lời đúng | Tỷ lệ | Khoảng tin cậy 95% |
+|---|---:|---:|:---:|
+| `bm25` | 34/50 | **68,00%** | 54,19% – 79,24% |
+| `embedding` | 29/50 | **58,00%** | 44,23% – 70,63% |
+| `hybrid` | 33/50 | **66,00%** | 52,15% – 77,56% |
+| `lọc nhãn` | 50/50 | **100,00%** | 92,86% – 100,00% |
+
+Khoảng tin cậy của lọc theo nhãn (**92,86% – 100,00%**)
+**không chồng lấn** với khoảng của bất kỳ bộ xếp hạng nào. Kiểm định ghép cặp xác nhận:
+
+| So sánh | Số câu hai bên khác nhau | p | Kết luận |
+|---|---:|---:|---|
+| lọc nhãn so với bm25 | 16/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
+| lọc nhãn so với embedding | 21/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
+| lọc nhãn so với hybrid | 17/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
+
+Cả ba so sánh đều đạt mức ý nghĩa. Kết luận **lọc theo nhãn vượt trội trên bài toán chọn
+món** do đó có bằng chứng thống kê đầy đủ, không phụ thuộc vào việc chọn câu hỏi nào.
 
 Bốn lý do xếp hạng thua đã nêu ở mục 2.4. Đáng nhắc lại ca dị ứng: câu hỏi chứa chữ "hải sản"
 nên cả BM25 và embedding kéo món hải sản **LÊN ĐẦU** — đúng ngược điều khách cần. Cơ chế đúng
@@ -1495,7 +1541,7 @@ chỉnh thuật toán, trong khi việc đúng là **sửa kho**.
 |---|---|---|---|
 | bộ truy hồi (**cả hai** đường) | **embedding** | thắng ở cả hai bài toán và cả hai tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh Docker 238MB → **2,74GB**; truy hồi 1,4ms → 67ms; khởi động **19,0s** |
 | đường sinh | **TẮT mặc định**, bật bằng biến môi trường | 0 ca tụt sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** | p50 **+8,6s** mỗi lượt |
-| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: 0 câu nêu món vi phạm; ba bộ xếp hạng: 6 đến 7 trong 8 câu | 0,3ms mỗi lượt |
+| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: 0 câu nêu món vi phạm; ba bộ xếp hạng: 37 đến 42 trong 50 câu | 0,3ms mỗi lượt |
 
 ### Giá của embedding: ba lần đo mới ra con số đúng
 
@@ -1643,7 +1689,7 @@ Bảng đầy đủ 100 câu: `ai/evaluation/measurements/hai_chieu.csv`.
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **60,87%** so với bm25 39,13% |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **86,36%** so với bm25 75,00% |
-| Chọn món | lọc nhãn **0 câu nêu món vi phạm**, so với 6–7 câu ở ba bộ xếp hạng (trên 8 câu) |
+| Chọn món | lọc nhãn **0 câu nêu món vi phạm**, so với 37–42 câu ở ba bộ xếp hạng (trên 50 câu) |
 
 ## 5.2 Phân tích chi tiết theo từng thành phần
 
@@ -2105,10 +2151,10 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | truy hồi toàn kho | NIÊM PHONG | `bm25` | 46 | 39,13% | 52,17% | 43,08% | 23,64% | 7 |
 | truy hồi toàn kho | NIÊM PHONG | `embedding` | 46 | 60,87% | 67,39% | 62,93% | 44,81% | 5 |
 | truy hồi toàn kho | NIÊM PHONG | `hybrid` | 46 | 52,17% | 67,39% | 58,33% | 41,81% | 7 |
-| chọn món | 8 ca | `bm25` | 8 | 50,00% | 75,00% | — | — | 6 |
-| chọn món | 8 ca | `embedding` | 8 | 50,00% | 75,00% | — | — | 7 |
-| chọn món | 8 ca | `hybrid` | 8 | 37,50% | 87,50% | — | — | 6 |
-| chọn món | 8 ca | `lọc nhãn` | 8 | 100,00% | 100,00% | — | — | 0 |
+| chọn món | 8 ca | `bm25` | 50 | 68,00% | 92,00% | — | — | 37 |
+| chọn món | 8 ca | `embedding` | 50 | 58,00% | 84,00% | — | — | 42 |
+| chọn món | 8 ca | `hybrid` | 50 | 66,00% | 90,00% | — | — | 40 |
+| chọn món | 8 ca | `lọc nhãn` | 50 | 100,00% | 100,00% | — | — | 0 |
 | chọn mục `written|*` | phát triển | `bm25` | 76 | 80,26% | — | 87,32% | — | — |
 | chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 95,11% | — | — |
 | chọn mục `written|*` | phát triển | `hybrid` | 76 | 90,79% | — | 94,63% | — | — |

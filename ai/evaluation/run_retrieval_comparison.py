@@ -302,34 +302,126 @@ def mon_thanh_doan(items: list[dict]) -> list[MonAsChunk]:
 # nghĩ với `menu_selectors.py`: danh sách viết tay không kiểm được, và bản cũ có 96 khóa trỏ sai.
 #
 # Mỗi ca kèm cách LỌC THEO NHÃN tương ứng, để phương pháp thứ ba có gì mà chạy.
-CA_CHON_MON = [
-    {"id": "pick-price-01", "query": "Món nào dưới 50.000đ?",
-     "loc": {"price_max": 50_000},
-     "why": "BM25 và embedding không hiểu SỐ. '50.000' với chúng là một từ, không phải một lượng."},
-    {"id": "pick-price-02", "query": "Cho mình món dưới 100 nghìn",
-     "loc": {"price_max": 100_000},
-     "why": "Cùng dạng, khác cách viết số — 'nghìn' thay vì '.000'."},
-    {"id": "pick-spice-01", "query": "Món nào không cay?",
-     "loc": {"tags_all": ["spice:none"]},
-     "why": "PHỦ ĐỊNH. 'không cay' và 'cay' chung gần hết từ, nên BM25 cho điểm gần như nhau."},
-    {"id": "pick-spice-02", "query": "Món nào cay đậm?",
-     "loc": {"tags_all": ["spice:hot"]},
-     "why": "Chiều ngược của ca trên. Không có nó thì một bộ luôn trả món không cay vẫn xanh."},
-    {"id": "pick-diet-01", "query": "Mình ăn chay, có món nào không?",
-     "loc": {"tags_all": ["diet:vegetarian"]},
-     "why": "Nhãn chế độ ăn — chỗ BM25 khá mạnh vì tài liệu món chay có chữ 'chay'."},
-    {"id": "pick-allergen-01", "query": "Mình dị ứng hải sản, món nào tránh được?",
-     "loc": {"tags_none": ["allergen:seafood"]},
-     "why": "AN TOÀN, và là ca quan trọng nhất của bài toán 2: nó cần LOẠI TRỪ, thứ mà xếp hạng "
-            "theo độ tương đồng không làm được. Câu này chứa chữ 'hải sản' nên BM25 và embedding "
-            "kéo món hải sản LÊN ĐẦU — đúng ngược điều khách cần."},
-    {"id": "pick-region-01", "query": "Có đặc sản miền Trung không?",
-     "loc": {"tags_any": ["region:central", "region:hue", "region:danang", "region:hoian"]},
-     "why": "Nhãn vùng miền có nhiều giá trị cùng nghĩa — lọc theo nhãn gộp được, xếp hạng thì không."},
-    {"id": "pick-combo-01", "query": "Món nào vừa không cay vừa dưới 80 nghìn?",
-     "loc": {"tags_all": ["spice:none"], "price_max": 80_000},
-     "why": "HAI ràng buộc cùng lúc. Xếp hạng theo độ tương đồng không có phép AND."},
-]
+def _sinh_ca_chon_mon() -> list[dict]:
+    """Sinh bộ ca chọn món TỪ BỘ NHÃN, không viết tay.
+
+    Vì sao phải sinh
+    ----------------
+    Bản đầu của bộ này viết tay **8 ca**. Với n = 8, nửa khoảng tin cậy 95% là **±28,5 điểm phần
+    trăm** — quá thô để rút bất kỳ kết luận nào, trong khi nó lại đứng ở mục trả lời câu hỏi nghiên
+    cứu chính của đồ án.
+
+    Vấn đề thứ hai nghiêm trọng hơn quy mô: **8 ca đó do người viết chọn**. Khi tự chọn câu hỏi,
+    người viết có xu hướng chọn những câu mình đã biết trước kết quả — và ở đây người viết đã biết
+    trước rằng xếp hạng theo độ tương đồng sẽ thua ở ngưỡng số và phép loại trừ.
+
+    Sinh từ bộ nhãn thì **dữ liệu quyết định danh sách câu hỏi**. Mỗi nhóm nhãn đóng góp số ca tỷ lệ
+    với số giá trị nó có, không theo ý người viết.
+
+    Năm dạng ràng buộc, và mỗi dạng là một phép toán khác nhau trên tập món:
+
+        ngưỡng số   quan hệ THỨ TỰ trên số        "dưới 50.000đ"
+        phân loại   thuộc/không thuộc một tập     "món miền Trung"
+        phủ định    phần bù trong một nhóm        "không cay"
+        phép trừ    phần bù trên toàn thực đơn    "tránh hải sản"
+        phép hội    giao của hai điều kiện        "chay VÀ dưới 60 nghìn"
+    """
+    ra: list[dict] = []
+
+    def them(ma, cau, loc, dang, vi_sao):
+        ra.append({"id": ma, "query": cau, "loc": loc, "dang": dang, "why": vi_sao})
+
+    # --- NGƯỠNG SỐ: xếp hạng theo độ tương đồng không có quan hệ thứ tự trên số ---
+    for i, gia in enumerate((30_000, 50_000, 70_000, 100_000, 150_000, 200_000, 300_000), 1):
+        them(f"pick-price-{i:02d}", f"Món nào dưới {gia // 1000} nghìn?", {"price_max": gia},
+             "ngưỡng số",
+             "Với BM25 và embedding, con số là một TỪ chứ không phải một LƯỢNG. Không có cách "
+             "viết tài liệu nào biến 'dưới 50 nghìn' thành quan hệ giống nhau.")
+
+    # --- PHỦ ĐỊNH và mức độ: 'không cay' chung gần hết chữ với 'cay' ---
+    for i, (ten, nhan) in enumerate(
+            (("không cay", "spice:none"), ("cay nhẹ", "spice:mild"),
+             ("cay vừa", "spice:medium"), ("cay đậm", "spice:hot")), 1):
+        them(f"pick-spice-{i:02d}", f"Món nào {ten}?", {"tags_all": [nhan]},
+             "phủ định" if "không" in ten else "phân loại",
+             "Bốn mức cay có mặt đủ để một bộ luôn trả 'không cay' không thể qua được cả bốn.")
+
+    # --- PHÉP TRỪ: câu hỏi CHỨA chữ cần tránh, nên độ giống kéo đúng thứ đó lên đầu ---
+    for i, (ten, nhan) in enumerate(
+            (("hải sản", "allergen:seafood"), ("đậu phộng", "allergen:peanut"),
+             ("sữa", "allergen:dairy"), ("trứng", "allergen:egg"),
+             ("gluten", "allergen:gluten")), 1):
+        them(f"pick-allergen-{i:02d}", f"Mình dị ứng {ten}, món nào tránh được?",
+             {"tags_none": [nhan]}, "phép trừ",
+             f"AN TOÀN. Câu hỏi chứa chữ '{ten}' nên phép đo độ giống kéo món CÓ {ten} lên đầu — "
+             "ngược điều khách cần. Xếp hạng theo độ tương đồng không có phép trừ.")
+
+    # --- PHÂN LOẠI: chế độ ăn, vùng miền, cách chế biến, sức khỏe ---
+    for i, (ten, nhan) in enumerate((("chay", "diet:vegetarian"), ("thuần chay", "diet:vegan")), 1):
+        them(f"pick-diet-{i:02d}", f"Mình ăn {ten}, có món nào không?", {"tags_all": [nhan]},
+             "phân loại", "Chỗ BM25 tương đối mạnh vì tài liệu món chay có chữ 'chay'.")
+
+    for i, (ten, nhan) in enumerate(
+            (("miền Bắc", "region:north"), ("miền Trung", "region:central"),
+             ("miền Nam", "region:south"), ("Hà Nội", "region:hanoi"),
+             ("Huế", "region:hue"), ("Sài Gòn", "region:saigon")), 1):
+        them(f"pick-region-{i:02d}", f"Có món {ten} nào không?", {"tags_all": [nhan]},
+             "phân loại", "Nhãn vùng miền — lọc gộp được nhiều giá trị cùng nghĩa.")
+
+    for i, (ten, nhan) in enumerate(
+            (("nướng", "method:grilled"), ("hấp", "method:steamed"),
+             ("chiên", "method:fried"), ("xào", "method:stir_fried")), 1):
+        them(f"pick-method-{i:02d}", f"Món {ten} có những gì?", {"tags_all": [nhan]},
+             "phân loại", "Cách chế biến thường có trong tên món, nên BM25 có cơ hội.")
+
+    for i, (ten, nhan) in enumerate(
+            (("ít calo", "health:low_calorie"), ("nhiều đạm", "health:high_protein"),
+             ("thanh nhẹ", "health:light"), ("ít dầu mỡ", "health:low_fat")), 1):
+        them(f"pick-health-{i:02d}", f"Món nào {ten}?", {"tags_all": [nhan]},
+             "phân loại", "Nhãn sức khỏe hiếm khi có trong mô tả món.")
+
+    for i, (ten, nhan) in enumerate(
+            (("đậm đà", "flavour:rich"), ("chua", "flavour:sour"),
+             ("ngọt", "flavour:sweet"), ("béo", "flavour:fatty"),
+             ("thơm khói", "flavour:smoky"), ("mặn", "flavour:salty")), 1):
+        them(f"pick-flavour-{i:02d}", f"Món nào vị {ten}?", {"tags_all": [nhan]},
+             "phân loại", "Nhãn vị — mô tả món đôi khi có, đôi khi không.")
+
+    for i, (ten, nhan) in enumerate(
+            (("hẹn hò", "occasion:date"), ("tiếp khách", "occasion:business"),
+             ("sinh nhật", "occasion:birthday"), ("đi nhậu", "occasion:drinking")), 1):
+        them(f"pick-occasion-{i:02d}", f"Món nào hợp {ten}?", {"tags_all": [nhan]},
+             "phân loại", "Nhãn dịp ăn gần như không bao giờ có trong mô tả món.")
+
+    for i, (ten, nhan) in enumerate(
+            (("một mình", "party:solo"), ("2-3 người", "party:two_three")), 1):
+        them(f"pick-party-{i:02d}", f"Món nào hợp ăn {ten}?", {"tags_all": [nhan]},
+             "phân loại", "Nhãn số người ăn — suy từ khẩu phần, không có trong chữ.")
+
+    # --- PHÉP HỘI: hai điều kiện độc lập cùng lúc ---
+    hoi = [
+        ("Món nào vừa không cay vừa dưới 80 nghìn?",
+         {"tags_all": ["spice:none"], "price_max": 80_000}),
+        ("Món chay nào dưới 60 nghìn?",
+         {"tags_all": ["diet:vegetarian"], "price_max": 60_000}),
+        ("Món miền Trung nào không cay?",
+         {"tags_all": ["region:central", "spice:none"]}),
+        ("Món nướng nào dưới 200 nghìn?",
+         {"tags_all": ["method:grilled"], "price_max": 200_000}),
+        ("Mình dị ứng hải sản, món nào dưới 100 nghìn?",
+         {"tags_none": ["allergen:seafood"], "price_max": 100_000}),
+        ("Món chay nào không cay dưới 70 nghìn?",
+         {"tags_all": ["diet:vegetarian", "spice:none"], "price_max": 70_000}),
+    ]
+    for i, (cau, loc) in enumerate(hoi, 1):
+        them(f"pick-combo-{i:02d}", cau, loc, "phép hội",
+             "HAI ràng buộc độc lập. Điểm giống là một số vô hướng đã trộn, không tách lại được "
+             "thành hai điều kiện để ép cả hai cùng đúng.")
+
+    return ra
+
+
+CA_CHON_MON = _sinh_ca_chon_mon()
 
 
 def _loc_theo_nhan(dieu_kien: dict, items: list[dict]) -> list[str]:
@@ -598,7 +690,9 @@ def main(argv: list[str] | None = None) -> int:
     ghi_lai["bai_toan_2"] = {
         "so_ca": len(CA_CHON_MON),
         "bo": {
-            ten: {"n": k.scored_cases, "hit1": k.hit1, "hit5": k.hit5, "cam5": k.forbidden_hits}
+            ten: {"n": k.scored_cases, "hit1": k.hit1, "hit5": k.hit5, "cam5": k.forbidden_hits,
+                  # Cần cho McNemar ở mục 4.4 — cùng lý do với bài toán 1.
+                  "hit1_theo_ca": k.hit1_theo_ca, "ma_ca": k.ma_ca}
             for ten, k in kq2.items()
         },
     }
