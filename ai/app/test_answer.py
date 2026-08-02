@@ -810,3 +810,43 @@ class NoiRaKhiKhachXinDungThuHoTranh(unittest.TestCase):
         """Chiều ngược: khách không nhắc dị nguyên thì không được chèn lời giải thích."""
         _, reply = reply_for("Cho mình món chay")
         self.assertNotIn("cần tránh", reply.text.lower())
+
+
+class RuouBiaKHONGTuDungDau(unittest.TestCase):
+    """Rượu bia không tự đứng đầu khi khách không xin.
+
+    Người dùng báo: mọi câu hỏi đồ uống đều mở đầu bằng bia. Nguyên nhân là bốn món rẻ nhất thực
+    đơn đều là bia (12.000–22.000đ) còn nước mía 25.000đ, và phép sắp cho mọi đồ uống cùng hạng rồi
+    xếp theo giá.
+
+    Đây không chỉ là gợi ý nhạt. Khách ăn trưa, khách đi với trẻ con, khách còn lái xe — mặc định
+    mời rượu bia cho tất cả là lời tư vấn tệ. Nhà hàng vẫn bán rượu bia; câu hỏi là nó có nên là
+    thứ ĐẦU TIÊN đề xuất cho người không hỏi.
+
+    **Xếp hạng, KHÔNG lọc** — cùng nguyên tắc với "món ăn trước đồ uống".
+    """
+
+    def _la_ruou(self, i: str) -> bool:
+        return BY_ID[i]["categoryId"] == "cat_alcohol"
+
+    def test_khong_xin_thi_ruou_bia_khong_dung_dau(self):
+        for cau in ("tư vấn đồ uống", "cho mình nước uống", "đồ uống nào ngon"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items, "tiền đề: câu này phải nêu món")
+                self.assertFalse(self._la_ruou(reply.items[0]),
+                                 f"{BY_ID[reply.items[0]]['name']} đứng đầu khi khách không xin rượu")
+
+    def test_CO_xin_thi_van_ra_ngay_dau(self):
+        """Chiều ngược: xếp hạng chứ không lọc, nên khách xin bia vẫn được bia ngay."""
+        for cau in ("cho mình bia", "có bia gì không", "đồ uống có cồn"):
+            with self.subTest(cau):
+                _, reply = reply_for(cau)
+                self.assertTrue(reply.items)
+                self.assertTrue(self._la_ruou(reply.items[0]),
+                                "khách xin rượu bia mà không nhận được ngay đầu")
+
+    def test_do_uong_re_nhat_VAN_noi_su_that(self):
+        """Không được vì xếp hạng mà nói sai: bia THẬT SỰ rẻ nhất, và câu hỏi giá phải trung thực."""
+        _, reply = reply_for("đồ uống nào rẻ nhất")
+        self.assertIn("Bia hơi Hà Nội", reply.text)

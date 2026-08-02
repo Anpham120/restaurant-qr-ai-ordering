@@ -476,6 +476,22 @@ def build() -> dict:
               "lặng thì nhóm đó sinh ít ca hơn dự kiến và không ai biết."
         )
 
+    # HỌ `kb-longtail` — đo đúng chỗ truy hồi kiếm được chỗ đứng. Xem `CA_DUOI_DAI`.
+    #
+    # Kiểm khóa chủ đề TỒN TẠI, cùng lý do với khối trên: một ca trỏ vào khóa không có thì nó không
+    # bao giờ đạt được, và số thấp sẽ bị đọc thành "truy hồi kém" thay vì "ca viết sai".
+    for c in ca_duoi_dai():
+        for k in c["expected"][0]["topic_keys_any"]:
+            if k not in docs:
+                thieu.append(f"{c['id']} -> {k}")
+        cases.append(c)
+
+    if thieu:
+        raise SystemExit(
+            "Bảng câu hỏi nhắc khóa chủ đề không tồn tại trong kho tri thức:\n  "
+            + "\n  ".join(thieu)
+        )
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_retrieval_cases.py — đừng sửa tay tệp này.",
@@ -492,6 +508,101 @@ def build() -> dict:
         ],
         "cases": cases,
     }
+
+
+
+# ------------------------------------------------------------------------------------------------
+# HỌ `kb-longtail` — ĐO ĐÚNG CHỖ TRUY HỒI KIẾM ĐƯỢC CHỖ ĐỨNG
+#
+# Vì sao họ này tồn tại
+# ---------------------
+# Ba tập đánh giá cũ cho một con số khó chịu: bộ xếp hạng chạy **0/140 ca trả lời** và **0/149 lượt
+# phiên**. Mọi câu tri thức ở đó đều được trả bằng TRA KHÓA tất định (`facts:hours`,
+# `knowledge:beverage_pairing`) — khớp chủ đề rồi lấy đúng tài liệu, không xếp hạng gì cả.
+#
+# Đọc một mình, con số ấy nói "truy hồi vô dụng trong dự án này". Nhưng nó KHÔNG chứng minh được
+# điều đó, vì hai tập kia được viết quanh chính các nhánh tất định — chúng đo thứ chúng được viết
+# để đo. Muốn biết truy hồi đáng giá bao nhiêu thì phải có một tập đo ĐÚNG chỗ nó làm việc.
+#
+# Ba điều kiện của một ca trong họ này, và cả ba đều bắt buộc
+# ----------------------------------------------------------
+#   1. KHÔNG khớp khóa chủ đề nào  -> nhánh tất định phải rơi về `clarify`/`off_topic`
+#   2. Câu trả lời CÓ trong kho    -> nếu không thì đây là ca không trả lời được, không phải ca đo
+#      (và phải là tài liệu `synthesize`: `verbatim` KHÔNG vào chỉ mục truy hồi, nên trỏ vào
+#       `high_chair`/`kitchen_allergy` là đòi bộ truy hồi tìm thứ nó không thấy — cổng kiểm
+#       ở cuối `build()` bắt được đúng hai ca đó khi tôi viết bảng này)
+#   3. Dùng TỪ KHÁC tài liệu       -> nếu trùng từ thì nó đo BM25, không đo hiểu nghĩa
+#
+# Điều kiện 3 là chỗ dễ gian nhất: viết câu hỏi bằng đúng chữ trong tiêu đề mục thì mọi bộ truy hồi
+# đều thắng, và con số đẹp mà vô nghĩa. Nên mỗi ca ghi rõ `tu_khac` — từ trong câu hỏi KHÔNG có
+# trong đoạn đích.
+#
+# Ca ở đây KHÔNG được viết để truy hồi thắng. Chúng được viết để đo, và số thật ra sao thì báo cáo
+# ghi vậy — kể cả khi nó thấp.
+# ------------------------------------------------------------------------------------------------
+CA_DUOI_DAI: list[dict] = [
+    {"q": "Mình no rồi mà bạn mình chưa ăn xong, gọi thêm gì cho đỡ ngại?",
+     "keys": ["appetizer_role"], "tu_khac": "no rồi / đỡ ngại",
+     "why": "Khách mô tả TÌNH HUỐNG xã giao, không gọi tên món. Không nhãn nào bắt được."},
+    {"q": "Đi bốn người mà chỉ muốn tiêu tầm hai trăm mỗi người thì tính sao?",
+     "keys": ["budget_planning"], "tu_khac": "tiêu / tính sao",
+     "why": "Có số nhưng không phải ngưỡng lọc — khách hỏi CÁCH chia ngân sách."},
+    {"q": "Bé nhà mình mới hai tuổi, quán có gì phù hợp không?",
+     "keys": ["children_elderly"], "tu_khac": "hai tuổi",
+     "why": "Tuổi cụ thể, không phải nhãn `audience:child`."},
+    {"q": "Mình lái xe nên không dám uống gì có cồn, quán gợi ý gì?",
+     "keys": ["beer_and_alcohol", "beverage_pairing"], "tu_khac": "lái xe / không dám",
+     "why": "Lý do KHÔNG uống, chứ không phải yêu cầu lọc đồ uống."},
+    {"q": "Ăn xong mà miệng vẫn cay xè thì uống gì cho dịu?",
+     "keys": ["beverage_pairing"], "tu_khac": "cay xè / dịu",
+     "why": "Cảm giác sau khi ăn — không nhãn nào mô tả trạng thái này."},
+    {"q": "Mình muốn biết bếp có làm riêng cho người dị ứng không?",
+     "keys": ["allergy_guidance"], "tu_khac": "làm riêng",
+     "why": "Hỏi về QUY TRÌNH bếp, không phải nhãn dị nguyên của món."},
+    {"q": "Quán có nói được món này nấu bao lâu không?",
+     "keys": ["cannot_help"], "tu_khac": "nấu bao lâu",
+     "why": "Câu hệ thống PHẢI từ chối — và tài liệu nói rõ vì sao. Đo cả việc biết mình không biết."},
+    {"q": "Lần đầu tới đây, gọi kiểu gì cho khỏi bỡ ngỡ?",
+     "keys": ["first_visit", "ordering_guide"], "tu_khac": "bỡ ngỡ",
+     "why": "Khách xin CÁCH GỌI MÓN, không xin danh sách món."},
+    {"q": "Mấy món này ra cùng lúc hay ra dần vậy?",
+     "keys": ["portion_timing", "cannot_help"], "tu_khac": "ra dần",
+     "why": "Hỏi thứ tự phục vụ — thực đơn không có trường nào cho việc này."},
+    {"q": "Cả nhà ăn chung một mâm thì nên gọi thế nào cho hợp lý?",
+     "keys": ["sharing_etiquette", "meal_sets"], "tu_khac": "một mâm",
+     "why": "Cách ăn của người Việt, nằm trong văn xuôi chứ không trong nhãn."},
+    {"q": "Mình ăn kiêng nhưng không phải dị ứng, có khác gì nhau không?",
+     "keys": ["allergy_guidance", "dietary_limits"], "tu_khac": "khác gì nhau",
+     "why": "Phân biệt hai khái niệm — chỉ trả lời được bằng văn xuôi."},
+    {"q": "Gọi khai vị trước có làm no bụng không ăn được món chính không?",
+     "keys": ["appetizer_role"], "tu_khac": "no bụng",
+     "why": "Lo lắng cụ thể, và tài liệu trả lời đúng nó."},
+]
+
+
+def ca_duoi_dai() -> list[dict]:
+    """Sinh ca cho họ `kb-longtail`. Xem khối chú thích trên."""
+    ra = []
+    for i, c in enumerate(CA_DUOI_DAI, 1):
+        ra.append({
+            "id": f"kb-longtail-{i:02d}",
+            "family": "kb-longtail",
+            "query": c["q"],
+            "expected": [{"topic_keys_any": c["keys"]}],
+            # `forbidden` = tài liệu SINH TỪ THỰC ĐƠN (`kb.region.*`, `kb.method.*`...).
+            #
+            # Chọn đúng nhóm đó vì nó là kiểu trả lời sai ĐẶC TRƯNG của chiều này: khách hỏi "gọi
+            # khai vị trước có no bụng không" mà bộ truy hồi đưa về một tài liệu liệt kê món khai
+            # vị thì nó trả lời sai câu hỏi — đúng lỗi mà cả họ ca này được viết ra để đo.
+            #
+            # Không để `forbidden` rỗng: `test_moi_ca_co_forbidden_HOAC_la_ca_rong` chặn điều đó,
+            # và nó đúng — một ca không có điều kiện cấm thì Hit@5 = 1,0 vẫn đạt khi 4/5 đoạn lạc đề.
+            "forbidden": [{"doc_id_prefix": f"kb.{n}."}
+                          for n in ("region", "method", "ingredient", "flavour")],
+            "expect_nothing": False,
+            "why": f"{c['why']} Từ KHÔNG có trong đoạn đích: {c['tu_khac']}.",
+        })
+    return ra
 
 
 def main(argv: list[str] | None = None) -> int:

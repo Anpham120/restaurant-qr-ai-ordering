@@ -155,6 +155,9 @@ class Request:
     # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
     # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
     y_dinh_bo: list[str] = field(default_factory=list)
+    # Danh mục khách nói RÕ LÀ KHÔNG muốn. Khác `avoid_tags` ở chỗ nó loại theo DANH MỤC, không
+    # theo nhãn — vì "bia" là một danh mục, không phải một thuộc tính. Xem `_danh_muc_bi_phu_dinh`.
+    avoid_categories: list[str] = field(default_factory=list)
     # Các SUẤT của một yêu cầu combo: [(tên suất, số lượng, danh mục hợp lệ)]. Rỗng = không phải
     # câu combo. Xem `SUAT_COMBO`.
     combo: list = field(default_factory=list)
@@ -514,16 +517,33 @@ _add("pho bun|pho|bun|mon nuoc", "category", "cat_noodle")
 _add("com viet|mon com|com", "category", "cat_main")
 _add("lau", "category", "cat_hotpot")
 _add("mon ga", "category", "cat_chicken")
-_add("dac san vung mien", "category", "cat_regional")
+# Chỉ có cụm ĐẦY ĐỦ "dac san vung mien", nên "cho mình đặc sản" — cách khách thật hay nói —
+# rơi vào nhánh hỏi lại. Đo được bằng bản quét 13 danh mục.
+_add("dac san vung mien|dac san|mon dac san|dac san dia phuong|mon vung mien",
+     "category", "cat_regional")
 _add("ca phe|tra", "category", "cat_drink")
 _add("nuoc ep|sinh to", "category", "cat_juice")
 _add("trang mieng|do ngot", "category", "cat_dessert")
-_add("trai cay", "category", "cat_fruit")
-_add("bia|ruou|do co con", "category", "cat_alcohol")
+_add("trai cay|hoa qua|trai cay tuoi|dia trai cay", "category", "cat_fruit")
+# "co con" tách riêng: cụm cũ là "do co con", nên câu "đồ uống có cồn" (rút dấu thành
+# "do uong co con") KHÔNG khớp — và nó trả về nước mía, tức ngược hẳn điều khách hỏi.
+# KHÔNG có cụm trần "co con": `fold("có cồn") == fold("có con") == "co con"`, nên nó biến câu
+# "mình có con 5 tuổi" thành yêu cầu RƯỢU BIA. Đã đo được đúng như vậy khi cụm đó còn ở đây.
+#
+# Đây là vụ va chạm rút dấu thứ mười một trong dự án, và lần này do chính bản sửa "đồ uống có cồn"
+# gây ra — nên bài kiểm kê đụng chữ đáng giá đúng ở chỗ nó bắt được người vừa viết ra nó.
+#
+# Giữ các cụm DÀI: chữ "uong"/"do" đứng trước làm chúng không thể là "có con".
+_add("bia|ruou|do co con|ruou bia|do uong co con|thuc uong co con|nuoc co con",
+     "category", "cat_alcohol")
 
 # Món ăn hay đồ uống — đúng yêu cầu "không phải bảo tư vấn món mà cứ đưa bia vào".
 _add("mon an|do an|an gi|minh doi|toi doi|bua trua|bua toi|bua sang|an com", "wants", "food")
-_add("do uong|thuc uong|uong gi|nuoc gi", "wants", "drink")
+# "nuoc uong"/"nuoc ngot"/"do giai khat" đo được là KHÔNG nhận ra: câu "cho mình nước uống"
+# cho `wants=any`, `categories=[]` nên nó rơi vào nhánh HỎI LẠI — khách xin đồ uống và bị
+# hỏi ngược lại muốn món ăn hay đồ uống.
+_add("do uong|thuc uong|uong gi|nuoc gi|nuoc uong|nuoc ngot|do giai khat|giai khat",
+     "wants", "drink")
 
 # --- Tham chiếu ngược vào danh sách khách VỪA đọc --------------------------------------
 #
@@ -908,6 +928,48 @@ KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem na
 # Xử lý: nhãn rút ra không được ÁP, mà thành lệnh BỎ ràng buộc cùng nhóm. Đó đúng là điều khách
 # muốn, và nó dùng lại nguyên cơ chế `y_dinh_bo` + `da_bo_rang_buoc` sẵn có — nên khách còn nhận
 # được câu xác nhận "Dạ em đã bỏ điều kiện không cay…", tức thấy được hệ thống đã sửa.
+# PHỦ ĐỊNH MỘT DANH MỤC — "không uống bia", "mình không ăn lẩu".
+#
+# Đo được, và nó là phép lọc NGƯỢC HẲN ý khách:
+#
+#     "tôi không uống bia, tư vấn cho tôi đồ uống khác"
+#     -> Bia Hà Nội, Bia Sài Gòn Special, Bia Tiger Crystal
+#
+# Khách nói KHÔNG uống bia và nhận về đúng ba loại bia. Nguyên nhân: `bia` là một cụm DANH MỤC
+# (`cat_alcohol`), và không có gì đọc chữ "không" đứng trước nó — nên nó được áp như một bộ lọc
+# dương. Cùng lớp lỗi với "không cay" từng tự xuất hiện, nhưng ở tầng danh mục.
+#
+# Vì sao `la_cau_phu_nhan()` không đỡ được: hàm đó nhận câu PHỦ NHẬN LỜI KHAI TRƯỚC ("tôi đâu có
+# nói là..."), không nhận ràng buộc phủ định trực tiếp. Còn "không cay" chạy được là vì cụm
+# "khong an duoc cay" nằm SẴN trong từ vựng như một đơn vị — cách đó không mở rộng được cho 24 cụm
+# danh mục nhân với mọi cách nói phủ định.
+#
+# Nhận theo VỊ TRÍ: một từ phủ định đứng trong ba từ ngay trước cụm danh mục. Ba từ đủ cho "không
+# uống bia", "không ăn được lẩu", "mình không thích cà phê", và đủ ngắn để "không cay nhưng cho
+# mình bia" KHÔNG bị đọc nhầm.
+TU_PHU_DINH = ("khong", "ko", "chang", "chả", "dung", "khoi", "kieng", "tranh", "ghet", "khong thich")
+
+
+def _danh_muc_bi_phu_dinh(folded: str, cum_danh_muc: dict) -> tuple[list[str], list[str]]:
+    """(mã danh mục bị phủ định, cụm chữ đã khớp).
+
+    Trả về CẢ cụm chữ vì `ho_mon` cũng bắt những chữ đó, và `ho_mon` thắng `wants` trong `select()`.
+    Chỉ gỡ danh mục mà để lại `ho_mon=['bia']` thì phép lọc thành "họ bia, trừ danh mục bia" — ra
+    RỖNG. Đo được đúng như vậy ở bản sửa đầu.
+    """
+    ma_ket: list[str] = []
+    cum_ket: list[str] = []
+    for cum, ma in cum_danh_muc.items():
+        for m in re.finditer(rf"(?<![a-z]){re.escape(cum)}(?![a-z])", folded):
+            truoc = folded[: m.start()].split()[-3:]
+            if any(t in TU_PHU_DINH for t in truoc):
+                if ma not in ma_ket:
+                    ma_ket.append(ma)
+                cum_ket.append(cum)
+                break
+    return ma_ket, cum_ket
+
+
 # COMBO — khách xin một BỘ món, mỗi loại một suất.
 #
 # "Mình đi một mình, muốn tư vấn 1 món ăn nhẹ gồm 1 món chính, 1 thức uống, 1 tráng miệng"
@@ -1561,6 +1623,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # Nhãn rút ra không bị vứt đi lặng lẽ — nó thành lệnh BỎ ràng buộc cùng nhóm. Khác biệt quan
     # trọng: vứt đi thì `spice:none` kế thừa từ bộ nhớ vẫn còn nguyên và khách vẫn nhận đúng câu
     # sai; bỏ nhóm thì bộ nhớ được dọn, và `da_bo_rang_buoc` làm khách THẤY được điều đó.
+    # PHỦ ĐỊNH DANH MỤC — chuyển từ "lọc ra" sang "loại bỏ". Xem `_danh_muc_bi_phu_dinh`.
+    _cum_dm = {p: v for p, (k, v) in VOCAB.items() if k == "category"}
+    _bi_phu_dinh, _cum_bi_phu_dinh = _danh_muc_bi_phu_dinh(request.folded, _cum_dm)
+    if _bi_phu_dinh:
+        request.avoid_categories = list(
+            dict.fromkeys([*request.avoid_categories, *_bi_phu_dinh])
+        )
+        request.categories = [c for c in request.categories if c not in _bi_phu_dinh]
+        # Gỡ luôn HỌ MÓN sinh từ chính cụm bị phủ định — xem `_danh_muc_bi_phu_dinh`.
+        request.ho_mon = [h for h in request.ho_mon
+                          if not any(h in c or c in h for c in _cum_bi_phu_dinh)]
+        request.matched.append(f"phủ định danh mục: loại {_bi_phu_dinh}")
+
     # COMBO — đọc TRƯỚC các cờ khác vì nó đổi hẳn hình dạng câu trả lời.
     request.combo = doc_suat_combo(request.folded)
 
