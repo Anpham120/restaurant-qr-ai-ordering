@@ -693,7 +693,21 @@ _add("hay|hoac|khac nhau the nao|nen chon|so voi|voi", "flag", "comparison")
 # Gộp hai loại thì câu "món nào không cay" sẽ trả về một đoạn văn thay vì danh sách món.
 
 # Chính sách vận hành.
-_add("may gio mo cua|gio mo cua|mo cua luc nao|may gio dong cua|gio dong cua|mo cua den may gio", "policy", "hours")
+# Giờ mở/đóng cửa. Cụm ở đây phải chịu được CHỦ NGỮ CHÈN GIỮA — người Việt nói "mấy giờ QUÁN đóng
+# cửa", "nhà hàng mở cửa mấy giờ", "mấy giờ THÌ đóng cửa". Bản đầu chỉ liệt kê cụm liền nhau nên
+# 4/6 cách hỏi tự nhiên rơi xuống nhánh truy hồi, và truy hồi trả về một danh sách món khai vị cho
+# câu hỏi giờ mở cửa — lỗi lộ ra khi chạy ví dụ xuyên suốt cho báo cáo.
+#
+# Cách sửa: tách thành hai vế và cho phép tối đa ba từ chèn giữa, thay vì liệt kê mọi biến thể.
+_add("may gio mo cua|gio mo cua|mo cua luc nao|may gio dong cua|gio dong cua|mo cua den may gio",
+     "policy", "hours")
+_GIO_CUA_RE = re.compile(
+    r"(?<![a-z])(?:"
+    r"may gio(?:\s+\S+){0,3}?\s+(?:mo|dong) cua"      # "mấy giờ (quán) đóng cửa"
+    r"|(?:mo|dong) cua(?:\s+\S+){0,3}?\s+may gio"      # "mở cửa (đến) mấy giờ"
+    r"|(?:mo|dong) cua luc(?:\s+\S+){0,3}?\s+gio"      # "đóng cửa lúc mấy giờ"
+    r")(?![a-z])"
+)
 _add("thanh toan|tra tien|quet the|chuyen khoan|tra bang the|cach tra tien", "policy", "payment")
 _add("hoa don|xuat hoa don|vat|hoa don do", "policy", "invoice")
 _add("do xe|bai xe|gui xe|cho dau xe|dau o to", "policy", "parking")
@@ -1488,6 +1502,19 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # Phân biệt bằng chữ "nhãn": khách hỏi VỀ nhãn thì đó là câu meta về thực đơn, không phải câu
     # đòi một con số. Bỏ chủ đề dinh dưỡng để câu rơi xuống nhánh truy hồi toàn kho, nơi có câu
     # trả lời thật.
+    # Giờ mở/đóng cửa với CHỦ NGỮ CHÈN GIỮA — "mấy giờ QUÁN đóng cửa", "nhà hàng mở cửa mấy giờ".
+    #
+    # Bảng từ vựng chỉ khớp cụm LIỀN NHAU, nên bốn trong sáu cách hỏi tự nhiên rơi xuống nhánh truy
+    # hồi. Và truy hồi trả về một danh sách món khai vị cho câu hỏi giờ mở cửa — vì không đoạn nào
+    # nói về giờ (tài liệu giờ mở cửa là `verbatim`, KHÔNG nằm trong chỉ mục truy hồi), nên nó lấy
+    # đoạn giống nhất còn lại.
+    #
+    # Lỗi này lộ ra khi chạy ví dụ xuyên suốt cho báo cáo, không phải từ tập đánh giá — vì mọi ca
+    # trong tập đều viết cụm liền nhau.
+    if not request.policy_topic and _GIO_CUA_RE.search(request.folded):
+        request.policy_topic = "hours"
+        request.matched.append("giờ mở/đóng cửa (có chủ ngữ chèn giữa)")
+
     if request.policy_topic == "nutrition" and " nhan " in f" {request.folded} ":
         request.policy_topic = None
         request.matched.append("hỏi VỀ nhãn -> không phải câu dinh dưỡng")

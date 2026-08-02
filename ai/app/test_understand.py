@@ -61,6 +61,36 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
         self.assertNotIn("allergen:seafood", request.avoid_tags)
         self.assertEqual(request.categories, [])
 
+    def test_gio_mo_cua_chiu_duoc_CHU_NGU_CHEN_GIUA(self):
+        """Người Việt chèn chủ ngữ vào giữa cụm, và bảng từ vựng chỉ khớp cụm LIỀN NHAU.
+
+        Lỗi lộ ra khi chạy ví dụ xuyên suốt cho báo cáo, không phải từ tập đánh giá — vì mọi ca
+        trong tập đều viết cụm liền nhau. Bốn trong sáu cách hỏi tự nhiên rơi xuống nhánh truy hồi,
+        và truy hồi trả về một **danh sách món khai vị** cho câu hỏi giờ mở cửa: tài liệu giờ mở
+        cửa là `verbatim` nên KHÔNG nằm trong chỉ mục truy hồi, và bộ xếp hạng lấy đoạn giống nhất
+        còn lại.
+        """
+        for cau in ("Mấy giờ quán đóng cửa?",
+                    "Quán mấy giờ mở cửa?",
+                    "Nhà hàng mở cửa mấy giờ?",
+                    "Mấy giờ thì đóng cửa?",
+                    "Quán đóng cửa lúc mấy giờ?",
+                    "Bên mình mở cửa đến mấy giờ?"):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).policy_topic, "hours")
+
+    def test_mau_gio_cua_KHONG_bat_cau_loc_mon(self):
+        """Chiều ngược: mẫu nới lỏng không được nuốt câu chọn món.
+
+        Mẫu cho phép ba từ chèn giữa, nên nó có thể khớp nhầm nếu câu dài. Ca này chốt rằng câu lọc
+        món bình thường vẫn đi đúng nhánh.
+        """
+        for cau in ("Món nào không cay?",
+                    "Cho mình món chay dưới 100 nghìn",
+                    "Món nào có cua?"):
+            with self.subTest(cau=cau):
+                self.assertIsNone(ask(cau).policy_topic)
+
     def test_di_ung_hai_san_van_la_di_ung(self):
         request = ask("Mình dị ứng hải sản, gợi ý món ăn giúp mình")
         self.assertIn("allergen:seafood", request.avoid_tags)

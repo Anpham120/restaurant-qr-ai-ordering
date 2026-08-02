@@ -64,10 +64,17 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 3.0 Chương này làm gì — đọc bằng lời trước
   - 3.1 Kiến trúc bảy chặng — và chỉ hai chặng có mô hình
   - 3.2 Kho tri thức: một kho, hai chế độ trả lời
+    - 3.2.1 Bộ nhãn được xây dựng như thế nào
+    - 3.2.2 Kho tri thức gồm những gì
+    - 3.2.3 Ai đọc kho tri thức, và đọc bằng cách nào
   - 3.3 Bốn tập đánh giá, và kỷ luật chia tập
+    - 3.3.1 Bộ đánh giá được xây dựng như thế nào
   - 3.4 Mười bảy nhánh trả lời, không nhánh nào chồng nhánh nào
   - 3.5 Hai bài toán truy hồi khác nhau
   - 3.6 Điều kiện kiểm soát thực nghiệm
+  - 3.7 Nguyên lý hoạt động từng lớp
+    - 3.7.1 → 3.7.9 Nhận câu hỏi · Nhớ ngữ cảnh · Chọn nhánh · Lọc nhãn · Truy hồi · Trả lời · Xác minh · Thẻ giỏ
+    - 3.7.10 Ba ví dụ chạy xuyên suốt bảy lớp
 - **[CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ](#chương-4-thực-nghiệm-và-kết-quả)**
   - 4.0 Đọc chương kết quả thế nào
   - 4.1 Thiết lập
@@ -1060,6 +1067,127 @@ Số đoạn được xếp hạng là **372**, không phải 452: bỏ đoạn 
 (chúng đã có đường riêng) và bỏ đoạn **mở đầu** — một mục không có tiêu đề là phần dẫn nhập của tài
 liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 
+### 3.2.1 Bộ nhãn được xây dựng như thế nào
+
+Bộ nhãn là **nền của cả hệ thống**: lớp hiểu câu hỏi ánh xạ chữ khách gõ vào nhãn, lớp chọn món lọc
+theo nhãn, và 85 tài liệu tri thức được sinh từ nhãn. Nhãn sai thì cả
+bốn chặng sau sai theo.
+
+**Quy trình bốn bước:**
+
+| Bước | Việc | Kết quả |
+|---|---|---|
+| 1 | Kiểm kê thuộc tính có sẵn trong thực đơn gốc | giá, tên, mô tả, nhóm món |
+| 2 | Rút thuộc tính **ngầm** từ mô tả món | cay/không cay, chay/mặn, vùng miền, cách chế biến |
+| 3 | Hợp nhất hai nguồn — JSON của AI và CSDL của backend | **85 nhãn / 16 nhóm** |
+| 4 | Sinh migration để CSDL production đổi theo | chuỗi migration có phiên bản |
+
+**Khóa nhãn có không gian tên.** Mỗi nhãn viết dạng `nhóm:giá_trị` — `spice:none`, `diet:vegetarian`,
+`allergen:seafood`. Ban đầu nhóm định dùng khóa phẳng (`none`, `mild`, `hot`), nhưng như vậy không
+biết `none` thuộc nhóm cay hay nhóm chế độ ăn. Quan trọng hơn: khóa có nhóm cho phép **ghi đè theo
+NHÓM** ở bộ nhớ phiên — khách nói "không cay" thì `spice:none` phải **đẩy** `spice:hot` ra, chứ không
+nằm cạnh nó.
+
+**Phân bố 85 nhãn theo nhóm:**
+
+| Nhóm | Số giá trị | Ví dụ | Suy từ đâu |
+|---|---:|---|---|
+| `method` | 11 | `grilled`, `steamed` | tên món và mô tả |
+| `ingredient` | 10 | `beef`, `shrimp` | mô tả món |
+| `region` | 10 | `hue`, `saigon` | tên món và mô tả |
+| `health` | 6 | `low_calorie` | mô tả món |
+| `flavour` | 6 | `rich`, `sour` | mô tả món |
+| `party` | 6 | `solo`, `two_three` | khẩu phần |
+| `occasion` | 6 | `date`, `drinking` | người viết đặt |
+| `allergen` | 5 | `seafood`, `peanut` | **mô tả món — và đây là nhóm nguy hiểm nhất** |
+| `spice` | 4 | `none`, `hot` | mô tả món |
+| `meal`, `price`, `season` | 4 mỗi nhóm | `lunch`, `budget` | giá và mô tả |
+| `serving`, `diet`, `audience`, `promo` | 2–3 mỗi nhóm | `vegetarian` | mô tả món |
+
+**Hai bản rà tự động chạy trong CI**, vì gán nhãn thủ công thì sẽ có lỗ:
+
+- **Rà nhãn dị nguyên** — đối chiếu nhãn với mô tả món. Bản rà này tìm ra **bảy lỗ thật** đã được lấp.
+- **Rà nhãn cách chế biến** — nhóm nhãn duy nhất mà **tên món tự nói ra đáp án** ("Gà nướng muối ớt"),
+  nên kiểm được tự động. Bản rà chạy `--check`, tức **chặn** khi còn lệch.
+
+**Giới hạn phải nói rõ:** nhãn dị nguyên chỉ phủ **44/91 món**. Bảy món hải sản không có nhãn nguyên
+liệu nào, và hai trong số đó chứa tôm thật (*Bún đậu mắm tôm*, *Bún bò Huế*). Đây là giới hạn **dữ
+liệu**, không sửa được bằng mã — và nó là lý do hệ thống chặn rộng thay vì lọc hẹp (mục 2.8, quyết
+định 5).
+
+### 3.2.2 Kho tri thức gồm những gì
+
+Kho có **109 tài liệu / 452 đoạn**, ở dạng markdown có phần đầu YAML. Nó chia theo
+**hai trục độc lập**, và hiểu hai trục này là hiểu cả kiến trúc tri thức.
+
+**Trục thứ nhất — nguồn gốc nội dung:**
+
+| Nguồn | Số tài liệu | Nội dung | Ai viết |
+|---|---:|---|---|
+| `derived` | 57 | Danh sách món theo từng nhãn, đếm số món, dải giá | **Sinh tự động** từ thực đơn bởi `build_knowledge.py` |
+| `demo` | 52 | Chính sách quán, cách kết hợp món, hướng dẫn gọi món | Nhóm viết tay |
+
+Tài liệu `derived` **không thể lệch khỏi thực đơn**, vì chúng được sinh lại từ thực đơn và CI có cổng
+`--check`. Thực đơn thêm một món thì tài liệu tương ứng tự cập nhật số đếm và danh sách.
+
+**Trục thứ hai — cách trả lời, và đây là trục quyết định kiến trúc:**
+
+| Chế độ | Số tài liệu | Dùng cho câu hỏi | Cách trả lời |
+|---|---:|---|---|
+| `verbatim` | 24 | giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng | **Trả NGUYÊN VĂN**, không qua mô hình |
+| `synthesize` | 85 | tư vấn, so sánh, giải thích | Làm **ngữ cảnh** cho mô hình viết |
+
+**Vì sao phải tách hai chế độ.** Câu *"mấy giờ đóng cửa?"* có **một đáp án đúng duy nhất**. Đưa nó qua
+mô hình sinh là tạo cơ hội cho mô hình diễn đạt lại và làm sai — trong khi việc cần làm chỉ là đọc ra
+một chuỗi. Ngược lại, câu *"gọi khai vị trước có làm no bụng không?"* cần diễn đạt, nên nó cần mô hình.
+
+Hệ quả kiến trúc: **tài liệu `verbatim` KHÔNG nằm trong chỉ mục truy hồi.** Chúng được tra bằng khóa
+chủ đề. Đây là lý do tập đánh giá truy hồi có họ `kb-verbatim-topic` — nó kiểm rằng truy hồi **trả về
+rỗng** cho những câu này thay vì trả về một đoạn gần gần.
+
+### 3.2.3 Ai đọc kho tri thức, và đọc bằng cách nào
+
+Kho tri thức **không được đọc bởi một đường duy nhất**. Có **ba đường**, và chúng phục vụ ba loại câu
+hỏi khác nhau:
+
+```
+                       câu hỏi của khách
+                              |
+              +---------------+---------------+
+              |               |               |
+              v               v               v
+      [A] TRA KHÓA      [B] CỤM TỪ VỰNG   [C] TRUY HỒI
+      chủ đề            khớp chuỗi         xếp hạng
+              |               |               |
+              v               v               v
+      tài liệu           tài liệu         đoạn liên quan
+      `verbatim`         `synthesize`     trong toàn kho
+              |               |               |
+              v               v               v
+      trả NGUYÊN VĂN     làm ngữ cảnh     làm ngữ cảnh
+      (không qua mô hình)  cho mô hình     cho mô hình
+```
+
+**Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
+nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
+
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 522 cụm từ khóa. Khớp được cụm nào thì
+lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
+
+**Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
+đoạn `synthesize` và lấy 5 đoạn đầu. Đây là đường **duy nhất** tới những tài liệu không có cụm từ vựng
+riêng.
+
+**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 140 ca trả lời và
+149 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
+hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
+các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
+
+**Cửa `audience: guest`.** Mọi tài liệu trong kho phải khai `audience: guest`, và bộ nạp **từ chối**
+tệp không khai đúng giá trị này — từ chối chứ không phải lọc. Lý do: bản kho trước có 5/27 tệp là
+hướng dẫn nội bộ dành cho AI nằm chung chỉ mục, và **47/221 đoạn nội bộ đã bị trích cho khách đọc**.
+Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối thì không.
+
 ## 3.3 Bốn tập đánh giá, và kỷ luật chia tập
 
 | Tập | Kích thước | Chặng nó đo |
@@ -1069,6 +1197,98 @@ liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 | `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
+
+### 3.3.1 Bộ đánh giá được xây dựng như thế nào
+
+Mục này trả lời câu hỏi *"lấy đâu ra những ca đánh giá này"* — điều kiện để mọi con số ở Chương 4 có
+nghĩa. Một tập đánh giá không nói rõ nguồn gốc thì con số trên nó không kiểm chứng lại được.
+
+#### Hai cách tạo ca, và vì sao dùng cả hai
+
+| Cách tạo | Dùng khi | Ưu điểm | Nhược điểm |
+|---|---|---|---|
+| **Sinh tự động từ dữ liệu** | ca suy được từ thực đơn hoặc bộ nhãn | không thể trỏ vào dữ liệu không tồn tại; dữ liệu đổi thì ca đổi theo; không mang thiên lệch của người viết | chỉ tạo được ca *đúng khuôn*, không tạo được ca đối kháng |
+| **Viết tay** | ca đối kháng, ca ngoài phạm vi, ca đụng chữ | nhắm đúng chỗ dễ sai | người viết có thể vô thức chọn ca mình biết hệ thống sẽ qua |
+
+Nguyên tắc áp dụng: **phần suy được từ dữ liệu thì sinh, phần không suy được thì viết tay và ghi rõ
+lý do từng ca**. Mỗi ca viết tay đều có trường `why` nêu ca đó nhắm vào điều gì.
+
+#### Nguồn gốc từng tập
+
+**1. Tập ca trả lời — 140 ca / 45 họ.**
+Viết tay, theo ba loại câu của phát biểu bài toán (mục 1.2). Với mỗi nhánh trả lời, nhóm viết ít nhất
+hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt khác. Khóa đáp án **không phải danh sách
+món viết tay** mà là **điều kiện chọn**, ví dụ `{"kind": "list", "forbid": {"tags_any":
+["allergen:seafood"]}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
+
+**2. Kịch bản phiên — 56 kịch bản / 149 lượt.**
+Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
+dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
+được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
+CI nên tập không thể bị sửa tay.
+
+**3. Tập truy hồi — 222 ca / 17 họ.**
+Sinh bởi `ai/scripts/build_retrieval_cases.py`. Phần lớn ca sinh từ **khóa chủ đề thật của kho tri
+thức**: với mỗi giá trị nhãn, bộ sinh tạo hai câu hỏi — một câu dùng đúng từ có trong tài liệu (BM25
+nên thắng), một câu diễn đạt khác hoàn toàn (embedding nên thắng). Cách này giúp tập **phân biệt được
+hai phương pháp** thay vì chỉ xếp hạng chúng.
+
+Ba họ **viết tay** vì không suy được từ dữ liệu, và chúng đo điều Hit@k không đo:
+
+| Họ viết tay | Đo gì |
+|---|---|
+| `kb-verbatim-topic` | chủ đề trả lời nguyên văn bằng tra khóa — truy hồi phải trả **RỖNG** |
+| `kb-number` | câu có ngưỡng số — chứng minh không phải chỗ nào cũng nên dùng RAG |
+| `kb-out-of-scope` | câu ngoài phạm vi — không đoạn nào trả lời được |
+
+Không có ba họ này thì một bộ truy hồi **luôn trả về 5 đoạn** sẽ đạt điểm cao, trong khi nó mời khách
+đọc một đoạn không liên quan.
+
+**4. Tập chọn mục — 168 ca.**
+Sinh bởi `ai/scripts/build_chunk_selection_cases.py` từ chính cấu trúc tài liệu: mỗi ca là một câu hỏi
+kèm danh sách **mục trong cùng một tài liệu**, đáp án là mục đúng. Tập tách hai nhóm báo cáo riêng —
+nhóm `written` (mỗi tài liệu một cấu trúc riêng) là con số chính, nhóm `derived` (khuôn lặp lại) báo
+cáo riêng để không kéo con số chung lên.
+
+**5. Golden đầu-cuối — 29 hội thoại / 103 lượt.**
+**Viết tay hoàn toàn**, và là tập duy nhất chạy qua chuỗi gọi thật: quét QR → phiên bàn → backend .NET
+→ dịch vụ AI → thẻ giỏ → giỏ hàng. Mỗi hội thoại mô phỏng một tình huống khách thật: đi một mình,
+nhóm đông người, có dị ứng, đổi ý giữa chừng.
+
+**6. Bộ hai chiều — 100 câu.**
+Chiều A **phủ hết toàn bộ tài liệu văn xuôi**, mỗi tài liệu ít nhất một câu — danh sách tài liệu quyết
+định danh sách câu hỏi. Chiều B **sinh từ bộ nhãn** theo từng nhóm thuộc tính. Cả hai đều không có chỗ
+cho việc người viết chọn câu dễ, và đó là lý do bộ này được dùng cho kết luận chính ở mục 4.4.
+
+#### Khóa đáp án lấy từ đâu
+
+Đây là câu hỏi quan trọng nhất về nguồn gốc, vì khóa đáp án sai thì mọi con số sai theo.
+
+| Tập | Khóa đáp án là gì | Cái gì quyết định |
+|---|---|---|
+| Ca trả lời | **điều kiện chọn** trên thực đơn | thực đơn — nhóm không liệt kê món |
+| Kịch bản phiên | ràng buộc phải giữ qua các lượt | quy tắc hợp nhất đã đặc tả |
+| Truy hồi | **điều kiện chọn đoạn** (`topic_keys_any`, `heading_any`) | siêu dữ liệu của kho |
+| Chọn mục | mã đoạn đúng | cấu trúc tài liệu markdown |
+| Golden | trạng thái giỏ hàng và thẻ sau mỗi lượt | hợp đồng API |
+| Hai chiều | tài liệu đích / tập món thỏa ràng buộc | kho tri thức và bộ nhãn |
+
+**Không tập nào có khóa đáp án là một danh sách viết tay.** Mọi khóa đều là **điều kiện** được giải ra
+tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khóa đáp án tự đúng theo, không cần sửa tập.
+
+#### Điều nhóm KHÔNG làm, và nói rõ
+
+1. **Không có nhật ký hội thoại khách thật.** Toàn bộ ca do nhóm tạo. Đây là giới hạn về **hiệu lực
+   ngoài**: con số đo được hệ thống có tôn trọng ràng buộc hay không, nhưng không đo được khách thật
+   sẽ hỏi gì.
+2. **Không thuê người ngoài chấm.** Khóa đáp án do nhóm đặt, dù ở dạng điều kiện thay vì danh sách.
+3. **Không chạy lặp nhiều hạt giống** cho đường sinh. Các chặng tất định cho cùng kết quả mỗi lần chạy
+   nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
+
+Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
+làm lộ **17 lỗi** mà tập 140 ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
+mở rộng lên **149 lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -1133,6 +1353,275 @@ Cả hai dùng `k=1`, nên **Top-1 là chỉ số quyết định** ở cả hai
 đoạn, nên xếp hạng trong một tài liệu chỉ là giới hạn phép chấm điểm vào tập con — hợp lệ vì vector đã
 chuẩn hoá L2 (mục 2.2). Chi phí thật là **một** lần mã hoá câu hỏi. Cách hiển nhiên — dựng một chỉ mục
 cho mỗi tài liệu — mất **~91ms mỗi lượt**, và có một test **đếm số lần dựng chỉ mục rồi đòi 0**.
+
+## 3.7 Nguyên lý hoạt động từng lớp
+
+Mục này giải thích **từng lớp làm gì và làm bằng cách nào**, theo đúng thứ tự một câu hỏi đi qua.
+Đây là phần trả lời câu hỏi *"cơ chế nào quyết định lúc nào dùng mã tất định, lúc nào dùng truy hồi"*.
+
+### 3.7.1 Lớp 1 — NHẬN CÂU HỎI (`understand.py`)
+
+**Đầu vào:** một chuỗi tiếng Việt khách gõ. **Đầu ra:** một cấu trúc `Request` gồm các trường đã hiểu.
+
+Lớp này **không dùng mô hình**. Nó chạy bốn bước theo thứ tự:
+
+**Bước 1 — Chuẩn hóa.** Chuỗi được đưa về chữ thường và **rút dấu** (`fold`): *"Món nào KHÔNG cay?"*
+thành `"mon nao khong cay"`. Lý do: người Việt gõ không dấu rất thường, và không chuẩn hóa thì
+*"mon cay"* không khớp *"món cay"*.
+
+Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm trong dự án — `fold("có cồn")` bằng
+`fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
+chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
+
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **522 cụm** ánh xạ chữ khách dùng sang nhãn:
+
+```
+"khong cay | it cay | khong an duoc cay"   -> spice:none
+"mon chay | an chay | do chay"              -> diet:vegetarian
+"di ung hai san | khong an duoc do bien"    -> avoid allergen:seafood
+```
+
+Khớp theo **ranh giới từ**, không theo chuỗi con — nếu không thì `"cua"` khớp cả trong `"của"`.
+
+**Bước 3 — Tách RÀNG BUỘC khỏi NGỮ CẢNH.** Đây là chỗ khó nhất của lớp này:
+
+| Loại | Ví dụ | Hệ quả |
+|---|---|---|
+| **Ràng buộc** (`require_tags`, `avoid_tags`, `budget_max`) | *"không cay"*, *"dưới 200 nghìn"* | món không thỏa bị **LOẠI** |
+| **Ngữ cảnh** (`prefer_tags`) | *"đi hẹn hò"*, *"trời nóng"* | món hợp chỉ được **XẾP LÊN TRƯỚC** |
+
+Nhầm hai thứ này gây một trong hai lỗi: hoặc lọc mất món đúng, hoặc để lọt món khách không ăn được.
+
+**Bước 4 — Nhận diện ý định.** Câu chào hỏi, câu xin thêm món, câu xóa ràng buộc được nhận riêng —
+chúng không phải câu chọn món và không nên đi vào nhánh lọc.
+
+### 3.7.2 Lớp 2 — NHỚ NGỮ CẢNH (`session.py`)
+
+`Request` của lượt hiện tại được **hợp nhất** với trạng thái phiên. Ba loại ràng buộc dùng **ba quy
+tắc khác nhau**, và đây là điểm nhóm làm sai ở bản đầu:
+
+| Loại | Quy tắc | Nếu dùng sai quy tắc |
+|---|---|---|
+| **Dị nguyên** | CỘNG DỒN, không bao giờ bỏ | ghi đè thì *"dị ứng hải sản"* lượt 1 bị *"không ăn được sữa"* lượt 3 xóa mất — **lỗi an toàn** |
+| **Ràng buộc cứng** | lượt mới GHI ĐÈ cùng nhóm | cộng dồn thì *"dưới 200k"* rồi *"rẻ hơn nữa"* giữ **cả hai** ngân sách |
+| **Ngữ cảnh** | cộng vào, giữ 5 gần nhất | ghi đè thì *"đi hẹn hò"* rồi *"trời nóng"* mất một trong hai |
+
+Ghi đè theo **NHÓM** chứ không theo nhãn: `spice:none` phải đẩy `spice:hot` ra, không nằm cạnh nó.
+
+### 3.7.3 Lớp 3 — CHỌN NHÁNH, và đây là CƠ CHẾ KÍCH HOẠT hai lớp kia
+
+Đây là câu trả lời cho *"cơ chế nào quyết định dùng mã tất định hay truy hồi"*.
+
+Hệ thống có **17 nhánh trả lời**, và chúng **loại trừ
+nhau** — một câu hỏi đi đúng một nhánh. Việc chọn nhánh là một **chuỗi điều kiện theo thứ tự ưu tiên**,
+không phải một mô hình phân loại:
+
+```
+1.  off_topic ?          -> câu ngoài phạm vi          -> từ chối lịch sự
+2.  xã giao ?            -> chào hỏi, cảm ơn           -> câu mẫu
+3.  hỏi nội bộ ?         -> "bạn là model gì"          -> từ chối
+4.  policy_topic ?       -> giờ mở cửa, thanh toán     -> TRA KHÓA, trả NGUYÊN VĂN
+5.  knowledge_topic ?    -> chủ đề tri thức đã nhận ra -> lấy tài liệu theo khóa
+6.  named_items ?        -> hỏi về món cụ thể          -> tra thực đơn
+7.  asks_price ?         -> hỏi giá                    -> tra thực đơn
+8.  is_comparison ?      -> so sánh hai món            -> tra thực đơn
+9.  có nhãn lọc ?        -> câu chọn món               -> LỌC THEO NHÃN
+10. không khớp gì ?      -> câu tri thức chưa nhận ra  -> TRUY HỒI
+```
+
+**Cơ chế kích hoạt, phát biểu gọn:**
+
+> **Truy hồi chỉ chạy khi chín điều kiện trên đều KHÔNG khớp.** Nó là **đường cuối**, không phải
+> đường mặc định.
+
+Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
+chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
+
+**Hệ quả đo được:** trên tập 140 ca và 149 lượt phiên, nhánh truy hồi chạy
+**0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
+nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
+
+### 3.7.4 Lớp 4a — MÃ TẤT ĐỊNH xử lý thế nào (`answer.select()`)
+
+Áp dụng lần lượt trên danh sách 91 món:
+
+```
+1. LOẠI  món mang nhãn trong `avoid_tags`        <- dị nguyên, fail-closed
+2. LOẠI  món không có ĐỦ nhãn trong `require_tags`  <- phép GIAO, không phải hợp
+3. LOẠI  món vượt `budget_max`
+4. LOẠI  món thuộc `avoid_categories`            <- "tôi không uống bia"
+5. XẾP   theo (số nhãn ngữ cảnh khớp, bậc món, giá, mã món)
+6. CẮT   lấy N món đầu
+```
+
+Bước 2 dùng phép **giao**: khách nói *"chay và không cay"* thì món phải có **cả hai** nhãn. Dùng phép
+hợp là trả về món chay cay.
+
+**Tính chất của lớp này:** cùng đầu vào luôn cho cùng đầu ra; không phụ thuộc mô hình; chạy trong
+khoảng 0,3 mili-giây; và **không thể** trả về món không thỏa ràng buộc — vì điều kiện được kiểm trực
+tiếp chứ không ước lượng.
+
+### 3.7.5 Lớp 4b — TRUY HỒI xử lý thế nào (`rag/`)
+
+Khi chín nhánh đầu không khớp, hệ thống xếp hạng **372 đoạn** `synthesize`:
+
+```
+1. CHUẨN HÓA   câu hỏi -> thêm tiền tố "query: " (yêu cầu của họ mô hình E5)
+2. MÃ HÓA      câu hỏi -> vector 384 chiều
+3. SO SÁNH     tính cosine với vector của từng đoạn (đã tính sẵn lúc build)
+4. XẾP HẠNG    sắp theo điểm giảm dần
+5. CẮT         lấy 5 đoạn đầu làm ngữ cảnh
+```
+
+Vector của các đoạn được **tính sẵn lúc build ảnh Docker**, không tính lúc chạy. Nhờ vậy độ trễ mỗi
+câu hỏi không tăng; chỉ thời gian khởi động container tăng.
+
+**Tính chất của lớp này, và đây là điểm phải nắm:** nó **luôn trả về 5 đoạn**. Không có khái niệm
+"không tìm thấy". Câu hỏi lạc đề hoàn toàn vẫn nhận về 5 đoạn với điểm số đàng hoàng. Quyết định
+"không trả lời" nằm ở **lớp 3** (chọn nhánh), không nằm ở lớp này.
+
+### 3.7.6 Lớp 5 — TRẢ LỜI (`answer.py` và `generate.py`)
+
+Có **hai đường viết câu**, và mặc định dùng đường thứ nhất:
+
+**Đường A — khuôn mẫu (mặc định).** Câu trả lời ghép từ danh sách món đã chọn theo khuôn cố định. Mọi
+tên món và giá lấy trực tiếp từ thực đơn. **Không có khả năng bịa**, vì không có chỗ nào để bịa.
+
+**Đường B — mô hình sinh (tắt mặc định).** Mô hình nhận **danh sách món đã lọc** cộng đoạn tri thức,
+và viết lại cho tự nhiên. Ba giới hạn cứng:
+
+1. Mô hình **không chọn món** — nó chỉ viết về những món đã được chọn
+2. Chỉ **2 nhánh** được phép sinh (`compare`, `filter`); nhánh mới mặc định **không** sinh
+3. Câu viết ra phải qua **10 phép kiểm xác minh**
+
+Vì sao tắt mặc định: đo trên 76 ca loại C cho thấy đường sinh **0 ca tụt** nhưng
+cũng **0 ca đúng thêm**, trong khi tốn thêm khoảng 8,6 giây mỗi lượt.
+
+### 3.7.7 Lớp 6 — XÁC MINH (`generate.verify()`)
+
+Chỉ chạy khi đường B bật. **10 phép kiểm** đối chiếu câu mô hình viết với dữ liệu gốc:
+
+| # | Kiểm gì |
+|---|---|
+| 1 | Mã món mô hình khai đã dùng phải nằm trong danh sách đưa vào |
+| 2 | Không được nhắc món thật nào **ngoài** danh sách |
+| 3 | Mọi số tiền phải là giá thật của một món đã đưa vào |
+| 4 | Không được nêu số lượng, trừ khi con số trùng số món trong danh sách |
+| 5 | Không được in khóa nhãn nội bộ |
+| 6 | Phải nhắc **đủ** mọi món trong danh sách |
+| 6b | Không được nhắc cùng một món hai lần |
+| 6c | Danh sách từ ba món trở lên phải gạch đầu dòng |
+| 7 | Không món nào được mang nhãn khách cần tránh |
+| 8 | Khách đã nêu điều cần tránh thì câu trả lời phải mở đường hỏi nhân viên |
+
+**Vi phạm thì BỎ câu sinh**, dùng lại câu khuôn mẫu — không sửa. Sửa một câu sai thành câu đúng đòi
+hỏi biết đúng là gì, mà nếu đã biết thì không cần mô hình.
+
+Phép kiểm 4 sinh ra từ một lỗi thật: mô hình viết *"Nhà hàng có **6 món lẩu**"* trong khi thực đơn có
+**7**. Ba phép kiểm đầu không chạm tới lỗi này — nó không phải tên món, không phải giá, không phải nhãn.
+
+### 3.7.8 Lớp 7 — THẺ GIỎ HÀNG (`cart.py`)
+
+Thẻ giỏ dựng từ **`reply.items`** — danh sách món lớp 4a đã chọn — **không** từ chữ mô hình viết.
+
+Đây là ranh giới an toàn cuối cùng: kể cả khi mọi phép kiểm ở lớp 6 đều lọt, món trong giỏ vẫn không
+thể là món mô hình bịa ra, vì giỏ **không đọc** chữ của mô hình.
+
+Chỉ **6 nhánh** được sinh thẻ giỏ. Nhánh `clarify`, `off_topic`, `empty_result` **không có thẻ** — gợi
+ý đặt món khi chưa hiểu câu hỏi là sai.
+
+### 3.7.9 Tóm tắt: lớp nào tất định, lớp nào có mô hình
+
+| Lớp | Tất định? | Chạy khi nào |
+|---|---|---|
+| 1. Nhận câu hỏi | **Có** | mọi lượt |
+| 2. Nhớ ngữ cảnh | **Có** | mọi lượt |
+| 3. Chọn nhánh | **Có** | mọi lượt |
+| 4a. Lọc theo nhãn | **Có** | nhánh chọn món |
+| 4b. Truy hồi | Không — có mô hình nhúng | chỉ khi 9 nhánh đầu không khớp |
+| 5. Viết câu | Đường A **có** / Đường B không | B tắt mặc định |
+| 6. Xác minh | **Có** | chỉ khi B bật |
+| 7. Thẻ giỏ | **Có** | 6 nhánh |
+
+**Năm trong bảy lớp là mã tất định**, và hai lớp còn lại đều có đường lui về tất định. Hệ quả: dịch vụ
+**trả lời được khi mô hình hỏng** — chỉ là câu chữ kém tự nhiên hơn.
+
+---
+
+### 3.7.10 Ba ví dụ chạy xuyên suốt bảy lớp
+
+Mục này chạy **ba câu hỏi thật** qua toàn bộ hệ thống và in ra trạng thái sau từng lớp. Con số dưới
+đây **được tính lúc sinh báo cáo**, không chép tay — chạy lại báo cáo là chạy lại ba ví dụ này.
+
+Ba câu được chọn để rơi vào **ba nhánh khác nhau**, minh hoạ cơ chế kích hoạt ở mục 3.7.3.
+
+#### Ví dụ 1 — câu chọn món có ràng buộc (đi đường MÃ TẤT ĐỊNH)
+
+> **Khách:** *"Mình dị ứng hải sản, cho món chay dưới 100 nghìn"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | `avoid_tags = ['allergen:seafood']` · `budget_max = 100.000` |
+| 3. Chọn nhánh | `filter` — có nhãn lọc nên vào nhánh 9, **không** xuống truy hồi |
+| 4a. Lọc theo nhãn | 6 món qua được cả hai điều kiện |
+| 5. Viết câu | khuôn mẫu, kèm câu nói rõ giới hạn dữ liệu nhãn |
+| 7. Thẻ giỏ | có — nhánh `filter` nằm trong danh sách được sinh thẻ |
+
+Món đầu tiên trả về: **Gỏi cuốn chay**.
+
+Đáng chú ý: câu trả lời **mở đầu bằng lời nói rõ giới hạn** — *"thực đơn chỉ ghi nhãn theo NHÓM, không
+tách riêng từng loại"*. Đây là phép kiểm số 8 ở lớp 6: khách nêu điều cần tránh thì câu trả lời phải
+mở đường hỏi nhân viên, vì nhãn dị nguyên chỉ phủ 44/91 món.
+
+#### Ví dụ 2 — câu chính sách (đi đường TRA KHÓA, không qua mô hình)
+
+> **Khách:** *"Mấy giờ quán đóng cửa?"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | `policy_topic = hours` |
+| 3. Chọn nhánh | `facts:hours` — dừng ở nhánh 4, **không** chạy lọc nhãn, **không** chạy truy hồi |
+| 5. Viết câu | trả **NGUYÊN VĂN** nội dung tài liệu `verbatim` |
+| 7. Thẻ giỏ | **không** — câu hỏi chính sách không gợi ý đặt món |
+
+**Ví dụ này từng là một lỗi thật, và cách phát hiện đáng ghi lại.** Bản trước, câu *"Mấy giờ quán đóng
+cửa?"* cho `policy_topic = None` và rơi xuống nhánh truy hồi — rồi truy hồi trả về một **danh sách món
+khai vị**. Nguyên nhân kép:
+
+1. Bảng từ vựng chỉ khớp cụm **liền nhau**, nên chữ *"quán"* chèn giữa làm hỏng khớp. Bốn trong sáu
+   cách hỏi tự nhiên đều hỏng.
+2. Tài liệu giờ mở cửa là `verbatim` nên **không nằm trong chỉ mục truy hồi**. Bộ xếp hạng không tìm
+   được đoạn nào về giờ, và vì nó **luôn trả về 5 đoạn** (mục 3.7.5), nó lấy đoạn giống nhất còn lại.
+
+Lỗi này **không** bị tập đánh giá bắt, vì mọi ca trong tập đều viết cụm liền nhau. Nó lộ ra khi chạy
+ví dụ xuyên suốt cho chính báo cáo này. Đã sửa bằng một mẫu cho phép tối đa ba từ chèn giữa, và chốt
+bằng hai ca kiểm — một ca cho sáu cách hỏi, một ca chiều ngược để mẫu nới lỏng không nuốt câu lọc món.
+
+#### Ví dụ 3 — câu tri thức chưa có cụm từ vựng (đi đường TRUY HỒI)
+
+> **Khách:** *"Gọi khai vị trước có làm no bụng không?"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | không nhãn lọc, không chủ đề chính sách, không chủ đề tri thức |
+| 3. Chọn nhánh | `filter` |
+| 4b/4a | nhánh `filter` trả về 6 món |
+
+**Đây là ca minh hoạ giới hạn quan trọng nhất của hệ thống**, và mục 4.9 đo nó trên 50 câu: mã tất
+định **không im lặng** khi gặp câu nó không xử lý được. Nó trả về 6 món khai vị —
+mọi món có thật, mọi giá đúng — nhưng **không trả lời câu được hỏi**. Khách hỏi *"có làm no bụng
+không"*, nhận về một danh sách món.
+
+Về nguyên tắc, câu này nên rơi xuống nhánh 10 và đi truy hồi, vì kho có tài liệu `appetizer_role` nói
+đúng điều đó. Nhưng câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món** — nên
+nhánh 9 khớp trước nhánh 10.
+
+Đây là **đánh đổi có ý thức của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi
+lấy tính tất định và khả năng dự đoán. Cách sửa không phải đổi thứ tự (làm vậy thì câu *"cho mình món
+khai vị"* sẽ đi truy hồi), mà là **nhận diện dạng câu hỏi**: câu có *"có… không"*, *"thế nào"*, *"vì
+sao"* là câu hỏi tri thức kể cả khi chứa tên nhóm món. Đây là hướng phát triển nêu ở mục 5.7.
+
+---
 
 ## 3.6 Điều kiện kiểm soát thực nghiệm
 
