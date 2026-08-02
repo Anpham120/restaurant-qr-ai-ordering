@@ -149,6 +149,46 @@ class Bang:
     def luot_golden(self) -> int:
         return sum(len(c["turns"]) for c in self.golden)
 
+    def ktc_truy_hoi(self, tap: str) -> dict:
+        """Khoảng tin cậy Wilson 95% cho Hit@1 của từng bộ truy hồi trên một tập."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import khoang_wilson
+        bo = self.m_truy_hoi["so"]["bai_toan_1"][tap]["bo"]
+        return {ten: khoang_wilson(v["hit1"], v["n"]) for ten, v in bo.items()}
+
+    def mcnemar_truy_hoi(self, tap: str) -> list:
+        """Kiểm định McNemar ghép cặp cho mọi cặp bộ truy hồi trên một tập.
+
+        Yêu cầu `hit1_theo_ca` có trong bằng chứng đo. Thiếu thì NỔ thay vì bỏ qua — một báo cáo
+        khẳng định "A tốt hơn B" mà không kiểm định được là báo cáo không bảo vệ được.
+        """
+        import itertools
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import mcnemar
+        bo = self.m_truy_hoi["so"]["bai_toan_1"][tap]["bo"]
+        thieu = [t for t, v in bo.items() if not v.get("hit1_theo_ca")]
+        if thieu:
+            raise SystemExit(
+                f"Thiếu `hit1_theo_ca` cho {thieu} ở tập {tap}. "
+                "Chạy: python ai/evaluation/run_retrieval_comparison.py --sealed"
+            )
+        ra = []
+        for a, b_ in itertools.combinations(["embedding", "hybrid", "bm25"], 2):
+            if a in bo and b_ in bo:
+                ra.append((a, b_, mcnemar(bo[a]["hit1_theo_ca"], bo[b_]["hit1_theo_ca"])))
+        return ra
+
+    def n_can(self, nua_rong: float) -> int:
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import n_can_thiet
+        return n_can_thiet(nua_rong)
+
     @property
     def so_cum_tu_vung(self) -> int:
         """Số cụm từ vựng tất định — ĐẾM từ chính bảng, không gõ tay."""
@@ -1737,13 +1777,68 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         f"- Embedding thắng ở **cả hai** tập: Hit@1 {pct(e_dev)} so với {pct(b_dev)} (phát triển) và",
         f"  **{pct(e_np)}** so với **{pct(b_np)}** (niêm phong) — chênh"
         f" **{diem_pt(e_np - b_np)} điểm phần trăm**.",
-        f"- **Hybrid KÉM HƠN embedding đơn lẻ** trên tập niêm phong ({pct(h_np)} so với {pct(e_np)}) —",
-        "  trái dự đoán ban đầu của nhóm. Hợp nhất RRF kéo lên những đoạn mà BM25 xếp cao vì trùng từ,",
-        "  và ở kho này việc đó làm hại nhiều hơn giúp.",
+        f"- Hybrid RRF đạt {pct(h_np)} trên tập niêm phong, thấp hơn embedding ({pct(e_np)}) về con",
+        "  số tuyệt đối. Tuy nhiên **chênh lệch này CHƯA đạt mức ý nghĩa thống kê** (xem mục 4.2.1),",
+        "  nên báo cáo **không** kết luận hybrid kém hơn embedding. Điều kết luận được là: hợp nhất",
+        "  RRF **không mang lại cải thiện đo được** so với embedding đơn lẻ, trong khi nó tốn thêm chi",
+        "  phí chạy cả hai bộ. Với cùng kết quả và chi phí cao hơn, embedding đơn lẻ là lựa chọn hợp lý.",
         "- `cấm@5` gần như không phân biệt được ba bộ. Nghĩa là chênh lệch nằm ở việc **tìm đúng đoạn**,",
         "  không ở việc **tránh đoạn sai** — và đó là tin tốt cho an toàn: không bộ nào lạc đề nhiều hơn.",
         "",
-        "**Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.",
+        "### 4.2.1 Khoảng tin cậy và kiểm định ý nghĩa",
+        "",
+        "Một tỷ lệ đo trên mẫu hữu hạn **không phải** tỷ lệ thật của tổng thể. Mục này trả lời hai câu",
+        "hỏi mà mọi bảng kết quả ở trên đều phải trả lời được:",
+        "",
+        "1. **Khoảng nào chứa tỷ lệ thật?** — khoảng tin cậy 95% theo phương pháp Wilson",
+        "2. **Chênh lệch giữa hai phương pháp có phải do may rủi không?** — kiểm định McNemar",
+        "",
+        "**Vì sao dùng Wilson thay vì công thức thông dụng.** Công thức chuẩn `p ± 1,96·√(p(1−p)/n)`",
+        "cho khoảng rộng bằng **0** khi tỷ lệ đạt 100%, tức khẳng định chắc chắn tuyệt đối từ một mẫu",
+        "hữu hạn. Nhiều phép đo trong đồ án này đạt đúng 100%, nên công thức đó không dùng được.",
+        "",
+        "**Vì sao dùng McNemar thay vì kiểm định hai mẫu độc lập.** Ba bộ truy hồi chạy trên **cùng",
+        "một danh sách câu hỏi**, nên kết quả của chúng không độc lập: chúng cùng đúng ở câu dễ và",
+        "cùng sai ở câu khó. McNemar dùng đúng tính chất ghép cặp này — nó chỉ xét những câu mà hai",
+        "bên **cho kết quả khác nhau**, và kiểm tra xem tỷ lệ giữa hai chiều lệch có khác 50/50 không.",
+        "",
+        "**Khoảng tin cậy 95% cho Hit@1 trên tập niêm phong:**",
+        "",
+        "| Phương pháp | Hit@1 | Khoảng tin cậy 95% | n |",
+        "|---|---:|:---:|---:|",
+    ] + [
+        f"| `{ten}` | {pct(k.ty_le)} | {pct(k.duoi)} – {pct(k.tren)} | {k.n} |"
+        for ten, k in b.ktc_truy_hoi("NIÊM PHONG").items()
+    ] + [
+        "",
+        "Ba khoảng này **chồng lấn nhau**. Nếu chỉ nhìn khoảng tin cậy thì chưa kết luận được bộ nào",
+        "hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.",
+        "",
+        "**Kiểm định McNemar trên tập niêm phong:**",
+        "",
+        "| So sánh | Số câu hai bên khác nhau | p | Kết luận |",
+        "|---|---:|---:|---|",
+    ] + [
+        f"| {a} so với {bb} | {r.n_lech}/{r.n} | **{so(r.p, 4)}** | "
+        f"{'**có ý nghĩa** (p < 0,05)' if r.co_y_nghia else 'chưa đủ ý nghĩa (p ≥ 0,05)'} |"
+        for a, bb, r in b.mcnemar_truy_hoi("NIÊM PHONG")
+    ] + [
+        "",
+        "**Đọc bảng này:**",
+        "",
+        "- Khẳng định **embedding tốt hơn BM25** có bằng chứng thống kê vững (p = "
+        f"{so(dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].p, 4)}"
+        "). Đây là kết luận chính của mục 4.2.",
+        "- Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu",
+        "  kết luận đó, dù con số tuyệt đối của embedding cao hơn.",
+        "",
+        "**Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng",
+        f"**{b.n_can(0.10)} ca**; tới ±5 điểm cần khoảng **{b.n_can(0.05)} ca**. Tập niêm phong hiện",
+        f"có **{b.ktc_truy_hoi('NIÊM PHONG')['embedding'].n} ca**, tương ứng nửa khoảng khoảng",
+        f"±{so(b.ktc_truy_hoi('NIÊM PHONG')['embedding'].nua_rong * 100, 1)} điểm phần trăm. Đây là hạn chế",
+        "thật của phép đo, và nó được nêu ở mục 5.4 thay vì bỏ qua.",
+        "",
+                "**Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.",
         "Đó **không** phải hệ thống kém đi mà là **bài toán khó lên** — kho tăng số chủ đề, và các chủ đề",
         "mới gần nhau hơn (bốn tài liệu vùng miền, bốn tài liệu đồ uống). Trích một con số ra khỏi ngữ",
         "cảnh kích thước kho là nói quá.",

@@ -1211,7 +1211,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
 
 | Điều kiện | Giá trị |
 |---|---|
-| Ngày đo | 2026-07-31 |
+| Ngày đo | 2026-08-02 |
 | Thực đơn | 91 món, 85 nhãn |
 | Kho tri thức | 109 tài liệu / 452 đoạn, 372 đoạn được xếp hạng |
 | Bộ truy hồi đã so | `bm25`, `embedding`, `hybrid` |
@@ -1239,31 +1239,81 @@ Nhóm chốt gồm các họ `expect_nothing` — chúng **không có** khóa đ
 Hit/MRR/nDCG là gạch ngang. Điều nhóm này đo là `cấm@5` và việc **biết KHÔNG trả lời**, và cả
 ba bộ đều đạt 0 đoạn bị cấm.
 
-**Nhóm PHÁT TRIỂN** — 140 ca
+**Nhóm PHÁT TRIỂN** — 152 ca
 
 | Phương pháp | n | Hit@1 | Hit@5 | MRR@5 | nDCG@5 | cấm@5 |
 |---|---:|---:|---:|---:|---:|---:|
-| `bm25` | 140 | **42,14%** | 62,14% | 50,55% | 35,76% | 16 |
-| `embedding` | 140 | **54,29%** | 74,29% | 61,29% | 46,90% | 14 |
-| `hybrid` | 140 | **52,86%** | 70,71% | 60,07% | 44,89% | 14 |
+| `bm25` | 152 | **42,11%** | 64,47% | 51,49% | 35,66% | 17 |
+| `embedding` | 152 | **54,61%** | 75,66% | 62,09% | 47,04% | 15 |
+| `hybrid` | 152 | **53,95%** | 72,37% | 61,69% | 45,35% | 16 |
 
 **Nhóm NIÊM PHONG (mở một lần)** — 50 ca
 
 | Phương pháp | n | Hit@1 | Hit@5 | MRR@5 | nDCG@5 | cấm@5 |
 |---|---:|---:|---:|---:|---:|---:|
-| `bm25` | 46 | **39,13%** | 52,17% | 43,19% | 23,39% | 6 |
-| `embedding` | 46 | **60,87%** | 67,39% | 63,04% | 44,84% | 5 |
-| `hybrid` | 46 | **52,17%** | 67,39% | 58,33% | 41,75% | 6 |
+| `bm25` | 46 | **39,13%** | 52,17% | 43,08% | 23,64% | 7 |
+| `embedding` | 46 | **60,87%** | 67,39% | 62,93% | 44,81% | 5 |
+| `hybrid` | 46 | **52,17%** | 67,39% | 58,33% | 41,81% | 7 |
 
 **Đọc kết quả:**
 
-- Embedding thắng ở **cả hai** tập: Hit@1 54,29% so với 42,14% (phát triển) và
+- Embedding thắng ở **cả hai** tập: Hit@1 54,61% so với 42,11% (phát triển) và
   **60,87%** so với **39,13%** (niêm phong) — chênh **+21,74 điểm phần trăm**.
-- **Hybrid KÉM HƠN embedding đơn lẻ** trên tập niêm phong (52,17% so với 60,87%) —
-  trái dự đoán ban đầu của nhóm. Hợp nhất RRF kéo lên những đoạn mà BM25 xếp cao vì trùng từ,
-  và ở kho này việc đó làm hại nhiều hơn giúp.
+- Hybrid RRF đạt 52,17% trên tập niêm phong, thấp hơn embedding (60,87%) về con
+  số tuyệt đối. Tuy nhiên **chênh lệch này CHƯA đạt mức ý nghĩa thống kê** (xem mục 4.2.1),
+  nên báo cáo **không** kết luận hybrid kém hơn embedding. Điều kết luận được là: hợp nhất
+  RRF **không mang lại cải thiện đo được** so với embedding đơn lẻ, trong khi nó tốn thêm chi
+  phí chạy cả hai bộ. Với cùng kết quả và chi phí cao hơn, embedding đơn lẻ là lựa chọn hợp lý.
 - `cấm@5` gần như không phân biệt được ba bộ. Nghĩa là chênh lệch nằm ở việc **tìm đúng đoạn**,
   không ở việc **tránh đoạn sai** — và đó là tin tốt cho an toàn: không bộ nào lạc đề nhiều hơn.
+
+### 4.2.1 Khoảng tin cậy và kiểm định ý nghĩa
+
+Một tỷ lệ đo trên mẫu hữu hạn **không phải** tỷ lệ thật của tổng thể. Mục này trả lời hai câu
+hỏi mà mọi bảng kết quả ở trên đều phải trả lời được:
+
+1. **Khoảng nào chứa tỷ lệ thật?** — khoảng tin cậy 95% theo phương pháp Wilson
+2. **Chênh lệch giữa hai phương pháp có phải do may rủi không?** — kiểm định McNemar
+
+**Vì sao dùng Wilson thay vì công thức thông dụng.** Công thức chuẩn `p ± 1,96·√(p(1−p)/n)`
+cho khoảng rộng bằng **0** khi tỷ lệ đạt 100%, tức khẳng định chắc chắn tuyệt đối từ một mẫu
+hữu hạn. Nhiều phép đo trong đồ án này đạt đúng 100%, nên công thức đó không dùng được.
+
+**Vì sao dùng McNemar thay vì kiểm định hai mẫu độc lập.** Ba bộ truy hồi chạy trên **cùng
+một danh sách câu hỏi**, nên kết quả của chúng không độc lập: chúng cùng đúng ở câu dễ và
+cùng sai ở câu khó. McNemar dùng đúng tính chất ghép cặp này — nó chỉ xét những câu mà hai
+bên **cho kết quả khác nhau**, và kiểm tra xem tỷ lệ giữa hai chiều lệch có khác 50/50 không.
+
+**Khoảng tin cậy 95% cho Hit@1 trên tập niêm phong:**
+
+| Phương pháp | Hit@1 | Khoảng tin cậy 95% | n |
+|---|---:|:---:|---:|
+| `bm25` | 39,13% | 26,39% – 53,54% | 46 |
+| `embedding` | 60,87% | 46,46% – 73,61% | 46 |
+| `hybrid` | 52,17% | 38,14% – 65,88% | 46 |
+
+Ba khoảng này **chồng lấn nhau**. Nếu chỉ nhìn khoảng tin cậy thì chưa kết luận được bộ nào
+hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.
+
+**Kiểm định McNemar trên tập niêm phong:**
+
+| So sánh | Số câu hai bên khác nhau | p | Kết luận |
+|---|---:|---:|---|
+| embedding so với hybrid | 8/46 | **0,2891** | chưa đủ ý nghĩa (p ≥ 0,05) |
+| embedding so với bm25 | 10/46 | **0,0020** | **có ý nghĩa** (p < 0,05) |
+| hybrid so với bm25 | 8/46 | **0,0703** | chưa đủ ý nghĩa (p ≥ 0,05) |
+
+**Đọc bảng này:**
+
+- Khẳng định **embedding tốt hơn BM25** có bằng chứng thống kê vững (p = 0,0020). Đây là kết luận chính của mục 4.2.
+- Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu
+  kết luận đó, dù con số tuyệt đối của embedding cao hơn.
+
+**Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng
+**97 ca**; tới ±5 điểm cần khoảng **385 ca**. Tập niêm phong hiện
+có **46 ca**, tương ứng nửa khoảng khoảng
+±13,6 điểm phần trăm. Đây là hạn chế
+thật của phép đo, và nó được nêu ở mục 5.4 thay vì bỏ qua.
 
 **Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.
 Đó **không** phải hệ thống kém đi mà là **bài toán khó lên** — kho tăng số chủ đề, và các chủ đề
@@ -2049,12 +2099,12 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | truy hồi toàn kho | chốt | `bm25` | 0 | — | — | — | — | 0 |
 | truy hồi toàn kho | chốt | `embedding` | 0 | — | — | — | — | 0 |
 | truy hồi toàn kho | chốt | `hybrid` | 0 | — | — | — | — | 0 |
-| truy hồi toàn kho | phát triển | `bm25` | 140 | 42,14% | 62,14% | 50,55% | 35,76% | 16 |
-| truy hồi toàn kho | phát triển | `embedding` | 140 | 54,29% | 74,29% | 61,29% | 46,90% | 14 |
-| truy hồi toàn kho | phát triển | `hybrid` | 140 | 52,86% | 70,71% | 60,07% | 44,89% | 14 |
-| truy hồi toàn kho | NIÊM PHONG | `bm25` | 46 | 39,13% | 52,17% | 43,19% | 23,39% | 6 |
-| truy hồi toàn kho | NIÊM PHONG | `embedding` | 46 | 60,87% | 67,39% | 63,04% | 44,84% | 5 |
-| truy hồi toàn kho | NIÊM PHONG | `hybrid` | 46 | 52,17% | 67,39% | 58,33% | 41,75% | 6 |
+| truy hồi toàn kho | phát triển | `bm25` | 152 | 42,11% | 64,47% | 51,49% | 35,66% | 17 |
+| truy hồi toàn kho | phát triển | `embedding` | 152 | 54,61% | 75,66% | 62,09% | 47,04% | 15 |
+| truy hồi toàn kho | phát triển | `hybrid` | 152 | 53,95% | 72,37% | 61,69% | 45,35% | 16 |
+| truy hồi toàn kho | NIÊM PHONG | `bm25` | 46 | 39,13% | 52,17% | 43,08% | 23,64% | 7 |
+| truy hồi toàn kho | NIÊM PHONG | `embedding` | 46 | 60,87% | 67,39% | 62,93% | 44,81% | 5 |
+| truy hồi toàn kho | NIÊM PHONG | `hybrid` | 46 | 52,17% | 67,39% | 58,33% | 41,81% | 7 |
 | chọn món | 8 ca | `bm25` | 8 | 50,00% | 75,00% | — | — | 6 |
 | chọn món | 8 ca | `embedding` | 8 | 50,00% | 75,00% | — | — | 7 |
 | chọn món | 8 ca | `hybrid` | 8 | 37,50% | 87,50% | — | — | 6 |
@@ -2093,7 +2143,7 @@ Mọi phép đo cần stack hoặc mô hình thật đều được **ghi ra t�
 | `golden_e2e.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=False |
 | `golden_e2e_sinh.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
 | `llm_rag_loai_c.json` | 2026-07-31 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://localhost:20128/v1 |
-| `truy_hoi_so_sanh.json` | 2026-07-31 | so_doan=425 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
+| `truy_hoi_so_sanh.json` | 2026-08-02 | so_doan=428 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
 | `chon_muc_phat_trien.json` | 2026-07-31 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 | `chon_muc_niem_phong.json` | 2026-07-31 | tap=niem_phong · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 

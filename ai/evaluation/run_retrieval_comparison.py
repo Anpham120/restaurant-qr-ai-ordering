@@ -125,12 +125,22 @@ class Ketqua:
     abstain_khong_do_duoc: int = 0
     scored_cases: int = 0     # ca có `expected`, dùng làm mẫu số cho Hit/MRR/nDCG
     latencies_ms: list[float] = None
+    # Hit@1 của TỪNG ca, theo đúng thứ tự ca. Cần cho kiểm định GHÉP CẶP (McNemar): hai bộ chạy
+    # trên cùng danh sách ca nên kết quả của chúng không độc lập, và chỉ có bảng theo-ca mới nói
+    # được "hai bên khác nhau ở những ca nào". Bảng tổng không đủ để kiểm định.
+    hit1_theo_ca: list[bool] = None
+    ma_ca: list[str] = None
 
     def __post_init__(self):
         if self.latencies_ms is None:
             self.latencies_ms = []
+        if self.hit1_theo_ca is None:
+            self.hit1_theo_ca = []
+        if self.ma_ca is None:
+            self.ma_ca = []
 
-    def them(self, lay: list[str], dung: set[str], cam: set[str], expect_nothing: bool) -> None:
+    def them(self, lay: list[str], dung: set[str], cam: set[str], expect_nothing: bool,
+             ma: str = "") -> None:
         self.n += 1
         if cam & set(lay[:K]):
             self.forbidden_hits += 1
@@ -152,7 +162,10 @@ class Ketqua:
                 self.abstain_ok += 1
             return
         self.scored_cases += 1
-        self.hit1 += hit_at(lay, dung, 1)
+        h1 = hit_at(lay, dung, 1)
+        self.hit1_theo_ca.append(bool(h1))
+        self.ma_ca.append(ma)
+        self.hit1 += h1
         self.hit5 += hit_at(lay, dung, K)
         self.mrr5 += mrr_at(lay, dung, K)
         self.ndcg5 += ndcg_at(lay, dung, K)
@@ -250,7 +263,8 @@ def do_bai_toan_1(retrievers, cases: list[dict], runs: int) -> dict[str, Ketqua]
             for _ in range(runs):
                 hits = r.search(case["query"], k=K)
             kq[r.name].latencies_ms.append((time.perf_counter() - batdau) * 1000 / runs)
-            kq[r.name].them([h.chunk_id for h in hits], dung, cam, case["expect_nothing"])
+            kq[r.name].them([h.chunk_id for h in hits], dung, cam, case["expect_nothing"],
+                            case.get("case_id", ""))
     return kq
 
 
@@ -370,7 +384,7 @@ def do_bai_toan_2(retrievers, items: list[dict], runs: int) -> dict[str, Ketqua]
             for _ in range(runs):
                 hits = r.search(case["query"], k=K)
             kq[r.name].latencies_ms.append((time.perf_counter() - batdau) * 1000 / runs)
-            kq[r.name].them([h.chunk_id for h in hits], dung, cam, False)
+            kq[r.name].them([h.chunk_id for h in hits], dung, cam, False, case.get("id", ""))
     return kq
 
 
@@ -537,6 +551,9 @@ def main(argv: list[str] | None = None) -> int:
             "so_ca": len(cs),
             "bo": {
                 ten: {
+                    # `hit1_theo_ca` cần cho kiểm định GHÉP CẶP McNemar ở báo cáo — hai bộ chạy
+                    # trên cùng danh sách ca nên bảng tổng không đủ để so sánh có ý nghĩa.
+                    "hit1_theo_ca": k.hit1_theo_ca, "ma_ca": k.ma_ca,
                     "n": k.scored_cases, "hit1": k.hit1, "hit5": k.hit5,
                     "mrr5": k.mrr5, "ndcg5": k.ndcg5, "cam5": k.forbidden_hits,
                 }

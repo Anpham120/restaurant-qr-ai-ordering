@@ -164,6 +164,15 @@ jobs:
           python -m unittest test_service test_session test_cart test_answer test_contract test_packaging
         working-directory: ai/app
 
+      # Bo kiem thong ke — moi ket luan so sanh trong Chuong 4 di qua hai ham nay.
+      #
+      # Cong thuc sai thi bao cao khang dinh sai ma khong co gi bao. Bo kiem chot bang nhung gia tri
+      # TINH DUOC BANG TAY: Wilson cho 8/8 phai ra khoang RONG (khong phai khoang diem nhu cong thuc
+      # Wald), va McNemar 10 ca lech cung chieu phai ra p = 2/2^10.
+      - name: Kiểm module thống kê (khoảng tin cậy, McNemar)
+        run: python -m unittest test_thong_ke
+        working-directory: ai/evaluation
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên
