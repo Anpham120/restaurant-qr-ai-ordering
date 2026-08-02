@@ -460,6 +460,7 @@ def muc_luc() -> str:
   - 2.7 Các chỉ số đánh giá, và chỉ số nào QUYẾT ĐỊNH
   - 2.8 Vì sao chọn cách làm này — phương án thay thế và bằng chứng
 - **[CHƯƠNG 3: PHƯƠNG PHÁP](#chương-3-phương-pháp)**
+  - 3.0 Chương này làm gì — đọc bằng lời trước
   - 3.1 Kiến trúc bảy chặng — và chỉ hai chặng có mô hình
   - 3.2 Kho tri thức: một kho, hai chế độ trả lời
   - 3.3 Bốn tập đánh giá, và kỷ luật chia tập
@@ -467,6 +468,7 @@ def muc_luc() -> str:
   - 3.5 Hai bài toán truy hồi khác nhau
   - 3.6 Điều kiện kiểm soát thực nghiệm
 - **[CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ](#chương-4-thực-nghiệm-và-kết-quả)**
+  - 4.0 Đọc chương kết quả thế nào
   - 4.1 Thiết lập
   - 4.2 So ba phương pháp truy hồi trên hai tập
   - 4.3 Chọn mục trong tài liệu — bài toán mà hệ thống thật sự chạy
@@ -1222,6 +1224,71 @@ def chuong_3(b: Bang) -> str:
     sp = b.split_truy_hoi
     return f"""# CHƯƠNG 3: PHƯƠNG PHÁP
 
+## 3.0 Chương này làm gì — đọc bằng lời trước
+
+Chương 2 nói **các phương pháp có sẵn trên đời**. Chương 3 nói **nhóm ghép chúng lại thành hệ thống
+như thế nào**, và chương 4 nói **hệ thống ấy chạy ra số bao nhiêu**.
+
+### Một câu hỏi của khách đi qua những đâu
+
+Khi khách gõ *"cho mình món chay dưới 100 nghìn"*, câu đó không được gửi thẳng cho mô hình AI. Nó đi
+qua một dây chuyền, và **mỗi chặng làm đúng một việc**:
+
+```
+câu khách gõ
+   |
+   v
+[1] HIỂU CÂU HỎI      "món chay" -> nhãn diet:vegetarian
+   |                  "dưới 100 nghìn" -> ngân sách 100.000
+   v
+[2] NHỚ NGỮ CẢNH      ghép với điều khách đã nói ở các lượt trước
+   |                  (dị ứng khai lượt 1 vẫn còn hiệu lực ở lượt 5)
+   v
+[3] CHỌN NHÁNH        đây là câu CHỌN MÓN hay câu HỎI TRI THỨC?
+   |
+   +--> câu chọn món --> [4a] LỌC THEO NHÃN  -> danh sách món
+   |
+   +--> câu tri thức --> [4b] TRUY HỒI       -> đoạn văn liên quan
+   |
+   v
+[5] VIẾT CÂU TRẢ LỜI  khuôn mẫu, hoặc mô hình sinh viết lại cho tự nhiên
+   |
+   v
+[6] XÁC MINH          {b.so_phep_kiem} phép kiểm; vi phạm thì BỎ câu sinh, dùng khuôn mẫu
+   |
+   v
+[7] THẺ GIỎ HÀNG      dựng từ danh sách món, KHÔNG từ chữ mô hình viết
+   |
+   v
+câu trả lời + nút bấm đặt món
+```
+
+**Điều đáng chú ý nhất:** trong bảy chặng, chỉ **hai chặng có mô hình AI** — chặng [4b] truy hồi và
+chặng [5] viết câu. Năm chặng còn lại là **mã tất định**: cùng đầu vào thì luôn cùng đầu ra, không
+phụ thuộc mô hình, và chạy được cả khi mô hình hỏng.
+
+Đó là lựa chọn có chủ ý, không phải vì thiếu thời gian. Lý do đầy đủ ở mục 2.8.
+
+### Vì sao chương này nói nhiều về TẬP ĐÁNH GIÁ
+
+Với một hệ thống thông thường, "đúng" nghĩa là **chạy không lỗi**. Với hệ thống này, một câu trả lời
+có thể **chạy hoàn hảo mà vẫn sai** — mời món hải sản cho người dị ứng hải sản là một câu trả lời
+không có lỗi kỹ thuật nào.
+
+Nên "đúng" phải được **định nghĩa bằng một tập câu hỏi có khoá đáp án**, và hệ thống được chấm trên
+tập đó. Đây là khác biệt lớn nhất giữa làm phần mềm và làm học máy, và nó là lý do bốn tập đánh giá
+được mô tả kỹ ở mục 3.3.
+
+### Ba từ sẽ gặp nhiều
+
+| Từ | Nghĩa trong báo cáo này |
+|---|---|
+| **nhánh** | một đường xử lý riêng cho một loại câu hỏi. Hệ thống có {len(b.nhanh_tra_loi()) if hasattr(b, 'nhanh_tra_loi') else 17} nhánh, và chúng **loại trừ nhau** — một câu chỉ đi đúng một nhánh |
+| **nhãn** | thuộc tính của món, dạng `nhóm:giá_trị` — ví dụ `spice:none` nghĩa là **không cay** |
+| **ràng buộc** vs **ngữ cảnh** | ràng buộc thì **lọc bỏ** món không thoả; ngữ cảnh chỉ **xếp lên trước**. Nhầm hai thứ này là lọc mất món đúng — xem mục 3.4 |
+
+---
+
 ## 3.1 Kiến trúc bảy chặng — và chỉ hai chặng có mô hình
 
 ```
@@ -1405,7 +1472,52 @@ def chuong_4(b: Bang) -> str:
 
     dk = b.m_truy_hoi["dieu_kien"]
     ra += [
-        "## 4.1 Thiết lập",
+        r"""## 4.0 Đọc chương kết quả thế nào
+
+Chương này có nhiều bảng số. Mục 4.0 nói trước **cách đọc chúng**, để các bảng sau không bị hiểu
+ngược.
+
+### Ba chỉ số, và chỉ số nào mới quan trọng
+
+| Chỉ số | Nghĩa đơn giản | Đọc thế nào |
+|---|---|---|
+| **Hit@1** | trong đoạn **đầu tiên** trả về, có đúng đoạn cần không | càng cao càng tốt. Đây là chỉ số chính, vì hệ thống chỉ đọc đoạn thứ nhất |
+| **Hit@5** | trong **5 đoạn đầu**, có ít nhất một đoạn đúng không | càng cao càng tốt, nhưng **dễ gây hiểu lầm** — xem dưới |
+| **cấm@5** | trong 5 đoạn đầu, có bao nhiêu đoạn **KHÔNG được phép** xuất hiện | **càng thấp càng tốt.** Đây mới là chỉ số quyết định |
+
+**Vì sao Hit@5 dễ gây hiểu lầm:** một bộ truy hồi trả về 1 đoạn đúng và 4 đoạn lạc đề vẫn đạt
+Hit@5 = 1,0 — điểm tuyệt đối. Nhưng với hệ thống này, **4 đoạn lạc đề là 4 cơ hội để mô hình viết
+ra một câu sai về nhà hàng**. Nên `cấm@5` được đặt cao hơn Hit@5 khi ra quyết định.
+
+Ở bài toán chọn món, `cấm@5` còn mang nghĩa nặng hơn: nó là **số món không thoả điều kiện khách
+nêu**. Với câu dị ứng thì mỗi món như vậy là **một lỗi an toàn**, không phải một điểm trừ chất lượng.
+
+### Tập phát triển và tập niêm phong khác nhau ra sao
+
+| | **Tập phát triển** | **Tập niêm phong** *(held-out)* |
+|---|---|---|
+| Nhóm có được xem không | có | **không**, cho tới khi xong |
+| Dùng để làm gì | sửa hệ thống, thử ý tưởng | **chấm điểm cuối cùng** |
+| Vì sao cần tách | | nếu vừa sửa vừa xem thì hệ thống dần **học thuộc đề** thay vì học cách làm |
+
+> **Ẩn dụ:** tập phát triển là **bài tập về nhà** — làm sai thì xem đáp án rồi sửa. Tập niêm phong
+> là **bài thi** — chỉ mở một lần, và mở rồi thì nó không còn là bài thi nữa.
+
+Báo cáo này ghi rõ **tập niêm phong đã được mở**, nên con số trên nó **không còn là held-out** cho
+những thay đổi sau đó. Đây là hạn chế thật, và nó được nói ra thay vì giấu đi.
+
+### Vì sao có nhiều bảng "trước / sau"
+
+Nhiều mục trong chương này trình bày theo cặp **trước khi sửa / sau khi sửa**. Đó không phải để khoe
+tiến bộ, mà vì **một con số đơn lẻ không nói được gì**: Hit@1 = 0,609 là tốt hay tệ thì phải so với
+cái gì đó — với BM25, với chính nó ở phiên bản trước, hoặc với một mốc nền.
+
+Có những bảng cho thấy thay đổi **không cải thiện gì**, và chúng được giữ nguyên trong báo cáo. Một
+thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm hỏng chính phép đo.
+
+---
+
+## 4.1 Thiết lập""",
         "",
         f"| Điều kiện | Giá trị |",
         "|---|---|",
