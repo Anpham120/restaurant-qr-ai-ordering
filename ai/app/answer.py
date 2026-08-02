@@ -91,8 +91,155 @@ def phrase(item: dict) -> str:
     return f"{item['name']} ({money(item['price'])})"
 
 
+# Từ khách dùng để gọi tên một nhóm dị nguyên, tra ngược từ nhãn. Dùng để nhận ra khách vừa XIN
+# đúng thứ họ vừa nói mình tránh.
+_TU_GOI_DI_NGUYEN = {
+    "allergen:seafood": ("hai san", "do bien", "tom", "cua", "muc", "nghieu", "so", "oc", "hau"),
+    "allergen:peanut": ("dau phong", "lac"),
+    "allergen:dairy": ("sua", "pho mai", "kem"),
+    "allergen:egg": ("trung",),
+    "allergen:gluten": ("gluten", "bot mi", "mi"),
+}
+
+
+def _xung_dot_di_nguyen(request: Request) -> list[str]:
+    """Nhãn dị nguyên mà khách VỪA TRÁNH lại VỪA HỎI XIN trong cùng một câu.
+
+    Đo được trên bản chạy thật, và nó là ngõ cụt im lặng:
+
+        "Con tôi không ăn được tôm hãy tư vấn món hải sản khác"
+        -> Bánh mì pate, Cháo lòng, Gỏi cuốn chay, Đậu hũ sốt cà chua...
+
+    Khách xin **món hải sản khác** và nhận về bánh mì, không một lời giải thích. Hệ thống làm đúng
+    về mặt an toàn — nhãn `allergen:seafood` phủ cả 26 món hải sản nên không còn món nào — nhưng nó
+    **không nói ra**, nên khách tưởng nhà hàng hết món hoặc hệ thống hỏng.
+
+    Vì sao KHÔNG thu hẹp bộ lọc xuống riêng con tôm, dù thực đơn có `ingredient:shrimp` (12 món):
+    **7/26 món hải sản không có nhãn nguyên liệu nào cho biết là hải sản gì**, và hai trong số đó
+    chứa tôm thật:
+
+        Bún đậu mắm tôm   "Chấm MẮM TÔM pha chanh đường ớt"     nhãn: pork, tofu
+        Bún bò Huế        "nước dùng ... sả, MẮM RUỐC, ớt sa tế"  nhãn: beef, pork
+
+    Lọc theo `ingredient:shrimp` sẽ mời đúng hai món đó cho một đứa trẻ dị ứng tôm. Nên chặn rộng
+    là lựa chọn đúng với dữ liệu đang có — và việc phải làm là NÓI RA, không phải nới ra.
+    """
+    if not request.avoid_tags:
+        return []
+    f = f" {request.folded} "
+    return [
+        t for t in request.avoid_tags
+        if any(f" {tu} " in f for tu in _TU_GOI_DI_NGUYEN.get(t, ()))
+    ]
+
+
+def _cau_noi_xung_dot(nhan: list[str]) -> str:
+    """Câu giải thích vì sao không có món nào thuộc nhóm khách vừa hỏi."""
+    ten = ", ".join(_ALLERGEN_VI.get(t, t.split(":")[-1]) for t in nhan)
+    return (
+        f"Bạn có nhắc tới {ten} như thứ cần tránh, mà thực đơn chỉ ghi nhãn theo NHÓM "
+        f"— không tách riêng từng loại — nên mình không lọc ra được món {ten} an toàn. "
+        f"Mình gợi ý các món thực đơn không ghi nhận {ten} nhé."
+    )
+
+
+def _chon_combo(request: Request, items: list[dict]) -> tuple[list[tuple[str, list[dict]]], int]:
+    """Chọn món cho từng suất. Trả `([(tên suất, [món]), ...], tổng tiền)`.
+
+    Ba điều làm nhánh này khác nhánh lọc phẳng:
+
+    1. **Mỗi suất lọc riêng.** Nhiều danh mục trong một câu lọc phẳng chỉ thành phép HOẶC, mà khách
+       đang xin phép CỘNG: một món chính VÀ một đồ uống VÀ một tráng miệng.
+    2. **Ràng buộc chung vẫn áp cho mọi suất.** Dị nguyên, độ cay, chế độ ăn — khách nêu một lần
+       thì đúng cho cả bộ. `select()` được gọi lại cho từng suất nên không có đường nào lọt.
+    3. **Ngân sách áp trên TỔNG.** "tầm 300k" cho một bộ ba món nghĩa là cả bộ 300k, không phải mỗi
+       món 300k. Đây là chỗ dễ hiểu sai nhất, và hiểu sai theo hướng đắt hơn thì khách trả tiền.
+
+    Cách xếp trong ngân sách: bắt đầu bằng lựa chọn HẠNG ĐẦU của mỗi suất, rồi hạ dần suất đang
+    đắt nhất xuống món rẻ hơn kế tiếp cho tới khi tổng vừa. Không tìm tổ hợp tối ưu — bài toán đó
+    là knapsack, và "rẻ nhất có thể" cũng không phải điều khách muốn. Hạ dần từ hạng đầu giữ được
+    thứ tự ưu tiên vốn đã đo, và dừng ngay khi vừa túi.
+    """
+    # `combo=[]` để `select()` không quay lại nhánh này; `categories` do từng suất đặt.
+    goc = replace(request, combo=[], categories=[], ho_mon=[], wants="any", budget_max=None)
+
+    ung_vien: list[tuple[str, int, list[dict]]] = []
+    for ten, so, nhom in request.combo:
+        cho_phep = [i for i in items if i["categoryId"] in nhom]
+        # Bỏ ràng buộc mà KHÔNG món nào của suất này mang được.
+        #
+        # Đo được: "hai người, tầm 300k, cho mình 1 món chính 1 lẩu và 2 nước" -> suất đồ uống
+        # RỖNG, vì `party:two_three` suy từ "hai người" áp cả lên đồ uống mà không ly nước nào mang
+        # nhãn số người. Khách mất hẳn hai suất nước vì một ràng buộc nói về món ăn.
+        #
+        # Cùng nguyên tắc với "loại đang HỎI thắng loại được NHẮC tới": ràng buộc chỉ có nghĩa
+        # trong phạm vi nó mô tả. Suy từ thực đơn nên nó không lệch khi dữ liệu đổi.
+        #
+        # Dị nguyên KHÔNG nằm trong phép bỏ này — nó ở `avoid_tags`, và `select()` áp riêng.
+        cua_suat = {t for i in cho_phep for t in i["tags"]}
+        rieng = replace(
+            goc,
+            categories=list(nhom),
+            require_tags=[t for t in goc.require_tags if _ap_duoc(t, cua_suat)],
+        )
+        duoc = _order(select(rieng, cho_phep), request.prefer_tags, "any")
+        ung_vien.append((ten, so, duoc))
+
+    # Hạng đầu của mỗi suất.
+    chon: list[list[dict]] = [ds[:so] for _, so, ds in ung_vien]
+
+    def tong() -> int:
+        return sum(m["price"] for nhom in chon for m in nhom)
+
+    if request.budget_max is not None:
+        # Hạ dần suất đang đắt nhất. Mỗi vòng đổi đúng MỘT món, nên nó dừng: mỗi suất chỉ hạ được
+        # hữu hạn bước, và vòng lặp thoát khi không còn suất nào hạ được nữa.
+        while tong() > request.budget_max:
+            ha_duoc = False
+            for idx in sorted(range(len(chon)),
+                              key=lambda k: -max((m["price"] for m in chon[k]), default=0)):
+                _, so, ds = ung_vien[idx]
+                dang = chon[idx]
+                if not dang:
+                    continue
+                dat_nhat = max(dang, key=lambda m: m["price"])
+                re_hon = [m for m in ds if m["price"] < dat_nhat["price"] and m not in dang]
+                if re_hon:
+                    chon[idx] = [m for m in dang if m is not dat_nhat] + [
+                        max(re_hon, key=lambda m: m["price"])
+                    ]
+                    ha_duoc = True
+                    break
+            if not ha_duoc:
+                break
+
+    return [(ten, chon[i]) for i, (ten, _, _) in enumerate(ung_vien)], tong()
+
+
+# Tên suất bằng tiếng Việt có dấu, cho câu trả lời.
+_TEN_SUAT_VI = {
+    "khai vi": "Khai vị", "trang mieng": "Tráng miệng", "do uong": "Đồ uống",
+    "thuc uong": "Thức uống", "nuoc uong": "Nước uống", "nuoc": "Đồ uống",
+    "lau": "Lẩu", "mon chinh": "Món chính", "mon man": "Món mặn",
+}
+
+
 def listing(items: list[dict]) -> str:
-    return ", ".join(phrase(i) for i in items)
+    """Danh sách món, MỖI MÓN MỘT DÒNG có gạch đầu dòng.
+
+    Trước đây nối bằng dấu phẩy thành một đoạn liền:
+
+        Mời bạn tham khảo: Bánh mì pate Sài Gòn (35.000đ), Cháo lòng Sài Gòn (45.000đ), Gỏi cuốn
+        chay (45.000đ), Đậu hũ sốt cà chua (45.000đ), Xôi gà Hà Nội (50.000đ), Cơm chiên chay ngũ
+        sắc (50.000đ).
+
+    Khách đọc trên điện thoại, giữa lúc đang đói, và phải tự tách sáu món ra khỏi một khối chữ để
+    so giá. Gạch đầu dòng làm đúng việc đó thay họ — và giá thẳng hàng thì so được bằng mắt.
+
+    `\\n` chứ không phải `<br>` hay markdown bảng: khung chat của khách hiện văn bản thuần, nên thứ
+    duy nhất chắc chắn xuống dòng là ký tự xuống dòng.
+    """
+    return "\n".join(f"- {phrase(i)}" for i in items)
 
 
 # Nhãn `party:*` đọc được cho khách. Nhóm này phủ 91/91 món và nó CHÍNH LÀ khẩu phần — xem chú
@@ -1165,6 +1312,35 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
             branch="clarify",
         )
 
+    # COMBO — khách xin một BỘ món, mỗi loại một suất. Đặt TRƯỚC nhánh lọc phẳng vì nó thay hẳn
+    # hình dạng câu trả lời: không phải "6 món để bạn chọn" mà "đây là bộ của bạn, tổng bấy nhiêu".
+    if request.combo:
+        suat, tong = _chon_combo(request, items)
+        co_mon = [(ten, ds) for ten, ds in suat if ds]
+        thieu = [_TEN_SUAT_VI.get(ten, ten) for ten, ds in suat if not ds]
+        if co_mon:
+            dong: list[str] = []
+            for ten, ds in co_mon:
+                dong.append(f"{_TEN_SUAT_VI.get(ten, ten)}:")
+                dong += [f"- {phrase(m)}" for m in ds]
+            text = "Mời bạn tham khảo bộ này:\n" + "\n".join(dong)
+            text += f"\n\nTổng: {money(tong)}."
+            if request.budget_max is not None and tong > request.budget_max:
+                # NÓI RA khi vượt, không im lặng. Khách nêu ngân sách là nêu một giới hạn, và một
+                # bộ vượt giới hạn mà không báo là để họ phát hiện lúc thanh toán.
+                text += (f" Cao hơn mức {money(request.budget_max)} bạn nêu — thực đơn chưa có bộ "
+                         "nào vừa đủ, bạn cân nhắc giúp nhé.")
+            if thieu:
+                text += f" Thực đơn chưa có món cho phần: {', '.join(thieu)}."
+            if request.avoid_tags:
+                text += f" {STAFF_NOTE}"
+            return Reply(
+                text=text,
+                items=[m["id"] for _, ds in co_mon for m in ds],
+                kind="list",
+                branch="combo",
+            )
+
     picked = _order(select(request, items), request.prefer_tags, request.wants)
     if not picked:
         # Rỗng vì LOẠI TRỪ, hay rỗng vì RÀNG BUỘC? Hai chuyện khác nhau và phải trả lời khác nhau.
@@ -1297,11 +1473,19 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
     shown = picked[:LIST_SIZE]
     lead = "Mời bạn tham khảo" if not request.avoid_tags else \
         "Thực đơn không ghi nhận thành phần bạn cần tránh ở những món này"
-    text = f"{lead}: {listing(shown)}."
+    # Danh sách xuống dòng, phần chữ đứng riêng — xem `listing()`.
+    text = f"{lead}:\n{listing(shown)}"
+    # Khách xin đúng thứ họ đang tránh -> nói ra TRƯỚC danh sách, không để họ tự đoán.
+    _xung_dot = _xung_dot_di_nguyen(request)
+    if _xung_dot:
+        text = _cau_noi_xung_dot(_xung_dot) + "\n\n" + text
+    duoi: list[str] = []
     if request.avoid_tags:
-        text += f" {STAFF_NOTE}"
+        duoi.append(STAFF_NOTE)
     if len(picked) > len(shown):
-        text += f" Còn {len(picked) - len(shown)} món nữa, bạn muốn xem thêm không?"
+        duoi.append(f"Còn {len(picked) - len(shown)} món nữa, bạn muốn xem thêm không?")
+    if duoi:
+        text += "\n\n" + " ".join(duoi)
     return Reply(
         text=text,
         items=[i["id"] for i in shown],

@@ -913,6 +913,54 @@ def build() -> dict:
         ],
     })
 
+    # ---------------------------------------------------------------------------------------
+    # COMBO và XUNG ĐỘT DỊ NGUYÊN — bốn vấn đề người dùng báo sau khi dùng thật.
+    # ---------------------------------------------------------------------------------------
+    scripts.append({
+        "id": "combo-nhieu-suat-01",
+        "group": "combo",
+        "why": ("Khách xin một BỘ món, mỗi loại một suất. Nhiều danh mục trong một câu chỉ thành "
+                "phép HOẶC, mà khách đang xin phép CỘNG — nên câu này từng trả 6 món khai vị/chay "
+                "và KHÔNG có đồ uống nào."),
+        "turns": [
+            {"user": ("Mình đi một mình, mình muốn tư vấn 1 món ăn nhẹ gồm 1 món chính, "
+                      "1 thức uống, 1 tráng miệng"),
+             "expect": {"min_items": 3, "expect_kind": "list", "must_say_all": ["Tổng:"],
+                        "why": "Ba suất thì ít nhất ba món, và câu trả lời phải nêu TỔNG TIỀN — "
+                               "khách hỏi một bộ là đang hỏi mình phải trả bao nhiêu."}},
+        ],
+    })
+    scripts.append({
+        "id": "combo-di-ung-01",
+        "group": "combo",
+        "safety": True,
+        "why": "Nhánh combo KHÔNG được là đường vòng qua bộ lọc dị nguyên.",
+        "turns": [
+            {"user": "mình dị ứng hải sản, cho 1 món chính 1 nước 1 tráng miệng",
+             "expect": {"min_items": 2, "forbid_tags_any": ["allergen:seafood"],
+                        "why": "CHỐT AN TOÀN. Mỗi suất lọc riêng, nhưng dị nguyên áp cho MỌI suất."}},
+        ],
+    })
+    scripts.append({
+        "id": "xung-dot-di-nguyen-01",
+        "group": "combo",
+        "safety": True,
+        "why": ("Khách xin đúng thứ họ đang tránh. Hệ thống làm đúng về an toàn nhưng KHÔNG NÓI RA, "
+                "nên khách tưởng nhà hàng hết món."),
+        "turns": [
+            {"user": "Con tôi không ăn được tôm hãy tư vấn món hải sản khác",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "must_say_any": ["cần tránh", "không lọc ra được"],
+                        "why": "Phải giải thích vì sao không có món hải sản nào — thực đơn ghi nhãn "
+                               "theo NHÓM, không tách riêng tôm."}},
+            {"user": "tôi ăn được hải sản hãy tư vấn hải sản cho tôi",
+             "expect": {"min_items": 3, "memory_must_not_have_avoid": ["allergen:seafood"],
+                        "must_say_any": ["đã bỏ"],
+                        "why": "LƯỢT BẮT LỖI: khách khẳng định mình ăn được thì phải gỡ được hàng "
+                               "rào. Trước đây câu này trả 'chưa tìm được món nào' — ngõ cụt."}},
+        ],
+    })
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",
