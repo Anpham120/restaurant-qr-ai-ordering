@@ -5,7 +5,7 @@
 # chung, và ảnh dịch vụ mang cả bộ công cụ báo cáo mà không dùng.
 nbformat>=5.10,<6.0
 jupyter-core>=5.7,<6.0
-nbconvert>=7.16,<8.0
+nbconvert>=7.17.1,<8.0
 ipykernel>=6.29,<7.0
 matplotlib>=3.9,<4.0
 pandas>=2.2,<3.0
