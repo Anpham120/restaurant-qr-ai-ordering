@@ -203,6 +203,17 @@ class Bang:
     def hc_a_truy_hoi(self, cot: str) -> int:
         return sum(1 for r in self.hc_a if r[cot] == "True")
 
+    def hc_b_cau_vi_pham(self, cot: str, dang: str | None = None) -> int:
+        """Số CÂU có ít nhất một món vi phạm — khác `hc_b_vi_pham` vốn đếm tổng số MÓN.
+
+        Hai cách đếm trả lời hai câu hỏi khác nhau, và báo cáo cần cả hai: "bao nhiêu câu bị ảnh
+        hưởng" là thước đo mức phổ biến của lỗi, còn "tổng bao nhiêu món sai" là thước đo mức
+        nghiêm trọng. Một phương pháp sai 1 câu nhưng sai 20 món khác hẳn một phương pháp sai 20
+        câu mỗi câu 1 món.
+        """
+        hang = self.hc_b if dang is None else [r for r in self.hc_b if r["vi_sao"] == dang]
+        return sum(1 for r in hang if int(r[cot] or 0) > 0)
+
     def hc_b_vi_pham(self, cot: str, dang: str | None = None) -> int:
         hang = self.hc_b if dang is None else [r for r in self.hc_b if r["vi_sao"] == dang]
         return sum(int(r[cot] or 0) for r in hang)
@@ -517,7 +528,9 @@ def tom_tat(b: Bang) -> str:
     b_np = b.ty_le_truy_hoi("NIÊM PHONG", "bm25", "hit1")
     cm_np = b.chon_muc("niem_phong", "written|*", "embedding")
     cm_np_bm = b.chon_muc("niem_phong", "written|*", "bm25")
-    ln = b.m_truy_hoi["so"]["bai_toan_2"]["bo"]["lọc nhãn"]
+    bo2 = b.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+    n2 = b.m_truy_hoi["so"]["bai_toan_2"]["so_ca"]
+    ln = bo2["lọc nhãn"]
     khac = [v["cam5"] for k, v in b.m_truy_hoi["so"]["bai_toan_2"]["bo"].items() if k != "lọc nhãn"]
     return f"""# TÓM TẮT
 
@@ -543,15 +556,33 @@ và được dùng rộng rãi. Câu hỏi đặt ra là:
 
 > **Loại câu hỏi nào KHÔNG nên xử lý bằng RAG, và bằng chứng định lượng nào cho thấy điều đó?**
 
-Để trả lời, nhóm so sánh **lọc theo nhãn** với **ba phương pháp xếp hạng theo độ tương đồng** trên
-cùng một bài toán chọn món gồm 8 câu hỏi có ràng buộc đếm được:
+Để trả lời, nhóm so sánh **lọc theo nhãn** với **phương pháp xếp hạng theo độ tương đồng** trên
+cùng một bài toán chọn món. Bộ đo gồm **{len(b.hc_b)} câu hỏi** có ràng buộc kiểm tra được, và các
+câu này **được sinh tự động từ bộ nhãn** của thực đơn thay vì do người viết chọn:
 
-| Phương pháp | Tỷ lệ trả lời đúng | Số câu đề xuất món **không thỏa** ràng buộc |
-|---|---:|---:|
-| **Lọc theo nhãn** | **{pct(ln['hit1'] / 8)}** | **{ln['cam5']}/8** |
-| BM25 | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['bm25']['cam5']}/8 |
-| Embedding | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['embedding']['cam5']}/8 |
-| Hybrid RRF | thấp hơn | {b.m_truy_hoi['so']['bai_toan_2']['bo']['hybrid']['cam5']}/8 |
+| Dạng ràng buộc | Số câu | Ví dụ |
+|---|---:|---|
+| Ngưỡng số | {sum(1 for r in b.hc_b if r['vi_sao'] == 'ngưỡng số')} | *"Món nào dưới 50 nghìn?"* |
+| Phân loại | {sum(1 for r in b.hc_b if r['vi_sao'] == 'phân loại')} | *"Có món miền Trung nào không?"* |
+| Phủ định | {sum(1 for r in b.hc_b if r['vi_sao'] == 'phủ định')} | *"Món nào không cay?"* |
+| Phép trừ (dị nguyên) | {sum(1 for r in b.hc_b if r['vi_sao'] == 'PHÉP TRỪ')} | *"Mình dị ứng hải sản, món nào tránh được?"* |
+| Phép hội (hai điều kiện) | {sum(1 for r in b.hc_b if r['vi_sao'] == 'PHÉP HỘI')} | *"Món chay nào dưới 60 nghìn?"* |
+| **Tổng** | **{len(b.hc_b)}** | |
+
+Sinh câu hỏi từ bộ nhãn thay vì viết tay là quyết định có chủ đích về mặt phương pháp: khi người
+viết tự chọn câu hỏi, họ có xu hướng chọn những câu mà mình đã biết trước kết quả. Sinh tự động thì
+danh sách câu hỏi do **dữ liệu** quyết định.
+
+Kết quả — đếm theo **số câu có ít nhất một món vi phạm** ràng buộc khách nêu:
+
+| Phương pháp | Số câu có món vi phạm | Tỷ lệ | Tổng số món vi phạm |
+|---|---:|---:|---:|
+| **Lọc theo nhãn** | **{b.hc_b_cau_vi_pham('tat_dinh_vi_pham')}/{len(b.hc_b)}** | **{pct(b.hc_b_cau_vi_pham('tat_dinh_vi_pham') / len(b.hc_b))}** | **{b.hc_b_vi_pham('tat_dinh_vi_pham')}** |
+| Xếp hạng theo độ tương đồng | {b.hc_b_cau_vi_pham('truy_hoi_vi_pham')}/{len(b.hc_b)} | {pct(b.hc_b_cau_vi_pham('truy_hoi_vi_pham') / len(b.hc_b))} | {b.hc_b_vi_pham('truy_hoi_vi_pham')} |
+
+Riêng nhóm **phép trừ** — câu hỏi về dị ứng, nơi mỗi món vi phạm là một **lỗi an toàn** — lọc theo
+nhãn có **{b.hc_b_vi_pham('tat_dinh_vi_pham', 'PHÉP TRỪ')} món vi phạm**, còn phương pháp xếp hạng
+có **{b.hc_b_vi_pham('truy_hoi_vi_pham', 'PHÉP TRỪ')} món**.
 
 **Giải thích kết quả.** Thực đơn là dữ liệu **có cấu trúc**: mỗi món đã được gán sẵn giá và nhãn,
 nên điều kiện *"giá dưới 100.000đ"* có đáp án đúng hoặc sai xác định. Phép lọc theo nhãn kiểm tra
@@ -598,6 +629,12 @@ thẻ giỏ → giỏ hàng.
 | LLM + RAG trên câu loại C | {llm['ca']} ca | tất định {llm['ca']}/{llm['ca']} · có sinh {llm['ca']}/{llm['ca']} |
 
 ## Hạn chế
+
+**Quy mô bộ đo.** Mục 4.4 của báo cáo trình bày một bộ đo **8 câu** cho cùng bài toán chọn món.
+Bộ đó được viết trước, và với n = 8 thì một câu lệch tương ứng 12,50% — quá thô để rút kết luận.
+Bộ 50 câu ở trên được xây sau chính vì lý do đó. Mục 4.4 vẫn giữ bộ 8 câu vì nó phân tích **từng
+dạng ràng buộc riêng lẻ** kèm giải thích cơ chế, còn bộ 50 câu cho con số tổng hợp đáng tin hơn.
+Khi hai bộ cho kết luận khác nhau, **bộ 50 câu là bộ được dùng để kết luận**.
 
 Hạn chế lớn nhất: **không có nhật ký hội thoại của khách thật**. Toàn bộ ca đánh giá do nhóm tự
 viết, nên chúng đo được hệ thống có tôn trọng ràng buộc hay không, nhưng không đo được khách thật
@@ -1766,9 +1803,12 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
     xh = [v["cam5"] for k, v in b2.items() if k != "lọc nhãn"]
     ra += [
         "",
-        f"**Lọc theo nhãn đạt Hit@1 = {so(b2['lọc nhãn']['hit1'] / b2['lọc nhãn']['n'])} với"
-        f" {b2['lọc nhãn']['cam5']} ca sai.** Ba bộ xếp hạng sai **{min(xh)}–{max(xh)}/"
-        f"{b2['lọc nhãn']['n']} ca**.",
+        f"Trên **{b2['lọc nhãn']['n']} câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng"
+        f" **{b2['lọc nhãn']['hit1']:.0f}/{b2['lọc nhãn']['n']} câu"
+        f" ({pct(b2['lọc nhãn']['hit1'] / b2['lọc nhãn']['n'])})** và **không câu nào** nêu món vi"
+        f" phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **{min(xh)} đến {max(xh)} trong"
+        f" {b2['lọc nhãn']['n']} câu**, tương ứng"
+        f" {pct(min(xh) / b2['lọc nhãn']['n'])} đến {pct(max(xh) / b2['lọc nhãn']['n'])}.",
         "",
         "`cấm@5` ở bài toán này mang nghĩa khác bài toán 4.2: nó là số ca **nêu món không thỏa ràng",
         "buộc**, tức câu trả lời **SAI**, không phải kém. Với ca dị ứng thì đó là **lỗi an toàn**.",
@@ -1913,7 +1953,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "|---|---|---|---|",
         f"| bộ truy hồi (**cả hai** đường) | **embedding** | thắng ở cả hai bài toán và cả hai tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh Docker 238MB → **2,74GB**; truy hồi 1,4ms → 67ms; khởi động **19,0s** |",
         f"| đường sinh | **TẮT mặc định**, bật bằng biến môi trường | {len(llm['ca_tut'])} ca tụt sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** | p50 **+{llm['tre_p50_ms'] / 1000:.1f}s** mỗi lượt |".replace("+8.6", "+8,6"),
-        f"| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn {b2['lọc nhãn']['cam5']} ca sai; ba bộ xếp hạng sai {min(xh)}–{max(xh)}/{b2['lọc nhãn']['n']} | 0,3ms — rẻ hơn mọi phương án khác |",
+        f"| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: {b2['lọc nhãn']['cam5']} câu nêu món vi phạm; ba bộ xếp hạng: {min(xh)} đến {max(xh)} trong {b2['lọc nhãn']['n']} câu | 0,3ms mỗi lượt |",
         "",
         "### Giá của embedding: ba lần đo mới ra con số đúng",
         "",
@@ -2040,7 +2080,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "|---|---|---|",
         "| 1 | cột \"tất định\" tính cả nhánh truy hồi | 4/8 câu hiện ĐÚNG nhờ chính bên kia làm; tách ra còn **1/8** |",
         "| 2 | chiều B tìm trên kho tri thức thay vì chỉ mục món | truy hồi **0 vi phạm**, kết quả không phản ánh bài toán cần đo; sau khi sửa: **17** |",
-        "| 3 | `Hit` không mang `topic_keys`, `getattr` luôn rỗng | truy hồi **0/8**, tức đo phép chấm chứ không đo truy hồi |",
+        "| 3 | `Hit` không mang `topic_keys`, `getattr` luôn trả rỗng | truy hồi **0 trong 8 câu**, tức phép đo phản ánh chính bộ chấm điểm chứ không phản ánh bộ truy hồi |",
         "",
         "Đây là lần thứ tám lỗi nằm ở phép đo chứ không ở hệ thống. Quy trình áp dụng từ đó: **kiểm giả thuyết \"phép đo sai\" trước",
         "giả thuyết \"hệ thống sai\"**.",
@@ -2075,9 +2115,10 @@ def chuong_5(b: Bang) -> str:
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding \
 **{pct(b.chon_muc('niem_phong', 'written|*', 'embedding'))}** so với bm25 \
 {pct(b.chon_muc('niem_phong', 'written|*', 'bm25'))} |
-| Chọn món | lọc nhãn **{b2['lọc nhãn']['cam5']} ca sai** so với xếp hạng \
+| Chọn món | lọc nhãn **{b2['lọc nhãn']['cam5']} câu nêu món vi phạm**, so với \
 {min(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')}–\
-{max(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')}/{b2['lọc nhãn']['n']} |
+{max(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')} câu ở ba bộ xếp hạng \
+(trên {b2['lọc nhãn']['n']} câu) |
 
 ## 5.2 Phân tích chi tiết theo từng thành phần
 
