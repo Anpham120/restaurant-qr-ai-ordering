@@ -114,6 +114,17 @@ class Bang:
         self.m_chon_dev = results.doc("chon_muc_phat_trien")
         self.m_chon_np = results.doc("chon_muc_niem_phong")
 
+        # Bộ HAI CHIỀU — 100 câu, đo VÌ SAO hệ thống cần cả hai lớp. Đọc CSV vì đó cũng là tệp đưa
+        # cho người đọc mở Excel; giữ MỘT nguồn thay vì sinh thêm một JSON song song.
+        import csv as _csv
+        _p = AI / "evaluation/measurements/hai_chieu.csv"
+        if not _p.exists():
+            raise SystemExit(
+                f"Thiếu bằng chứng {_p.relative_to(REPO_ROOT)}. "
+                "Chạy: python ai/evaluation/run_hai_chieu.py --csv"
+            )
+        self.hai_chieu = list(_csv.DictReader(_p.open(encoding="utf-8-sig")))
+
     # -- dẫn xuất -------------------------------------------------------------------
     @property
     def luot_phien(self) -> int:
@@ -122,6 +133,67 @@ class Bang:
     @property
     def luot_golden(self) -> int:
         return sum(len(c["turns"]) for c in self.golden)
+
+    @property
+    def so_cum_tu_vung(self) -> int:
+        """Số cụm từ vựng tất định — ĐẾM từ chính bảng, không gõ tay."""
+        import understand
+        return len(understand.VOCAB)
+
+    @property
+    def so_phep_kiem(self) -> int:
+        """Số phép kiểm của `verify()`, đếm HAI cách rồi đối chiếu.
+
+        Nhãn chú thích (`# 1.` … `# 8.` kèm hậu tố `6b`, `6c`) đọc được nhưng có thể quên cập nhật;
+        số chỗ `loi.append(` thì đúng lúc chạy nhưng không tự nói tên. Lệch nhau nghĩa là có phép
+        kiểm không được đánh số. Bản đầu gom `6`, `6b`, `6c` làm một nên đếm 8 trong khi thật là 10.
+        """
+        import re
+        src = (AI / "app" / "generate.py").read_text(encoding="utf-8")
+        than = src[src.index("def verify("):]
+        moc = chr(10) + "def "
+        than = than[:than.index(moc)] if moc in than else than
+        theo_nhan = len(set(re.findall(r"^    # (\d+[a-z]?)\.", than, re.M)))
+        theo_ma = than.count("loi.append(")
+        if theo_nhan != theo_ma:
+            raise SystemExit(
+                f"verify(): {theo_nhan} phép kiểm có nhãn nhưng {theo_ma} chỗ báo vi phạm."
+            )
+        return theo_nhan
+
+    @property
+    def so_cong_check(self) -> int:
+        """Số cổng `--check` trong CI — đếm từ chính workflow."""
+        return (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8").count("--check")
+
+    @property
+    def hc_a(self) -> list[dict]:
+        return [r for r in self.hai_chieu if r["chieu"] == "A"]
+
+    @property
+    def hc_b(self) -> list[dict]:
+        return [r for r in self.hai_chieu if r["chieu"] == "B"]
+
+    def hc_a_dem(self, loai: str) -> int:
+        """`dung` | `khong_xu_ly` | `sai_dang` — ba kết cục của mã tất định ở chiều A."""
+        if loai == "dung":
+            return sum(1 for r in self.hc_a if r["tat_dinh_dung"] == "True")
+        if loai == "khong_xu_ly":
+            return sum(1 for r in self.hc_a
+                       if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] == "True")
+        return sum(1 for r in self.hc_a
+                   if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] != "True")
+
+    def hc_a_truy_hoi(self, cot: str) -> int:
+        return sum(1 for r in self.hc_a if r[cot] == "True")
+
+    def hc_b_vi_pham(self, cot: str, dang: str | None = None) -> int:
+        hang = self.hc_b if dang is None else [r for r in self.hc_b if r["vi_sao"] == dang]
+        return sum(int(r[cot] or 0) for r in hang)
+
+    def hc_b_dang(self) -> list[str]:
+        return sorted({r["vi_sao"] for r in self.hc_b})
 
     @property
     def loai_ca(self) -> collections.Counter:
@@ -401,6 +473,7 @@ def muc_luc() -> str:
   - 4.6 Golden 103 lượt qua chuỗi gọi đầy đủ
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
+  - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Làm được
@@ -488,20 +561,113 @@ def thuat_ngu() -> str:
 ---"""
 
 
-def phan_cong() -> str:
-    return """# PHÂN CÔNG CÔNG VIỆC
+def phan_cong(b: Bang) -> str:
+    """Phân công theo TUẦN TỰ của đường xây dựng, không theo module.
 
-Phân công theo **một vai nền tảng cộng bốn khâu của đường xử lý**. Dữ liệu và đo lường thuộc cùng một
-người, vì chúng giống nhau ở điểm quan trọng nhất: cả hai **không phải chặng runtime** — một câu hỏi
-không "đi qua" từ điển nhãn hay tập đánh giá, nó *dùng* chúng.
+    Vì sao tuần tự chứ không theo module: một hệ thống RAG có thứ tự phụ thuộc rất chặt — không có
+    nhãn thì không lọc được, không có kho thì không truy hồi được, không có tập đánh giá thì không
+    biết mình đúng hay sai. Chia theo module thì năm người bắt đầu cùng lúc và ba người ngồi chờ.
+    Chia theo chặng thì mỗi người bàn giao một thứ DÙNG ĐƯỢC cho người sau.
+    """
+    return f"""# PHÂN CÔNG CÔNG VIỆC
 
-| STT | Họ và tên | MSSV | Công việc | Mục báo cáo | Đóng góp |
-|:---:|---|---|---|---|:---:|
-| 1 | Phạm Duy An | BIT240002 | Nền tảng dữ liệu và đo lường: kho tri thức markdown, chia đoạn theo tiêu đề, cửa `audience: guest`, bốn tập đánh giá và kỷ luật chia tập theo HỌ, thước đo cùng bộ dò lỗ | 2.5, 3.2, 3.3, 4.7, Phụ lục D | 20% |
-| 2 | Bùi Đào Đức Anh | BIT240025 | Hiểu câu hỏi: từ vựng tất định, cổng `already_understood` chặn mô hình vào chỗ không cần, phân biệt câu HỎI VỀ thuộc tính với câu LỌC theo thuộc tính | 2.5, 3.1, 4.5 | 20% |
-| 3 | Đỗ Tuấn Anh | BIT240015 | Truy hồi: BM25, embedding, hybrid RRF; so trên HAI bài toán và HAI tập; tính sẵn vector lúc build; chốt bộ truy hồi cho production | 2.1–2.3, 4.2, 4.3, 4.8 | 20% |
-| 4 | Lê Anh | BIT240017 | An toàn: lọc dị nguyên fail-closed, tám phép kiểm xác minh của đường sinh, thẻ giỏ tất định, phân tích 14 lỗi an toàn khi bật đường sinh | 2.6, 4.4, 4.5 | 20% |
-| 5 | Nguyễn Quang Hiếu | BIT240091 | Cổng vào và bộ nhớ phiên: dịch vụ HTTP, hợp nhất ngữ cảnh ba quy tắc, golden đầu-cuối qua backend thật, cổng deploy đối chiếu bằng chứng; tổng hợp báo cáo | 3.1, 3.6, 4.6, 4.8, Ch.5 | 20% |
+Phân công theo **thứ tự xây dựng**, không theo module. Lý do nằm ở chỗ hệ thống này có ràng buộc
+phụ thuộc rất chặt: không có nhãn thì không lọc được món, không có kho tri thức thì không truy hồi
+được, và **không có tập đánh giá thì không ai biết mình đúng hay sai**. Chia theo module thì năm
+người khởi động cùng lúc rồi ba người ngồi chờ; chia theo chặng thì mỗi người bàn giao một thứ
+người sau **dùng được ngay**.
+
+## Sơ đồ bàn giao
+
+```
+TV1  DỮ LIỆU          -> 91 món · {len(b.tags)} nhãn · {len(b.docs)} tài liệu / {len(b.doan)} đoạn
+      |                   (bộ sinh + migration, KHÔNG sửa tay)
+      v
+TV2  HIỂU CÂU HỎI     -> Request(nhãn lọc, ràng buộc, ý định)
+      |                   {len(b.ca_tra_loi)} ca trả lời làm mốc
+      v
+TV3  TRUY HỒI         -> đoạn tri thức cho câu ngoài thực đơn
+      |                   {len(b.ca_truy_hoi)} ca · BM25 / embedding / hybrid
+      v
+TV4  CHỌN MÓN & AN TOÀN -> danh sách món + thẻ giỏ, lọc dị nguyên fail-closed
+      |                   {len(b.ca_chon_muc)} ca chọn mục · 10 phép kiểm xác minh
+      v
+TV5  PHIÊN & ĐÁNH GIÁ  -> dịch vụ HTTP, bộ nhớ phiên, golden đầu-cuối
+                          {b.luot_phien} lượt phiên · {b.luot_golden} lượt golden · CI
+```
+
+## Bảng phân công
+
+| # | Họ và tên | MSSV | Chặng | Bàn giao cho người sau | Mục báo cáo | % |
+|:-:|---|---|---|---|---|:-:|
+| 1 | Phạm Duy An | BIT240002 | **Dữ liệu & nhãn** | Thực đơn 91 món, từ điển {len(b.tags)} nhãn/16 nhóm, kho {len(b.docs)} tài liệu, chuỗi migration | 2.5, 3.2, 3.3, 4.7, PL.D | 20% |
+| 2 | Bùi Đào Đức Anh | BIT240025 | **Hiểu câu hỏi** | `Request` — nhãn lọc, ràng buộc, ý định, bộ nhớ phủ định | 2.5, 3.1, 4.5 | 20% |
+| 3 | Đỗ Tuấn Anh | BIT240015 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn; chốt bộ truy hồi | 2.1–2.3, 4.2, 4.3, 4.8 | 20% |
+| 4 | Lê Anh | BIT240017 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ tất định, ba lớp an toàn | 2.6, 4.4, 4.5 | 20% |
+| 5 | Nguyễn Quang Hiếu | BIT240091 | **Phiên & đánh giá** | Dịch vụ HTTP, bộ nhớ phiên, golden đầu-cuối, cổng CI | 3.1, 3.6, 4.6, 4.9, Ch.5 | 20% |
+
+## Việc từng chặng, và điều kiện bàn giao
+
+Mỗi chặng có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ
+tránh được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em" rồi người sau
+phát hiện nó sai sau ba tuần.
+
+### TV1 — Dữ liệu & nhãn *(chặng nền, mọi chặng sau đều đọc)*
+
+1. Hợp nhất hai nguồn thực đơn (JSON của AI và CSDL của backend) về **một** bộ nhãn
+2. Xây từ điển **{len(b.tags)} nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
+3. Viết kho tri thức **{len(b.docs)} tài liệu / {len(b.doan)} đoạn**, trong đó {b.che_do.get('synthesize', 0)} tài liệu `synthesize` và {b.che_do.get('verbatim', 0)} tài liệu `verbatim`
+4. Dựng **chuỗi migration** để nhãn đổi thì CSDL production đổi theo
+
+> **Nghiệm thu:** hai nguồn thực đơn khớp **91/91 món**; mọi tệp dẫn xuất sinh lại được
+> (`--check` xanh); bộ rà nhãn dị nguyên và nhãn chế biến **0 lỗ**.
+
+### TV2 — Hiểu câu hỏi
+
+1. Từ vựng tất định: **{b.so_cum_tu_vung} cụm**, khớp trên chuỗi đã rút dấu
+2. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự) — nhầm chỗ này là lọc mất món đúng
+3. Lớp **ý định**: chào hỏi, xin thêm, xóa ràng buộc, hỏi món
+4. Cổng `already_understood` chặn mô hình vào chỗ mã tất định đã đủ
+
+> **Nghiệm thu:** {len(b.ca_tra_loi)}/{len(b.ca_tra_loi)} ca trả lời; kiểm kê đụng chữ khớp con số đã ghi;
+> 0 ca mà một câu hỏi bình thường bị đọc thành ràng buộc.
+
+### TV3 — Truy hồi
+
+1. Cài **BM25**, **embedding** (`multilingual-e5-small`), **hybrid RRF**
+2. So trên **hai bài toán** (truy hồi tri thức / chọn món) và **hai tập** (phát triển / niêm phong)
+3. Tính sẵn vector lúc build ảnh Docker để không tải mô hình lúc chạy
+4. Chốt bộ dùng cho production, kèm **giá phải trả** (ảnh Docker, độ trễ, thời gian khởi động)
+
+> **Nghiệm thu:** {len(b.ca_truy_hoi)} ca truy hồi chạy được trên cả ba bộ; có bảng so kèm `cấm@5`;
+> quyết định chốt có số đi kèm, không chọn theo cảm giác.
+
+### TV4 — Chọn món & an toàn
+
+1. `select()` — lọc theo nhãn, **giao** các nhóm ràng buộc
+2. Ba lớp an toàn: **lọc dị nguyên fail-closed**, **{b.so_phep_kiem} phép kiểm xác minh** câu sinh, **thẻ giỏ tất định**
+3. Thẻ giỏ dựng từ `reply.items`, không từ chữ mô hình viết
+4. Danh sách trắng nhánh được sinh — nhánh mới mặc định **không** sinh
+
+> **Nghiệm thu:** **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì bị BỎ, không sửa;
+> thẻ giỏ không bao giờ chứa món ngoài danh sách đã lọc.
+
+### TV5 — Phiên & đánh giá
+
+1. Dịch vụ HTTP `/v1/chat`, hợp đồng cố định với backend
+2. Bộ nhớ phiên **ba quy tắc hợp nhất khác nhau**: dị nguyên cộng dồn, ràng buộc cứng ghi đè theo nhóm, ngữ cảnh tích lũy có trần
+3. **Golden {b.luot_golden} lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
+4. Cổng CI: {b.so_cong_check} cổng `--check`, cổng deploy đối chiếu bằng chứng với cấu hình
+
+> **Nghiệm thu:** {b.luot_phien}/{b.luot_phien} lượt phiên; {b.luot_golden}/{b.luot_golden} lượt golden;
+> mọi cổng CI xanh; deploy bị chặn nếu bằng chứng đo không khớp cấu hình đang bật.
+
+## Vì sao chia đều 20%
+
+Không phải vì "cho công bằng". Bốn chặng runtime (TV2–TV5) mỗi chặng là một khâu bắt buộc — bỏ
+chặng nào thì hệ thống không chạy. Còn TV1 không nằm trên đường chạy nhưng **mọi chặng đều đọc dữ
+liệu của nó**, và một lỗi nhãn ở đó lan ra cả bốn chặng sau. Đó là lý do chặng dữ liệu được tính
+ngang chặng runtime, chứ không phải phụ trợ.
 
 ---
 ---"""
@@ -668,6 +834,35 @@ hạng theo độ tương đồng **thua** ở bài toán chọn món, mỗi lý
 
 Ca thứ ba là ca đáng nhớ nhất: một hệ thống RAG "hoạt động đúng" ở đó sẽ mời món hải sản cho người vừa
 khai dị ứng hải sản, và nó làm vậy **chính vì** nó hoạt động đúng.
+
+### 2.4.1 Đây là giới hạn BIỂU ĐẠT, không phải giới hạn dữ liệu hay mô hình
+
+Bốn dòng trên dễ bị đọc thành "truy hồi còn yếu, cải thiện dữ liệu hoặc đổi mô hình là xong". Đồ án
+này khẳng định ngược lại, và khẳng định đó có cả **lập luận** lẫn **thí nghiệm**.
+
+Lập luận: một bộ truy hồi là một **hàm xếp hạng** `rank(q, d) = sim(q, d)` —
+nó trả về **thứ tự** các tài liệu theo **độ giống** với truy vấn. Nó không có khái niệm *thoả* hay
+*không thoả* — chỉ có *giống hơn* và *giống ít hơn*. Trong khi ba dạng ràng buộc dưới đây là những
+**vị từ** trên tập món, và chúng cần một phép toán mà quan hệ giống nhau không mang:
+
+| Ràng buộc | Dạng toán | Vì sao độ giống không diễn đạt được |
+|---|---|---|
+| `giá < 50.000` | quan hệ **thứ tự** trên số | độ giống là quan hệ **đối xứng**; thứ tự thì không. `sim(q,d)` không phân biệt được "rẻ hơn" với "đắt hơn" |
+| `hải sản ∉ nhãn(d)` | phép **bù** trên tập | không tồn tại truy vấn `q` nào để `sim(q,d)` **giảm** khi `d` chứa hải sản; nhắc tới thứ cần tránh chỉ làm nó giống HƠN |
+| `A ∧ B` | phép **giao** | `sim` trả một số vô hướng đã trộn; không tách lại được thành hai điều kiện để ép cả hai cùng đúng |
+
+Thí nghiệm kiểm chứng lập luận này ở mục **4.9**: trên 50 câu sinh từ chính bộ nhãn, lọc theo nhãn
+vi phạm **13** món còn truy hồi vi phạm **116** — và ở nhóm loại trừ dị nguyên, lọc nhãn **0** còn
+truy hồi **11 món chứa đúng thứ khách phải tránh**.
+
+Một thí nghiệm thứ hai đóng đường thoát "tại dữ liệu chưa tốt": nhóm đã viết lại tiêu đề mục của
+kho tri thức cho đặc thù theo tài liệu, đưa số tiêu đề khác nhau từ **179 lên 365** và số đoạn dùng
+chung tiêu đề từ **283/452 xuống 93/452**. Lớp lỗi nhắm tới giảm từ **19 ca xuống 1**. Nhưng Hit@1
+trên tập niêm phong **không đổi — 0,609 trước và sau**, còn Hit@5 **tụt** từ 0,674 xuống 0,630. Các
+ca kia không được sửa; chúng **đổi tên lỗi** từ "hai mục trùng tiêu đề" sang "xếp hạng sai".
+
+Kết luận rút ra, và nó là đóng góp trung tâm của đồ án: **trần không nằm ở kho.** Cải thiện dữ liệu
+không làm một hàm xếp hạng diễn đạt được một vị từ mà nó không có phép toán để diễn đạt.
 
 ## 2.5 Chuẩn hoá văn bản tiếng Việt là phép MẤT thông tin
 
@@ -1216,6 +1411,101 @@ def chuong_4(b: Bang) -> str:
         "| chủ nhà hàng coi câu văn tự nhiên đáng giá thêm ~9 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |",
         "| có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do nhóm viết |",
         "",
+        "## 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu",
+        "",
+        "Tám mục trên đo **từng lớp riêng**. Không mục nào trả lời câu mà người đọc hỏi đầu tiên:",
+        "*vì sao không dùng mỗi một thứ cho gọn?*",
+        "",
+        "Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở cách chúng được viết:",
+        "",
+        f"| tập | bộ xếp hạng chạy |",
+        "|---|---:|",
+        f"| {len(b.ca_tra_loi)} ca trả lời | **0** |",
+        f"| {b.luot_phien} lượt phiên | **0** |",
+        f"| {len(b.ca_truy_hoi)} ca truy hồi | 36% |",
+        "",
+        "Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói \"truy hồi",
+        "vô dụng\". Tập thứ ba thì ngược lại — nó chỉ hỏi câu tri thức, nên không nói được gì về",
+        "chỗ lọc nhãn mạnh hơn. **Mỗi tập đo đúng điều nó được viết để đo.**",
+        "",
+        "Bộ này cho hai phương pháp chạy trên **cùng một câu hỏi**, ở hai nhóm câu mà mỗi nhóm là",
+        "điểm mạnh của một bên.",
+        "",
+        "### 4.9.1 Chiều A — câu mã tất định KHÔNG xử lý được",
+        "",
+        f"**{len(b.hc_a)} câu**, phủ **hết {len([d for d in b.docs if d.doc_id.startswith('kb.written')])} tài liệu văn xuôi**, mỗi tài liệu ít nhất một câu.",
+        "Phủ hết chứ không chọn tay: chọn tay thì người viết vô thức chọn câu mình biết sẽ thắng.",
+        "",
+        "| kết cục của mã tất định | số câu |",
+        "|---|---:|",
+        f"| **SAI DẠNG** — trả danh sách món cho câu \"thế nào / vì sao\" | **{b.hc_a_dem('sai_dang')}** |",
+        f"| **KHÔNG XỬ LÝ ĐƯỢC** — phải nhờ truy hồi | **{b.hc_a_dem('khong_xu_ly')}** |",
+        f"| đúng dạng | {b.hc_a_dem('dung')} |",
+        "",
+        f"Truy hồi tìm đúng tài liệu: **top-1 {b.hc_a_truy_hoi('truy_hoi_dung')}/{len(b.hc_a)}**, "
+        f"**top-5 {b.hc_a_truy_hoi('truy_hoi_top5')}/{len(b.hc_a)}**.",
+        "",
+        "**Phát hiện đáng giá nhất của bộ này không phải con số, mà là HÌNH DẠNG của cái sai.**",
+        f"Mã tất định **không im lặng** ở chiều A. {b.hc_a_dem('sai_dang')} câu nó trả lời TỰ TIN",
+        "bằng một danh sách món — mọi món có thật, mọi giá đúng — và **không câu nào trả lời điều",
+        "được hỏi**:",
+        "",
+        "> **Hỏi:** *Gọi khai vị trước có làm no bụng không ăn được món chính không?*",
+        "> **Đáp:** *Mời bạn tham khảo: Bánh mì pate Sài Gòn (35.000đ), Bánh cuốn Thanh Trì…*",
+        "",
+        "Im lặng còn dễ nhận ra hơn. Một câu trả lời sai dạng mà đúng dữ liệu thì người dùng đọc",
+        "xong mới biết mình không được trả lời — và đó là lúc họ mất niềm tin vào cả hệ thống.",
+        "",
+        "### 4.9.2 Chiều B — câu mã tất định làm TỐT HƠN",
+        "",
+        f"**{len(b.hc_b)} câu**, **sinh từ bộ nhãn** chứ không viết tay: ngưỡng giá, mức cay, chế độ ăn,",
+        "dị nguyên, vùng miền, cách chế biến, sức khỏe, vị, dịp, nhóm người, và phép hội hai điều kiện.",
+        "Sinh từ nhãn thì danh sách ca do **dữ liệu** quyết định, không do người viết chọn.",
+        "",
+        "Chỉ số là **số món VI PHẠM ràng buộc** — không phải \"kém\", mà là **trả lời SAI**.",
+        "",
+        "| dạng ràng buộc | câu | lọc nhãn | truy hồi |",
+        "|---|---:|---:|---:|",
+    ] + [
+        f"| {d} | {sum(1 for r in b.hc_b if r['vi_sao'] == d)} | "
+        f"**{b.hc_b_vi_pham('tat_dinh_vi_pham', d)}** | {b.hc_b_vi_pham('truy_hoi_vi_pham', d)} |"
+        for d in b.hc_b_dang()
+    ] + [
+        f"| **tổng** | **{len(b.hc_b)}** | **{b.hc_b_vi_pham('tat_dinh_vi_pham')}** | "
+        f"**{b.hc_b_vi_pham('truy_hoi_vi_pham')}** |",
+        "",
+        f"Truy hồi vi phạm **gấp {b.hc_b_vi_pham('truy_hoi_vi_pham') // max(1, b.hc_b_vi_pham('tat_dinh_vi_pham'))} lần**. Nhưng con số đáng nói nhất nằm ở dòng dị ứng:",
+        f"lọc nhãn **{b.hc_b_vi_pham('tat_dinh_vi_pham', 'PHÉP TRỪ')}**, truy hồi **{b.hc_b_vi_pham('truy_hoi_vi_pham', 'PHÉP TRỪ')} món chứa đúng thứ khách phải tránh**.",
+        "Câu hỏi chứa chữ \"hải sản\" nên phép xếp hạng theo độ tương đồng kéo món hải sản LÊN ĐẦU —",
+        "**ngược hẳn điều khách cần**. Đó là lỗi an toàn, không phải lỗi chất lượng.",
+        "",
+        "### 4.9.3 Vì sao truy hồi không diễn đạt được ba dạng ràng buộc này",
+        "",
+        "| dạng | vì sao xếp hạng theo độ giống không làm được |",
+        "|---|---|",
+        "| **ngưỡng số** | với BM25 và embedding, `50.000` là một **TỪ**, không phải một **LƯỢNG**. Không có cách viết tài liệu nào biến \"dưới 50 nghìn\" thành quan hệ giống nhau |",
+        "| **phép trừ** | truy hồi **không có phép TRỪ**. Đoạn nói về hải sản *giống* câu \"dị ứng hải sản\" hơn là món không hải sản |",
+        "| **phép hội** | truy hồi cho **một** điểm giống đã trộn — không ép được hai điều kiện độc lập cùng đúng |",
+        "",
+        "Đây là giới hạn **cấu trúc**, không phải giới hạn dữ liệu hay mô hình. Nó là lý do hệ thống",
+        "để `select()` chọn món và chỉ để mô hình **viết về** những món đã chọn.",
+        "",
+        "### 4.9.4 Bộ đo của nhóm sai ba lần trước khi ra số đúng",
+        "",
+        "Ghi lại vì nó thuộc phần phương pháp, và vì **cả ba lần đều sai theo hướng làm kết quả đẹp",
+        "hơn thực tế** — đúng hướng mà người đo có động cơ không kiểm lại:",
+        "",
+        "| # | lỗi của phép đo | hậu quả |",
+        "|---|---|---|",
+        "| 1 | cột \"tất định\" tính cả nhánh truy hồi | 4/8 câu hiện ĐÚNG nhờ chính bên kia làm; tách ra còn **1/8** |",
+        "| 2 | chiều B tìm trên kho tri thức thay vì chỉ mục món | truy hồi **0 vi phạm** — một con số đẹp vô nghĩa; sửa xong ra **17** |",
+        "| 3 | `Hit` không mang `topic_keys`, `getattr` luôn rỗng | truy hồi **0/8**, tức đo phép chấm chứ không đo truy hồi |",
+        "",
+        "Đây là bài học số 1 của đồ án lặp lại lần thứ tám: **kiểm giả thuyết \"thước đo sai\" trước",
+        "giả thuyết \"hệ thống sai\"**.",
+        "",
+        f"Bảng đầy đủ {len(b.hai_chieu)} câu: `ai/evaluation/measurements/hai_chieu.csv`.",
+        "",
         "---",
         "---",
     ]
@@ -1508,7 +1798,7 @@ def phu_luc_e(b: Bang) -> str:
 def bao_cao() -> str:
     b = Bang()
     phan = [
-        phan_dau(b), muc_luc(), tom_tat(b), thuat_ngu(), phan_cong(),
+        phan_dau(b), muc_luc(), tom_tat(b), thuat_ngu(), phan_cong(b),
         chuong_1(b), chuong_2(b), chuong_3(b), chuong_4(b), chuong_5(b),
         tai_lieu_tham_khao(),
         phu_luc_a(), phu_luc_b(), phu_luc_c(b), phu_luc_d(b), phu_luc_e(b),
