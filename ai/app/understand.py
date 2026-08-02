@@ -155,6 +155,9 @@ class Request:
     # Nhóm ràng buộc khách bảo BỎ ("allergen", "all"). Đây là điều `llm_understand` KHÔNG diễn đạt
     # được: hợp đồng của nó chỉ cho THÊM nhãn, nên "tôi hết dị ứng rồi" không có cách nào nói ra.
     y_dinh_bo: list[str] = field(default_factory=list)
+    # Các SUẤT của một yêu cầu combo: [(tên suất, số lượng, danh mục hợp lệ)]. Rỗng = không phải
+    # câu combo. Xem `SUAT_COMBO`.
+    combo: list = field(default_factory=list)
     # Câu «A hay B» — hai vế là LỰA CHỌN, `select()` lấy HỢP thay vì GIAO. Xem `HAI_LUA_CHON_RE`.
     hai_lua_chon: bool = False
     # Ràng buộc KÉO TỪ LƯỢT TRƯỚC, do `session.merge_into_request` điền. `understand()` không bao
@@ -905,6 +908,64 @@ KHAC_VI_TRI_RE = re.compile(r"\bkhac\b(?:\s+\S+){0,4}\s+(?:cho nao|o dau|diem na
 # Xử lý: nhãn rút ra không được ÁP, mà thành lệnh BỎ ràng buộc cùng nhóm. Đó đúng là điều khách
 # muốn, và nó dùng lại nguyên cơ chế `y_dinh_bo` + `da_bo_rang_buoc` sẵn có — nên khách còn nhận
 # được câu xác nhận "Dạ em đã bỏ điều kiện không cay…", tức thấy được hệ thống đã sửa.
+# COMBO — khách xin một BỘ món, mỗi loại một suất.
+#
+# "Mình đi một mình, muốn tư vấn 1 món ăn nhẹ gồm 1 món chính, 1 thức uống, 1 tráng miệng"
+#
+# Trước khi có khối này, câu trên cho `categories=['cat_dessert']` và `wants='drink'` — ba yêu cầu
+# chồng lên nhau rồi cái sau đè cái trước, nên khách nhận 6 món khai vị/chay và **không có đồ uống
+# nào**. Nhiều danh mục trong một câu chỉ thành phép HOẶC, mà khách đang xin phép CỘNG.
+#
+# Đây là khác biệt về CẤU TRÚC chứ không phải về từ vựng: một bộ combo là N SUẤT, mỗi suất một
+# loại, mỗi suất chọn riêng. Không phép lọc phẳng nào diễn đạt được.
+#
+# Bảng dưới ánh xạ tên suất -> nhóm danh mục. Tên nhóm lấy từ chính thực đơn (13 danh mục), nên
+# thêm danh mục mới thì chỉ cần thêm một dòng.
+SUAT_COMBO: tuple[tuple[str, tuple[str, ...]], ...] = (
+    # (từ khách dùng, danh mục hợp lệ cho suất này)
+    ("khai vi", ("cat_appetizer",)),
+    ("trang mieng", ("cat_dessert", "cat_fruit")),
+    ("do uong", ("cat_drink", "cat_juice", "cat_alcohol")),
+    ("thuc uong", ("cat_drink", "cat_juice", "cat_alcohol")),
+    ("nuoc uong", ("cat_drink", "cat_juice")),
+    ("nuoc", ("cat_drink", "cat_juice")),
+    ("lau", ("cat_hotpot",)),
+    ("mon chinh", ("cat_main", "cat_noodle", "cat_seafood", "cat_chicken", "cat_regional")),
+    ("mon man", ("cat_main", "cat_noodle", "cat_seafood", "cat_chicken", "cat_regional")),
+)
+
+# "1 món chính", "2 nước", "một tráng miệng". Số viết bằng chữ chỉ nhận "mot"/"hai"/"ba" — quá số
+# đó thì khách gõ số, và đoán thêm là mở đường cho dương tính giả.
+_SO_CHU = {"mot": 1, "hai": 2, "ba": 3}
+SUAT_RE = re.compile(r"(\d+|mot|hai|ba)\s+([a-z ]{2,12}?)(?=\s*(?:,|va|\+|$|\d))")
+
+
+def doc_suat_combo(folded: str) -> list[tuple[str, int, tuple[str, ...]]]:
+    """(tên suất, số lượng, danh mục hợp lệ) — rỗng nghĩa là không phải câu combo.
+
+    Đòi ÍT NHẤT HAI suất khác loại. Một suất thì đó là câu lọc bình thường ("cho mình 2 món chay"),
+    và biến nó thành combo sẽ phá một đường đã đo.
+    """
+    thay: list[tuple[str, int, tuple[str, ...]]] = []
+    da_co: set[str] = set()
+    for m in SUAT_RE.finditer(f" {folded} "):
+        so_chu, cum = m.group(1), m.group(2).strip()
+        try:
+            so = int(so_chu)
+        except ValueError:
+            so = _SO_CHU.get(so_chu, 0)
+        if not 1 <= so <= 9:
+            continue
+        for ten, nhom in SUAT_COMBO:
+            # Khớp ĐUÔI: "mon chinh" khớp cả "mon chinh" lẫn "1 mon chinh nua".
+            if cum == ten or cum.endswith(" " + ten):
+                if ten not in da_co:
+                    thay.append((ten, so, nhom))
+                    da_co.add(ten)
+                break
+    return thay if len(thay) >= 2 else []
+
+
 # DẤU XIN MÓN KHÁC, ĐỨNG RỜI KHỎI CHỦ ĐỀ.
 #
 # Từ vựng đã có cụm `mon khac|cai khac|mon nao khac`, nhưng chúng đòi hai chữ ĐI LIỀN NHAU. Khách
@@ -1500,6 +1561,9 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # Nhãn rút ra không bị vứt đi lặng lẽ — nó thành lệnh BỎ ràng buộc cùng nhóm. Khác biệt quan
     # trọng: vứt đi thì `spice:none` kế thừa từ bộ nhớ vẫn còn nguyên và khách vẫn nhận đúng câu
     # sai; bỏ nhóm thì bộ nhớ được dọn, và `da_bo_rang_buoc` làm khách THẤY được điều đó.
+    # COMBO — đọc TRƯỚC các cờ khác vì nó đổi hẳn hình dạng câu trả lời.
+    request.combo = doc_suat_combo(request.folded)
+
     # DẤU XIN MÓN KHÁC — xem `XIN_MON_KHAC_TU`.
     #
     # Hai hàng rào, cả hai đều cần:

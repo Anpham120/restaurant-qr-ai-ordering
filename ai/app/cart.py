@@ -51,7 +51,15 @@ from understand import Request
 
 # Nhánh được phép sinh thẻ giỏ. Danh sách TRẮNG, không phải danh sách đen: nhánh mới thêm sau này
 # mặc định KHÔNG có thẻ, và người thêm phải chủ động nghĩ xem nó có nên có.
-BRANCHES_WITH_CART = ("filter", "compare", "item_detail", "extreme", "price_lookup")
+BRANCHES_WITH_CART = ("filter", "compare", "item_detail", "extreme", "price_lookup", "combo")
+
+# `combo` thêm vào sau khi đo qua HTTP thật: câu trả lời combo hiện đủ ba suất, tổng tiền đúng — và
+# **thẻ giỏ RỖNG**. Khách đọc xong một bộ vừa ý rồi không có gì để bấm.
+#
+# Đây đúng là cái giá của danh sách trắng, và nó vẫn đáng: nhánh mới mặc định KHÔNG có thẻ, nên lỗi
+# là "thiếu thẻ" — khách không đặt được, khó chịu nhưng vô hại. Danh sách đen thì lỗi sẽ là "có thẻ
+# ở nhánh không nên có", và ở nhánh `no_data`/`refuse` thì đó là mời đặt món khi hệ thống chưa hiểu
+# câu hỏi. Chọn hướng hỏng rẻ hơn là điều làm danh sách trắng đúng.
 
 # Số thẻ tối đa = số món câu trả lời NÊU RA. Lấy từ `answer.LIST_SIZE`, không viết lại con số.
 #

@@ -118,8 +118,19 @@ QUY TẮC BẮT BUỘC:
    nhân viên để bếp xác nhận lại. Đây KHÔNG phải câu khách sáo: nhãn dị nguyên của thực đơn chỉ phủ
    một phần món, nên "thực đơn không ghi nhận" KHÔNG đồng nghĩa "món này an toàn". Bỏ câu đó là để
    khách tin một điều hệ thống không biết.
-9. Viết 3–5 câu, tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo.
-10. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
+9. TRÌNH BÀY: mỗi món MỘT DÒNG, bắt đầu bằng "- ", kèm giá ngay sau tên. Phần giải thích viết
+   thành câu ở TRÊN hoặc DƯỚI danh sách, không trộn vào giữa các dòng món. Ví dụ:
+
+       Với bàn hai người, mình gợi ý mấy món chia chung được:
+       - Bánh xèo miền Tây (85.000đ)
+       - Lẩu chua cá lăng (320.000đ)
+       Cả hai đều không cay và đủ cho hai người ạ.
+
+   Khách đọc trên điện thoại giữa lúc đang đói. Một đoạn liền sáu món buộc họ tự tách ra để so giá;
+   gạch đầu dòng làm việc đó thay họ, và giá thẳng hàng thì so được bằng mắt.
+10. Viết tiếng Việt tự nhiên, giọng thân thiện nhưng không quảng cáo. Phần chữ giải thích giữ 2–4
+   câu — danh sách đã dài, thêm văn dài nữa thì khách không đọc.
+11. Nêu LÝ DO món phù hợp với điều khách nói, không chỉ liệt kê tên.
 
 Trả về JSON đúng dạng:
 {{"text": "câu trả lời", "used_item_ids": ["mã món đã nhắc"]}}
@@ -347,7 +358,7 @@ def _mo_ta_mon(items: list[dict], giu: frozenset[str] = frozenset()) -> str:
 
 def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict],
            avoid_tags: list[str], budget_max: int | None = None) -> list[str]:
-    """Chín phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
+    """Mười phép kiểm. Trả về danh sách vi phạm — rỗng nghĩa là câu sinh dùng được.
 
     Áp cho MỌI câu sinh, không khai từng ca: một phép kiểm chỉ chạy ở vài chỗ là một phép kiểm không
     bảo đảm gì.
@@ -448,6 +459,22 @@ def verify(text: str, used: list[str], allowed: list[dict], all_items: list[dict
     lap = sorted(i["name"] for i in allowed if text.count(i["name"]) > 1)
     if lap:
         loi.append(f"nhắc lặp cùng một món trong một câu: {lap}")
+
+    # 6c. DANH SÁCH TỪ BA MÓN TRỞ LÊN PHẢI GẠCH ĐẦU DÒNG.
+    #
+    # Prompt đã dặn (quy tắc 9), nhưng **prompt là lời nhờ, mã mới là bảo đảm** — cùng nguyên tắc
+    # với câu xác nhận bỏ ràng buộc và câu mời hỏi nhân viên. Mô hình không chịu gạch thì câu sinh
+    # bị bỏ, và bản khuôn mẫu vốn luôn gạch được dùng. Khách nhận đúng thứ đã hứa dù đường nào chạy.
+    #
+    # Ngưỡng BA món: một hai món thì viết thành câu đọc tự nhiên hơn, và ép gạch đầu dòng ở đó là
+    # bắt một câu tư vấn trở thành cái bảng. Đau đầu bắt đầu từ ba dòng trở lên.
+    if len(allowed) >= 3:
+        so_dong = sum(1 for d in text.splitlines() if d.strip().startswith(("-", "•", "*")))
+        if so_dong < 2:
+            loi.append(
+                f"{len(allowed)} món mà không gạch đầu dòng — khách phải tự tách một đoạn liền "
+                "để so giá"
+            )
 
     # 7. Nhãn khách cần tránh: không món nào được nhắc mang nhãn đó. CHỐT AN TOÀN.
     #    Đây là phép kiểm cuối cùng trước khi chữ tới khách, và nó lặp lại điều bộ lọc đã làm —

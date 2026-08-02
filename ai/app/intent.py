@@ -161,6 +161,18 @@ _XOA_DI_NGUYEN = (
     "minh het di ung", "toi het di ung", "khong con di ung nua", "hoi nay het di ung",
     "bo di ung", "bo phan di ung", "khong can tranh nua", "an duoc het",
     "an duoc tat ca", "gio an duoc roi",
+    # KHÁCH KHẲNG ĐỊNH MÌNH ĂN ĐƯỢC. Đo được trên bản chạy thật, và nó là NGÕ CỤT:
+    #
+    #     "Con tôi không ăn được tôm hãy tư vấn món hải sản khác"  -> chặn cả 26 món hải sản
+    #     "tôi ăn được hải sản hãy tư vấn hải sản cho tôi"         -> "chưa tìm được món nào"
+    #
+    # Lượt hai vừa xin hải sản vừa nói rõ mình ăn được, mà bộ nhớ vẫn giữ `allergen:seafood` — nên
+    # giao của "phải là hải sản" và "không được là hải sản" ra rỗng, và khách không có cách nào gỡ.
+    #
+    # Đây là dạng khẳng định NGƯỢC với `_XOA_DI_NGUYEN` cũ: cụm cũ đều là "hết/không còn dị ứng",
+    # tức nói về việc dị ứng biến mất. Khách thật nói theo hướng dương — "tôi ăn được X".
+    "an duoc hai san", "an duoc do bien", "toi an duoc", "minh an duoc", "an duoc binh thuong",
+    "khong di ung gi", "khong di ung", "minh khong di ung", "toi khong di ung",
 )
 _XOA_TAT_CA = (
     "bo het dieu kien", "bo dieu kien", "bo rang buoc", "bo het rang buoc",
