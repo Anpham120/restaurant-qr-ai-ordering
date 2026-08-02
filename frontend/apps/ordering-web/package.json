@@ -13,7 +13,7 @@
     "@cmc/brand-ui": "0.1.0",
     "@cmc/i18n": "0.1.0",
     "@cmc/shared-ui": "0.1.0",
-    "react": "^19.0.0",
+    "react": "^19.2.8",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.0"
   },
