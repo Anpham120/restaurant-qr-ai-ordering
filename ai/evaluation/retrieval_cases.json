@@ -4176,6 +4176,347 @@
       "forbidden": [],
       "expect_nothing": true,
       "why": "Đây là câu về THỰC ĐƠN, không phải về tri thức. Thực đơn có đường riêng."
+    },
+    {
+      "id": "kb-longtail-01",
+      "family": "kb-longtail",
+      "query": "Mình no rồi mà bạn mình chưa ăn xong, gọi thêm gì cho đỡ ngại?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "appetizer_role"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Khách mô tả TÌNH HUỐNG xã giao, không gọi tên món. Không nhãn nào bắt được. Từ KHÔNG có trong đoạn đích: no rồi / đỡ ngại."
+    },
+    {
+      "id": "kb-longtail-02",
+      "family": "kb-longtail",
+      "query": "Đi bốn người mà chỉ muốn tiêu tầm hai trăm mỗi người thì tính sao?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "budget_planning"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Có số nhưng không phải ngưỡng lọc — khách hỏi CÁCH chia ngân sách. Từ KHÔNG có trong đoạn đích: tiêu / tính sao."
+    },
+    {
+      "id": "kb-longtail-03",
+      "family": "kb-longtail",
+      "query": "Bé nhà mình mới hai tuổi, quán có gì phù hợp không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "children_elderly"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Tuổi cụ thể, không phải nhãn `audience:child`. Từ KHÔNG có trong đoạn đích: hai tuổi."
+    },
+    {
+      "id": "kb-longtail-04",
+      "family": "kb-longtail",
+      "query": "Mình lái xe nên không dám uống gì có cồn, quán gợi ý gì?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "beer_and_alcohol",
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Lý do KHÔNG uống, chứ không phải yêu cầu lọc đồ uống. Từ KHÔNG có trong đoạn đích: lái xe / không dám."
+    },
+    {
+      "id": "kb-longtail-05",
+      "family": "kb-longtail",
+      "query": "Ăn xong mà miệng vẫn cay xè thì uống gì cho dịu?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "beverage_pairing"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Cảm giác sau khi ăn — không nhãn nào mô tả trạng thái này. Từ KHÔNG có trong đoạn đích: cay xè / dịu."
+    },
+    {
+      "id": "kb-longtail-06",
+      "family": "kb-longtail",
+      "query": "Mình muốn biết bếp có làm riêng cho người dị ứng không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "allergy_guidance"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Hỏi về QUY TRÌNH bếp, không phải nhãn dị nguyên của món. Từ KHÔNG có trong đoạn đích: làm riêng."
+    },
+    {
+      "id": "kb-longtail-07",
+      "family": "kb-longtail",
+      "query": "Quán có nói được món này nấu bao lâu không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "cannot_help"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Câu hệ thống PHẢI từ chối — và tài liệu nói rõ vì sao. Đo cả việc biết mình không biết. Từ KHÔNG có trong đoạn đích: nấu bao lâu."
+    },
+    {
+      "id": "kb-longtail-08",
+      "family": "kb-longtail",
+      "query": "Lần đầu tới đây, gọi kiểu gì cho khỏi bỡ ngỡ?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "first_visit",
+            "ordering_guide"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Khách xin CÁCH GỌI MÓN, không xin danh sách món. Từ KHÔNG có trong đoạn đích: bỡ ngỡ."
+    },
+    {
+      "id": "kb-longtail-09",
+      "family": "kb-longtail",
+      "query": "Mấy món này ra cùng lúc hay ra dần vậy?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "portion_timing",
+            "cannot_help"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Hỏi thứ tự phục vụ — thực đơn không có trường nào cho việc này. Từ KHÔNG có trong đoạn đích: ra dần."
+    },
+    {
+      "id": "kb-longtail-10",
+      "family": "kb-longtail",
+      "query": "Cả nhà ăn chung một mâm thì nên gọi thế nào cho hợp lý?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "sharing_etiquette",
+            "meal_sets"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Cách ăn của người Việt, nằm trong văn xuôi chứ không trong nhãn. Từ KHÔNG có trong đoạn đích: một mâm."
+    },
+    {
+      "id": "kb-longtail-11",
+      "family": "kb-longtail",
+      "query": "Mình ăn kiêng nhưng không phải dị ứng, có khác gì nhau không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "allergy_guidance",
+            "dietary_limits"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Phân biệt hai khái niệm — chỉ trả lời được bằng văn xuôi. Từ KHÔNG có trong đoạn đích: khác gì nhau."
+    },
+    {
+      "id": "kb-longtail-12",
+      "family": "kb-longtail",
+      "query": "Gọi khai vị trước có làm no bụng không ăn được món chính không?",
+      "expected": [
+        {
+          "topic_keys_any": [
+            "appetizer_role"
+          ]
+        }
+      ],
+      "forbidden": [
+        {
+          "doc_id_prefix": "kb.region."
+        },
+        {
+          "doc_id_prefix": "kb.method."
+        },
+        {
+          "doc_id_prefix": "kb.ingredient."
+        },
+        {
+          "doc_id_prefix": "kb.flavour."
+        }
+      ],
+      "expect_nothing": false,
+      "why": "Lo lắng cụ thể, và tài liệu trả lời đúng nó. Từ KHÔNG có trong đoạn đích: no bụng."
     }
   ]
 }

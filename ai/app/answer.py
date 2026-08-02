@@ -182,7 +182,8 @@ def _chon_combo(request: Request, items: list[dict]) -> tuple[list[tuple[str, li
             categories=list(nhom),
             require_tags=[t for t in goc.require_tags if _ap_duoc(t, cua_suat)],
         )
-        duoc = _order(select(rieng, cho_phep), request.prefer_tags, "any")
+        duoc = _order(select(rieng, cho_phep), request.prefer_tags, "any",
+                      _khach_xin_ruou(request))
         ung_vien.append((ten, so, duoc))
 
     # Hạng đầu của mỗi suất.
@@ -735,6 +736,14 @@ def select(request: Request, items: list[dict]) -> list[dict]:
             picked = [i for i in picked if tag not in i["tags"]]
         return picked
 
+    # DANH MỤC KHÁCH NÓI RÕ LÀ KHÔNG MUỐN — loại trước mọi phép lọc khác.
+    #
+    # "tôi không uống bia, tư vấn cho tôi đồ uống khác" từng trả về ba loại bia: `bia` là cụm danh
+    # mục nên nó được áp như bộ lọc DƯƠNG. Loại ở đây, sớm nhất có thể, để không nhánh lọc nào sau
+    # đó kéo chúng về.
+    if request.avoid_categories:
+        picked = [i for i in picked if i["categoryId"] not in request.avoid_categories]
+
     # HỌ MÓN khách gọi tên thắng danh mục.
     #
     # Khách hỏi "có phở không" nhận về cả bún, vì "phở" ánh xạ vào danh mục `cat_noodle` — mà danh
@@ -778,7 +787,19 @@ def select(request: Request, items: list[dict]) -> list[dict]:
     return picked
 
 
-def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> list[dict]:
+def _khach_xin_ruou(request: Request) -> bool:
+    """Khách có CHỦ ĐỘNG xin rượu bia không.
+
+    Chỉ khi họ gọi tên danh mục ấy, hoặc gọi tên một họ món thuộc nó. Không suy từ dịp ăn: nhãn
+    `occasion:drinking` gắn cho món NHẬU, không có nghĩa khách đang muốn uống rượu.
+    """
+    if "cat_alcohol" in (request.categories or []):
+        return True
+    return any(h in ("bia", "ruou") for h in (request.ho_mon or []))
+
+
+def _order(items: list[dict], prefer_tags: list[str], wants: str = "any",
+           cho_ruou: bool = False) -> list[dict]:
     """Sắp cố định để câu trả lời giống nhau mọi lần chạy.
 
     Món mang nhãn ngữ cảnh khách nêu (dịp ăn) được đưa lên trước, nhưng món không mang
@@ -827,7 +848,24 @@ def _order(items: list[dict], prefer_tags: list[str], wants: str = "any") -> lis
             bac = 2
         else:
             bac = 1
-        return (-matched, bac, item["price"], item["id"])
+
+        # RƯỢU BIA KHÔNG TỰ ĐỨNG ĐẦU KHI KHÁCH KHÔNG XIN.
+        #
+        # Đo được, và người dùng báo đúng chỗ này: mọi câu hỏi đồ uống đều mở đầu bằng bia. Nguyên
+        # nhân là bậc trên cho MỌI đồ uống cùng hạng khi `wants='drink'`, rồi xếp theo giá — mà bốn
+        # món rẻ nhất thực đơn đều là bia (12.000–22.000đ) còn nước mía 25.000đ.
+        #
+        #     "1 món chính, 1 thức uống, 1 tráng miệng"  -> thức uống = Bia hơi Hà Nội
+        #     "tư vấn đồ uống"                           -> ba loại bia đứng đầu
+        #
+        # Đây không chỉ là gợi ý nhạt. Khách ăn trưa, khách đi với trẻ con, khách còn lái xe — mặc
+        # định mời rượu bia cho tất cả là lời tư vấn tệ, và ở vài tình huống là tệ hơn thế. Nhà
+        # hàng vẫn bán rượu bia; câu hỏi là nó có nên là thứ ĐẦU TIÊN đề xuất cho người không hỏi.
+        #
+        # Xếp hạng, KHÔNG lọc — cùng nguyên tắc với "món ăn trước đồ uống": khách xin bia thì vẫn ra
+        # bia ngay đầu (`cho_ruou`), và câu "đồ uống rẻ nhất" vẫn trả bia vì đó là sự thật.
+        ruou = 0 if (cho_ruou or item["categoryId"] != "cat_alcohol") else 1
+        return (-matched, bac, ruou, item["price"], item["id"])
 
     return sorted(items, key=key)
 
@@ -1341,7 +1379,8 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                 branch="combo",
             )
 
-    picked = _order(select(request, items), request.prefer_tags, request.wants)
+    picked = _order(select(request, items), request.prefer_tags, request.wants,
+                    _khach_xin_ruou(request))
     if not picked:
         # Rỗng vì LOẠI TRỪ, hay rỗng vì RÀNG BUỘC? Hai chuyện khác nhau và phải trả lời khác nhau.
         #
@@ -1358,7 +1397,8 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
         # một món có thể gây hại. Loại trừ thì nới được, vì nới nó chỉ dẫn tới việc nhắc lại một món
         # khách đã thấy.
         khong_loai_tru = replace(request, exclude_item_ids=[])
-        con_lai = _order(select(khong_loai_tru, items), request.prefer_tags, request.wants)
+        con_lai = _order(select(khong_loai_tru, items), request.prefer_tags, request.wants,
+                         _khach_xin_ruou(request))
         if con_lai:
             # KHÔNG nêu lại danh sách. Khách vừa nói "cho mình món khác đi", nên nhắc lại đúng những
             # món họ vừa từ chối là trả lời ngược câu hỏi — và golden có tiêu chí
@@ -1459,8 +1499,10 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
     if getattr(request, "hai_lua_chon", False):
         trai, phai = _hai_ve(request, items)
         cho_phep = {i["id"] for i in picked}
-        t = [i for i in _order(trai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
-        p = [i for i in _order(phai, request.prefer_tags, request.wants) if i["id"] in cho_phep]
+        t = [i for i in _order(trai, request.prefer_tags, request.wants,
+                               _khach_xin_ruou(request)) if i["id"] in cho_phep]
+        p = [i for i in _order(phai, request.prefer_tags, request.wants,
+                               _khach_xin_ruou(request)) if i["id"] in cho_phep]
         xen: list[dict] = []
         da_co: set[str] = set()
         for cap in zip_longest(t, p):

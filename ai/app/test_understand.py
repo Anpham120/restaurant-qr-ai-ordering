@@ -141,7 +141,7 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 507 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **43 cụm nằm
+    Kiểm kê trên 522 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **43 cụm nằm
     trong tên món**, và hợp lại là **93 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 92 chỗ đó.
 
@@ -168,7 +168,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 507, "trong_cum_khac": 74, "trong_ten_mon": 43, "co_rui_ro": 93},
+            {"tu_vung": 522, "trong_cum_khac": 80, "trong_ten_mon": 44, "co_rui_ro": 97},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -740,3 +740,66 @@ class KhacLaLenhHayLaCauHoi(unittest.TestCase):
                     r.wants_similar or r.y_dinh == "xin_them",
                     f"{cau!r} là LỆNH xin món khác — hàng rào chặn nhầm cả chiều này",
                 )
+
+
+class PhuDinhDanhMuc(unittest.TestCase):
+    """«không uống bia» phải LOẠI bia, không phải LỌC RA bia.
+
+    Người dùng báo, và dựng lại được ngay:
+
+        "tôi không uống bia, tư vấn cho tôi đồ uống khác"
+        -> Bia Hà Nội, Bia Sài Gòn Special, Bia Tiger Crystal
+
+    Khách nói KHÔNG uống bia và nhận về đúng ba loại bia. `bia` là một cụm DANH MỤC, và không có gì
+    đọc chữ "không" đứng trước nó — nên nó được áp như bộ lọc DƯƠNG. Cùng lớp lỗi với "không cay"
+    từng tự xuất hiện, nhưng ở tầng danh mục.
+    """
+
+    def test_phu_dinh_thi_LOAI_danh_muc(self):
+        for cau, ma in (("tôi không uống bia, tư vấn cho tôi đồ uống khác", "cat_alcohol"),
+                        ("mình không ăn lẩu, gợi ý món khác", "cat_hotpot"),
+                        ("mình không ăn món chay", "cat_vegetarian")):
+            with self.subTest(cau):
+                r = understand(cau, ITEMS)
+                self.assertIn(ma, r.avoid_categories)
+                self.assertNotIn(ma, r.categories)
+
+    def test_KHONG_phu_dinh_thi_van_loc_binh_thuong(self):
+        """Chiều ngược, bắt buộc: câu xin bia vẫn phải ra bia."""
+        for cau in ("cho mình bia", "có bia gì", "cho mình lẩu"):
+            with self.subTest(cau):
+                r = understand(cau, ITEMS)
+                self.assertEqual(r.avoid_categories, [])
+                self.assertTrue(r.categories)
+
+    def test_ho_mon_cung_bi_go_theo(self):
+        """`ho_mon` thắng `wants` trong `select()`, nên bỏ sót nó là ra RỖNG.
+
+        Bản sửa đầu chỉ gỡ danh mục và để lại `ho_mon=['bia']` — phép lọc thành "họ bia, trừ danh
+        mục bia", và khách nhận 0 món.
+        """
+        r = understand("tôi không uống bia, tư vấn cho tôi đồ uống khác", ITEMS)
+        self.assertNotIn("bia", r.ho_mon)
+
+
+class CoConKhacCoCon(unittest.TestCase):
+    """`fold("có cồn") == fold("có con") == "co con"` — một cụm, hai nghĩa ngược nhau.
+
+    Va chạm này do chính bản sửa "đồ uống có cồn" gây ra, và đo được ngay:
+
+        "mình có con 5 tuổi"  ->  categories=['cat_alcohol']
+
+    Một phụ huynh nhắc tới con mình và nhận về rượu bia. Bài kiểm kê đụng chữ bắt được nó, nên nó
+    đáng giá đúng ở chỗ bắt được người vừa viết ra nó.
+    """
+
+    def test_nhac_con_KHONG_thanh_ruou_bia(self):
+        for cau in ("mình có con 5 tuổi", "nhà mình có con nhỏ, gợi ý món",
+                    "đi với con nhỏ", "có con đi cùng"):
+            with self.subTest(cau):
+                self.assertNotIn("cat_alcohol", understand(cau, ITEMS).categories)
+
+    def test_xin_do_uong_co_con_VAN_ra_ruou_bia(self):
+        for cau in ("đồ uống có cồn", "cho mình rượu bia", "thức uống có cồn"):
+            with self.subTest(cau):
+                self.assertIn("cat_alcohol", understand(cau, ITEMS).categories)

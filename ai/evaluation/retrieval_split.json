@@ -19,6 +19,7 @@
   ],
   "dev_families": [
     "kb-health",
+    "kb-longtail",
     "kb-method",
     "kb-multi-topic",
     "kb-occasion",

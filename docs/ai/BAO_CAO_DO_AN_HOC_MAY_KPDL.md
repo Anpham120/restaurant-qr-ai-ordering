@@ -454,7 +454,7 @@ liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 |---|---:|---|
 | `cases.json` | 140 ca | `understand()` + `respond()` gọi trực tiếp |
 | `session_scripts.json` | 56 kịch bản / 149 lượt | + bộ nhớ nhiều lượt |
-| `retrieval_cases.json` | 210 ca | truy hồi trên **toàn kho** |
+| `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
 
@@ -470,7 +470,7 @@ Ba nhóm, không phải hai:
 | Nhóm | Số họ | Vai trò |
 |---|---:|---|
 | chốt | 3 | **luôn phải đạt**; một ca đỏ ở đây là CHẶN, không phải số liệu |
-| phát triển | 8 | được xem, được sửa theo |
+| phát triển | 9 | được xem, được sửa theo |
 | niêm phong | 5 | **chỉ mở MỘT lần** |
 
 Nhóm chốt của tập truy hồi gồm ba họ đo việc **biết khi nào KHÔNG trả lời**. Vì sao chúng là chốt chứ
