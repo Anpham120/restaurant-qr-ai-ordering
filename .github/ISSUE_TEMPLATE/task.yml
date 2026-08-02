@@ -71,7 +71,7 @@ body:
       description: File/vùng không được sửa nếu chưa có đồng ý của Lead.
       placeholder: |
         - frontend/**
-        - docs/API_CONTRACT.md
+        - docs/backend/API_CONTRACT.md
         - database migrations của issue khác
     validations:
       required: true
@@ -139,7 +139,7 @@ body:
         - File / vùng được phép sửa
         - Không được sửa
         - Tiêu chí hoàn thành
-        - docs/API_CONTRACT.md
+        - docs/backend/API_CONTRACT.md
         - Kiểm thử / xác minh bắt buộc
         - Comment báo cáo kết quả
 

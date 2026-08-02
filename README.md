@@ -148,7 +148,7 @@ Backend nghiệp vụ được tổ chức như một modular monolith để gi�
 - **Reliability:** health checks cho PostgreSQL, API, AI và frontend; migration tách riêng; deployment có staging, promotion và rollback.
 - **Verification:** CI build/test frontend, backend, AI/RAG và kiểm tra Docker Compose trên pull request/push.
 
-Tài liệu chuyên sâu: [modular monolith](docs/BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md), [AI/RAG architecture](docs/AI_RAG_ARCHITECTURE.md), [security policy](SECURITY.md) và [production operations](docs/PRODUCTION_OPERATIONS.md).
+Tài liệu chuyên sâu: [modular monolith](docs/backend/ARCHITECTURE.md), [AI/RAG architecture](docs/archive/AI_ARCHITECTURE.md), [security policy](SECURITY.md) và [production operations](docs/devops/PIPELINE_AND_DEPLOY.md).
 
 ## Bắt đầu phát triển
 
@@ -184,7 +184,7 @@ npm run dev:staff
 dotnet run --project backend/src/RestaurantQrAiOrdering.Api/RestaurantQrAiOrdering.Api.csproj
 ```
 
-Thiết lập PostgreSQL và migration: [Backend Database Setup](docs/BACKEND_DATABASE_SETUP.md).
+Thiết lập PostgreSQL và migration: [Backend Database Setup](docs/backend/DATABASE.md).
 
 ### AI/RAG service
 
@@ -196,7 +196,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
 ```
 
-AI service vẫn có fallback có kiểm soát khi chưa cấu hình `GEMINI_API_KEY`; xem [AI Chatbot](docs/AI_CHATBOT.md) và [AI Knowledge Base Guide](docs/AI_KNOWLEDGE_BASE_GUIDE.md).
+AI service vẫn có fallback có kiểm soát khi chưa cấu hình `GEMINI_API_KEY`; xem [AI Chatbot](docs/archive/AI_ARCHITECTURE.md) và [AI Knowledge Base Guide](docs/archive/AI_KNOWLEDGE_BASE_GUIDE.md).
 
 ### Kiểm chứng
 
@@ -228,11 +228,11 @@ docker compose -f deploy/docker-compose.yml config
 
 | Chủ đề | Tài liệu chính |
 | --- | --- |
-| Product & system design | [BA/SA System Design](docs/BA_SA_SYSTEM_DESIGN.md) · [SPEC](SPEC.md) |
-| API & architecture | [API Contract](docs/API_CONTRACT.md) · [Backend Architecture](docs/BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md) |
-| AI & RAG | [AI/RAG Architecture](docs/AI_RAG_ARCHITECTURE.md) · [Evaluation Runbook](docs/AI_EVALUATION_RUNBOOK.md) · [Retriever ADR](docs/ai/ADR_RETRIEVER_SELECTION.md) |
-| Verification | [E2E Multi-device Checklist](docs/E2E_MULTI_DEVICE_CHECKLIST.md) |
-| Delivery & operations | [Deployment](docs/DEPLOYMENT.md) · [Production Operations](docs/PRODUCTION_OPERATIONS.md) |
+| Product & system design | [BA/SA System Design](docs/backend/ARCHITECTURE.md) · [SPEC](SPEC.md) |
+| API & architecture | [API Contract](docs/backend/API_CONTRACT.md) · [Backend Architecture](docs/backend/ARCHITECTURE.md) |
+| AI & RAG | [AI/RAG Architecture](docs/archive/AI_ARCHITECTURE.md) · [Evaluation Runbook](docs/archive/AI_EVALUATION.md) · [Retriever ADR](docs/ai/AI_DECISION_HISTORY.md) |
+| Verification | [E2E Multi-device Checklist](docs/archive/TESTING.md) |
+| Delivery & operations | [Deployment](docs/devops/PIPELINE_AND_DEPLOY.md) · [Production Operations](docs/devops/PIPELINE_AND_DEPLOY.md) |
 
 ## Trạng thái và định hướng
 
