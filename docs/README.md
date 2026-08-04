@@ -28,6 +28,16 @@ Source-of-truth docs after the operations refactor (July 2026).
 | [docs/DEPLOYMENT.md](DEPLOYMENT.md) | Deploy |
 | [docs/TEST_PLAN.md](TEST_PLAN.md) | Verification |
 
+## Course report
+
+| Document | Purpose |
+|----------|---------|
+| [BAO_CAO_CONG_NGHE_PHAN_MEM.md](bao-cao/BAO_CAO_CONG_NGHE_PHAN_MEM.md) | Main Software Engineering course report |
+| [PHAN_CONG_CONG_VIEC.md](bao-cao/PHAN_CONG_CONG_VIEC.md) | Team responsibilities and defense preparation |
+| [CHUAN_BI_VAN_DAP.md](bao-cao/CHUAN_BI_VAN_DAP.md) | Oral-defense questions and evidence checklist |
+| [HUMAN_PEER_REVIEW.md](bao-cao/HUMAN_PEER_REVIEW.md) | Required member-review process and evidence |
+| [Report assets](assets/report/README.md) | Figures and screenshots used by the course report |
+
 ## Archive
 
 Historical refactor plans moved to [docs/archive/](archive/).
