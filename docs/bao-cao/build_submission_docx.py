@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
@@ -21,6 +22,8 @@ SOURCE = Path(__file__).with_name("BAO_CAO_CONG_NGHE_PHAN_MEM.md")
 OUTPUT_DIR = Path(__file__).with_name("output")
 OUTPUT = OUTPUT_DIR / "BAO_CAO_CONG_NGHE_PHAN_MEM.docx"
 DIAGRAM_DIR = OUTPUT_DIR / "_generated_diagrams"
+REPOSITORY_WEB_ROOT = "https://github.com/Anpham120/restaurant-qr-ai-ordering"
+REPOSITORY_WEB_BRANCH = "develop"
 
 PAGE_WIDTH_CM = 21.0
 PAGE_HEIGHT_CM = 29.7
@@ -129,6 +132,16 @@ def clean_text(text: str) -> str:
     text = text.replace("`", "")
     text = text.replace("→", "→")
     return "".join(ch for ch in text if ch == "\n" or ch == "\t" or ord(ch) >= 32).strip()
+
+
+def clean_inline_markup(text: str) -> str:
+    """Remove HTML wrappers while preserving Markdown links and emphasis."""
+    text = html_lib.unescape(text)
+    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", "", text)
+    return "".join(
+        ch for ch in text if ch == "\n" or ch == "\t" or ord(ch) >= 32
+    ).strip()
 
 
 def set_cell_shading(cell, fill: str) -> None:
@@ -284,8 +297,30 @@ def add_hyperlink(paragraph, text: str, url: str, bold=False, italic=False, code
 
 
 INLINE_TOKEN = re.compile(
-    r"(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)"
+    r"(\[((?:\[[^\]]+\])|[^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)"
 )
+
+
+def resolve_hyperlink(url: str) -> str | None:
+    if url.startswith(("http://", "https://")):
+        return url
+    if not url or url.startswith("#"):
+        return None
+
+    relative_url, separator, fragment = url.partition("#")
+    target = (SOURCE.parent / relative_url).resolve()
+    try:
+        repository_path = target.relative_to(ROOT).as_posix()
+    except ValueError:
+        return None
+
+    link_kind = "tree" if target.is_dir() else "blob"
+    resolved = (
+        f"{REPOSITORY_WEB_ROOT}/{link_kind}/{REPOSITORY_WEB_BRANCH}/{repository_path}"
+    )
+    if separator and fragment:
+        resolved = f"{resolved}#{fragment}"
+    return resolved
 
 
 def add_inline(paragraph, text: str, size=None, base_bold=False, base_italic=False) -> None:
@@ -297,8 +332,9 @@ def add_inline(paragraph, text: str, size=None, base_bold=False, base_italic=Fal
         token = match.group(0)
         if token.startswith("["):
             label, url = match.group(2), match.group(3)
-            if url.startswith(("http://", "https://")):
-                add_hyperlink(paragraph, clean_text(label), url)
+            resolved_url = resolve_hyperlink(url)
+            if resolved_url:
+                add_hyperlink(paragraph, clean_text(label), resolved_url)
             else:
                 run = paragraph.add_run(clean_text(label))
                 set_run_font(run, size=size, bold=base_bold, italic=base_italic)
@@ -426,7 +462,7 @@ def add_seq_caption(doc: Document, label: str, title: str, number_value: int) ->
 def add_caption(doc: Document, text: str) -> None:
     p = doc.add_paragraph(style="Caption")
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_inline(p, clean_text(text), size=10, base_italic=True)
+    add_inline(p, clean_inline_markup(text), size=10, base_italic=True)
     p.paragraph_format.keep_with_next = False
 
 
@@ -482,7 +518,12 @@ def add_markdown_table(doc: Document, rows: list[list[str]]) -> None:
             p.paragraph_format.space_after = Pt(2)
             p.paragraph_format.line_spacing = 1.0
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER if r_idx == 0 else WD_ALIGN_PARAGRAPH.LEFT
-            add_inline(p, clean_text(value), size=font_size, base_bold=(r_idx == 0))
+            add_inline(
+                p,
+                clean_inline_markup(value),
+                size=font_size,
+                base_bold=(r_idx == 0),
+            )
     spacer = doc.add_paragraph()
     spacer.paragraph_format.space_after = Pt(2)
 
@@ -549,7 +590,12 @@ def add_html_gallery(doc: Document, block: str) -> None:
                 value = re.sub(r"^Hình\s+\d+(?:\.\d+)?\s*[—-]\s*", "", value)
                 target = p if idx == 0 and not image_nodes else cell.add_paragraph()
                 target.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                add_inline(target, clean_text(value), size=8.5, base_bold=(idx == 0))
+                add_inline(
+                    target,
+                    clean_inline_markup(value),
+                    size=8.5,
+                    base_bold=(idx == 0),
+                )
     doc.add_paragraph()
 
 
@@ -804,6 +850,26 @@ def configure_styles(doc: Document) -> None:
         style.paragraph_format.space_after = Pt(4)
         style.paragraph_format.line_spacing = 1.2
 
+    # Keep the three-level table of contents compact enough to avoid an
+    # almost-empty trailing page while retaining every heading.
+    for level, size in ((1, 9.5), (2, 9.0), (3, 8.5)):
+        name = f"toc {level}"
+        if name in styles:
+            style = styles[name]
+        else:
+            style = styles.add_style(name, WD_STYLE_TYPE.PARAGRAPH)
+            style._element.set(qn("w:styleId"), f"TOC{level}")
+        style.base_style = styles["Normal"]
+        style.font.name = "Times New Roman"
+        style._element.rPr.rFonts.set(qn("w:ascii"), "Times New Roman")
+        style._element.rPr.rFonts.set(qn("w:hAnsi"), "Times New Roman")
+        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+        style.font.size = Pt(size)
+        style.paragraph_format.space_before = Pt(0)
+        style.paragraph_format.space_after = Pt(0)
+        style.paragraph_format.line_spacing = 1.0
+        style.paragraph_format.left_indent = Cm(0.42 * (level - 1))
+
 
 def configure_sections(doc: Document) -> None:
     for section in doc.sections:
@@ -990,7 +1056,7 @@ def build() -> Path:
             flush_paragraph()
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            add_inline(p, clean_text(stripped), size=9, base_italic=True)
+            add_inline(p, clean_inline_markup(stripped), size=9, base_italic=True)
             i += 1
             continue
 

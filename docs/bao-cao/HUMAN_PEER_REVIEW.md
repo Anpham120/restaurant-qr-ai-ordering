@@ -22,6 +22,26 @@ Nhóm vì vậy thực hiện một pull request bổ sung với auto-merge bị
 Việc công khai cả lần thực hiện chưa đúng thứ tự và biện pháp sửa là một phần của bằng chứng quy
 trình: nhóm không dùng review sau merge để thay cho cổng kiểm soát trước merge.
 
+## Kết quả thực hiện bổ sung
+
+[Pull request #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426) là lần thực
+hiện lại đúng thứ tự. Tác giả `Anpham120` mở PR ở trạng thái Draft và không tự phê duyệt. Bốn
+reviewer còn lại gửi review `APPROVED` có nội dung cụ thể trong khoảng 21:39:23–21:40:17 ngày
+04/08/2026 (UTC+7):
+
+- `Tanh2k8-123`: kiểm tra cách phân biệt review sau merge ở PR #424 với review-before-merge;
+- `buidaoducanh1210`: kiểm tra nguyên tắc tác giả không tự phê duyệt và bốn thành viên còn lại
+  review độc lập;
+- `quanghieu1605`: đối chiếu thứ tự thời gian và yêu cầu nhận xét phải xuất hiện trước hợp nhất;
+- `totototototoads`: kiểm tra sự phân biệt giữa review tự động, review sau merge và review của
+  thành viên trước merge.
+
+Sau khi toàn bộ CI và kiểm tra an ninh đạt, PR được chuyển sang Ready rồi hợp nhất lúc 22:28:20
+cùng ngày, tức **sau cả bốn phê duyệt**. Merge commit là
+[`e419d1b`](https://github.com/Anpham120/restaurant-qr-ai-ordering/commit/e419d1b29e4290816d3865944dbc01dfdc7ae2a7).
+PR #426 vì vậy là bằng chứng human peer review trước merge; PR #424 chỉ được giữ như bài học về
+một lần thực hiện sai thứ tự.
+
 ## Nguyên tắc
 
 1. Tác giả pull request không tự phê duyệt thay đổi của mình.
@@ -90,5 +110,6 @@ gh pr view <so-pr> --repo Anpham120/restaurant-qr-ai-ordering `
   --json author,reviewRequests,reviews,commits,url
 ```
 
-Chỉ sau khi các review do chính thành viên thực hiện xuất hiện trên GitHub, báo cáo mới được cập
-nhật từ trạng thái “chưa có human peer review” sang trạng thái “đã có bằng chứng peer review”.
+Điều kiện trên đã được đáp ứng tại PR #426. Báo cáo vì vậy ghi nhận “đã có bằng chứng human peer
+review trước merge”, đồng thời nêu rõ bằng chứng này được bổ sung ở giai đoạn cuối và không được
+dùng để suy diễn rằng toàn bộ lịch sử 377 pull request đều đã qua review của thành viên.
