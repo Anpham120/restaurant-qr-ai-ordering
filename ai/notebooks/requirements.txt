@@ -22,4 +22,4 @@ nbconvert>=7.17.1,<8.0
 ipykernel>=6.29,<7.0
 
 # Vẽ biểu đồ cho báo cáo. Font mặc định DejaVu Sans có dấu tiếng Việt nên không cần cài font.
-matplotlib>=3.8,<4.0
+matplotlib>=3.11.1,<4.0
