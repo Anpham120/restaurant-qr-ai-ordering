@@ -4,6 +4,24 @@ Tài liệu này quy định cách nhóm thực hiện peer review cho pull requ
 Mục tiêu là tạo bằng chứng rằng thay đổi đã được thành viên khác đọc và phản hồi trên GitHub, thay
 vì chỉ dựa vào kiểm tra tự động hoặc nhận xét do công cụ AI tạo ra.
 
+## Bài học từ lần thực hiện đầu tiên
+
+[Pull request #424](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/424) ghi nhận bốn
+review `APPROVED` từ `Tanh2k8-123`, `buidaoducanh1210`, `quanghieu1605` và
+`totototototoads`. Tuy nhiên, workflow auto-merge đã hợp nhất PR lúc 20:48 ngày 04/08/2026
+(UTC+7), trước khi các review được gửi trong khoảng 21:27–21:31. Các review này chứng minh thành
+viên đã để lại nhận xét chính thức nhưng **không chứng minh thay đổi được review trước khi merge**.
+
+Nhóm vì vậy thực hiện một pull request bổ sung với auto-merge bị tắt. PR chỉ được hợp nhất sau khi:
+
+1. tác giả là `Anpham120` và không tự phê duyệt;
+2. bốn thành viên còn lại gửi review có nội dung cụ thể;
+3. các review có trạng thái `APPROVED` trước thời điểm merge;
+4. các status check bắt buộc hoàn thành.
+
+Việc công khai cả lần thực hiện chưa đúng thứ tự và biện pháp sửa là một phần của bằng chứng quy
+trình: nhóm không dùng review sau merge để thay cho cổng kiểm soát trước merge.
+
 ## Nguyên tắc
 
 1. Tác giả pull request không tự phê duyệt thay đổi của mình.
