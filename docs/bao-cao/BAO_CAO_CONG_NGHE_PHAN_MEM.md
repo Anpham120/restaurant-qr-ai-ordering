@@ -9,7 +9,7 @@
 **Đề tài:** CMC Restaurant — Hệ thống gọi món và theo dõi trạng thái đơn tại bàn bằng QR,
 tích hợp trợ lý AI tư vấn thực đơn
 
-**Repository:** <https://github.com/Anpham120/restaurant-qr-ai-ordering>
+**Repository:** [Kho mã nguồn GitHub](https://github.com/Anpham120/restaurant-qr-ai-ordering)
 
 **Sản phẩm trực tuyến:** [cmcrestaurant.app](https://cmcrestaurant.app) · [order.cmcrestaurant.app](https://order.cmcrestaurant.app) · [admin.cmcrestaurant.app](https://admin.cmcrestaurant.app)
 
@@ -641,7 +641,7 @@ dưới đây, thay vì phải mặc định tin.
 | Phạm vi | Hai nhà hàng ăn tại chỗ quy mô vừa ở Hà Nội, mỗi nơi hai buổi trưa cao điểm |
 | Thời gian | Tuần đầu của dự án, đầu tháng 6/2026 |
 | Đối tượng trao đổi | Nhân viên phục vụ và nhân viên quầy; **không** phỏng vấn được bếp trưởng và khách |
-| Nguồn bổ sung | Đối chiếu với [khảo sát giao diện và tính năng của 11 website nhà hàng](../archive/RESTAURANT_UI_FEATURE_BENCHMARK.md) |
+| Nguồn bổ sung | Đối chiếu với [khảo sát giao diện và tính năng của 11 website nhà hàng](../RESTAURANT_UI_FEATURE_BENCHMARK.md) |
 
 **Giới hạn cần nêu thẳng.** Đây **không phải** một nghiên cứu người dùng theo chuẩn: cỡ mẫu nhỏ,
 không phỏng vấn bán cấu trúc, không ghi âm, không mã hóa dữ liệu định tính. Cụ thể:
@@ -704,19 +704,22 @@ phỏng vấn có cấu trúc được ghi trong hướng phát triển ở mụ
 
 ### 2.1.4. User stories và acceptance criteria
 
-Backlog thật của nhóm nằm ở **[46 issue trên GitHub](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues?q=is%3Aissue)**, gắn nhãn theo vai trò (`role:backend`, `role:frontend`, `role:ai`, `role:devops`, `role:docs`, `role:testing`) và theo tuần (`week-1`…`week-5`). Bảng dưới trích các story lõi kèm tiêu chí chấp nhận và bằng chứng đã thực hiện.
+Backlog thật của nhóm nằm ở [46 issue trên GitHub](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues?q=is%3Aissue),
+gắn nhãn theo vai trò (`role:backend`, `role:frontend`, `role:ai`, `role:devops`,
+`role:docs`, `role:testing`) và theo tuần (`week-1`…`week-5`). Bảng dưới trích
+các story lõi kèm tiêu chí chấp nhận và bằng chứng đã thực hiện.
 
 | # | User story | Acceptance criteria | Bằng chứng |
 |---|---|---|---|
-| US-01 | **Là khách tại bàn**, tôi muốn quét QR để xem thực đơn, **để** không phải chờ nhân viên | • Quét QR mở đúng phiên bàn đó<br>• Không yêu cầu cài app hay đăng nhập<br>• Nhiều thiết bị quét cùng mã → vào **cùng một phiên đang mở**<br>• Mỗi lần quét cấp capability token mới | [#68](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/68) · [QR_SESSION_STATE_MACHINE](../backend/ARCHITECTURE.md) · `TableSessionLifecycleTests.cs` |
-| US-02 | **Là khách**, tôi muốn thêm món vào giỏ và gửi bếp nhiều lượt, **để** gọi thêm mà không phải mở đơn mới | • Giỏ lưu **phía máy chủ**, không phải `localStorage`<br>• Một phiên bàn chứa nhiều lượt đơn<br>• Đóng tab rồi quét lại vẫn thấy giỏ | [#69](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/69) · [PR #90](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/90) · `OrderLifecycleTests.cs` |
-| US-03 | **Là khách có dị ứng**, tôi muốn trợ lý không gợi ý món chứa thứ tôi dị ứng | • Ràng buộc dị ứng là **fail-closed**: thiếu dữ liệu thì loại món, không đoán<br>• Ràng buộc được giữ qua nhiều lượt hội thoại<br>• Không ghi nhận lỗi trên tập đánh giá đã công bố, trong phạm vi dữ liệu nhãn hiện có | **0 lỗi ghi nhận/140 ca + 0/87 lượt phiên + 0/8 ca chọn món** · [PR #377](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/377) |
-| US-04 | **Là khách**, tôi muốn trợ lý gợi ý món theo khẩu vị và ngân sách | • Gợi ý chỉ gồm món **có thật trong thực đơn**<br>• Giá nêu ra phải là giá thật<br>• Câu do mô hình viết mà nhắc món/giá không có → **bị chặn**, chuyển sang câu khuôn mẫu | 68/76 câu sinh được dùng, 8 chuyển sang khuôn mẫu, **không có ca giảm điểm** |
+| US-01 | **Là khách tại bàn**, tôi muốn quét QR để xem thực đơn, **để** không phải chờ nhân viên | • Quét QR mở đúng phiên bàn đó<br>• Không yêu cầu cài app hay đăng nhập<br>• Nhiều thiết bị quét cùng mã → vào **cùng một phiên đang mở**<br>• Mỗi lần quét cấp capability token mới | [Issue #68](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/68) · [Sơ đồ trạng thái phiên QR](../QR_SESSION_STATE_MACHINE.md) · [Kiểm thử vòng đời phiên bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/TableSessionLifecycleTests.cs) |
+| US-02 | **Là khách**, tôi muốn thêm món vào giỏ và gửi bếp nhiều lượt, **để** gọi thêm mà không phải mở đơn mới | • Giỏ lưu **phía máy chủ**, không phải `localStorage`<br>• Một phiên bàn chứa nhiều lượt đơn<br>• Đóng tab rồi quét lại vẫn thấy giỏ | [Issue #69](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/69) · [PR #90](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/90) · [Kiểm thử vòng đời đơn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/OrderLifecycleTests.cs) |
+| US-03 | **Là khách có dị ứng**, tôi muốn trợ lý không gợi ý món chứa thứ tôi dị ứng | • Ràng buộc dị ứng là **fail-closed**: thiếu dữ liệu thì loại món, không đoán<br>• Ràng buộc được giữ qua nhiều lượt hội thoại<br>• Không ghi nhận lỗi trên tập đánh giá đã công bố, trong phạm vi dữ liệu nhãn hiện có | **0 lỗi ghi nhận/140 ca + 0/87 lượt phiên + 0/8 ca chọn món** · [Bộ chạy đánh giá](../../ai/evaluation/run_baseline.py) · [PR #377](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/377) |
+| US-04 | **Là khách**, tôi muốn trợ lý gợi ý món theo khẩu vị và ngân sách | • Gợi ý chỉ gồm món **có thật trong thực đơn**<br>• Giá nêu ra phải là giá thật<br>• Câu do mô hình viết mà nhắc món/giá không có → **bị chặn**, chuyển sang câu khuôn mẫu | 68/76 câu sinh được dùng, 8 chuyển sang khuôn mẫu, **không có ca giảm điểm** · [Kết quả LLM/RAG loại C](../../ai/evaluation/measurements/llm_rag_loai_c.json) |
 | US-05 | **Là khách**, tôi muốn thấy đơn của mình đang ở bước nào | • Trạng thái đẩy realtime qua SignalR<br>• Khách, nhân viên và bếp thấy **cùng một trạng thái** | [#13](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/13) · [PR #92](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/92) · [PR #346](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/346) |
 | US-06 | **Là bếp trưởng**, tôi muốn một bảng hàng đợi món thao tác được bằng vài chạm | • Bảng kéo–thả theo trạng thái<br>• Bật/tắt tình trạng "hết món" ngay trên bảng, có hiệu lực ngay với khách đang xem thực đơn<br>• Cập nhật hiện trên máy khác **không cần tải lại trang** | [#15](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/15) · [PR #356](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/356) |
-| US-07 | **Là nhân viên quầy**, tôi muốn tất toán **một hóa đơn cho cả bàn** | • Nhiều lượt đơn gộp thành một `TableInvoice`<br>• Khuyến mãi và tích điểm áp **một lần lúc tất toán**<br>• COD và VietQR xác nhận thủ công có ghi vết | [#70](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/70) · [PR #91](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/91) · `TableInvoiceTests.cs` |
-| US-08 | **Là quản trị viên**, tôi muốn quản lý thực đơn, bàn/QR và người dùng | • CRUD thực đơn/danh mục có kiểm tra ràng buộc<br>• Sinh và in mã QR theo bàn<br>• Phân quyền theo vai trò, **backend là nguồn quyền duy nhất** | [#9](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/9) · [#82](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/82) · `AdminTableCrudTests.cs`, `UserManagementTests.cs` |
-| US-09 | **Là trưởng nhóm**, tôi muốn mọi thay đổi đều qua CI trước khi vào `develop` | • 5 job CI chạy trên mọi PR<br>• Kết quả CI hiển thị trên PR trước khi merge<br>• Deploy production chỉ đi từ `main`<br>• Cả 5 job là **required check** trong branch ruleset của `main` và `develop`, không có ngoại lệ | [#16](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/16) · [`ci.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/workflows/ci.yml) · [BRANCH_RULESET](../devops/GIT_AND_TEAM.md) · mục [3.1.5](#315-branch-ruleset--biến-ci-từ-thói-quen-thành-cổng-chặn) |
+| US-07 | **Là nhân viên quầy**, tôi muốn tất toán **một hóa đơn cho cả bàn** | • Nhiều lượt đơn gộp thành một `TableInvoice`<br>• Khuyến mãi và tích điểm áp **một lần lúc tất toán**<br>• COD và VietQR xác nhận thủ công có ghi vết | [Issue #70](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/70) · [PR #91](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/91) · [Kiểm thử hóa đơn bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/TableInvoiceTests.cs) |
+| US-08 | **Là quản trị viên**, tôi muốn quản lý thực đơn, bàn/QR và người dùng | • CRUD thực đơn/danh mục có kiểm tra ràng buộc<br>• Sinh và in mã QR theo bàn<br>• Phân quyền theo vai trò, **backend là nguồn quyền duy nhất** | [Issue #9](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/9) · [Issue #82](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/82) · [Kiểm thử CRUD bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/AdminTableCrudTests.cs) · [Kiểm thử quản lý người dùng](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/UserManagementTests.cs) |
+| US-09 | **Là trưởng nhóm**, tôi muốn mọi thay đổi đều qua CI trước khi vào `develop` | • 5 job CI chạy trên mọi PR<br>• Kết quả CI hiển thị trên PR trước khi merge<br>• Deploy production chỉ đi từ `main`<br>• Cả 5 job là **required check** trong branch ruleset của `main` và `develop`, không có ngoại lệ | [Issue #16](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/16) · [`ci.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/workflows/ci.yml) · [Cấu hình branch ruleset](../BRANCH_RULESET.md) · mục [3.1.5](#315-branch-ruleset--biến-ci-từ-thói-quen-thành-cổng-chặn) |
 
 ### 2.1.5. Product Backlog
 
@@ -763,7 +766,7 @@ biết ngay phạm vi ảnh hưởng thay vì phải dò khắp cơ sở mã.
 | FR-12 | Cập nhật thời gian thực bằng SignalR cho khách, nhân viên và bếp | `Realtime` |
 | FR-13 | Báo cáo vận hành cơ bản | `Reports` |
 
-Bề mặt API hiện tại: **84 endpoint** — chi tiết ở [`API_CONTRACT.md`](../backend/API_CONTRACT.md).
+Bề mặt API hiện tại: **84 endpoint** — chi tiết ở [`API_CONTRACT.md`](../API_CONTRACT.md).
 
 ### 2.2.2. Yêu cầu phi chức năng (NFR)
 
@@ -779,15 +782,15 @@ thà từ chối gợi ý còn hơn đoán.
 
 | Mã | Yêu cầu | Cách đạt được | Cách kiểm chứng |
 |---|---|---|---|
-| NFR-01 **An toàn dữ liệu dị ứng** | Không gợi ý món chứa dị nguyên khách đã nêu, trong phạm vi dữ liệu nhãn hiện có | Ràng buộc dị ứng đưa về **mã tất định**, fail-closed: thiếu nhãn thì loại món | **Không ghi nhận lỗi** trên 140 ca + 87 lượt phiên + 8 ca chọn món. Xem giới hạn ở mục [5.3](#53-hạn-chế) |
-| NFR-02 **Không bịa món, không bịa giá** | Mọi tên món và số tiền trong câu trả lời phải có trong thực đơn | Hàng rào chặn ở đường sinh | 8/8 câu bị chặn đúng lý do "số tiền không phải giá của món nào" |
-| NFR-03 **AI không có quyền ghi** | AI không tạo đơn, không sửa giỏ, không thanh toán | Dịch vụ AI **cố ý không trả** `accepted_menu_item_ids` / `added_to_cart_menu_item_ids` | [AI_NO_TOUCH_BOUNDARY](../ai/AI_NO_TOUCH_BOUNDARY.md) + test `aiContractBoundary.test.ts` |
-| NFR-04 **Suy giảm êm** | Lỗi nội bộ của AI không được thành màn hình lỗi cho khách | `POST /v1/chat` bắt `Exception` rộng, trả 200 + câu chuyển nhân viên | Kiểm thử **tiêm lỗi vào đúng đường xử lý** của `respond()` |
-| NFR-05 **Không tin client** | Vai trò trong frontend chỉ phục vụ UX | JWT + `RequireAuthorization` phía backend là nguồn quyền duy nhất | [SECURITY.md](../../SECURITY.md) · `CapabilityTokenPrecisionTests.cs` |
-| NFR-06 **Không lộ secret** | Khóa AI, JWT signing key, mật khẩu DB không nằm trong repo | GitHub Environments + `.env.example` placeholder | Job `secret-scan` (gitleaks) + `trivy-filesystem` |
-| NFR-07 **Độ trễ trợ lý** | Khách không chờ quá lâu một câu trả lời | Ngân sách timeout phân tầng: AI 30 s **<** backend 50 s | Đo: **p50 8,6 s · p95 13,5 s** · `DeploymentConfigurationTests.cs` |
-| NFR-08 **Khởi động dịch vụ** | Container lên kịp trước khi `api` bỏ cuộc | Vector embedding **tính sẵn lúc build** | 97,3 s → **19,0 s**; `HEALTHCHECK start-period` 15 s → 90 s |
-| NFR-09 **Dữ liệu sinh không được trôi** | Tài liệu và từ điển nhãn phải khớp thực đơn | Bộ sinh có chế độ `--check` | 4 bước `--check` chạy trong CI |
+| NFR-01 **An toàn dữ liệu dị ứng** | Không gợi ý món chứa dị nguyên khách đã nêu, trong phạm vi dữ liệu nhãn hiện có | Ràng buộc dị ứng đưa về **mã tất định**, fail-closed: thiếu nhãn thì loại món | **Không ghi nhận lỗi** trên 140 ca + 87 lượt phiên + 8 ca chọn món · [bộ chạy đánh giá](../../ai/evaluation/run_baseline.py). Xem giới hạn ở mục [5.3](#53-hạn-chế) |
+| NFR-02 **Không bịa món, không bịa giá** | Mọi tên món và số tiền trong câu trả lời phải có trong thực đơn | Hàng rào chặn ở đường sinh | 8/8 câu bị chặn đúng lý do "số tiền không phải giá của món nào" · [kết quả đo](../../ai/evaluation/measurements/llm_rag_loai_c.json) |
+| NFR-03 **AI không có quyền ghi** | AI không tạo đơn, không sửa giỏ, không thanh toán | Dịch vụ AI **cố ý không trả** `accepted_menu_item_ids` / `added_to_cart_menu_item_ids` | [Ranh giới bất biến của AI](../AI_NO_TOUCH_BOUNDARY.md) · [Kiểm thử hợp đồng phía frontend](../../frontend/src/ordering/aiContractBoundary.test.ts) |
+| NFR-04 **Suy giảm êm** | Lỗi nội bộ của AI không được thành màn hình lỗi cho khách | `POST /v1/chat` bắt `Exception` rộng, trả 200 + câu chuyển nhân viên | [Kiểm thử tiêm lỗi vào đường xử lý `respond()`](../../ai/app/test_service.py) |
+| NFR-05 **Không tin client** | Vai trò trong frontend chỉ phục vụ UX | JWT + `RequireAuthorization` phía backend là nguồn quyền duy nhất | [Thiết kế bảo mật](../../SECURITY.md) · [Kiểm thử capability token](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/CapabilityTokenPrecisionTests.cs) |
+| NFR-06 **Không lộ secret** | Khóa AI, JWT signing key, mật khẩu DB không nằm trong repo | GitHub Environments + `.env.example` placeholder | [Job `secret-scan` và `trivy-filesystem`](../../.github/workflows/security.yml) |
+| NFR-07 **Độ trễ trợ lý** | Khách không chờ quá lâu một câu trả lời | Ngân sách timeout phân tầng: AI 30 s **<** backend 50 s | Đo: **p50 8,6 s · p95 13,5 s** · [kết quả đo](../../ai/evaluation/measurements/llm_rag_loai_c.json) · [kiểm thử cấu hình](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/DeploymentConfigurationTests.cs) |
+| NFR-08 **Khởi động dịch vụ** | Container lên kịp trước khi `api` bỏ cuộc | Vector embedding **tính sẵn lúc build** | 97,3 s → **19,0 s**; `HEALTHCHECK start-period` 15 s → 90 s · [quy trình đo](../../ai/README.md) |
+| NFR-09 **Dữ liệu sinh không được trôi** | Tài liệu và từ điển nhãn phải khớp thực đơn | Bộ sinh có chế độ `--check` | [Bốn bước `--check` trong CI](../../.github/workflows/ci.yml) |
 | NFR-10 **Triển khai lùi được** | Deploy hỏng phải quay lại được | Workflow `rollback.yml` tự dispatch khi smoke thất bại | [`rollback.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/workflows/rollback.yml) |
 
 ## 2.3. Kiến trúc sản phẩm
@@ -897,7 +900,7 @@ Gộp chung sẽ kéo ảnh backend lên gần 3 GB và buộc mọi lần sửa
 
 **Quyết định 3 — REST + SignalR, không GraphQL**
 
-REST được chọn vì **hợp đồng là điều nhóm cần nhất**: 5 người làm song song trên 3 tầng, nên một tài liệu liệt kê rõ endpoint/DTO/error code ([API_CONTRACT.md](../backend/API_CONTRACT.md)) có giá trị hơn tính linh hoạt truy vấn của GraphQL. Với dữ liệu **đẩy** (trạng thái đơn), REST polling không đủ nên bổ sung **SignalR** — đúng chỗ cần và chỉ ở chỗ đó.
+REST được chọn vì **hợp đồng là điều nhóm cần nhất**: 5 người làm song song trên 3 tầng, nên một tài liệu liệt kê rõ endpoint/DTO/error code ([API_CONTRACT.md](../API_CONTRACT.md)) có giá trị hơn tính linh hoạt truy vấn của GraphQL. Với dữ liệu **đẩy** (trạng thái đơn), REST polling không đủ nên bổ sung **SignalR** — đúng chỗ cần và chỉ ở chỗ đó.
 
 ### 2.3.3. Thiết kế cơ sở dữ liệu
 
@@ -939,7 +942,7 @@ Ba bất biến dữ liệu được đưa xuống tầng cơ sở dữ liệu t
 | Mã đơn không trùng khi có nhiều máy chủ | PostgreSQL sequence, không sinh phía ứng dụng | [`AddXminAndOrderCodeSequence`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/backend/src/RestaurantQrAiOrdering.Api/Data/Migrations/20260620145916_AddXminAndOrderCodeSequence.cs) |
 | Hai người sửa cùng một đơn không ghi đè nhau | Optimistic concurrency qua `xmin` → lỗi `CONFLICT_STALE` | cùng migration trên |
 
-Mỗi phiên bàn có **đúng một hóa đơn** nhưng **nhiều lượt đơn** — đây là mô hình nghiệp vụ thật của nhà hàng, và nhóm đã phải refactor để đạt được nó ([kế hoạch refactor](../archive/ORDERING_SESSION_INVOICE_REFACTOR_PLAN.md)).
+Mỗi phiên bàn có **đúng một hóa đơn** nhưng **nhiều lượt đơn** — đây là mô hình nghiệp vụ thật của nhà hàng, và nhóm đã phải refactor để đạt được nó ([kế hoạch refactor](../ORDERING_SESSION_INVOICE_REFACTOR_PLAN.md)).
 
 ### 2.3.4. Máy trạng thái của phiên bàn
 
@@ -1094,18 +1097,19 @@ phép truy ngược từ một kết quả kiểm thử về nhu cầu người 
 
 | User story | FR/NFR liên quan | Kiểm thử hoặc phép đo chính |
 |---|---|---|
-| US-01 — Quét QR vào đúng phiên bàn | FR-02, FR-03, NFR-05 | `TableSessionLifecycleTests.cs`, `CapabilityTokenPrecisionTests.cs`, `sessionCapabilityStore.test.ts` |
-| US-02 — Giỏ phía máy chủ, gọi nhiều lượt | FR-04, FR-05 | `OrderLifecycleTests.cs`, `OrderCartClearTests.cs`, `cartSessionSummary.test.ts` |
-| US-03 — Không gợi ý món vi phạm dị nguyên | NFR-01, NFR-03 | `run_baseline.py --all`, `test_session_eval.py`, `AiContractBoundaryTests.cs` |
-| US-04 — Gợi ý theo khẩu vị và ngân sách | FR-11, NFR-02, NFR-07 | `test_answer.py`, `test_generate.py`, `measurements/llm_rag_loai_c.json` |
-| US-05 — Theo dõi trạng thái đơn | FR-05, FR-12 | `TableSessionResumeStateTests.cs`, `sessionOrdersLifecycle.test.ts`, `orderingPaymentRealtime.test.ts` |
-| US-06 — Bảng bếp thao tác nhanh | FR-08, FR-12 | `KitchenStatusMigrationTests.cs`, `kitchenOrderPipeline.test.ts`, `useOpsRealtime.test.ts` |
-| US-07 — Một hóa đơn cho cả bàn | FR-06, FR-07 | `TableInvoiceTests.cs`, `PaymentLifecycleTests.cs`, `tableInvoicePaymentLifecycle.test.ts` |
-| US-08 — Quản trị thực đơn, bàn và người dùng | FR-01, FR-02, FR-10 | `AdminTableCrudTests.cs`, `UserManagementTests.cs`, `floorMapUtils.test.ts` |
-| US-09 — CI trước khi vào `develop` | NFR-06, NFR-09, NFR-10 | `.github/workflows/ci.yml`, `DeploymentConfigurationTests.cs`, `test_packaging.py` |
+| US-01 — Quét QR vào đúng phiên bàn | FR-02, FR-03, NFR-05 | [Vòng đời phiên bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/TableSessionLifecycleTests.cs) · [Capability token](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/CapabilityTokenPrecisionTests.cs) · [Kho capability phía khách](../../frontend/src/ordering/sessionCapabilityStore.test.ts) |
+| US-02 — Giỏ phía máy chủ, gọi nhiều lượt | FR-04, FR-05 | [Vòng đời đơn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/OrderLifecycleTests.cs) · [Xóa giỏ sau gửi món](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/OrderCartClearTests.cs) · [Tóm tắt giỏ theo phiên](../../frontend/src/ordering/cartSessionSummary.test.ts) |
+| US-03 — Không gợi ý món vi phạm dị nguyên | NFR-01, NFR-03 | [Bộ chạy đánh giá nền](../../ai/evaluation/run_baseline.py) · [Đánh giá theo phiên](../../ai/evaluation/test_session_eval.py) · [Ranh giới hợp đồng AI](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/AiContractBoundaryTests.cs) |
+| US-04 — Gợi ý theo khẩu vị và ngân sách | FR-11, NFR-02, NFR-07 | [Kiểm thử tạo câu trả lời](../../ai/app/test_answer.py) · [Kiểm thử sinh câu](../../ai/app/test_generate.py) · [Kết quả LLM/RAG loại C](../../ai/evaluation/measurements/llm_rag_loai_c.json) |
+| US-05 — Theo dõi trạng thái đơn | FR-05, FR-12 | [Khôi phục phiên bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/TableSessionResumeStateTests.cs) · [Vòng đời đơn phía khách](../../frontend/src/ordering/sessionOrdersLifecycle.test.ts) · [Thanh toán realtime](../../frontend/src/ordering/orderingPaymentRealtime.test.ts) |
+| US-06 — Bảng bếp thao tác nhanh | FR-08, FR-12 | [Migration trạng thái bếp](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/KitchenStatusMigrationTests.cs) · [Pipeline bảng bếp](../../frontend/src/components/kitchen/kitchenOrderPipeline.test.ts) · [Hook realtime vận hành](../../frontend/src/hooks/useOpsRealtime.test.ts) |
+| US-07 — Một hóa đơn cho cả bàn | FR-06, FR-07 | [Hóa đơn bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/TableInvoiceTests.cs) · [Vòng đời thanh toán](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/PaymentLifecycleTests.cs) · [Thanh toán hóa đơn phía khách](../../frontend/src/ordering/tableInvoicePaymentLifecycle.test.ts) |
+| US-08 — Quản trị thực đơn, bàn và người dùng | FR-01, FR-02, FR-10 | [CRUD bàn](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/AdminTableCrudTests.cs) · [Quản lý người dùng](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/UserManagementTests.cs) · [Sơ đồ tầng](../../frontend/src/components/admin/floorMapUtils.test.ts) |
+| US-09 — CI trước khi vào `develop` | NFR-06, NFR-09, NFR-10 | [Workflow CI](../../.github/workflows/ci.yml) · [Cấu hình triển khai](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/DeploymentConfigurationTests.cs) · [Đóng gói dịch vụ AI](../../ai/app/test_packaging.py) |
 
 **Kiểm tra chính thước đo.** Nhóm coi hàm chấm điểm là mã cần được kiểm thử: bộ dò
-`probe_metric_holes.py` đưa các câu trả lời cố ý vô nghĩa vào thước đo và yêu cầu chúng phải trượt.
+[Bộ dò lỗ của thước đo](../../ai/evaluation/probe_metric_holes.py) đưa các câu trả lời cố ý vô nghĩa
+vào thước đo và yêu cầu chúng phải trượt.
 Bộ dò phát hiện **24 trường hợp chấp nhận sai**; cả 24 trường hợp đã được khắc phục. Nếu bỏ qua
 bước này, độ tin cậy của các số liệu do thước đo tạo ra sẽ không được xác lập.
 
@@ -1126,12 +1130,12 @@ biện pháp nào mà không chỉ ra được nơi nó thực sự tồn tại 
 | Lớp | Biện pháp | Bằng chứng |
 |---|---|---|
 | Xác thực | JWT; mật khẩu **PBKDF2-HMAC-SHA256 có salt**; API không trả password hash | [SECURITY.md](../../SECURITY.md) |
-| Phân quyền | `RequireAuthorization` theo vai trò ở backend; **vai trò trong frontend chỉ phục vụ UX** | `CapabilityTokenPrecisionTests.cs` |
+| Phân quyền | `RequireAuthorization` theo vai trò ở backend; **vai trò trong frontend chỉ phục vụ UX** | [Kiểm thử capability token](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/CapabilityTokenPrecisionTests.cs) |
 | Chống dò mật khẩu | Khóa tài khoản sau nhiều lần sai | [`AddLoginLockout`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/backend/src/RestaurantQrAiOrdering.Api/Data/Migrations/20260621031254_AddLoginLockout.cs) |
-| Phiên bàn | Capability token cấp mới mỗi lần quét; `sessionId` **không phải** thông tin cấp quyền | [QR_SESSION_STATE_MACHINE](../backend/ARCHITECTURE.md) |
-| Ranh giới AI | Mọi `/v1/*` đòi `AI_INTERNAL_TOKEN`; frontend **không bao giờ** gọi thẳng dịch vụ AI | [AI_NO_TOUCH_BOUNDARY](../ai/AI_NO_TOUCH_BOUNDARY.md) |
-| Rò rỉ qua lỗi | Chi tiết exception **không vào câu trả lời khách**; chỉ mã tham chiếu 8 ký tự ra ngoài, chi tiết vào log | Sửa sau khi CodeQL báo *Information exposure through an exception* |
-| Secrets | GitHub Environments; `.env` bị ignore; chỉ commit `.env.example` | Job `secret-scan` (gitleaks) |
+| Phiên bàn | Capability token cấp mới mỗi lần quét; `sessionId` **không phải** thông tin cấp quyền | [Sơ đồ trạng thái phiên QR](../QR_SESSION_STATE_MACHINE.md) |
+| Ranh giới AI | Mọi `/v1/*` đòi `AI_INTERNAL_TOKEN`; frontend **không bao giờ** gọi thẳng dịch vụ AI | [Ranh giới bất biến của AI](../AI_NO_TOUCH_BOUNDARY.md) |
+| Rò rỉ qua lỗi | Chi tiết exception **không vào câu trả lời khách**; chỉ mã tham chiếu 8 ký tự ra ngoài, chi tiết vào log | [PR #256 — khắc phục cảnh báo CodeQL](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/256) |
+| Secrets | GitHub Environments; `.env` bị ignore; chỉ commit `.env.example` | [Job `secret-scan` trong security.yml](../../.github/workflows/security.yml) |
 | Quét tự động | **CodeQL** (C#, JS/TS, Python) + **gitleaks** + **Trivy** + **dependency-review** | [`security.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/workflows/security.yml) |
 | Cập nhật phụ thuộc | Dependabot nhắm `develop` (không nhắm thẳng `main`) | [`dependabot.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/dependabot.yml) |
 
@@ -1199,10 +1203,8 @@ Tổng cộng **2.468 lần chạy workflow** tính tới 03/08/2026.
 
 ### 2.5.5. Code review và quản lý mã nguồn
 
-Với một nhóm năm người làm song song trên cùng một cơ sở mã, quy ước không phải là thủ tục hành
-chính mà là điều kiện để công việc của người này không âm thầm phá công việc của người kia. Nhóm
-chọn cách ràng buộc bằng **cơ chế tự động** thay vì bằng lời nhắc nhau, vì lời nhắc sẽ mất tác dụng
-đúng vào lúc bận nhất — tức lúc rủi ro cao nhất.
+Với năm người làm song song trên cùng một cơ sở mã, quy ước là điều kiện phối hợp. Nhóm kết hợp
+**cổng kiểm tra tự động** với **peer review của thành viên** để thay đổi được kiểm chứng trước merge.
 
 | Quy tắc | Thực thi |
 |---|---|
@@ -1213,25 +1215,24 @@ chọn cách ràng buộc bằng **cơ chế tự động** thay vì bằng lờ
 | PR template bắt buộc | [`pull_request_template.md`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/pull_request_template.md) — mô tả, lệnh kiểm chứng, ảnh chụp cho thay đổi UI |
 | Issue template có cấu trúc | [`ISSUE_TEMPLATE/task.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/tree/main/.github/ISSUE_TEMPLATE) |
 | Tự merge khi CI xanh, **trừ khi PR đụng migration** | [PR #405](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/405) — migration cơ sở dữ liệu luôn cần người xem |
+| Human peer review trước merge | [PR #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426) — bốn thành viên gửi `APPROVED` có nội dung cụ thể trước khi PR được chuyển Ready và hợp nhất |
 
-**Phạm vi của bằng chứng code review.** Kết quả rà lịch sử 377 pull request ghi nhận 13 review từ
-`github-advanced-security` và 9 review từ `copilot-pull-request-reviewer`, nhưng **không ghi nhận
-review chính thức (`APPROVED` hoặc `CHANGES_REQUESTED`) từ một thành viên khác trong nhóm**. Vì
-vậy, báo cáo chỉ kết luận rằng dự án có quy trình pull request, kiểm tra CI và review tự động;
-không dùng số lượng PR để thay cho bằng chứng peer review của con người.
+**Phạm vi của bằng chứng code review.** Ở mốc `v0.3.0`, 377 pull request có review CodeQL/Copilot
+nhưng chưa có review chính thức từ thành viên. Bốn phê duyệt ở
+[PR #424](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/424) xảy ra **sau**
+auto-merge nên không được dùng làm bằng chứng review-before-merge.
 
-Review tự động đã tạo ra thay đổi cụ thể. Chẳng hạn, cảnh báo CodeQL về lộ thông tin qua exception
-dẫn tới việc thay nội dung lỗi trả cho client bằng loại lỗi và mã tham chiếu, đồng thời giữ chi
-tiết trong log tại [PR #256](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/256) và
-[PR #377](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/377). Đây là bằng chứng
-review có tác động tới mã; tuy nhiên nó không khắc phục khoảng trống về human peer review.
+Nhóm thực hiện lại tại [PR #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426):
+tác giả không tự phê duyệt; bốn thành viên gửi `APPROVED` có nhận xét cụ thể lúc 21:39–21:40;
+toàn bộ CI đạt; PR chỉ được chuyển Ready và hợp nhất lúc 22:28 ngày 04/08/2026. Thứ tự này chứng
+minh review diễn ra trước merge, nhưng là bằng chứng bổ sung cuối kỳ, **không đại diện cho toàn bộ
+377 PR trước đó**. Xem [quy trình và truy vấn kiểm tra](HUMAN_PEER_REVIEW.md).
 
-Ngoại lệ ở dòng cuối đáng được giải thích, vì thoạt nhìn nó mâu thuẫn với tinh thần tự động hóa của
-những dòng trên. Lý do là **migration không thể hoàn tác bằng một lần revert**: một pull request
-thông thường sai thì lùi lại là xong, nhưng một migration đã chạy trên production đã kịp đổi dữ
-liệu thật, và hàm `Down()` hầu như không bao giờ khôi phục được thứ đã bị xóa. Nhóm rút ra rằng
-mức độ tự động hóa nên tỉ lệ nghịch với chi phí của sai lầm, chứ không nên đồng nhất cho mọi loại
-thay đổi.
+Review tự động vẫn có tác động kỹ thuật: cảnh báo CodeQL làm thay đổi cách che chi tiết exception
+tại [PR #256](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/256) và
+[PR #377](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/377); PR #426 bổ sung lớp
+kiểm tra độc lập của thành viên. Migration được loại khỏi auto-merge vì có thể thay đổi dữ liệu
+production và không phải lúc nào cũng hoàn tác đầy đủ bằng `Down()`.
 
 ---
 
@@ -1443,8 +1444,9 @@ Bốn nguyên tắc nhóm rút ra và áp dụng nhất quán:
    hoặc đo lại. Trong tám trường hợp ở bảng trên, ba gợi ý sai được phát hiện nhờ phép đo.
 2. **Tài liệu do AI viết là giả thuyết cho tới khi có kiểm thử.** Trường hợp #4 cho thấy tài liệu
    có thể đúng về ý định nhưng sai về hành vi thực tế khi chưa có phép kiểm tương ứng.
-3. **Không chấp nhận mã mà nhóm không giải thích được.** Ranh giới đóng băng [`AI_NO_TOUCH_BOUNDARY.md`](../ai/AI_NO_TOUCH_BOUNDARY.md) tồn tại để tác tử không âm thầm sửa hợp đồng AI khi đang refactor nghiệp vụ.
-4. **Ghi lại cả những lần đo sai.** Tài liệu `ai/docs/07-error-analysis.md` ghi rõ **4 lần nhóm tự đo sai** — vì một phương pháp giấu sai lầm của mình thì không kiểm chứng được.
+3. **Không chấp nhận mã mà nhóm không giải thích được.** Ranh giới đóng băng [`AI_NO_TOUCH_BOUNDARY.md`](../AI_NO_TOUCH_BOUNDARY.md) tồn tại để tác tử không âm thầm sửa hợp đồng AI khi đang refactor nghiệp vụ.
+4. **Ghi lại cả những lần đo sai.** [Tài liệu phân tích lỗi](../../ai/docs/07-error-analysis.md)
+   ghi rõ **4 lần nhóm tự đo sai** — vì một phương pháp giấu sai lầm của mình thì không kiểm chứng được.
 
 ## 3.3. Phân công và đóng góp
 
@@ -1459,10 +1461,15 @@ dụng đồng thời lượt gán issue, pull request, commit không phải mer
 
 ### 3.3.2. Đóng góp đối chiếu được trên GitHub
 
-Số liệu được chốt tại tag `v0.3.0`. Cột issue đếm **lượt gán** (một issue có thể có hai người);
+Số liệu được chốt tại [tag `v0.3.0`](https://github.com/Anpham120/restaurant-qr-ai-ordering/releases/tag/v0.3.0).
+Cột issue đếm **lượt gán** (một issue có thể có hai người);
 cột PR chỉ đếm PR do năm thành viên tạo, không tính 71 PR Dependabot và 3 PR của GitHub Actions;
 cột commit đếm commit tác giả **không phải merge commit**, sau khi hợp nhất các tên/email Git của
-cùng một thành viên. Cách tính này tránh ghi công merge tự động như một đóng góp mã nguồn.
+cùng một thành viên. Cách tính này tránh ghi công merge tự động như một đóng góp mã nguồn. Nguồn
+đối chiếu gồm [Insights → Contributors](https://github.com/Anpham120/restaurant-qr-ai-ordering/graphs/contributors),
+GitHub API và lịch sử Git; lệnh tái lập được ghi tại
+[Phụ lục](#7-phụ-lục--cách-kiểm-chứng-các-số-liệu-chính). Số commit chỉ được dùng để đối chiếu,
+không được dùng thay cho đánh giá khối lượng hoặc chất lượng đóng góp.
 
 | Thành viên | Mảng phụ trách | Lượt gán issue | PR đã tạo | Commit không merge | Đóng góp tiêu biểu |
 |---|---|---|---|---|---|
@@ -1471,17 +1478,6 @@ cùng một thành viên. Cách tính này tránh ghi công merge tự động n
 | **Nguyễn Quang Hiếu**<br/>[@quanghieu1605](https://github.com/quanghieu1605) | Backend — dữ liệu & realtime | **8** | 9 | 25 | PostgreSQL + EF Core/Npgsql ([#65](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/65), [PR #84](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/84)), thực đơn/danh mục ([#67](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/67), [PR #88](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/88)), vòng đời đơn hàng ([#69](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/69), [PR #90](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/90)), SignalR + luồng bếp ([#13](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/13), [PR #92](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/92)) |
 | **Đỗ Tuấn Anh**<br/>[@Tanh2k8-123](https://github.com/Tanh2k8-123) | Frontend — khách hàng | **7** | 5 | 9 | Khởi tạo React + routing theo vai trò ([#4](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/4)), luồng QR–giỏ–thanh toán ([#8](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/8), [PR #32](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/32)), giao diện chatbot ([#14](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/14), [PR #42](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/42)), khớp luồng khách với backend thật ([#75](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/75), [PR #99](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/99)) |
 | **Lê Anh**<br/>[@totototototoads](https://github.com/totototototoads) | Frontend — vận hành | **7** | 8 | 9 | Thực đơn khách có ngữ cảnh bàn QR ([#5](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/5)), giao diện quản trị ([#9](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/9)), bảng bếp realtime ([#15](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/15)), hoàn thiện admin/staff/kitchen/QR ([PR #50](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/50)), nối tầng gọi API ([#74](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/74), [PR #100](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/100)) |
-
-> **Ghi chú về cách diễn giải.** Số commit của nhóm trưởng cao hơn hẳn vì vai trò này phụ trách
-> phần AI/RAG (13.532 dòng), bộ đánh giá (7.528 dòng), CI/CD và tài liệu — các mảng có nhiều vòng
-> đo, sửa và đo lại. Số commit không phản ánh trực tiếp khối lượng hay chất lượng đóng góp; bảng
-> vì thế đối chiếu đồng thời lượt gán issue, PR và đóng góp tiêu biểu. Hai thành viên backend giữ
-> tỷ lệ lượt gán issue/PR gần 1:1, phù hợp với cách tổ chức một issue thành một PR tương đối khép kín.
-
-*Ghi chú về minh chứng đóng góp: trang [Insights → Contributors](https://github.com/Anpham120/restaurant-qr-ai-ordering/graphs/contributors)
-của GitHub chỉ hiển thị đầy đủ khi đăng nhập. Hình 3.2–3.4 cung cấp bằng chứng trực quan; số liệu
-issue và PR lấy từ GitHub API, còn số commit không merge lấy từ lịch sử Git tại tag `v0.3.0`.
-Các lệnh tái lập được ghi tại [Phụ lục](#7-phụ-lục--cách-kiểm-chứng-các-số-liệu-chính).*
 
 # 4. Liên hệ lý thuyết — Sommerville, Engineering Software Products
 
@@ -1499,15 +1495,15 @@ duy nhất thể hiện được nhóm có thực sự hiểu điều mình áp 
 | Chương | Nội dung áp dụng | Kết luận của nhóm |
 |---|---|---|
 | Ch.2 — Tầm nhìn sản phẩm | Tầm nhìn một đoạn, 6 năng lực lõi, cắt bỏ phạm vi | Áp dụng đầy đủ |
-| Ch.3 — Persona và user story | 3 persona, 9 user story, backlog 46 issue | Áp dụng, kèm tự phản biện về thứ tự thực hiện |
-| Ch.4–5 — Kiến trúc | Modular monolith, tách riêng dịch vụ AI | Áp dụng, **bác bỏ** microservices có căn cứ |
-| Ch.5 — Triển khai đám mây | Docker Compose trên VPS | Áp dụng một phần, **không** dùng Kubernetes |
-| Ch.6 — Giao tiếp dịch vụ | REST + hợp đồng viết trước, SignalR cho dữ liệu đẩy | Áp dụng, **bác bỏ** GraphQL có căn cứ |
+| Ch.3 — Persona và user story | 3 persona, 9 user story, backlog 46 issue | Áp dụng; tự phản biện thứ tự thực hiện |
+| Ch.4–5 — Kiến trúc | Modular monolith, tách riêng dịch vụ AI | Áp dụng; **bác bỏ** microservices có căn cứ |
+| Ch.5 — Triển khai đám mây | Docker Compose trên VPS | Một phần; **không** dùng Kubernetes |
+| Ch.6 — Giao tiếp dịch vụ | REST + hợp đồng viết trước, SignalR cho dữ liệu đẩy | Áp dụng; **bác bỏ** GraphQL có căn cứ |
 | Ch.7 — Bảo mật | JWT, PBKDF2, capability token, quét tự động | Áp dụng, bắt được lỗ hổng thật |
-| Ch.8 — Lập trình tin cậy | Fail-closed, suy giảm êm, kiểm thử tiêm lỗi | Áp dụng và mở rộng thêm quy tắc riêng |
-| Ch.9 — Kiểm thử | Bốn tầng test, golden đầu-cuối | Áp dụng và bổ sung tầng kiểm tra thước đo |
-| Ch.10 — DevOps | CI, triển khai tự động, rollback | Áp dụng, có cả continuous deployment |
-| Ch.10 — Quản lý cấu hình | Gỡ cấu hình chết, kiểm thử hồi quy hai chiều | Áp dụng, mở rộng từ bài học riêng |
+| Ch.8 — Lập trình tin cậy | Fail-closed, suy giảm êm, kiểm thử tiêm lỗi | Áp dụng; bổ sung quy tắc riêng |
+| Ch.9 — Kiểm thử | Bốn tầng test, golden đầu-cuối | Áp dụng; thêm kiểm tra thước đo |
+| Ch.10 — DevOps | CI, triển khai tự động, rollback | Áp dụng; continuous deployment |
+| Ch.10 — Quản lý cấu hình | Gỡ cấu hình chết, kiểm thử hồi quy hai chiều | Áp dụng; mở rộng từ bài học riêng |
 | Ngoài sách | Dữ liệu và tài liệu sinh lại được | **Bổ sung** so với phạm vi sách |
 
 ---
@@ -1559,7 +1555,7 @@ nhau [1, Ch.4–5].
 **Nhóm làm gì.** Chọn **modular monolith** cho toàn bộ nghiệp vụ, và tách **duy nhất** dịch vụ AI
 thành tiến trình riêng.
 
-**Minh chứng.** [Kiến trúc backend](../backend/ARCHITECTURE.md) · [Issue #64](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/64)
+**Minh chứng.** [Kiến trúc backend](../BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md) · [Issue #64](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/64)
 
 **Phản biện — bác bỏ microservices, có căn cứ định lượng.** Đơn hàng, thanh toán và tồn kho ở bài
 toán này **luôn thay đổi cùng nhau** và cần nhất quán ngay lập tức. Tách chúng thành ba dịch vụ
@@ -1580,7 +1576,7 @@ chọn theo mức độ hiện đại [1, Ch.5].
 rollback.
 
 **Minh chứng.** [`deploy/docker-compose.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/deploy/docker-compose.yml) ·
-[Tài liệu triển khai](../devops/PIPELINE_AND_DEPLOY.md)
+[Tài liệu triển khai](../CICD_PIPELINE.md)
 
 **Phản biện — phù hợp có giới hạn.** Compose đủ cho một nhà hàng và, quan trọng hơn, đủ đơn giản để
 cả năm thành viên hiểu được toàn bộ đường đi từ mã nguồn tới máy chủ. Nhóm **không áp dụng
@@ -1596,7 +1592,7 @@ kiểu giao tiếp nên xuất phát từ ràng buộc thực tế của đội 
 **Nhóm làm gì.** 84 endpoint REST với **hợp đồng viết trước khi code**, và SignalR chỉ dùng cho dữ
 liệu **đẩy** từ máy chủ xuống.
 
-**Minh chứng.** [Hợp đồng API](../backend/API_CONTRACT.md) · [Issue #73](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/73) ·
+**Minh chứng.** [Hợp đồng API](../API_CONTRACT.md) · [Issue #73](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/73) ·
 [Issue #10](https://github.com/Anpham120/restaurant-qr-ai-ordering/issues/10)
 
 **Phản biện — bác bỏ GraphQL, có căn cứ.** Ba ứng dụng web cộng dịch vụ AI dùng chung một API, nên
@@ -1656,14 +1652,15 @@ khác nhau [1, Ch.9].
 golden đầu-cuối chạy trên stack thật.
 
 **Minh chứng.** [`ci.yml`](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/main/.github/workflows/ci.yml) ·
-[Kế hoạch kiểm thử](../archive/TESTING.md)
+[Kế hoạch kiểm thử](../TEST_PLAN.md)
 
 **Phản biện — phù hợp và được bổ sung cho bối cảnh AI.** Bên cạnh các tầng kiểm thử phần mềm thông
 thường, dự án đặt thêm câu hỏi: **ai kiểm tra chính thước đo dùng để đánh giá đầu ra AI?**
 
 Câu hỏi này nảy sinh vì phần AI không thể đánh giá bằng so sánh đầu ra với một giá trị cố định; nó
 cần một hàm chấm điểm. Mà hàm chấm điểm cũng là mã, và mã thì có lỗi. Nhóm viết một bộ dò
-(`probe_metric_holes.py`) đưa những câu trả lời **cố ý vô nghĩa** vào thước đo và đòi thước đo phải
+([`probe_metric_holes.py`](../../ai/evaluation/probe_metric_holes.py)) đưa những câu trả lời
+**cố ý vô nghĩa** vào thước đo và đòi thước đo phải
 cho trượt. Bộ dò phát hiện **24 trường hợp chấp nhận sai** — tức 24 kiểu câu trả lời vô nghĩa vẫn
 được chấm là đạt. Nếu bỏ
 qua bước này, các kết quả phụ thuộc vào thước đo ở mục 5.2.2 sẽ thiếu cơ sở tin cậy.
@@ -1910,18 +1907,18 @@ nguồn cho từng kết quả giúp phân biệt dữ liệu đo được với
 
 | Phép đo | Kết quả | Nguồn |
 |---|---|---|
-| Golden E2E qua stack thật | **103/103 lượt** · 29 hội thoại | `ai/evaluation/measurements/golden_e2e*.json` |
-| An toàn dị ứng (fail-closed) | **Không ghi nhận lỗi** trên 140 ca + 87 lượt phiên + 8 ca chọn món, trong phạm vi dữ liệu nhãn hiện có | `run_baseline.py --all` |
-| Trả lời chỉ bằng tra thực đơn (phân vùng từng được thiết kế niêm phong; hiện dùng cho hồi quy) | **23/27 — 85,2 %** | `ai/docs/04-answers-without-a-model.md` |
-| Chọn món bằng lọc nhãn | **8/8** (RAG: 1–2/8) | `ai/docs/07-error-analysis.md` |
-| Truy hồi tri thức, phân vùng từng được thiết kế niêm phong (top-1; hiện dùng cho hồi quy) | BM25 0,750 · **embedding 0,864** · hybrid 0,886 | `measurements/chon_muc_niem_phong.json` |
-| Test backend | **84/84 đạt**, 0 trượt, 0 bỏ qua | `dotnet test --configuration Release` |
-| Đường sinh không làm giảm kết quả ca nào | **76/76**, 68 câu sinh dùng được, 8 chuyển sang khuôn mẫu | `measurements/llm_rag_loai_c.json` |
-| Độ trễ trợ lý | p50 **8,6 s** · p95 **13,5 s** | cùng nguồn |
-| Khởi động dịch vụ AI | 97,3 s → **19,0 s** | `ai/README.md` bước 8 |
-| Kích thước ảnh AI | 9,29 GB → **2,74 GB** | cùng nguồn |
-| Test frontend | **118/118** | `npm --prefix frontend test` |
-| Test AI (mã + thước đo) | **386 + 128 đạt** (3 + 1 bỏ qua) | `unittest discover` |
+| Golden E2E qua stack thật | **103/103 lượt** · 29 hội thoại | [Kết quả Golden E2E](../../ai/evaluation/measurements/golden_e2e.json) |
+| An toàn dị ứng (fail-closed) | **Không ghi nhận lỗi** trên 140 ca + 87 lượt phiên + 8 ca chọn món, trong phạm vi dữ liệu nhãn hiện có | [Bộ chạy đánh giá nền](../../ai/evaluation/run_baseline.py) với tùy chọn `--all` |
+| Trả lời chỉ bằng tra thực đơn (phân vùng từng được thiết kế niêm phong; hiện dùng cho hồi quy) | **23/27 — 85,2 %** | [Kết quả trả lời không dùng mô hình](../../ai/docs/04-answers-without-a-model.md) |
+| Chọn món bằng lọc nhãn | **8/8** (RAG: 1–2/8) | [Phân tích lỗi và kết quả chọn món](../../ai/docs/07-error-analysis.md) |
+| Truy hồi tri thức, phân vùng từng được thiết kế niêm phong (top-1; hiện dùng cho hồi quy) | BM25 0,750 · **embedding 0,864** · hybrid 0,886 | [Kết quả truy hồi niêm phong](../../ai/evaluation/measurements/chon_muc_niem_phong.json) |
+| Test backend | **84/84 đạt**, 0 trượt, 0 bỏ qua | [Dự án kiểm thử backend](../../backend/tests/RestaurantQrAiOrdering.Api.Tests/RestaurantQrAiOrdering.Api.Tests.csproj) |
+| Đường sinh không làm giảm kết quả ca nào | **76/76**, 68 câu sinh dùng được, 8 chuyển sang khuôn mẫu | [Kết quả LLM/RAG loại C](../../ai/evaluation/measurements/llm_rag_loai_c.json) |
+| Độ trễ trợ lý | p50 **8,6 s** · p95 **13,5 s** | [Cùng tệp kết quả LLM/RAG loại C](../../ai/evaluation/measurements/llm_rag_loai_c.json) |
+| Khởi động dịch vụ AI | 97,3 s → **19,0 s** | [Quy trình đo tại bước 8](../../ai/README.md) |
+| Kích thước ảnh AI | 9,29 GB → **2,74 GB** | [Cùng quy trình đo tại bước 8](../../ai/README.md) |
+| Test frontend | **118/118** | [Cấu hình và lệnh kiểm thử frontend](../../frontend/package.json) |
+| Test AI (mã + thước đo) | **386 + 128 đạt** (3 + 1 bỏ qua) | [Kiểm thử mã AI](../../ai/app) · [kiểm thử thước đo](../../ai/evaluation) |
 
 **Môi trường đo.** Toàn bộ số liệu trong bảng chốt tại tag
 [`v0.3.0`](https://github.com/Anpham120/restaurant-qr-ai-ordering/releases/tag/v0.3.0), đo ngày
@@ -1959,7 +1956,7 @@ vấn đáp.
 | Hình thức báo cáo — 10 % | Đúng cấu trúc, rõ ràng, không lỗi chính tả | Bìa, tóm tắt, mục lục, danh mục viết tắt, đánh số chương, chú thích hình, tài liệu tham khảo và phụ lục tái lập | Đã kiểm tra liên kết và cấu trúc Markdown; định dạng trang cuối cùng còn phụ thuộc công cụ xuất bản |
 | GitHub — Issues/Milestones | Issue có nhãn, phân công; milestone đầy đủ | §3.1.1–3.1.2; ảnh Hình 3.1–3.2; 46 issue, 42 có milestone, 44 có assignee | Bốn issue không có milestone và hai issue không có assignee đã được nêu rõ |
 | GitHub — Commits | Commit đều, thông điệp rõ | §3.1.3; Hình 3.3; 872 commit tại `v0.3.0` | Hoạt động trải theo các tuần; bảng đóng góp tách commit tác giả khỏi merge commit |
-| GitHub — Pull request / review | Có PR và code review | §2.5.5, §3.1.3; 377 PR, 305 đã merge; review CodeQL/Copilot có liên kết | Có review tự động tạo thay đổi mã; chưa có review chính thức từ thành viên khác được ghi trên GitHub |
+| GitHub — Pull request / review | Có PR và code review | §2.5.5, §3.1.3; 377 PR tại mốc chốt; CodeQL/Copilot; [PR #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426) có 4 `APPROVED` trước merge | Đã có bằng chứng human peer review trước merge ở cuối kỳ; không suy diễn cho toàn bộ lịch sử PR |
 | GitHub — Release/README/CI | Release gắn tag; README đầy đủ; có kiểm thử | §3.1.4–3.1.6; ba release; chín workflow; năm status check bắt buộc | Ruleset chỉ được bật ở giai đoạn cuối |
 | Phân tích nhu cầu | Product Vision, persona, scenario, user story, backlog, acceptance criteria | §1.2; §2.1.2–2.1.5; 3 persona, 3 scenario, 9 story và backlog 9 epic | Persona dựa trên khảo sát nhỏ; hai vai trò được suy luận gián tiếp |
 | Yêu cầu sản phẩm | Mục tiêu và phạm vi chức năng, phi chức năng rõ | §1.3; §2.2; 13 FR, 10 NFR có cách kiểm chứng | Một số NFR chưa có phép đo tải, coverage và a11y |
@@ -2003,7 +2000,7 @@ nhóm tập trung kiểm chứng các chức năng đã triển khai trước kh
 | 6 | **Ảnh Docker AI 2,74 GB** | Đánh đổi để có embedding chất lượng cao | Deploy chậm, tốn băng thông |
 | 7 | **Nhãn dị nguyên mới phủ 44/91 món**, và bảng nhãn **chưa được bếp xác nhận** | Cần audit thủ công phần còn lại, và cần người có chuyên môn về nguyên liệu đối chiếu | Cơ chế fail-closed khiến món thiếu nhãn bị loại khỏi gợi ý, nên rủi ro nghiêng về phía thu hẹp gợi ý chứ không phải gợi ý sai. Tuy nhiên **điều này không đủ để kết luận hệ thống an toàn về mặt y tế** — xem ghi chú bên dưới |
 | 8 | **Branch ruleset chỉ mới bật ở giai đoạn cuối** | Cần quyền admin repository, thu xếp được muộn | 377 pull request trước đó qua CI nhờ kỷ luật của nhóm chứ chưa nhờ cơ chế bắt buộc; ruleset chỉ bảo đảm cho các thay đổi sau thời điểm kích hoạt — xem mục [3.1.5](#315-branch-ruleset--biến-ci-từ-thói-quen-thành-cổng-chặn) |
-| 9 | **Chưa có human peer review được ghi nhận chính thức trên GitHub** | Các PR chủ yếu dựa vào tự kiểm tra, CI, CodeQL và Copilot review; nhóm chưa yêu cầu một thành viên khác gửi trạng thái `APPROVED` hoặc `CHANGES_REQUESTED` | Có bằng chứng review tự động nhưng thiếu dấu vết phản biện mã giữa các thành viên; không đáp ứng trọn vẹn phần code review của rubric |
+| 9 | **Human peer review mới được thiết lập ở giai đoạn cuối** | [PR #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426) có bốn `APPROVED` trước merge, nhưng 377 PR tại mốc `v0.3.0` chủ yếu dựa vào tự kiểm tra, CI, CodeQL và Copilot | Đáp ứng được bằng chứng review người cho quy trình bổ sung, nhưng không chứng minh toàn bộ lịch sử thay đổi đã được thành viên phản biện |
 
 > **Phạm vi của kết luận an toàn.** Các con số về dị nguyên trong báo cáo có nghĩa chính xác là:
 > *không ghi nhận lỗi trên tập ca đã công bố, với bảng nhãn hiện tại*. Chúng **không** chứng minh
@@ -2031,9 +2028,10 @@ tin cậy của toàn hệ thống.
 5. Kiểm thử tải trên staging, xác định trần số bàn đồng thời.
 6. Thiết lập báo cáo độ phủ cho frontend, backend và AI; công bố riêng phạm vi loại trừ và đặt
    ngưỡng tối thiểu theo module thay vì chỉ đưa một tỷ lệ tổng.
-7. Áp dụng human peer review cho các PR còn lại và thay đổi sau mốc báo cáo: tác giả không tự phê
-   duyệt; reviewer ghi nhận ít nhất một nhận xét kỹ thuật hoặc trạng thái `APPROVED`; PR mô tả cách
-   nhận xét đã được xử lý.
+7. Duy trì quy trình human peer review đã áp dụng tại
+   [PR #426](https://github.com/Anpham120/restaurant-qr-ai-ordering/pull/426) cho các thay đổi sau
+   mốc báo cáo: tác giả không tự phê duyệt; reviewer ghi nhận nhận xét cụ thể hoặc trạng thái
+   `APPROVED`; PR mô tả cách nhận xét đã được xử lý.
 8. Đưa các kiểm tra an ninh — `codeql`, `secret-scan`, `trivy-fs`, `dependency-review` — vào danh
    sách status check bắt buộc của ruleset. Hiện chúng có chạy trên mọi pull request nhưng **chưa
    chặn merge**, nên một cảnh báo bảo mật vẫn có thể bị bỏ qua nếu người review không để ý.
@@ -2061,8 +2059,8 @@ từ nhu cầu người dùng tới thiết kế, mã nguồn, kiểm thử và 
 Trong phạm vi dữ liệu đã công bố, các luồng lõi hoạt động trên môi trường triển khai và đạt kết quả
 kiểm thử nêu tại mục 5.2.2. Tuy nhiên, báo cáo chưa có cơ sở kết luận về hiệu quả vận hành thương
 mại, khả năng chịu tải hay an toàn y tế. Các kết luận đó đòi hỏi dữ liệu dị nguyên hoàn chỉnh, đánh
-giá người dùng, kiểm thử tải và thử nghiệm thực địa; khoảng trống human peer review cũng phải được
-xử lý trong quy trình GitHub tiếp theo.
+giá người dùng, kiểm thử tải và thử nghiệm thực địa. Human peer review đã được bổ sung ở PR #426;
+quy trình này cần tiếp tục được duy trì cho các thay đổi sau mốc báo cáo.
 
 ---
 
@@ -2070,55 +2068,64 @@ xử lý trong quy trình GitHub tiếp theo.
 
 ## 6.1. Sách và bài báo
 
-[1] I. Sommerville, *Engineering Software Products: An Introduction to Modern Software
+[[1]](https://www.pearson.com/en-gb/subject-catalog/p/engineering-software-products-an-introduction-to-modern-software-engineering-global-edition/P200000000587/9781292476308)
+I. Sommerville, *Engineering Software Products: An Introduction to Modern Software
 Engineering*. Pearson Education, 2020.
 
-[2] R. S. Pressman and B. R. Maxim, *Software Engineering: A Practitioner's Approach*, 9th ed.
+[[2]](https://www.mheducation.com/highered/product/Software-Engineering-A-Practitioners-Approach-Pressman.html)
+R. S. Pressman and B. R. Maxim, *Software Engineering: A Practitioner's Approach*, 9th ed.
 McGraw-Hill, 2020.
 
-[3] P. Lewis et al., “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,”
+[[3]](https://arxiv.org/abs/2005.11401)
+P. Lewis et al., “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,”
 *Advances in Neural Information Processing Systems*, 2020.
-[arXiv:2005.11401](https://arxiv.org/abs/2005.11401).
 
-[4] L. Wang et al., “Text Embeddings by Weakly-Supervised Contrastive Pre-training,” 2024.
-[arXiv:2212.03533](https://arxiv.org/abs/2212.03533).
+[[4]](https://arxiv.org/abs/2212.03533)
+L. Wang et al., “Text Embeddings by Weakly-Supervised Contrastive Pre-training,” 2024.
 
-[5] S. Robertson and H. Zaragoza, “The Probabilistic Relevance Framework: BM25 and Beyond,”
+[[5]](https://doi.org/10.1561/1500000019)
+S. Robertson and H. Zaragoza, “The Probabilistic Relevance Framework: BM25 and Beyond,”
 *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, 2009.
 
 ## 6.2. Tài liệu công nghệ
 
-[6] Microsoft, *ASP.NET Core documentation*.
-[https://learn.microsoft.com/aspnet/core](https://learn.microsoft.com/aspnet/core).
+[[6]](https://learn.microsoft.com/aspnet/core)
+Microsoft, *ASP.NET Core documentation*.
 
-[7] Microsoft, *Entity Framework Core documentation*.
-[https://learn.microsoft.com/ef/core](https://learn.microsoft.com/ef/core).
+[[7]](https://learn.microsoft.com/ef/core)
+Microsoft, *Entity Framework Core documentation*.
 
-[8] Microsoft, *ASP.NET Core SignalR documentation*.
-[https://learn.microsoft.com/aspnet/core/signalr](https://learn.microsoft.com/aspnet/core/signalr).
+[[8]](https://learn.microsoft.com/aspnet/core/signalr)
+Microsoft, *ASP.NET Core SignalR documentation*.
 
-[9] Meta, *React documentation*. [https://react.dev](https://react.dev).
+[[9]](https://react.dev)
+Meta, *React documentation*.
 
-[10] S. Ramírez, *FastAPI documentation*.
-[https://fastapi.tiangolo.com](https://fastapi.tiangolo.com).
+[[10]](https://fastapi.tiangolo.com)
+S. Ramírez, *FastAPI documentation*.
 
-[11] The PostgreSQL Global Development Group, *PostgreSQL 16 Documentation*.
-[https://www.postgresql.org/docs/16/](https://www.postgresql.org/docs/16/).
+[[11]](https://www.postgresql.org/docs/16/)
+The PostgreSQL Global Development Group, *PostgreSQL 16 Documentation*.
 
 ## 6.3. Tài liệu và mã nguồn của dự án
 
-[12] Nhóm 5 sinh viên, *CMC Restaurant — QR AI Ordering*, mã nguồn, tag `v0.3.0`, 2026.
-[GitHub repository](https://github.com/Anpham120/restaurant-qr-ai-ordering).
+[[12]](https://github.com/Anpham120/restaurant-qr-ai-ordering/tree/v0.3.0)
+Nhóm 5 sinh viên, *CMC Restaurant — QR AI Ordering*, mã nguồn tại tag `v0.3.0`, 2026.
 
-[13] *Phân tích và thiết kế hệ thống* — bản hợp nhất lập ở giai đoạn thiết kế, nay lưu trong `archive/` sau khi tài liệu được tổ chức lại theo bốn mảng. [docs/archive/SYSTEM_ANALYSIS_DESIGN.md](../archive/SYSTEM_ANALYSIS_DESIGN.md)
+[[13]](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/develop/docs/SYSTEM_ANALYSIS_DESIGN.md)
+*Phân tích và thiết kế hệ thống* — tài liệu hợp nhất lập ở giai đoạn phân tích và thiết kế.
 
-[14] *Hợp đồng API*. [docs/architecture/API_CONTRACT.md](../backend/API_CONTRACT.md)
+[[14]](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/develop/docs/API_CONTRACT.md)
+*Hợp đồng API*.
 
-[15] *Vận hành dịch vụ AI tư vấn đặt món*. [docs/ai/AI_OPERATIONS.md](../ai/AI_OPERATIONS.md)
+[[15]](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/develop/docs/ai/AI_PRODUCTION_OPERATIONS.md)
+*Vận hành dịch vụ AI tư vấn đặt món*.
 
-[16] *Tám bước dựng lại phần AI, mỗi bước kèm phép đo*. [ai/README.md](../../ai/README.md)
+[[16]](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/develop/ai/README.md)
+*Tám bước dựng lại phần AI, mỗi bước kèm phép đo*.
 
-[17] *Điểm vào toàn bộ tài liệu dự án*. [docs/README.md](../README.md)
+[[17]](https://github.com/Anpham120/restaurant-qr-ai-ordering/blob/develop/docs/README.md)
+*Điểm vào toàn bộ tài liệu dự án*.
 
 ---
 
