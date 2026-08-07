@@ -237,12 +237,21 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 522 cụm từ vựng và 91 tên món: **74 cụm bị chứa trong cụm khác**, **43 cụm nằm
-    trong tên món**, và hợp lại là **93 cụm có nguy cơ** (24 cụm thuộc cả hai). Cơ chế khớp cụm
-    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả 92 chỗ đó.
+    Kiểm kê trên 560 cụm từ vựng và 91 tên món: **83 cụm bị chứa trong cụm khác**, **47 cụm nằm
+    trong tên món**, và hợp lại là **103 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
+    dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả các chỗ đó.
 
-    Con số vừa GIẢM một, và đó là tin tốt: cụm `bo` một âm tiết bị bỏ khỏi từ vựng sau khi nó gây
-    lỗi hai lần ('bỏ hết điều kiện' -> thêm ràng buộc thịt bò).
+    Đợt tăng gần nhất (+38 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
+    48/85 nhãn không rút ra được từ tên tiếng Việt của nó. Bốn cụm mới có nguy cơ, và cả bốn đều
+    vô hại vì lý do KHÁC NHAU — nên chúng minh họa được cả hai lớp bảo vệ:
+
+        `cuon` ⊂ "bánh cuốn Thanh Trì"   tên món khớp TRƯỚC, câu đi nhánh `item_detail`
+        `tiem` ⊂ "gà tiềm thuốc bắc"     như trên, và nhãn cũng đúng nghĩa (món tiềm thật)
+        `rau`  ⊂ "nước rau má"           như trên, đi `item_detail` chứ không lọc theo nhãn
+        `calo` ⊂ `it calo`               cụm DÀI thắng — đúng điều được thiết kế để xảy ra
+
+    Cụm `bo` một âm tiết vẫn KHÔNG có trong từ vựng, sau khi nó gây lỗi ba lần: 'bỏ hết điều kiện'
+    -> thêm ràng buộc thịt bò, và lần thứ ba đo được là 'Quán có bỏ ớt được không?'.
 
     Ba cụm mới nhất — `pho`, `bun`, `com` — nằm trong CẢ HAI nhóm nguy cơ, và đó là lý do chúng
     minh họa cơ chế rõ nhất: `pho`⊂"Phở bò tái nạm" (tên món), `pho`⊂`pho bun` (cụm khác), và
@@ -264,7 +273,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 522, "trong_cum_khac": 80, "trong_ten_mon": 44, "co_rui_ro": 97},
+            {"tu_vung": 560, "trong_cum_khac": 83, "trong_ten_mon": 47, "co_rui_ro": 103},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -273,6 +282,33 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         request = ask("Nhóm năm người thì gọi gì?")
         self.assertIn("party:three_five", request.require_tags)
         self.assertNotIn("ingredient:mushroom", request.require_tags)
+
+    def test_TRONG_NAM_khong_thanh_nam_an(self):
+        """Cùng lớp lỗi với `năm người`, nhưng lọt vì cụm bảo vệ chỉ viết cho MỘT cách nói.
+
+        `mien nam` có cụm riêng nên nó thắng `nam` (nấm). "trong Nam" thì không, nên câu
+
+            "Mình thích vị ngọt kiểu trong Nam, gọi gì?"
+
+        rút ra `[flavour:sweet, ingredient:mushroom]` và trả về **Gà tiềm thuốc bắc** — một món
+        không ngọt, không miền Nam, và có nấm.
+
+        Bài học đưa vào test chứ không đưa vào lời văn: che một cách nói không che được cả nhóm
+        nghĩa. Ba cụm dưới đây là ba cách nói thường ngày về CÙNG một vùng.
+        """
+        for cau in ("Mình thích vị ngọt kiểu trong Nam, gọi gì?",
+                    "Người Nam thích ăn gì?",
+                    "Cho mình món kiểu Nam Bộ"):
+            with self.subTest(cau=cau):
+                r = ask(cau)
+                self.assertIn("region:south", r.require_tags)
+                self.assertNotIn("ingredient:mushroom", r.require_tags)
+
+    def test_nam_an_van_la_nam_an(self):
+        """Chiều ngược: thêm ba cụm miền Nam không được làm mất câu hỏi về nấm."""
+        r = ask("Món nào có nấm?")
+        self.assertIn("ingredient:mushroom", r.require_tags)
+        self.assertNotIn("region:south", r.require_tags)
 
     def test_mien_nam_khong_thanh_nam_an(self):
         request = ask("Có món miền Nam nào không?")
@@ -899,3 +935,80 @@ class CoConKhacCoCon(unittest.TestCase):
         for cau in ("đồ uống có cồn", "cho mình rượu bia", "thức uống có cồn"):
             with self.subTest(cau):
                 self.assertIn("cat_alcohol", understand(cau, ITEMS).categories)
+
+
+class TenMonSauTuLoaiTruLaMonBiLoai(unittest.TestCase):
+    """Khách nêu tên món để LOẠI nó ra, và hệ thống mời đúng món đó.
+
+    Ba cách nói, cả ba cùng sai một kiểu — đo trên hệ thống trước khi sửa:
+
+        "Muốn cái gì mát mà rẻ, không phải trà sữa"  ->  Trà sữa trân châu (45.000đ)
+        "Cho mình đồ uống, không phải trà sữa"       ->  Trà sữa trân châu
+        "Món nào cũng được, trừ trà sữa"             ->  Trà sữa trân châu
+
+    Đây là kiểu sai tệ hơn "không hiểu": hệ thống hiểu đủ để tra ra món, rồi mời đúng món khách
+    vừa từ chối. Nguyên nhân là bước 1 của `understand()` nhận tên món theo CHUỖI, không xét thứ
+    đứng trước nó — nên `không phải X` và `X` cho cùng kết quả.
+
+    Sửa bằng quan hệ VỊ TRÍ: tên món đứng trong 24 ký tự sau một từ loại trừ thì vào
+    `exclude_item_ids`. Cửa sổ có giới hạn vì loại trừ là quan hệ gần, không phải quan hệ cả câu.
+    """
+
+    def test_ten_mon_sau_tu_loai_tru_bi_loai(self):
+        for cau in ("Muốn cái gì mát mà rẻ, không phải trà sữa",
+                    "Cho mình đồ uống, không phải trà sữa",
+                    "Món nào cũng được, trừ trà sữa",
+                    "Mình không thích phở bò tái nạm, gợi ý món khác"):
+            with self.subTest(cau=cau):
+                r = understand(cau, ITEMS)
+                self.assertTrue(r.exclude_item_ids, "phải nhận ra món bị loại")
+                self.assertFalse(r.named_items, "và KHÔNG được coi là món khách hỏi")
+
+    def test_ten_mon_KHONG_dung_sau_tu_loai_tru_van_la_mon_duoc_hoi(self):
+        """Chiều ngược, và đây là chiều dễ hỏng nhất.
+
+        "trà sữa KHÔNG ĐƯỜNG" có chữ `không` ngay trước phần sau tên món, nhưng nó nói về CÁCH PHA
+        chứ không loại món. Đó là lý do `không` trần không nằm trong danh sách từ loại trừ.
+        """
+        for cau in ("Trà sữa trân châu bao nhiêu tiền?",
+                    "Cho mình trà sữa không đường",
+                    "Phở bò tái nạm có hải sản không?"):
+            with self.subTest(cau=cau):
+                r = understand(cau, ITEMS)
+                self.assertTrue(r.named_items, "phải nhận là món khách hỏi")
+                self.assertFalse(r.exclude_item_ids, "và KHÔNG được loại")
+
+
+class HoiDINHNGHIAVeNhanKhongPhaiLocTheoNhan(unittest.TestCase):
+    """Nhãn được nhắc tới là CHỦ THỂ của câu hỏi, không phải bộ lọc.
+
+    Golden qua stack thật bắt được ngay khi bảng từ vựng nhận thêm chính nhãn tiếng Việt:
+
+        "Nhãn 'ít calo' dựa trên gì?"  ->  require=[health:low_calorie]  ->  nhánh filter
+
+    Khách hỏi nhãn đó dựa trên gì và nhận về danh sách 6 món kèm thẻ giỏ. Câu trả lời đúng nằm
+    trong tài liệu — đánh giá CẢM QUAN của người nhập thực đơn — nên trả một danh sách món ở đây
+    là né đúng câu hỏi khó.
+
+    Và nó không dừng ở một lượt: ràng buộc sai vào BỘ NHỚ PHIÊN, nên lượt 3 của cùng hội thoại
+    cũng hỏng. Một lượt hiểu sai làm hỏng hai lượt — đó là lý do ca này ở đây thay vì chỉ ở golden.
+    """
+
+    def test_hoi_dinh_nghia_KHONG_sinh_rang_buoc_loc(self):
+        for cau in ("Nhãn 'ít calo' dựa trên gì?",
+                    "Nhãn healthy nghĩa là gì?",
+                    "Nhãn 'thanh nhẹ' căn cứ vào đâu?"):
+            with self.subTest(cau=cau):
+                r = ask(cau)
+                self.assertFalse(r.require_tags, "hỏi định nghĩa -> không được lọc theo nhãn")
+                self.assertFalse(r.prefer_tags)
+
+    def test_hoi_UNG_VIEN_van_sinh_rang_buoc_loc(self):
+        """Chiều ngược — chiều mà nới quy tắc sẽ phá."""
+        r = ask("Món nào ít calo?")
+        self.assertIn("health:low_calorie", r.require_tags)
+
+    def test_hoi_ve_MOT_MON_CU_THE_van_giu_nhan(self):
+        """Câu nêu TÊN MÓN cần nhãn để trả lời được, nên không bị bỏ ràng buộc."""
+        r = ask("Phở bò tái nạm có hải sản không?")
+        self.assertTrue(r.named_items)

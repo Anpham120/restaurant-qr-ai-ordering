@@ -1285,6 +1285,15 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
         or request.categories
         or request.budget_max is not None
         or khach_neu_wants
+        # LOẠI TRỪ MỘT MÓN CŨNG LÀ ĐÃ NÓI GÌ ĐÓ.
+        #
+        # "Món nào cũng được, trừ trà sữa" không nêu nhãn nào, nên trước dòng này nó rơi vào nhánh
+        # hỏi lại — và câu hỏi lại là "bạn muốn món ăn hay đồ uống", tức hỏi đúng điều khách vừa
+        # nói không quan trọng ("món nào cũng được").
+        #
+        # Khách nêu MỘT điều loại trừ là đủ để lọc: bỏ món đó ra rồi liệt kê phần còn lại. Đó là
+        # câu trả lời dùng được, còn hỏi lại thì không.
+        or request.exclude_item_ids
     )
     if not said_something:
         # 6b-truoc. Khách vừa bảo BỎ ràng buộc, và bỏ xong thì không còn gì để lọc.

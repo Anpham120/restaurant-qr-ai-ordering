@@ -86,7 +86,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
-  - 4.10 Bốn bước so sánh công bằng, và quyết định kiến trúc rút ra
+  - 4.10 Bốn bước so sánh công bằng, quyết định kiến trúc, và phần thi hành
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần
@@ -355,7 +355,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 2. Từ điển **85 nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
 3. Kho tri thức **109 tài liệu / 452 đoạn** (85 `synthesize`, 24 `verbatim`)
 4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
-5. Từ vựng tất định **522 cụm**, khớp trên chuỗi đã rút dấu
+5. Từ vựng tất định **560 cụm**, khớp trên chuỗi đã rút dấu
 6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
 
 > **Nghiệm thu:** hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**;
@@ -890,7 +890,7 @@ chứ không nới hàng rào xuống mức nguyên liệu.
 | | |
 |---|---|
 | **Phương án đã bỏ** | để mô hình đọc câu và tự sinh nhãn lọc |
-| **Nghe hợp lý vì** | 522 cụm từ vựng viết tay là rất nhiều công |
+| **Nghe hợp lý vì** | 560 cụm từ vựng viết tay là rất nhiều công |
 | **Đã chọn** | mã tất định chạy trước; mô hình chỉ được hỏi khi mã không chắc |
 
 **Ba lý do, và lý do thứ ba mới là lý do thật:**
@@ -1176,7 +1176,7 @@ hỏi khác nhau:
 **Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
 nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
 
-**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 522 cụm từ khóa. Khớp được cụm nào thì
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 560 cụm từ khóa. Khớp được cụm nào thì
 lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
 
 **Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
@@ -1378,7 +1378,7 @@ Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm t
 `fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
 chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
 
-**Bước 2 — Khớp cụm từ vựng.** Một bảng **522 cụm** ánh xạ chữ khách dùng sang nhãn:
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **560 cụm** ánh xạ chữ khách dùng sang nhãn:
 
 ```
 "khong cay | it cay | khong an duoc cay"   -> spice:none
@@ -2460,7 +2460,7 @@ nhánh khác** để làm đẹp một chỉ số dựa trên ý kiến của ch
 | 1 | **Không đầu tư thêm vào tối ưu kho tri thức** | hai can thiệp độc lập, Hit@1 giữ nguyên 60,87% |
 | 2 | **Dùng embedding, không dùng hybrid** | p = 0,8238 — hybrid không cải thiện đo được, mà tốn gấp đôi chi phí |
 | 3 | **Giữ cả hai lớp** | tất định + từ vựng đủ vẫn thua trên câu tri thức (12,00% so với 44,00%) và câu phân loại (53,06% so với 73,47%) |
-| 4 | **Đầu tư tiếp vào ĐỊNH TUYẾN, không vào truy hồi** | 13,92 điểm đang mất ở khâu chọn đường; định tuyến hoàn hảo đưa hệ thống lên 72,73% mà không cần đụng tới truy hồi |
+| 4 | **Đầu tư tiếp vào ĐỊNH TUYẾN, không vào truy hồi** | 13,92 điểm đang mất ở khâu chọn đường; định tuyến hoàn hảo đưa hệ thống lên 72,73% mà không cần đụng tới truy hồi. **Đã thi hành ở 4.10.6: 13,92 -> 5,78 điểm** |
 
 Tái lập bốn bước:
 
@@ -2469,6 +2469,148 @@ python ai/evaluation/build_ca_phu_kho.py      # sinh 98 ca phủ kho
 python ai/evaluation/run_phu_tu_vung.py --csv # tất định với từ vựng đủ
 python ai/evaluation/run_dau_loai.py --csv    # đấu loại ba bộ truy hồi
 python ai/evaluation/run_dinh_tuyen.py --csv  # chất lượng định tuyến
+```
+
+### 4.10.6 Bước 5 — thi hành quyết định số 4, và đo lại
+
+Bốn bước trên kết thúc bằng một quyết định: **đầu tư vào định tuyến**. Mục này là phần thi
+hành quyết định đó, và nó được viết ra vì một lý do phương pháp: một quyết định rút từ số
+liệu mà không ai thi hành thì không kiểm chứng được. Nếu sửa đúng chỗ thước đo chỉ ra mà
+con số không lên, thì chính thước đo mới là thứ cần xem lại.
+
+**Chẩn đoán.** Ba nhóm sai định tuyến, và nhóm lớn nhất không phải nhóm được dự đoán:
+
+| nhóm sai | số câu | nguyên nhân |
+|---|---:|---|
+| câu phân loại rơi vào `clarify` | 14 | hệ thống hỏi lại điều khách vừa nói |
+| câu tri thức bị nhánh lọc nuốt | 15 | hàng rào hai chiều chưa phủ hết |
+| câu chọn món rơi xuống truy hồi | 6 | không rút được nhãn nên không có gì để lọc |
+
+Nhóm 1 và nhóm 3 hóa ra **cùng một nguyên nhân**, và nguyên nhân đó đo được:
+
+> `menu-tags.json` có `label_vi` cho cả 85 nhãn, nhưng **48/85 nhãn (56,47%) không rút ra
+> được từ chính nhãn tiếng Việt của nó**. Hỏi *"Món nào ít calo?"* thì `require` rỗng.
+
+Đây là lớp `vocab_miss`: nhãn có, món có, chỉ thiếu đường nối. Bảng nhãn là thứ **người nhập
+liệu đọc khi gắn nhãn cho món**, nên nó cũng là cách nói tự nhiên nhất về nhóm món đó — bỏ
+qua nó là bỏ qua nguồn từ vựng sẵn có và đúng theo xây dựng.
+
+**Vì sao không sinh tự động cả 48 nhãn.** Vì tiếng Việt viết rời từng âm tiết, nên `bố trí`
+rút dấu thành hai **từ riêng** `bo` + `tri`. Phép kiểm biên từ vì thế không phân biệt được
+`bò` với `bố`, `bỏ`, `bộ`, `bỡ`. Nạp thử **từng cụm một** rồi chạy `understand()` trên **980
+câu hỏi của 8 tập đánh giá** cho thấy cụm trần hỏng ở đâu:
+
+| cụm trần | đụng chữ với | ví dụ hỏng |
+|---|---|---|
+| `bo` | bỏ, bố, bộ, bỡ | *"Em muốn **bỏ** một nguyên liệu ra"* thành đòi món bò |
+| `chua` | chưa | *"Mình **chưa** ăn ở đây bao giờ"* thành đòi món chua (4 câu) |
+| `ngot` | bột ngọt | *"Món nào không **bột ngọt**?"* thành đòi món ngọt — ngược nghĩa |
+| `beo` | sợ béo | *"Mình **sợ béo**, có gì ít dầu không?"* thành đòi món béo — ngược nghĩa |
+| `kho` | khô | *"món đảo **khô** trên chảo"* thành món kho |
+| `rang` | ràng buộc | *"Khi khách có **ràng** buộc thì ghép món thế nào?"* |
+| `nau` | nấu (động từ) | *"món này **nấu** bao lâu"* |
+| `quay` | quay lại | *"**quay** lại món ăn đi, cho mình món nướng"* |
+| `nong` | nồng | 5/5 câu đổi đều là *"**nồng** vị ớt"* — nhãn này bị bỏ hẳn |
+
+Ca tệ nhất không phải ca sai nhãn mà là ca **đổi ý định**: *"Trong bàn có người không dùng
+thịt thì **bố** trí thế nào?"* chuyển sang ý định `xoa_rang_buoc`, tức xóa luôn ràng buộc
+đang giữ — trong đó có ràng buộc dị nguyên.
+
+> Đây là lần thứ **11** rút dấu gây đụng chữ trong dự án, và là lần đầu nó bị bắt **trước**
+> khi vào mã. Mười lần trước đều bị phát hiện bằng một ca đỏ hoặc một câu trả lời sai.
+
+**Thi hành.** 31 cụm được nhận, chia hai nhóm: nhãn nhận nguyên văn (0/980 câu đổi sai), và
+nhãn phải kèm khung câu tiếng Việt thường ngày (`vị chua`, `kiểu kho`, `món rang`).
+
+**Kết quả, ghép cặp trên cùng danh sách câu hỏi:**
+
+| | trước | sau |
+|---|---:|---:|
+| câu chọn món đi đúng lớp | 86,00% | **100,00%** |
+| câu phân loại đi đúng lớp | 83,67% | **96,94%** |
+| câu tri thức đi đúng lớp | 60,00% | 58,00% |
+| **định tuyến đúng, toàn bộ** | **78,28%** | **87,88%** |
+| **chi phí sai định tuyến** | **13,92 điểm** | **5,78 điểm** |
+
+Kiểm định McNemar ghép cặp trên 183 câu hỏi chung: **13 ca được sửa, 1 ca đổi lớp**,
+p = 0,0018 — chênh lệch có ý nghĩa thống kê.
+
+Ca duy nhất đổi theo chiều ngược là *"Mình vừa đi Tây Nguyên về, thèm vị đó thì gọi gì?"*:
+trước đi truy hồi, giờ đi nhánh lọc và trả về Lẩu gà lá é Đà Lạt, Sinh tố bơ Đắk Lắk, Sinh
+tố dâu tây Đà Lạt. Theo khóa đáp án thì đó là một ca hỏng; theo nội dung câu trả lời thì đó
+là một danh sách đúng. Ca này **không được sửa khóa đáp án** — nó ở lại cột hỏng, vì nới
+khóa đáp án sau khi đã thấy kết quả là cách chắc chắn nhất để mất tính khách quan.
+
+Cũng theo chiều ngược, bộ hai chiều ghi nhận mã tất định trả lời đúng dạng trên chiều A đi
+từ 5/50 xuống 4/50: từ vựng rộng hơn làm lớp tất định **hăng hơn**, và cái giá là đôi khi
+nó nhận một câu tri thức. Đó là đánh đổi đã lường trước, và tỷ lệ đổi là 13 ăn 1.
+
+**Hai lỗi thật tìm ra trong lúc đo, và cả hai đáng hơn con số định tuyến:**
+
+*Lỗi 1 — `trong Nam` trả về món nấm.* `Nam` rút dấu thành `nam`, trùng `nấm`. Cụm `mien nam`
+có bảo vệ riêng, `trong Nam` thì không:
+
+```
+"Mình thích vị ngọt kiểu trong Nam, gọi gì?"
+    require = [flavour:sweet, ingredient:MUSHROOM]  ->  Gà tiềm thuốc bắc
+```
+
+Một món không ngọt, không miền Nam, và có nấm. Bài học: che **một cách nói** không che được
+cả nhóm nghĩa — cùng một vùng có nhiều cách gọi, và cụm bảo vệ phải phủ hết.
+
+*Lỗi 2 — tên món sau từ loại trừ vẫn được mời.* Ba cách nói, cả ba cùng sai một kiểu:
+
+```
+"Muốn cái gì mát mà rẻ, không phải trà sữa"  ->  Trà sữa trân châu (45.000đ)
+"Cho mình đồ uống, không phải trà sữa"       ->  Trà sữa trân châu
+"Món nào cũng được, trừ trà sữa"             ->  Trà sữa trân châu
+```
+
+Đây là kiểu sai **tệ hơn "không hiểu"**: hệ thống hiểu đủ để tra ra món, rồi mời đúng món
+khách vừa từ chối. Khách đọc câu đó sẽ kết luận trợ lý không nghe mình nói. Nguyên nhân là
+bước nhận tên món khớp theo **chuỗi** mà không xét thứ đứng trước, nên `không phải X` và `X`
+cho cùng kết quả. Sửa bằng quan hệ **vị trí**: tên món nằm trong 24 ký tự sau một từ loại trừ
+thì vào danh sách loại. Chiều ngược được chốt bằng test riêng — `trà sữa **không đường**` nói
+về cách pha chứ không loại món, nên `không` trần không nằm trong danh sách từ loại trừ.
+
+Cả hai lỗi đều **không do tập đánh giá bắt được**. Chúng lộ ra khi đọc câu trả lời thật của
+những ca mà thước đo đã chấm là sai định tuyến — tức giá trị của bộ đo này không chỉ nằm ở
+con số nó in ra, mà ở danh sách ca nó chỉ vào.
+
+**Và một lỗi do chính bản sửa gây ra, bị bộ golden bắt.** 405 test đơn vị, 140/140 ca trả
+lời, 149/149 lượt phiên đều xanh — nhưng bộ golden 103 lượt chạy qua stack thật báo **2 lượt
+đỏ**, cả hai trong cùng một hội thoại:
+
+```
+"Nhãn 'ít calo' dựa trên gì?"   ->  require=[health:low_calorie]  ->  6 món + thẻ giỏ
+"Món này có bột ngọt không?"    ->  thừa hưởng ràng buộc trên     ->  6 món + thẻ giỏ
+```
+
+Nhãn được nhắc tới là **chủ thể** của câu hỏi, không phải bộ lọc. Câu trả lời đúng nằm trong
+tài liệu — nhãn `ít calo` là đánh giá **cảm quan** của người nhập thực đơn, không phải kết
+quả phân tích — nên trả một danh sách món ở đây là né đúng câu hỏi khó, và né bằng một thứ
+trông giống câu trả lời.
+
+Điều đáng ghi hơn là **cách một lượt hỏng lây sang lượt khác**: ràng buộc sai ở lượt 1 đi vào
+bộ nhớ phiên, nên lượt 3 thừa hưởng nó và cũng hỏng. Một lượt hiểu sai làm hỏng hai lượt, và
+chỉ bộ đánh giá **đa lượt** thấy được quan hệ đó — bộ một lượt sẽ báo lượt 3 là lỗi riêng của
+lượt 3 và dẫn người sửa đi nhầm chỗ.
+
+Sửa bằng một quy tắc tất định: câu hỏi **định nghĩa** (`dựa trên gì`, `nghĩa là gì`, `căn cứ
+vào`) mà không đòi ứng viên và không nêu tên món thì bỏ ràng buộc lọc suy từ nhãn. Hai chiều
+còn lại được chốt bằng test riêng — *"Món nào ít calo?"* vẫn lọc, và *"Phở bò tái nạm có hải
+sản không?"* vẫn giữ nhãn vì nó cần nhãn để trả lời được.
+
+> **Điều rút ra về tầng đánh giá:** bốn tầng test bắt bốn loại lỗi khác nhau, và tầng nào
+> cũng có lỗi mà tầng khác không thấy. 405 test đơn vị không thấy lỗi này vì nó là lỗi *liên
+> lượt*; 140 ca trả lời không thấy vì chúng là ca *một lượt*; bộ định tuyến không thấy vì cả
+> hai lượt vẫn đi *đúng lớp theo khóa đáp án*. Chỉ bộ golden đa lượt qua stack thật thấy.
+
+Tái lập:
+
+```bash
+python -m unittest discover -s ai/app -p "test_*.py"   # 408 test
+python ai/evaluation/run_dinh_tuyen.py --csv
 ```
 
 ---

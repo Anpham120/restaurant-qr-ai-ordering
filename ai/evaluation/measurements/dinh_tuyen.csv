@@ -17,10 +17,10 @@ Quán này có gì hay mà mọi người hay hỏi?,tri thức,truy hồi,faq_e
 "Lần đầu tới đây, gọi kiểu gì cho khỏi bỡ ngỡ?",tri thức,truy hồi,first_visit,knowledge:first_visit,tra khóa,False
 Ăn xong muốn cái gì mát mát tự nhiên thì có không?,tri thức,truy hồi,fresh_fruit,knowledge_corpus:embedding,truy hồi,True
 "Mình người Bắc, ăn gì cho hợp khẩu vị quê?",tri thức,truy hồi,hanoi_and_north,filter,lọc nhãn,False
-"Mình vừa đi Tây Nguyên về, thèm vị đó thì gọi gì?",tri thức,truy hồi,highlands_danang,knowledge_corpus:embedding,truy hồi,True
+"Mình vừa đi Tây Nguyên về, thèm vị đó thì gọi gì?",tri thức,truy hồi,highlands_danang,filter,lọc nhãn,False
 Nhóm sáu người ăn nồi nào cho vừa?,tri thức,truy hồi,hotpot_choosing,knowledge_corpus:embedding,truy hồi,True
 "Mình ăn cay giỏi, muốn thử vị miền Trung thật đậm",tri thức,truy hồi,hue_and_central,filter,lọc nhãn,False
-"Muốn cái gì mát mà rẻ, không phải trà sữa",tri thức,truy hồi,juice_and_smoothie,item_detail,lọc nhãn,False
+"Muốn cái gì mát mà rẻ, không phải trà sữa",tri thức,truy hồi,juice_and_smoothie,filter,lọc nhãn,False
 "Buổi trưa đi làm về, ăn nhanh gọn thì set nào?",tri thức,truy hồi,meal_sets,knowledge_corpus:embedding,truy hồi,True
 Phở với bún với hủ tiếu thì khác nhau chỗ nào?,tri thức,truy hồi,noodle_soups,knowledge_corpus:embedding,truy hồi,True
 "Cả phòng mười hai người liên hoan, gọi sao cho đủ?",tri thức,truy hồi,ordering_guide,knowledge_corpus:embedding,truy hồi,True
@@ -77,16 +77,16 @@ Món nướng có những gì?,chọn món,lọc nhãn,phân loại,filter,lọc
 Món hấp có những gì?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món chiên có những gì?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món xào có những gì?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
-Món nào ít calo?,chọn món,lọc nhãn,phân loại,policy:nutrition,tra khóa,False
+Món nào ít calo?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào nhiều đạm?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
-Món nào thanh nhẹ?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
+Món nào thanh nhẹ?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào ít dầu mỡ?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào vị đậm đà?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
-Món nào vị chua?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
-Món nào vị ngọt?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
-Món nào vị béo?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
-Món nào vị thơm khói?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
-Món nào vị mặn?,chọn món,lọc nhãn,phân loại,knowledge_corpus:embedding,truy hồi,False
+Món nào vị chua?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
+Món nào vị ngọt?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
+Món nào vị béo?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
+Món nào vị thơm khói?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
+Món nào vị mặn?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào hợp hẹn hò?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào hợp tiếp khách?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
 Món nào hợp sinh nhật?,chọn món,lọc nhãn,phân loại,filter,lọc nhãn,True
@@ -99,32 +99,32 @@ Món miền Trung nào không cay?,chọn món,lọc nhãn,PHÉP HỘI,filter,l�
 Món nướng nào dưới 200 nghìn?,chọn món,lọc nhãn,PHÉP HỘI,filter,lọc nhãn,True
 "Mình dị ứng hải sản, món nào dưới 100 nghìn?",chọn món,lọc nhãn,PHÉP HỘI,filter,lọc nhãn,True
 Món chay nào không cay dưới 70 nghìn?,chọn món,lọc nhãn,PHÉP HỘI,filter,lọc nhãn,True
-Món nào vị béo?,phân loại,lọc nhãn hoặc truy hồi,flavour_fatty,knowledge_corpus:embedding,truy hồi,True
-"Mình đang thèm cái gì đó béo, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_fatty,clarify,khác:clarify,False
+Món nào vị béo?,phân loại,lọc nhãn hoặc truy hồi,flavour_fatty,filter,lọc nhãn,True
+"Mình đang thèm cái gì đó béo, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_fatty,filter,lọc nhãn,True
 Món nào vị đậm đà?,phân loại,lọc nhãn hoặc truy hồi,flavour_rich,filter,lọc nhãn,True
 "Mình đang thèm cái gì đó đậm đà, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_rich,filter,lọc nhãn,True
-Món nào vị mặn?,phân loại,lọc nhãn hoặc truy hồi,flavour_salty,knowledge_corpus:embedding,truy hồi,True
-"Mình đang thèm cái gì đó mặn, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_salty,clarify,khác:clarify,False
-Món nào vị thơm khói?,phân loại,lọc nhãn hoặc truy hồi,flavour_smoky,knowledge_corpus:embedding,truy hồi,True
-"Mình đang thèm cái gì đó thơm khói, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_smoky,clarify,khác:clarify,False
-Món nào vị chua?,phân loại,lọc nhãn hoặc truy hồi,flavour_sour,knowledge_corpus:embedding,truy hồi,True
-"Mình đang thèm cái gì đó chua, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_sour,clarify,khác:clarify,False
-Món nào vị ngọt?,phân loại,lọc nhãn hoặc truy hồi,flavour_sweet,knowledge_corpus:embedding,truy hồi,True
+Món nào vị mặn?,phân loại,lọc nhãn hoặc truy hồi,flavour_salty,filter,lọc nhãn,True
+"Mình đang thèm cái gì đó mặn, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_salty,filter,lọc nhãn,True
+Món nào vị thơm khói?,phân loại,lọc nhãn hoặc truy hồi,flavour_smoky,filter,lọc nhãn,True
+"Mình đang thèm cái gì đó thơm khói, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_smoky,filter,lọc nhãn,True
+Món nào vị chua?,phân loại,lọc nhãn hoặc truy hồi,flavour_sour,filter,lọc nhãn,True
+"Mình đang thèm cái gì đó chua, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_sour,filter,lọc nhãn,True
+Món nào vị ngọt?,phân loại,lọc nhãn hoặc truy hồi,flavour_sweet,filter,lọc nhãn,True
 "Mình đang thèm cái gì đó ngọt, gợi ý đi",phân loại,lọc nhãn hoặc truy hồi,flavour_sweet,filter,lọc nhãn,True
-Món nào healthy?,phân loại,lọc nhãn hoặc truy hồi,health_healthy,knowledge_corpus:embedding,truy hồi,True
-"Mình đang giữ dáng, muốn ăn kiểu healthy thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_healthy,knowledge_corpus:embedding,truy hồi,True
-Món nào giàu protein?,phân loại,lọc nhãn hoặc truy hồi,health_high_protein,knowledge_corpus:embedding,truy hồi,True
-"Mình đang giữ dáng, muốn ăn kiểu giàu protein thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_high_protein,knowledge_corpus:embedding,truy hồi,True
-Món nào thanh nhẹ?,phân loại,lọc nhãn hoặc truy hồi,health_light,knowledge_corpus:embedding,truy hồi,True
-"Mình đang giữ dáng, muốn ăn kiểu thanh nhẹ thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_light,knowledge_corpus:embedding,truy hồi,True
-Món nào ít calo?,phân loại,lọc nhãn hoặc truy hồi,health_low_calorie,policy:nutrition,tra khóa,False
-"Mình đang giữ dáng, muốn ăn kiểu ít calo thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_low_calorie,policy:nutrition,tra khóa,False
+Món nào healthy?,phân loại,lọc nhãn hoặc truy hồi,health_healthy,filter,lọc nhãn,True
+"Mình đang giữ dáng, muốn ăn kiểu healthy thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_healthy,filter,lọc nhãn,True
+Món nào giàu protein?,phân loại,lọc nhãn hoặc truy hồi,health_high_protein,filter,lọc nhãn,True
+"Mình đang giữ dáng, muốn ăn kiểu giàu protein thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_high_protein,filter,lọc nhãn,True
+Món nào thanh nhẹ?,phân loại,lọc nhãn hoặc truy hồi,health_light,filter,lọc nhãn,True
+"Mình đang giữ dáng, muốn ăn kiểu thanh nhẹ thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_light,filter,lọc nhãn,True
+Món nào ít calo?,phân loại,lọc nhãn hoặc truy hồi,health_low_calorie,filter,lọc nhãn,True
+"Mình đang giữ dáng, muốn ăn kiểu ít calo thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_low_calorie,filter,lọc nhãn,True
 Món nào ít dầu mỡ?,phân loại,lọc nhãn hoặc truy hồi,health_low_fat,filter,lọc nhãn,True
 "Mình đang giữ dáng, muốn ăn kiểu ít dầu mỡ thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_low_fat,filter,lọc nhãn,True
-Món nào không msg?,phân loại,lọc nhãn hoặc truy hồi,health_no_msg,knowledge_corpus:embedding,truy hồi,True
-"Mình đang giữ dáng, muốn ăn kiểu không msg thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_no_msg,knowledge_corpus:embedding,truy hồi,True
+Món nào không msg?,phân loại,lọc nhãn hoặc truy hồi,health_no_msg,filter,lọc nhãn,True
+"Mình đang giữ dáng, muốn ăn kiểu không msg thì chọn gì?",phân loại,lọc nhãn hoặc truy hồi,health_no_msg,filter,lọc nhãn,True
 Món nào có bò?,phân loại,lọc nhãn hoặc truy hồi,ingredient_beef,clarify,khác:clarify,False
-"Nhà mình thích ăn bò, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_beef,knowledge_corpus:embedding,truy hồi,True
+"Nhà mình thích ăn bò, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_beef,filter,lọc nhãn,True
 Món nào có gà?,phân loại,lọc nhãn hoặc truy hồi,ingredient_chicken,filter,lọc nhãn,True
 "Nhà mình thích ăn gà, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_chicken,filter,lọc nhãn,True
 Món nào có cua?,phân loại,lọc nhãn hoặc truy hồi,ingredient_crab,clarify,khác:clarify,False
@@ -141,30 +141,30 @@ Món nào có mực?,phân loại,lọc nhãn hoặc truy hồi,ingredient_squid
 "Nhà mình thích ăn mực, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_squid,knowledge_corpus:embedding,truy hồi,True
 Món nào có đậu hũ?,phân loại,lọc nhãn hoặc truy hồi,ingredient_tofu,item_detail,lọc nhãn,True
 "Nhà mình thích ăn đậu hũ, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_tofu,item_detail,lọc nhãn,True
-Món nào có rau?,phân loại,lọc nhãn hoặc truy hồi,ingredient_vegetable,knowledge_corpus:embedding,truy hồi,True
-"Nhà mình thích ăn rau, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_vegetable,knowledge_corpus:embedding,truy hồi,True
-Món Luộc có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_boiled,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu luộc, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_boiled,clarify,khác:clarify,False
-Món Kho có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_braised,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu kho, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_braised,clarify,khác:clarify,False
+Món nào có rau?,phân loại,lọc nhãn hoặc truy hồi,ingredient_vegetable,filter,lọc nhãn,True
+"Nhà mình thích ăn rau, quán có món nào không?",phân loại,lọc nhãn hoặc truy hồi,ingredient_vegetable,filter,lọc nhãn,True
+Món Luộc có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_boiled,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu luộc, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_boiled,filter,lọc nhãn,True
+Món Kho có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_braised,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu kho, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_braised,filter,lọc nhãn,True
 Món Chiên có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_fried,filter,lọc nhãn,True
 "Mình muốn món chế biến kiểu chiên, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_fried,filter,lọc nhãn,True
 Món Nướng có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_grilled,filter,lọc nhãn,True
 "Mình muốn món chế biến kiểu nướng, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_grilled,filter,lọc nhãn,True
-Món Rang có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_roasted,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu rang, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_roasted,clarify,khác:clarify,False
-Món Cuốn có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_rolled,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu cuốn, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_rolled,clarify,khác:clarify,False
-Món Nấu có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_simmered,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu nấu, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_simmered,clarify,khác:clarify,False
+Món Rang có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_roasted,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu rang, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_roasted,filter,lọc nhãn,True
+Món Cuốn có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_rolled,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu cuốn, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_rolled,filter,lọc nhãn,True
+Món Nấu có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_simmered,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu nấu, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_simmered,filter,lọc nhãn,True
 Món Hấp có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_steamed,filter,lọc nhãn,True
 "Mình muốn món chế biến kiểu hấp, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_steamed,filter,lọc nhãn,True
-Món Tiềm có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_stewed,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu tiềm, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_stewed,clarify,khác:clarify,False
+Món Tiềm có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_stewed,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu tiềm, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_stewed,filter,lọc nhãn,True
 Món Xào có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_stir_fried,filter,lọc nhãn,True
 "Mình muốn món chế biến kiểu xào, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_stir_fried,filter,lọc nhãn,True
-Món Quay có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_whole_roast,knowledge_corpus:embedding,truy hồi,True
-"Mình muốn món chế biến kiểu quay, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_whole_roast,clarify,khác:clarify,False
+Món Quay có những gì?,phân loại,lọc nhãn hoặc truy hồi,method_whole_roast,filter,lọc nhãn,True
+"Mình muốn món chế biến kiểu quay, gợi ý giúp mình",phân loại,lọc nhãn hoặc truy hồi,method_whole_roast,filter,lọc nhãn,True
 Món nào hợp tiệc?,phân loại,lọc nhãn hoặc truy hồi,occasion_banquet,filter,lọc nhãn,True
 "Nhóm mình sắp đi tiệc, nên gọi món gì?",phân loại,lọc nhãn hoặc truy hồi,occasion_banquet,filter,lọc nhãn,True
 Món nào hợp sinh nhật?,phân loại,lọc nhãn hoặc truy hồi,occasion_birthday,filter,lọc nhãn,True
@@ -175,15 +175,15 @@ Món nào hợp hẹn hò?,phân loại,lọc nhãn hoặc truy hồi,occasion_d
 "Nhóm mình sắp đi hẹn hò, nên gọi món gì?",phân loại,lọc nhãn hoặc truy hồi,occasion_date,filter,lọc nhãn,True
 Món nào hợp nhậu?,phân loại,lọc nhãn hoặc truy hồi,occasion_drinking,filter,lọc nhãn,True
 "Nhóm mình sắp đi nhậu, nên gọi món gì?",phân loại,lọc nhãn hoặc truy hồi,occasion_drinking,filter,lọc nhãn,True
-Món nào hợp hàng ngày?,phân loại,lọc nhãn hoặc truy hồi,occasion_everyday,knowledge_corpus:embedding,truy hồi,True
-"Nhóm mình sắp đi hàng ngày, nên gọi món gì?",phân loại,lọc nhãn hoặc truy hồi,occasion_everyday,knowledge_corpus:embedding,truy hồi,True
+Món nào hợp hàng ngày?,phân loại,lọc nhãn hoặc truy hồi,occasion_everyday,filter,lọc nhãn,True
+"Nhóm mình sắp đi hàng ngày, nên gọi món gì?",phân loại,lọc nhãn hoặc truy hồi,occasion_everyday,filter,lọc nhãn,True
 Có món Miền Trung nào không?,phân loại,lọc nhãn hoặc truy hồi,region_central,filter,lọc nhãn,True
 "Mình nhớ vị quê miền trung, ăn gì cho giống?",phân loại,lọc nhãn hoặc truy hồi,region_central,filter,lọc nhãn,True
 Có món Đà Nẵng nào không?,phân loại,lọc nhãn hoặc truy hồi,region_danang,filter,lọc nhãn,True
 "Mình nhớ vị quê đà nẵng, ăn gì cho giống?",phân loại,lọc nhãn hoặc truy hồi,region_danang,filter,lọc nhãn,True
 Có món Hà Nội nào không?,phân loại,lọc nhãn hoặc truy hồi,region_hanoi,filter,lọc nhãn,True
 "Mình nhớ vị quê hà nội, ăn gì cho giống?",phân loại,lọc nhãn hoặc truy hồi,region_hanoi,filter,lọc nhãn,True
-Có món Tây Nguyên nào không?,phân loại,lọc nhãn hoặc truy hồi,region_highlands,knowledge_corpus:embedding,truy hồi,True
+Có món Tây Nguyên nào không?,phân loại,lọc nhãn hoặc truy hồi,region_highlands,filter,lọc nhãn,True
 "Mình nhớ vị quê tây nguyên, ăn gì cho giống?",phân loại,lọc nhãn hoặc truy hồi,region_highlands,filter,lọc nhãn,True
 Có món Hội An nào không?,phân loại,lọc nhãn hoặc truy hồi,region_hoian,filter,lọc nhãn,True
 "Mình nhớ vị quê hội an, ăn gì cho giống?",phân loại,lọc nhãn hoặc truy hồi,region_hoian,filter,lọc nhãn,True
