@@ -86,6 +86,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
+  - 4.10 Bốn bước so sánh công bằng, và quyết định kiến trúc rút ra
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần
@@ -2283,6 +2284,195 @@ hơn thực tế** — đúng hướng mà người đo có động cơ không k
 giả thuyết "hệ thống sai"**.
 
 Bảng đầy đủ 100 câu: `ai/evaluation/measurements/hai_chieu.csv`.
+
+## 4.10 Bốn bước so sánh công bằng, và quyết định kiến trúc rút ra
+
+Mục 4.9 so hai lớp trên 100 câu. Nhưng phép so đó còn ba chỗ có thể vặn, và mục này đóng
+cả ba theo đúng thứ tự — mỗi bước là một thí nghiệm riêng, có bộ chạy tái lập được.
+
+### 4.10.1 Bước 1 — kho tri thức đã tối ưu cho truy hồi chưa?
+
+**Chẩn đoán.** Đo độ tương đồng Jaccard trên tập từ giữa các tài liệu:
+
+| Nhóm | Jaccard trung bình | Cặp giống nhau ≥ 50% |
+|---|---:|---:|
+| `demo` (52 tài liệu viết tay) | **0,176** | 2/1.326 (0,2%) |
+| `derived` (57 tài liệu sinh) | **0,408** | **544/1.596 (34,1%)** |
+
+Cặp tệ nhất `occasion.birthday` ↔ `occasion.date` đạt **0,921** — chúng dùng chung **82/89
+từ**. Và **103/109 tài liệu có dưới 5 từ riêng**, trung vị bằng **0**.
+
+Nguyên nhân: phần văn xuôi của tài liệu `derived` là **một khuôn** với tên giá trị thay vào.
+Chỉ tên nhóm và danh sách món là khác.
+
+**Can thiệp.** Thêm mục *"Điều làm nhóm này khác"* — bốn sự thật suy từ dữ liệu, riêng cho
+từng giá trị: nhãn hay đi kèm, nhãn không bao giờ đi kèm, giá so với trung bình, món đại diện.
+
+**Kết quả — âm tính, và đã hoàn tác:**
+
+| | trước | sau |
+|---|---:|---:|
+| Jaccard trung bình | 0,408 | **0,453** *(tệ hơn)* |
+| `embedding` Hit@1 | 60,87% | **60,87%** *(y hệt)* |
+| `hybrid` Hit@1 | 52,17% | 58,70% |
+| `hybrid` cấm@5 | 7 | **8** *(tệ hơn)* |
+
+Jaccard **tệ hơn** vì mục mới thêm khoảng 40 từ khuôn mẫu **giống hệt nhau** vào mỗi tài
+liệu — phần chung tăng nhanh hơn phần riêng. Bài học: *thêm nội dung phân biệt bằng khuôn mẫu
+làm tài liệu **giống** nhau hơn*.
+
+Với bộ dùng thật (`embedding`) thì **không đổi gì**. Đây là **lần thứ hai** một can thiệp vào
+kho để Hit@1 ở đúng 60,87% — lần đầu là thí nghiệm tiêu đề ở mục 2.4.1.
+
+**Kết luận bước 1:** trần không nằm ở kho tri thức. Hai can thiệp độc lập, cùng một con số.
+
+### 4.10.2 Bước 2 — bộ đánh giá có phủ hết kho không?
+
+Chiều A của mục 4.9 phủ **36/85** tài liệu `synthesize`. Nghĩa là mọi con số về truy hồi được
+đo trên **43% kho**, và 49 tài liệu còn lại chưa có câu hỏi nào chạm tới.
+
+Điều đó nghiêm trọng hơn nó nghe: 49 tài liệu bỏ sót **chính là nhóm `derived`** có mức trùng
+lặp cao nhất — tức **phần khó nhất**. Đo phần dễ rồi kết luận cho cả kho là tự cho điểm.
+
+`build_ca_phu_kho.py` sinh **98 ca phủ 49 tài liệu còn lại**, mỗi tài liệu hai câu:
+
+| Dạng | Cách viết | Kỳ vọng |
+|---|---|---|
+| **A** | dùng đúng nhãn tiếng Việt của giá trị | BM25 nên thắng |
+| **B** | diễn đạt theo tình huống, không chứa nhãn | embedding nên thắng |
+
+Hai dạng làm tập **phân biệt được hai phương pháp** thay vì chỉ xếp hạng chúng. Một tập chỉ có
+dạng A sẽ kết luận *"BM25 đủ dùng"*; chỉ có dạng B sẽ kết luận ngược lại. Cả hai kết luận đó
+là **tạo tác của tập**, không phải tính chất của phương pháp.
+
+### 4.10.3 Bước 3 — đấu loại ba bộ truy hồi, rồi so quán quân với mã tất định
+
+Thứ tự quan trọng: so cả bốn cùng lúc thì không biết truy hồi thua vì bản thân nó kém hay vì
+chọn nhầm bộ. Chọn quán quân trước rồi mới so là loại được khả năng thứ hai.
+
+**Vòng 1 — ba bộ truy hồi trên 98 câu:**
+
+| Bộ | Hit@1 | Khoảng tin cậy 95% | ms/câu |
+|---|---:|:---:|---:|
+| **embedding** | **73,47%** | 63,96% – 81,20% | 60 |
+| hybrid | 71,43% | 61,81% – 79,43% | 60 |
+| bm25 | 31,63% | 23,27% – 41,38% | **1** |
+
+Quán quân là **embedding**: thắng BM25 với **p = 0,0000**, nhưng so với hybrid thì
+**p = 0,8238 — chưa đủ ý nghĩa**. Báo cáo do đó không kết luận embedding hơn hybrid; điều kết
+luận được là hybrid **không mang lại cải thiện đo được** trong khi tốn chi phí chạy cả hai bộ.
+
+**Vòng 2 — quán quân so với mã tất định, cùng 98 câu:**
+
+| Cấu hình | Đúng | Tỷ lệ | Khoảng tin cậy 95% |
+|---|---:|---:|:---:|
+| mã tất định (bảng từ vựng hiện tại) | 0/98 | **0,00%** | 0,00% – 3,77% |
+| mã tất định **+ từ vựng sinh đủ** | 52/98 | **53,06%** | 43,25% – 62,64% |
+| embedding | 72/98 | **73,47%** | 63,96% – 81,20% |
+
+Dòng đầu nói về **độ phủ từ vựng** — 49 tài liệu này không có cụm nào trong bảng thật. Dòng
+thứ hai mới nói về **cách tiếp cận**, và nó vẫn thua embedding với **McNemar p = 0,0066**.
+
+**Theo dạng câu — đây là bảng đáng nhớ nhất của mục này:**
+
+| Dạng | tất định + từ vựng đủ | bm25 | embedding | hybrid |
+|---|---:|---:|---:|---:|
+| **A** dùng đúng nhãn | 63,27% | 48,98% | 75,51% | **79,59%** |
+| **B** diễn đạt khác | 42,86% | **14,29%** | **71,43%** | 63,27% |
+| **chênh lệch** | −20,41 | **−34,69** | **−4,08** | −16,32 |
+
+BM25 **sụp** khi khách diễn đạt khác: 48,98% → 14,29%. Embedding gần như **giữ nguyên**:
+75,51% → 71,43%. Đây là minh chứng trực tiếp cho lập luận ở mục 2.2 — BM25 đếm từ chung, nên
+không có từ chung thì nó không có gì để đếm.
+
+Và hybrid **thắng embedding ở dạng A nhưng thua ở dạng B** — nó thừa hưởng cả điểm mạnh lẫn
+điểm yếu của BM25.
+
+**Phát hiện mới của bước này:** trên câu **phân loại**, mã tất định với từ vựng đủ đạt
+**53,06%** — cao hơn hẳn **12,00%** nó đạt trên câu **tri thức** (mục 4.9.4). Nghĩa là:
+
+> **Khoảng cách giữa hai lớp phụ thuộc LOẠI CÂU HỎI, không phải là hằng số.**
+
+### 4.10.4 Bước 4 — chất lượng ĐỊNH TUYẾN, và chi phí của việc đi nhầm lớp
+
+Phát hiện trên dẫn thẳng tới câu hỏi kiến trúc cuối cùng: *hệ thống có nhận ra loại câu hỏi
+trước khi chọn lớp không?* Nếu không thì việc mỗi lớp mạnh ở đâu là **vô nghĩa về mặt thực
+dụng** — câu hỏi sẽ vào nhầm lớp và mất phần lợi thế đó.
+
+| Tập | n | Lớp hợp lệ | Đi đúng | Tỷ lệ |
+|---|---:|---|---:|---:|
+| chọn món | 50 | lọc nhãn | 43/50 | **86,00%** |
+| tri thức | 50 | truy hồi | 30/50 | **60,00%** |
+| phân loại | 98 | **lọc nhãn hoặc truy hồi** | 82/98 | **83,67%** |
+| **tổng** | **198** | | 155/198 | **78,28%** |
+
+**Chi phí sai định tuyến:**
+
+```
+chọn món     trần 100,00%  ×  định tuyến đúng 86,00%  =  86,00%
+tri thức     trần  44,00%  ×  định tuyến đúng 60,00%  =  26,40%
+phân loại    trần  73,47%  ×  định tuyến đúng 83,67%  =  61,47%
+-----------------------------------------------------------------
+TRẦN ORACLE (định tuyến hoàn hảo)  :  72,73%
+ƯỚC LƯỢNG THẬT                     :  58,81%
+CHI PHÍ SAI ĐỊNH TUYẾN             :  13,92 điểm
+```
+
+Con số cuối **tách lỗi của lớp khỏi lỗi của bộ định tuyến**. Nó giải thích vì sao ba lần cải
+thiện kho tri thức đều không nhúc nhích: phần mất lớn nhất nằm ở khâu **chọn đường**, không ở
+khâu **tìm**. Cải thiện một bộ truy hồi đang bị định tuyến sai thì không cứu được gì.
+
+#### Bản đầu của phép đo này SAI, và cách phát hiện
+
+Bản đầu gán 98 câu phân loại là **"chỉ truy hồi mới đúng"**, vì mỗi câu có một tài liệu đích.
+Đo ra **32,65%** định tuyến đúng và **32,47 điểm** chi phí — con số nghe rất tệ, và suýt trở
+thành căn cứ để sửa bộ định tuyến.
+
+Kiểm hành vi thật trước khi sửa:
+
+```
+"Món nướng có những gì?"  ->  filter, 6 món, 6/6 mang method:grilled
+"Có món Huế nào không?"   ->  filter, 3 món, 3/3 mang region:hue
+```
+
+Nhánh lọc trả về **đúng món**. Khách hỏi *"món nướng có những gì"* thì một danh sách món nướng
+**là** câu trả lời đúng — tài liệu giàu thông tin hơn, nhưng danh sách không sai.
+
+Nên **khóa đáp án sai, không phải hệ thống sai**. Sau khi sửa khóa:
+
+| | trước | sau |
+|---|---:|---:|
+| Định tuyến đúng | 53,03% | **78,28%** |
+| Chi phí sai định tuyến | 32,47 điểm | **13,92 điểm** |
+
+Đây là **lần thứ chín** trong dự án mà lỗi nằm ở phép đo chứ không ở hệ thống, và lần này suýt
+tốn kém hơn các lần trước: tin vào con số 32,47 thì nhóm sẽ **đẩy 66 câu đang trả lời đúng sang
+nhánh khác** để làm đẹp một chỉ số dựa trên ý kiến của chính người đo.
+
+> **Nguyên tắc rút ra:** khi thước đo nói hệ thống sai ở quy mô lớn, kiểm hành vi thật trước khi
+> sửa. Một con số tệ bất thường thường là dấu hiệu của **khóa đáp án sai**, không phải của hệ
+> thống hỏng.
+
+### 4.10.5 Quyết định kiến trúc rút ra từ bốn bước
+
+| # | Quyết định | Bằng chứng |
+|---|---|---|
+| 1 | **Không đầu tư thêm vào tối ưu kho tri thức** | hai can thiệp độc lập, Hit@1 giữ nguyên 60,87% |
+| 2 | **Dùng embedding, không dùng hybrid** | p = 0,8238 — hybrid không cải thiện đo được, mà tốn gấp đôi chi phí |
+| 3 | **Giữ cả hai lớp** | tất định + từ vựng đủ vẫn thua trên câu tri thức (12,00% so với 44,00%) và câu phân loại (53,06% so với 73,47%) |
+| 4 | **Đầu tư tiếp vào ĐỊNH TUYẾN, không vào truy hồi** | 13,92 điểm đang mất ở khâu chọn đường; định tuyến hoàn hảo đưa hệ thống lên 72,73% mà không cần đụng tới truy hồi |
+
+Tái lập bốn bước:
+
+```bash
+python ai/evaluation/build_ca_phu_kho.py      # sinh 98 ca phủ kho
+python ai/evaluation/run_phu_tu_vung.py --csv # tất định với từ vựng đủ
+python ai/evaluation/run_dau_loai.py --csv    # đấu loại ba bộ truy hồi
+python ai/evaluation/run_dinh_tuyen.py --csv  # chất lượng định tuyến
+```
+
+---
+---
 
 ---
 ---
