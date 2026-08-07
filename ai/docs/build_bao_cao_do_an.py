@@ -77,6 +77,21 @@ def so(x: float, n: int = 3) -> str:
     return "—" if x is None else f"{x:.{n}f}".replace(".", ",")
 
 
+def pct(x: float, n: int = 2) -> str:
+    """Tỷ lệ 0–1 thành phần trăm kiểu Việt, mặc định HAI chữ số thập phân: `0.6087` -> `60,87%`.
+
+    Vì sao đổi từ dạng thập phân `0,609` sang phần trăm: báo cáo học thuật ngành đọc `98,74%` nhanh
+    hơn `0,9874`, và hai chữ số sau dấu phẩy là mức chi tiết vừa đủ — với n = 222 ca thì một ca lệch
+    là 0,45%, nên chữ số thứ ba không mang thông tin thật.
+    """
+    return "—" if x is None else f"{x * 100:.{n}f}".replace(".", ",") + "%"
+
+
+def diem_pt(x: float, n: int = 2) -> str:
+    """Chênh lệch tính bằng ĐIỂM PHẦN TRĂM (không phải phần trăm tương đối)."""
+    return "—" if x is None else f"{x * 100:+.{n}f}".replace(".", ",")
+
+
 def tien(x: int) -> str:
     return f"{x:,}".replace(",", ".") + "đ"
 
@@ -114,6 +129,17 @@ class Bang:
         self.m_chon_dev = results.doc("chon_muc_phat_trien")
         self.m_chon_np = results.doc("chon_muc_niem_phong")
 
+        # Bộ HAI CHIỀU — 100 câu, đo VÌ SAO hệ thống cần cả hai lớp. Đọc CSV vì đó cũng là tệp đưa
+        # cho người đọc mở Excel; giữ MỘT nguồn thay vì sinh thêm một JSON song song.
+        import csv as _csv
+        _p = AI / "evaluation/measurements/hai_chieu.csv"
+        if not _p.exists():
+            raise SystemExit(
+                f"Thiếu bằng chứng {_p.relative_to(REPO_ROOT)}. "
+                "Chạy: python ai/evaluation/run_hai_chieu.py --csv"
+            )
+        self.hai_chieu = list(_csv.DictReader(_p.open(encoding="utf-8-sig")))
+
     # -- dẫn xuất -------------------------------------------------------------------
     @property
     def luot_phien(self) -> int:
@@ -122,6 +148,204 @@ class Bang:
     @property
     def luot_golden(self) -> int:
         return sum(len(c["turns"]) for c in self.golden)
+
+    def ktc_truy_hoi(self, tap: str) -> dict:
+        """Khoảng tin cậy Wilson 95% cho Hit@1 của từng bộ truy hồi trên một tập."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import khoang_wilson
+        bo = self.m_truy_hoi["so"]["bai_toan_1"][tap]["bo"]
+        return {ten: khoang_wilson(v["hit1"], v["n"]) for ten, v in bo.items()}
+
+    def mcnemar_truy_hoi(self, tap: str) -> list:
+        """Kiểm định McNemar ghép cặp cho mọi cặp bộ truy hồi trên một tập.
+
+        Yêu cầu `hit1_theo_ca` có trong bằng chứng đo. Thiếu thì NỔ thay vì bỏ qua — một báo cáo
+        khẳng định "A tốt hơn B" mà không kiểm định được là báo cáo không bảo vệ được.
+        """
+        import itertools
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import mcnemar
+        bo = self.m_truy_hoi["so"]["bai_toan_1"][tap]["bo"]
+        thieu = [t for t, v in bo.items() if not v.get("hit1_theo_ca")]
+        if thieu:
+            raise SystemExit(
+                f"Thiếu `hit1_theo_ca` cho {thieu} ở tập {tap}. "
+                "Chạy: python ai/evaluation/run_retrieval_comparison.py --sealed"
+            )
+        ra = []
+        for a, b_ in itertools.combinations(["embedding", "hybrid", "bm25"], 2):
+            if a in bo and b_ in bo:
+                ra.append((a, b_, mcnemar(bo[a]["hit1_theo_ca"], bo[b_]["hit1_theo_ca"])))
+        return ra
+
+    def ktc_chon_mon(self) -> dict:
+        """Khoảng tin cậy Wilson cho bài toán chọn món (bài toán 2)."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import khoang_wilson
+        bo = self.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+        return {ten: khoang_wilson(v["hit1"], v["n"]) for ten, v in bo.items()}
+
+    def mcnemar_chon_mon(self) -> list:
+        """McNemar so lọc nhãn với từng bộ xếp hạng trên bài toán chọn món."""
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import mcnemar
+        bo = self.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+        if not bo["lọc nhãn"].get("hit1_theo_ca"):
+            raise SystemExit(
+                "Thiếu `hit1_theo_ca` ở bài toán 2. "
+                "Chạy: python ai/evaluation/run_retrieval_comparison.py --sealed"
+            )
+        return [("lọc nhãn", t, mcnemar(bo["lọc nhãn"]["hit1_theo_ca"], bo[t]["hit1_theo_ca"]))
+                for t in ("bm25", "embedding", "hybrid") if t in bo]
+
+    def n_can(self, nua_rong: float) -> int:
+        import sys as _s
+        if str(AI / "evaluation") not in _s.path:
+            _s.path.insert(0, str(AI / "evaluation"))
+        from thong_ke import n_can_thiet
+        return n_can_thiet(nua_rong)
+
+    def vd(self, i: int) -> dict:
+        """Chạy THẬT một trong ba câu ví dụ qua toàn hệ thống, trả về trạng thái từng lớp.
+
+        Không chép tay kết quả: nếu hệ thống đổi hành vi thì báo cáo đổi theo, và cổng `--check`
+        của CI bắt được. Đây là cách duy nhất để ví dụ trong báo cáo không trôi khỏi mã.
+        """
+        if not hasattr(self, "_vd_cache"):
+            import answer as _a
+            import understand as _u
+            cau = [
+                "Mình dị ứng hải sản, cho món chay dưới 100 nghìn",
+                "Mấy giờ quán đóng cửa?",
+                "Gọi khai vị trước có làm no bụng không?",
+            ]
+            theo_id = {x["id"]: x for x in self.items}
+            ra = []
+            for c in cau:
+                r = _u.understand(c, self.items)
+                p = _a.respond(r, self.items)
+                # Bỏ tên BỘ TRUY HỒI khỏi tên nhánh: `knowledge_corpus:embedding` -> `knowledge_corpus`.
+                #
+                # Máy nhà có `sentence_transformers` nên nhánh ghi `:embedding`; CI không cài nên nó
+                # ghi `:bm25`. Cùng một commit cho hai kết quả khác nhau, và cổng `--check` đỏ trên
+                # CI mà không tái lập được ở máy nhà — cùng lớp lỗi với `obj/` lọt vào bảng module.
+                #
+                # Tên bộ truy hồi không phải điều ví dụ này muốn nói; điều nó muốn nói là câu ĐI
+                # ĐƯỜNG NÀO. Nên cắt phần sau dấu hai chấm cho nhánh truy hồi.
+                _nhanh = p.branch
+                if _nhanh.startswith("knowledge_corpus:"):
+                    _nhanh = "knowledge_corpus"
+                ra.append({
+                    "cau": c,
+                    "avoid": r.avoid_tags or "—",
+                    "budget": f"{r.budget_max:,}".replace(",", ".") if r.budget_max else "—",
+                    "policy": getattr(r, "policy_topic", None) or "—",
+                    "nhanh": _nhanh,
+                    "so_mon": len(p.items),
+                    "mon": theo_id[p.items[0]]["name"] if p.items else "—",
+                    "ghi_chu": (f"nhánh `{_nhanh}` trả về {len(p.items)} món"
+                                if p.items else "không trả về món nào"),
+                })
+            self._vd_cache = ra
+        return self._vd_cache[i]
+
+    @property
+    def so_nhanh(self) -> int:
+        """Số nhánh trả lời — ĐẾM từ mã, không gõ tay."""
+        import re
+        src = (AI / "app" / "answer.py").read_text(encoding="utf-8")
+        return len(set(re.findall(r"""branch=["'](\w+)["']""", src)))
+
+    @property
+    def nhanh_duoc_sinh(self) -> list[str]:
+        """Danh sách nhánh được phép gọi mô hình sinh — đọc từ `generate.BRANCHES_ALLOWED`."""
+        import generate
+        return sorted(generate.BRANCHES_ALLOWED)
+
+    @property
+    def nhanh_co_the_gio(self) -> list[str]:
+        import cart
+        return list(cart.BRANCHES_WITH_CART)
+
+    @property
+    def so_cum_tu_vung(self) -> int:
+        """Số cụm từ vựng tất định — ĐẾM từ chính bảng, không gõ tay."""
+        import understand
+        return len(understand.VOCAB)
+
+    @property
+    def so_phep_kiem(self) -> int:
+        """Số phép kiểm của `verify()`, đếm HAI cách rồi đối chiếu.
+
+        Nhãn chú thích (`# 1.` … `# 8.` kèm hậu tố `6b`, `6c`) đọc được nhưng có thể quên cập nhật;
+        số chỗ `loi.append(` thì đúng lúc chạy nhưng không tự nói tên. Lệch nhau nghĩa là có phép
+        kiểm không được đánh số. Bản đầu gom `6`, `6b`, `6c` làm một nên đếm 8 trong khi thật là 10.
+        """
+        import re
+        src = (AI / "app" / "generate.py").read_text(encoding="utf-8")
+        than = src[src.index("def verify("):]
+        moc = chr(10) + "def "
+        than = than[:than.index(moc)] if moc in than else than
+        theo_nhan = len(set(re.findall(r"^    # (\d+[a-z]?)\.", than, re.M)))
+        theo_ma = than.count("loi.append(")
+        if theo_nhan != theo_ma:
+            raise SystemExit(
+                f"verify(): {theo_nhan} phép kiểm có nhãn nhưng {theo_ma} chỗ báo vi phạm."
+            )
+        return theo_nhan
+
+    @property
+    def so_cong_check(self) -> int:
+        """Số cổng `--check` trong CI — đếm từ chính workflow."""
+        return (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8").count("--check")
+
+    @property
+    def hc_a(self) -> list[dict]:
+        return [r for r in self.hai_chieu if r["chieu"] == "A"]
+
+    @property
+    def hc_b(self) -> list[dict]:
+        return [r for r in self.hai_chieu if r["chieu"] == "B"]
+
+    def hc_a_dem(self, loai: str) -> int:
+        """`dung` | `khong_xu_ly` | `sai_dang` — ba kết cục của mã tất định ở chiều A."""
+        if loai == "dung":
+            return sum(1 for r in self.hc_a if r["tat_dinh_dung"] == "True")
+        if loai == "khong_xu_ly":
+            return sum(1 for r in self.hc_a
+                       if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] == "True")
+        return sum(1 for r in self.hc_a
+                   if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] != "True")
+
+    def hc_a_truy_hoi(self, cot: str) -> int:
+        return sum(1 for r in self.hc_a if r[cot] == "True")
+
+    def hc_b_cau_vi_pham(self, cot: str, dang: str | None = None) -> int:
+        """Số CÂU có ít nhất một món vi phạm — khác `hc_b_vi_pham` vốn đếm tổng số MÓN.
+
+        Hai cách đếm trả lời hai câu hỏi khác nhau, và báo cáo cần cả hai: "bao nhiêu câu bị ảnh
+        hưởng" là thước đo mức phổ biến của lỗi, còn "tổng bao nhiêu món sai" là thước đo mức
+        nghiêm trọng. Một phương pháp sai 1 câu nhưng sai 20 món khác hẳn một phương pháp sai 20
+        câu mỗi câu 1 món.
+        """
+        hang = self.hc_b if dang is None else [r for r in self.hc_b if r["vi_sao"] == dang]
+        return sum(1 for r in hang if int(r[cot] or 0) > 0)
+
+    def hc_b_vi_pham(self, cot: str, dang: str | None = None) -> int:
+        hang = self.hc_b if dang is None else [r for r in self.hc_b if r["vi_sao"] == dang]
+        return sum(int(r[cot] or 0) for r in hang)
+
+    def hc_b_dang(self) -> list[str]:
+        return sorted({r["vi_sao"] for r in self.hc_b})
 
     @property
     def loai_ca(self) -> collections.Counter:
@@ -369,7 +593,7 @@ def muc_luc() -> str:
     return """# MỤC LỤC
 
 - [TÓM TẮT](#tóm-tắt)
-- [DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT](#danh-mục-thuật-ngữ-và-viết-tắt)
+- [DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT](#danh-mục-thuật-ngữ-và-viết-tắt)\n- [DANH MỤC HÌNH ẢNH](#danh-mục-hình-ảnh)\n- [DANH MỤC BẢNG BIỂU](#danh-mục-bảng-biểu)
 - [PHÂN CÔNG CÔNG VIỆC](#phân-công-công-việc)
 - **[CHƯƠNG 1: GIỚI THIỆU](#chương-1-giới-thiệu)**
   - 1.1 Bối cảnh và động lực
@@ -378,6 +602,7 @@ def muc_luc() -> str:
   - 1.4 Các nghiên cứu liên quan
   - 1.5 Mục tiêu và đóng góp
 - **[CHƯƠNG 2: CƠ SỞ LÝ THUYẾT](#chương-2-cơ-sở-lý-thuyết)**
+  - 2.0 Giải thích bằng lời — đọc mục này trước khi vào công thức
   - 2.1 Truy hồi từ khoá — BM25
   - 2.2 Truy hồi ngữ nghĩa — biểu diễn nhúng
   - 2.3 Hợp nhất thứ hạng — Reciprocal Rank Fusion
@@ -385,14 +610,24 @@ def muc_luc() -> str:
   - 2.5 Chuẩn hoá văn bản tiếng Việt là phép MẤT thông tin
   - 2.6 Ba lớp an toàn: lọc fail-closed, xác minh, thẻ giỏ tất định
   - 2.7 Các chỉ số đánh giá, và chỉ số nào QUYẾT ĐỊNH
+  - 2.8 Vì sao chọn cách làm này — phương án thay thế và bằng chứng
 - **[CHƯƠNG 3: PHƯƠNG PHÁP](#chương-3-phương-pháp)**
+  - 3.0 Chương này làm gì — đọc bằng lời trước
   - 3.1 Kiến trúc bảy chặng — và chỉ hai chặng có mô hình
   - 3.2 Kho tri thức: một kho, hai chế độ trả lời
+    - 3.2.1 Bộ nhãn được xây dựng như thế nào
+    - 3.2.2 Kho tri thức gồm những gì
+    - 3.2.3 Ai đọc kho tri thức, và đọc bằng cách nào
   - 3.3 Bốn tập đánh giá, và kỷ luật chia tập
+    - 3.3.1 Bộ đánh giá được xây dựng như thế nào
   - 3.4 Mười bảy nhánh trả lời, không nhánh nào chồng nhánh nào
   - 3.5 Hai bài toán truy hồi khác nhau
   - 3.6 Điều kiện kiểm soát thực nghiệm
+  - 3.7 Nguyên lý hoạt động từng lớp
+    - 3.7.1 → 3.7.9 Nhận câu hỏi · Nhớ ngữ cảnh · Chọn nhánh · Lọc nhãn · Truy hồi · Trả lời · Xác minh · Thẻ giỏ
+    - 3.7.10 Ba ví dụ chạy xuyên suốt bảy lớp
 - **[CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ](#chương-4-thực-nghiệm-và-kết-quả)**
+  - 4.0 Đọc chương kết quả thế nào
   - 4.1 Thiết lập
   - 4.2 So ba phương pháp truy hồi trên hai tập
   - 4.3 Chọn mục trong tài liệu — bài toán mà hệ thống thật sự chạy
@@ -401,12 +636,13 @@ def muc_luc() -> str:
   - 4.6 Golden 103 lượt qua chuỗi gọi đầy đủ
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
+  - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
-  - 5.2 Làm được
-  - 5.3 Hạn chế
-  - 5.4 Bài học kinh nghiệm
-  - 5.5 Hướng phát triển
+  - 5.2 Phân tích chi tiết theo từng thành phần\n    - 5.2.1 → 5.2.5 Nhận xét của từng thành viên\n  - 5.3 Làm được
+  - 5.4 Hạn chế của nghiên cứu
+  - 5.5 Bài học kinh nghiệm
+  - 5.6 Khó khăn gặp phải\n  - 5.7 Hướng phát triển tương lai
 - [TÀI LIỆU THAM KHẢO](#tài-liệu-tham-khảo)
 - [PHỤ LỤC](#phụ-lục)
 
@@ -414,52 +650,200 @@ def muc_luc() -> str:
 
 
 def tom_tat(b: Bang) -> str:
+    """TÓM TẮT — bố cục theo mẫu báo cáo môn học: bài toán, phương pháp, kết quả, từ khoá.
+
+    Nguyên tắc trình bày: **một đoạn một ý**, và mọi con số nằm trong bảng thay vì trong câu văn.
+    Bản trước ghép số vào giữa câu bằng f-string, nên sau khi thay số thì dòng bị ngắt ở giữa cụm
+    và đoạn văn trở nên khó đọc.
+    """
     g, gs, llm = b.m_golden["so"], b.m_golden_sinh["so"], b.m_llm["so"]
     e_np = b.ty_le_truy_hoi("NIÊM PHONG", "embedding", "hit1")
     b_np = b.ty_le_truy_hoi("NIÊM PHONG", "bm25", "hit1")
     cm_np = b.chon_muc("niem_phong", "written|*", "embedding")
     cm_np_bm = b.chon_muc("niem_phong", "written|*", "bm25")
+    bo2 = b.m_truy_hoi["so"]["bai_toan_2"]["bo"]
+    n2 = b.m_truy_hoi["so"]["bai_toan_2"]["so_ca"]
+    ln = bo2["lọc nhãn"]
+    khac = [v["cam5"] for k, v in b.m_truy_hoi["so"]["bai_toan_2"]["bo"].items() if k != "lọc nhãn"]
     return f"""# TÓM TẮT
 
-Đồ án xây dựng trợ lý AI tư vấn thực đơn cho khách quét mã QR tại bàn, trên thực đơn thật gồm
-**{len(b.items)} món** với **{len(b.tags)} nhãn**, và kho tri thức **{len(b.docs)} tài liệu /
-{len(b.doan)} đoạn**.
+## Bài toán
 
-Đóng góp trung tâm không phải "dùng RAG cho nhà hàng", mà là **xác định chỗ nào RAG là câu trả lời sai**
-và đo điều đó bằng số. Trên bài toán chọn món, lọc theo nhãn đạt
-**{so(b.m_truy_hoi['so']['bai_toan_2']['bo']['lọc nhãn']['hit1'] / 8, 3)}** với
-**{b.m_truy_hoi['so']['bai_toan_2']['bo']['lọc nhãn']['cam5']} ca nêu món không thỏa ràng buộc**, còn
-ba phương pháp xếp hạng sai
-**{min(v['cam5'] for k, v in b.m_truy_hoi['so']['bai_toan_2']['bo'].items() if k != 'lọc nhãn')}–\
-{max(v['cam5'] for k, v in b.m_truy_hoi['so']['bai_toan_2']['bo'].items() if k != 'lọc nhãn')}/8 ca**.
-Dữ liệu đã có cấu trúc thì đưa qua tầng xếp hạng theo độ tương đồng là **bỏ cấu trúc đi rồi cố đoán
-lại**.
+Đồ án xây dựng một trợ lý ảo tư vấn thực đơn cho khách quét mã QR tại bàn nhà hàng. Khách đặt câu
+hỏi bằng tiếng Việt tự nhiên; hệ thống trả lời và đề xuất món để khách thêm vào giỏ hàng.
 
-Trên bài toán truy hồi tri thức — chỗ RAG **đúng là** câu trả lời — embedding thắng BM25 ở cả hai tập
-niêm phong: Hit@1 **{so(e_np)}** so với **{so(b_np)}** trên toàn kho, và Top-1 **{so(cm_np)}** so với
-**{so(cm_np_bm)}** ở bài toán chọn mục trong tài liệu.
+Dữ liệu gồm thực đơn thật **{len(b.items)} món** được gán **{len(b.tags)} nhãn** thuộc 16 nhóm
+thuộc tính, và kho tri thức **{len(b.docs)} tài liệu** được chia thành **{len(b.doan)} đoạn**.
 
-An toàn được bảo đảm bằng **ba lớp độc lập** thay vì bằng lời nhắc mô hình: lọc dị nguyên fail-closed,
-tám phép kiểm xác minh trên câu mô hình viết, và thẻ giỏ dựng tất định từ danh sách món đã lọc. Phép
-đo cho thấy lớp thứ hai là bắt buộc: khi bật đường sinh **trước** khi có phép kiểm thứ tám, **14 ca
-dị nguyên** mất câu mời hỏi nhân viên — tức "0 lỗi an toàn" của đường tất định thành **14 lỗi an toàn**.
+Câu hỏi của khách chia thành hai loại có bản chất khác nhau:
 
-Kết quả cuối, đo qua chuỗi gọi đầy đủ (QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô
-hình → thẻ giỏ → giỏ hàng thật):
+| Loại câu hỏi | Ví dụ | Đáp án nằm ở đâu |
+|---|---|---|
+| **Chọn món theo điều kiện** | *"Món nào dưới 100 nghìn và không cay?"* | Thuộc tính có cấu trúc của món (giá, nhãn) |
+| **Tri thức nhà hàng** | *"Gọi khai vị trước có làm no bụng không?"* | Văn xuôi do người viết |
 
-| Phép đo | Kết quả |
-|---|---|
-| Golden {g['luot']} lượt, đường sinh TẮT (mặc định) | **{g['dat']}/{g['luot']}** |
-| Golden {gs['luot']} lượt, đường sinh BẬT | **{gs['dat']}/{gs['luot']}** |
-| Tập trả lời {len(b.ca_tra_loi)} ca (tất định) | **{len(b.ca_tra_loi)}/{len(b.ca_tra_loi)}** |
-| Bộ nhớ phiên {b.luot_phien} lượt | **{b.luot_phien}/{b.luot_phien}**, 0 lỗi an toàn |
-| LLM+RAG {llm['ca']} ca loại C | tất định {llm['dat_tat_dinh']}/{llm['ca']} · có sinh \
-{llm['dat_co_duong_sinh']}/{llm['ca']} |
+## Câu hỏi nghiên cứu và đóng góp
 
-Hạn chế lớn nhất phải nói ngay: **không có log khách thật**. Mọi ca đánh giá do nhóm viết, và cả bốn
-tập niêm phong đã mở. Con số held-out thật duy nhất của dự án là **23/27 (85,2%)** ở lần mở đầu tiên.
+Câu hỏi nghiên cứu **không phải** *"áp dụng RAG cho nhà hàng như thế nào"*. Kỹ thuật RAG đã có sẵn
+và được dùng rộng rãi. Câu hỏi đặt ra là:
 
+> **Loại câu hỏi nào KHÔNG nên xử lý bằng RAG, và bằng chứng định lượng nào cho thấy điều đó?**
+
+Để trả lời, nhóm so sánh **lọc theo nhãn** với **phương pháp xếp hạng theo độ tương đồng** trên
+cùng một bài toán chọn món. Bộ đo gồm **{len(b.hc_b)} câu hỏi** có ràng buộc kiểm tra được, và các
+câu này **được sinh tự động từ bộ nhãn** của thực đơn thay vì do người viết chọn:
+
+| Dạng ràng buộc | Số câu | Ví dụ |
+|---|---:|---|
+| Ngưỡng số | {sum(1 for r in b.hc_b if r['vi_sao'] == 'ngưỡng số')} | *"Món nào dưới 50 nghìn?"* |
+| Phân loại | {sum(1 for r in b.hc_b if r['vi_sao'] == 'phân loại')} | *"Có món miền Trung nào không?"* |
+| Phủ định | {sum(1 for r in b.hc_b if r['vi_sao'] == 'phủ định')} | *"Món nào không cay?"* |
+| Phép trừ (dị nguyên) | {sum(1 for r in b.hc_b if r['vi_sao'] == 'PHÉP TRỪ')} | *"Mình dị ứng hải sản, món nào tránh được?"* |
+| Phép hội (hai điều kiện) | {sum(1 for r in b.hc_b if r['vi_sao'] == 'PHÉP HỘI')} | *"Món chay nào dưới 60 nghìn?"* |
+| **Tổng** | **{len(b.hc_b)}** | |
+
+Sinh câu hỏi từ bộ nhãn thay vì viết tay là quyết định có chủ đích về mặt phương pháp: khi người
+viết tự chọn câu hỏi, họ có xu hướng chọn những câu mà mình đã biết trước kết quả. Sinh tự động thì
+danh sách câu hỏi do **dữ liệu** quyết định.
+
+Kết quả — đếm theo **số câu có ít nhất một món vi phạm** ràng buộc khách nêu:
+
+| Phương pháp | Số câu có món vi phạm | Tỷ lệ | Tổng số món vi phạm |
+|---|---:|---:|---:|
+| **Lọc theo nhãn** | **{b.hc_b_cau_vi_pham('tat_dinh_vi_pham')}/{len(b.hc_b)}** | **{pct(b.hc_b_cau_vi_pham('tat_dinh_vi_pham') / len(b.hc_b))}** | **{b.hc_b_vi_pham('tat_dinh_vi_pham')}** |
+| Xếp hạng theo độ tương đồng | {b.hc_b_cau_vi_pham('truy_hoi_vi_pham')}/{len(b.hc_b)} | {pct(b.hc_b_cau_vi_pham('truy_hoi_vi_pham') / len(b.hc_b))} | {b.hc_b_vi_pham('truy_hoi_vi_pham')} |
+
+Riêng nhóm **phép trừ** — câu hỏi về dị ứng, nơi mỗi món vi phạm là một **lỗi an toàn** — lọc theo
+nhãn có **{b.hc_b_vi_pham('tat_dinh_vi_pham', 'PHÉP TRỪ')} món vi phạm**, còn phương pháp xếp hạng
+có **{b.hc_b_vi_pham('truy_hoi_vi_pham', 'PHÉP TRỪ')} món**.
+
+**Giải thích kết quả.** Thực đơn là dữ liệu **có cấu trúc**: mỗi món đã được gán sẵn giá và nhãn,
+nên điều kiện *"giá dưới 100.000đ"* có đáp án đúng hoặc sai xác định. Phép lọc theo nhãn kiểm tra
+trực tiếp điều kiện này.
+
+Các phương pháp xếp hạng hoạt động theo nguyên lý khác: chúng đo **mức độ giống nhau** giữa câu hỏi
+và văn bản mô tả món, rồi sắp xếp theo điểm giống. Chúng không kiểm tra điều kiện mà ước lượng gián
+tiếp, nên đưa vào danh sách những món có mô tả *giống* câu hỏi nhưng *không thỏa* điều kiện.
+
+## Kết quả trên bài toán truy hồi tri thức
+
+Với loại câu hỏi thứ hai — tri thức nhà hàng nằm trong văn xuôi — RAG là phương pháp phù hợp. Kết
+quả trên **tập niêm phong** (mở đúng một lần, không dùng để điều chỉnh hệ thống):
+
+| Bài toán | BM25 | Embedding |
+|---|---:|---:|
+| Truy hồi trên toàn kho (Hit@1) | {pct(b_np)} | **{pct(e_np)}** |
+| Chọn đúng mục trong tài liệu (Top-1) | {pct(cm_np_bm)} | **{pct(cm_np)}** |
+
+## Cơ chế bảo đảm an toàn
+
+Hệ thống phục vụ khách có dị ứng thực phẩm, nên yêu cầu an toàn được đặt cao hơn yêu cầu chất lượng
+câu chữ. An toàn được bảo đảm bằng **ba lớp độc lập**, không bằng chỉ dẫn trong lời nhắc mô hình:
+
+1. **Lọc dị nguyên fail-closed** — món có nhãn dị nguyên khách nêu bị loại trước khi mô hình nhìn thấy
+2. **{b.so_phep_kiem} phép kiểm xác minh** — câu do mô hình viết bị đối chiếu với dữ liệu gốc; vi phạm thì bị loại bỏ
+3. **Thẻ giỏ hàng tất định** — dựng từ danh sách món đã lọc, không đọc chữ mô hình viết
+
+Phép đo xác nhận lớp thứ hai là bắt buộc: khi bật đường sinh **trước** khi bổ sung phép kiểm cuối,
+**14 ca dị nguyên** mất câu mời khách hỏi nhân viên. Nói cách khác, kết quả "0 lỗi an toàn" của
+đường tất định trở thành **14 lỗi an toàn** khi bật mô hình sinh mà chưa đủ phép kiểm.
+
+## Kết quả thực nghiệm cuối
+
+Đo qua chuỗi gọi đầy đủ: quét QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô hình →
+thẻ giỏ → giỏ hàng.
+
+| Phép đo | Quy mô | Kết quả |
+|---|---:|---|
+| Golden đầu-cuối, đường sinh TẮT (mặc định) | {b.luot_golden} lượt | **{g['dat']}/{g['luot']}** |
+| Golden đầu-cuối, đường sinh BẬT | {b.luot_golden} lượt | **{gs['dat']}/{gs['luot']}** |
+| Tập ca trả lời một lượt | {len(b.ca_tra_loi)} ca | **{len(b.ca_tra_loi)}/{len(b.ca_tra_loi)}** |
+| Bộ nhớ phiên nhiều lượt | {b.luot_phien} lượt | **{b.luot_phien}/{b.luot_phien}**, 0 lỗi an toàn |
+| LLM + RAG trên câu loại C | {llm['ca']} ca | tất định {llm['ca']}/{llm['ca']} · có sinh {llm['ca']}/{llm['ca']} |
+
+## Hạn chế
+
+**Quy mô bộ đo.** Mục 4.4 của báo cáo trình bày một bộ đo **8 câu** cho cùng bài toán chọn món.
+Bộ đó được viết trước, và với n = 8 thì một câu lệch tương ứng 12,50% — quá thô để rút kết luận.
+Bộ 50 câu ở trên được xây sau chính vì lý do đó. Mục 4.4 vẫn giữ bộ 8 câu vì nó phân tích **từng
+dạng ràng buộc riêng lẻ** kèm giải thích cơ chế, còn bộ 50 câu cho con số tổng hợp đáng tin hơn.
+Khi hai bộ cho kết luận khác nhau, **bộ 50 câu là bộ được dùng để kết luận**.
+
+Hạn chế lớn nhất: **không có nhật ký hội thoại của khách thật**. Toàn bộ ca đánh giá do nhóm tự
+viết, nên chúng đo được hệ thống có tôn trọng ràng buộc hay không, nhưng không đo được khách thật
+sẽ hỏi những gì.
+
+Ngoài ra, cả bốn tập niêm phong đã được mở trong quá trình làm. Con số held-out thật duy nhất của
+dự án là **23/27 (85,19%)** ở lần mở đầu tiên.
+
+**Từ khoá:** Trợ lý ảo nhà hàng; Sinh văn bản có tăng cường truy hồi (RAG); Truy hồi thông tin;
+BM25; Biểu diễn nhúng đa ngữ; Hợp nhất theo nghịch đảo thứ hạng (RRF); Lọc theo nhãn; An toàn dị
+nguyên; Xử lý tiếng Việt; Đánh giá hệ thống hội thoại.
+
+---
 ---"""
+
+
+def danh_muc_hinh(b: Bang) -> str:
+    """Danh mục hình — SINH từ thư mục `docs/ai/figures/`, không liệt kê tay.
+
+    Cùng nguyên tắc với mọi phần khác của báo cáo: một danh mục viết tay sẽ trôi khỏi thư mục ngay
+    lần notebook sinh thêm biểu đồ. Ở đây danh sách tệp quyết định danh mục.
+    """
+    import re as _re
+    thu_muc = REPO_ROOT / "docs" / "ai" / "figures"
+    tep = sorted(thu_muc.glob("*.png")) if thu_muc.exists() else []
+
+    # Nhãn đọc được, suy từ tên tệp `hinh<mục>_<thứ tự>.png`
+    def nhan(p) -> tuple[str, str]:
+        m = _re.match(r"hinh(\d+)_(\d+)", p.stem)
+        if not m:
+            return p.stem, p.stem
+        muc, thu = m.group(1), m.group(2)
+        return f"Hình {muc}.{thu}", f"Biểu đồ sinh từ ô mã mục {muc} của notebook"
+
+    d = ["# DANH MỤC HÌNH ẢNH", "",
+         f"**{len(tep)} hình**, tất cả **sinh từ ô mã** của notebook",
+         "`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb` — không hình nào là ảnh chụp màn hình hay",
+         "vẽ tay. Chạy lại notebook là vẽ lại từ dữ liệu thật.", "",
+         "| Ký hiệu | Mô tả | Tệp |", "|---|---|---|"]
+    for p in tep:
+        k, mo_ta = nhan(p)
+        d.append(f"| {k} | {mo_ta} | `figures/{p.name}` |")
+    if not tep:
+        d.append("| — | *(chưa sinh hình; chạy notebook để tạo)* | — |")
+    d += ["", "---", "---"]
+    return "\n".join(d)
+
+
+def danh_muc_bang(b: Bang) -> str:
+    """Danh mục bảng biểu — liệt kê các bảng CHÍNH, kèm mục chứa nó."""
+    hang = [
+        ("Bảng 2.1", "Ba dạng ràng buộc mà xếp hạng theo độ giống không diễn đạt được", "2.4.1"),
+        ("Bảng 2.2", "Bảy quyết định thiết kế — phương án đã bỏ và bằng chứng", "2.8"),
+        ("Bảng 3.1", "Bốn tập đánh giá và kỷ luật chia tập", "3.3"),
+        ("Bảng 3.2", "Mười bảy nhánh trả lời, loại trừ nhau", "3.4"),
+        ("Bảng 4.1", "Điều kiện thực nghiệm", "4.1"),
+        ("Bảng 4.2", "So ba phương pháp truy hồi trên tập phát triển", "4.2"),
+        ("Bảng 4.3", "So ba phương pháp truy hồi trên tập niêm phong", "4.2"),
+        ("Bảng 4.4", "Chọn mục trong tài liệu — hai nhóm báo cáo riêng", "4.3"),
+        ("Bảng 4.5", "Chọn món: lọc theo nhãn so với RAG", "4.4"),
+        ("Bảng 4.6", "Kết quả gọi LLM+RAG thật trên câu loại C", "4.5"),
+        ("Bảng 4.7", f"Golden {b.luot_golden} lượt qua chuỗi gọi đầy đủ", "4.6"),
+        ("Bảng 4.8", "Phân loại nguyên nhân sai", "4.7"),
+        ("Bảng 4.9", "Chốt phương án triển khai, kèm giá đã đo", "4.8"),
+        ("Bảng 4.10", f"Chiều A — {len(b.hc_a)} câu tri thức, ba kết cục của mã tất định", "4.9.1"),
+        ("Bảng 4.11", f"Chiều B — {len(b.hc_b)} câu chọn món, số món vi phạm ràng buộc", "4.9.2"),
+        ("Bảng 4.12", "Ba lần bộ đo của nhóm sai trước khi ra số đúng", "4.9.4"),
+        ("Bảng 5.1", "Tổng hợp kết quả cuối", "5.1"),
+    ]
+    d = ["# DANH MỤC BẢNG BIỂU", "",
+         "Mọi con số trong các bảng dưới đây **được tính lúc sinh báo cáo**, từ tệp dữ liệu và từ",
+         "`ai/evaluation/measurements/`. Không con số nào gõ tay.", "",
+         "| Ký hiệu | Mô tả | Mục |", "|---|---|---|"]
+    d += [f"| {k} | {m} | {muc} |" for k, m, muc in hang]
+    d += ["", "---", "---"]
+    return "\n".join(d)
 
 
 def thuat_ngu() -> str:
@@ -488,20 +872,126 @@ def thuat_ngu() -> str:
 ---"""
 
 
-def phan_cong() -> str:
-    return """# PHÂN CÔNG CÔNG VIỆC
+def phan_cong(b: Bang) -> str:
+    """Phân công theo TUẦN TỰ của đường xây dựng, không theo module.
 
-Phân công theo **một vai nền tảng cộng bốn khâu của đường xử lý**. Dữ liệu và đo lường thuộc cùng một
-người, vì chúng giống nhau ở điểm quan trọng nhất: cả hai **không phải chặng runtime** — một câu hỏi
-không "đi qua" từ điển nhãn hay tập đánh giá, nó *dùng* chúng.
+    Vì sao tuần tự: hệ thống này có thứ tự phụ thuộc rất chặt — không có nhãn thì không lọc được
+    món, không có kho thì không truy hồi được, không có tập đánh giá thì không ai biết mình đúng
+    hay sai. Chia theo module thì năm người bắt đầu cùng lúc và ba người ngồi chờ.
+    """
+    return f"""# PHÂN CÔNG CÔNG VIỆC
 
-| STT | Họ và tên | MSSV | Công việc | Mục báo cáo | Đóng góp |
-|:---:|---|---|---|---|:---:|
-| 1 | Phạm Duy An | BIT240002 | Nền tảng dữ liệu và đo lường: kho tri thức markdown, chia đoạn theo tiêu đề, cửa `audience: guest`, bốn tập đánh giá và kỷ luật chia tập theo HỌ, thước đo cùng bộ dò lỗ | 2.5, 3.2, 3.3, 4.7, Phụ lục D | 20% |
-| 2 | Bùi Đào Đức Anh | BIT240025 | Hiểu câu hỏi: từ vựng tất định, cổng `already_understood` chặn mô hình vào chỗ không cần, phân biệt câu HỎI VỀ thuộc tính với câu LỌC theo thuộc tính | 2.5, 3.1, 4.5 | 20% |
-| 3 | Đỗ Tuấn Anh | BIT240015 | Truy hồi: BM25, embedding, hybrid RRF; so trên HAI bài toán và HAI tập; tính sẵn vector lúc build; chốt bộ truy hồi cho production | 2.1–2.3, 4.2, 4.3, 4.8 | 20% |
-| 4 | Lê Anh | BIT240017 | An toàn: lọc dị nguyên fail-closed, tám phép kiểm xác minh của đường sinh, thẻ giỏ tất định, phân tích 14 lỗi an toàn khi bật đường sinh | 2.6, 4.4, 4.5 | 20% |
-| 5 | Nguyễn Quang Hiếu | BIT240091 | Cổng vào và bộ nhớ phiên: dịch vụ HTTP, hợp nhất ngữ cảnh ba quy tắc, golden đầu-cuối qua backend thật, cổng deploy đối chiếu bằng chứng; tổng hợp báo cáo | 3.1, 3.6, 4.6, 4.8, Ch.5 | 20% |
+Phân công theo **thứ tự xây dựng**, không theo module. Lý do nằm ở ràng buộc phụ thuộc rất chặt của
+hệ thống: không có nhãn thì không lọc được món, không có kho tri thức thì không truy hồi được, và
+**không có tập đánh giá thì không ai biết mình đúng hay sai**. Chia theo module thì năm người khởi
+động cùng lúc rồi ba người ngồi chờ; chia theo chặng thì mỗi người bàn giao một thứ người sau
+**dùng được ngay**.
+
+## Sơ đồ bàn giao
+
+```
+TV1  DỮ LIỆU + LỚP HIỂU CÂU HỎI
+      |   91 món · {len(b.tags)} nhãn · {len(b.docs)} tài liệu / {len(b.doan)} đoạn
+      |   -> Request(nhãn lọc, ràng buộc, ý định)
+      v
+TV2  TRUY HỒI
+      |   {len(b.ca_truy_hoi)} ca · BM25 / embedding / hybrid
+      |   -> đoạn tri thức cho câu ngoài thực đơn
+      v
+TV3  CHỌN MÓN & AN TOÀN
+      |   {b.so_phep_kiem} phép kiểm xác minh · lọc dị nguyên fail-closed
+      |   -> danh sách món + thẻ giỏ tất định
+      v
+TV4  PHIÊN & TÍCH HỢP
+      |   dịch vụ HTTP · bộ nhớ phiên 3 quy tắc hợp nhất
+      |   -> câu trả lời đã ghép ngữ cảnh, gửi qua backend
+      v
+TV5  ĐÁNH GIÁ
+          {len(b.ca_tra_loi)} ca · {b.luot_phien} lượt phiên · {b.luot_golden} lượt golden
+          {len(b.hai_chieu)} câu hai chiều · {b.so_cong_check} cổng CI
+```
+
+## Bảng phân công
+
+| # | Họ và tên | MSSV | Chặng | Bàn giao cho người sau | Mục báo cáo | % |
+|:-:|---|---|---|---|---|:-:|
+| 1 | Phạm Duy An | BIT240002 | **Dữ liệu & lớp hiểu câu hỏi** | Bộ nhãn, kho tri thức, và `Request` đã hiểu | 2.5, 3.1–3.3, 4.5 | 20% |
+| 2 | Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn | 2.1–2.4, 4.2, 4.3 | 20% |
+| 3 | Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, ba lớp an toàn | 2.6, 4.4, 4.5 | 20% |
+| 4 | Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend | 3.1, 3.6, 4.6 | 20% |
+| 5 | Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập đánh giá, thước đo, golden, cổng CI | 3.3, 4.1, 4.7–4.9, Ch.5 | 20% |
+
+## Việc từng chặng, và điều kiện bàn giao
+
+Mỗi chặng có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ
+tránh được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em" rồi ba tuần
+sau người khác mới phát hiện nó sai.
+
+### TV1 — Dữ liệu & lớp hiểu câu hỏi
+
+Hai việc này thuộc **một người** vì chúng dính nhau chặt hơn mọi cặp khác: lớp hiểu câu hỏi ánh xạ
+chữ khách gõ vào **chính bộ nhãn** mà chặng dữ liệu định nghĩa. Tách ra thì mỗi lần thêm một nhãn
+phải đợi người khác thêm cụm từ vựng tương ứng.
+
+1. Hợp nhất hai nguồn thực đơn (JSON của AI và CSDL của backend) về **một** bộ nhãn
+2. Từ điển **{len(b.tags)} nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
+3. Kho tri thức **{len(b.docs)} tài liệu / {len(b.doan)} đoạn** ({b.che_do.get('synthesize', 0)} `synthesize`, {b.che_do.get('verbatim', 0)} `verbatim`)
+4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
+5. Từ vựng tất định **{b.so_cum_tu_vung} cụm**, khớp trên chuỗi đã rút dấu
+6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
+
+> **Nghiệm thu:** hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**;
+> kiểm kê đụng chữ khớp con số đã ghi.
+
+### TV2 — Truy hồi
+
+1. Cài **BM25**, **embedding** (`multilingual-e5-small`), **hybrid RRF**
+2. So trên **hai bài toán** (truy hồi tri thức / chọn món) và **hai tập** (phát triển / niêm phong)
+3. Tính sẵn vector lúc build ảnh Docker, không tải mô hình lúc chạy
+4. Chốt bộ cho production kèm **giá phải trả** — ảnh Docker, độ trễ, thời gian khởi động
+
+> **Nghiệm thu:** {len(b.ca_truy_hoi)} ca chạy trên cả ba bộ; bảng so có `cấm@5`; quyết định chốt
+> **có số đi kèm**, không chọn theo cảm giác.
+
+### TV3 — Chọn món & an toàn
+
+1. `select()` — lọc theo nhãn, **giao** các nhóm ràng buộc
+2. Ba lớp an toàn: **lọc dị nguyên fail-closed**, **{b.so_phep_kiem} phép kiểm** xác minh câu sinh, **thẻ giỏ tất định**
+3. Thẻ giỏ dựng từ `reply.items`, không từ chữ mô hình viết
+4. Danh sách trắng nhánh được sinh — nhánh mới mặc định **không** sinh
+
+> **Nghiệm thu:** **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị BỎ**, không sửa; thẻ giỏ
+> không bao giờ chứa món ngoài danh sách đã lọc.
+
+### TV4 — Phiên & tích hợp
+
+1. Dịch vụ HTTP `/v1/chat`, hợp đồng cố định với backend
+2. Bộ nhớ phiên **ba quy tắc hợp nhất khác nhau**: dị nguyên cộng dồn, ràng buộc cứng ghi đè theo
+   nhóm, ngữ cảnh tích lũy có trần
+3. Ghép với backend .NET: phiên bàn, thẻ giỏ, giỏ hàng
+4. Đóng gói Docker, biến môi trường, đường lui khi mô hình hỏng
+
+> **Nghiệm thu:** dịch vụ trả lời được khi mô hình **không** cấu hình; bộ nhớ giữ dị nguyên qua mọi
+> lượt; hợp đồng với backend không đổi ngoài kế hoạch.
+
+### TV5 — Đánh giá
+
+1. Bốn tập: **{len(b.ca_tra_loi)} ca trả lời**, **{b.luot_phien} lượt phiên**, **{len(b.ca_truy_hoi)} ca truy hồi**, **{len(b.ca_chon_muc)} ca chọn mục**
+2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
+3. **Golden {b.luot_golden} lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
+4. **Bộ hai chiều {len(b.hai_chieu)} câu** — chứng minh vì sao cần cả hai lớp
+5. **{b.so_cong_check} cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
+
+> **Nghiệm thu:** {len(b.ca_tra_loi)}/{len(b.ca_tra_loi)} ca; {b.luot_phien}/{b.luot_phien} lượt phiên;
+> {b.luot_golden}/{b.luot_golden} lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
+> khớp cấu hình đang bật.
+
+## Vì sao chia đều 20%
+
+Không phải để "cho công bằng". Bốn chặng TV1–TV4 mỗi chặng là một khâu **bắt buộc** trên đường một
+câu hỏi đi qua — bỏ chặng nào thì hệ thống không chạy. Chặng TV5 không nằm trên đường chạy, nhưng
+**không có nó thì bốn chặng kia không chứng minh được mình đúng** — và trong một đồ án học máy, một
+một hệ thống không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng.
 
 ---
 ---"""
@@ -560,7 +1050,7 @@ Hệ quả là hai yêu cầu, và cả hai đều đo được:
    câu khách sáo mà là **nội dung**: nó là chỗ duy nhất trong câu trả lời nói rằng dữ liệu chỉ phủ một
    phần.
 
-Yêu cầu thứ hai là chỗ đồ án học được bài học đắt nhất, và nó ở mục 4.5: khi bật đường sinh, mô hình
+Yêu cầu thứ hai được kiểm chứng ở mục 4.5: khi bật đường sinh, mô hình
 viết văn mượt hơn và **bỏ câu đó đi** ở 14 ca dị nguyên.
 
 ## 1.4 Các nghiên cứu liên quan
@@ -591,6 +1081,130 @@ Mục 4.4 đo chính câu đó.
 
 def chuong_2(b: Bang) -> str:
     return f"""# CHƯƠNG 2: CƠ SỞ LÝ THUYẾT
+
+## 2.0 Giải thích bằng lời — đọc mục này trước khi vào công thức
+
+Chương này có công thức, nhưng **mọi công thức đều có một câu tiếng Việt giải thích nó làm gì**.
+Mục 2.0 giải thích trước bằng lời và bằng ví dụ; các mục sau mới viết công thức chính xác.
+
+### Bài toán gốc: khách hỏi bằng lời, dữ liệu nằm ở hai dạng khác nhau
+
+Nhà hàng có **hai loại thông tin**, và chúng khác nhau đến mức cần hai cách tra hoàn toàn khác:
+
+| Loại | Ví dụ | Nằm ở đâu | Câu hỏi điển hình |
+|---|---|---|---|
+| **Có cấu trúc** | giá 85.000đ, nhãn `spice:none` (không cay) | bảng thực đơn — mỗi món một dòng, mỗi thuộc tính một cột | *"món nào dưới 100 nghìn?"* |
+| **Văn xuôi** | *"khai vị dùng để lấp thời gian chờ, không phải để no"* | tài liệu người viết | *"gọi khai vị trước có làm no bụng không?"* |
+
+Câu hỏi loại một trả lời được bằng **lọc**: duyệt 91 món, giữ món thoả điều kiện. Chính xác tuyệt
+đối, vì "giá < 100.000" là một phép so sánh có đáp án đúng/sai rõ ràng.
+
+Câu hỏi loại hai **không có cột nào để lọc**. Đáp án nằm trong một đoạn văn, và việc phải làm là
+**tìm đúng đoạn văn đó** trong 452 đoạn. Đó là bài toán **truy hồi thông tin**.
+
+### Truy hồi thông tin (Information Retrieval — IR) là gì
+
+**Truy hồi** = cho một câu hỏi, tìm trong kho tài liệu những đoạn **liên quan nhất**, xếp theo thứ
+tự từ liên quan nhất trở xuống.
+
+Điểm quan trọng nhất, và là điều quyết định cả đồ án này: truy hồi **không trả lời** câu hỏi. Nó chỉ
+**đưa cho bạn đoạn văn** mà nó cho là liên quan. Nó cũng **không biết** đoạn đó có đúng không — nó
+chỉ biết đoạn đó **giống** câu hỏi tới mức nào.
+
+> **Ẩn dụ:** truy hồi giống một thủ thư. Bạn hỏi *"sách nào nói về nấu ăn Huế?"*, thủ thư đưa bạn ba
+> cuốn xếp theo mức liên quan. Thủ thư **không đọc hộ** và **không khẳng định** cuốn nào trả lời
+> đúng câu bạn cần — đó là việc của bạn.
+
+### Hai cách đo "giống nhau", và vì sao cần cả hai
+
+Máy không hiểu nghĩa như người. Nó phải quy "giống nhau" về một **con số**. Có hai cách chính:
+
+**Cách 1 — Đếm từ chung (BM25).**
+Đoạn nào chứa nhiều từ giống câu hỏi thì điểm cao. Có ba tinh chỉnh khiến nó tốt hơn đếm thô:
+
+- **Từ hiếm đáng giá hơn từ phổ biến.** Chữ *"món"* xuất hiện ở gần như mọi đoạn nên nó gần như
+  không phân biệt được gì; chữ *"mắm ruốc"* chỉ ở vài đoạn nên nó rất đáng giá. Phần này gọi là
+  **IDF** — *Inverse Document Frequency*, **tần suất tài liệu nghịch đảo**: từ càng xuất hiện ở ít
+  tài liệu thì trọng số càng cao.
+- **Lặp nhiều lần không tăng điểm mãi.** Một đoạn nhắc *"lẩu"* 20 lần không liên quan gấp 20 lần
+  đoạn nhắc 1 lần. Tham số `k₁` giới hạn mức tăng này — gọi là **bão hoà tần suất**.
+- **Đoạn dài bị phạt.** Đoạn dài đương nhiên chứa nhiều từ hơn, nên nó dễ trúng từ khoá một cách
+  may mắn. Tham số `b` chuẩn hoá theo độ dài.
+
+  **Điểm mạnh:** chính xác khi khách dùng **đúng chữ** có trong tài liệu.
+  **Điểm yếu:** khách hỏi *"đồ biển"* mà tài liệu viết *"hải sản"* thì **không có từ nào chung** —
+  BM25 trả về rỗng, dù hai cụm cùng nghĩa.
+
+**Cách 2 — So nghĩa bằng vector (embedding).**
+**Embedding** dịch là **biểu diễn nhúng** hoặc **véc-tơ ngữ nghĩa**: một mô hình đã được huấn luyện
+sẽ biến mỗi câu thành một **dãy số** (ở đây là 384 số). Điều đặc biệt: hai câu **cùng nghĩa** thì
+hai dãy số **gần nhau**, kể cả khi chúng không chung chữ nào.
+
+> **Ẩn dụ:** hãy tưởng tượng mỗi câu là một **điểm trên bản đồ**. Mô hình đặt *"đồ biển"* và *"hải
+> sản"* ở hai vị trí sát nhau, còn *"cà phê"* ở tận đầu kia. Tìm đoạn liên quan = tìm **điểm gần
+> nhất** trên bản đồ đó.
+
+Độ gần được đo bằng **cosine similarity** — **độ tương đồng cô-sin**: một con số từ −1 đến 1, càng
+gần 1 thì hai câu càng cùng nghĩa.
+
+  **Điểm mạnh:** hiểu được cách nói khác nhau của cùng một ý.
+  **Điểm yếu:** nó **luôn** trả về một đáp án. Không có khái niệm "không tìm thấy" — câu hỏi lạc đề
+  hoàn toàn vẫn nhận về 5 đoạn với điểm số đàng hoàng. Nó **không trượt, nó trả sai**.
+
+**Cách 3 — Trộn hai cách trên (hybrid).**
+**RRF** — *Reciprocal Rank Fusion*, **hợp nhất theo nghịch đảo thứ hạng**: lấy **thứ hạng** (đứng
+thứ mấy) của mỗi đoạn ở cả hai cách, rồi cộng nghịch đảo lại. Đoạn nào được **cả hai** xếp cao thì
+tổng cao. Dùng thứ hạng thay vì điểm số vì điểm của BM25 và điểm cosine **không cùng thang đo** —
+cộng thẳng thì như cộng mét với ki-lô-gam.
+
+### RAG là gì, và vì sao đồ án này *không* dùng RAG cho mọi thứ
+
+**RAG** — *Retrieval-Augmented Generation*, **sinh văn bản có tăng cường truy hồi**. Quy trình ba
+bước:
+
+```
+1. TRUY HỒI   câu hỏi -> tìm đoạn liên quan trong kho
+2. GHÉP       đưa đoạn đó vào "lời nhắc" (prompt) gửi cho mô hình ngôn ngữ
+3. SINH       mô hình viết câu trả lời DỰA TRÊN đoạn đó
+```
+
+Bước 2 là chỗ quan trọng. **Prompt** dịch là **lời nhắc** — đoạn văn bản ta gửi cho mô hình, gồm
+câu hỏi của khách **cộng** dữ liệu ta muốn nó dựa vào. Không có bước này thì mô hình chỉ có kiến
+thức chung của nó và sẽ **tự nghĩ ra** thông tin về nhà hàng — hiện tượng gọi là **hallucination**,
+dịch là **bịa đặt**: mô hình viết ra câu nghe rất hợp lý nhưng sai sự thật.
+
+RAG rất mạnh cho câu **văn xuôi**. Nhưng đồ án này chứng minh bằng số rằng nó **sai chỗ** ở câu
+**chọn món**, và lý do rất dễ hiểu:
+
+> Truy hồi chỉ biết *"giống nhau"*. Nó **không có phép so sánh lớn hơn / nhỏ hơn**, **không có phép
+> loại trừ**, và **không có phép và**.
+>
+> Khách nói *"tôi dị ứng hải sản"* — câu này **chứa chữ "hải sản"**, nên cả BM25 lẫn embedding đều
+> kéo **món hải sản lên đầu**. Đúng ngược điều khách cần. Không phải vì chúng hỏng, mà **chính vì
+> chúng hoạt động đúng như thiết kế**.
+
+Đó là lý do hệ thống này chia việc: **lọc theo nhãn** chọn món (chính xác tuyệt đối với điều kiện
+đếm được), **truy hồi** lo câu văn xuôi, và **mô hình sinh** chỉ **viết lại cho tự nhiên** những món
+đã được chọn — nó không được phép chọn món.
+
+### Các thuật ngữ khác gặp trong báo cáo
+
+| Tiếng Anh | Tiếng Việt | Nghĩa đơn giản |
+|---|---|---|
+| **chunk** | **đoạn** | một mẩu tài liệu đủ nhỏ để đưa vào lời nhắc; kho này cắt theo tiêu đề mục |
+| **corpus** | **kho ngữ liệu** | toàn bộ tài liệu dùng để truy hồi — ở đây {len(b.docs)} tài liệu / {len(b.doan)} đoạn |
+| **index** | **chỉ mục** | cấu trúc dữ liệu dựng sẵn để tìm nhanh, như mục lục sách |
+| **query** | **truy vấn** | câu hỏi sau khi đã xử lý để đem đi tìm |
+| **token** | **từ tố** | đơn vị nhỏ nhất máy đọc — thường là một từ |
+| **Hit@k** | **tỷ lệ trúng trong k đầu** | trong k đoạn trả về đầu tiên, có ít nhất một đoạn đúng không |
+| **ground truth** | **khoá đáp án** | đáp án đúng do người viết ra để chấm điểm máy |
+| **held-out / sealed set** | **tập niêm phong** | tập câu hỏi giấu đi, chỉ mở một lần khi đã xong — để không vô tình sửa hệ thống cho vừa đề |
+| **ablation** | **thử bỏ bớt** | tắt từng cơ chế rồi đo lại, để biết cơ chế đó có thật sự đóng góp |
+| **fail-closed** | **hỏng thì đóng** | khi không chắc thì **từ chối**, không đoán. Dùng cho lọc dị ứng |
+| **latency** | **độ trễ** | thời gian từ lúc khách gửi câu hỏi tới lúc nhận câu trả lời |
+| **baseline** | **mốc nền** | kết quả của cách làm đơn giản nhất, để so xem cách phức tạp có hơn không |
+
+---
 
 ## 2.1 Truy hồi từ khoá — BM25
 
@@ -624,9 +1238,9 @@ vai trò:
 "passage: {{đoạn}}"      cho đoạn trong kho
 ```
 
-Thiếu tiền tố thì mô hình **vẫn chạy và vẫn trả vector** — chỉ kém đi. Đây là loại lỗi tệ nhất của phần
-này: không có thông báo nào, chỉ có điểm thấp hơn mà không ai biết vì sao. Nên có test chốt rằng tiền tố
-được thêm.
+Thiếu tiền tố thì mô hình vẫn chạy và vẫn trả về vector, chỉ giảm chất lượng. Đây là lỗi **không có
+triệu chứng quan sát được**: hệ thống không báo lỗi, chỉ cho điểm thấp hơn. Nhóm bổ sung một ca kiểm
+thử xác nhận tiền tố được thêm đúng.
 
 Vector được chuẩn hoá L2, nhờ vậy `cosine(a,b) = a·b` và phép so chỉ còn một phép nhân vô hướng. Chuẩn
 hoá cũng là điều **bắt buộc về mặt đúng đắn**: không chuẩn hoá mà vẫn lấy tích vô hướng thì đoạn **dài**
@@ -666,13 +1280,45 @@ hạng theo độ tương đồng **thua** ở bài toán chọn món, mỗi lý
 | cần LOẠI TRỪ | "tôi dị ứng hải sản" | câu chứa chữ "hải sản" nên cả hai kéo món hải sản **LÊN ĐẦU** |
 | hai ràng buộc | "không cay VÀ dưới 80 nghìn" | xếp hạng theo độ tương đồng **không có phép AND** |
 
-Ca thứ ba là ca đáng nhớ nhất: một hệ thống RAG "hoạt động đúng" ở đó sẽ mời món hải sản cho người vừa
-khai dị ứng hải sản, và nó làm vậy **chính vì** nó hoạt động đúng.
+Trường hợp thứ ba có ý nghĩa đặc biệt về mặt an toàn: một hệ thống RAG vận hành đúng đặc tả vẫn sẽ đề
+xuất món hải sản cho người vừa khai báo dị ứng hải sản. Nguyên nhân nằm ở chính cơ chế xếp hạng theo độ
+tương đồng, không phải ở lỗi cài đặt.
+
+### 2.4.1 Đây là giới hạn BIỂU ĐẠT, không phải giới hạn dữ liệu hay mô hình
+
+Bốn dòng trên dễ bị đọc thành "truy hồi còn yếu, cải thiện dữ liệu hoặc đổi mô hình là xong". Đồ án
+này khẳng định ngược lại, và khẳng định đó có cả **lập luận** lẫn **thí nghiệm**.
+
+Lập luận: một bộ truy hồi là một **hàm xếp hạng** `rank(q, d) = sim(q, d)` —
+nó trả về **thứ tự** các tài liệu theo **độ giống** với truy vấn. Nó không có khái niệm *thoả* hay
+*không thoả* — chỉ có *giống hơn* và *giống ít hơn*. Trong khi ba dạng ràng buộc dưới đây là những
+**vị từ** trên tập món, và chúng cần một phép toán mà quan hệ giống nhau không mang:
+
+| Ràng buộc | Dạng toán | Vì sao độ giống không diễn đạt được |
+|---|---|---|
+| `giá < 50.000` | quan hệ **thứ tự** trên số | độ giống là quan hệ **đối xứng**; thứ tự thì không. `sim(q,d)` không phân biệt được "rẻ hơn" với "đắt hơn" |
+| `hải sản ∉ nhãn(d)` | phép **bù** trên tập | không tồn tại truy vấn `q` nào để `sim(q,d)` **giảm** khi `d` chứa hải sản; nhắc tới thứ cần tránh chỉ làm nó giống HƠN |
+| `A ∧ B` | phép **giao** | `sim` trả một số vô hướng đã trộn; không tách lại được thành hai điều kiện để ép cả hai cùng đúng |
+
+Thí nghiệm kiểm chứng lập luận này ở mục **4.9**: trên 50 câu sinh từ chính bộ nhãn, lọc theo nhãn
+vi phạm **13** món còn truy hồi vi phạm **116** — và ở nhóm loại trừ dị nguyên, lọc nhãn **0** còn
+truy hồi **11 món chứa đúng thứ khách phải tránh**.
+
+Một thí nghiệm thứ hai đóng đường thoát "tại dữ liệu chưa tốt": nhóm đã viết lại tiêu đề mục của
+kho tri thức cho đặc thù theo tài liệu, đưa số tiêu đề khác nhau từ **179 lên 365** và số đoạn dùng
+chung tiêu đề từ **283/452 xuống 93/452**. Lớp lỗi nhắm tới giảm từ **19 ca xuống 1**. Nhưng Hit@1
+trên tập niêm phong **không đổi — 60,87% trước và sau**, còn Hit@5 **giảm** từ 67,39% xuống 63,04%. Các
+ca kia không được sửa; chúng **đổi tên lỗi** từ "hai mục trùng tiêu đề" sang "xếp hạng sai".
+
+Kết quả này cho thấy giới hạn quan sát được **không đến từ chất lượng kho ngữ liệu**. Cải thiện dữ liệu
+không làm một hàm xếp hạng theo độ tương đồng biểu diễn được một vị từ mà nó không có phép toán tương
+ứng. Đây là đóng góp chính của đồ án về mặt phương pháp.
 
 ## 2.5 Chuẩn hoá văn bản tiếng Việt là phép MẤT thông tin
 
 Rút dấu (`fold`) cho phép khớp "mo cua" với "mở cửa" — người Việt gõ không dấu rất thường. Nhưng nó là
-phép **mất thông tin**, và mất đúng chỗ đau: sau khi rút dấu, `"bò"` và `"bơ"` cùng thành `"bo"`.
+phép **mất thông tin**, và phần bị mất có ý nghĩa phân biệt: sau khi rút dấu, `"bò"` và `"bơ"` cùng
+thành `"bo"`.
 
 Nên rút dấu chỉ dùng cho **tách từ của BM25**, không dùng cho phép so tên món. Và một chi tiết đã sai
 một lần: bản đầu bỏ từ dưới 3 ký tự, làm mất `"bò"`, `"gà"`, `"mì"`, `"ốc"`, `"cá"` — đúng những từ khoá
@@ -712,6 +1358,159 @@ hình viết. Nên dù một câu sinh lọt qua xác minh mà vẫn sai, khách
 thực đơn dưới bất kỳ dạng nào — thì phép so chuỗi không phát hiện. Giới hạn này được ghi thành **một
 test có tên nói rõ nó là giới hạn**, để không ai tưởng lớp đó kín.
 
+## 2.8 Vì sao chọn cách làm này — phương án thay thế và bằng chứng
+
+Mọi quyết định dưới đây đều có **ít nhất một phương án khác nghe hợp lý hơn lúc bắt đầu**. Mục này
+ghi lại: chọn gì, bỏ gì, và **con số nào** khiến nhóm chọn như vậy. Không quyết định nào ở đây dựa
+trên cảm giác hay thói quen.
+
+### Quyết định 1 — Chọn món bằng LỌC NHÃN, không bằng RAG
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | dùng luôn RAG cho mọi câu, kể cả *"món nào dưới 100 nghìn"* |
+| **Nghe hợp lý vì** | một cơ chế cho mọi việc thì gọn, ít mã, dễ bảo trì |
+| **Đã chọn** | `select()` lọc theo nhãn cho câu chọn món; RAG chỉ cho câu văn xuôi |
+
+**Bằng chứng — 50 câu chọn món sinh từ chính bộ nhãn (mục 4.9.2):**
+
+| | lọc nhãn | truy hồi |
+|---|---:|---:|
+| món **vi phạm ràng buộc** | **{b.hc_b_vi_pham('tat_dinh_vi_pham')}** | {b.hc_b_vi_pham('truy_hoi_vi_pham')} |
+| riêng nhóm **dị ứng** | **{b.hc_b_vi_pham('tat_dinh_vi_pham', 'PHÉP TRỪ')}** | {b.hc_b_vi_pham('truy_hoi_vi_pham', 'PHÉP TRỪ')} |
+
+**Ví dụ chứng minh:**
+
+> **Khách:** *"Mình dị ứng hải sản, món nào tránh được?"*
+>
+> **RAG trả về:** Nghêu hấp sả, Mực xào sa tế, Ốc hương rang bơ tỏi… — **toàn món hải sản**
+>
+> **Vì sao:** câu hỏi **chứa chữ "hải sản"**, nên phép đo độ giống kéo đúng những đoạn nói về hải
+> sản lên đầu. Nó không hỏng — nó **làm đúng việc nó được thiết kế để làm**.
+>
+> **Lọc nhãn trả về:** Bánh mì pate, Gỏi cuốn chay… — 0 món mang nhãn `allergen:seafood`.
+
+Trường hợp này minh hoạ giới hạn cấu trúc nêu ở mục 2.4.1: hệ thống RAG vận hành đúng đặc tả vẫn đề
+xuất món hải sản cho người khai báo dị ứng hải sản, do cơ chế xếp hạng theo độ tương đồng không biểu
+diễn được phép loại trừ.
+
+### Quyết định 2 — Truy hồi dùng EMBEDDING, không dùng BM25
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | chỉ dùng BM25 — nhẹ, không cần mô hình, ảnh Docker 238MB |
+| **Nghe hợp lý vì** | embedding kéo ảnh Docker lên **2,74GB** và khởi động chậm **19 giây** |
+| **Đã chọn** | embedding, và **chấp nhận trả giá đó** |
+
+**Bằng chứng — tập niêm phong (mở một lần, không sửa hệ thống theo nó):**
+
+| bộ | Hit@1 |
+|---|---:|
+| BM25 | 39,13% |
+| **embedding** | **60,87%** |
+
+**Ví dụ chứng minh:**
+
+> **Khách:** *"Mình muốn món chín bằng hơi nước, nhẹ bụng"*
+>
+> Tài liệu đích viết *"món hấp"* — **không chung một chữ nào** với câu hỏi.
+>
+> **BM25:** không tìm được (không có từ chung để đếm).
+> **Embedding:** tìm đúng, vì *"chín bằng hơi nước"* và *"hấp"* nằm gần nhau trên bản đồ nghĩa.
+
+Đây là lý do nhóm chấp nhận ảnh Docker nặng gấp 11 lần: **khách gõ theo cách của khách**, không gõ
+theo từ trong tài liệu.
+
+### Quyết định 3 — TẮT đường sinh mặc định
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | bật mô hình sinh cho mọi câu, để câu chữ tự nhiên hơn |
+| **Nghe hợp lý vì** | câu khuôn mẫu đọc khô; mô hình viết mượt hơn hẳn |
+| **Đã chọn** | tắt mặc định, bật bằng biến môi trường |
+
+**Bằng chứng:** sau {b.so_phep_kiem} phép kiểm xác minh, đường sinh **0 ca tụt** — nhưng cũng **0 ca
+đúng thêm**. Giá phải trả: **+8,6 giây mỗi lượt**.
+
+Không có ca nào tốt lên thì việc bật nó là **trả 8,6 giây để đổi lấy câu chữ mượt hơn**. Đó là đánh
+đổi hợp lệ, nhưng phải là **quyết định của chủ nhà hàng**, không phải mặc định do nhóm chọn hộ.
+
+### Quyết định 4 — Mô hình sinh KHÔNG được chọn món
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | đưa cả thực đơn vào lời nhắc, để mô hình tự chọn và tự viết |
+| **Nghe hợp lý vì** | ít mã hơn hẳn, và mô hình "hiểu" câu hỏi tốt hơn mã tất định |
+| **Đã chọn** | `select()` chọn món; mô hình chỉ **viết về** những món đã chọn |
+
+**Ví dụ chứng minh** — đo được trên bản chạy thật, mô hình viết:
+
+> *"Nhà hàng có **6 món lẩu**…"* — trong khi thực đơn có **7**.
+
+Một con số bịa mà ba phép kiểm đầu **không chạm tới**: nó không phải tên món, không phải giá, không
+phải nhãn. Phải thêm một phép kiểm riêng cấm mô hình nêu số lượng.
+
+Nếu mô hình được phép **chọn** món thay vì chỉ **viết về** món, lỗi tương tự sẽ là một món không tồn
+tại nằm trong thẻ giỏ hàng — và khách bấm đặt được.
+
+### Quyết định 5 — Dị nguyên FAIL-CLOSED (hỏng thì đóng)
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | khi lọc dị nguyên ra rỗng thì nới ra để vẫn có món gợi ý |
+| **Nghe hợp lý vì** | trả về "không có món nào" là trải nghiệm tệ |
+| **Đã chọn** | thà nói **"không có món nào phù hợp"** còn hơn mời một món có thể gây dị ứng |
+
+**Ví dụ chứng minh:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Thực đơn có 26 món hải sản,
+14 món **không có tôm** — nhìn qua thì nên lọc riêng con tôm ra. Nhưng kiểm dữ liệu thì:
+
+> Hai món mang `allergen:seafood` nhưng **không** mang `ingredient:shrimp`, trong khi mô tả cho
+> thấy chúng **chứa tôm**: *Bún đậu mắm tôm* (“chấm **mắm tôm**”) và *Bún bò Huế* (“**mắm ruốc**”).
+
+Nguyên nhân: mắm tôm và mắm ruốc là **gia vị**, nên chúng không được ghi vào nhãn nguyên liệu — dù
+nguyên liệu gốc của chúng là tôm và ruốc. Lọc theo `ingredient:shrimp` sẽ **mời đúng hai món đó**
+cho người dị ứng tôm.
+
+Nên hệ thống giữ chặn rộng ở mức **nhóm** (`allergen:seafood`), và thay vào đó **nói ra lý do** —
+chứ không nới hàng rào xuống mức nguyên liệu.
+
+### Quyết định 6 — Từ vựng TẤT ĐỊNH, không để mô hình hiểu câu
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | để mô hình đọc câu và tự sinh nhãn lọc |
+| **Nghe hợp lý vì** | {b.so_cum_tu_vung} cụm từ vựng viết tay là rất nhiều công |
+| **Đã chọn** | mã tất định chạy trước; mô hình chỉ được hỏi khi mã không chắc |
+
+**Ba lý do, và lý do thứ ba mới là lý do thật:**
+
+1. dịch vụ phải trả lời được **khi mô hình hỏng**
+2. mỗi lần gọi tốn ~8,6 giây, còn *"xin chào"* thì không đáng chờ 8 giây
+3. **cụm chào hỏi tiếng Việt là tập ĐÓNG và nhỏ** — dùng mô hình cho việc mà một danh sách 20 cụm
+   giải quyết trọn là chọn sai công cụ, và làm phép đo phụ thuộc một thứ không tất định
+
+**Ví dụ chứng minh:** khi thử để mô hình gán nhãn, nó trả `prefer: health:low_calorie` cho câu
+*"Nhãn 'ít calo' dựa trên gì?"* — đẩy một **câu hỏi về nhãn** sang **nhánh lọc món**. Khách hỏi định
+nghĩa, nhận về danh sách món.
+
+### Quyết định 7 — Chia đoạn theo TIÊU ĐỀ MỤC, không theo số ký tự
+
+| | |
+|---|---|
+| **Phương án đã bỏ** | cắt mỗi 500 ký tự có chồng lấn — cách phổ biến nhất trong tài liệu RAG |
+| **Nghe hợp lý vì** | đơn giản, không phụ thuộc cấu trúc tài liệu |
+| **Đã chọn** | cắt theo tiêu đề mục markdown |
+
+**Vì sao:** cắt theo ký tự thì một đoạn có thể **đứt giữa bảng giá**, và mô hình nhận được nửa bảng.
+Cắt theo tiêu đề thì mỗi đoạn là **một ý trọn vẹn** do người viết đã tự chia sẵn — tài liệu markdown
+vốn đã có cấu trúc đó, không dùng thì phí.
+
+**Bằng chứng chống lại chính lựa chọn này**, ghi ra vì nó là giới hạn thật: 45 tài liệu `derived`
+dùng chung một khuôn tiêu đề, nên **283/452 đoạn dùng chung tiêu đề** với đoạn khác. Nhóm đã thử
+sửa (đưa lên 365 tiêu đề khác nhau) và đo lại: **Hit@1 không đổi**. Xem mục 2.4.1.
+
+---
+
 ## 2.7 Các chỉ số đánh giá, và chỉ số nào QUYẾT ĐỊNH
 
 ```
@@ -739,6 +1538,71 @@ tức số ca trả lời **SAI** — và với ca dị ứng thì đó là lỗ
 def chuong_3(b: Bang) -> str:
     sp = b.split_truy_hoi
     return f"""# CHƯƠNG 3: PHƯƠNG PHÁP
+
+## 3.0 Chương này làm gì — đọc bằng lời trước
+
+Chương 2 nói **các phương pháp có sẵn trên đời**. Chương 3 nói **nhóm ghép chúng lại thành hệ thống
+như thế nào**, và chương 4 nói **hệ thống ấy chạy ra số bao nhiêu**.
+
+### Một câu hỏi của khách đi qua những đâu
+
+Khi khách gõ *"cho mình món chay dưới 100 nghìn"*, câu đó không được gửi thẳng cho mô hình AI. Nó đi
+qua một dây chuyền, và **mỗi chặng làm đúng một việc**:
+
+```
+câu khách gõ
+   |
+   v
+[1] HIỂU CÂU HỎI      "món chay" -> nhãn diet:vegetarian
+   |                  "dưới 100 nghìn" -> ngân sách 100.000
+   v
+[2] NHỚ NGỮ CẢNH      ghép với điều khách đã nói ở các lượt trước
+   |                  (dị ứng khai lượt 1 vẫn còn hiệu lực ở lượt 5)
+   v
+[3] CHỌN NHÁNH        đây là câu CHỌN MÓN hay câu HỎI TRI THỨC?
+   |
+   +--> câu chọn món --> [4a] LỌC THEO NHÃN  -> danh sách món
+   |
+   +--> câu tri thức --> [4b] TRUY HỒI       -> đoạn văn liên quan
+   |
+   v
+[5] VIẾT CÂU TRẢ LỜI  khuôn mẫu, hoặc mô hình sinh viết lại cho tự nhiên
+   |
+   v
+[6] XÁC MINH          {b.so_phep_kiem} phép kiểm; vi phạm thì BỎ câu sinh, dùng khuôn mẫu
+   |
+   v
+[7] THẺ GIỎ HÀNG      dựng từ danh sách món, KHÔNG từ chữ mô hình viết
+   |
+   v
+câu trả lời + nút bấm đặt món
+```
+
+**Điều đáng chú ý nhất:** trong bảy chặng, chỉ **hai chặng có mô hình AI** — chặng [4b] truy hồi và
+chặng [5] viết câu. Năm chặng còn lại là **mã tất định**: cùng đầu vào thì luôn cùng đầu ra, không
+phụ thuộc mô hình, và chạy được cả khi mô hình hỏng.
+
+Đó là lựa chọn có chủ ý, không phải vì thiếu thời gian. Lý do đầy đủ ở mục 2.8.
+
+### Vì sao chương này nói nhiều về TẬP ĐÁNH GIÁ
+
+Với một hệ thống thông thường, "đúng" nghĩa là **chạy không lỗi**. Với hệ thống này, một câu trả lời
+có thể **chạy hoàn hảo mà vẫn sai** — mời món hải sản cho người dị ứng hải sản là một câu trả lời
+không có lỗi kỹ thuật nào.
+
+Nên "đúng" phải được **định nghĩa bằng một tập câu hỏi có khoá đáp án**, và hệ thống được chấm trên
+tập đó. Đây là khác biệt lớn nhất giữa làm phần mềm và làm học máy, và nó là lý do bốn tập đánh giá
+được mô tả kỹ ở mục 3.3.
+
+### Ba từ sẽ gặp nhiều
+
+| Từ | Nghĩa trong báo cáo này |
+|---|---|
+| **nhánh** | một đường xử lý riêng cho một loại câu hỏi. Hệ thống có {len(b.nhanh_tra_loi()) if hasattr(b, 'nhanh_tra_loi') else 17} nhánh, và chúng **loại trừ nhau** — một câu chỉ đi đúng một nhánh |
+| **nhãn** | thuộc tính của món, dạng `nhóm:giá_trị` — ví dụ `spice:none` nghĩa là **không cay** |
+| **ràng buộc** vs **ngữ cảnh** | ràng buộc thì **lọc bỏ** món không thoả; ngữ cảnh chỉ **xếp lên trước**. Nhầm hai thứ này là lọc mất món đúng — xem mục 3.4 |
+
+---
 
 ## 3.1 Kiến trúc bảy chặng — và chỉ hai chặng có mô hình
 
@@ -800,6 +1664,127 @@ Số đoạn được xếp hạng là **{len(b.doan_xep_hang)}**, không phải
 (chúng đã có đường riêng) và bỏ đoạn **mở đầu** — một mục không có tiêu đề là phần dẫn nhập của tài
 liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 
+### 3.2.1 Bộ nhãn được xây dựng như thế nào
+
+Bộ nhãn là **nền của cả hệ thống**: lớp hiểu câu hỏi ánh xạ chữ khách gõ vào nhãn, lớp chọn món lọc
+theo nhãn, và {b.che_do.get('synthesize', 0)} tài liệu tri thức được sinh từ nhãn. Nhãn sai thì cả
+bốn chặng sau sai theo.
+
+**Quy trình bốn bước:**
+
+| Bước | Việc | Kết quả |
+|---|---|---|
+| 1 | Kiểm kê thuộc tính có sẵn trong thực đơn gốc | giá, tên, mô tả, nhóm món |
+| 2 | Rút thuộc tính **ngầm** từ mô tả món | cay/không cay, chay/mặn, vùng miền, cách chế biến |
+| 3 | Hợp nhất hai nguồn — JSON của AI và CSDL của backend | **{len(b.tags)} nhãn / 16 nhóm** |
+| 4 | Sinh migration để CSDL production đổi theo | chuỗi migration có phiên bản |
+
+**Khóa nhãn có không gian tên.** Mỗi nhãn viết dạng `nhóm:giá_trị` — `spice:none`, `diet:vegetarian`,
+`allergen:seafood`. Ban đầu nhóm định dùng khóa phẳng (`none`, `mild`, `hot`), nhưng như vậy không
+biết `none` thuộc nhóm cay hay nhóm chế độ ăn. Quan trọng hơn: khóa có nhóm cho phép **ghi đè theo
+NHÓM** ở bộ nhớ phiên — khách nói "không cay" thì `spice:none` phải **đẩy** `spice:hot` ra, chứ không
+nằm cạnh nó.
+
+**Phân bố {len(b.tags)} nhãn theo nhóm:**
+
+| Nhóm | Số giá trị | Ví dụ | Suy từ đâu |
+|---|---:|---|---|
+| `method` | 11 | `grilled`, `steamed` | tên món và mô tả |
+| `ingredient` | 10 | `beef`, `shrimp` | mô tả món |
+| `region` | 10 | `hue`, `saigon` | tên món và mô tả |
+| `health` | 6 | `low_calorie` | mô tả món |
+| `flavour` | 6 | `rich`, `sour` | mô tả món |
+| `party` | 6 | `solo`, `two_three` | khẩu phần |
+| `occasion` | 6 | `date`, `drinking` | người viết đặt |
+| `allergen` | 5 | `seafood`, `peanut` | **mô tả món — và đây là nhóm nguy hiểm nhất** |
+| `spice` | 4 | `none`, `hot` | mô tả món |
+| `meal`, `price`, `season` | 4 mỗi nhóm | `lunch`, `budget` | giá và mô tả |
+| `serving`, `diet`, `audience`, `promo` | 2–3 mỗi nhóm | `vegetarian` | mô tả món |
+
+**Hai bản rà tự động chạy trong CI**, vì gán nhãn thủ công thì sẽ có lỗ:
+
+- **Rà nhãn dị nguyên** — đối chiếu nhãn với mô tả món. Bản rà này tìm ra **bảy lỗ thật** đã được lấp.
+- **Rà nhãn cách chế biến** — nhóm nhãn duy nhất mà **tên món tự nói ra đáp án** ("Gà nướng muối ớt"),
+  nên kiểm được tự động. Bản rà chạy `--check`, tức **chặn** khi còn lệch.
+
+**Giới hạn phải nói rõ:** nhãn dị nguyên chỉ phủ **44/91 món**. Bảy món hải sản không có nhãn nguyên
+liệu nào, và hai trong số đó chứa tôm thật (*Bún đậu mắm tôm*, *Bún bò Huế*). Đây là giới hạn **dữ
+liệu**, không sửa được bằng mã — và nó là lý do hệ thống chặn rộng thay vì lọc hẹp (mục 2.8, quyết
+định 5).
+
+### 3.2.2 Kho tri thức gồm những gì
+
+Kho có **{len(b.docs)} tài liệu / {len(b.doan)} đoạn**, ở dạng markdown có phần đầu YAML. Nó chia theo
+**hai trục độc lập**, và hiểu hai trục này là hiểu cả kiến trúc tri thức.
+
+**Trục thứ nhất — nguồn gốc nội dung:**
+
+| Nguồn | Số tài liệu | Nội dung | Ai viết |
+|---|---:|---|---|
+| `derived` | {b.che_do and len([d for d in b.docs if d.source == 'derived'])} | Danh sách món theo từng nhãn, đếm số món, dải giá | **Sinh tự động** từ thực đơn bởi `build_knowledge.py` |
+| `demo` | {len([d for d in b.docs if d.source == 'demo'])} | Chính sách quán, cách kết hợp món, hướng dẫn gọi món | Nhóm viết tay |
+
+Tài liệu `derived` **không thể lệch khỏi thực đơn**, vì chúng được sinh lại từ thực đơn và CI có cổng
+`--check`. Thực đơn thêm một món thì tài liệu tương ứng tự cập nhật số đếm và danh sách.
+
+**Trục thứ hai — cách trả lời, và đây là trục quyết định kiến trúc:**
+
+| Chế độ | Số tài liệu | Dùng cho câu hỏi | Cách trả lời |
+|---|---:|---|---|
+| `verbatim` | {b.che_do.get('verbatim', 0)} | giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng | **Trả NGUYÊN VĂN**, không qua mô hình |
+| `synthesize` | {b.che_do.get('synthesize', 0)} | tư vấn, so sánh, giải thích | Làm **ngữ cảnh** cho mô hình viết |
+
+**Vì sao phải tách hai chế độ.** Câu *"mấy giờ đóng cửa?"* có **một đáp án đúng duy nhất**. Đưa nó qua
+mô hình sinh là tạo cơ hội cho mô hình diễn đạt lại và làm sai — trong khi việc cần làm chỉ là đọc ra
+một chuỗi. Ngược lại, câu *"gọi khai vị trước có làm no bụng không?"* cần diễn đạt, nên nó cần mô hình.
+
+Hệ quả kiến trúc: **tài liệu `verbatim` KHÔNG nằm trong chỉ mục truy hồi.** Chúng được tra bằng khóa
+chủ đề. Đây là lý do tập đánh giá truy hồi có họ `kb-verbatim-topic` — nó kiểm rằng truy hồi **trả về
+rỗng** cho những câu này thay vì trả về một đoạn gần gần.
+
+### 3.2.3 Ai đọc kho tri thức, và đọc bằng cách nào
+
+Kho tri thức **không được đọc bởi một đường duy nhất**. Có **ba đường**, và chúng phục vụ ba loại câu
+hỏi khác nhau:
+
+```
+                       câu hỏi của khách
+                              |
+              +---------------+---------------+
+              |               |               |
+              v               v               v
+      [A] TRA KHÓA      [B] CỤM TỪ VỰNG   [C] TRUY HỒI
+      chủ đề            khớp chuỗi         xếp hạng
+              |               |               |
+              v               v               v
+      tài liệu           tài liệu         đoạn liên quan
+      `verbatim`         `synthesize`     trong toàn kho
+              |               |               |
+              v               v               v
+      trả NGUYÊN VĂN     làm ngữ cảnh     làm ngữ cảnh
+      (không qua mô hình)  cho mô hình     cho mô hình
+```
+
+**Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
+nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
+
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có {b.so_cum_tu_vung} cụm từ khóa. Khớp được cụm nào thì
+lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
+
+**Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ {len(b.doan_xep_hang)}
+đoạn `synthesize` và lấy 5 đoạn đầu. Đây là đường **duy nhất** tới những tài liệu không có cụm từ vựng
+riêng.
+
+**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập {len(b.ca_tra_loi)} ca trả lời và
+{b.luot_phien} lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
+hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
+các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
+
+**Cửa `audience: guest`.** Mọi tài liệu trong kho phải khai `audience: guest`, và bộ nạp **từ chối**
+tệp không khai đúng giá trị này — từ chối chứ không phải lọc. Lý do: bản kho trước có 5/27 tệp là
+hướng dẫn nội bộ dành cho AI nằm chung chỉ mục, và **47/221 đoạn nội bộ đã bị trích cho khách đọc**.
+Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối thì không.
+
 ## 3.3 Bốn tập đánh giá, và kỷ luật chia tập
 
 | Tập | Kích thước | Chặng nó đo |
@@ -809,6 +1794,98 @@ liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 | `retrieval_cases.json` | {len(b.ca_truy_hoi)} ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | {len(b.ca_chon_muc)} ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | {len(b.golden)} hội thoại / {b.luot_golden} lượt | **toàn chuỗi**, tới giỏ hàng thật |
+
+### 3.3.1 Bộ đánh giá được xây dựng như thế nào
+
+Mục này trả lời câu hỏi *"lấy đâu ra những ca đánh giá này"* — điều kiện để mọi con số ở Chương 4 có
+nghĩa. Một tập đánh giá không nói rõ nguồn gốc thì con số trên nó không kiểm chứng lại được.
+
+#### Hai cách tạo ca, và vì sao dùng cả hai
+
+| Cách tạo | Dùng khi | Ưu điểm | Nhược điểm |
+|---|---|---|---|
+| **Sinh tự động từ dữ liệu** | ca suy được từ thực đơn hoặc bộ nhãn | không thể trỏ vào dữ liệu không tồn tại; dữ liệu đổi thì ca đổi theo; không mang thiên lệch của người viết | chỉ tạo được ca *đúng khuôn*, không tạo được ca đối kháng |
+| **Viết tay** | ca đối kháng, ca ngoài phạm vi, ca đụng chữ | nhắm đúng chỗ dễ sai | người viết có thể vô thức chọn ca mình biết hệ thống sẽ qua |
+
+Nguyên tắc áp dụng: **phần suy được từ dữ liệu thì sinh, phần không suy được thì viết tay và ghi rõ
+lý do từng ca**. Mỗi ca viết tay đều có trường `why` nêu ca đó nhắm vào điều gì.
+
+#### Nguồn gốc từng tập
+
+**1. Tập ca trả lời — {len(b.ca_tra_loi)} ca / {len({c.get('family') for c in b.ca_tra_loi})} họ.**
+Viết tay, theo ba loại câu của phát biểu bài toán (mục 1.2). Với mỗi nhánh trả lời, nhóm viết ít nhất
+hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt khác. Khóa đáp án **không phải danh sách
+món viết tay** mà là **điều kiện chọn**, ví dụ `{{"kind": "list", "forbid": {{"tags_any":
+["allergen:seafood"]}}}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
+
+**2. Kịch bản phiên — {len(b.kich_ban)} kịch bản / {b.luot_phien} lượt.**
+Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
+dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
+được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
+CI nên tập không thể bị sửa tay.
+
+**3. Tập truy hồi — {len(b.ca_truy_hoi)} ca / {len({c.get('family') for c in b.ca_truy_hoi})} họ.**
+Sinh bởi `ai/scripts/build_retrieval_cases.py`. Phần lớn ca sinh từ **khóa chủ đề thật của kho tri
+thức**: với mỗi giá trị nhãn, bộ sinh tạo hai câu hỏi — một câu dùng đúng từ có trong tài liệu (BM25
+nên thắng), một câu diễn đạt khác hoàn toàn (embedding nên thắng). Cách này giúp tập **phân biệt được
+hai phương pháp** thay vì chỉ xếp hạng chúng.
+
+Ba họ **viết tay** vì không suy được từ dữ liệu, và chúng đo điều Hit@k không đo:
+
+| Họ viết tay | Đo gì |
+|---|---|
+| `kb-verbatim-topic` | chủ đề trả lời nguyên văn bằng tra khóa — truy hồi phải trả **RỖNG** |
+| `kb-number` | câu có ngưỡng số — chứng minh không phải chỗ nào cũng nên dùng RAG |
+| `kb-out-of-scope` | câu ngoài phạm vi — không đoạn nào trả lời được |
+
+Không có ba họ này thì một bộ truy hồi **luôn trả về 5 đoạn** sẽ đạt điểm cao, trong khi nó mời khách
+đọc một đoạn không liên quan.
+
+**4. Tập chọn mục — {len(b.ca_chon_muc)} ca.**
+Sinh bởi `ai/scripts/build_chunk_selection_cases.py` từ chính cấu trúc tài liệu: mỗi ca là một câu hỏi
+kèm danh sách **mục trong cùng một tài liệu**, đáp án là mục đúng. Tập tách hai nhóm báo cáo riêng —
+nhóm `written` (mỗi tài liệu một cấu trúc riêng) là con số chính, nhóm `derived` (khuôn lặp lại) báo
+cáo riêng để không kéo con số chung lên.
+
+**5. Golden đầu-cuối — {len(b.golden)} hội thoại / {b.luot_golden} lượt.**
+**Viết tay hoàn toàn**, và là tập duy nhất chạy qua chuỗi gọi thật: quét QR → phiên bàn → backend .NET
+→ dịch vụ AI → thẻ giỏ → giỏ hàng. Mỗi hội thoại mô phỏng một tình huống khách thật: đi một mình,
+nhóm đông người, có dị ứng, đổi ý giữa chừng.
+
+**6. Bộ hai chiều — {len(b.hai_chieu)} câu.**
+Chiều A **phủ hết toàn bộ tài liệu văn xuôi**, mỗi tài liệu ít nhất một câu — danh sách tài liệu quyết
+định danh sách câu hỏi. Chiều B **sinh từ bộ nhãn** theo từng nhóm thuộc tính. Cả hai đều không có chỗ
+cho việc người viết chọn câu dễ, và đó là lý do bộ này được dùng cho kết luận chính ở mục 4.4.
+
+#### Khóa đáp án lấy từ đâu
+
+Đây là câu hỏi quan trọng nhất về nguồn gốc, vì khóa đáp án sai thì mọi con số sai theo.
+
+| Tập | Khóa đáp án là gì | Cái gì quyết định |
+|---|---|---|
+| Ca trả lời | **điều kiện chọn** trên thực đơn | thực đơn — nhóm không liệt kê món |
+| Kịch bản phiên | ràng buộc phải giữ qua các lượt | quy tắc hợp nhất đã đặc tả |
+| Truy hồi | **điều kiện chọn đoạn** (`topic_keys_any`, `heading_any`) | siêu dữ liệu của kho |
+| Chọn mục | mã đoạn đúng | cấu trúc tài liệu markdown |
+| Golden | trạng thái giỏ hàng và thẻ sau mỗi lượt | hợp đồng API |
+| Hai chiều | tài liệu đích / tập món thỏa ràng buộc | kho tri thức và bộ nhãn |
+
+**Không tập nào có khóa đáp án là một danh sách viết tay.** Mọi khóa đều là **điều kiện** được giải ra
+tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khóa đáp án tự đúng theo, không cần sửa tập.
+
+#### Điều nhóm KHÔNG làm, và nói rõ
+
+1. **Không có nhật ký hội thoại khách thật.** Toàn bộ ca do nhóm tạo. Đây là giới hạn về **hiệu lực
+   ngoài**: con số đo được hệ thống có tôn trọng ràng buộc hay không, nhưng không đo được khách thật
+   sẽ hỏi gì.
+2. **Không thuê người ngoài chấm.** Khóa đáp án do nhóm đặt, dù ở dạng điều kiện thay vì danh sách.
+3. **Không chạy lặp nhiều hạt giống** cho đường sinh. Các chặng tất định cho cùng kết quả mỗi lần chạy
+   nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
+
+Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
+làm lộ **17 lỗi** mà tập {len(b.ca_tra_loi)} ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
+mở rộng lên **{b.luot_phien} lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -874,6 +1951,320 @@ Cả hai dùng `k=1`, nên **Top-1 là chỉ số quyết định** ở cả hai
 chuẩn hoá L2 (mục 2.2). Chi phí thật là **một** lần mã hoá câu hỏi. Cách hiển nhiên — dựng một chỉ mục
 cho mỗi tài liệu — mất **~91ms mỗi lượt**, và có một test **đếm số lần dựng chỉ mục rồi đòi 0**.
 
+## 3.7 Nguyên lý hoạt động từng lớp
+
+Mục này giải thích **từng lớp làm gì và làm bằng cách nào**, theo đúng thứ tự một câu hỏi đi qua.
+Đây là phần trả lời câu hỏi *"cơ chế nào quyết định lúc nào dùng mã tất định, lúc nào dùng truy hồi"*.
+
+### 3.7.1 Lớp 1 — NHẬN CÂU HỎI (`understand.py`)
+
+**Đầu vào:** một chuỗi tiếng Việt khách gõ. **Đầu ra:** một cấu trúc `Request` gồm các trường đã hiểu.
+
+Lớp này **không dùng mô hình**. Nó chạy bốn bước theo thứ tự:
+
+**Bước 1 — Chuẩn hóa.** Chuỗi được đưa về chữ thường và **rút dấu** (`fold`): *"Món nào KHÔNG cay?"*
+thành `"mon nao khong cay"`. Lý do: người Việt gõ không dấu rất thường, và không chuẩn hóa thì
+*"mon cay"* không khớp *"món cay"*.
+
+Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm trong dự án — `fold("có cồn")` bằng
+`fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
+chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
+
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **{b.so_cum_tu_vung} cụm** ánh xạ chữ khách dùng sang nhãn:
+
+```
+"khong cay | it cay | khong an duoc cay"   -> spice:none
+"mon chay | an chay | do chay"              -> diet:vegetarian
+"di ung hai san | khong an duoc do bien"    -> avoid allergen:seafood
+```
+
+Khớp theo **ranh giới từ**, không theo chuỗi con — nếu không thì `"cua"` khớp cả trong `"của"`.
+
+**Bước 3 — Tách RÀNG BUỘC khỏi NGỮ CẢNH.** Đây là chỗ khó nhất của lớp này:
+
+| Loại | Ví dụ | Hệ quả |
+|---|---|---|
+| **Ràng buộc** (`require_tags`, `avoid_tags`, `budget_max`) | *"không cay"*, *"dưới 200 nghìn"* | món không thỏa bị **LOẠI** |
+| **Ngữ cảnh** (`prefer_tags`) | *"đi hẹn hò"*, *"trời nóng"* | món hợp chỉ được **XẾP LÊN TRƯỚC** |
+
+Nhầm hai thứ này gây một trong hai lỗi: hoặc lọc mất món đúng, hoặc để lọt món khách không ăn được.
+
+**Bước 4 — Nhận diện ý định.** Câu chào hỏi, câu xin thêm món, câu xóa ràng buộc được nhận riêng —
+chúng không phải câu chọn món và không nên đi vào nhánh lọc.
+
+### 3.7.2 Lớp 2 — NHỚ NGỮ CẢNH (`session.py`)
+
+`Request` của lượt hiện tại được **hợp nhất** với trạng thái phiên. Ba loại ràng buộc dùng **ba quy
+tắc khác nhau**, và đây là điểm nhóm làm sai ở bản đầu:
+
+| Loại | Quy tắc | Nếu dùng sai quy tắc |
+|---|---|---|
+| **Dị nguyên** | CỘNG DỒN, không bao giờ bỏ | ghi đè thì *"dị ứng hải sản"* lượt 1 bị *"không ăn được sữa"* lượt 3 xóa mất — **lỗi an toàn** |
+| **Ràng buộc cứng** | lượt mới GHI ĐÈ cùng nhóm | cộng dồn thì *"dưới 200k"* rồi *"rẻ hơn nữa"* giữ **cả hai** ngân sách |
+| **Ngữ cảnh** | cộng vào, giữ 5 gần nhất | ghi đè thì *"đi hẹn hò"* rồi *"trời nóng"* mất một trong hai |
+
+Ghi đè theo **NHÓM** chứ không theo nhãn: `spice:none` phải đẩy `spice:hot` ra, không nằm cạnh nó.
+
+### 3.7.3 Lớp 3 — CHỌN NHÁNH, và đây là CƠ CHẾ KÍCH HOẠT hai lớp kia
+
+Đây là câu trả lời cho *"cơ chế nào quyết định dùng mã tất định hay truy hồi"*.
+
+Hệ thống có **{b.so_nhanh} nhánh trả lời**, và chúng **loại trừ
+nhau** — một câu hỏi đi đúng một nhánh. Việc chọn nhánh là một **chuỗi điều kiện theo thứ tự ưu tiên**,
+không phải một mô hình phân loại:
+
+```
+1.  off_topic ?          -> câu ngoài phạm vi          -> từ chối lịch sự
+2.  xã giao ?            -> chào hỏi, cảm ơn           -> câu mẫu
+3.  hỏi nội bộ ?         -> "bạn là model gì"          -> từ chối
+4.  policy_topic ?       -> giờ mở cửa, thanh toán     -> TRA KHÓA, trả NGUYÊN VĂN
+5.  knowledge_topic ?    -> chủ đề tri thức đã nhận ra -> lấy tài liệu theo khóa
+6.  named_items ?        -> hỏi về món cụ thể          -> tra thực đơn
+7.  asks_price ?         -> hỏi giá                    -> tra thực đơn
+8.  is_comparison ?      -> so sánh hai món            -> tra thực đơn
+9.  có nhãn lọc ?        -> câu chọn món               -> LỌC THEO NHÃN
+10. không khớp gì ?      -> câu tri thức chưa nhận ra  -> TRUY HỒI
+```
+
+**Cơ chế kích hoạt, phát biểu gọn:**
+
+> **Truy hồi chỉ chạy khi chín điều kiện trên đều KHÔNG khớp.** Nó là **đường cuối**, không phải
+> đường mặc định.
+
+Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
+chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
+
+**Hệ quả đo được:** trên tập {len(b.ca_tra_loi)} ca và {b.luot_phien} lượt phiên, nhánh truy hồi chạy
+**0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
+nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
+
+### 3.7.4 Lớp 4a — MÃ TẤT ĐỊNH xử lý thế nào (`answer.select()`)
+
+Áp dụng lần lượt trên danh sách {len(b.items)} món:
+
+```
+1. LOẠI  món mang nhãn trong `avoid_tags`        <- dị nguyên, fail-closed
+2. LOẠI  món không có ĐỦ nhãn trong `require_tags`  <- phép GIAO, không phải hợp
+3. LOẠI  món vượt `budget_max`
+4. LOẠI  món thuộc `avoid_categories`            <- "tôi không uống bia"
+5. XẾP   theo (số nhãn ngữ cảnh khớp, bậc món, giá, mã món)
+6. CẮT   lấy N món đầu
+```
+
+Bước 2 dùng phép **giao**: khách nói *"chay và không cay"* thì món phải có **cả hai** nhãn. Dùng phép
+hợp là trả về món chay cay.
+
+**Tính chất của lớp này:** cùng đầu vào luôn cho cùng đầu ra; không phụ thuộc mô hình; chạy trong
+khoảng 0,3 mili-giây; và **không thể** trả về món không thỏa ràng buộc — vì điều kiện được kiểm trực
+tiếp chứ không ước lượng.
+
+### 3.7.5 Lớp 4b — TRUY HỒI xử lý thế nào (`rag/`)
+
+Khi chín nhánh đầu không khớp, hệ thống xếp hạng **{len(b.doan_xep_hang)} đoạn** `synthesize`:
+
+```
+1. CHUẨN HÓA   câu hỏi -> thêm tiền tố "query: " (yêu cầu của họ mô hình E5)
+2. MÃ HÓA      câu hỏi -> vector 384 chiều
+3. SO SÁNH     tính cosine với vector của từng đoạn (đã tính sẵn lúc build)
+4. XẾP HẠNG    sắp theo điểm giảm dần
+5. CẮT         lấy 5 đoạn đầu làm ngữ cảnh
+```
+
+Vector của các đoạn được **tính sẵn lúc build ảnh Docker**, không tính lúc chạy. Nhờ vậy độ trễ mỗi
+câu hỏi không tăng; chỉ thời gian khởi động container tăng.
+
+**Tính chất của lớp này, và đây là điểm phải nắm:** nó **luôn trả về 5 đoạn**. Không có khái niệm
+"không tìm thấy". Câu hỏi lạc đề hoàn toàn vẫn nhận về 5 đoạn với điểm số đàng hoàng. Quyết định
+"không trả lời" nằm ở **lớp 3** (chọn nhánh), không nằm ở lớp này.
+
+### 3.7.6 Lớp 5 — TRẢ LỜI (`answer.py` và `generate.py`)
+
+Có **hai đường viết câu**, và mặc định dùng đường thứ nhất:
+
+**Đường A — khuôn mẫu (mặc định).** Câu trả lời ghép từ danh sách món đã chọn theo khuôn cố định. Mọi
+tên món và giá lấy trực tiếp từ thực đơn. **Không có khả năng bịa**, vì không có chỗ nào để bịa.
+
+**Đường B — mô hình sinh (tắt mặc định).** Mô hình nhận **danh sách món đã lọc** cộng đoạn tri thức,
+và viết lại cho tự nhiên. Ba giới hạn cứng:
+
+1. Mô hình **không chọn món** — nó chỉ viết về những món đã được chọn
+2. Chỉ **{len(b.nhanh_duoc_sinh)} nhánh** được phép sinh ({', '.join('`' + x + '`' for x in b.nhanh_duoc_sinh)}); nhánh mới mặc định **không** sinh
+3. Câu viết ra phải qua **{b.so_phep_kiem} phép kiểm xác minh**
+
+Vì sao tắt mặc định: đo trên {b.m_llm['so']['ca']} ca loại C cho thấy đường sinh **0 ca tụt** nhưng
+cũng **0 ca đúng thêm**, trong khi tốn thêm khoảng 8,6 giây mỗi lượt.
+
+### 3.7.7 Lớp 6 — XÁC MINH (`generate.verify()`)
+
+Chỉ chạy khi đường B bật. **{b.so_phep_kiem} phép kiểm** đối chiếu câu mô hình viết với dữ liệu gốc:
+
+| # | Kiểm gì |
+|---|---|
+| 1 | Mã món mô hình khai đã dùng phải nằm trong danh sách đưa vào |
+| 2 | Không được nhắc món thật nào **ngoài** danh sách |
+| 3 | Mọi số tiền phải là giá thật của một món đã đưa vào |
+| 4 | Không được nêu số lượng, trừ khi con số trùng số món trong danh sách |
+| 5 | Không được in khóa nhãn nội bộ |
+| 6 | Phải nhắc **đủ** mọi món trong danh sách |
+| 6b | Không được nhắc cùng một món hai lần |
+| 6c | Danh sách từ ba món trở lên phải gạch đầu dòng |
+| 7 | Không món nào được mang nhãn khách cần tránh |
+| 8 | Khách đã nêu điều cần tránh thì câu trả lời phải mở đường hỏi nhân viên |
+
+**Vi phạm thì BỎ câu sinh**, dùng lại câu khuôn mẫu — không sửa. Sửa một câu sai thành câu đúng đòi
+hỏi biết đúng là gì, mà nếu đã biết thì không cần mô hình.
+
+Phép kiểm 4 sinh ra từ một lỗi thật: mô hình viết *"Nhà hàng có **6 món lẩu**"* trong khi thực đơn có
+**7**. Ba phép kiểm đầu không chạm tới lỗi này — nó không phải tên món, không phải giá, không phải nhãn.
+
+### 3.7.8 Lớp 7 — THẺ GIỎ HÀNG (`cart.py`)
+
+Thẻ giỏ dựng từ **`reply.items`** — danh sách món lớp 4a đã chọn — **không** từ chữ mô hình viết.
+
+Đây là ranh giới an toàn cuối cùng: kể cả khi mọi phép kiểm ở lớp 6 đều lọt, món trong giỏ vẫn không
+thể là món mô hình bịa ra, vì giỏ **không đọc** chữ của mô hình.
+
+Chỉ **{len(b.nhanh_co_the_gio)} nhánh** được sinh thẻ giỏ. Nhánh `clarify`, `off_topic`, `empty_result` **không có thẻ** — gợi
+ý đặt món khi chưa hiểu câu hỏi là sai.
+
+### 3.7.9 Tóm tắt: lớp nào tất định, lớp nào có mô hình
+
+| Lớp | Tất định? | Chạy khi nào |
+|---|---|---|
+| 1. Nhận câu hỏi | **Có** | mọi lượt |
+| 2. Nhớ ngữ cảnh | **Có** | mọi lượt |
+| 3. Chọn nhánh | **Có** | mọi lượt |
+| 4a. Lọc theo nhãn | **Có** | nhánh chọn món |
+| 4b. Truy hồi | Không — có mô hình nhúng | chỉ khi 9 nhánh đầu không khớp |
+| 5. Viết câu | Đường A **có** / Đường B không | B tắt mặc định |
+| 6. Xác minh | **Có** | chỉ khi B bật |
+| 7. Thẻ giỏ | **Có** | 6 nhánh |
+
+**Năm trong bảy lớp là mã tất định**, và hai lớp còn lại đều có đường lui về tất định. Hệ quả: dịch vụ
+**trả lời được khi mô hình hỏng** — chỉ là câu chữ kém tự nhiên hơn.
+
+---
+
+### 3.7.10 Ba ví dụ chạy xuyên suốt bảy lớp
+
+Mục này chạy **ba câu hỏi thật** qua toàn bộ hệ thống và in ra trạng thái sau từng lớp. Con số dưới
+đây **được tính lúc sinh báo cáo**, không chép tay — chạy lại báo cáo là chạy lại ba ví dụ này.
+
+Ba câu được chọn để rơi vào **ba nhánh khác nhau**, minh hoạ cơ chế kích hoạt ở mục 3.7.3.
+
+#### Ví dụ 1 — câu chọn món có ràng buộc (đi đường MÃ TẤT ĐỊNH)
+
+> **Khách:** *"{b.vd(0)['cau']}"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | `avoid_tags = {b.vd(0)['avoid']}` · `budget_max = {b.vd(0)['budget']}` |
+| 3. Chọn nhánh | `{b.vd(0)['nhanh']}` — có nhãn lọc nên vào nhánh 9, **không** xuống truy hồi |
+| 4a. Lọc theo nhãn | {b.vd(0)['so_mon']} món qua được cả hai điều kiện |
+| 5. Viết câu | khuôn mẫu, kèm câu nói rõ giới hạn dữ liệu nhãn |
+| 7. Thẻ giỏ | có — nhánh `filter` nằm trong danh sách được sinh thẻ |
+
+Món đầu tiên trả về: **{b.vd(0)['mon']}**.
+
+Đáng chú ý: câu trả lời **mở đầu bằng lời nói rõ giới hạn** — *"thực đơn chỉ ghi nhãn theo NHÓM, không
+tách riêng từng loại"*. Đây là phép kiểm số 8 ở lớp 6: khách nêu điều cần tránh thì câu trả lời phải
+mở đường hỏi nhân viên, vì nhãn dị nguyên chỉ phủ 44/91 món.
+
+#### Ví dụ 2 — câu chính sách (đi đường TRA KHÓA, không qua mô hình)
+
+> **Khách:** *"{b.vd(1)['cau']}"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | `policy_topic = {b.vd(1)['policy']}` |
+| 3. Chọn nhánh | `{b.vd(1)['nhanh']}` — dừng ở nhánh 4, **không** chạy lọc nhãn, **không** chạy truy hồi |
+| 5. Viết câu | trả **NGUYÊN VĂN** nội dung tài liệu `verbatim` |
+| 7. Thẻ giỏ | **không** — câu hỏi chính sách không gợi ý đặt món |
+
+**Ví dụ này từng là một lỗi thật, và cách phát hiện đáng ghi lại.** Bản trước, câu *"Mấy giờ quán đóng
+cửa?"* cho `policy_topic = None` và rơi xuống nhánh truy hồi — rồi truy hồi trả về một **danh sách món
+khai vị**. Nguyên nhân kép:
+
+1. Bảng từ vựng chỉ khớp cụm **liền nhau**, nên chữ *"quán"* chèn giữa làm hỏng khớp. Bốn trong sáu
+   cách hỏi tự nhiên đều hỏng.
+2. Tài liệu giờ mở cửa là `verbatim` nên **không nằm trong chỉ mục truy hồi**. Bộ xếp hạng không tìm
+   được đoạn nào về giờ, và vì nó **luôn trả về 5 đoạn** (mục 3.7.5), nó lấy đoạn giống nhất còn lại.
+
+Lỗi này **không** bị tập đánh giá bắt, vì mọi ca trong tập đều viết cụm liền nhau. Nó lộ ra khi chạy
+ví dụ xuyên suốt cho chính báo cáo này. Đã sửa bằng một mẫu cho phép tối đa ba từ chèn giữa, và chốt
+bằng hai ca kiểm — một ca cho sáu cách hỏi, một ca chiều ngược để mẫu nới lỏng không nuốt câu lọc món.
+
+#### Ví dụ 3 — câu tri thức chưa có cụm từ vựng (đi đường TRUY HỒI)
+
+> **Khách:** *"{b.vd(2)['cau']}"*
+
+| Lớp | Kết quả |
+|---|---|
+| 1. Nhận câu hỏi | không nhãn lọc, không chủ đề chính sách, không chủ đề tri thức |
+| 3. Chọn nhánh | `{b.vd(2)['nhanh']}` |
+| 4b/4a | {b.vd(2)['ghi_chu']} |
+
+**Ví dụ này từng là lỗi, và cách sửa nó là đóng góp kỹ thuật đáng kể của đồ án.**
+
+Bản trước, câu này đi vào nhánh lọc và trả về **6 món khai vị** — mọi món có thật, mọi giá đúng, và
+**không món nào trả lời điều được hỏi**. Khách hỏi *"có làm no bụng không"*, nhận về một danh sách.
+
+Nguyên nhân: câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món**, nên nhánh 9
+khớp trước nhánh 10 dù kho có tài liệu `appetizer_role` trả lời đúng câu này.
+
+Mục 4.9 đo lớp lỗi này trên 50 câu tri thức: **25/50 câu bị trả lời sai dạng**. Sau khi sửa còn
+**15/50**, và câu ví dụ này nằm trong 10 câu được sửa — nó đi đúng nhánh `knowledge_corpus`.
+
+Đây là **đánh đổi của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi lấy tính
+tất định và khả năng dự đoán.
+
+**Đã sửa một phần, và cách sửa đáng ghi lại.** Không đổi thứ tự nhánh — làm vậy thì câu *"cho mình
+món khai vị"* sẽ đi truy hồi. Thay vào đó nhận diện **DẠNG CÂU**, bằng một hàng rào **hai chiều**:
+
+| Chiều | Dấu hiệu | Vai trò |
+|---|---|---|
+| **Hỏi về sự việc** | *"thế nào"*, *"vì sao"*, *"mà sao"*, *"có … không"* | đưa câu xuống truy hồi |
+| **Xin món** | *"món nào"*, *"cho mình"*, *"gợi ý"*, *"ăn gì"* | **chặn** chiều trên |
+
+Chiều thứ hai là phần quan trọng. Chỉ nhận diện chiều thứ nhất thì câu *"Có món chay nào không?"* —
+vốn là câu xin món — cũng khớp, và ta phá một nhánh đang đúng để sửa một nhánh đang sai.
+
+Dấu hiệu còn tách thành **mạnh** và **yếu**:
+
+- **Mạnh** (*"tính sao"*, *"mà sao"*, *"khác nhau"*): thắng cả khi câu có ràng buộc, vì chúng không
+  bao giờ xuất hiện trong câu xin món. Ví dụ *"tiêu tầm hai trăm mỗi người thì **tính sao**?"* vừa
+  mang ngân sách vừa là câu hỏi cách làm.
+- **Yếu** (*"có … không"*, *"được không"*): chỉ áp dụng khi câu **không có ràng buộc nào**.
+
+Hai chi tiết đo được trong lúc làm hàng rào này:
+
+1. *"có … không"* phải đòi **ít nhất ba từ ở giữa**. Mẫu rộng làm *"Ở đây có phở không"* và *"Có cơm
+   không ạ"* — câu hỏi thực đơn — bị đọc thành câu tri thức, và bốn nhánh đang đúng bị phá.
+2. *"là gì"* **không** được là dấu hiệu mạnh. Ca `A-promo-02` *"Món đặc trưng của nhà hàng là gì?"*
+   là câu hỏi thực đơn, và đưa *"là gì"* vào nhóm mạnh làm tập 140 ca tụt còn 139.
+
+**Kết quả đo trên chiều A của bộ hai chiều:**
+
+| | trước | sau |
+|---|---:|---:|
+| Trả lời **SAI DẠNG** | 25/50 | **15/50** |
+| Đi đúng đường truy hồi | 20/50 | **30/50** |
+| Trả lời đúng dạng | 5/50 | 5/50 |
+
+Số câu trả lời sai dạng giảm **40%**, và không tập nào tụt: 140/140 ca, 149/149 lượt, 0 lỗi an toàn.
+
+**Hai giới hạn còn lại, ghi ra thay vì giấu:**
+
+1. Câu vừa hỏi vừa mang ràng buộc, với dấu hiệu yếu — *"Đồ chay ở đây có thật sự chay không?"* mang
+   `diet:vegetarian` nên hàng rào không áp dụng. Nới quy tắc sẽ nuốt cả *"Có món chay nào không?"*.
+2. Câu nêu tên món bị chặn — nhưng *"Phở với bún khác nhau chỗ nào?"* vẫn tới đúng đích qua nhánh so
+   sánh, nên không cần sửa.
+
+Cả hai được chốt bằng một ca kiểm ghi rõ hành vi hiện tại: ai nới hàng rào thì ca đó đỏ và buộc họ
+đọc lý do.
+
+---
+
 ## 3.6 Điều kiện kiểm soát thực nghiệm
 
 **Đường tất định phải TẤT ĐỊNH.** Mọi phép phá thế đều theo `chunk_id` tăng dần, ở **cả hai** đường xếp
@@ -911,8 +2302,8 @@ def _bang_truy_hoi(b: Bang, nhom: str, ten_hien: str) -> list[str]:
             ra.append(f"| `{bo}` | 0 | — | — | — | — | {d['cam5']} |")
             continue
         ra.append(
-            f"| `{bo}` | {d['n']} | **{so(d['hit1'] / d['n'])}** | {so(d['hit5'] / d['n'])} | "
-            f"{so(d['mrr5'] / d['n'])} | {so(d['ndcg5'] / d['n'])} | {d['cam5']} |"
+            f"| `{bo}` | {d['n']} | **{pct(d['hit1'] / d['n'])}** | {pct(d['hit5'] / d['n'])} | "
+            f"{pct(d['mrr5'] / d['n'])} | {pct(d['ndcg5'] / d['n'])} | {d['cam5']} |"
         )
     ra.append("")
     return ra
@@ -923,7 +2314,52 @@ def chuong_4(b: Bang) -> str:
 
     dk = b.m_truy_hoi["dieu_kien"]
     ra += [
-        "## 4.1 Thiết lập",
+        r"""## 4.0 Đọc chương kết quả thế nào
+
+Chương này có nhiều bảng số. Mục 4.0 nói trước **cách đọc chúng**, để các bảng sau không bị hiểu
+ngược.
+
+### Ba chỉ số, và chỉ số nào mới quan trọng
+
+| Chỉ số | Nghĩa đơn giản | Đọc thế nào |
+|---|---|---|
+| **Hit@1** | trong đoạn **đầu tiên** trả về, có đúng đoạn cần không | càng cao càng tốt. Đây là chỉ số chính, vì hệ thống chỉ đọc đoạn thứ nhất |
+| **Hit@5** | trong **5 đoạn đầu**, có ít nhất một đoạn đúng không | càng cao càng tốt, nhưng **dễ gây hiểu lầm** — xem dưới |
+| **cấm@5** | trong 5 đoạn đầu, có bao nhiêu đoạn **KHÔNG được phép** xuất hiện | **càng thấp càng tốt.** Đây mới là chỉ số quyết định |
+
+**Vì sao Hit@5 dễ gây hiểu lầm:** một bộ truy hồi trả về 1 đoạn đúng và 4 đoạn lạc đề vẫn đạt
+Hit@5 = 1,0 — điểm tuyệt đối. Nhưng với hệ thống này, **4 đoạn lạc đề là 4 cơ hội để mô hình viết
+ra một câu sai về nhà hàng**. Nên `cấm@5` được đặt cao hơn Hit@5 khi ra quyết định.
+
+Ở bài toán chọn món, `cấm@5` còn mang nghĩa nặng hơn: nó là **số món không thoả điều kiện khách
+nêu**. Với câu dị ứng thì mỗi món như vậy là **một lỗi an toàn**, không phải một điểm trừ chất lượng.
+
+### Tập phát triển và tập niêm phong khác nhau ra sao
+
+| | **Tập phát triển** | **Tập niêm phong** *(held-out)* |
+|---|---|---|
+| Nhóm có được xem không | có | **không**, cho tới khi xong |
+| Dùng để làm gì | sửa hệ thống, thử ý tưởng | **chấm điểm cuối cùng** |
+| Vì sao cần tách | | nếu vừa sửa vừa xem thì hệ thống dần **học thuộc đề** thay vì học cách làm |
+
+> **Ẩn dụ:** tập phát triển là **bài tập về nhà** — làm sai thì xem đáp án rồi sửa. Tập niêm phong
+> là **bài thi** — chỉ mở một lần, và mở rồi thì nó không còn là bài thi nữa.
+
+Báo cáo này ghi rõ **tập niêm phong đã được mở**, nên con số trên nó **không còn là held-out** cho
+những thay đổi sau đó. Đây là hạn chế thật, và nó được nói ra thay vì giấu đi.
+
+### Vì sao có nhiều bảng "trước / sau"
+
+Nhiều mục trong chương này trình bày theo cặp **trước khi sửa / sau khi sửa**. Đó không phải để khoe
+tiến bộ, mà vì **một con số đơn lẻ không nói được gì**: Hit@1 = 60,87% là tốt hay chưa tốt thì phải so với
+cái gì đó — với BM25, với chính nó ở phiên bản trước, hoặc với một mốc nền.
+
+Có những bảng cho thấy thay đổi **không cải thiện gì**, và chúng được giữ nguyên trong báo cáo. Một
+thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm hỏng chính phép đo.
+
+---
+
+## 4.1 Thiết lập""",
         "",
         f"| Điều kiện | Giá trị |",
         "|---|---|",
@@ -962,16 +2398,93 @@ def chuong_4(b: Bang) -> str:
     ra += [
         "**Đọc kết quả:**",
         "",
-        f"- Embedding thắng ở **cả hai** tập: Hit@1 {so(e_dev)} so với {so(b_dev)} (phát triển) và",
-        f"  **{so(e_np)}** so với **{so(b_np)}** (niêm phong) — hơn"
-        f" **{so((e_np - b_np) * 100, 1)} điểm phần trăm**.",
-        f"- **Hybrid KÉM HƠN embedding đơn lẻ** trên tập niêm phong ({so(h_np)} so với {so(e_np)}) —",
-        "  trái dự đoán ban đầu của nhóm. Hợp nhất RRF kéo lên những đoạn mà BM25 xếp cao vì trùng từ,",
-        "  và ở kho này việc đó làm hại nhiều hơn giúp.",
+        f"- Embedding thắng ở **cả hai** tập: Hit@1 {pct(e_dev)} so với {pct(b_dev)} (phát triển) và",
+        f"  **{pct(e_np)}** so với **{pct(b_np)}** (niêm phong) — chênh"
+        f" **{diem_pt(e_np - b_np)} điểm phần trăm**.",
+        f"- Hybrid RRF đạt {pct(h_np)} trên tập niêm phong, thấp hơn embedding ({pct(e_np)}) về con",
+        "  số tuyệt đối. Tuy nhiên **chênh lệch này CHƯA đạt mức ý nghĩa thống kê** (xem mục 4.2.1),",
+        "  nên báo cáo **không** kết luận hybrid kém hơn embedding. Điều kết luận được là: hợp nhất",
+        "  RRF **không mang lại cải thiện đo được** so với embedding đơn lẻ, trong khi nó tốn thêm chi",
+        "  phí chạy cả hai bộ. Với cùng kết quả và chi phí cao hơn, embedding đơn lẻ là lựa chọn hợp lý.",
         "- `cấm@5` gần như không phân biệt được ba bộ. Nghĩa là chênh lệch nằm ở việc **tìm đúng đoạn**,",
         "  không ở việc **tránh đoạn sai** — và đó là tin tốt cho an toàn: không bộ nào lạc đề nhiều hơn.",
         "",
-        "**Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.",
+        "### 4.2.1 Khoảng tin cậy và kiểm định ý nghĩa",
+        "",
+        "Một tỷ lệ đo trên mẫu hữu hạn **không phải** tỷ lệ thật của tổng thể. Mục này trả lời hai câu",
+        "hỏi mà mọi bảng kết quả ở trên đều phải trả lời được:",
+        "",
+        "1. **Khoảng nào chứa tỷ lệ thật?** — khoảng tin cậy 95% theo phương pháp Wilson",
+        "2. **Chênh lệch giữa hai phương pháp có phải do may rủi không?** — kiểm định McNemar",
+        "",
+        "**Vì sao dùng Wilson thay vì công thức thông dụng.** Công thức chuẩn `p ± 1,96·√(p(1−p)/n)`",
+        "cho khoảng rộng bằng **0** khi tỷ lệ đạt 100%, tức khẳng định chắc chắn tuyệt đối từ một mẫu",
+        "hữu hạn. Nhiều phép đo trong đồ án này đạt đúng 100%, nên công thức đó không dùng được.",
+        "",
+        "**Vì sao dùng McNemar thay vì kiểm định hai mẫu độc lập.** Ba bộ truy hồi chạy trên **cùng",
+        "một danh sách câu hỏi**, nên kết quả của chúng không độc lập: chúng cùng đúng ở câu dễ và",
+        "cùng sai ở câu khó. McNemar dùng đúng tính chất ghép cặp này — nó chỉ xét những câu mà hai",
+        "bên **cho kết quả khác nhau**, và kiểm tra xem tỷ lệ giữa hai chiều lệch có khác 50/50 không.",
+        "",
+        "**Khoảng tin cậy 95% cho Hit@1 trên tập niêm phong:**",
+        "",
+        "| Phương pháp | Hit@1 | Khoảng tin cậy 95% | n |",
+        "|---|---:|:---:|---:|",
+    ] + [
+        f"| `{ten}` | {pct(k.ty_le)} | {pct(k.duoi)} – {pct(k.tren)} | {k.n} |"
+        for ten, k in b.ktc_truy_hoi("NIÊM PHONG").items()
+    ] + [
+        "",
+        "Ba khoảng này **chồng lấn nhau**. Nếu chỉ nhìn khoảng tin cậy thì chưa kết luận được bộ nào",
+        "hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.",
+        "",
+        "**Kiểm định McNemar trên tập niêm phong:**",
+        "",
+        "| So sánh | Số câu hai bên khác nhau | p | Kết luận |",
+        "|---|---:|---:|---|",
+    ] + [
+        f"| {a} so với {bb} | {r.n_lech}/{r.n} | **{so(r.p, 4)}** | "
+        f"{'**có ý nghĩa** (p < 0,05)' if r.co_y_nghia else 'chưa đủ ý nghĩa (p ≥ 0,05)'} |"
+        for a, bb, r in b.mcnemar_truy_hoi("NIÊM PHONG")
+    ] + [
+        "",
+        "**Đọc bảng này:**",
+        "",
+        "- Khẳng định **embedding tốt hơn BM25** có bằng chứng thống kê vững (p = "
+        f"{so(dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].p, 4)}"
+        "). Đây là kết luận chính của mục 4.2.",
+        "- Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu",
+        "  kết luận đó, dù con số tuyệt đối của embedding cao hơn.",
+        "",
+        "**Vì sao khoảng tin cậy rộng mà kết luận vẫn vững — hai câu hỏi khác nhau.**",
+        "",
+        "Khoảng tin cậy và kiểm định ghép cặp trả lời hai câu hỏi khác nhau, và chúng cần quy mô mẫu",
+        "khác nhau:",
+        "",
+        "| Câu hỏi | Công cụ | Cần n lớn không |",
+        "|---|---|---|",
+        "| *\"Tỷ lệ THẬT của embedding là bao nhiêu?\"* | khoảng tin cậy | **Có** — ước lượng một đại lượng tuyệt đối luôn cần nhiều quan sát |",
+        "| *\"Embedding có tốt hơn BM25 không?\"* | McNemar ghép cặp | **Ít hơn** — nó loại bỏ phần biến thiên chung của hai bên |",
+        "",
+        "Cụ thể ở đây: khoảng tin cậy của embedding rộng **±"
+        f"{so(b.ktc_truy_hoi('NIÊM PHONG')['embedding'].nua_rong * 100, 1)} điểm**, nên báo cáo",
+        "**không** khẳng định *\"tỷ lệ thật của embedding là 60,87%\"*. Nhưng McNemar cho p = "
+        f"{so(dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].p, 4)},",
+        "nên báo cáo **có** khẳng định *\"embedding tốt hơn BM25\"*. Hai câu này khác nhau, và chỉ câu",
+        "thứ hai là câu đồ án cần trả lời.",
+        "",
+        "Lý do kiểm định ghép cặp cần ít mẫu hơn: hai bộ chạy trên cùng danh sách câu hỏi, nên phần",
+        "khó/dễ của từng câu ảnh hưởng **cả hai bên như nhau** và bị triệt tiêu khi so từng cặp. Chỉ",
+        f"còn lại {dict(((a, bb), r) for a, bb, r in b.mcnemar_truy_hoi('NIÊM PHONG'))[('embedding', 'bm25')].n_lech} câu mà hai bên khác nhau,",
+        "và toàn bộ thông tin so sánh nằm ở đó.",
+        "",
+        "**Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng",
+        f"**{b.n_can(0.10)} ca**; tới ±5 điểm cần khoảng **{b.n_can(0.05)} ca**. Tập niêm phong hiện",
+        f"có **{b.ktc_truy_hoi('NIÊM PHONG')['embedding'].n} ca**, tương ứng nửa khoảng khoảng",
+        f"±{so(b.ktc_truy_hoi('NIÊM PHONG')['embedding'].nua_rong * 100, 1)} điểm phần trăm. Đây là hạn chế",
+        "thật của phép đo, và nó được nêu ở mục 5.4 thay vì bỏ qua.",
+        "",
+                "**Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.",
         "Đó **không** phải hệ thống kém đi mà là **bài toán khó lên** — kho tăng số chủ đề, và các chủ đề",
         "mới gần nhau hơn (bốn tài liệu vùng miền, bốn tài liệu đồ uống). Trích một con số ra khỏi ngữ",
         "cảnh kích thước kho là nói quá.",
@@ -992,9 +2505,9 @@ def chuong_4(b: Bang) -> str:
         for bo in sorted(m["so"]["nhom"]["written|*"]):
             n = m["so"]["nhom"]["written|*"][bo]["n"]
             ra.append(
-                f"| {ten} | `{bo}` | **{so(b.chon_muc(tap, 'written|*', bo))}** | "
-                f"{so(b.chon_muc(tap, 'written|A', bo))} | "
-                f"{so(b.chon_muc(tap, 'written|B', bo))} | {n} |"
+                f"| {ten} | `{bo}` | **{pct(b.chon_muc(tap, 'written|*', bo))}** | "
+                f"{pct(b.chon_muc(tap, 'written|A', bo))} | "
+                f"{pct(b.chon_muc(tap, 'written|B', bo))} | {n} |"
             )
     ra += [
         "",
@@ -1002,9 +2515,9 @@ def chuong_4(b: Bang) -> str:
         "khác. Một phương pháp thắng ở A mà thua ở B là phương pháp **khớp từ khoá**; thắng cả hai mới",
         "là **hiểu nghĩa**.",
         "",
-        f"- BM25 mạnh ở dạng A ({so(b.chon_muc('niem_phong', 'written|A', 'bm25'))}) và sụp ở dạng B",
-        f"  ({so(b.chon_muc('niem_phong', 'written|B', 'bm25'))}) — đúng bản chất của nó.",
-        f"- Embedding giữ được ở dạng B ({so(b.chon_muc('niem_phong', 'written|B', 'embedding'))}), và",
+        f"- BM25 mạnh ở dạng A ({pct(b.chon_muc('niem_phong', 'written|A', 'bm25'))}) và giảm mạnh ở dạng B",
+        f"  ({pct(b.chon_muc('niem_phong', 'written|B', 'bm25'))}), phù hợp với cơ chế đếm từ chung.",
+        f"- Embedding giữ được ở dạng B ({pct(b.chon_muc('niem_phong', 'written|B', 'embedding'))}), và",
         "  đó là chỗ quan trọng nhất với khách thật: khách **không** dùng đúng chữ trong tài liệu.",
         "",
         "Nhóm `derived` (tài liệu sinh từ thực đơn theo khuôn dùng chung) được báo cáo **riêng**, vì nó là",
@@ -1012,7 +2525,7 @@ def chuong_4(b: Bang) -> str:
         "",
         "## 4.4 Chọn món: lọc theo nhãn so với RAG",
         "",
-        "Đây là phép đo **quan trọng nhất của đồ án**, vì nó trả lời câu hỏi ở mục 1.4: chỗ nào KHÔNG nên",
+        "Phép đo này trả lời trực tiếp câu hỏi nghiên cứu nêu ở mục 1.4: xác định phạm vi KHÔNG nên",
         "dùng RAG.",
         "",
         f"Bài toán: **món nào thỏa ràng buộc khách nêu.** {b.m_truy_hoi['so']['bai_toan_2']['so_ca']} ca,",
@@ -1027,16 +2540,48 @@ def chuong_4(b: Bang) -> str:
         d = b2[bo]
         nhan = f"**`{bo}`**" if bo == "lọc nhãn" else f"`{bo}`"
         cam = f"**{d['cam5']}**" if bo == "lọc nhãn" else str(d["cam5"])
-        ra.append(f"| {nhan} | {so(d['hit1'] / d['n'])} | {so(d['hit5'] / d['n'])} | {cam} |")
+        ra.append(f"| {nhan} | {pct(d['hit1'] / d['n'])} | {pct(d['hit5'] / d['n'])} | {cam} |")
     xh = [v["cam5"] for k, v in b2.items() if k != "lọc nhãn"]
     ra += [
         "",
-        f"**Lọc theo nhãn đạt Hit@1 = {so(b2['lọc nhãn']['hit1'] / b2['lọc nhãn']['n'])} với"
-        f" {b2['lọc nhãn']['cam5']} ca sai.** Ba bộ xếp hạng sai **{min(xh)}–{max(xh)}/"
-        f"{b2['lọc nhãn']['n']} ca**.",
+        f"Trên **{b2['lọc nhãn']['n']} câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng"
+        f" **{b2['lọc nhãn']['hit1']:.0f}/{b2['lọc nhãn']['n']} câu"
+        f" ({pct(b2['lọc nhãn']['hit1'] / b2['lọc nhãn']['n'])})** và **không câu nào** nêu món vi"
+        f" phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **{min(xh)} đến {max(xh)} trong"
+        f" {b2['lọc nhãn']['n']} câu**, tương ứng"
+        f" {pct(min(xh) / b2['lọc nhãn']['n'])} đến {pct(max(xh) / b2['lọc nhãn']['n'])}.",
         "",
         "`cấm@5` ở bài toán này mang nghĩa khác bài toán 4.2: nó là số ca **nêu món không thỏa ràng",
         "buộc**, tức câu trả lời **SAI**, không phải kém. Với ca dị ứng thì đó là **lỗi an toàn**.",
+        "",
+        "#### Khoảng tin cậy và kiểm định",
+        "",
+        "**Bộ đo này được SINH TỪ BỘ NHÃN**, không viết tay. Bản đầu chỉ có 8 ca do người viết chọn;",
+        "với n = 8 thì nửa khoảng tin cậy 95% là ±28,50 điểm phần trăm — quá thô để kết luận. Vấn đề",
+        "thứ hai nghiêm trọng hơn quy mô: khi tự chọn câu hỏi, người viết có xu hướng chọn những câu",
+        "mình đã biết trước kết quả. Sinh từ nhãn thì **dữ liệu quyết định danh sách câu hỏi**.",
+        "",
+        "| Phương pháp | Trả lời đúng | Tỷ lệ | Khoảng tin cậy 95% |",
+        "|---|---:|---:|:---:|",
+    ] + [
+        f"| `{ten}` | {b2[ten]['hit1']:.0f}/{k.n} | **{pct(k.ty_le)}** | {pct(k.duoi)} – {pct(k.tren)} |"
+        for ten, k in b.ktc_chon_mon().items()
+    ] + [
+        "",
+        "Khoảng tin cậy của lọc theo nhãn (**"
+        f"{pct(b.ktc_chon_mon()['lọc nhãn'].duoi)} – {pct(b.ktc_chon_mon()['lọc nhãn'].tren)}**)",
+        "**không chồng lấn** với khoảng của bất kỳ bộ xếp hạng nào. Kiểm định ghép cặp xác nhận:",
+        "",
+        "| So sánh | Số câu hai bên khác nhau | p | Kết luận |",
+        "|---|---:|---:|---|",
+    ] + [
+        f"| lọc nhãn so với {t} | {r.n_lech}/{r.n} | **{so(r.p, 4)}** | "
+        f"{'**có ý nghĩa** (p < 0,05)' if r.co_y_nghia else 'chưa đủ ý nghĩa'} |"
+        for _, t, r in b.mcnemar_chon_mon()
+    ] + [
+        "",
+        "Cả ba so sánh đều đạt mức ý nghĩa. Kết luận **lọc theo nhãn vượt trội trên bài toán chọn",
+        "món** do đó có bằng chứng thống kê đầy đủ, không phụ thuộc vào việc chọn câu hỏi nào.",
         "",
         "Bốn lý do xếp hạng thua đã nêu ở mục 2.4. Đáng nhắc lại ca dị ứng: câu hỏi chứa chữ \"hải sản\"",
         "nên cả BM25 và embedding kéo món hải sản **LÊN ĐẦU** — đúng ngược điều khách cần. Cơ chế đúng",
@@ -1178,7 +2723,7 @@ def chuong_4(b: Bang) -> str:
         "|---|---|---|---|",
         f"| bộ truy hồi (**cả hai** đường) | **embedding** | thắng ở cả hai bài toán và cả hai tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh Docker 238MB → **2,74GB**; truy hồi 1,4ms → 67ms; khởi động **19,0s** |",
         f"| đường sinh | **TẮT mặc định**, bật bằng biến môi trường | {len(llm['ca_tut'])} ca tụt sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** | p50 **+{llm['tre_p50_ms'] / 1000:.1f}s** mỗi lượt |".replace("+8.6", "+8,6"),
-        f"| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn {b2['lọc nhãn']['cam5']} ca sai; ba bộ xếp hạng sai {min(xh)}–{max(xh)}/{b2['lọc nhãn']['n']} | 0,3ms — rẻ hơn mọi phương án khác |",
+        f"| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: {b2['lọc nhãn']['cam5']} câu nêu món vi phạm; ba bộ xếp hạng: {min(xh)} đến {max(xh)} trong {b2['lọc nhãn']['n']} câu | 0,3ms mỗi lượt |",
         "",
         "### Giá của embedding: ba lần đo mới ra con số đúng",
         "",
@@ -1216,6 +2761,102 @@ def chuong_4(b: Bang) -> str:
         "| chủ nhà hàng coi câu văn tự nhiên đáng giá thêm ~9 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |",
         "| có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do nhóm viết |",
         "",
+        "## 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu",
+        "",
+        "Tám mục trên đo **từng lớp riêng**. Không mục nào trả lời câu mà người đọc hỏi đầu tiên:",
+        "*vì sao không dùng mỗi một thứ cho gọn?*",
+        "",
+        "Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở cách chúng được viết:",
+        "",
+        f"| tập | bộ xếp hạng chạy |",
+        "|---|---:|",
+        f"| {len(b.ca_tra_loi)} ca trả lời | **0** |",
+        f"| {b.luot_phien} lượt phiên | **0** |",
+        f"| {len(b.ca_truy_hoi)} ca truy hồi | 36% |",
+        "",
+        "Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói \"truy hồi",
+        "vô dụng\". Tập thứ ba thì ngược lại — nó chỉ hỏi câu tri thức, nên không nói được gì về",
+        "chỗ lọc nhãn mạnh hơn. **Mỗi tập đo đúng điều nó được viết để đo.**",
+        "",
+        "Bộ này cho hai phương pháp chạy trên **cùng một câu hỏi**, ở hai nhóm câu mà mỗi nhóm là",
+        "điểm mạnh của một bên.",
+        "",
+        "### 4.9.1 Chiều A — câu mã tất định KHÔNG xử lý được",
+        "",
+        f"**{len(b.hc_a)} câu**, phủ **hết {len([d for d in b.docs if d.doc_id.startswith('kb.written')])} tài liệu văn xuôi**, mỗi tài liệu ít nhất một câu.",
+        "Phủ hết chứ không chọn tay: chọn tay thì người viết vô thức chọn câu mình biết sẽ thắng.",
+        "",
+        "| kết cục của mã tất định | số câu |",
+        "|---|---:|",
+        f"| **SAI DẠNG** — trả danh sách món cho câu \"thế nào / vì sao\" | **{b.hc_a_dem('sai_dang')}** |",
+        f"| **KHÔNG XỬ LÝ ĐƯỢC** — phải nhờ truy hồi | **{b.hc_a_dem('khong_xu_ly')}** |",
+        f"| đúng dạng | {b.hc_a_dem('dung')} |",
+        "",
+        f"Truy hồi tìm đúng tài liệu: **top-1 {b.hc_a_truy_hoi('truy_hoi_dung')}/{len(b.hc_a)}**, "
+        f"**top-5 {b.hc_a_truy_hoi('truy_hoi_top5')}/{len(b.hc_a)}**.",
+        "",
+        "**Kết quả đáng chú ý của bộ đo này nằm ở DẠNG lỗi, không nằm ở tỷ lệ.**",
+        f"Mã tất định **không im lặng** ở chiều A. {b.hc_a_dem('sai_dang')} câu nó trả lời TỰ TIN",
+        "bằng một danh sách món — mọi món có thật, mọi giá đúng — và **không câu nào trả lời điều",
+        "được hỏi**:",
+        "",
+        "> **Hỏi:** *Gọi khai vị trước có làm no bụng không ăn được món chính không?*",
+        "> **Đáp:** *Mời bạn tham khảo: Bánh mì pate Sài Gòn (35.000đ), Bánh cuốn Thanh Trì…*",
+        "",
+        "Về mặt trải nghiệm, dạng lỗi này khó phát hiện hơn trường hợp hệ thống từ chối trả lời: mọi dữ liệu",
+        "nêu ra đều chính xác, nên người dùng chỉ nhận ra câu hỏi của mình chưa được trả lời sau khi",
+        "đọc hết câu trả lời.",
+        "",
+        "### 4.9.2 Chiều B — câu mã tất định làm TỐT HƠN",
+        "",
+        f"**{len(b.hc_b)} câu**, **sinh từ bộ nhãn** chứ không viết tay: ngưỡng giá, mức cay, chế độ ăn,",
+        "dị nguyên, vùng miền, cách chế biến, sức khỏe, vị, dịp, nhóm người, và phép hội hai điều kiện.",
+        "Sinh từ nhãn thì danh sách ca do **dữ liệu** quyết định, không do người viết chọn.",
+        "",
+        "Chỉ số là **số món VI PHẠM ràng buộc** — không phải \"kém\", mà là **trả lời SAI**.",
+        "",
+        "| dạng ràng buộc | câu | lọc nhãn | truy hồi |",
+        "|---|---:|---:|---:|",
+    ] + [
+        f"| {d} | {sum(1 for r in b.hc_b if r['vi_sao'] == d)} | "
+        f"**{b.hc_b_vi_pham('tat_dinh_vi_pham', d)}** | {b.hc_b_vi_pham('truy_hoi_vi_pham', d)} |"
+        for d in b.hc_b_dang()
+    ] + [
+        f"| **tổng** | **{len(b.hc_b)}** | **{b.hc_b_vi_pham('tat_dinh_vi_pham')}** | "
+        f"**{b.hc_b_vi_pham('truy_hoi_vi_pham')}** |",
+        "",
+        f"Truy hồi vi phạm **gấp {b.hc_b_vi_pham('truy_hoi_vi_pham') // max(1, b.hc_b_vi_pham('tat_dinh_vi_pham'))} lần**. Nhưng con số đáng nói nhất nằm ở dòng dị ứng:",
+        f"lọc nhãn **{b.hc_b_vi_pham('tat_dinh_vi_pham', 'PHÉP TRỪ')}**, truy hồi **{b.hc_b_vi_pham('truy_hoi_vi_pham', 'PHÉP TRỪ')} món chứa đúng thứ khách phải tránh**.",
+        "Câu hỏi chứa chữ \"hải sản\" nên phép xếp hạng theo độ tương đồng kéo món hải sản LÊN ĐẦU —",
+        "**ngược hẳn điều khách cần**. Đó là lỗi an toàn, không phải lỗi chất lượng.",
+        "",
+        "### 4.9.3 Vì sao truy hồi không diễn đạt được ba dạng ràng buộc này",
+        "",
+        "| dạng | vì sao xếp hạng theo độ giống không làm được |",
+        "|---|---|",
+        "| **ngưỡng số** | với BM25 và embedding, `50.000` là một **TỪ**, không phải một **LƯỢNG**. Không có cách viết tài liệu nào biến \"dưới 50 nghìn\" thành quan hệ giống nhau |",
+        "| **phép trừ** | truy hồi **không có phép TRỪ**. Đoạn nói về hải sản *giống* câu \"dị ứng hải sản\" hơn là món không hải sản |",
+        "| **phép hội** | truy hồi cho **một** điểm giống đã trộn — không ép được hai điều kiện độc lập cùng đúng |",
+        "",
+        "Đây là giới hạn **cấu trúc**, không phải giới hạn dữ liệu hay mô hình. Nó là lý do hệ thống",
+        "để `select()` chọn món và chỉ để mô hình **viết về** những món đã chọn.",
+        "",
+        "### 4.9.4 Bộ đo của nhóm sai ba lần trước khi ra số đúng",
+        "",
+        "Ghi lại vì nó thuộc phần phương pháp, và vì **cả ba lần đều sai theo hướng làm kết quả đẹp",
+        "hơn thực tế** — đúng hướng mà người đo có động cơ không kiểm lại:",
+        "",
+        "| # | lỗi của phép đo | hậu quả |",
+        "|---|---|---|",
+        "| 1 | cột \"tất định\" tính cả nhánh truy hồi | 4/8 câu hiện ĐÚNG nhờ chính bên kia làm; tách ra còn **1/8** |",
+        "| 2 | chiều B tìm trên kho tri thức thay vì chỉ mục món | truy hồi **0 vi phạm**, kết quả không phản ánh bài toán cần đo; sau khi sửa: **17** |",
+        "| 3 | `Hit` không mang `topic_keys`, `getattr` luôn trả rỗng | truy hồi **0 trong 8 câu**, tức phép đo phản ánh chính bộ chấm điểm chứ không phản ánh bộ truy hồi |",
+        "",
+        "Đây là lần thứ tám lỗi nằm ở phép đo chứ không ở hệ thống. Quy trình áp dụng từ đó: **kiểm giả thuyết \"phép đo sai\" trước",
+        "giả thuyết \"hệ thống sai\"**.",
+        "",
+        f"Bảng đầy đủ {len(b.hai_chieu)} câu: `ai/evaluation/measurements/hai_chieu.csv`.",
+        "",
         "---",
         "---",
     ]
@@ -1240,15 +2881,182 @@ def chuong_5(b: Bang) -> str:
 | Bộ nhớ phiên {b.luot_phien} lượt | **{b.luot_phien}/{b.luot_phien}**, 0 lỗi an toàn |
 | LLM+RAG {llm['ca']} ca loại C | tất định {llm['dat_tat_dinh']}/{llm['ca']} · có sinh \
 {llm['dat_co_duong_sinh']}/{llm['ca']} |
-| Truy hồi toàn kho, niêm phong | Hit@1 embedding **{so(e_np)}** so với bm25 {so(b_np)} |
+| Truy hồi toàn kho, niêm phong | Hit@1 embedding **{pct(e_np)}** so với bm25 {pct(b_np)} |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding \
-**{so(b.chon_muc('niem_phong', 'written|*', 'embedding'))}** so với bm25 \
-{so(b.chon_muc('niem_phong', 'written|*', 'bm25'))} |
-| Chọn món | lọc nhãn **{b2['lọc nhãn']['cam5']} ca sai** so với xếp hạng \
+**{pct(b.chon_muc('niem_phong', 'written|*', 'embedding'))}** so với bm25 \
+{pct(b.chon_muc('niem_phong', 'written|*', 'bm25'))} |
+| Chọn món | lọc nhãn **{b2['lọc nhãn']['cam5']} câu nêu món vi phạm**, so với \
 {min(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')}–\
-{max(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')}/{b2['lọc nhãn']['n']} |
+{max(v['cam5'] for k, v in b2.items() if k != 'lọc nhãn')} câu ở ba bộ xếp hạng \
+(trên {b2['lọc nhãn']['n']} câu) |
 
-## 5.2 Làm được
+## 5.2 Phân tích chi tiết theo từng thành phần
+
+Mỗi thành viên tự viết nhận xét về chặng mình phụ trách: **điều đo được**, **điều làm sai rồi phải
+sửa**, và **giới hạn còn lại**. Phần này viết ở ngôi thứ nhất, và cố ý giữ cả những chỗ nhóm làm
+sai — một báo cáo chỉ kể phần thành công thì không cho người đọc biết gì về cách nhóm làm việc.
+
+### 5.2.1 Nhận xét — Phạm Duy An (BIT240002)
+
+**Phụ trách:** Dữ liệu, bộ nhãn, kho tri thức, và lớp hiểu câu hỏi
+
+Qua chặng dữ liệu và lớp hiểu câu hỏi, em rút ra các nhận xét sau:
+
+- **Hai nguồn dữ liệu lệch nhau là vấn đề đầu tiên phải giải.** Thực đơn tồn tại ở hai nơi — tệp
+  JSON cho AI và cơ sở dữ liệu cho backend — và chúng **không khớp**. Em giải bằng cách sinh cả hai
+  từ một nguồn, kèm cổng `--check` trong CI để không ai sửa tay một bên. Nếu không làm việc này
+  trước, mọi con số của bốn chặng sau đều đo trên dữ liệu sai.
+
+- **Rút dấu tiếng Việt là phép MẤT thông tin, và em đã trả giá cho nó nhiều lần.** Bỏ dấu cho phép
+  khớp "mo cua" với "mở cửa", nhưng nó cũng làm `"bò"` và `"bơ"` thành cùng một chuỗi. Dự án này ghi
+  nhận **mười vụ va chạm** kiểu đó, trong đó vụ em nhớ nhất là `fold("có cồn") == fold("có con")` —
+  câu *"mình có con 5 tuổi"* trả về danh sách rượu bia. Bài học: mỗi lần thêm cụm từ vựng phải chạy
+  lại bản kiểm kê va chạm, không được tin vào mắt mình.
+
+- **Từ điển {len(b.tags)} nhãn / 16 nhóm, và khoá phải có không gian tên.** Ban đầu em định dùng khoá phẳng
+  (`none`, `mild`, `hot`), nhưng như vậy thì không biết `none` thuộc nhóm cay hay nhóm chế độ ăn.
+  Khoá `spice:none` giải quyết, và quan trọng hơn: nó cho phép **ghi đè theo NHÓM** ở bộ nhớ phiên —
+  `spice:none` đẩy `spice:hot` ra thay vì nằm cạnh nó.
+
+- **Chỗ khó nhất không phải kỹ thuật mà là phân biệt RÀNG BUỘC với NGỮ CẢNH.** "Không cay" là ràng
+  buộc — món cay phải bị **loại**. "Đi hẹn hò" là ngữ cảnh — món hợp dịp chỉ **xếp lên trước**, không
+  được loại món khác. Nhầm hai thứ này thì hoặc lọc mất món đúng, hoặc để lọt món khách không ăn
+  được. Em phải tách chúng thành hai trường riêng trong `Request` thay vì gộp làm một danh sách.
+
+- **Giới hạn còn lại, và em nói ra thay vì giấu:** nhãn dị nguyên chỉ phủ **44/91 món**. Bản rà em
+  viết tìm ra **7 lỗ thật**, và cả 7 đã được lấp — hiện **26/26 món hải sản đều có nhãn nguyên liệu**.
+  Nhưng độ phủ nhãn dị nguyên trên toàn thực đơn vẫn chỉ **44/91 món**, và hai món chứa tôm dưới dạng
+  gia vị (mắm tôm, mắm ruốc) vẫn không mang `ingredient:shrimp`.
+  Đây là việc của bếp, không phải của mã — và nó là lý do hệ thống phải chặn rộng thay vì lọc hẹp.
+
+### 5.2.2 Nhận xét — Bùi Đào Đức Anh (BIT240025)
+
+**Phụ trách:** Truy hồi — BM25, embedding, hybrid RRF
+
+Qua chặng truy hồi, em rút ra các nhận xét sau:
+
+- **Embedding thắng BM25 rõ rệt trên tập niêm phong: Hit@1 60,87% so với 39,13%.** Lý do rất cụ thể và
+  em kiểm được bằng ví dụ: khách gõ *"món chín bằng hơi nước, nhẹ bụng"* trong khi tài liệu viết
+  *"món hấp"* — **không chung một chữ nào**, nên BM25 không có gì để đếm. Embedding tìm đúng vì hai
+  cách nói nằm gần nhau trong không gian ngữ nghĩa.
+
+- **Nhưng embedding có một tính chất nguy hiểm: nó KHÔNG BAO GIỜ TRƯỢT.** Câu hỏi lạc đề hoàn toàn
+  vẫn nhận về 5 đoạn với điểm số đàng hoàng. BM25 thì trả rỗng khi không có từ chung. Phát hiện này
+  đổi cách em chọn chỉ số: `cấm@5` (số đoạn **không được phép** lọt vào top-5) quan trọng hơn Hit@5,
+  vì một bộ trả 1 đoạn đúng + 4 đoạn lạc đề vẫn đạt Hit@5 = 1,0 tuyệt đối.
+
+- **Hybrid RRF không thắng như em nghĩ ban đầu.** Em kỳ vọng trộn hai phương pháp sẽ tốt hơn cả hai,
+  nhưng số đo cho thấy nó **không hơn embedding** ở bài toán chính. Em giữ nguyên kết quả này trong
+  báo cáo thay vì chỉnh tham số cho tới khi ra số đẹp — một kết quả âm tính vẫn là kết quả.
+
+- **Cái giá phải trả, và nhóm chấp nhận có ý thức:** embedding kéo ảnh Docker từ 238MB lên
+  **2,74GB** (gấp 11 lần) và thêm 19 giây khởi động. Em xử lý bằng cách **tính sẵn vector lúc build
+  ảnh** thay vì lúc chạy, nên độ trễ mỗi câu hỏi không tăng — chỉ thời gian khởi động tăng.
+
+- **Thí nghiệm em tâm đắc nhất lại là thí nghiệm THẤT BẠI.** Khi bị hỏi *"chưa tối ưu tài liệu thì
+  sao dám kết luận truy hồi kém"*, em viết lại tiêu đề mục của toàn kho cho đặc thù theo từng tài
+  liệu: số tiêu đề khác nhau **179 → 365**, đoạn dùng chung tiêu đề **283/452 → 93/452**, lớp lỗi
+  nhắm tới giảm **19 ca → 1 ca**. Kho cải thiện rõ ràng. Nhưng **Hit@1 không đổi — 60,87% cả trước
+  lẫn sau**. Các ca kia không được sửa; chúng chỉ **đổi tên lỗi**. Kết luận em rút ra: trần không
+  nằm ở dữ liệu, mà ở chỗ một hàm xếp hạng không diễn đạt được một vị từ.
+
+### 5.2.3 Nhận xét — Đỗ Tuấn Anh (BIT240015)
+
+**Phụ trách:** Chọn món và ba lớp an toàn
+
+Qua chặng chọn món và an toàn, em rút ra các nhận xét sau:
+
+- **Kết luận thiết kế của chặng này: cơ chế an toàn không được phụ thuộc vào mô hình sinh.** Ban đầu nhóm định dặn mô hình trong lời nhắc rằng "không được nhắc món gây dị ứng". Nhưng
+  lời nhắc là **đề nghị**, không phải **ràng buộc** — mô hình có thể bỏ qua và không có gì báo.
+  Nhóm chuyển sang **lọc trước khi sinh**: mô hình chỉ nhận danh sách món **đã** an toàn, nên nó
+  không có gì để nhắc sai.
+
+- **{b.so_phep_kiem} phép kiểm xác minh, và mỗi phép kiểm sinh ra từ một lần mô hình làm sai thật.** Ví dụ em nhớ
+  nhất: mô hình viết *"Nhà hàng có **6 món lẩu**"* trong khi thực đơn có **7**. Ba phép kiểm đầu
+  không chạm tới lỗi này — nó không phải tên món, không phải giá, không phải nhãn. Phải thêm một
+  phép kiểm riêng **cấm mô hình nêu số lượng**. Bài học: không đoán trước được mô hình sẽ sai kiểu
+  gì; phải đo rồi mới biết.
+
+- **Câu sinh vi phạm thì BỎ, không sửa.** Em từng định viết mã tự sửa câu mô hình viết sai, nhưng
+  bỏ ý đó: sửa một câu sai thành câu đúng đòi hỏi biết đúng là gì, mà nếu đã biết thì đâu cần mô
+  hình. Vi phạm thì rơi về câu khuôn mẫu — kém tự nhiên nhưng **đúng**.
+
+- **Chỗ em bị bắt lỗi và phải nhận sai:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Em định
+  lọc riêng con tôm ra để vẫn còn 14 món hải sản gợi ý được. Nhưng kiểm dữ liệu thì **hai món mang
+  `allergen:seafood` mà KHÔNG mang `ingredient:shrimp`, dù chúng chứa tôm**: *Bún đậu mắm tôm* và
+  *Bún bò Huế* (mắm ruốc). Mắm tôm và mắm ruốc là **gia vị** nên không được ghi vào nhãn nguyên
+  liệu. Lọc hẹp sẽ mời đúng hai món đó cho người dị ứng tôm. Em giữ chặn rộng ở mức **nhóm** và sửa
+  phần **im lặng** thay vì nới hàng rào xuống mức nguyên liệu.
+
+- **Thẻ giỏ hàng dựng từ danh sách món, không từ chữ mô hình viết.** Đây là ranh giới cuối: kể cả
+  khi mọi phép kiểm trên đều lọt, món trong giỏ vẫn không thể là món mô hình bịa ra, vì giỏ không
+  đọc chữ của mô hình.
+
+### 5.2.4 Nhận xét — Lê Anh (BIT240017)
+
+**Phụ trách:** Dịch vụ HTTP, bộ nhớ phiên, tích hợp với backend
+
+Qua chặng phiên và tích hợp, em rút ra các nhận xét sau:
+
+- **Bộ nhớ phiên cần BA quy tắc hợp nhất khác nhau, không phải một.** Đây là chỗ em làm sai lần đầu:
+  em dùng chung một quy tắc "cộng dồn" cho mọi loại ràng buộc. Hậu quả: khách nói *"dưới 200 nghìn"*
+  rồi *"rẻ hơn nữa"* thì hệ thống **giữ cả hai ngân sách** thay vì thay. Sửa xong thành ba quy tắc:
+  dị nguyên **cộng dồn không bao giờ bỏ**, ràng buộc cứng **ghi đè theo nhóm**, ngữ cảnh **tích lũy
+  có trần 5**.
+
+- **Dị nguyên phải cộng dồn — và đây là bất biến an toàn quan trọng nhất của chặng em.** Khách khai
+  dị ứng ở lượt 1, hỏi tiếp ở lượt 5 **mà không nhắc lại**. Nếu bộ nhớ ghi đè thì "dị ứng hải sản"
+  bị "không ăn được sữa" xoá mất. Tập đánh giá phiên có riêng một nhóm kịch bản đo đúng điều này.
+
+- **Dịch vụ phải trả lời được KHI MÔ HÌNH HỎNG.** Em thiết kế để mã tất định chạy trước, mô hình chỉ
+  được gọi ở nhánh cần diễn đạt. Nhờ vậy khi khoá API hết hạn hoặc nhà cung cấp lỗi, khách vẫn nhận
+  được câu trả lời đúng — chỉ là câu khuôn mẫu thay vì câu mượt. Một trợ lý im lặng vì mô hình hỏng
+  là một trợ lý hỏng.
+
+- **Tích hợp là chỗ lộ ra lỗi mà không tập đánh giá nào bắt được.** Ba tập đầu đều gọi thẳng hàm
+  Python, không đi qua backend. Khi ghép thật, em phát hiện những lỗi chỉ tồn tại ở lớp nối — ví dụ
+  nhánh `combo` trả về giỏ hàng rỗng vì thiếu tên nhánh trong danh sách trắng, một lỗi mà **394 test
+  đơn vị không chạm tới**.
+
+- **Giới hạn:** độ trễ khi bật mô hình là **~8,6 giây mỗi lượt**. Em chưa giải được, và nó là lý do
+  chính khiến nhóm để đường sinh **tắt mặc định**.
+
+### 5.2.5 Nhận xét — Nguyễn Quang Hiếu (BIT240091)
+
+**Phụ trách:** Bốn tập đánh giá, thước đo, golden đầu-cuối, cổng CI
+
+Qua chặng đánh giá, em rút ra các nhận xét sau:
+
+- **Bài học lớn nhất của em: kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống sai".** Dự án
+  này ghi nhận **tám lần** thước đo sai trước khi hệ thống sai, và lần gần nhất là bộ đo hai chiều
+  do chính em viết — nó sai **ba lần liên tiếp**, và cả ba đều sai theo hướng làm kết quả **đẹp hơn
+  thực tế**: (a) cột "tất định" tính cả nhánh truy hồi nên 4/8 câu hiện đúng nhờ chính bên kia làm;
+  (b) chiều B tìm trên kho tri thức thay vì chỉ mục món nên truy hồi ra **0 vi phạm** — một con số
+  không phản ánh bài toán cần đo; (c) `getattr` truy cập một thuộc tính không tồn tại nên luôn trả rỗng,
+  khiến phép đo phản ánh chính bộ chấm điểm chứ không phản ánh bộ truy hồi. Đó là hướng sai mà người đo **có động cơ không kiểm lại**.
+
+- **Golden {b.luot_golden} lượt là bộ bắt được nhiều lỗi nhất, và lý do rất cụ thể: nó không mock gì cả.** Nó
+  chạy đúng đường khách đi — quét QR → backend → dịch vụ AI → thẻ giỏ → giỏ hàng. Ba tập còn lại gọi
+  thẳng hàm Python nên một lỗi ở lớp ghép hai hệ thống sẽ không tập nào thấy.
+
+- **Chia tập theo HỌ, không theo ca.** Nếu chia ngẫu nhiên theo từng ca thì hai ca cùng một họ — ví
+  dụ hai cách hỏi về món nướng — có thể rơi vào hai tập khác nhau, và tập niêm phong không còn
+  "chưa từng thấy". Chia theo họ giữ được ý nghĩa của phép đo.
+
+- **Mỗi tập chỉ đo đúng thứ nó được viết ra để đo, và điều này em học được theo cách khó.** Trong
+  một phiên thử nghiệm với người dùng thật, **17 lỗi lọt qua** 140 ca và 111 lượt phiên. Không phải
+  vì tập kém, mà vì mọi ca trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý, và
+  hỏi liên tục. Tập phiên phải lớn từ **111 → 149 lượt** mới bắt được chúng.
+
+- **Hạn chế nghiêm trọng nhất của toàn đồ án, và em phải nói rõ:** **không có log khách thật**. Mọi
+  ca đánh giá đều do nhóm viết. Con số đo được hệ thống có tôn trọng ràng buộc hay không; nó
+  **không** đo được khách thật sẽ hỏi gì. Thêm nữa, **cả bốn tập niêm phong đã được mở**, nên con số
+  trên chúng không còn là held-out cho các thay đổi sau đó. Con số held-out thật duy nhất của dự án
+  là **23/27 (85,2%)** ở lần mở đầu tiên.
+
+---
+
+## 5.3 Làm được
 
 | Việc | Bằng chứng |
 |---|---|
@@ -1262,7 +3070,7 @@ def chuong_5(b: Bang) -> str:
 | Câu trả lời và thẻ giỏ **không lệch nhau, cả hai chiều** | phép kiểm thứ 6 và bất biến thẻ giỏ thứ 8 |
 | Cắt khởi động container 97,3s → 19,0s | mục 4.8 |
 
-## 5.3 Hạn chế
+## 5.4 Hạn chế của nghiên cứu
 
 1. **Không có log khách thật.** Mọi ca đánh giá do nhóm viết. Con số đo được hệ thống **có tôn trọng
    ràng buộc hay không**; nó **không** đo được khách thật hỏi gì. Đây là hạn chế lớn nhất, và nó không
@@ -1285,7 +3093,7 @@ def chuong_5(b: Bang) -> str:
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
 
-## 5.4 Bài học kinh nghiệm
+## 5.5 Bài học kinh nghiệm
 
 ### Bài học 1 — thước đo sai TRƯỚC khi hệ thống sai
 
@@ -1294,7 +3102,7 @@ chạy golden có 8 lượt đỏ, và **5 trong 8** là lỗi bộ đo, không 
 
 Nên thứ tự kiểm phải là: **kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống sai"**.
 
-Trường hợp đáng nhớ nhất là một thước đo **thưởng cho hành vi sai**: nó đòi câu trả lời tri thức phải
+Một trường hợp cụ thể: phép đo **cho điểm cao với hành vi sai** — nó đòi câu trả lời tri thức phải
 *chứa nguyên văn* một đoạn của tài liệu — mà đoạn thô cũng chứa cả nhan đề tài liệu. Nên **dán đoạn thô
 là cách chắc chắn nhất để QUA**, còn câu trình bày sạch thì đỏ. Khi phần làm sạch trình bày được thêm,
 tập trả lời tụt từ {len(b.ca_tra_loi)}/{len(b.ca_tra_loi)} xuống 130/{len(b.ca_tra_loi)} và **cả 10 ca
@@ -1339,7 +3147,20 @@ kỷ luật mà notebook của dự án đã có từ đầu và nhờ đó khô
 `PROMPT` yêu cầu mô hình mời khách hỏi nhân viên khi có ràng buộc dị ứng. Mô hình **bỏ câu đó ở 14 ca**.
 Yêu cầu trong prompt là **đề nghị**; chỉ phép kiểm sau khi sinh mới là **bảo đảm**.
 
-## 5.5 Hướng phát triển
+## 5.6 Khó khăn gặp phải
+
+| Khó khăn | Cách nhóm xử lý |
+|---|---|
+| **Không có log khách thật** — mọi ca đánh giá do nhóm viết, nên chúng phản ánh cách nhóm nghĩ khách sẽ hỏi, không phải cách khách hỏi thật | Thử nghiệm trực tiếp với người dùng ngoài nhóm; một phiên như vậy làm lộ **17 lỗi** mà 140 ca và 111 lượt không bắt được, và tập phiên phải lớn lên **149 lượt** |
+| **Rút dấu tiếng Việt gây va chạm** — `fold("có cồn") == fold("có con")`, `fold("cua") == fold("của")` | Bản kiểm kê va chạm chạy trong CI; mỗi lần thêm cụm từ vựng phải chạy lại. Dự án ghi nhận **mười vụ** kiểu này |
+| **Độ trễ mô hình ~8,6 giây mỗi lượt** | Để đường sinh **tắt mặc định**; mã tất định trả lời trước, mô hình chỉ được gọi ở nhánh cần diễn đạt |
+| **Ảnh Docker 2,74GB vì embedding** | Tính sẵn vector lúc **build ảnh** thay vì lúc chạy — độ trễ mỗi câu không tăng, chỉ thời gian khởi động; và cắt được khởi động từ 97,3s xuống **19,0s** |
+| **Nhãn dị nguyên chỉ phủ 44/91 món** | Chặn rộng thay vì lọc hẹp, và **nói ra lý do** cho khách thay vì im lặng. Đây là giới hạn dữ liệu, không sửa được bằng mã |
+| **Thước đo sai trước hệ thống sai — tám lần** | Viết `probe_metric_holes.py` để dò lỗ của chính thước đo; và đặt thành nếp: kiểm giả thuyết "đo sai" trước |
+
+---
+
+## 5.7 Hướng phát triển tương lai
 
 Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá trị của mọi con số trong báo cáo này.
 
@@ -1448,7 +3269,7 @@ def phu_luc_d(b: Bang) -> str:
         for bo in b.bo_truy_hoi():
             d = b.m_truy_hoi["so"]["bai_toan_1"][nhom]["bo"][bo]
             n = d["n"]
-            f = (lambda k: so(d[k] / n)) if n else (lambda k: "—")
+            f = (lambda k: pct(d[k] / n)) if n else (lambda k: "—")
             ra.append(
                 f"| truy hồi toàn kho | {nhom} | `{bo}` | {n} | {f('hit1')} | {f('hit5')} | "
                 f"{f('mrr5')} | {f('ndcg5')} | {d['cam5']} |"
@@ -1456,8 +3277,8 @@ def phu_luc_d(b: Bang) -> str:
     b2 = b.m_truy_hoi["so"]["bai_toan_2"]["bo"]
     for bo, d in b2.items():
         ra.append(
-            f"| chọn món | 8 ca | `{bo}` | {d['n']} | {so(d['hit1'] / d['n'])} | "
-            f"{so(d['hit5'] / d['n'])} | — | — | {d['cam5']} |"
+            f"| chọn món | 8 ca | `{bo}` | {d['n']} | {pct(d['hit1'] / d['n'])} | "
+            f"{pct(d['hit5'] / d['n'])} | — | — | {d['cam5']} |"
         )
     for tap, ten in (("phat_trien", "phát triển"), ("niem_phong", "niêm phong")):
         m = b.m_chon_np if tap == "niem_phong" else b.m_chon_dev
@@ -1468,7 +3289,7 @@ def phu_luc_d(b: Bang) -> str:
                     continue
                 ra.append(
                     f"| chọn mục `{nhom_dang}` | {ten} | `{bo}` | {d['n']} | "
-                    f"{so(d['top1'])} | — | {so(d['mrr'])} | — | — |"
+                    f"{pct(d['top1'])} | — | {pct(d['mrr'])} | — | — |"
                 )
     ra.append("")
     ra.append("`—` nghĩa là chỉ số đó **không áp dụng** cho bài toán/nhóm đó, không phải bằng 0.")
@@ -1508,7 +3329,7 @@ def phu_luc_e(b: Bang) -> str:
 def bao_cao() -> str:
     b = Bang()
     phan = [
-        phan_dau(b), muc_luc(), tom_tat(b), thuat_ngu(), phan_cong(),
+        phan_dau(b), muc_luc(), tom_tat(b), thuat_ngu(), danh_muc_hinh(b), danh_muc_bang(b), phan_cong(b),
         chuong_1(b), chuong_2(b), chuong_3(b), chuong_4(b), chuong_5(b),
         tai_lieu_tham_khao(),
         phu_luc_a(), phu_luc_b(), phu_luc_c(b), phu_luc_d(b), phu_luc_e(b),

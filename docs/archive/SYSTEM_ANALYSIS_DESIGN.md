@@ -4,7 +4,7 @@
 > và luồng hoạt động. Được **đối chiếu trực tiếp với code hiện tại** trên nhánh `develop` (sau đợt
 > hardening P0–P3). Khi có mâu thuẫn giữa các tài liệu, **file này thắng**.
 >
-> - Chi tiết endpoint/DTO/error-code: xem [`API_CONTRACT.md`](API_CONTRACT.md).
+> - Chi tiết endpoint/DTO/error-code: xem [`API_CONTRACT.md`](../backend/API_CONTRACT.md).
 > - Nợ kỹ thuật & kế hoạch dọn/bổ sung: xem [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md).
 > - Các tài liệu cũ (`BA_SA_SYSTEM_DESIGN.md`, `PROJECT_CONTEXT.md`) giữ lại làm lịch sử; phần enum/flow
 >   đã lỗi thời được chú thích trỏ về file này.

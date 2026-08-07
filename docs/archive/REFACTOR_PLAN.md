@@ -1,6 +1,6 @@
 # Kế Hoạch Refactor — CMC Restaurant QR AI Ordering
 
-> **Trạng thái 2026-07-11:** Đây là baseline lịch sử. Kiến trúc runtime hiện tại được mô tả tại [Backend Modular Monolith](BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md). Mục 2.1 đã hoàn thành; `KnowledgeEntry` được giữ lại chờ data audit thay vì xoá schema mù.
+> **Trạng thái 2026-07-11:** Đây là baseline lịch sử. Kiến trúc runtime hiện tại được mô tả tại [Backend Modular Monolith](../backend/ARCHITECTURE.md). Mục 2.1 đã hoàn thành; `KnowledgeEntry` được giữ lại chờ data audit thay vì xoá schema mù.
 
 > **Trạng thái: KẾ HOẠCH (plan-only). Chưa thực thi thay đổi code nào.** Tài liệu này liệt kê phần _thừa cần bỏ_ và _thiếu cần thêm_, kèm trình tự PR và rủi ro, để review trước khi bắt tay refactor.
 >

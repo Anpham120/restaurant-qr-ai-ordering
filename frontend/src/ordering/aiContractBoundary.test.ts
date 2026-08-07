@@ -28,7 +28,7 @@ describe("AI contract boundary (no-touch)", () => {
   });
 
   it("documents frozen AI directories", () => {
-    const manifest = read("docs/AI_NO_TOUCH_BOUNDARY.md");
+    const manifest = read("docs/ai/AI_NO_TOUCH_BOUNDARY.md");
 
     expect(manifest).toContain("ai/");
     expect(manifest).toContain("ai-chat-v1.schema.json");
