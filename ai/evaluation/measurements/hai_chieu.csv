@@ -1,18 +1,18 @@
 ﻿chieu,cau_hoi,dap_an_o_dau,tat_dinh_nhanh,tat_dinh_dang,tat_dinh_dung,nhanh_la_truy_hoi,truy_hoi_dung,truy_hoi_top5,tat_dinh_vi_pham,truy_hoi_vi_pham,vi_sao
 A,Mình bị dị ứng thì phải nói với quán thế nào cho chắc?,tài liệu allergy_guidance,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Gọi khai vị trước có làm no bụng không ăn được món chính không?,tài liệu appetizer_role,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Gọi khai vị trước có làm no bụng không ăn được món chính không?,tài liệu appetizer_role,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình lái xe nên không dám uống gì có cồn, quán tính sao?",tài liệu beer_and_alcohol,filter,list,False,False,False,False,,,cần lời giải thích; danh sách món là sai dạng
 A,Ăn xong mà miệng vẫn cay xè thì uống gì cho dịu?,tài liệu beverage_pairing,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Đi bốn người mà chỉ muốn tiêu tầm hai trăm mỗi người thì tính sao?,tài liệu budget_planning,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Quán có nói được món này nấu bao lâu không?,tài liệu cannot_help,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Cùng là gà mà sao món thì mềm món thì dai vậy?,tài liệu chicken_dishes,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Đi bốn người mà chỉ muốn tiêu tầm hai trăm mỗi người thì tính sao?,tài liệu budget_planning,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Quán có nói được món này nấu bao lâu không?,tài liệu cannot_help,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Cùng là gà mà sao món thì mềm món thì dai vậy?,tài liệu chicken_dishes,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Bé nhà mình mới hai tuổi, ăn ở đây có tiện không?",tài liệu children_elderly,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Uống cà phê buổi tối có bị mất ngủ không?,tài liệu coffee_and_tea,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Uống cà phê buổi tối có bị mất ngủ không?,tài liệu coffee_and_tea,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Gọi mấy món mà ăn cùng nhau cho hợp vị?,tài liệu combo_pairing,knowledge:ordering_guide,fact,True,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình định cầu hôn ở đây, nên chuẩn bị gì?",tài liệu date_occasion,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Ăn xong ngọt miệng thì nên làm gì tiếp?,tài liệu dessert_guide,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình ăn kiêng nhưng không phải dị ứng, có khác gì nhau không?",tài liệu dietary_limits,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
-A,"Đi có một mình mà gọi nhiều thì phí, làm sao giờ?",tài liệu eating_alone,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,"Đi có một mình mà gọi nhiều thì phí, làm sao giờ?",tài liệu eating_alone,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Quán này có gì hay mà mọi người hay hỏi?,tài liệu faq_extended,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Lần đầu tới đây, gọi kiểu gì cho khỏi bỡ ngỡ?",tài liệu first_visit,knowledge:first_visit,fact,True,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Ăn xong muốn cái gì mát mát tự nhiên thì có không?,tài liệu fresh_fruit,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
@@ -23,7 +23,7 @@ A,"Mình ăn cay giỏi, muốn thử vị miền Trung thật đậm",tài li�
 A,"Muốn cái gì mát mà rẻ, không phải trà sữa",tài liệu juice_and_smoothie,item_detail,fact,True,False,False,False,,,cần lời giải thích; danh sách món là sai dạng
 A,"Buổi trưa đi làm về, ăn nhanh gọn thì set nào?",tài liệu meal_sets,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Phở với bún với hủ tiếu thì khác nhau chỗ nào?,tài liệu noodle_soups,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
-A,"Cả phòng mười hai người liên hoan, gọi sao cho đủ?",tài liệu ordering_guide,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
+A,"Cả phòng mười hai người liên hoan, gọi sao cho đủ?",tài liệu ordering_guide,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Mấy món này ra cùng lúc hay ra dần vậy?,tài liệu portion_timing,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Quét mã xong thì mình bấm tiếp thế nào?,tài liệu qr_ordering,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình chỉ có ba mươi phút, kịp ăn gì không?",tài liệu quick_meal,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
@@ -31,14 +31,14 @@ A,Mấy chữ ghi dưới tên món có tin được hết không?,tài liệu r
 A,Toàn món cơm mà không biết chọn cái nào cho no,tài liệu rice_dishes,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình thích vị ngọt kiểu trong Nam, gọi gì?",tài liệu saigon_and_south,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Nhà có người dị ứng tôm mà vẫn muốn ăn đồ biển thì sao?,tài liệu seafood_caution,filter,list,False,False,False,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Cả nhà ăn chung một mâm thì nên gọi thế nào cho hợp lý?,tài liệu sharing_etiquette,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Cả nhà ăn chung một mâm thì nên gọi thế nào cho hợp lý?,tài liệu sharing_etiquette,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình ăn cay kém, làm sao biết món nào chịu được?",tài liệu spice_ladder,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Tiền nào của nấy hay có món rẻ mà vẫn ngon?,tài liệu value_for_money,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Đồ chay ở đây có thật sự chay không hay chỉ là không thịt?,tài liệu vegetarian_reality,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,"Mình no rồi mà bạn chưa ăn xong, gọi thêm gì cho đỡ ngại?",tài liệu appetizer_role,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
 A,Tính tiền có bị cộng thêm gì ngoài giá ghi không?,tài liệu budget_planning,knowledge_corpus:embedding,fact,False,True,False,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Quán biết món nào còn món nào hết không?,tài liệu cannot_help,policy:time_or_availability,no_data,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
-A,Đi với bà ngoại tám mươi tuổi thì chọn món ra sao?,tài liệu children_elderly,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
+A,Đi với bà ngoại tám mươi tuổi thì chọn món ra sao?,tài liệu children_elderly,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Trẻ con uống được gì ở đây?,tài liệu beverage_pairing,knowledge_corpus:embedding,fact,False,True,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Ăn lẩu thì nên gọi thêm gì cho đủ bữa?,tài liệu hotpot_choosing,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Mình muốn ăn no mà tiêu dưới trăm rưỡi,tài liệu value_for_money,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
@@ -47,7 +47,7 @@ A,Đặt bàn đông người thì cần báo trước bao lâu?,tài liệu ord
 A,Món nào hợp mang về nhà ăn?,tài liệu quick_meal,facts:delivery,fact,True,False,False,False,,,cần lời giải thích; danh sách món là sai dạng
 A,Sau bữa nhiều dầu mỡ nên uống gì?,tài liệu beverage_pairing,filter,list,False,False,True,True,,,cần lời giải thích; danh sách món là sai dạng
 A,Mình muốn thử món lạ mà sợ không hợp miệng,tài liệu first_visit,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
-A,Gọi hai người mà muốn thử nhiều vị thì làm sao?,tài liệu sharing_etiquette,filter,list,False,False,False,False,,,cần lời giải thích; danh sách món là sai dạng
+A,Gọi hai người mà muốn thử nhiều vị thì làm sao?,tài liệu sharing_etiquette,knowledge_corpus:embedding,fact,False,True,False,False,,,cần lời giải thích; danh sách món là sai dạng
 A,"Đồ biển ở đây có tươi không, lấy từ đâu?",tài liệu seafood_caution,filter,list,False,False,False,False,,,cần lời giải thích; danh sách món là sai dạng
 B,Món nào dưới 30 nghìn?,nhãn: ngưỡng số,filter,list,,,,,0,5,ngưỡng số
 B,Món nào dưới 50 nghìn?,nhãn: ngưỡng số,filter,list,,,,,0,5,ngưỡng số

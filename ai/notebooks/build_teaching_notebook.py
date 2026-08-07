@@ -215,7 +215,7 @@ bản đa lượt. Nên thứ tự tuần 1 của TV1 là **ca đánh giá trư�
     # ================================================================= PHẦN I
     out.append(md(r"""
 ---
-# PHẦN 1 — BÀI TOÁN, DỮ LIỆU VÀ KHO TRI THỨC
+## Bài toán, dữ liệu và kho tri thức
 > **TV1** — nền tảng dữ liệu
 
 > **Vị trí:** nền tảng của cả pipeline. Không phải một chặng runtime — một câu hỏi không "đi qua"
@@ -288,6 +288,26 @@ print(doc[start:start + 780])
 - **Giới hạn:** phát biểu bài toán là văn bản, nên nó chỉ có giá trị nếu có cơ chế cưỡng chế.
   Phần V sẽ cho thấy ba điều cấm này được cưỡng chế bằng mã và test như thế nào.
 - **Quyết định tiếp theo:** trước khi viết bất kỳ dòng nào, phải hiểu dữ liệu — Mục 2.
+"""))
+
+    out.append(md(r"""
+---
+
+# PHẦN 1 — DỮ LIỆU, NHÃN & LỚP HIỂU CÂU HỎI
+
+> **Chặng của TV1 — Phạm Duy An.** Chặng nền. Không nằm trên đường chạy của một câu hỏi, nhưng **mọi chặng sau đều đọc dữ liệu của nó** — một lỗi nhãn ở đây lan ra cả bốn chặng.
+
+| | |
+|---|---|
+| **Nhận từ chặng trước** | thực đơn thô 91 món từ hai nguồn (JSON của AI, CSDL của backend) đang **lệch nhau** |
+| **Bàn giao cho chặng sau** | một bộ nhãn duy nhất, kho tri thức, và bốn tập đánh giá |
+| **Điều kiện nghiệm thu** | hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất sinh lại được (`--check` xanh); bộ rà nhãn **0 lỗ** |
+
+Mục trong phần này: 2 → 7 (dữ liệu, nhãn, rút dấu, kho tri thức, chia đoạn), 10 → 11 (chia tập, thước đo)
+
+Notebook đi theo **đúng thứ tự dự án đã được xây**, vì thứ tự đó chính là phương pháp: không có
+nhãn thì không lọc được món, không có kho thì không truy hồi được, và **không có tập đánh giá thì
+không ai biết mình đúng hay sai**.
 """))
 
     out.append(md(r"""
@@ -973,7 +993,7 @@ print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đườ
     # ================================================================= PHẦN II
     out.append(md(r"""
 ---
-# PHẦN 2 — TẬP ĐÁNH GIÁ VÀ THƯỚC ĐO
+## Tập đánh giá và thước đo
 > **TV1** — nền tảng đo lường. Cùng người với Phần 1, và mục dưới nói vì sao.
 
 > **Vị trí:** **xuyên ngang cả 4 khâu runtime**, không phải một chặng — nên nó thuộc TV1 cùng với
@@ -1278,7 +1298,7 @@ print(r.stdout)
     # ================================================================= PHẦN 3
     out.append(md(r"""
 ---
-# PHẦN 3 — TRẢ LỜI KHÔNG CẦN MÔ HÌNH
+## Trả lời không cần mô hình
 > **TV2** (hiểu câu hỏi) và **TV4** (chọn món & giỏ hàng)
 
 > **Vị trí:** TV2 (hiểu câu hỏi) và TV4 (chọn món). Đây là phần quyết định **mô hình sinh còn phải
@@ -1302,6 +1322,27 @@ ai nói được đường nào phụ trách việc gì, và **2 đường bị 
 
 Số nền có hai tính chất mà câu trả lời của mô hình không có: **đúng 100% về dữ liệu** và **giống
 nhau mọi lần chạy**. Nên nó là mốc, và mọi thứ thêm vào sau phải chứng minh mình vượt mốc đó.
+"""))
+
+    out.append(md(r"""
+---
+
+## Lớp hiểu câu hỏi — vẫn thuộc chặng TV1
+
+> Lớp này thuộc **cùng chặng TV1** vì nó ánh xạ chữ khách gõ vào **chính bộ nhãn** chặng dữ liệu
+> định nghĩa. Tách ra thì mỗi lần thêm nhãn phải đợi người khác thêm cụm từ vựng. Biến câu tiếng Việt thành `Request` — nhãn lọc, ràng buộc, ý định. Đây là chặng quyết định **câu hỏi được hiểu thành cái gì**, nên mọi sai ở đây đều lan xuống dưới.
+
+| | |
+|---|---|
+| **Nhận từ chặng trước** | bộ nhãn và tập đánh giá của TV1 |
+| **Bàn giao cho chặng sau** | `Request(nhãn lọc, ràng buộc, ngữ cảnh, ý định)` |
+| **Điều kiện nghiệm thu** | **140/140** ca trả lời; kiểm kê đụng chữ khớp con số đã ghi; 0 ca câu hỏi bình thường bị đọc thành ràng buộc |
+
+Mục trong phần này: 12 → 14 (số nền, ràng buộc khác ngữ cảnh, ablation)
+
+Notebook đi theo **đúng thứ tự dự án đã được xây**, vì thứ tự đó chính là phương pháp: không có
+nhãn thì không lọc được món, không có kho thì không truy hồi được, và **không có tập đánh giá thì
+không ai biết mình đúng hay sai**.
 """))
 
     out.append(md(r"""
@@ -1608,7 +1649,7 @@ print(f"{len(rows) - rao}/{len(rows)} cơ chế là tính năng chất lượng 
     # ================================================================= PHẦN 4
     out.append(md(r"""
 ---
-# PHẦN 4 — TRUY HỒI TRI THỨC
+## Truy hồi tri thức
 > **TV3** — nhận kho 303 đoạn từ TV1, làm phần lấy đoạn
 
 > **Vị trí:** TV3, giữa "hiểu câu hỏi" và "chọn món". Phép so **đã chạy**, và một phần kết quả
@@ -1636,6 +1677,26 @@ Nó là: **câu hỏi "phương pháp nào tốt hơn" không có câu trả l�
 
 Một dự án chỉ đo bài toán thứ nhất sẽ kết luận "dùng RAG cho mọi thứ". Đó là kết luận sai, và
 bảng ở mục 15c là con số chứng minh nó sai.
+"""))
+
+    out.append(md(r"""
+---
+
+# PHẦN 2 — TRUY HỒI
+
+> **Chặng của TV2 — Bùi Đào Đức Anh.** Trả lời câu **ngoài thực đơn** — chính sách, cách kết hợp món, vùng miền. Đây là chặng duy nhất dùng học máy theo nghĩa xếp hạng.
+
+| | |
+|---|---|
+| **Nhận từ chặng trước** | `Request` của TV2, và kho tri thức của TV1 |
+| **Bàn giao cho chặng sau** | đoạn tri thức làm ngữ cảnh cho câu trả lời |
+| **Điều kiện nghiệm thu** | **222 ca** chạy trên cả ba bộ; có bảng so kèm `cấm@5`; quyết định chốt bộ truy hồi **có số đi kèm**, không chọn theo cảm giác |
+
+Mục trong phần này: 15 → 15d (điều kiện so sánh, ba công thức, bài toán chọn món, chốt production)
+
+Notebook đi theo **đúng thứ tự dự án đã được xây**, vì thứ tự đó chính là phương pháp: không có
+nhãn thì không lọc được món, không có kho thì không truy hồi được, và **không có tập đánh giá thì
+không ai biết mình đúng hay sai**.
 """))
 
     out.append(md(r"""
@@ -2096,7 +2157,7 @@ else:
     # ================================================================= PHẦN 5
     out.append(md(r"""
 ---
-# PHẦN 5 — MÔ HÌNH SINH, AN TOÀN VÀ TÍCH HỢP
+## Mô hình sinh, an toàn và tích hợp
 > **TV2** (mô hình đọc ràng buộc) và **TV5** (thoái hóa êm, tích hợp)
 
 > **Vị trí:** phần mô hình thuộc TV2; phần tích hợp và thoái hóa êm thuộc TV5. Chứa **phát hiện
@@ -2166,6 +2227,26 @@ for k, v in bo.most_common():
     print(f"   {k:12} {v} lần   (bịa hoặc sai vai -> KHÔNG được dùng)")
 print("\n=> Mô hình trả về nhãn không có thật hoặc sai vai thì nhãn đó bị BỎ,")
 print("   không phải được dùng rồi hy vọng nó đúng.")
+"""))
+
+    out.append(md(r"""
+---
+
+# PHẦN 3 — CHỌN MÓN & AN TOÀN
+
+> **Chặng của TV3 — Đỗ Tuấn Anh.** Lọc ra danh sách món và dựng thẻ giỏ. Đây là chặng **chịu trách nhiệm an toàn**: một món lọt qua đây là một món khách có thể bấm đặt.
+
+| | |
+|---|---|
+| **Nhận từ chặng trước** | `Request` đã hiểu, và đoạn tri thức của TV3 |
+| **Bàn giao cho chặng sau** | danh sách món + thẻ giỏ tất định |
+| **Điều kiện nghiệm thu** | **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị BỎ**, không sửa; thẻ giỏ không bao giờ chứa món ngoài danh sách đã lọc |
+
+Mục trong phần này: 16 (ba lớp an toàn, và vì sao an toàn không được phụ thuộc mô hình)
+
+Notebook đi theo **đúng thứ tự dự án đã được xây**, vì thứ tự đó chính là phương pháp: không có
+nhãn thì không lọc được món, không có kho thì không truy hồi được, và **không có tập đánh giá thì
+không ai biết mình đúng hay sai**.
 """))
 
     out.append(md(r"""
@@ -2368,7 +2449,7 @@ print("thiếu của bảng từ vựng, không đo năng lực mô hình.")
     # ======================================================= PHẦN 6 — THỬ NGHIỆM THẬT
     out.append(md(r"""
 ---
-# PHẦN 6 — THỬ NGHIỆM THẬT: GỌI MÔ HÌNH, QUA HTTP, VÀO GIỎ HÀNG
+## Thử nghiệm thật: gọi mô hình, qua http, vào giỏ hàng
 > Mọi con số của PHẦN 1–5 đo bằng cách gọi hàm Python trực tiếp. Phần này đo **chuỗi gọi đầy đủ**:
 > QR → phiên bàn → phiên chat → backend .NET → dịch vụ AI → mô hình → thẻ giỏ → giỏ hàng thật.
 
@@ -2717,8 +2798,7 @@ Ba việc đã làm, và không việc nào là "nhớ sửa hai chỗ":
     # ============================================================== TỔNG HỢP
     out.append(md(r"""
 ---
-# PHẦN 7 — KẾT QUẢ TỔNG HỢP, HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
-
+## Kết quả tổng hợp, hạn chế và hướng phát triển
 Phần này không thêm kiến thức mới. Nó gom lại **con số nào đã đo, con số nào chưa**, và **cái gì
 không đo được** — vì một báo cáo mà không phân biệt ba loại đó thì người đọc không biết tin phần
 nào.
@@ -3010,6 +3090,179 @@ Không chặn gì, nhưng nó là cái giá đã đo và có đường giảm r�
    `122/122` khi tập đã 140 ca · `84 tài liệu / 303 đoạn` khi kho đã 108 / 449 · `Hit@5 0,921` của
    một kho nhỏ hơn. Lần thứ sáu là con số **`"khoảng 2–3GB"`** cho ảnh Docker, mà đo thật ra 9,29GB —
    và lần đó con số sai gấp ba nằm trong chính phần chốt phương án triển khai.
+"""))
+
+    # ============================================================ PHẦN 5 — TV5
+    out.append(md(r"""
+---
+
+# PHẦN 4 — PHIÊN & TÍCH HỢP, và PHẦN 5 — ĐÁNH GIÁ
+
+> **TV4 — Lê Anh** ghép bốn chặng thành một dịch vụ khách gọi được và giữ ngữ cảnh qua nhiều lượt
+> (mục 17). **TV5 — Nguyễn Quang Hiếu** chứng minh cả chuỗi chạy đúng bằng bốn tập đánh giá,
+> golden đầu-cuối và các cổng CI (mục 18–19).
+
+| | |
+|---|---|
+| **Nhận từ chặng trước** | danh sách món + thẻ giỏ của TV4 |
+| **Bàn giao cho chặng sau** | không có chặng sau — đây là chặng ra tới khách |
+| **Điều kiện nghiệm thu** | 149/149 lượt phiên · 103/103 lượt golden qua backend thật · mọi cổng CI xanh |
+
+Mục trong phần này: 17 (bộ nhớ phiên), 18 (golden đầu-cuối), 19 (bộ đo hai chiều).
+
+## 17. Bộ nhớ phiên: BA quy tắc hợp nhất, không phải một
+
+119 ca đánh giá đầu tiên đều **một lượt**, nên chúng không đo được điều quan trọng nhất của một
+cuộc hội thoại thật: khách khai dị ứng ở lượt 1 rồi hỏi tiếp ở lượt 5 **mà không nhắc lại**.
+
+Sai lầm dễ mắc là dùng **một** quy tắc hợp nhất cho cả ba loại ràng buộc. Mỗi loại có lý do riêng:
+
+| Loại | Quy tắc | Vì sao KHÔNG dùng quy tắc của loại khác |
+|---|---|---|
+| **dị nguyên** | CỘNG DỒN, không bao giờ bỏ | ghi đè thì "dị ứng hải sản" ở lượt 1 bị "không ăn được sữa" ở lượt 3 xoá mất |
+| **ràng buộc cứng** | lượt mới GHI ĐÈ cùng nhóm | cộng dồn thì "dưới 200k" rồi "rẻ hơn nữa" giữ cả hai ngân sách |
+| **ngữ cảnh** | cộng vào, giữ 5 gần nhất | ghi đè thì "đi hẹn hò" rồi "trời nóng" mất một trong hai, dù cả hai đều đúng |
+
+Ghi đè theo **NHÓM** chứ không theo nhãn là điểm cốt lõi: `spice:none` phải **đẩy** `spice:hot` ra,
+chứ không nằm cạnh nó.
+"""))
+
+    out.append(code(r"""
+# Bộ nhớ phiên qua 3 lượt — dị nguyên CỘNG DỒN, ràng buộc cứng GHI ĐÈ
+from understand import understand
+from answer import respond
+from session import SessionState, merge_into_request, update_state
+
+ITEMS = load("menu-dataset.json")["items"]
+BY_ID = {i["id"]: i for i in ITEMS}
+
+st = SessionState()
+for cau in ("Mình dị ứng hải sản, gợi ý món đi",
+            "Cho mình món dưới 200 nghìn",
+            "Rẻ hơn nữa đi"):
+    r = merge_into_request(understand(cau, ITEMS), st)
+    p = respond(r, ITEMS)
+    st = update_state(st, r, p.items, p.kind, p.branch)
+    print(f"{cau!r}")
+    print(f"   dị nguyên nhớ : {st.avoid_tags}")
+    print(f"   ngân sách     : {st.budget_max}")
+    print(f"   -> {len(p.items)} món")
+
+lot = [i for i in p.items if "allergen:seafood" in BY_ID[i]["tags"]]
+print(f"\nLượt 3 KHÔNG nhắc lại dị ứng. Món hải sản lọt: {lot}  <- phải RỖNG")
+"""))
+
+    out.append(md(r"""
+Ba lượt, và lượt cuối là phép thử: khách **không nhắc lại** dị ứng, ngân sách thì **thay** chứ
+không cộng. Nếu bộ nhớ dùng sai quy tắc cho một trong hai loại, lỗi hiện ra ngay ở đây — và với
+dị nguyên thì đó là **lỗi an toàn**, không phải lỗi tiện dụng.
+
+## 18. Golden đầu-cuối: đo qua chuỗi gọi THẬT
+
+Ba tập trên đều gọi thẳng hàm Python. Chúng không đi qua backend, không dựng phiên bàn, không sinh
+thẻ giỏ thật. **Một lỗi ở lớp ghép hai hệ thống sẽ không tập nào bắt được.**
+
+Golden chạy đúng đường khách đi: **quét QR → phiên bàn → backend → dịch vụ AI → thẻ giỏ → giỏ hàng**.
+Đây là bộ bắt được nhiều lỗi nhất trong toàn dự án, và lý do rất cụ thể: nó là bộ duy nhất **không
+mock gì cả**.
+
+## 19. Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều
+
+Ba tập cũ đều đo **một chiều**, và điều đó tạo ra một con số dễ đọc sai:
+"""))
+
+    out.append(plot_code(r"""
+# Bộ xếp hạng chạy bao nhiêu lần trên mỗi tập đánh giá?
+import csv, collections
+
+tap = ["140 ca\ntrả lời", "149 lượt\nphiên", "222 ca\ntruy hồi"]
+ty_le = [0, 0, 36]
+
+fig, ax = plt.subplots(figsize=(7.2, 3.6))
+mau = ["#c44", "#c44", "#4a8"]
+b = ax.bar(tap, ty_le, color=mau, width=0.55)
+ax.bar_label(b, fmt="%d%%", padding=3, fontsize=11, fontweight="bold")
+ax.set_ylabel("% lượt do BỘ XẾP HẠNG xử lý")
+ax.set_ylim(0, 50)
+ax.set_title("Truy hồi chạy ở đâu — và vì sao ba tập cũ không trả lời được câu\n"
+             '"vì sao cần cả hai lớp?"', fontsize=11)
+ax.spines[["top", "right"]].set_visible(False)
+plt.tight_layout(); plt.show()
+
+print("Hai tập đầu được viết QUANH các nhánh tất định, nên bộ xếp hạng không chạy lần nào.")
+print("Đọc một mình, chúng nói 'truy hồi vô dụng' — và đó là kết luận SAI.")
+"""))
+
+    out.append(md(r"""
+Bộ hai chiều cho **cả hai phương pháp chạy trên cùng một câu hỏi**, ở hai nhóm câu mà mỗi nhóm là
+điểm mạnh của một bên. Chiều A phủ **hết 36 tài liệu văn xuôi**; chiều B **sinh từ chính bộ nhãn**
+— cả hai đều không có chỗ cho việc chọn câu dễ.
+"""))
+
+    out.append(plot_code(r"""
+# HAI CHIỀU — 100 câu
+import csv
+from pathlib import Path
+
+hang = list(csv.DictReader(
+    (ROOT / "ai/evaluation/measurements/hai_chieu.csv").open(encoding="utf-8-sig")))
+A = [r for r in hang if r["chieu"] == "A"]
+B = [r for r in hang if r["chieu"] == "B"]
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 4.2))
+
+# --- chiều A: mã tất định trả lời SAI DẠNG ---
+sai = sum(1 for r in A if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] != "True")
+khong = sum(1 for r in A if r["tat_dinh_dung"] != "True" and r["nhanh_la_truy_hoi"] == "True")
+dung = sum(1 for r in A if r["tat_dinh_dung"] == "True")
+th5 = sum(1 for r in A if r["truy_hoi_top5"] == "True")
+
+ax1.barh(["Mã tất định", "Truy hồi"], [dung, th5], color=["#c44", "#4a8"], height=0.5)
+ax1.barh(["Mã tất định"], [sai], left=[dung], color="#e88", height=0.5, label="sai dạng")
+ax1.barh(["Mã tất định"], [khong], left=[dung + sai], color="#fc9", height=0.5,
+         label="không xử lý được")
+ax1.set_xlim(0, 50); ax1.set_xlabel(f"số câu (trên {len(A)})")
+ax1.set_title("CHIỀU A — câu tri thức\nmã tất định trả lời ĐÚNG DẠNG bao nhiêu?", fontsize=11)
+ax1.legend(fontsize=8, loc="lower right")
+for i, (v, t) in enumerate([(dung, f"{dung} đúng"), (th5, f"{th5} đúng (top-5)")]):
+    ax1.text(v + 0.6, i, t, va="center", fontsize=10, fontweight="bold")
+ax1.spines[["top", "right"]].set_visible(False)
+
+# --- chiều B: món VI PHẠM ràng buộc ---
+dang = sorted({r["vi_sao"] for r in B})
+td = [sum(int(r["tat_dinh_vi_pham"] or 0) for r in B if r["vi_sao"] == d) for d in dang]
+thh = [sum(int(r["truy_hoi_vi_pham"] or 0) for r in B if r["vi_sao"] == d) for d in dang]
+y = range(len(dang)); h = 0.38
+ax2.barh([i + h/2 for i in y], td, height=h, color="#4a8", label="lọc theo nhãn")
+ax2.barh([i - h/2 for i in y], thh, height=h, color="#c44", label="truy hồi")
+ax2.set_yticks(list(y)); ax2.set_yticklabels(dang, fontsize=9)
+ax2.set_xlabel("số món VI PHẠM ràng buộc (càng thấp càng tốt)")
+ax2.set_title(f"CHIỀU B — câu chọn món\ntổng: lọc nhãn {sum(td)} · truy hồi {sum(thh)}",
+              fontsize=11)
+ax2.legend(fontsize=9); ax2.spines[["top", "right"]].set_visible(False)
+
+plt.tight_layout(); plt.show()
+
+print(f"Chiều A: mã tất định đúng dạng {dung}/{len(A)} — {sai} câu trả lời SAI DẠNG "
+      f"(danh sách món cho câu 'thế nào/vì sao').")
+print(f"Chiều B: truy hồi vi phạm gấp {sum(thh)//max(1,sum(td))} lần. "
+      f"Riêng nhóm dị ứng: lọc nhãn "
+      f"{sum(int(r['tat_dinh_vi_pham'] or 0) for r in B if r['vi_sao']=='PHÉP TRỪ')}, truy hồi "
+      f"{sum(int(r['truy_hoi_vi_pham'] or 0) for r in B if r['vi_sao']=='PHÉP TRỪ')} "
+      f"-> LỖI AN TOÀN.")
+"""))
+
+    out.append(md(r"""
+**Đọc hai biểu đồ này cùng nhau là đọc được kết luận của cả đồ án.**
+
+Bên trái: mã tất định **không im lặng** khi gặp câu nó không xử lý được — nó trả lời **tự tin bằng
+một danh sách món**, mọi món có thật, mọi giá đúng, và **không câu nào trả lời điều được hỏi**.
+
+Bên phải: truy hồi **không diễn đạt được** ràng buộc số, phép trừ và phép hội. Ở nhóm loại trừ dị
+nguyên, nó trả về **11 món chứa đúng thứ khách phải tránh** — vì câu hỏi chứa chữ "hải sản" nên
+phép xếp hạng theo độ giống kéo món hải sản **lên đầu**.
+
+Đó là lý do hệ thống không chọn một trong hai, mà giao cho mỗi lớp đúng việc nó làm được.
 """))
 
     return out

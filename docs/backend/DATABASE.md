@@ -1,5 +1,11 @@
 # Database Setup Guide
 
+> **⚠️ Kiểm lần cuối: 2026-06-14. Mã sửa gần nhất: 2026-08-02.**
+>
+> Tài liệu này KHÔNG trỏ vào tệp hay endpoint nào đã biến mất — đã kiểm bằng máy. Nhưng phép
+> kiểm đó chỉ bắt được *đường dẫn chết*, **không** bắt được *hành vi đã đổi*: một endpoint còn
+> nguyên tên mà đổi dạng phản hồi thì vẫn 'sạch'. Đối chiếu với mã trước khi tin phần chi tiết.
+
 ## Overview
 
 Hệ thống sử dụng **PostgreSQL 16** làm cơ sở dữ liệu chính, thay thế in-memory store. Entity Framework Core 8 với Npgsql provider được dùng cho data access.

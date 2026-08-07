@@ -1379,6 +1379,25 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                 branch="combo",
             )
 
+    # 6a-bis. Câu HỎI VỀ một sự việc -> TRUY HỒI, đặt TRƯỚC nhánh lọc.
+    #
+    # Bộ đo hai chiều: 25/50 câu tri thức bị trả lời sai dạng. `understand` đã bỏ tín hiệu nhóm món
+    # cho những câu này (xem `hoi_ve_su_viec`), nhưng bỏ xong thì `select()` không còn ràng buộc nào
+    # nên nó trả về CẢ thực đơn — và câu vẫn vào nhánh lọc, chỉ khác là danh sách dài hơn.
+    #
+    # Nên phải chặn ở đây, trước khi lọc. Hai điều kiện an toàn giữ nguyên như nhánh 6b-bis:
+    #   - `thuoc_mien` : câu phải chạm vốn từ nhà hàng, nếu không thì không có gì để trả lời
+    #   - có đoạn tìm được: không tìm được thì rơi tiếp xuống các nhánh cũ, không trả bừa
+    if request.hoi_ve_su_viec and thuoc_mien(request.text, items):
+        _tim = doan_tri_thuc_lien_quan(request.text)
+        if _tim is not None:
+            _doan, _cach = _tim
+            return Reply(
+                text=f"{_doan} Nếu cần rõ hơn, bạn hỏi nhân viên giúp mình nhé.",
+                kind="fact",
+                branch=f"knowledge_corpus:{_cach}",
+            )
+
     picked = _order(select(request, items), request.prefer_tags, request.wants,
                     _khach_xin_ruou(request))
     if not picked:

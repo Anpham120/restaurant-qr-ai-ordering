@@ -1,10 +1,182 @@
-# BA/SA System Design - CMC Restaurant
+# Kiến trúc backend
+
+> **⚠️ Kiểm lần cuối: 2026-07-16. Mã sửa gần nhất: 2026-08-02.**
+>
+> Tài liệu này KHÔNG trỏ vào tệp hay endpoint nào đã biến mất — đã kiểm bằng máy. Nhưng phép
+> kiểm đó chỉ bắt được *đường dẫn chết*, **không** bắt được *hành vi đã đổi*: một endpoint còn
+> nguyên tên mà đổi dạng phản hồi thì vẫn 'sạch'. Đối chiếu với mã trước khi tin phần chi tiết.
+
+> **Một tài liệu cho toàn bộ mảng này.** Gộp từ 3 tệp: `BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md`, `QR_SESSION_STATE_MACHINE.md`, `BA_SA_SYSTEM_DESIGN.md`.
+>
+> Ba tệp cùng mô tả cấu trúc backend ở ba mức: khối kiến trúc, máy trạng thái phiên QR, và phân tích/thiết kế hệ thống. Người đọc cần cả ba cùng lúc mới hiểu được một luồng.
+
+
+
+<!-- SINH:backend-modules -->
+
+## Module và bề mặt API — SINH TỪ MÃ
+
+**17 module**, **84 endpoint**, **21 migration** cơ sở dữ liệu.
+
+> Bảng này chỉ nói **cái gì tồn tại**. Ý nghĩa nghiệp vụ của từng module là phần người
+> viết ở các mục dưới.
+
+| Module | Endpoint | Số tệp |
+|---|---:|---:|
+| `Auth` | 5 | 9 |
+| `Cart` | 3 | 3 |
+| `Categories` | 5 | 2 |
+| `Chat` | 8 | 12 |
+| `Counter` | 4 | 2 |
+| `Data` | 0 | 43 |
+| `Errors` | 0 | 2 |
+| `Logging` | 0 | 1 |
+| `Loyalty` | 10 | 3 |
+| `Menu` | 9 | 3 |
+| `Orders` | 5 | 8 |
+| `Payments` | 5 | 5 |
+| `Program.cs` | 1 | 1 |
+| `Promotions` | 6 | 3 |
+| `Realtime` | 0 | 5 |
+| `Reports` | 1 | 1 |
+| `Tables` | 17 | 6 |
+| `Users` | 5 | 9 |
+
+<!-- HET:backend-modules -->
+---
+
+## Modular monolith — ranh giới module
+
+*(gộp từ `docs/BACKEND_MODULAR_MONOLITH_ARCHITECTURE.md`)*
+
+Tài liệu này mô tả kiến trúc đang chạy của API CMC Restaurant. Nó thay thế các mô tả cũ về các in-memory store độc lập.
+
+### 1. Hình dạng hệ thống
+
+```mermaid
+flowchart LR
+  Portals[Customer / Admin / Staff / Kitchen] --> API[ASP.NET Core API]
+  API --> Auth[Auth + Users]
+  API --> Menu[Menu + Categories]
+  API --> Tables[Tables + QR sessions]
+  API --> Orders[Orders + Payments]
+  API --> Chat[Chat + AI adapter]
+  API --> Realtime[SignalR realtime]
+  Auth --> DB[(PostgreSQL via EF Core)]
+  Menu --> DB
+  Tables --> DB
+  Orders --> DB
+  Chat --> DB
+  Chat --> AI[External AI / Python RAG]
+  Realtime --> Portals
+```
+
+`RestaurantQrAiOrdering.Api` là một modular monolith: các module được tổ chức theo khả năng nghiệp vụ, cùng triển khai trong một API và cùng transaction boundary khi cần.
+
+### 2. Persistence và runtime
+
+- Production/staging dùng `RestaurantDbContext` với PostgreSQL/Npgsql.
+- Development hoặc integration test có thể dùng EF InMemory; đây là provider thay thế, không phải các in-memory store nghiệp vụ.
+- Deploy chạy migration qua container one-shot `migrate`; API thường chạy với `RUN_DB_MIGRATIONS_ON_STARTUP=false`.
+- `DbUserStore` là implementation đăng ký cho `IUserStore`; `DbChatStore` là implementation đăng ký cho `IChatStore`.
+- Menu, categories, tables, orders và payments đọc/ghi trực tiếp qua `RestaurantDbContext` tại module sở hữu.
+
+Không còn `RestaurantDataStore`, `ChatStore` hoặc `UserStore` in-memory trong runtime.
+
+### 3. Ranh giới module
+
+| Module | Sở hữu | Điểm vào chính | Persistence |
+|---|---|---|---|
+| Auth + Users | đăng nhập, token, tài khoản, vai trò | `AuthEndpoints`, `UserEndpoints` | `DbUserStore`, EF Core |
+| Menu + Categories | danh mục, món, khả dụng, giá | `MenuEndpoints`, category endpoints | EF Core |
+| Tables | QR bàn, phiên bàn | `TableEndpoints` | EF Core |
+| Orders + Payments | đơn, item, timeline, thanh toán | `OrderEndpoints`, `PaymentEndpoints` | `OrderStore`, EF Core |
+| Chat | chat session/message, capability, gọi AI | `ChatEndpoints` | `DbChatStore`, EF Core |
+| Realtime | phát sự kiện đơn hàng | `OrderRealtimeNotifier`, hub | SignalR |
+
+Contract nằm cạnh implementation sở hữu: ví dụ `IUserStore.cs` và `IChatStore.cs` mô tả seam, còn adapter database tương ứng nằm trong cùng module.
+
+### 4. Invariants vận hành
+
+- Một phiên bàn usable phải `Open`, chưa `ClosedAt` và chưa quá `ExpiresAt`.
+- Khi phiên bàn đóng/hết hạn, mọi chat capability gắn với phiên đó bị thu hồi.
+- Mỗi bàn chỉ có tối đa một phiên `Open` nhờ filtered unique index `UX_table_sessions_active_restaurant_table`.
+- `Completed` và `Cancelled` là trạng thái terminal của đơn; item trong đơn terminal không thể đổi trạng thái.
+- Payment `Refunded` là terminal cho thao tác confirm/fail thủ công.
+- Chat tư vấn menu đọc availability và giá hiện tại từ database, không dùng snapshot lúc khởi động.
+
+### 5. Transaction và cạnh tranh
+
+Mở phiên QR trước tiên chuyển mọi phiên quá hạn của bàn sang `Expired`, rồi tìm phiên live. Nếu hai request cùng tạo phiên, PostgreSQL unique index chặn phiên trùng; API đọc lại phiên vừa được request còn lại tạo.
+
+Migration `EnforceSingleActiveTableSession` cũng chuyển các phiên đã quá hạn trước khi tạo index. Các phiên live bị trùng cần được kiểm tra bằng preflight trong [Production Operations](../devops/PIPELINE_AND_DEPLOY.md).
+
+### 6. Kiểm chứng
+
+Regression suite ở `backend/tests/RestaurantQrAiOrdering.Api.Tests` chạy qua HTTP với factory InMemory, bao phủ payment terminal state, lifecycle phiên bàn/chat, menu live, đơn terminal và EF embedding tracking.
+
+```bash
+dotnet test backend/RestaurantQrAiOrdering.sln --configuration Release
+dotnet build backend/RestaurantQrAiOrdering.sln --configuration Release
+```
+
+CI chạy các regression test này ở job `backend-test`; frontend và AI vẫn có build/compile checks riêng.
+
+### 7. Quy tắc thay đổi
+
+1. Không xoá source trước khi chứng minh không có caller và chạy build/test.
+2. State transition mới phải có test qua public seam hoặc model invariant.
+3. Mỗi thay đổi schema phải có migration, preflight dữ liệu nếu có thể đụng production data, và đường rollback rõ ràng.
+4. Public route/contract chỉ được bỏ sau deprecation có chủ đích; không coi “không có caller trong repo” là đủ.
+
+---
+
+## Máy trạng thái phiên QR
+
+*(gộp từ `docs/QR_SESSION_STATE_MACHINE.md`)*
+
+### Stable table QR
+
+- Table QR token is stable for the life of an open visit.
+- Repeated scans on multiple devices attach to the **same open session** (`TABLE_QR_SINGLE_USE` disabled).
+- Each scan returns a fresh capability token and deterministic `resumeState`.
+
+### Resume states
+
+| State | Customer destination |
+|-------|---------------------|
+| `New` | `/table-session/:id/menu` |
+| `CartPending` | `/table-session/:id/cart` |
+| `OrderInProgress` | `/table-session/:id/orders` |
+| `ReadyForPayment` | `/table-session/:id/orders?focus=invoice` |
+| `PaymentPending` | `/table-session/:id/orders?focus=invoice` |
+| `Paid` | `/table-session/:id/orders?focus=invoice` |
+
+Resolver: `TableSessionResumeStateResolver` (backend) and `getSessionResumeDestination` (frontend).
+
+### Order round atomicity
+
+Creating an order round clears the shared server cart in the **same serializable transaction** as order persistence. Idempotency keys prevent duplicate rounds across devices.
+
+### Kitchen path
+
+Orders must pass `Ready → Served` before session settlement. `Ready → Completed` skip is rejected at the domain layer.
+
+### Settlement
+
+Dine-in settlement uses **table invoice** only. Per-order payment endpoints remain for compatibility but are not the dine-in source of truth.
+
+---
+
+## Phân tích và thiết kế hệ thống (BA/SA)
+
+*(gộp từ `docs/BA_SA_SYSTEM_DESIGN.md`)*
 
 Tài liệu này chuẩn hóa phân tích nghiệp vụ và kiến trúc giải pháp cho giai đoạn backend-first. Mục tiêu là để thành viên mới đọc xong có thể hiểu đúng actor, luồng nghiệp vụ, ranh giới module, dữ liệu lõi và hợp đồng API trước khi thiết kế UI hoặc viết code.
 
-> **Nguồn chuẩn hợp nhất: [`docs/SYSTEM_ANALYSIS_DESIGN.md`](SYSTEM_ANALYSIS_DESIGN.md).** Tài liệu BA/SA này giữ các sơ đồ phân tích; đã đồng bộ state machine + ERD với branch `develop` (bỏ Delivery, order tạo ở `Placed`, thêm `Refunded`, per-order access token, `order_status_history`, ràng buộc order ↔ table session).
+> **Nguồn chuẩn hợp nhất: [`docs/SYSTEM_ANALYSIS_DESIGN.md`](../archive/SYSTEM_ANALYSIS_DESIGN.md).** Tài liệu BA/SA này giữ các sơ đồ phân tích; đã đồng bộ state machine + ERD với branch `develop` (bỏ Delivery, order tạo ở `Placed`, thêm `Refunded`, per-order access token, `order_status_history`, ràng buộc order ↔ table session).
 
-## 1. Bối Cảnh Và Phạm Vi
+### 1. Bối Cảnh Và Phạm Vi
 
 CMC Restaurant là hệ thống gọi món bằng QR có hỗ trợ AI gợi ý món. Hệ thống ưu tiên backend thật trước, sau đó UI bám theo API thật. Các logic mock/localStorage chỉ được dùng cho demo cũ, không được dùng làm nguồn sự thật nghiệp vụ.
 
@@ -24,7 +196,7 @@ Ngoài phạm vi hiện tại:
 - Không tự động fine-tune model LLM trong app.
 - Không xem AI provider như actor nghiệp vụ của người dùng. AI provider là hạ tầng phía sau AI service.
 
-## 2. Actor Và Trách Nhiệm
+### 2. Actor Và Trách Nhiệm
 
 | Actor | Vai trò | Quyền chính |
 | --- | --- | --- |
@@ -37,7 +209,7 @@ Ngoài phạm vi hiện tại:
 
 Ghi chú bảo vệ phạm vi: `AI Service` và `Payment/Bank/VietQR` là supporting systems, không phải người dùng chính. Các use case quản trị/bếp/nhân viên phải `include` đăng nhập trước khi thao tác.
 
-## 3. Use Case Tổng Quan
+### 3. Use Case Tổng Quan
 
 ```mermaid
 flowchart LR
@@ -83,23 +255,23 @@ flowchart LR
     Admin --> UC11
 ```
 
-## 4. Luồng Nghiệp Vụ Chính
+### 4. Luồng Nghiệp Vụ Chính
 
-### 4.1 QR / Table Session
+#### 4.1 QR / Table Session
 
 1. Customer quét QR hoặc mở link có `tableCode`.
 2. Frontend gọi `GET /api/tables/{tableCode}` để lấy thông tin bàn và session.
 3. Nếu bàn hợp lệ, customer xem menu theo ngữ cảnh bàn.
 4. Khi tạo đơn, backend gắn đơn với `tableCode` và phiên bàn (`tableSessionId`).
 
-### 4.2 Menu
+#### 4.2 Menu
 
 1. Customer gọi `GET /api/menu`.
 2. Admin đăng nhập rồi quản lý danh mục/món qua các endpoint `/api/admin/categories` và `/api/admin/menu-items`.
 3. UI không tự bịa danh mục/món ngoài API thật.
 4. Trạng thái món hết hàng được backend trả về để UI khóa thao tác thêm vào giỏ.
 
-### 4.3 Order
+#### 4.3 Order
 
 1. Customer gửi `POST /api/orders` với item, số lượng, payment method và context.
 2. Backend validate menu item, giá, trạng thái availability và tạo `orderCode`.
@@ -108,7 +280,7 @@ flowchart LR
 5. Staff/Admin cập nhật trạng thái đơn qua `PATCH /api/orders/{orderCode}/status`.
 6. Customer theo dõi qua `GET /api/orders/{orderCode}`.
 
-### 4.4 Kitchen
+#### 4.4 Kitchen
 
 ```mermaid
 flowchart TD
@@ -120,7 +292,7 @@ flowchart TD
     F --> G["Order Completed"]
 ```
 
-### 4.5 Payment
+#### 4.5 Payment
 
 ```mermaid
 flowchart TD
@@ -135,7 +307,7 @@ flowchart TD
     G --> I["Order paymentStatus = Paid"]
 ```
 
-### 4.6 AI Suggestion
+#### 4.6 AI Suggestion
 
 1. Customer mở chat và gửi câu hỏi.
 2. Backend tạo/đọc chat session qua `/api/chat/sessions`.
@@ -145,7 +317,7 @@ flowchart TD
 6. Frontend chỉ hiển thị đề xuất. Customer phải xác nhận trước khi thêm vào giỏ.
 7. Nếu AI lỗi hoặc trả payload không an toàn, backend dùng fallback an toàn, không tạo đơn và không sửa giỏ hàng.
 
-## 5. Activity Diagram - Đặt Món Dine-in
+### 5. Activity Diagram - Đặt Món Dine-in
 
 ```mermaid
 flowchart TD
@@ -163,7 +335,7 @@ flowchart TD
     L --> M["Khách theo dõi trạng thái"]
 ```
 
-## 6. Sequence Diagram - Order Đến Bếp
+### 6. Sequence Diagram - Order Đến Bếp
 
 ```mermaid
 sequenceDiagram
@@ -187,7 +359,7 @@ sequenceDiagram
     RT-->>C: Status update
 ```
 
-## 7. Sequence Diagram - AI Gợi Ý Món
+### 7. Sequence Diagram - AI Gợi Ý Món
 
 ```mermaid
 sequenceDiagram
@@ -207,11 +379,11 @@ sequenceDiagram
     C->>C: User confirms before changing cart
 ```
 
-## 8. State Diagram
+### 8. State Diagram
 
 > Các sơ đồ dưới đã đồng bộ với state machine thực trong `OrderStore.cs` / `PaymentEndpoints.cs` (branch `develop`). Order được tạo ở `Placed`; mọi lần đổi trạng thái order hoặc payment được ghi vào bảng `order_status_history` (kèm actor + note). Chuyển sang `Completed` yêu cầu payment `Confirmed/Paid`; ghi đồng thời (2 người sửa cùng đơn) trả `409 CONFLICT_STALE` (optimistic concurrency `xmin`).
 
-### 8.1 Order State
+#### 8.1 Order State
 
 `Draft` là giá trị enum mặc định nhưng đơn thực tế được tạo ở `Placed`. Hủy chỉ cho phép từ `Draft`/`Placed`/`Confirmed`.
 
@@ -231,7 +403,7 @@ stateDiagram-v2
     Cancelled --> [*]
 ```
 
-### 8.2 Payment State
+#### 8.2 Payment State
 
 Trạng thái theo đúng enum `PaymentStatus`. `Confirmed` và `Paid` đều thỏa điều kiện hoàn tất đơn; `Refunded` chỉ đạt được từ `Confirmed`/`Paid`.
 
@@ -250,7 +422,7 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
-### 8.3 Order Item State
+#### 8.3 Order Item State
 
 ```mermaid
 stateDiagram-v2
@@ -267,7 +439,7 @@ stateDiagram-v2
     Cancelled --> [*]
 ```
 
-## 9. Class / Domain Model Mức Khái Niệm
+### 9. Class / Domain Model Mức Khái Niệm
 
 ```mermaid
 classDiagram
@@ -345,7 +517,7 @@ classDiagram
     ChatSession "1" --> "0..*" ChatMessage
 ```
 
-## 10. ERD Mức Triển Khai
+### 10. ERD Mức Triển Khai
 
 ```mermaid
 erDiagram
@@ -437,7 +609,7 @@ erDiagram
     ORDERS ||--o{ ORDER_STATUS_HISTORY : audits
 ```
 
-## 11. Component Diagram
+### 11. Component Diagram
 
 ```mermaid
 flowchart LR
@@ -482,7 +654,7 @@ flowchart LR
     Payments --> Bank
 ```
 
-## 12. Deployment Diagram
+### 12. Deployment Diagram
 
 ```mermaid
 flowchart TD
@@ -505,7 +677,7 @@ flowchart TD
     PG --> Volume["postgres_data volume"]
 ```
 
-## 13. API Traceability Checklist
+### 13. API Traceability Checklist
 
 | Nghiệp vụ | API/backend liên quan | Ghi chú kiểm tra |
 | --- | --- | --- |
@@ -522,7 +694,7 @@ flowchart TD
 | AI chat | `/api/chat/sessions`, `/api/chat/sessions/{id}/messages` | AI chỉ đề xuất, không tự tạo đơn |
 | Realtime | SignalR hub + order events | Có polling fallback |
 
-## 14. Quy Tắc Cho Các Issue UI/API Tiếp Theo
+### 14. Quy Tắc Cho Các Issue UI/API Tiếp Theo
 
 - UI phải bắt đầu từ use case và API traceability ở tài liệu này.
 - Không đưa payload mẫu/debug API ra giao diện người dùng cuối.
@@ -531,7 +703,7 @@ flowchart TD
 - Mỗi PR UI phải ghi rõ route nào gọi endpoint nào.
 - Mỗi PR nghiệp vụ phải cập nhật diagram/checklist nếu làm thay đổi flow.
 
-## 15. Definition Of Done Cho Tài Liệu BA/SA
+### 15. Definition Of Done Cho Tài Liệu BA/SA
 
 - Actor đầy đủ và phân biệt người dùng chính với supporting system.
 - Use case đăng nhập được include trước các thao tác staff/kitchen/admin.

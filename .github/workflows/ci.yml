@@ -164,6 +164,15 @@ jobs:
           python -m unittest test_service test_session test_cart test_answer test_contract test_packaging
         working-directory: ai/app
 
+      # Bo kiem thong ke — moi ket luan so sanh trong Chuong 4 di qua hai ham nay.
+      #
+      # Cong thuc sai thi bao cao khang dinh sai ma khong co gi bao. Bo kiem chot bang nhung gia tri
+      # TINH DUOC BANG TAY: Wilson cho 8/8 phai ra khoang RONG (khong phai khoang diem nhu cong thuc
+      # Wald), va McNemar 10 ca lech cung chieu phai ra p = 2/2^10.
+      - name: Kiểm module thống kê (khoảng tin cậy, McNemar)
+        run: python -m unittest test_thong_ke
+        working-directory: ai/evaluation
+
       # Nhãn dị nguyên chỉ phủ 44/91 món, và việc đối chiếu nhãn với mô tả món đã tìm ra
       # bảy lỗ thật ở bước 1. Bản rà chạy trong CI để không lặp lại.
       - name: Rà nhãn dị nguyên
@@ -190,6 +199,32 @@ jobs:
       # cho người đọc. Ranh giới: **chỉ bản rà nào đủ sạch để không ai muốn tắt nó mới được chặn.**
       - name: Rà nhãn cách chế biến
         run: python ai/scripts/audit_method_tags.py --check
+
+      # Chỉ mục tài liệu phải khớp thư mục thật.
+      #
+      # Cổng này ra đời sau khi tìm thấy `docs/archive/README.md` KHAI đã chuyển 7 tệp vào thư mục
+      # đó trong khi thư mục RỖNG — cả 7 vẫn nằm ở `docs/`. Người đọc tin vào nó rồi đi tìm chỗ
+      # sai, và đó tệ hơn không có tài liệu.
+      #
+      # Cùng lúc `docs/README.md` chỉ trỏ tới 11/37 tệp, nên 26 tài liệu không có cửa vào nào.
+      # Cả hai đều là văn xuôi kể lại trạng thái thư mục, và văn xuôi thì trôi.
+      - name: Kiểm chỉ mục tài liệu khớp thư mục
+        run: python docs/build_docs_index.py --check
+
+      # Kiểm kê endpoint trong hợp đồng API phải khớp MÃ.
+      #
+      # Trước cổng này, `API_CONTRACT.md` viết tay liệt kê **10 endpoint trong khi backend có 84** —
+      # phủ 12% bề mặt API. Người đọc tin vào nó rồi tưởng endpoint mình cần không tồn tại.
+      #
+      # Cùng lớp lỗi với chỉ mục tài liệu và với `ai/docs/05` (ghi 425 đoạn khi kho có 452): văn
+      # xuôi kể lại trạng thái mã thì luôn trôi khỏi mã.
+      - name: Kiểm kiểm kê endpoint khớp mã backend
+        run: python docs/build_api_inventory.py --check
+
+      # Phần SỰ THẬT của tài liệu kiến trúc và DevOps (danh sách module, workflow, cổng) phải khớp
+      # mã. Cùng lý do với hai cổng trên; đây là hai chỗ còn lại có nhiều "danh sách kể lại".
+      - name: Kiểm kiến trúc và DevOps khớp mã
+        run: python docs/build_system_facts.py --check
 
       # Tập đánh giá TRUY HỒI — khác tập 119 ca: nó chấm ĐOẠN ĐƯỢC LẤY, không chấm câu trả lời.
       # Khóa đáp án là điều kiện chọn, giải ra chunk_id khi chạy, nên nó không thể trỏ vào tài
