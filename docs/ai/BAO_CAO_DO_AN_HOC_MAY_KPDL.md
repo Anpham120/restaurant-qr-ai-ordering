@@ -2741,6 +2741,36 @@ cho qua: các nhánh trả `no_data` và `refuse` thật đều sinh câu **mộ
 đọc đoạn đầu không làm lỏng chúng — kiểm được bằng ba lượt còn lại của chính hội thoại đó,
 cả ba vẫn chấm đúng.
 
+**Bộ XẾP HẠNG LẠI — cách sửa đúng sách vở, và nó không chạy.** Chẩn đoán nói lỗi nằm ở xếp
+hạng, nên công cụ chuẩn cho việc đó là *cross-encoder*: thay vì mã hóa câu hỏi và đoạn văn
+riêng rẽ rồi so vector, nó đọc **cặp** (câu hỏi, đoạn) trong một lượt nên bắt được quan hệ mà
+phép so vector bỏ sót. Chạy trên top-10 rồi chọn 1, nên vẫn trả về đúng một đoạn nguyên văn.
+
+Đo `BAAI/bge-reranker-v2-m3` trên 148 câu, ghép cặp:
+
+| | Hit@1 | chiều A | phủ kho |
+|---|---:|---:|---:|
+| `bge-m3` top-1 (nền) | **73,65%** | 58,00% | **81,63%** |
+| + xếp hạng lại top-10 | 72,30% | **64,00%** | 76,53% |
+
+McNemar: **p = 0,8318 — chưa đủ ý nghĩa** (10 ca sửa được, 12 ca làm hỏng). Tổng thể **không
+cải thiện**, và chi tiết cho biết vì sao: nó nâng chiều A lên 64,00% nhưng kéo bộ phủ kho
+xuống 76,53%. Nó đổi bộ này lấy bộ kia, đúng như phép gộp điểm theo tài liệu đã thử ở bước 1.
+
+Chi phí đóng lại hoàn toàn khả năng dùng: **38.561 ms mỗi câu** trên CPU cho 10 cặp. Ngay cả
+khi nó thắng, con số đó cũng không triển khai được ở một trợ lý đặt món.
+
+Đây là kết quả âm tính thứ **ba** của riêng mục này, và cả ba đều là cách sửa nghe hợp lý:
+
+| cách thử | kết quả |
+|---|---|
+| gộp điểm theo tài liệu | chiều A +4 đến +8, phủ kho **−8** ở k cao — đổi bộ này lấy bộ kia |
+| ngưỡng thích ứng cho đoạn 2 | hai phân bố **chồng lấn**, không ngưỡng nào tách được |
+| xếp hạng lại bằng cross-encoder | **p = 0,8318**, và 38.561 ms mỗi câu |
+
+Cách duy nhất thắng được là cách đơn giản nhất — **trích 2 đoạn thay vì 1** — và nó không
+thêm một mô hình nào, không thêm một byte nào vào ảnh Docker.
+
 > Đây là lần thứ **năm** trong dự án mà thước đo sai trước khi hệ thống sai. Quy tắc rút ra và
 > đã áp dụng nhất quán: khi một thay đổi làm đỏ đúng một ca, **đọc câu trả lời thật trước khi
 > sửa hệ thống** — và nếu sửa thước đo thì phải nêu được lý do đứng vững độc lập với thay đổi
