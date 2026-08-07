@@ -232,15 +232,26 @@ class Bang:
             for c in cau:
                 r = _u.understand(c, self.items)
                 p = _a.respond(r, self.items)
+                # Bỏ tên BỘ TRUY HỒI khỏi tên nhánh: `knowledge_corpus:embedding` -> `knowledge_corpus`.
+                #
+                # Máy nhà có `sentence_transformers` nên nhánh ghi `:embedding`; CI không cài nên nó
+                # ghi `:bm25`. Cùng một commit cho hai kết quả khác nhau, và cổng `--check` đỏ trên
+                # CI mà không tái lập được ở máy nhà — cùng lớp lỗi với `obj/` lọt vào bảng module.
+                #
+                # Tên bộ truy hồi không phải điều ví dụ này muốn nói; điều nó muốn nói là câu ĐI
+                # ĐƯỜNG NÀO. Nên cắt phần sau dấu hai chấm cho nhánh truy hồi.
+                _nhanh = p.branch
+                if _nhanh.startswith("knowledge_corpus:"):
+                    _nhanh = "knowledge_corpus"
                 ra.append({
                     "cau": c,
                     "avoid": r.avoid_tags or "—",
                     "budget": f"{r.budget_max:,}".replace(",", ".") if r.budget_max else "—",
                     "policy": getattr(r, "policy_topic", None) or "—",
-                    "nhanh": p.branch,
+                    "nhanh": _nhanh,
                     "so_mon": len(p.items),
                     "mon": theo_id[p.items[0]]["name"] if p.items else "—",
-                    "ghi_chu": (f"nhánh `{p.branch}` trả về {len(p.items)} món"
+                    "ghi_chu": (f"nhánh `{_nhanh}` trả về {len(p.items)} món"
                                 if p.items else "không trả về món nào"),
                 })
             self._vd_cache = ra
@@ -2193,14 +2204,16 @@ bằng hai ca kiểm — một ca cho sáu cách hỏi, một ca chiều ngượ
 | 3. Chọn nhánh | `{b.vd(2)['nhanh']}` |
 | 4b/4a | {b.vd(2)['ghi_chu']} |
 
-**Đây là ca minh hoạ giới hạn quan trọng nhất của hệ thống**, và mục 4.9 đo nó trên 50 câu: mã tất
-định **không im lặng** khi gặp câu nó không xử lý được. Nó trả về {b.vd(2)['so_mon']} món khai vị —
-mọi món có thật, mọi giá đúng — nhưng **không trả lời câu được hỏi**. Khách hỏi *"có làm no bụng
-không"*, nhận về một danh sách món.
+**Ví dụ này từng là lỗi, và cách sửa nó là đóng góp kỹ thuật đáng kể của đồ án.**
 
-Về nguyên tắc, câu này nên rơi xuống nhánh 10 và đi truy hồi, vì kho có tài liệu `appetizer_role` nói
-đúng điều đó. Nhưng câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món** — nên
-nhánh 9 khớp trước nhánh 10.
+Bản trước, câu này đi vào nhánh lọc và trả về **6 món khai vị** — mọi món có thật, mọi giá đúng, và
+**không món nào trả lời điều được hỏi**. Khách hỏi *"có làm no bụng không"*, nhận về một danh sách.
+
+Nguyên nhân: câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món**, nên nhánh 9
+khớp trước nhánh 10 dù kho có tài liệu `appetizer_role` trả lời đúng câu này.
+
+Mục 4.9 đo lớp lỗi này trên 50 câu tri thức: **25/50 câu bị trả lời sai dạng**. Sau khi sửa còn
+**15/50**, và câu ví dụ này nằm trong 10 câu được sửa — nó đi đúng nhánh `knowledge_corpus`.
 
 Đây là **đánh đổi của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi lấy tính
 tất định và khả năng dự đoán.

@@ -1608,17 +1608,19 @@ bằng hai ca kiểm — một ca cho sáu cách hỏi, một ca chiều ngượ
 | Lớp | Kết quả |
 |---|---|
 | 1. Nhận câu hỏi | không nhãn lọc, không chủ đề chính sách, không chủ đề tri thức |
-| 3. Chọn nhánh | `knowledge_corpus:embedding` |
+| 3. Chọn nhánh | `knowledge_corpus` |
 | 4b/4a | không trả về món nào |
 
-**Đây là ca minh hoạ giới hạn quan trọng nhất của hệ thống**, và mục 4.9 đo nó trên 50 câu: mã tất
-định **không im lặng** khi gặp câu nó không xử lý được. Nó trả về 0 món khai vị —
-mọi món có thật, mọi giá đúng — nhưng **không trả lời câu được hỏi**. Khách hỏi *"có làm no bụng
-không"*, nhận về một danh sách món.
+**Ví dụ này từng là lỗi, và cách sửa nó là đóng góp kỹ thuật đáng kể của đồ án.**
 
-Về nguyên tắc, câu này nên rơi xuống nhánh 10 và đi truy hồi, vì kho có tài liệu `appetizer_role` nói
-đúng điều đó. Nhưng câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món** — nên
-nhánh 9 khớp trước nhánh 10.
+Bản trước, câu này đi vào nhánh lọc và trả về **6 món khai vị** — mọi món có thật, mọi giá đúng, và
+**không món nào trả lời điều được hỏi**. Khách hỏi *"có làm no bụng không"*, nhận về một danh sách.
+
+Nguyên nhân: câu chứa chữ *"khai vị"*, và *"khai vị"* là một **cụm từ vựng nhóm món**, nên nhánh 9
+khớp trước nhánh 10 dù kho có tài liệu `appetizer_role` trả lời đúng câu này.
+
+Mục 4.9 đo lớp lỗi này trên 50 câu tri thức: **25/50 câu bị trả lời sai dạng**. Sau khi sửa còn
+**15/50**, và câu ví dụ này nằm trong 10 câu được sửa — nó đi đúng nhánh `knowledge_corpus`.
 
 Đây là **đánh đổi của thiết kế ưu tiên theo thứ tự**: nhánh nào khớp trước thì thắng, đổi lấy tính
 tất định và khả năng dự đoán.
