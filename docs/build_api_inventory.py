@@ -49,6 +49,11 @@ def quet() -> dict[str, list[tuple[str, str, str]]]:
     """{module: [(động từ, đường dẫn đầy đủ, tệp)]} — đọc từ mã, không từ tài liệu."""
     ra: dict[str, list[tuple[str, str, str]]] = {}
     for p in sorted(SRC.rglob("*.cs")):
+        # BỎ QUA `obj/` và `bin/` — tệp `.cs` do trình biên dịch sinh ra, chỉ có ở máy đã build.
+        # Không bỏ thì bảng sinh ở máy nhà khác bảng sinh trên CI, và cổng `--check` đỏ ở CI mà
+        # không tái lập được ở máy nhà. Xem chú thích cùng nội dung trong `build_system_facts.py`.
+        if {"obj", "bin"} & set(p.parts):
+            continue
         t = p.read_text(encoding="utf-8", errors="ignore")
         if "Map" not in t:
             continue

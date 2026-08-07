@@ -16,7 +16,7 @@
 
 ## Module và bề mặt API — SINH TỪ MÃ
 
-**18 module**, **84 endpoint**, **21 migration** cơ sở dữ liệu.
+**17 module**, **84 endpoint**, **21 migration** cơ sở dữ liệu.
 
 > Bảng này chỉ nói **cái gì tồn tại**. Ý nghĩa nghiệp vụ của từng module là phần người
 > viết ở các mục dưới.
@@ -41,7 +41,6 @@
 | `Reports` | 1 | 1 |
 | `Tables` | 17 | 6 |
 | `Users` | 5 | 9 |
-| `obj` | 0 | 4 |
 
 <!-- HET:backend-modules -->
 ---

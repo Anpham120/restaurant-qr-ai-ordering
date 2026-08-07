@@ -70,8 +70,17 @@ def module_backend() -> str:
     theo_mod = _m.quet()
 
     dem = {k: len(set(v)) for k, v in theo_mod.items()}
+    # BỎ QUA thư mục build (`obj/`, `bin/`) — chúng chứa `.cs` do trình biên dịch sinh ra.
+    #
+    # Máy nhà phát triển có sẵn hai thư mục này sau lần `dotnet build` đầu tiên, còn CI thì checkout
+    # sạch nên không có. Hệ quả: bảng module sinh trên máy nhà có thêm một dòng `obj` giả, và cổng
+    # `--check` trên CI đỏ với thông báo "tệp đã commit khác kết quả sinh lại" — một lỗi chỉ xuất
+    # hiện ở CI, không tái lập được ở máy nhà.
+    BUILD = {"obj", "bin"}
     tep: dict[str, set[str]] = {}
     for p in sorted(SRC.rglob("*.cs")):
+        if BUILD & set(p.parts):
+            continue
         mod = p.relative_to(SRC).parts[0]
         tep.setdefault(mod, set()).add(p.name)
     for k in dem:
