@@ -1,0 +1,889 @@
+{
+  "sinh_boi": "ai/evaluation/build_ca_phu_kho.py",
+  "so_ca": 98,
+  "so_tai_lieu": 49,
+  "cases": [
+    {
+      "id": "phu-flavour-fatty-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị béo?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.fatty.v1",
+      "topic_key": "flavour_fatty",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-fatty-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó béo, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.fatty.v1",
+      "topic_key": "flavour_fatty",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-flavour-rich-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị đậm đà?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.rich.v1",
+      "topic_key": "flavour_rich",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-rich-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó đậm đà, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.rich.v1",
+      "topic_key": "flavour_rich",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-flavour-salty-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị mặn?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.salty.v1",
+      "topic_key": "flavour_salty",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-salty-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó mặn, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.salty.v1",
+      "topic_key": "flavour_salty",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-flavour-smoky-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị thơm khói?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.smoky.v1",
+      "topic_key": "flavour_smoky",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-smoky-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó thơm khói, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.smoky.v1",
+      "topic_key": "flavour_smoky",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-flavour-sour-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị chua?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.sour.v1",
+      "topic_key": "flavour_sour",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-sour-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó chua, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.sour.v1",
+      "topic_key": "flavour_sour",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-flavour-sweet-01",
+      "family": "phu-flavour",
+      "query": "Món nào vị ngọt?",
+      "dang": "A",
+      "doc_dich": "kb.flavour.sweet.v1",
+      "topic_key": "flavour_sweet",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-flavour-sweet-02",
+      "family": "phu-flavour",
+      "query": "Mình đang thèm cái gì đó ngọt, gợi ý đi",
+      "dang": "B",
+      "doc_dich": "kb.flavour.sweet.v1",
+      "topic_key": "flavour_sweet",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-healthy-01",
+      "family": "phu-health",
+      "query": "Món nào healthy?",
+      "dang": "A",
+      "doc_dich": "kb.health.healthy.v1",
+      "topic_key": "health_healthy",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-healthy-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu healthy thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.healthy.v1",
+      "topic_key": "health_healthy",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-high_protein-01",
+      "family": "phu-health",
+      "query": "Món nào giàu protein?",
+      "dang": "A",
+      "doc_dich": "kb.health.high_protein.v1",
+      "topic_key": "health_high_protein",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-high_protein-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu giàu protein thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.high_protein.v1",
+      "topic_key": "health_high_protein",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-light-01",
+      "family": "phu-health",
+      "query": "Món nào thanh nhẹ?",
+      "dang": "A",
+      "doc_dich": "kb.health.light.v1",
+      "topic_key": "health_light",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-light-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu thanh nhẹ thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.light.v1",
+      "topic_key": "health_light",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-low_calorie-01",
+      "family": "phu-health",
+      "query": "Món nào ít calo?",
+      "dang": "A",
+      "doc_dich": "kb.health.low_calorie.v1",
+      "topic_key": "health_low_calorie",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-low_calorie-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu ít calo thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.low_calorie.v1",
+      "topic_key": "health_low_calorie",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-low_fat-01",
+      "family": "phu-health",
+      "query": "Món nào ít dầu mỡ?",
+      "dang": "A",
+      "doc_dich": "kb.health.low_fat.v1",
+      "topic_key": "health_low_fat",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-low_fat-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu ít dầu mỡ thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.low_fat.v1",
+      "topic_key": "health_low_fat",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-health-no_msg-01",
+      "family": "phu-health",
+      "query": "Món nào không msg?",
+      "dang": "A",
+      "doc_dich": "kb.health.no_msg.v1",
+      "topic_key": "health_no_msg",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-health-no_msg-02",
+      "family": "phu-health",
+      "query": "Mình đang giữ dáng, muốn ăn kiểu không msg thì chọn gì?",
+      "dang": "B",
+      "doc_dich": "kb.health.no_msg.v1",
+      "topic_key": "health_no_msg",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-beef-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có bò?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.beef.v1",
+      "topic_key": "ingredient_beef",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-beef-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn bò, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.beef.v1",
+      "topic_key": "ingredient_beef",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-chicken-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có gà?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.chicken.v1",
+      "topic_key": "ingredient_chicken",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-chicken-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn gà, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.chicken.v1",
+      "topic_key": "ingredient_chicken",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-crab-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có cua?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.crab.v1",
+      "topic_key": "ingredient_crab",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-crab-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn cua, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.crab.v1",
+      "topic_key": "ingredient_crab",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-fish-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có cá?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.fish.v1",
+      "topic_key": "ingredient_fish",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-fish-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn cá, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.fish.v1",
+      "topic_key": "ingredient_fish",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-mushroom-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có nấm?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.mushroom.v1",
+      "topic_key": "ingredient_mushroom",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-mushroom-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn nấm, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.mushroom.v1",
+      "topic_key": "ingredient_mushroom",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-pork-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có heo?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.pork.v1",
+      "topic_key": "ingredient_pork",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-pork-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn heo, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.pork.v1",
+      "topic_key": "ingredient_pork",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-shrimp-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có tôm?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.shrimp.v1",
+      "topic_key": "ingredient_shrimp",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-shrimp-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn tôm, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.shrimp.v1",
+      "topic_key": "ingredient_shrimp",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-squid-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có mực?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.squid.v1",
+      "topic_key": "ingredient_squid",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-squid-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn mực, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.squid.v1",
+      "topic_key": "ingredient_squid",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-tofu-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có đậu hũ?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.tofu.v1",
+      "topic_key": "ingredient_tofu",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-tofu-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn đậu hũ, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.tofu.v1",
+      "topic_key": "ingredient_tofu",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-ingredient-vegetable-01",
+      "family": "phu-ingredient",
+      "query": "Món nào có rau?",
+      "dang": "A",
+      "doc_dich": "kb.ingredient.vegetable.v1",
+      "topic_key": "ingredient_vegetable",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-ingredient-vegetable-02",
+      "family": "phu-ingredient",
+      "query": "Nhà mình thích ăn rau, quán có món nào không?",
+      "dang": "B",
+      "doc_dich": "kb.ingredient.vegetable.v1",
+      "topic_key": "ingredient_vegetable",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-boiled-01",
+      "family": "phu-method",
+      "query": "Món Luộc có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.boiled.v1",
+      "topic_key": "method_boiled",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-boiled-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu luộc, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.boiled.v1",
+      "topic_key": "method_boiled",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-braised-01",
+      "family": "phu-method",
+      "query": "Món Kho có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.braised.v1",
+      "topic_key": "method_braised",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-braised-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu kho, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.braised.v1",
+      "topic_key": "method_braised",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-fried-01",
+      "family": "phu-method",
+      "query": "Món Chiên có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.fried.v1",
+      "topic_key": "method_fried",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-fried-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu chiên, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.fried.v1",
+      "topic_key": "method_fried",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-grilled-01",
+      "family": "phu-method",
+      "query": "Món Nướng có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.grilled.v1",
+      "topic_key": "method_grilled",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-grilled-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu nướng, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.grilled.v1",
+      "topic_key": "method_grilled",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-roasted-01",
+      "family": "phu-method",
+      "query": "Món Rang có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.roasted.v1",
+      "topic_key": "method_roasted",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-roasted-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu rang, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.roasted.v1",
+      "topic_key": "method_roasted",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-rolled-01",
+      "family": "phu-method",
+      "query": "Món Cuốn có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.rolled.v1",
+      "topic_key": "method_rolled",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-rolled-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu cuốn, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.rolled.v1",
+      "topic_key": "method_rolled",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-simmered-01",
+      "family": "phu-method",
+      "query": "Món Nấu có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.simmered.v1",
+      "topic_key": "method_simmered",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-simmered-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu nấu, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.simmered.v1",
+      "topic_key": "method_simmered",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-steamed-01",
+      "family": "phu-method",
+      "query": "Món Hấp có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.steamed.v1",
+      "topic_key": "method_steamed",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-steamed-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu hấp, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.steamed.v1",
+      "topic_key": "method_steamed",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-stewed-01",
+      "family": "phu-method",
+      "query": "Món Tiềm có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.stewed.v1",
+      "topic_key": "method_stewed",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-stewed-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu tiềm, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.stewed.v1",
+      "topic_key": "method_stewed",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-stir_fried-01",
+      "family": "phu-method",
+      "query": "Món Xào có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.stir_fried.v1",
+      "topic_key": "method_stir_fried",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-stir_fried-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu xào, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.stir_fried.v1",
+      "topic_key": "method_stir_fried",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-method-whole_roast-01",
+      "family": "phu-method",
+      "query": "Món Quay có những gì?",
+      "dang": "A",
+      "doc_dich": "kb.method.whole_roast.v1",
+      "topic_key": "method_whole_roast",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-method-whole_roast-02",
+      "family": "phu-method",
+      "query": "Mình muốn món chế biến kiểu quay, gợi ý giúp mình",
+      "dang": "B",
+      "doc_dich": "kb.method.whole_roast.v1",
+      "topic_key": "method_whole_roast",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-banquet-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp tiệc?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.banquet.v1",
+      "topic_key": "occasion_banquet",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-banquet-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi tiệc, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.banquet.v1",
+      "topic_key": "occasion_banquet",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-birthday-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp sinh nhật?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.birthday.v1",
+      "topic_key": "occasion_birthday",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-birthday-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi sinh nhật, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.birthday.v1",
+      "topic_key": "occasion_birthday",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-business-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp tiếp khách?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.business.v1",
+      "topic_key": "occasion_business",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-business-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi tiếp khách, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.business.v1",
+      "topic_key": "occasion_business",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-date-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp hẹn hò?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.date.v1",
+      "topic_key": "occasion_date",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-date-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi hẹn hò, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.date.v1",
+      "topic_key": "occasion_date",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-drinking-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp nhậu?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.drinking.v1",
+      "topic_key": "occasion_drinking",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-drinking-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi nhậu, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.drinking.v1",
+      "topic_key": "occasion_drinking",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-occasion-everyday-01",
+      "family": "phu-occasion",
+      "query": "Món nào hợp hàng ngày?",
+      "dang": "A",
+      "doc_dich": "kb.occasion.everyday.v1",
+      "topic_key": "occasion_everyday",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-occasion-everyday-02",
+      "family": "phu-occasion",
+      "query": "Nhóm mình sắp đi hàng ngày, nên gọi món gì?",
+      "dang": "B",
+      "doc_dich": "kb.occasion.everyday.v1",
+      "topic_key": "occasion_everyday",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-central-01",
+      "family": "phu-region",
+      "query": "Có món Miền Trung nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.central.v1",
+      "topic_key": "region_central",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-central-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê miền trung, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.central.v1",
+      "topic_key": "region_central",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-danang-01",
+      "family": "phu-region",
+      "query": "Có món Đà Nẵng nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.danang.v1",
+      "topic_key": "region_danang",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-danang-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê đà nẵng, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.danang.v1",
+      "topic_key": "region_danang",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-hanoi-01",
+      "family": "phu-region",
+      "query": "Có món Hà Nội nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.hanoi.v1",
+      "topic_key": "region_hanoi",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-hanoi-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê hà nội, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.hanoi.v1",
+      "topic_key": "region_hanoi",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-highlands-01",
+      "family": "phu-region",
+      "query": "Có món Tây Nguyên nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.highlands.v1",
+      "topic_key": "region_highlands",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-highlands-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê tây nguyên, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.highlands.v1",
+      "topic_key": "region_highlands",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-hoian-01",
+      "family": "phu-region",
+      "query": "Có món Hội An nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.hoian.v1",
+      "topic_key": "region_hoian",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-hoian-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê hội an, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.hoian.v1",
+      "topic_key": "region_hoian",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-hue-01",
+      "family": "phu-region",
+      "query": "Có món Huế nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.hue.v1",
+      "topic_key": "region_hue",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-hue-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê huế, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.hue.v1",
+      "topic_key": "region_hue",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-mekong-01",
+      "family": "phu-region",
+      "query": "Có món Miền Tây nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.mekong.v1",
+      "topic_key": "region_mekong",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-mekong-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê miền tây, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.mekong.v1",
+      "topic_key": "region_mekong",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-north-01",
+      "family": "phu-region",
+      "query": "Có món Miền Bắc nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.north.v1",
+      "topic_key": "region_north",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-north-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê miền bắc, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.north.v1",
+      "topic_key": "region_north",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-saigon-01",
+      "family": "phu-region",
+      "query": "Có món Sài Gòn nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.saigon.v1",
+      "topic_key": "region_saigon",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-saigon-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê sài gòn, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.saigon.v1",
+      "topic_key": "region_saigon",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    },
+    {
+      "id": "phu-region-south-01",
+      "family": "phu-region",
+      "query": "Có món Miền Nam nào không?",
+      "dang": "A",
+      "doc_dich": "kb.region.south.v1",
+      "topic_key": "region_south",
+      "why": "dùng đúng nhãn tiếng Việt — BM25 nên thắng"
+    },
+    {
+      "id": "phu-region-south-02",
+      "family": "phu-region",
+      "query": "Mình nhớ vị quê miền nam, ăn gì cho giống?",
+      "dang": "B",
+      "doc_dich": "kb.region.south.v1",
+      "topic_key": "region_south",
+      "why": "diễn đạt theo tình huống, không chứa nhãn — embedding nên thắng"
+    }
+  ]
+}

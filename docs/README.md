@@ -1,6 +1,6 @@
 # CMC Restaurant — chỉ mục tài liệu
 
-**44 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
+**51 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
 `docs/build_docs_index.py` từ chính các tệp có thật — nên nó không thể trỏ vào tệp không
 tồn tại, và không thể bỏ sót tệp mới.
 
@@ -50,10 +50,17 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [API_CONTRACT.md](backend/API_CONTRACT.md) | Hop Dong API - CMC Restaurant |
 | [ARCHITECTURE.md](backend/ARCHITECTURE.md) | Kiến trúc backend |
 | [DATABASE.md](backend/DATABASE.md) | Database Setup Guide |
+| [BAO_CAO_CONG_NGHE_LAP_TRINH_WEB.md](bao-cao/BAO_CAO_CONG_NGHE_LAP_TRINH_WEB.md) | BÁO CÁO MÔN HỌC |
 | [BAO_CAO_CONG_NGHE_PHAN_MEM.md](bao-cao/BAO_CAO_CONG_NGHE_PHAN_MEM.md) | BÁO CÁO BÀI TẬP LỚN |
+| [BAO_CAO_DO_AN_CHUYEN_NGANH.md](bao-cao/BAO_CAO_DO_AN_CHUYEN_NGANH.md) | BÁO CÁO ĐỒ ÁN CHUYÊN NGÀNH |
 | [CHUAN_BI_VAN_DAP.md](bao-cao/CHUAN_BI_VAN_DAP.md) | CHUẨN BỊ VẤN ĐÁP — CMC RESTAURANT |
+| [HOI_DAP_KY_THUAT.md](bao-cao/HOI_DAP_KY_THUAT.md) | HỎI ĐÁP KỸ THUẬT — CMC RESTAURANT |
 | [HUMAN_PEER_REVIEW.md](bao-cao/HUMAN_PEER_REVIEW.md) | Quy trình và bằng chứng human peer review |
+| [KICH_BAN_DO_AN.md](bao-cao/KICH_BAN_DO_AN.md) | Kịch bản thuyết trình — Đồ án chuyên ngành |
+| [KICH_BAN_THUYET_TRINH.md](bao-cao/KICH_BAN_THUYET_TRINH.md) | Kịch bản thuyết trình — CMC Restaurant |
+| [KICH_BAN_WEB.md](bao-cao/KICH_BAN_WEB.md) | Kịch bản thuyết trình — Công nghệ lập trình Web |
 | [PHAN_CONG_CONG_VIEC.md](bao-cao/PHAN_CONG_CONG_VIEC.md) | Phân công công việc — giai đoạn hoàn thiện và bảo vệ |
+| [PHAN_UNG_VAN_DAP.md](bao-cao/PHAN_UNG_VAN_DAP.md) | BỘ CÂU HỎI PHẢN ỨNG — NHÓM TRƯỞNG (AI & DEVOPS) |
 | [PIPELINE_AND_DEPLOY.md](devops/PIPELINE_AND_DEPLOY.md) | CI/CD, triển khai và vận hành production |
 | [OPS_APP.md](frontend/OPS_APP.md) | Ứng dụng vận hành — workspace và quầy |
 
