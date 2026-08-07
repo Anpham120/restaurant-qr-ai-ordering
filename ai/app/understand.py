@@ -390,6 +390,19 @@ _add("xao", "require", "method:stir_fried")
 _add("mien bac", "require", "region:north")
 _add("mien trung", "require", "region:central")
 _add("mien nam", "require", "region:south")
+# "trong Nam" / "người Nam" là cách nói THƯỜNG NGÀY hơn "miền Nam", và thiếu chúng thì một câu
+# hoàn toàn bình thường trả về sai hẳn nhóm món:
+#
+#     "Mình thích vị ngọt kiểu trong Nam, gọi gì?"
+#         trước: require = [flavour:sweet, ingredient:MUSHROOM] -> Gà tiềm thuốc bắc
+#
+# `Nam` rút dấu thành `nam`, trùng `nấm`. Cụm `mien nam` dài hơn nên nó tự thắng, nhưng "trong
+# Nam" không có cụm nào phủ, nên `nam` một âm tiết ăn mất và khách hỏi vị miền Nam nhận về món nấm.
+#
+# Cùng lớp lỗi với `nam nguoi` (năm người ⊃ nấm) đã có test riêng — nhưng lần này nó lọt vì cụm
+# bảo vệ được viết cho MỘT cách nói, còn tiếng Việt có nhiều cách nói cho cùng một vùng.
+_add("trong nam|nguoi nam|kieu nam bo|nam bo", "require", "region:south")
+_add("ngoai bac|nguoi bac|kieu bac", "require", "region:north")
 _add("mien tay", "require", "region:mekong")
 _add("ha noi", "require", "region:hanoi")
 _add("hue", "require", "region:hue")
@@ -497,6 +510,90 @@ _add("troi lanh|cho am|an cho am", "require", "season:cold_season")
 # không tư vấn được gì, và tiêu chí của ca nhận cả hai nhãn.
 _add("it tien", "require", "price:budget")
 _add("an sang mot bua", "require", "price:high")
+
+# --- Chính NHÃN TIẾNG VIỆT làm cụm từ vựng ---------------------------------------------------
+#
+# `menu-tags.json` có `label_vi` cho cả 85 nhãn, nhưng đo lại thì **48/85 nhãn (56,47%) không rút
+# ra được từ chính nhãn tiếng Việt của nó**: hỏi "Món nào ít calo?" thì `require` rỗng.
+#
+# Vì sao đó là lỗ hổng chứ không phải chuyện nhỏ: bảng nhãn là thứ NGƯỜI NHẬP LIỆU đọc khi gắn
+# nhãn cho món, nên nó cũng là cách nói tự nhiên nhất về nhóm món đó. Nhãn có, món có, chỉ thiếu
+# đường nối — đúng lớp `vocab_miss` mà `analyze_failures.py` phân loại.
+#
+# Hậu quả đo được trên bộ định tuyến 198 câu: **20/35 ca sai định tuyến** rơi vào nhóm này. Câu
+# "Món nào có bò?" đi nhánh `clarify` (hỏi lại điều khách vừa nói), còn "Món nào vị chua?" rơi
+# xuống truy hồi toàn kho và khách nhận một đoạn văn thay vì danh sách món.
+#
+# Vì sao KHÔNG sinh tự động cả 48 nhãn
+# ------------------------------------
+# Vì tiếng Việt viết rời từng âm tiết, nên `bố trí` rút dấu thành hai TỪ RIÊNG `bo` + `tri`. Bộ
+# khớp đệm khoảng trắng nên nó chống được đụng chữ BÊN TRONG một từ, nhưng không chống được hai
+# từ khác nghĩa rút dấu về cùng một chuỗi. Nạp thử từng cụm rồi chạy `understand()` trên **980 câu
+# hỏi của 8 tập đánh giá** cho thấy cụm trần hỏng ở đâu:
+#
+#     `bo`   <- bỏ, bố, bộ, bỡ   "Em muốn bỏ một nguyên liệu ra" mà thành đòi món bò;
+#                               "Trong bàn có người không dùng thịt thì bố trí thế nào?" ĐỔI
+#                               ý định sang `xoa_rang_buoc`, tức xóa luôn ràng buộc đang giữ
+#     `chua` <- chưa            "Mình chưa ăn ở đây bao giờ" thành đòi món chua (4 câu)
+#     `ngot` <- bột ngọt        "Món nào không bột ngọt?" thành đòi món ngọt — ngược nghĩa
+#     `beo`  <- sợ béo          "Mình sợ béo, có gì ít dầu không?" thành đòi món béo — ngược nghĩa
+#     `kho`  <- khô             "món đảo khô trên chảo" thành món kho
+#     `rang` <- ràng buộc       "Khi khách có ràng buộc thì ghép món thế nào?"
+#     `nau`  <- nấu (động từ)   "món này nấu bao lâu", "bếp nấu theo phong cách nào"
+#     `quay` <- quay lại        "quay lại món ăn đi, cho mình món nướng"
+#     `nong` <- nồng            5/5 câu đổi đều là "nồng vị ớt" — nên `serving:hot` BỊ BỎ hẳn
+#
+# Nên nhóm dưới chia làm hai: nhãn nhận nguyên văn, và nhãn phải kèm khung câu.
+#
+# Đây là lần thứ 11 rút dấu gây đụng chữ trong dự án. Khác 10 lần trước ở chỗ nó bị bắt TRƯỚC khi
+# vào mã, bằng phép đo chứ không bằng ca đỏ.
+
+# Nhóm 1 — nhãn nhận nguyên văn: 0/980 câu đổi sai.
+_add("thom khoi", "require", "flavour:smoky")
+_add("giau protein", "require", "health:high_protein")
+_add("healthy", "require", "health:healthy")
+_add("khong msg", "require", "health:no_msg")
+_add("thanh nhe", "require", "health:light")
+_add("rau", "require", "ingredient:vegetable")
+_add("cuon", "require", "method:rolled")
+_add("luoc", "require", "method:boiled")
+_add("tiem", "require", "method:stewed")
+_add("hang ngay", "require", "occasion:everyday")
+_add("mang di", "require", "serving:takeaway")
+_add("tay nguyen", "require", "region:highlands")
+
+# Nhóm 2 — nhãn phải kèm khung câu vì bản thân nó đụng chữ với từ khác.
+#
+# Khung được chọn là khung tiếng Việt thường ngày ("vị chua", "kiểu kho", "món rang"), không phải
+# khung riêng của tập đánh giá — nhưng phải nói rõ: bộ ca phủ kho dùng đúng những khung này, nên
+# phần cải thiện đo trên nó có lợi thế. Con số đáng tin hơn là phần đo trên các tập KHÔNG dùng
+# khung đó (140 ca trả lời, 149 lượt phiên, 103 ca golden) — chúng chỉ được dùng để kiểm không
+# tụt, và chúng không tụt ca nào.
+_add("vi chua|gi do chua", "require", "flavour:sour")
+_add("vi ngot|gi do ngot|thu ngot", "require", "flavour:sweet")
+_add("vi man|gi do man", "require", "flavour:salty")
+_add("vi beo|gi do beo", "require", "flavour:fatty")
+# KHÔNG có "co bo" ở đây, dù nó là cụm sửa được câu "Món nào có bò?". Nạp thử rồi đo:
+# "Quán có bỏ ớt được không?" — câu xin bớt nguyên liệu — biến thành câu đòi món bò. `bò` và `bỏ`
+# rút dấu về cùng `bo`, nên trong khung "có X" không có cách nào tách hai nghĩa.
+#
+# Đây là giới hạn phải nói ra chứ không phải chỗ để cố: khung "ăn bò" an toàn vì `ăn bỏ` không
+# phải tiếng Việt, còn khung "có bò" thì không. Câu "Món nào có bò?" vì thế vẫn chưa xử lý được
+# bằng mã tất định, và nó nằm trong phần còn lại của thước đo định tuyến.
+_add("an bo", "require", "ingredient:beef")
+_add("mon kho|kieu kho", "require", "method:braised")
+_add("mon nau|kieu nau", "require", "method:simmered")
+_add("mon quay|kieu quay", "require", "method:whole_roast")
+_add("mon rang|kieu rang", "require", "method:roasted")
+
+# `it calo` thắng `calo` nhờ bộ khớp ăn cụm DÀI trước, và đó là điều sửa một lỗi thật:
+#
+#     "Món này bao nhiêu calo?"  hỏi một CON SỐ  -> đúng là phải từ chối, quán không có số đó
+#     "Món nào ít calo?"         hỏi một LỰA CHỌN -> trả lời được, 19/91 món mang nhãn này
+#
+# Trước sửa, cả hai cùng rơi vào `policy:nutrition` và cùng nhận câu "Mình chưa có dữ liệu về việc
+# này ạ" — tức hệ thống từ chối một câu mà chính dữ liệu của nó trả lời được.
+_add("it calo", "require", "health:low_calorie")
 
 # Danh mục.
 #
@@ -1357,6 +1454,17 @@ def _name_candidates(menu_items: list[dict]) -> list[tuple[str, str, str]]:
     return candidates
 
 
+# Từ báo hiệu món đứng NGAY SAU nó là món bị loại, không phải món được hỏi.
+#
+# Danh sách hẹp có chủ ý. Mỗi cụm ở đây phải là cụm mà sau nó KHÔNG thể là món khách muốn — nên
+# "không" trần không có mặt: "trà sữa không đường" là món khách muốn, chỉ đổi cách pha.
+_TU_LOAI_TRU = (
+    "khong phai", "khong muon", "khong thich", "khong lay", "khong uong", "khong an",
+    "tru ", "ngoai tru", "tru mon", "dung lay", "bo qua", "chan ", "ngan ",
+    "khac ngoai", "thay vi",
+)
+
+
 def understand(question: str, menu_items: list[dict]) -> Request:
     request = Request(text=question, folded=fold(question))
     working = f" {request.folded} "
@@ -1371,7 +1479,29 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #    khớp một phần bừa (18 từ đầu trong thực đơn bị trùng).
     for needle, item_id, label in _name_candidates(menu_items):
         if needle in working:
-            if item_id in request.named_items:
+            if item_id in request.named_items or item_id in request.exclude_item_ids:
+                continue
+            # TÊN MÓN ĐỨNG SAU TỪ LOẠI TRỪ là món khách KHÔNG muốn, không phải món khách hỏi.
+            #
+            # Trước khi có nhánh này, cả ba cách nói dưới đây đều trả về đúng món vừa bị loại:
+            #
+            #     "Muốn cái gì mát mà rẻ, không phải trà sữa"  -> Trà sữa trân châu (45.000đ)
+            #     "Cho mình đồ uống, không phải trà sữa"       -> Trà sữa trân châu
+            #     "Món nào cũng được, trừ trà sữa"             -> Trà sữa trân châu
+            #
+            # Đây là kiểu sai tệ hơn "không hiểu": hệ thống hiểu đủ để tìm ra món, rồi mời đúng
+            # món khách vừa từ chối. Khách đọc câu trả lời đó sẽ kết luận trợ lý không nghe mình.
+            #
+            # Cửa sổ 24 ký tự trước tên món, không phải cả câu: "trà sữa ngon không, à mà thôi cho
+            # mình cái khác" có từ loại trừ ở SAU nên không được tính. Loại trừ là quan hệ vị trí.
+            # Đệm một khoảng trắng vào cuối: tên món đã mang khoảng trắng đầu, nên đoạn trước nó
+            # kết thúc bằng CHỮ. Thiếu đệm thì "…cũng được TRỪ" không khớp cụm `tru ` — đo được
+            # bằng đúng câu "Món nào cũng được, trừ trà sữa".
+            truoc = working[: working.index(needle)][-24:] + " "
+            if any(t in truoc for t in _TU_LOAI_TRU):
+                request.exclude_item_ids.append(item_id)
+                working = working.replace(needle, " " * len(needle))
+                request.matched.append(f"loại trừ tên món: {label}")
                 continue
             request.named_items.append(item_id)
             working = working.replace(needle, " " * len(needle))
