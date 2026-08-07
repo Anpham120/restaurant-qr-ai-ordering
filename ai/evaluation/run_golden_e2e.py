@@ -219,7 +219,26 @@ def suy_ra_kind(text: str, so_the_gio: int) -> str:
     Việc đếm tên món vẫn giữ ở chỗ khác, và ở đó nó đúng: phép kiểm an toàn `forbid_tags_any`. Một
     món hải sản nhắc trong văn xuôi vẫn là món hải sản đã lọt tới mắt khách dị ứng.
     """
-    sach = text.lower()
+    # DẠNG ĐÁP ÁN đọc từ ĐOẠN ĐẦU, không đọc từ cả câu trả lời.
+    #
+    # Từ khi nhánh tri thức trích nhiều đoạn, một câu trả lời gồm đoạn TRẢ LỜI cộng đoạn BỔ TRỢ. Dạng
+    # đáp án là tính chất của đoạn trả lời; đoạn bổ trợ chỉ là ngữ cảnh thêm.
+    #
+    # Đo được ngay khi bật trích 2 đoạn — lượt `khach-hoi-nhan-va-gioi-han` #1:
+    #
+    #     hỏi     "Nhãn 'ít calo' dựa trên gì?"
+    #     đoạn 1  "…Nhãn 'ít calo' là đánh giá cảm quan của người nhập liệu, không phải kết quả
+    #              phân tích…"                                     <- TRẢ LỜI ĐÚNG câu hỏi, dạng `fact`
+    #     đoạn 2  tài liệu `dietary_limits`, có chứa cụm "chưa có dữ liệu" về một chuyện KHÁC
+    #
+    # Đọc cả hai đoạn thì cụm ở đoạn 2 thắng và lượt bị chấm `no_data` — trong khi đoạn 1 trả lời
+    # đúng điều được hỏi. Đây là lỗi THƯỚC ĐO, cùng lớp với lỗi đã ghi ở đoạn dưới, và cùng nguyên
+    # nhân: khớp cụm ở BẤT KỲ ĐÂU trong văn bản.
+    #
+    # Vì sao sửa ở đây là đúng chứ không phải nới cho qua: các nhánh trả `no_data` và `refuse` thật
+    # (`policy:*`) đều sinh câu MỘT ĐOẠN từ khuôn mẫu, nên đọc đoạn đầu không làm lỏng chúng — kiểm
+    # được bằng chính ba lượt còn lại của hội thoại này, cả ba vẫn chấm đúng.
+    sach = text.split("\n\n", 1)[0].lower()
 
     # `refuse` và `no_data` đòi KHÔNG CÓ THẺ GIỎ, không chỉ đòi cụm từ.
     #
