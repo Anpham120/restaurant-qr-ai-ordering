@@ -1,0 +1,99 @@
+﻿id,dang,query,topic_key,tat_dinh,tat_dinh_du_tu_vung,bm25,embedding,hybrid
+phu-flavour-fatty-01,A,Món nào vị béo?,flavour_fatty,False,False,True,True,True
+phu-flavour-fatty-02,B,"Mình đang thèm cái gì đó béo, gợi ý đi",flavour_fatty,False,False,False,True,True
+phu-flavour-rich-01,A,Món nào vị đậm đà?,flavour_rich,False,True,True,True,True
+phu-flavour-rich-02,B,"Mình đang thèm cái gì đó đậm đà, gợi ý đi",flavour_rich,False,True,False,True,True
+phu-flavour-salty-01,A,Món nào vị mặn?,flavour_salty,False,False,False,True,True
+phu-flavour-salty-02,B,"Mình đang thèm cái gì đó mặn, gợi ý đi",flavour_salty,False,False,False,True,True
+phu-flavour-smoky-01,A,Món nào vị thơm khói?,flavour_smoky,False,True,True,True,True
+phu-flavour-smoky-02,B,"Mình đang thèm cái gì đó thơm khói, gợi ý đi",flavour_smoky,False,True,True,True,True
+phu-flavour-sour-01,A,Món nào vị chua?,flavour_sour,False,True,False,True,True
+phu-flavour-sour-02,B,"Mình đang thèm cái gì đó chua, gợi ý đi",flavour_sour,False,False,False,True,False
+phu-flavour-sweet-01,A,Món nào vị ngọt?,flavour_sweet,False,True,False,True,True
+phu-flavour-sweet-02,B,"Mình đang thèm cái gì đó ngọt, gợi ý đi",flavour_sweet,False,False,False,True,False
+phu-health-healthy-01,A,Món nào healthy?,health_healthy,False,True,True,True,True
+phu-health-healthy-02,B,"Mình đang giữ dáng, muốn ăn kiểu healthy thì chọn gì?",health_healthy,False,True,True,True,True
+phu-health-high_protein-01,A,Món nào giàu protein?,health_high_protein,False,True,True,True,True
+phu-health-high_protein-02,B,"Mình đang giữ dáng, muốn ăn kiểu giàu protein thì chọn gì?",health_high_protein,False,True,True,True,True
+phu-health-light-01,A,Món nào thanh nhẹ?,health_light,False,True,False,True,True
+phu-health-light-02,B,"Mình đang giữ dáng, muốn ăn kiểu thanh nhẹ thì chọn gì?",health_light,False,True,True,True,True
+phu-health-low_calorie-01,A,Món nào ít calo?,health_low_calorie,False,True,False,True,True
+phu-health-low_calorie-02,B,"Mình đang giữ dáng, muốn ăn kiểu ít calo thì chọn gì?",health_low_calorie,False,True,True,True,True
+phu-health-low_fat-01,A,Món nào ít dầu mỡ?,health_low_fat,False,True,True,True,True
+phu-health-low_fat-02,B,"Mình đang giữ dáng, muốn ăn kiểu ít dầu mỡ thì chọn gì?",health_low_fat,False,True,True,True,True
+phu-health-no_msg-01,A,Món nào không msg?,health_no_msg,False,False,True,True,True
+phu-health-no_msg-02,B,"Mình đang giữ dáng, muốn ăn kiểu không msg thì chọn gì?",health_no_msg,False,False,True,True,True
+phu-ingredient-beef-01,A,Món nào có bò?,ingredient_beef,False,False,False,True,True
+phu-ingredient-beef-02,B,"Nhà mình thích ăn bò, quán có món nào không?",ingredient_beef,False,False,False,True,False
+phu-ingredient-chicken-01,A,Món nào có gà?,ingredient_chicken,False,False,False,True,False
+phu-ingredient-chicken-02,B,"Nhà mình thích ăn gà, quán có món nào không?",ingredient_chicken,False,False,False,False,False
+phu-ingredient-crab-01,A,Món nào có cua?,ingredient_crab,False,False,False,True,True
+phu-ingredient-crab-02,B,"Nhà mình thích ăn cua, quán có món nào không?",ingredient_crab,False,False,False,True,True
+phu-ingredient-fish-01,A,Món nào có cá?,ingredient_fish,False,False,False,True,False
+phu-ingredient-fish-02,B,"Nhà mình thích ăn cá, quán có món nào không?",ingredient_fish,False,False,False,True,False
+phu-ingredient-mushroom-01,A,Món nào có nấm?,ingredient_mushroom,False,False,False,True,True
+phu-ingredient-mushroom-02,B,"Nhà mình thích ăn nấm, quán có món nào không?",ingredient_mushroom,False,False,False,True,True
+phu-ingredient-pork-01,A,Món nào có heo?,ingredient_pork,False,False,True,True,True
+phu-ingredient-pork-02,B,"Nhà mình thích ăn heo, quán có món nào không?",ingredient_pork,False,False,False,True,True
+phu-ingredient-shrimp-01,A,Món nào có tôm?,ingredient_shrimp,False,False,False,True,True
+phu-ingredient-shrimp-02,B,"Nhà mình thích ăn tôm, quán có món nào không?",ingredient_shrimp,False,False,False,True,True
+phu-ingredient-squid-01,A,Món nào có mực?,ingredient_squid,False,False,False,True,True
+phu-ingredient-squid-02,B,"Nhà mình thích ăn mực, quán có món nào không?",ingredient_squid,False,False,False,True,True
+phu-ingredient-tofu-01,A,Món nào có đậu hũ?,ingredient_tofu,False,True,True,True,True
+phu-ingredient-tofu-02,B,"Nhà mình thích ăn đậu hũ, quán có món nào không?",ingredient_tofu,False,True,False,True,True
+phu-ingredient-vegetable-01,A,Món nào có rau?,ingredient_vegetable,False,False,True,True,True
+phu-ingredient-vegetable-02,B,"Nhà mình thích ăn rau, quán có món nào không?",ingredient_vegetable,False,False,False,True,True
+phu-method-boiled-01,A,Món Luộc có những gì?,method_boiled,False,True,True,True,True
+phu-method-boiled-02,B,"Mình muốn món chế biến kiểu luộc, gợi ý giúp mình",method_boiled,False,False,False,True,True
+phu-method-braised-01,A,Món Kho có những gì?,method_braised,False,False,False,True,True
+phu-method-braised-02,B,"Mình muốn món chế biến kiểu kho, gợi ý giúp mình",method_braised,False,False,False,False,False
+phu-method-fried-01,A,Món Chiên có những gì?,method_fried,False,True,False,True,True
+phu-method-fried-02,B,"Mình muốn món chế biến kiểu chiên, gợi ý giúp mình",method_fried,False,True,False,False,False
+phu-method-grilled-01,A,Món Nướng có những gì?,method_grilled,False,True,False,True,True
+phu-method-grilled-02,B,"Mình muốn món chế biến kiểu nướng, gợi ý giúp mình",method_grilled,False,True,False,True,False
+phu-method-roasted-01,A,Món Rang có những gì?,method_roasted,False,True,False,True,True
+phu-method-roasted-02,B,"Mình muốn món chế biến kiểu rang, gợi ý giúp mình",method_roasted,False,False,False,True,True
+phu-method-rolled-01,A,Món Cuốn có những gì?,method_rolled,False,True,False,True,False
+phu-method-rolled-02,B,"Mình muốn món chế biến kiểu cuốn, gợi ý giúp mình",method_rolled,False,False,False,True,True
+phu-method-simmered-01,A,Món Nấu có những gì?,method_simmered,False,False,False,False,True
+phu-method-simmered-02,B,"Mình muốn món chế biến kiểu nấu, gợi ý giúp mình",method_simmered,False,False,False,True,True
+phu-method-steamed-01,A,Món Hấp có những gì?,method_steamed,False,False,False,True,False
+phu-method-steamed-02,B,"Mình muốn món chế biến kiểu hấp, gợi ý giúp mình",method_steamed,False,False,False,False,False
+phu-method-stewed-01,A,Món Tiềm có những gì?,method_stewed,False,True,True,False,True
+phu-method-stewed-02,B,"Mình muốn món chế biến kiểu tiềm, gợi ý giúp mình",method_stewed,False,False,False,True,False
+phu-method-stir_fried-01,A,Món Xào có những gì?,method_stir_fried,False,False,True,True,True
+phu-method-stir_fried-02,B,"Mình muốn món chế biến kiểu xào, gợi ý giúp mình",method_stir_fried,False,False,False,True,False
+phu-method-whole_roast-01,A,Món Quay có những gì?,method_whole_roast,False,True,True,True,True
+phu-method-whole_roast-02,B,"Mình muốn món chế biến kiểu quay, gợi ý giúp mình",method_whole_roast,False,False,False,False,False
+phu-occasion-banquet-01,A,Món nào hợp tiệc?,occasion_banquet,False,True,True,False,True
+phu-occasion-banquet-02,B,"Nhóm mình sắp đi tiệc, nên gọi món gì?",occasion_banquet,False,False,False,False,False
+phu-occasion-birthday-01,A,Món nào hợp sinh nhật?,occasion_birthday,False,True,False,True,True
+phu-occasion-birthday-02,B,"Nhóm mình sắp đi sinh nhật, nên gọi món gì?",occasion_birthday,False,True,False,False,False
+phu-occasion-business-01,A,Món nào hợp tiếp khách?,occasion_business,False,True,True,True,True
+phu-occasion-business-02,B,"Nhóm mình sắp đi tiếp khách, nên gọi món gì?",occasion_business,False,True,False,False,True
+phu-occasion-date-01,A,Món nào hợp hẹn hò?,occasion_date,False,True,True,True,True
+phu-occasion-date-02,B,"Nhóm mình sắp đi hẹn hò, nên gọi món gì?",occasion_date,False,True,False,False,False
+phu-occasion-drinking-01,A,Món nào hợp nhậu?,occasion_drinking,False,True,False,True,True
+phu-occasion-drinking-02,B,"Nhóm mình sắp đi nhậu, nên gọi món gì?",occasion_drinking,False,False,False,False,False
+phu-occasion-everyday-01,A,Món nào hợp hàng ngày?,occasion_everyday,False,True,True,True,True
+phu-occasion-everyday-02,B,"Nhóm mình sắp đi hàng ngày, nên gọi món gì?",occasion_everyday,False,False,False,False,False
+phu-region-central-01,A,Có món Miền Trung nào không?,region_central,False,True,True,False,False
+phu-region-central-02,B,"Mình nhớ vị quê miền trung, ăn gì cho giống?",region_central,False,True,False,True,True
+phu-region-danang-01,A,Có món Đà Nẵng nào không?,region_danang,False,True,False,False,False
+phu-region-danang-02,B,"Mình nhớ vị quê đà nẵng, ăn gì cho giống?",region_danang,False,True,False,True,True
+phu-region-hanoi-01,A,Có món Hà Nội nào không?,region_hanoi,False,True,True,False,True
+phu-region-hanoi-02,B,"Mình nhớ vị quê hà nội, ăn gì cho giống?",region_hanoi,False,True,False,False,True
+phu-region-highlands-01,A,Có món Tây Nguyên nào không?,region_highlands,False,True,False,False,False
+phu-region-highlands-02,B,"Mình nhớ vị quê tây nguyên, ăn gì cho giống?",region_highlands,False,True,False,False,True
+phu-region-hoian-01,A,Có món Hội An nào không?,region_hoian,False,False,True,False,True
+phu-region-hoian-02,B,"Mình nhớ vị quê hội an, ăn gì cho giống?",region_hoian,False,False,False,False,False
+phu-region-hue-01,A,Có món Huế nào không?,region_hue,False,False,True,False,True
+phu-region-hue-02,B,"Mình nhớ vị quê huế, ăn gì cho giống?",region_hue,False,False,False,True,True
+phu-region-mekong-01,A,Có món Miền Tây nào không?,region_mekong,False,True,True,True,True
+phu-region-mekong-02,B,"Mình nhớ vị quê miền tây, ăn gì cho giống?",region_mekong,False,True,False,True,True
+phu-region-north-01,A,Có món Miền Bắc nào không?,region_north,False,True,False,False,False
+phu-region-north-02,B,"Mình nhớ vị quê miền bắc, ăn gì cho giống?",region_north,False,True,False,True,True
+phu-region-saigon-01,A,Có món Sài Gòn nào không?,region_saigon,False,True,True,False,False
+phu-region-saigon-02,B,"Mình nhớ vị quê sài gòn, ăn gì cho giống?",region_saigon,False,True,False,True,True
+phu-region-south-01,A,Có món Miền Nam nào không?,region_south,False,True,False,False,False
+phu-region-south-02,B,"Mình nhớ vị quê miền nam, ăn gì cho giống?",region_south,False,True,False,True,True
