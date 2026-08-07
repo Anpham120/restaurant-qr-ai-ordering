@@ -152,9 +152,9 @@ Chúng cũng đòi **cùng một loại kỷ luật**: *số phải tính đư�
   khóa đáp án ghi `allowed: savoury` trong khi câu hỏi không nói "món ăn".
 
 ### Đã xong
-Kho tri thức **108 tài liệu / 449 đoạn** (24 `verbatim` + 84 `synthesize`; 56 `derived` + 52 `demo`),
-425 đoạn được xếp hạng. Từ điển **84 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
-**119 ca / 41 họ**, chia chốt 21 / phát triển 61 / niêm phong 37. Thước đo **37 test**, bộ dò lỗ tìm
+Kho tri thức **109 tài liệu / 452 đoạn** (24 `verbatim` + 85 `synthesize`; 57 `derived` + 52 `demo`),
+372 đoạn được xếp hạng. Từ điển **85 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
+**140 ca / 45 họ**, chia theo họ thành chốt / phát triển / niêm phong. Thước đo có bộ dò lỗ tìm
 **0 lỗ**.
 
 ### Việc còn lại — làm theo đúng thứ tự này
@@ -532,18 +532,25 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 
 ## Trạng thái hiện tại
 
-| TV | Xong | Còn lại |
+| TV | Đã xong | Bằng chứng |
 |---|---|---|
-| **1** | kho 84 tài liệu / 327 đoạn · từ điển 84 nhãn · 119 ca / 41 họ · thước đo 37 test · bộ dò 0 lỗ | ca truy hồi, kịch bản đa lượt, ca giỏ hàng, `analyze_failures.py` |
-| **2** | hiểu câu hỏi + mô hình + cổng kiểm · 0 lỗi an toàn | nhận ngữ cảnh phiên |
-| **3** | — | BM25, embedding, hybrid, phép so trên hai bài toán |
-| **4** | `answer.py` 6 nhánh · `cart.py` 5 bất biến · sửa lỗi "hỏi món trả toàn bia" | chỉnh theo ca giỏ hàng của TV1 |
-| **5** | 5 endpoint · `session.py` 3 quy tắc · hợp đồng schema | **chạy thật `docker compose`** |
+| **1** | Dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho 109 tài liệu / 452 đoạn · bộ rà nhãn 0 lỗ |
+| **2** | Truy hồi — BM25, embedding, hybrid RRF | 222 ca truy hồi · chốt embedding, Hit@1 niêm phong 60,87% so với BM25 39,13% (McNemar p = 0,0020) |
+| **3** | Chọn món và ba lớp an toàn | 168 ca chọn mục · 10 phép kiểm xác minh · **0 lỗi an toàn** trên mọi tập |
+| **4** | Dịch vụ HTTP, bộ nhớ phiên, tích hợp backend | 5 endpoint · 3 quy tắc hợp nhất · hợp đồng schema · **đã chạy thật qua `docker compose`** |
+| **5** | Bốn tập đánh giá, thước đo, golden, cổng CI | 140/140 ca · 149/149 lượt phiên · 103/103 lượt golden · 100 câu hai chiều |
 
-**Số đo hiện tại:** 122/122 (100%) chỉ bằng mã tất định · 122/122 khi có mô hình (mô hình đổi **0 ca**) · **0 lỗi an toàn
-ở cả hai chế độ** · nhóm chốt 21/21 · 9/9 cơ chế ablation có giá trị, 5 là hàng rào an toàn ·
-**196 test `ai/app`** + 37 test `ai/evaluation`.
+**Số đo hiện tại:**
 
-**Thứ duy nhất còn chặn khách dùng được:** chưa chạy thật `docker compose up`. Mọi con số trên tồn
-tại trong test; chạy thật là phép kiểm cuối cùng, và nó **không thay được bằng test** vì nó kiểm
+| Phép đo | Quy mô | Kết quả |
+|---|---:|---|
+| Tập ca trả lời | 140 ca | **140/140** |
+| Bộ nhớ phiên | 149 lượt | **149/149**, 0 lỗi an toàn |
+| Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
+| Truy hồi | 222 ca | embedding thắng BM25 có ý nghĩa thống kê |
+| Chọn món | 50 câu | lọc nhãn **100,00%**, 0 món vi phạm; ba bộ xếp hạng 58–68% |
+| Bộ kiểm | — | **401 test `ai/app`** + **143 test `ai/evaluation`** |
+
+**Đã chạy thật qua `docker compose up`** — quét QR, hỏi, nhận thẻ giỏ, thêm vào giỏ hàng. Phép
+kiểm này **không thay được bằng test** vì nó kiểm
 đúng thứ test không chạm tới — container, mạng, và việc backend gọi được dịch vụ.

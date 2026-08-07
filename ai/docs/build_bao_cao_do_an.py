@@ -1453,11 +1453,15 @@ tại nằm trong thẻ giỏ hàng — và khách bấm đặt được.
 **Ví dụ chứng minh:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Thực đơn có 26 món hải sản,
 14 món **không có tôm** — nhìn qua thì nên lọc riêng con tôm ra. Nhưng kiểm dữ liệu thì:
 
-> **7/26 món hải sản không có nhãn nguyên liệu nào**, và hai trong số đó **chứa tôm thật**:
-> *Bún đậu mắm tôm* (“chấm **mắm tôm**”) và *Bún bò Huế* (“**mắm ruốc**”).
+> Hai món mang `allergen:seafood` nhưng **không** mang `ingredient:shrimp`, trong khi mô tả cho
+> thấy chúng **chứa tôm**: *Bún đậu mắm tôm* (“chấm **mắm tôm**”) và *Bún bò Huế* (“**mắm ruốc**”).
 
-Lọc theo `ingredient:shrimp` sẽ **mời đúng hai món đó** cho người dị ứng tôm. Nên hệ thống giữ chặn
-rộng, và thay vào đó **nói ra lý do** — chứ không nới hàng rào.
+Nguyên nhân: mắm tôm và mắm ruốc là **gia vị**, nên chúng không được ghi vào nhãn nguyên liệu — dù
+nguyên liệu gốc của chúng là tôm và ruốc. Lọc theo `ingredient:shrimp` sẽ **mời đúng hai món đó**
+cho người dị ứng tôm.
+
+Nên hệ thống giữ chặn rộng ở mức **nhóm** (`allergen:seafood`), và thay vào đó **nói ra lý do** —
+chứ không nới hàng rào xuống mức nguyên liệu.
 
 ### Quyết định 6 — Từ vựng TẤT ĐỊNH, không để mô hình hiểu câu
 
@@ -2907,7 +2911,9 @@ Qua chặng dữ liệu và lớp hiểu câu hỏi, em rút ra các nhận xét
   được. Em phải tách chúng thành hai trường riêng trong `Request` thay vì gộp làm một danh sách.
 
 - **Giới hạn còn lại, và em nói ra thay vì giấu:** nhãn dị nguyên chỉ phủ **44/91 món**. Bản rà em
-  viết tìm ra **7 lỗ thật**, đã lấp, nhưng **7/26 món hải sản vẫn không có nhãn nguyên liệu nào**.
+  viết tìm ra **7 lỗ thật**, và cả 7 đã được lấp — hiện **26/26 món hải sản đều có nhãn nguyên liệu**.
+  Nhưng độ phủ nhãn dị nguyên trên toàn thực đơn vẫn chỉ **44/91 món**, và hai món chứa tôm dưới dạng
+  gia vị (mắm tôm, mắm ruốc) vẫn không mang `ingredient:shrimp`.
   Đây là việc của bếp, không phải của mã — và nó là lý do hệ thống phải chặn rộng thay vì lọc hẹp.
 
 ### 5.2.2 Nhận xét — Bùi Đào Đức Anh (BIT240025)
@@ -2963,10 +2969,11 @@ Qua chặng chọn món và an toàn, em rút ra các nhận xét sau:
   hình. Vi phạm thì rơi về câu khuôn mẫu — kém tự nhiên nhưng **đúng**.
 
 - **Chỗ em bị bắt lỗi và phải nhận sai:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Em định
-  lọc riêng con tôm ra để vẫn còn 14 món hải sản gợi ý được. Nhưng kiểm dữ liệu thì **7/26 món hải
-  sản không có nhãn nguyên liệu nào**, và hai trong số đó **chứa tôm thật**: *Bún đậu mắm tôm* và
-  *Bún bò Huế* (mắm ruốc). Lọc hẹp sẽ mời đúng hai món đó cho người dị ứng tôm. Em giữ chặn rộng và
-  sửa phần **im lặng** thay vì nới hàng rào.
+  lọc riêng con tôm ra để vẫn còn 14 món hải sản gợi ý được. Nhưng kiểm dữ liệu thì **hai món mang
+  `allergen:seafood` mà KHÔNG mang `ingredient:shrimp`, dù chúng chứa tôm**: *Bún đậu mắm tôm* và
+  *Bún bò Huế* (mắm ruốc). Mắm tôm và mắm ruốc là **gia vị** nên không được ghi vào nhãn nguyên
+  liệu. Lọc hẹp sẽ mời đúng hai món đó cho người dị ứng tôm. Em giữ chặn rộng ở mức **nhóm** và sửa
+  phần **im lặng** thay vì nới hàng rào xuống mức nguyên liệu.
 
 - **Thẻ giỏ hàng dựng từ danh sách món, không từ chữ mô hình viết.** Đây là ranh giới cuối: kể cả
   khi mọi phép kiểm trên đều lọt, món trong giỏ vẫn không thể là món mô hình bịa ra, vì giỏ không
