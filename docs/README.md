@@ -1,6 +1,6 @@
 # CMC Restaurant — chỉ mục tài liệu
 
-**39 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
+**44 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
 `docs/build_docs_index.py` từ chính các tệp có thật — nên nó không thể trỏ vào tệp không
 tồn tại, và không thể bỏ sót tệp mới.
 
@@ -18,6 +18,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [SPEC.md](../SPEC.md) | CMC Restaurant QR Ordering |
 | [CONTEXT.md](../CONTEXT.md) | Restaurant Table Ordering |
 | [CHANGELOG.md](../CHANGELOG.md) | Changelog |
+| [README.md](assets/report/README.md) | Ảnh dùng trong báo cáo học phần |
 
 ## Hệ thống AI — cách xây
 
@@ -49,6 +50,10 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [API_CONTRACT.md](backend/API_CONTRACT.md) | Hop Dong API - CMC Restaurant |
 | [ARCHITECTURE.md](backend/ARCHITECTURE.md) | Kiến trúc backend |
 | [DATABASE.md](backend/DATABASE.md) | Database Setup Guide |
+| [BAO_CAO_CONG_NGHE_PHAN_MEM.md](bao-cao/BAO_CAO_CONG_NGHE_PHAN_MEM.md) | BÁO CÁO BÀI TẬP LỚN |
+| [CHUAN_BI_VAN_DAP.md](bao-cao/CHUAN_BI_VAN_DAP.md) | CHUẨN BỊ VẤN ĐÁP — CMC RESTAURANT |
+| [HUMAN_PEER_REVIEW.md](bao-cao/HUMAN_PEER_REVIEW.md) | Quy trình và bằng chứng human peer review |
+| [PHAN_CONG_CONG_VIEC.md](bao-cao/PHAN_CONG_CONG_VIEC.md) | Phân công công việc — giai đoạn hoàn thiện và bảo vệ |
 | [PIPELINE_AND_DEPLOY.md](devops/PIPELINE_AND_DEPLOY.md) | CI/CD, triển khai và vận hành production |
 | [OPS_APP.md](frontend/OPS_APP.md) | Ứng dụng vận hành — workspace và quầy |
 
