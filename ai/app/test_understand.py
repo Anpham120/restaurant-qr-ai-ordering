@@ -977,3 +977,38 @@ class TenMonSauTuLoaiTruLaMonBiLoai(unittest.TestCase):
                 r = understand(cau, ITEMS)
                 self.assertTrue(r.named_items, "phải nhận là món khách hỏi")
                 self.assertFalse(r.exclude_item_ids, "và KHÔNG được loại")
+
+
+class HoiDINHNGHIAVeNhanKhongPhaiLocTheoNhan(unittest.TestCase):
+    """Nhãn được nhắc tới là CHỦ THỂ của câu hỏi, không phải bộ lọc.
+
+    Golden qua stack thật bắt được ngay khi bảng từ vựng nhận thêm chính nhãn tiếng Việt:
+
+        "Nhãn 'ít calo' dựa trên gì?"  ->  require=[health:low_calorie]  ->  nhánh filter
+
+    Khách hỏi nhãn đó dựa trên gì và nhận về danh sách 6 món kèm thẻ giỏ. Câu trả lời đúng nằm
+    trong tài liệu — đánh giá CẢM QUAN của người nhập thực đơn — nên trả một danh sách món ở đây
+    là né đúng câu hỏi khó.
+
+    Và nó không dừng ở một lượt: ràng buộc sai vào BỘ NHỚ PHIÊN, nên lượt 3 của cùng hội thoại
+    cũng hỏng. Một lượt hiểu sai làm hỏng hai lượt — đó là lý do ca này ở đây thay vì chỉ ở golden.
+    """
+
+    def test_hoi_dinh_nghia_KHONG_sinh_rang_buoc_loc(self):
+        for cau in ("Nhãn 'ít calo' dựa trên gì?",
+                    "Nhãn healthy nghĩa là gì?",
+                    "Nhãn 'thanh nhẹ' căn cứ vào đâu?"):
+            with self.subTest(cau=cau):
+                r = ask(cau)
+                self.assertFalse(r.require_tags, "hỏi định nghĩa -> không được lọc theo nhãn")
+                self.assertFalse(r.prefer_tags)
+
+    def test_hoi_UNG_VIEN_van_sinh_rang_buoc_loc(self):
+        """Chiều ngược — chiều mà nới quy tắc sẽ phá."""
+        r = ask("Món nào ít calo?")
+        self.assertIn("health:low_calorie", r.require_tags)
+
+    def test_hoi_ve_MOT_MON_CU_THE_van_giu_nhan(self):
+        """Câu nêu TÊN MÓN cần nhãn để trả lời được, nên không bị bỏ ràng buộc."""
+        r = ask("Phở bò tái nạm có hải sản không?")
+        self.assertTrue(r.named_items)

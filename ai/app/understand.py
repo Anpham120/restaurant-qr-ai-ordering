@@ -1824,6 +1824,29 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         request.asks_about_attribute = True
         request.matched.append("hỏi VỀ thuộc tính -> không phải yêu cầu lọc theo thuộc tính")
 
+    # CÂU HỎI ĐỊNH NGHĨA: nhãn được nhắc tới là CHỦ THỂ của câu hỏi, không phải bộ lọc.
+    #
+    # Golden bắt được ngay khi bảng từ vựng nhận thêm chính nhãn tiếng Việt:
+    #
+    #     "Nhãn 'ít calo' dựa trên gì?"  ->  require=[health:low_calorie]  ->  nhánh filter
+    #
+    # Khách hỏi nhãn đó DỰA TRÊN GÌ, và nhận về một danh sách 6 món kèm thẻ giỏ. Câu trả lời đúng
+    # nằm trong tài liệu: đó là đánh giá CẢM QUAN của người nhập thực đơn, không phải kết quả phân
+    # tích — tức đúng loại câu mà trả lời cho có sẽ thành một khẳng định y tế.
+    #
+    # Và nó không dừng ở một lượt: ràng buộc sai đi vào BỘ NHỚ PHIÊN, nên lượt 3 của cùng hội thoại
+    # ("Món này có bột ngọt không?") thừa hưởng nó và cũng thành một danh sách món. Một lượt hiểu
+    # sai làm hỏng hai lượt.
+    #
+    # Hai điều kiện, cả hai đều cần:
+    #   - `hoi_dinh_nghia`  — hỏi định nghĩa, KHÔNG phải hỏi ứng viên (`doi_ung_vien` đã loại)
+    #   - không có TÊN MÓN — "Phở bò tái nạm có hải sản không?" vẫn cần nhãn để trả lời được
+    if hoi_dinh_nghia and not doi_ung_vien and not request.named_items:
+        if request.require_tags or request.prefer_tags:
+            request.matched.append("hỏi ĐỊNH NGHĨA về nhãn -> bỏ ràng buộc lọc suy từ nhãn đó")
+            request.require_tags = []
+            request.prefer_tags = []
+
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):
         request.asks_suggestion = True
