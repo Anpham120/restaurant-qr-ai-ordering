@@ -2710,6 +2710,42 @@ truy hồi là 48,00%. `chu_cho_khach()` bỏ tiêu đề và dấu markdown nê
 Sửa bằng cách tách `chon_doan_tri_thuc()` ra khỏi hàm trả về chữ, để bộ đo gọi **đúng phép
 chọn** thay vì đoán lại từ kết quả đã định dạng.
 
+**Bộ golden bắt được một hệ quả mà bảng trên không thấy.** Bật trích 2 đoạn xong, 410 test
+đơn vị, 140/140 ca trả lời và 149/149 lượt phiên đều xanh, còn golden 103 lượt qua stack thật
+báo **1 lượt đỏ** — trong khi nội dung câu trả lời thì **đúng**:
+
+```
+hỏi     "Nhãn 'ít calo' dựa trên gì?"
+đoạn 1  …Nhãn 'ít calo' là đánh giá cảm quan của người nhập liệu…   <- TRẢ LỜI ĐÚNG
+đoạn 2  tài liệu dietary_limits, có chứa cụm 'chưa có dữ liệu' về một chuyện KHÁC
+```
+
+Bộ chấm suy ra dạng đáp án bằng cách tìm cụm ở **bất kỳ đâu** trong văn bản, nên cụm ở đoạn
+2 thắng và lượt bị chấm `no_data` thay vì `fact`.
+
+Trước khi sửa thước đo, nhóm thử **quy tắc thích ứng** — chỉ thêm đoạn 2 khi điểm của nó gần
+điểm đoạn 1, để không đệm vào một câu vốn đã chắc. Đo phân bố tỷ lệ điểm trên 50 ca:
+
+| đoạn 2 làm gì | n | tỷ lệ điểm trung bình | trung vị | nhỏ nhất |
+|---|---:|---:|---:|---:|
+| **cứu được ca** | 8 | 0,9965 | 0,9990 | 0,9878 |
+| chỉ là đệm | 42 | 0,9900 | 0,9942 | — |
+
+Hai phân bố **chồng lấn**, và giá trị nhỏ nhất của nhóm cứu được (0,9878) còn thấp hơn trung
+bình của nhóm đệm. Không ngưỡng nào tách được chúng, nên quy tắc thích ứng **bị bỏ** — một
+kết quả âm tính, ghi lại để không ai thử lại.
+
+Còn lại là sửa thước đo: đọc dạng đáp án từ **đoạn đầu**, vì dạng đáp án là tính chất của
+đoạn TRẢ LỜI, còn đoạn sau chỉ là ngữ cảnh bổ trợ. Điều làm phép sửa này không phải là nới
+cho qua: các nhánh trả `no_data` và `refuse` thật đều sinh câu **một đoạn** từ khuôn mẫu, nên
+đọc đoạn đầu không làm lỏng chúng — kiểm được bằng ba lượt còn lại của chính hội thoại đó,
+cả ba vẫn chấm đúng.
+
+> Đây là lần thứ **năm** trong dự án mà thước đo sai trước khi hệ thống sai. Quy tắc rút ra và
+> đã áp dụng nhất quán: khi một thay đổi làm đỏ đúng một ca, **đọc câu trả lời thật trước khi
+> sửa hệ thống** — và nếu sửa thước đo thì phải nêu được lý do đứng vững độc lập với thay đổi
+> vừa làm.
+
 Tái lập:
 
 ```bash
