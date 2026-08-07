@@ -25,7 +25,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from answer import respond, select  # noqa: E402
+from answer import (  # noqa: E402
+    SO_DOAN_TRI_THUC,
+    chon_doan_tri_thuc,
+    respond,
+    select,
+)
 from understand import DRINK_CATEGORIES, FOOD_CATEGORIES, understand  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -850,3 +855,45 @@ class RuouBiaKHONGTuDungDau(unittest.TestCase):
         """Không được vì xếp hạng mà nói sai: bia THẬT SỰ rẻ nhất, và câu hỏi giá phải trung thực."""
         _, reply = reply_for("đồ uống nào rẻ nhất")
         self.assertIn("Bia hơi Hà Nội", reply.text)
+
+
+class TrichNhieuDoanTriThuc(unittest.TestCase):
+    """Nhánh tri thức trích `SO_DOAN_TRI_THUC` đoạn, khử trùng theo tài liệu.
+
+    Vì sao không còn là 1 đoạn: đo đường cong trên 50 câu tri thức khó nhất cho thấy tài liệu đúng
+    **luôn nằm trong tầm với** (`Hit@20 = 100,00%` với một bộ nhúng mạnh), và 40,00% số ca là lỗi
+    XẾP HẠNG thuần túy — tài liệu đúng có trong top-10 mà không đứng nhất.
+
+    Lấy 2 đoạn đưa tỷ lệ câu trả lời chứa tài liệu đúng từ **48,00% lên 64,00%** (McNemar
+    p = 0,0078), và vẫn giữ nguyên luật chống bịa: mọi chữ khách đọc là chữ nguyên văn trong kho,
+    `BRANCHES_ALLOWED` không đổi.
+    """
+
+    def test_khu_trung_theo_tai_lieu(self):
+        """Hai đoạn cùng một tài liệu không được chiếm hai suất.
+
+        Không có bước này thì một tài liệu 9 đoạn lấy hết chỗ, và câu trả lời dài gấp đôi mà không
+        thêm tài liệu nào — tức trả cái giá của việc tăng k mà không nhận được cái lợi.
+        """
+        for cau in ("Gọi mấy món mà ăn cùng nhau cho hợp vị?",
+                    "Lần đầu tới đây, gọi kiểu gì cho khỏi bỡ ngỡ?",
+                    "Đồ biển ở đây có tươi không, lấy từ đâu?"):
+            with self.subTest(cau=cau):
+                got = chon_doan_tri_thuc(cau)
+                if got is None:
+                    continue
+                chon, _ = got
+                ids = [c.doc_id for c in chon]
+                self.assertEqual(len(ids), len(set(ids)), "trùng tài liệu trong một câu trả lời")
+                self.assertLessEqual(len(chon), SO_DOAN_TRI_THUC)
+
+    def test_van_la_chu_NGUYEN_VAN_trong_kho(self):
+        """Trích nhiều đoạn KHÔNG được mở đường sinh chữ.
+
+        Đây là ràng buộc quan trọng nhất của thay đổi này: lấy thêm đoạn là để tăng khả năng chạm
+        đúng tài liệu, không phải để mô hình tổng hợp. `BRANCHES_ALLOWED` phải giữ nguyên hai nhánh.
+        """
+        from generate import BRANCHES_ALLOWED
+
+        self.assertEqual(BRANCHES_ALLOWED, frozenset({"filter", "compare"}))
+        self.assertNotIn("knowledge_corpus", BRANCHES_ALLOWED)
