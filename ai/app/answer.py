@@ -619,12 +619,76 @@ def ham_nong_truy_hoi() -> str:
     return cach
 
 
-def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
-    """Đoạn sát nhất trên toàn kho, kèm tên phương pháp đã dùng. None nếu không tra được."""
+# Số ĐOẠN tri thức được trích cho một câu trả lời.
+#
+# Vì sao con số này không phải 1
+# ------------------------------
+# Đo đường cong Hit@k của bộ nhúng trên chiều A — 50 câu tri thức khó nhất của dự án:
+#
+#     k= 1   48,00%          k= 3   68,00%          k=10   80,00%
+#     k= 2   64,00%          k= 5   74,00%
+#
+# Và với một bộ nhúng mạnh hơn (`bge-m3`) thì **Hit@20 = 100,00%**: không một câu nào trong 50 câu
+# mà tài liệu đúng nằm ngoài tầm với. Nghĩa là kho tri thức trả lời được HẾT, còn hệ thống thì nhìn
+# đúng MỘT đoạn trong 372 rồi bỏ đi phần còn lại.
+#
+# Tách nguyên nhân trên 50 ca đó: 0,00% là "kho không có", **40,00% là XẾP HẠNG SAI** — tài liệu
+# đúng có mặt trong top-10 nhưng không đứng nhất. Đây là lỗi duy nhất còn lại, và nó không sửa được
+# bằng viết thêm dữ liệu hay đổi mô hình.
+#
+# Vì sao KHÔNG nới `BRANCHES_ALLOWED` để mô hình tổng hợp nhiều đoạn
+# ------------------------------------------------------------------
+# Đó là cách thu về nhiều điểm nhất, và cũng là cách mở đúng con đường mà cả kiến trúc này dựng lên
+# để chặn: mô hình viết chữ về tri thức nhà hàng thì không có gì ràng nó vào tài liệu.
+#
+# Trích NHIỀU ĐOẠN NGUYÊN VĂN giữ được ràng buộc đó — mọi chữ khách đọc vẫn là chữ trong kho — mà
+# vẫn lấy lại phần lớn khoảng cách. Cái giá là câu trả lời dài hơn, và đó là cái giá đo được.
+#
+# Vì sao 2 chứ không phải 3 hay 5
+# -------------------------------
+# `run_so_doan.py` đo cả LỢI lẫn GIÁ trên 50 câu, gọi đúng phép chọn của bản chạy thật:
+#
+#     đoạn   trúng tài liệu đúng   số từ (trung vị)   đoạn lạc / câu
+#       1          48,00%                  64              0,52
+#       2          64,00%                 126              1,36
+#       3          68,00%                 186              2,30
+#       5          76,00%                 320              4,24
+#
+# Cả ba mức đều hơn mức 1 có ý nghĩa thống kê (McNemar p = 0,0078 · 0,0020 · 0,0001). Nên câu hỏi
+# không phải "có nên tăng không" mà là "tăng tới đâu", và lợi BIÊN trả lời rõ:
+#
+#     1 -> 2   +16,00 điểm cho +62 từ    = 25,81 điểm mỗi 100 từ
+#     2 -> 3    +4,00 điểm cho +60 từ    =  6,67 điểm mỗi 100 từ
+#     3 -> 5    +8,00 điểm cho +134 từ   =  5,97 điểm mỗi 100 từ
+#
+# Bước đầu hiệu quả gấp gần **bốn lần** bước sau. Từ mức 3 trở đi mỗi câu trả lời mang theo hơn hai
+# đoạn nói về chuyện khác — thứ làm khách đọc một thông tin đúng-về-việc-khác rồi tưởng đó là câu
+# trả lời cho mình. Đó là cái giá không đo bằng số từ được.
+SO_DOAN_TRI_THUC = 2
+
+
+def chon_doan_tri_thuc(question: str) -> tuple[list, str] | None:
+    """Các ĐOẠN được chọn cho câu này, kèm tên phương pháp. None nếu không tra được.
+
+    Tách khỏi `doan_tri_thuc_lien_quan()` để bộ đánh giá gọi được ĐÚNG phép chọn của bản chạy thật
+    mà không phải đoán lại từ chữ đã định dạng.
+
+    Bản đầu của bộ đo `run_so_doan.py` làm đúng cái việc đoán lại đó — nó so tám từ đầu của chữ đã
+    trích với văn bản tài liệu — và báo mức 1 đoạn đạt 36,00% trong khi Hit@1 của cùng bộ truy hồi
+    là 48,00%. Chênh 12 điểm đó là lỗi của PHÉP ĐO: `chu_cho_khach()` bỏ tiêu đề và dấu markdown,
+    nên chữ đã định dạng không còn khớp chuỗi gốc.
+
+    Trả về đối tượng đoạn thì không còn chỗ cho lớp lỗi đó.
+
+    Khử trùng theo TÀI LIỆU: hai đoạn cùng một tài liệu thì chỉ giữ đoạn đứng trước. Không có bước
+    này thì một tài liệu 9 đoạn chiếm cả ba suất, và câu trả lời dài gấp ba mà không thêm tài liệu
+    nào — đúng thứ mà việc tăng `k` nhắm vào lại không đạt được.
+    """
     index, cach = _bo_truy_hoi_toan_kho()
     if index is None:
         return None
-    hits = index.search(question, k=1)
+    # Lấy dư rồi mới khử trùng: xin đúng 3 thì sau khi khử có thể chỉ còn 1.
+    hits = index.search(question, k=max(SO_DOAN_TRI_THUC * 3, 5))
     if not hits:
         return None
     try:
@@ -633,8 +697,27 @@ def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
         theo_id = {c.chunk_id: c for c in retrievable_chunks(KNOWLEDGE_PATH)}
     except (KnowledgeError, OSError):
         return None
-    chon = theo_id.get(hits[0].chunk_id)
-    return (chu_cho_khach(chon), cach) if chon else None
+
+    da_co: set[str] = set()
+    chon: list = []
+    for h in hits:
+        c = theo_id.get(h.chunk_id)
+        if c is None or c.doc_id in da_co:
+            continue
+        da_co.add(c.doc_id)
+        chon.append(c)
+        if len(chon) >= SO_DOAN_TRI_THUC:
+            break
+    return (chon, cach) if chon else None
+
+
+def doan_tri_thuc_lien_quan(question: str) -> tuple[str, str] | None:
+    """Chữ cho khách từ các đoạn đã chọn, kèm tên phương pháp. None nếu không tra được."""
+    got = chon_doan_tri_thuc(question)
+    if got is None:
+        return None
+    chon, cach = got
+    return ("\n\n".join(chu_cho_khach(c) for c in chon), cach)
 
 
 def _hai_ve(request: Request, items: list[dict]) -> tuple[list[dict], list[dict]]:
