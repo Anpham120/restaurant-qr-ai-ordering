@@ -1009,6 +1009,83 @@
       ]
     },
     {
+      "id": "question-not-declaration-di-ung-tre-em",
+      "group": "question_not_declaration",
+      "why": "Câu HỎI 'ăn được gì' bị đọc thành lời KHAI hết dị ứng và XÓA nhãn khỏi bộ nhớ. Trước bản sửa, lượt 3 mời bốn món hải sản cho phụ huynh vừa khai con dị ứng.",
+      "turns": [
+        {
+          "user": "Con mình dị ứng hải sản",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai. Phải vào bộ nhớ ngay."
+          }
+        },
+        {
+          "user": "Bé nhà mình ăn được món gì?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Câu HỎI, không phải lời khai hết dị ứng. Kiểm BỘ NHỚ chứ không chỉ kiểm câu trả lời: lượt này không mời món nào nên câu trả lời trông vô hại kể cả khi ràng buộc đã mất."
+          }
+        },
+        {
+          "user": "Cho mình món khai vị",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "min_items": 1,
+            "why": "Lượt LỘ LỖI: bốn món khai vị mang nhãn hải sản, nên mất ràng buộc là khách nhận đúng thứ vừa nói không ăn được."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-so-mon",
+      "group": "chained_reference",
+      "why": "Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước; chỉ con số bị bỏ vì cỡ danh sách là hằng số.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách. Các lượt sau tham chiếu vào đây."
+          }
+        },
+        {
+          "user": "Liệt kê 3 món vừa tư vấn bên trên",
+          "expect": {
+            "min_items": 3,
+            "max_items": 3,
+            "expect_kind": "list",
+            "why": "Xin ĐÚNG 3. Kiểm cả cận trên lẫn cận dưới — chỉ kiểm `min_items` thì trả về 6 vẫn qua."
+          }
+        },
+        {
+          "user": "Liệt kê cho tôi 2 món đầu vừa tư vấn",
+          "expect": {
+            "min_items": 2,
+            "max_items": 2,
+            "expect_kind": "list",
+            "why": "«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` nên câu này từng bị đọc thành *món thứ nhất*."
+          }
+        }
+      ]
+    },
+    {
       "id": "extreme-scope-01",
       "group": "extreme_scope",
       "why": "Câu cực trị SAU khi khách nêu ngân sách. Phải nêu đúng món đắt nhất trong ngân sách, và phải NÓI RA rằng nó đang xét trong phạm vi đó.",

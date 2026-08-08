@@ -956,3 +956,57 @@ class TrichHaiMucTrongTaiLieu(unittest.TestCase):
                 self.assertIsInstance(ra, list)
                 self.assertGreaterEqual(len(ra), 1)
                 self.assertLessEqual(len(ra), k)
+
+
+class SO_MON_KHACH_XIN(unittest.TestCase):
+    """Khách nêu số món thì phải nhận đúng bấy nhiêu món.
+
+    Trước bản này `LIST_SIZE = 6` là cố định và con số trong câu chỉ dùng để bật một cờ. Đo trên
+    ba lượt tham chiếu ngược, sau khi lượt 1 đã nêu 6 món:
+
+        "Liệt kê cho tôi 2 món đầu vừa tư vấn"   ->  6 món
+        "Liệt kê 3 món vừa tư vấn bên trên"      ->  6 món
+        "Cho mình 4 món vừa tư vấn ở trên"       ->  6 món
+
+    PHẠM VI tham chiếu ngược thì đúng — cả ba trả về đúng danh sách đã nêu, đúng thứ tự. Chỉ con
+    số bị bỏ. Đây không phải trả lời sai, nhưng nó là **không nghe**: khách nói lại lần nữa cũng
+    vẫn nhận sáu món.
+    """
+
+    def _hai_luot(self, luot1: str, luot2: str):
+        import session as S
+
+        st = S.SessionState.from_payload({})
+        for q in (luot1, luot2):
+            m = S.merge_into_request(understand(q, ITEMS), st)
+            p = respond(m, ITEMS)
+            st = S.update_state(st, m, p.items, p.kind, p.branch)
+        return p
+
+    def test_nghe_dung_so_mon(self):
+        for cau, mong in (("Liệt kê 3 món vừa tư vấn bên trên", 3),
+                          ("Cho mình 4 món vừa tư vấn ở trên", 4),
+                          ("Liệt kê cho tôi 2 món đầu vừa tư vấn", 2)):
+            with self.subTest(cau=cau):
+                p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
+                self.assertEqual(len(p.items), mong)
+
+    def test_MOT_mon_theo_vi_tri_van_la_MOT_mon(self):
+        """Chiều ngược: "món đầu tiên" là MỘT món, không phải một lát cắt.
+
+        `mon dau` và `2 mon dau` chồng chữ mà khác hẳn nghĩa, nên phép phân biệt phải giữ được cả
+        hai chiều — nới nhầm ở đây thì câu hỏi giá của một món trả về nửa danh sách.
+        """
+        for cau in ("Món đầu tiên giá bao nhiêu?", "Món cuối cùng có cay không?"):
+            with self.subTest(cau=cau):
+                p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
+                self.assertEqual(len(p.items), 1)
+
+    def test_cau_COMBO_nhieu_cum_so_KHONG_bi_cat(self):
+        """"1 món chính 1 nước 1 tráng miệng" có BA cụm số — đó là combo, không phải xin 1 món.
+
+        Không có điều kiện "đúng một cụm", câu này bị cắt còn 1 món và hai kịch bản phiên đang
+        xanh sẽ đỏ.
+        """
+        r = understand("mình dị ứng hải sản, cho 1 món chính 1 nước 1 tráng miệng", ITEMS)
+        self.assertIsNone(r.so_mon_muon)

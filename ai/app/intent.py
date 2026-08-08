@@ -246,6 +246,35 @@ _MOI_NHOM = (
 )
 
 
+# HỎI "ăn được gì" KHÁC KHẲNG ĐỊNH "tôi ăn được".
+#
+# Lỗi an toàn nặng nhất tìm được trong đợt rà độ phủ bộ đánh giá, và nó tồn tại im lặng:
+#
+#     lượt 1  "Con mình dị ứng hải sản"       ->  avoid = [allergen:seafood]        đúng
+#     lượt 2  "Bé nhà mình ăn được món gì?"   ->  avoid = []                        XÓA MẤT
+#     lượt 3  "Cho mình món khai vị"          ->  Gỏi cuốn tôm thịt, Súp măng cua,
+#                                                 Nem rán Hà Nội, Bánh xèo miền Tây
+#
+# Bốn món hải sản mời cho phụ huynh vừa khai con dị ứng hải sản. Nguyên nhân: cụm `minh an duoc`
+# trong `_XOA_DI_NGUYEN` khớp đoạn "bé nhà **mình ăn được** món gì".
+#
+# Cụm đó được thêm cho câu KHẲNG ĐỊNH ("tôi ăn được hải sản, tư vấn hải sản đi") — một bản sửa
+# đúng. Nhưng cùng chuỗi chữ ấy nằm trong câu HỎI, và hai loại câu ngược nhau hoàn toàn: một bên
+# nói ràng buộc không còn, một bên hỏi ràng buộc cho phép ăn gì.
+#
+# Hàng rào đặt ở `_khop` chứ không sửa từng cụm: mọi cụm xóa dị nguyên đều dính lớp lỗi này, và
+# vá từng cụm là bỏ sót cụm sẽ thêm sau.
+_LA_CAU_HOI_AN_DUOC = (
+    "an duoc gi", "an duoc mon gi", "an duoc nhung gi", "an duoc mon nao",
+    "an duoc nhung mon nao", "an duoc bao nhieu", "an duoc khong", "an duoc mon gi khong",
+)
+
+
+def _la_cau_hoi_chu_khong_phai_khang_dinh(folded_padded: str) -> bool:
+    """Câu chứa "ăn được" nhưng đang HỎI, không phải khai mình hết kiêng."""
+    return any(f" {c} " in folded_padded for c in _LA_CAU_HOI_AN_DUOC)
+
+
 def _khop(folded_padded: str, cum: tuple[str, ...]) -> str:
     """Cụm DÀI NHẤT khớp, hoặc chuỗi rỗng.
 
@@ -274,8 +303,12 @@ def doc_y_dinh_tu_chuoi_dem(folded_padded: str) -> YDinh:
     một vụ khác.
     """
     f = folded_padded
+    # Câu HỎI "ăn được gì" không bao giờ là câu xóa dị nguyên — xem `_LA_CAU_HOI_AN_DUOC`.
+    hoi_an_duoc = _la_cau_hoi_chu_khong_phai_khang_dinh(f)
     tot_nhat: tuple[int, str, str, str] = (0, "", HOI_MON, "")
     for cum, ten, nhom in _MOI_NHOM:
+        if hoi_an_duoc and nhom == "allergen":
+            continue
         c = _khop(f, cum)
         if c and len(c) > tot_nhat[0]:
             tot_nhat = (len(c), c, ten, nhom)
