@@ -1,13 +1,13 @@
 ---
 id: kb.health.low_calorie.v1
-title: Món ít calo
+title: Món và đồ uống ít calo
 topic_keys: [health_low_calorie]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món ít calo
+# Món và đồ uống ít calo
 
 Tài liệu này nói về nhóm sức khỏe **Ít calo**. QUAN TRỌNG: các nhãn này là ĐÁNH GIÁ CẢM QUAN của người nhập liệu, KHÔNG phải kết quả phân tích dinh dưỡng. Thực đơn không có số calo hay natri nào. Dùng chúng để gợi ý được, dùng để khẳng định về sức khỏe thì không.
 
@@ -47,6 +47,6 @@ Trong 19 món này, **13 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước rau má** (30.000đ).
+- Muốn thử nhẹ ví: **Dưa hấu lạnh** (35.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu nấm chay** (250.000đ).
-- Không ăn được cay: có 16 món không cay, ví dụ **Nước rau má**.
+- Không ăn được cay: có 11 món không cay, ví dụ **Dưa hấu lạnh**.

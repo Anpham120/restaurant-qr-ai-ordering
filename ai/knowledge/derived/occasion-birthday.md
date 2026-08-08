@@ -1,13 +1,13 @@
 ---
 id: kb.occasion.birthday.v1
-title: Món sinh nhật
+title: Món và đồ uống sinh nhật
 topic_keys: [occasion_birthday]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món sinh nhật
+# Món và đồ uống sinh nhật
 
 Tài liệu này nói về nhóm dịp ăn **Sinh nhật**. Dịp ăn là NGỮ CẢNH, không phải ràng buộc: món không mang nhãn dịp này vẫn có thể phù hợp. Nhóm occasion chỉ phủ 79/91 món, nên dùng nó để sắp thứ tự chứ không để loại món.
 
@@ -31,6 +31,6 @@ Trong 3 món này, **2 món chưa có ghi nhận dị nguyên nào**. Chưa ghi 
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Cocktail chanh đào mật ong** (65.000đ).
+- Muốn thử nhẹ ví: **Gà rô ti kiểu Việt** (320.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Tôm hùm nướng mỡ hành** (890.000đ).
-- Không ăn được cay: có 3 món không cay, ví dụ **Cocktail chanh đào mật ong**.
+- Không ăn được cay: có 2 món không cay, ví dụ **Gà rô ti kiểu Việt**.

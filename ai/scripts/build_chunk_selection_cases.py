@@ -61,7 +61,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "ai" / "app"))
 
-from rag.chunker import retrievable_chunks  # noqa: E402
+from rag.chunker import load_all, retrievable_chunks  # noqa: E402
 
 KNOWLEDGE = REPO_ROOT / "ai" / "knowledge"
 OUT_PATH = REPO_ROOT / "ai" / "evaluation" / "chunk_selection_cases.json"
@@ -73,14 +73,26 @@ KHUON_DERIVED = ("Tổng quan", "Danh sách món", "Dị nguyên trong nhóm nà
 # Sáu tài liệu `derived` lấy mẫu. Chọn trải trên NHIỀU NHÓM NHÃN khác nhau (flavour, health, method,
 # region, occasion, ingredient) chứ không lấy sáu tài liệu cùng nhóm: nếu lấy cùng nhóm thì mẫu càng
 # hẹp hơn tổng thể mà nó đại diện.
-MAU_DERIVED = (
-    "kb.flavour.sour.v1",
-    "kb.health.light.v1",
-    "kb.method.grilled.v1",
-    "kb.region.central.v1",
-    "kb.occasion.date.v1",
-    "kb.ingredient.beef.v1",
-)
+# TOÀN BỘ tài liệu `derived`, không phải sáu tài liệu mẫu.
+#
+# Bản trước lấy sáu tài liệu đại diện, với lý lẽ: 49 tài liệu `derived` dùng chung MỘT khuôn, nên
+# kiểm cả 49 là kiểm cùng một việc 49 lần. Lý lẽ đó nghe đúng, và chính dự án đã đo được là nó SAI.
+#
+# Bước 2 của mục 4.10 dựng bộ `ca_phu_kho` vì đúng lý do ngược lại: bộ truy hồi 222 ca phủ 36/85 tài
+# liệu, và 49 tài liệu bị bỏ hóa ra là **phần khó nhất** — nhóm `derived` có mức trùng lặp cao nhất
+# (Jaccard trung bình 0,490, cặp tệ nhất 0,878). Cùng khuôn KHÔNG có nghĩa là cùng độ khó: khuôn
+# giống nhau, còn nội dung thì mỗi tài liệu một nhãn, một danh sách món, một tập dị nguyên.
+#
+# Hệ quả đo được của việc lấy mẫu: độ phủ ĐOẠN của bộ chọn mục là **84/372 = 22,58%**, và phần
+# thiếu tập trung hết vào `derived` — mỗi nhóm đúng 4 đoạn có ca trên 24–40 đoạn.
+#
+# Nhóm này vẫn được báo cáo RIÊNG, không gộp vào con số chính. Mở rộng độ phủ và giữ tách bạch là
+# hai việc khác nhau, và cả hai đều cần.
+MAU_DERIVED = tuple(sorted(
+    d.doc_id for d in load_all(KNOWLEDGE)
+    if d.doc_id.count(".") >= 2
+    and d.doc_id.split(".")[1] in ("flavour", "health", "ingredient", "method", "occasion", "region")
+))
 
 # Câu hỏi cho khuôn `derived`. Bốn mục, hai dạng — dùng chung cho cả sáu tài liệu, với `{ten}` là
 # tên nhóm đọc từ tiêu đề tài liệu.
@@ -359,11 +371,23 @@ def build() -> dict:
         if not cs:
             raise SystemExit(f"không có tài liệu mẫu {doc!r} trong kho")
         heads = tuple(x.heading for x in cs if x.heading)
-        if heads != KHUON_DERIVED:
+        # TẬP CON của khuôn, không phải bằng đúng khuôn.
+        #
+        # Không phải tài liệu `derived` nào cũng có đủ bốn mục: `kb.method.braised.v1` chỉ có
+        # "Tổng quan" và "Danh sách món" — bộ sinh kho bỏ mục dị nguyên khi nhóm không món nào có
+        # nhãn dị nguyên, và bỏ mục gợi ý khi nhóm quá ít món.
+        #
+        # Đòi bằng đúng khuôn thì chỉ dùng được vài tài liệu mẫu; đòi tập con thì dùng được cả 49
+        # mà vẫn chặn được tài liệu có mục LẠ — thứ báo hiệu bộ sinh kho đã đổi khuôn.
+        la = [h for h in heads if h not in KHUON_DERIVED]
+        if la:
             raise SystemExit(
-                f"{doc} không còn dùng khuôn dùng chung (nó có {list(heads)}). Mẫu này chỉ có nghĩa "
-                "khi nó đại diện cho khuôn — chọn tài liệu khác hoặc bỏ nhóm này."
+                f"{doc} có mục ngoài khuôn dùng chung: {la}. Khuôn đã đổi — cập nhật "
+                "`KHUON_DERIVED` và `CAU_DERIVED`, đừng để câu hỏi trỏ vào chỗ không còn."
             )
+        if len(heads) < 2:
+            # Một mục thì việc CHỌN MỤC không có nghĩa — không có gì để chọn giữa.
+            continue
         # Tên nhóm lấy từ tiêu đề tài liệu, phần trước dấu gạch dài.
         ten = cs[0].text.split("—")[0].strip() if "—" in cs[0].text else doc
         for x in cs:

@@ -1,13 +1,13 @@
 ---
 id: kb.flavour.sweet.v1
-title: Món ngọt
+title: Món và đồ uống ngọt
 topic_keys: [flavour_sweet]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món ngọt
+# Món và đồ uống ngọt
 
 Tài liệu này nói về nhóm hương vị **Ngọt**. Khách thường mô tả vị bằng cảm giác chứ không bằng tên nhãn — 'chua chua', 'đậm đà đưa cơm', 'thanh thanh'. Nhóm flavour phủ 72/91 món nên chỉ dùng theo chiều khẳng định.
 
@@ -71,6 +71,6 @@ Trong 43 món này, **24 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước mía Sài Gòn** (25.000đ).
+- Muốn thử nhẹ ví: **Bánh flan caramel** (30.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Tôm hùm nướng mỡ hành** (890.000đ).
-- Không ăn được cay: có 39 món không cay, ví dụ **Nước mía Sài Gòn**.
+- Không ăn được cay: có 24 món không cay, ví dụ **Bánh flan caramel**.

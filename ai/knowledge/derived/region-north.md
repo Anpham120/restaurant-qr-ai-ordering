@@ -1,13 +1,13 @@
 ---
 id: kb.region.north.v1
-title: Món miền bắc
+title: Món và đồ uống miền bắc
 topic_keys: [region_north]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món miền bắc
+# Món và đồ uống miền bắc
 
 Tài liệu này nói về nhóm vùng miền **Miền Bắc**. Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản một nơi, hoặc khi nhớ món quê.
 
@@ -44,6 +44,6 @@ Trong 16 món này, **10 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia hơi Hà Nội** (12.000đ).
+- Muốn thử nhẹ ví: **Chè khúc bạch** (45.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu chua cá lăng** (320.000đ).
-- Không ăn được cay: có 15 món không cay, ví dụ **Bia hơi Hà Nội**.
+- Không ăn được cay: có 9 món không cay, ví dụ **Chè khúc bạch**.

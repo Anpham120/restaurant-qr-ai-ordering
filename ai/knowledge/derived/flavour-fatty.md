@@ -1,13 +1,13 @@
 ---
 id: kb.flavour.fatty.v1
-title: Món béo
+title: Món và đồ uống béo
 topic_keys: [flavour_fatty]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món béo
+# Món và đồ uống béo
 
 Tài liệu này nói về nhóm hương vị **Béo**. Khách thường mô tả vị bằng cảm giác chứ không bằng tên nhãn — 'chua chua', 'đậm đà đưa cơm', 'thanh thanh'. Nhóm flavour phủ 72/91 món nên chỉ dùng theo chiều khẳng định.
 
@@ -50,4 +50,4 @@ Trong 20 món này, **7 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 - Muốn thử nhẹ ví: **Bánh flan caramel** (30.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Tôm hùm nướng mỡ hành** (890.000đ).
-- Không ăn được cay: có 18 món không cay, ví dụ **Bánh flan caramel**.
+- Không ăn được cay: có 12 món không cay, ví dụ **Bánh flan caramel**.

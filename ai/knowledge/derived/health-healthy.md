@@ -1,13 +1,13 @@
 ---
 id: kb.health.healthy.v1
-title: Món healthy
+title: Món và đồ uống healthy
 topic_keys: [health_healthy]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món healthy
+# Món và đồ uống healthy
 
 Tài liệu này nói về nhóm sức khỏe **Healthy**. QUAN TRỌNG: các nhãn này là ĐÁNH GIÁ CẢM QUAN của người nhập liệu, KHÔNG phải kết quả phân tích dinh dưỡng. Thực đơn không có số calo hay natri nào. Dùng chúng để gợi ý được, dùng để khẳng định về sức khỏe thì không.
 
@@ -53,6 +53,6 @@ Trong 25 món này, **17 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước rau má** (30.000đ).
+- Muốn thử nhẹ ví: **Dưa hấu lạnh** (35.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Gà hấp lá chanh** (280.000đ).
-- Không ăn được cay: có 22 món không cay, ví dụ **Nước rau má**.
+- Không ăn được cay: có 14 món không cay, ví dụ **Dưa hấu lạnh**.

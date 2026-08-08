@@ -1,13 +1,13 @@
 ---
 id: kb.health.high_protein.v1
-title: Món giàu protein
+title: Món và đồ uống giàu protein
 topic_keys: [health_high_protein]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món giàu protein
+# Món và đồ uống giàu protein
 
 Tài liệu này nói về nhóm sức khỏe **Giàu protein**. QUAN TRỌNG: các nhãn này là ĐÁNH GIÁ CẢM QUAN của người nhập liệu, KHÔNG phải kết quả phân tích dinh dưỡng. Thực đơn không có số calo hay natri nào. Dùng chúng để gợi ý được, dùng để khẳng định về sức khỏe thì không.
 
@@ -60,4 +60,4 @@ Trong 30 món này, **15 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 - Muốn thử nhẹ ví: **Đậu hũ sốt cà chua** (45.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Tôm hùm nướng mỡ hành** (890.000đ).
-- Không ăn được cay: có 17 món không cay, ví dụ **Đậu hũ sốt cà chua**.
+- Không ăn được cay: có 16 món không cay, ví dụ **Đậu hũ sốt cà chua**.

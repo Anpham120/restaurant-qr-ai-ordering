@@ -1,13 +1,13 @@
 ---
 id: kb.occasion.everyday.v1
-title: Món hàng ngày
+title: Món và đồ uống hàng ngày
 topic_keys: [occasion_everyday]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món hàng ngày
+# Món và đồ uống hàng ngày
 
 Tài liệu này nói về nhóm dịp ăn **Hàng ngày**. Dịp ăn là NGỮ CẢNH, không phải ràng buộc: món không mang nhãn dịp này vẫn có thể phù hợp. Nhóm occasion chỉ phủ 79/91 món, nên dùng nó để sắp thứ tự chứ không để loại món.
 
@@ -81,6 +81,6 @@ Trong 53 món này, **26 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước mía Sài Gòn** (25.000đ).
+- Muốn thử nhẹ ví: **Bánh flan caramel** (30.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Gà nướng mật ong** (185.000đ).
-- Không ăn được cay: có 43 món không cay, ví dụ **Nước mía Sài Gòn**.
+- Không ăn được cay: có 30 món không cay, ví dụ **Bánh flan caramel**.

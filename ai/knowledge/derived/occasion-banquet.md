@@ -1,13 +1,13 @@
 ---
 id: kb.occasion.banquet.v1
-title: Món tiệc
+title: Món và đồ uống tiệc
 topic_keys: [occasion_banquet]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món tiệc
+# Món và đồ uống tiệc
 
 Tài liệu này nói về nhóm dịp ăn **Tiệc**. Dịp ăn là NGỮ CẢNH, không phải ràng buộc: món không mang nhãn dịp này vẫn có thể phù hợp. Nhóm occasion chỉ phủ 79/91 món, nên dùng nó để sắp thứ tự chứ không để loại món.
 
@@ -39,6 +39,6 @@ Trong 11 món này, **6 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Rượu nếp cẩm** (35.000đ).
+- Muốn thử nhẹ ví: **Nem rán Hà Nội** (75.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Tôm hùm nướng mỡ hành** (890.000đ).
-- Không ăn được cay: có 9 món không cay, ví dụ **Rượu nếp cẩm**.
+- Không ăn được cay: có 6 món không cay, ví dụ **Nem rán Hà Nội**.

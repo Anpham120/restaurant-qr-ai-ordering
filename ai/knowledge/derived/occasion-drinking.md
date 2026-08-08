@@ -1,13 +1,13 @@
 ---
 id: kb.occasion.drinking.v1
-title: Món nhậu
+title: Món và đồ uống nhậu
 topic_keys: [occasion_drinking]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món nhậu
+# Món và đồ uống nhậu
 
 Tài liệu này nói về nhóm dịp ăn **Nhậu**. Dịp ăn là NGỮ CẢNH, không phải ràng buộc: món không mang nhãn dịp này vẫn có thể phù hợp. Nhóm occasion chỉ phủ 79/91 món, nên dùng nó để sắp thứ tự chứ không để loại món.
 
@@ -45,6 +45,6 @@ Trong 17 món này, **9 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia hơi Hà Nội** (12.000đ).
+- Muốn thử nhẹ ví: **Bún đậu mắm tôm** (95.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu dê thuốc bắc** (380.000đ).
-- Không ăn được cay: có 7 món không cay, ví dụ **Bia hơi Hà Nội**.
+- Không ăn được cay: có 1 món không cay, ví dụ **Ốc hương rang bơ tỏi**.

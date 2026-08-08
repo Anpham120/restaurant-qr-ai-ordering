@@ -1,13 +1,13 @@
 ---
 id: kb.health.light.v1
-title: Món thanh nhẹ
+title: Món và đồ uống thanh nhẹ
 topic_keys: [health_light]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món thanh nhẹ
+# Món và đồ uống thanh nhẹ
 
 Tài liệu này nói về nhóm sức khỏe **Thanh nhẹ**. QUAN TRỌNG: các nhãn này là ĐÁNH GIÁ CẢM QUAN của người nhập liệu, KHÔNG phải kết quả phân tích dinh dưỡng. Thực đơn không có số calo hay natri nào. Dùng chúng để gợi ý được, dùng để khẳng định về sức khỏe thì không.
 
@@ -67,6 +67,6 @@ Trong 39 món này, **28 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia hơi Hà Nội** (12.000đ).
+- Muốn thử nhẹ ví: **Sương sa hạt lựu** (35.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu bò nhúng giấm** (350.000đ).
-- Không ăn được cay: có 37 món không cay, ví dụ **Bia hơi Hà Nội**.
+- Không ăn được cay: có 26 món không cay, ví dụ **Sương sa hạt lựu**.

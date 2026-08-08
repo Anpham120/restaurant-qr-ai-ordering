@@ -1,13 +1,13 @@
 ---
 id: kb.region.hanoi.v1
-title: Món hà nội
+title: Món và đồ uống hà nội
 topic_keys: [region_hanoi]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món hà nội
+# Món và đồ uống hà nội
 
 Tài liệu này nói về nhóm vùng miền **Hà Nội**. Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản một nơi, hoặc khi nhớ món quê.
 
@@ -40,6 +40,6 @@ Trong 12 món này, **9 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia hơi Hà Nội** (12.000đ).
+- Muốn thử nhẹ ví: **Xôi gà Hà Nội** (50.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Bún đậu mắm tôm** (95.000đ).
-- Không ăn được cay: có 11 món không cay, ví dụ **Bia hơi Hà Nội**.
+- Không ăn được cay: có 6 món không cay, ví dụ **Xôi gà Hà Nội**.

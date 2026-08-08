@@ -1,13 +1,13 @@
 ---
 id: kb.ingredient.vegetable.v1
-title: Món rau
+title: Món và đồ uống rau
 topic_keys: [ingredient_vegetable]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món rau
+# Món và đồ uống rau
 
 Tài liệu này nói về nhóm nguyên liệu chính **Rau**. Khách hỏi theo nguyên liệu khi họ có sở thích hoặc tránh một loại đạm nào đó. Lưu ý đây KHÁC với dị ứng: dị ứng dùng nhãn allergen và luôn fail-closed.
 
@@ -40,6 +40,6 @@ Trong 12 món này, **7 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước rau má** (30.000đ).
+- Muốn thử nhẹ ví: **Gỏi cuốn chay** (45.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu nấm chay** (250.000đ).
-- Không ăn được cay: có 8 món không cay, ví dụ **Nước rau má**.
+- Không ăn được cay: có 7 món không cay, ví dụ **Gỏi cuốn chay**.

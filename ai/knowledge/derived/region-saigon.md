@@ -1,13 +1,13 @@
 ---
 id: kb.region.saigon.v1
-title: Món sài gòn
+title: Món và đồ uống sài gòn
 topic_keys: [region_saigon]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món sài gòn
+# Món và đồ uống sài gòn
 
 Tài liệu này nói về nhóm vùng miền **Sài Gòn**. Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản một nơi, hoặc khi nhớ món quê.
 
@@ -39,6 +39,6 @@ Trong 11 món này, **3 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia Sài Gòn Special** (20.000đ).
+- Muốn thử nhẹ ví: **Bánh mì pate Sài Gòn** (35.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Cua rang me** (380.000đ).
-- Không ăn được cay: có 9 món không cay, ví dụ **Bia Sài Gòn Special**.
+- Không ăn được cay: có 6 món không cay, ví dụ **Cháo lòng Sài Gòn**.

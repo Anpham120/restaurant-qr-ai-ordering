@@ -98,6 +98,10 @@ DERIVED_GROUPS = {
 }
 
 
+# Danh mục đồ uống — giữ khớp với `understand.DRINK_CATEGORIES`.
+DANH_MUC_DO_UONG = ("cat_drink", "cat_juice", "cat_alcohol")
+
+
 def money(value: int) -> str:
     return f"{value:,}".replace(",", ".") + "đ"
 
@@ -130,17 +134,36 @@ def build_derived_doc(
     vi_allergen = {"seafood": "hải sản", "peanut": "đậu phộng", "egg": "trứng",
                    "dairy": "sữa", "gluten": "gluten"}
 
+    # TIÊU ĐỀ phải khớp thứ tài liệu THẬT SỰ liệt kê.
+    #
+    # Nhãn `flavour`, `region`, `occasion`, `health` áp cho CẢ món ăn lẫn đồ uống, nên 19/49 tài
+    # liệu `derived` có đồ uống trong danh sách. Nhưng tiêu đề luôn là "Món {nhãn}", nên khách đọc
+    # tài liệu **Món chua** và thấy Cocktail chanh đào mật ong, Rượu mơ Hà Nội, Sinh tố dâu tây.
+    #
+    # Danh sách KHÔNG sai — cocktail chanh đào đúng là vị chua. Cái sai là chữ "Món", và nó sai
+    # theo kiểu làm khách nghi ngờ cả phần đúng.
+    #
+    # Tiêu đề tính từ nội dung thật, nên nó không thể lệch: có đồ uống thì nói có đồ uống.
+    co_uong = any(m.get("categoryId") in DANH_MUC_DO_UONG for m in matched)
+    co_mon = any(m.get("categoryId") not in DANH_MUC_DO_UONG for m in matched)
+    if co_uong and co_mon:
+        tieu_de = f"Món và đồ uống {label.lower()}"
+    elif co_uong:
+        tieu_de = f"Đồ uống {label.lower()}"
+    else:
+        tieu_de = f"Món {label.lower()}"
+
     lines = [
         "---",
         f"id: {doc_id}",
-        f"title: Món {label.lower()}",
+        f"title: {tieu_de}",
         f"topic_keys: [{group}_{value}]",
         "source: derived",
         "audience: guest",
         "answer_mode: synthesize",
         "---",
         "",
-        f"# Món {label.lower()}",
+        f"# {tieu_de}",
         "",
         f"Tài liệu này nói về nhóm {group_label} **{label}**. {group_note}",
         "",
@@ -196,17 +219,40 @@ def build_derived_doc(
     ]
 
     if len(matched) >= 3:
-        cheapest, priciest = matched[0], matched[-1]
+        # GỢI Ý phải lấy ví dụ CÙNG LOẠI với thứ câu gợi ý đang nói.
+        #
+        # Bản trước lấy `matched[0]` (rẻ nhất) và `no_spice[0]` (rẻ nhất trong nhóm không cay).
+        # Danh sách sắp theo giá, và **đồ uống là thứ rẻ nhất thực đơn** (bia hơi 12.000đ), nên
+        # chúng thắng ở mọi nhóm có đồ uống. Kết quả in ra 18 tài liệu:
+        #
+        #     - Muốn thử nhẹ ví: **Bia Hà Nội** (18.000đ).
+        #     - Không ăn được cay: có 10 món không cay, ví dụ **Bia Hà Nội**.
+        #
+        # Dòng thứ hai là dòng tệ nhất trong cả kho: khách nói **không ăn được cay** — một câu về
+        # MÓN ĂN — và nhận về một chai bia. Nó không sai về dữ liệu (bia đúng là không cay) mà sai
+        # về việc trả lời đúng câu hỏi, và nó lặp ở 18/49 tài liệu.
+        #
+        # "Bia hơi Hà Nội" xuất hiện ở 8 tài liệu, "Nước rau má" ở 6 — nên lỗi này còn nhân bản
+        # cùng một tên món khắp kho.
+        #
+        # Quy tắc: ưu tiên MÓN ĂN làm ví dụ; chỉ dùng đồ uống khi nhóm KHÔNG có món ăn nào (tài
+        # liệu về chính nhóm đồ uống), và khi đó gọi đúng tên là "đồ uống".
+        mon_an = [m for m in matched if m.get("categoryId") not in DANH_MUC_DO_UONG]
+        vi_du = mon_an or matched
+        tu = "món" if mon_an else "đồ uống"
+        cheapest, priciest = vi_du[0], vi_du[-1]
         lines += [
             "",
             "## Gợi ý chọn",
             "",
             f"- Muốn thử nhẹ ví: **{cheapest['name']}** ({money(cheapest['price'])}).",
-            f"- Muốn món đáng nhớ nhất nhóm: **{priciest['name']}** "
+            f"- Muốn {tu} đáng nhớ nhất nhóm: **{priciest['name']}** "
             f"({money(priciest['price'])}).",
         ]
-        no_spice = [m for m in matched if "spice:none" in m["tags"]]
-        if no_spice:
+        no_spice = [m for m in vi_du if "spice:none" in m["tags"]]
+        if no_spice and mon_an:
+            # Chỉ nêu dòng độ cay khi nhóm CÓ món ăn — độ cay không áp dụng cho đồ uống, và
+            # đếm cả đồ uống vào "10 món không cay" là thổi phồng con số bằng thứ không liên quan.
             lines.append(
                 f"- Không ăn được cay: có {len(no_spice)} món không cay, ví dụ "
                 f"**{no_spice[0]['name']}**."

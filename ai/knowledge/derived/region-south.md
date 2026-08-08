@@ -1,13 +1,13 @@
 ---
 id: kb.region.south.v1
-title: Món miền nam
+title: Món và đồ uống miền nam
 topic_keys: [region_south]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món miền nam
+# Món và đồ uống miền nam
 
 Tài liệu này nói về nhóm vùng miền **Miền Nam**. Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản một nơi, hoặc khi nhớ món quê.
 
@@ -63,6 +63,6 @@ Trong 35 món này, **13 món chưa có ghi nhận dị nguyên nào**. Chưa gh
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Bia Sài Gòn Special** (20.000đ).
+- Muốn thử nhẹ ví: **Bánh chuối nướng** (30.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu hải sản chua cay** (450.000đ).
-- Không ăn được cay: có 23 món không cay, ví dụ **Bia Sài Gòn Special**.
+- Không ăn được cay: có 18 món không cay, ví dụ **Bánh chuối nướng**.

@@ -1,13 +1,13 @@
 ---
 id: kb.region.highlands.v1
-title: Món tây nguyên
+title: Món và đồ uống tây nguyên
 topic_keys: [region_highlands]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món tây nguyên
+# Món và đồ uống tây nguyên
 
 Tài liệu này nói về nhóm vùng miền **Tây Nguyên**. Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản một nơi, hoặc khi nhớ món quê.
 
@@ -31,6 +31,6 @@ Trong 3 món này, **1 món chưa có ghi nhận dị nguyên nào**. Chưa ghi 
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Sinh tố bơ Đắk Lắk** (50.000đ).
+- Muốn thử nhẹ ví: **Lẩu gà lá é Đà Lạt** (280.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu gà lá é Đà Lạt** (280.000đ).
-- Không ăn được cay: có 3 món không cay, ví dụ **Sinh tố bơ Đắk Lắk**.
+- Không ăn được cay: có 1 món không cay, ví dụ **Lẩu gà lá é Đà Lạt**.

@@ -40,7 +40,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 |---|---|
 | [AI_DECISION_HISTORY.md](ai/AI_DECISION_HISTORY.md) | Lịch sử quyết định của hệ thống AI |
 | [AI_NO_TOUCH_BOUNDARY.md](ai/AI_NO_TOUCH_BOUNDARY.md) | AI no-touch boundary |
-| [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành AI — production, staging, và runbook |
+| [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành lớp AI — triển khai, cấu hình, và runbook |
 | [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
 
 ## Kiến trúc và hợp đồng

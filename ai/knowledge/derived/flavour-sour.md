@@ -1,13 +1,13 @@
 ---
 id: kb.flavour.sour.v1
-title: Món chua
+title: Món và đồ uống chua
 topic_keys: [flavour_sour]
 source: derived
 audience: guest
 answer_mode: synthesize
 ---
 
-# Món chua
+# Món và đồ uống chua
 
 Tài liệu này nói về nhóm hương vị **Chua**. Khách thường mô tả vị bằng cảm giác chứ không bằng tên nhãn — 'chua chua', 'đậm đà đưa cơm', 'thanh thanh'. Nhóm flavour phủ 72/91 món nên chỉ dùng theo chiều khẳng định.
 
@@ -41,6 +41,6 @@ Trong 13 món này, **6 món chưa có ghi nhận dị nguyên nào**. Chưa ghi
 
 ## Gợi ý chọn
 
-- Muốn thử nhẹ ví: **Nước ép cam tươi** (40.000đ).
+- Muốn thử nhẹ ví: **Đậu hũ sốt cà chua** (45.000đ).
 - Muốn món đáng nhớ nhất nhóm: **Lẩu hải sản chua cay** (450.000đ).
-- Không ăn được cay: có 10 món không cay, ví dụ **Nước ép cam tươi**.
+- Không ăn được cay: có 5 món không cay, ví dụ **Đậu hũ sốt cà chua**.

@@ -286,6 +286,23 @@ def _thuoc_ho(item: dict, ho_mon: list[str]) -> bool:
 
 
 def _spice_of(item: dict) -> str:
+    """Mức cay của một MÓN ĂN. Chuỗi rỗng với đồ uống — thuộc tính không áp dụng.
+
+    Cả **21/21 đồ uống** trong thực đơn đều mang `spice:none`, và nhãn đó không sai: một ly bia
+    đúng là không cay. Nhưng nêu nó ra thì thành câu vô nghĩa mà khách đọc được:
+
+        "Bia Hà Nội (18.000đ). Món này không cay."
+        "Trà sữa trân châu (45.000đ). Món này không cay."
+
+    Độ cay là thuộc tính của món ăn. Nói một ly bia không cay không sai về dữ liệu, nhưng nó cho
+    khách thấy trợ lý đang đọc nhãn chứ không hiểu mình đang nói về cái gì — và đó là thứ khách
+    nhớ lâu hơn một câu trả lời đúng.
+
+    Lọc ở đây chứ không xóa nhãn khỏi dữ liệu: `spice:none` trên đồ uống vẫn dùng được cho phép
+    lọc ("đồ uống không cay" giao với "món không cay" phải ra kết quả), chỉ là không đáng NÓI RA.
+    """
+    if item.get("categoryId") in DRINK_CATEGORIES:
+        return ""
     tag = next((t for t in item["tags"] if t.startswith("spice:")), "")
     return _SPICE_VI.get(tag, "")
 
@@ -398,6 +415,32 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
         Top-1       niêm phong  bm25 0,750  ->  embedding 0,864     +11,4 điểm
                     riêng câu diễn đạt khác từ  0,636 -> 0,818      +18,2 điểm
         ảnh Docker  đã có embedding cho nhánh truy hồi toàn kho, nên phần "thêm 2–3GB" là 0
+
+    CON SỐ 0,864 Ở TRÊN LÀ SỐ CỦA PHẦN DỄ — đo lại sau khi phủ hết kho
+    ------------------------------------------------------------------
+    Bộ 168 ca đó phủ **84/372 đoạn = 22,58%**, và phần được phủ không ngẫu nhiên: mỗi nhóm
+    `derived` đúng 4 đoạn trên 24–40. Nhóm `derived` là nhóm có độ trùng lặp cao nhất kho, tức
+    phần KHÓ nhất gần như không được đo.
+
+    Mở rộng bộ sinh cho toàn bộ 49 tài liệu `derived` (168 -> 500 ca, phủ 250/372 = 67,20%):
+
+        written  (viết tay, như cũ)   n= 76   embedding 0,921
+        derived  (mới phủ 100%)       n=380   embedding 0,674     thấp hơn 19 điểm
+
+    Đây là lần THỨ HAI cùng một sai lầm trong dự án. Bước 2 của mục 4.10 đã bắt nó ở tầng truy hồi
+    toàn kho — bộ 222 ca phủ 36/85 tài liệu, và phần bỏ sót hóa ra là phần khó nhất. Lý lẽ khi đó
+    ("49 tài liệu dùng chung một khuôn nên kiểm cả 49 là thừa") nghe hợp lý y như lần này.
+
+    Và bảng theo DẠNG CÂU trên nhóm `derived` cho thấy vì sao bộ nhỏ không thấy được:
+
+        dạng                    bm25    embedding   hybrid
+        A trùng từ khóa        0,774      0,721     0,774      <- BM25 THẮNG ở đây
+        B diễn đạt khác        0,295      0,626     0,453
+        chênh A->B            -0,479     -0,095    -0,321
+
+    Đo chỉ trên dạng A thì kết luận đúng sẽ là "dùng BM25, rẻ hơn 6.000 lần". Bộ 168 ca cũ có quá
+    ít ca `derived` dạng B để lộ ra điều đó — nên quyết định đổi sang embedding vẫn ĐÚNG, nhưng
+    con số dùng để biện minh cho nó thì đã bị thổi phồng bởi độ phủ.
 
     Đây là chỗ lệch đáng nói nhất còn lại sau khi đổi bộ truy hồi toàn kho: bộ so 168 ca đo ĐÚNG
     đường này, còn đường này vẫn chạy BM25. Tức báo cáo nói một bộ, hệ thống chạy bộ khác — đúng lớp
