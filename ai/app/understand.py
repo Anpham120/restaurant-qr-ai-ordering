@@ -1910,6 +1910,25 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         request.reference_index = None
         request.matched.append("«<số> món đầu» là lát cắt, không phải món thứ nhất")
 
+    # "<số ≥ 2> MÓN vừa rồi / vừa nói" cũng là LÁT CẮT, không phải món đang nói tới.
+    #
+    # Cùng lớp lỗi với «<số> món đầu» ở trên, nhưng qua một đường khác: cụm "vừa rồi", "vừa nói"
+    # bật `refers_to_focus`, và bước hợp nhất bộ nhớ giải cờ đó thành MỘT món cụ thể. Đo được sau
+    # khi lượt đầu đã nêu 6 món:
+    #
+    #     "Cho mình xem lại 3 món vừa rồi"  ->  item_detail, 1 món
+    #     "Kể lại 5 món vừa nói"            ->  item_detail, 1 món
+    #
+    # Trong khi "Tóm tắt 3 món vừa tư vấn" đúng 3 món — chỉ khác ở cụm cuối câu. Khách gõ hai cách
+    # nói tương đương và nhận hai kết quả khác hẳn nhau.
+    #
+    # NGƯỠNG ≥ 2, không phải ≥ 1: "cho mình 1 món vừa rồi" thì "một món đang nói tới" và "lát cắt
+    # dài 1" ra cùng một món, nhưng dạng đáp án khác nhau — `item_detail` mô tả một món là câu trả
+    # lời đúng hơn cho câu hỏi số ít, nên chiều đó giữ nguyên.
+    if request.so_mon_muon and request.so_mon_muon >= 2 and request.refers_to_focus:
+        request.refers_to_focus = False
+        request.matched.append("«<số> món vừa rồi» là lát cắt, không phải món đang nói tới")
+
     # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
     #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.
     if ARITHMETIC_RE.search(request.folded):

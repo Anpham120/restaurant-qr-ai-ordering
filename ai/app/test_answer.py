@@ -986,7 +986,11 @@ class SO_MON_KHACH_XIN(unittest.TestCase):
     def test_nghe_dung_so_mon(self):
         for cau, mong in (("Liệt kê 3 món vừa tư vấn bên trên", 3),
                           ("Cho mình 4 món vừa tư vấn ở trên", 4),
-                          ("Liệt kê cho tôi 2 món đầu vừa tư vấn", 2)):
+                          ("Liệt kê cho tôi 2 món đầu vừa tư vấn", 2),
+                          # "vừa rồi"/"vừa nói" bật `refers_to_focus`, và bước hợp nhất bộ nhớ
+                          # giải cờ đó thành MỘT món — cùng lớp lỗi với `mon dau`, đường khác.
+                          ("Cho mình xem lại 3 món vừa rồi", 3),
+                          ("Kể lại 5 món vừa nói", 5)):
             with self.subTest(cau=cau):
                 p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
                 self.assertEqual(len(p.items), mong)
@@ -997,7 +1001,8 @@ class SO_MON_KHACH_XIN(unittest.TestCase):
         `mon dau` và `2 mon dau` chồng chữ mà khác hẳn nghĩa, nên phép phân biệt phải giữ được cả
         hai chiều — nới nhầm ở đây thì câu hỏi giá của một món trả về nửa danh sách.
         """
-        for cau in ("Món đầu tiên giá bao nhiêu?", "Món cuối cùng có cay không?"):
+        for cau in ("Món đầu tiên giá bao nhiêu?", "Món cuối cùng có cay không?",
+                    "Món vừa rồi giá bao nhiêu?"):
             with self.subTest(cau=cau):
                 p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
                 self.assertEqual(len(p.items), 1)
