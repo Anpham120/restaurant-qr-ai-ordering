@@ -422,6 +422,38 @@ def build() -> dict:
         ],
     })
 
+    # Tham chiếu vị trí VIẾT BẰNG SỐ — lượt khách dùng để trả lời câu hỏi lại của trợ lý.
+    #
+    # Bảng từ vựng chỉ có dạng CHỮ (`mon thu hai`), còn khách gõ SỐ. Đo được sau khi lượt 1 nêu
+    # 4 món và lượt 2 đoán món đầu:
+    #
+    #     "món thứ hai"  ->  đúng món thứ 2
+    #     "món thứ 2"    ->  KHÔNG nhận ra, rơi xuống nhánh lọc và trả về SÁU món
+    #
+    # Hậu quả nặng hơn "không hiểu": khách chỉ vào một món và nhận lại cả bảng, tức mất luôn phạm
+    # vi danh sách đang nói tới. Và vì đây đúng là lượt dùng để SỬA phỏng đoán của trợ lý, hỏng ở
+    # đây làm cả vòng hỏi-đáp thành ngõ cụt.
+    scripts.append({
+        "id": "context-reference-vi-tri-viet-so",
+        "group": "context_reference",
+        "why": ("Tham chiếu vị trí viết bằng SỐ. Trợ lý đoán món đầu và NÊU TÊN nó, nên khách sửa "
+                "bằng cách chỉ số thứ tự — đó là đường sửa duy nhất, và nó từng hỏng."),
+        "turns": [
+            {"user": "Gợi ý 4 món ăn cho mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách."}},
+            {"user": "Cho mình món vừa rồi",
+             "expect": {"max_items": 1,
+                        "why": ("Câu MƠ HỒ với 4 món trên màn hình. Thiết kế đã chốt: đoán nhưng "
+                                "NÊU TÊN món đã đoán, để khách sửa được ngay — đoán im lặng mới "
+                                "là thứ bị cấm.")}},
+            {"user": "món thứ 2",
+             "expect": {"max_items": 1,
+                        "why": ("Lượt SỬA. Phải trỏ đúng món thứ hai của danh sách, không được "
+                                "trả về cả bảng.")}},
+        ],
+    })
+
     # Tham chiếu ngược có SỐ LƯỢNG — phạm vi đúng nhưng con số bị bỏ.
     #
     # `LIST_SIZE = 6` là hằng số, và con số trong câu chỉ dùng để bật một cờ. Sau khi lượt 1 nêu

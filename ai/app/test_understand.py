@@ -1012,3 +1012,39 @@ class HoiDINHNGHIAVeNhanKhongPhaiLocTheoNhan(unittest.TestCase):
         """Câu nêu TÊN MÓN cần nhãn để trả lời được, nên không bị bỏ ràng buộc."""
         r = ask("Phở bò tái nạm có hải sản không?")
         self.assertTrue(r.named_items)
+
+
+class ThamChieuViTriVietBangSo(unittest.TestCase):
+    """Khách gõ "món thứ 2", bảng từ vựng chỉ có "món thứ hai".
+
+    Trợ lý đoán món đầu khi câu mơ hồ và **nêu tên món đã đoán** — thiết kế đã chốt như vậy, vì
+    đoán im lặng mới là thứ bị cấm. Nhưng đường SỬA phỏng đoán đó thì hỏng:
+
+        "món thứ hai"  ->  reference_index = 2      đúng
+        "món thứ 2"    ->  reference_index = None   rơi xuống nhánh lọc, trả về SÁU món
+
+    Khách chỉ vào một món và nhận lại cả bảng. Vì đây đúng là lượt dùng để sửa, hỏng ở đây làm cả
+    vòng hỏi-đáp thành ngõ cụt.
+    """
+
+    def test_dang_so_nhan_ra_nhu_dang_chu(self):
+        for cau, vt in (("món thứ 2", 2), ("món số 3", 3), ("cái thứ 4", 4), ("cái số 2", 2),
+                        ("món thứ 2 giá bao nhiêu", 2)):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).reference_index, vt)
+
+    def test_dang_chu_van_giu(self):
+        for cau, vt in (("món thứ hai", 2), ("món thứ ba", 3), ("món cuối cùng", -1)):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).reference_index, vt)
+
+    def test_cau_xin_SO_LUONG_khong_thanh_vi_tri(self):
+        """Chiều ngược, và là chiều mà mẫu quá lỏng sẽ phá.
+
+        "Cho mình 3 món" là BA món, không phải món thứ ba. Phân biệt bằng `so_mon_muon` — cờ đó
+        chỉ được đặt cho khung đếm, nên nó là dấu hiệu sẵn có chứ không phải luật mới.
+        """
+        for cau in ("Cho mình 3 món", "Gợi ý 4 món ăn cho mình", "cho mình 2 món chay",
+                    "Đi 4 người ăn gì"):
+            with self.subTest(cau=cau):
+                self.assertIsNone(ask(cau).reference_index)

@@ -1929,6 +1929,34 @@ def understand(question: str, menu_items: list[dict]) -> Request:
         request.refers_to_focus = False
         request.matched.append("«<số> món vừa rồi» là lát cắt, không phải món đang nói tới")
 
+    # THAM CHIẾU VỊ TRÍ VIẾT BẰNG SỐ — "món thứ 2", "món số 3", "cái thứ 4".
+    #
+    # Bảng từ vựng chỉ có dạng CHỮ (`mon thu hai`, `cai thu ba`), còn khách gõ SỐ. Đo được:
+    #
+    #     "món thứ hai"  ->  reference_index = 2      đúng
+    #     "món thứ 2"    ->  reference_index = None   không nhận ra
+    #     "món số 2"     ->  reference_index = None
+    #
+    # Và hậu quả nặng hơn "không hiểu": câu rơi xuống nhánh lọc và trả về SÁU món, tức mất luôn cả
+    # phạm vi danh sách đang nói tới. Khách chỉ vào một món và nhận lại cả bảng.
+    #
+    # Đây đúng là lượt khách dùng để TRẢ LỜI câu hỏi lại của trợ lý, nên hỏng ở đây làm cả vòng
+    # hỏi-đáp thành ngõ cụt.
+    #
+    # Chỉ nhận 1..12: `LIST_SIZE` là 6 và thước đo chặn ở 12, nên số lớn hơn là gõ nhầm chứ không
+    # phải một vị trí có thật.
+    if request.reference_index is None:
+        # Đòi có chữ "món" HOẶC "cái" trong câu: con số một mình ("cho mình 2") không phải vị trí,
+        # và mẫu dưới đây đủ lỏng để khớp "thứ 2" ở bất kỳ đâu nếu không có neo danh từ này.
+        _vt = re.search(r"(?:mon|cai)\s*(?:thu|so)\s*(\d{1,2})\b", request.folded)
+        _co_neo = " mon " in f" {request.folded} " or " cai " in f" {request.folded} "
+        if _vt and _co_neo and 1 <= int(_vt.group(1)) <= 12:
+            # KHÔNG áp khi câu đang xin một SỐ LƯỢNG: "cho mình 3 món" là ba món, không phải món
+            # thứ ba. Phân biệt bằng chính `so_mon_muon` — nó chỉ được đặt cho khung đếm.
+            if not request.so_mon_muon:
+                request.reference_index = int(_vt.group(1))
+                request.matched.append(f"tham chiếu vị trí (viết số): {_vt.group(1)}")
+
     # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
     #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.
     if ARITHMETIC_RE.search(request.folded):
