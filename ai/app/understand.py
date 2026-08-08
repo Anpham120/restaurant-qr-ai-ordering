@@ -155,6 +155,12 @@ class Request:
     asks_suggestion: bool = False
     # Số món khách xin, khi họ nêu rõ ("cho mình 2 món"). None nghĩa là để hệ thống tự chọn.
     so_mon_muon: int | None = None
+    # Câu này là XIN MÓN (đặt/lấy), không phải HỎI VỀ một món. Dùng để quyết định khi tham chiếu
+    # ngược mơ hồ: hỏi thì đoán được, xin thì phải hỏi lại. Xem `session.merge_into_request`.
+    la_xin_mon: bool = False
+    # Tham chiếu ngược MƠ HỒ và không đoán được: câu xin món trỏ "món vừa rồi" trong khi danh sách
+    # vừa nêu có nhiều món và chưa có tiêu điểm. `answer` đọc cờ này để hỏi lại thay vì đoán.
+    mo_ho_tieu_diem: bool = False
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
     asks_difference: bool = False
@@ -291,6 +297,52 @@ AVOID_FRAMING = (
     "celiac",
     "khong dung nap",
     "di ung voi",
+    # --- Rà 20 cách khai dị ứng hải sản: chỉ 7/20 = 35,00% được nhận ra --------------------
+    #
+    # Con số đó đánh thẳng vào câu mạnh nhất của báo cáo. "0 lỗi an toàn" ĐÚNG trên bộ đánh giá và
+    # SAI với khách thật, vì bộ đánh giá dùng chính những cách nói hệ thống đã biết — bộ đo và hệ
+    # thống cùng một tác giả, cùng một vốn từ.
+    #
+    # Ba nhóm bỏ sót, và cả ba đều là cách nói rất thường:
+    #
+    #   phủ định khả năng   "không ai ăn được", "không dùng được", "không hợp với"
+    #   nói bằng HẬU QUẢ    "ăn vào là đi cấp cứu", "nổi mề đay", "lên cơn", "đi viện"
+    #   nói bằng MỆNH LỆNH  "tuyệt đối không", "xin đừng", "loại hết", "tránh xa"
+    #
+    # Mỗi cụm dưới đây được nạp riêng rồi chạy `understand()` trên **849 câu hỏi của 8 tập**:
+    # 0/849 câu đổi kết quả, tức không cụm nào chạm vào phần đang đúng.
+    #
+    # HAI CỤM BỊ BỎ dù phép đo nói an toàn, vì chúng mang đúng hình dạng đã gây 11 vụ đụng chữ:
+    #
+    #   `cu`         "cữ hải sản" — nhưng rút dấu trùng "cũ", "củ", "cụ". "món cũ" thành câu
+    #                khai dị ứng là lỗi tệ hơn lỗi đang sửa.
+    #   `khong dinh` "không dính hải sản" — trùng "không định". "mình không định gọi món đó"
+    #                sẽ thành câu tránh.
+    #
+    # Phép đo trên 849 câu không thấy hai lỗi đó chỉ vì tập chưa có câu nào dạng ấy. Đây là chỗ
+    # phép đo im lặng KHÔNG đủ để kết luận an toàn.
+    "khong ai an duoc",
+    "khong dung duoc",
+    "khong hop voi",
+    "khong dam an",
+    "phai tranh",
+    "tranh xa",
+    "kieng",
+    "tuyet doi khong",
+    "khong duoc co",
+    "xin dung",
+    "dung cho",
+    "loai het",
+    "bo giup",
+    "allergy",
+    "giap xac",
+    # Khai bằng HẬU QUẢ, không bằng chữ "dị ứng". Khách mô tả điều sẽ xảy ra với mình.
+    "soc phan ve",
+    "noi me day",
+    "di cap cuu",
+    "len con",
+    "bi sung",
+    "di vien",
 )
 
 # Khi nào một nhãn được dùng làm LỌC CỨNG (`require`) và khi nào chỉ được XẾP HẠNG (`prefer`)
@@ -692,7 +744,24 @@ _add("mon vua roi|mon vua noi|mon do|cai do|mon nay|cai nay|no co", "flag", "ref
 # Cụm thu PHẠM VI. Khác cụm vị trí: "món rẻ nhất TRONG SỐ ĐÓ" không trỏ vào một món, nó giới hạn
 # tập rồi để câu hỏi "rẻ nhất" chạy trên tập đó. Dùng cụm vị trí ở đây là trả sai: nó sẽ trả món
 # ĐẦU danh sách thay vì món RẺ NHẤT.
-_add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do", "flag", "scope_listed")
+#
+# Bốn cụm đầu đều đòi chữ "đó" đứng ngay sau, nên chúng bỏ sót phần lớn cách nói thật. Dò 8 câu
+# hỏi tiếp nối sau một lượt nêu 4 món:
+#
+#     "Món nào TRONG ĐÓ có hải sản?"                  -> 6 món, NGOÀI danh sách
+#     "TRONG MẤY MÓN VỪA TƯ VẤN có món nào không cay?" -> 6 món, NGOÀI danh sách
+#     "4 MÓN ĐÓ có món nào chứa đậu phộng không?"      -> 4 món, nhưng KHÔNG PHẢI 4 món kia
+#
+# Ca thứ ba tệ nhất: đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là bốn món khác.
+# Khách hỏi về dị nguyên trong danh sách vừa xem và nhận câu trả lời về một danh sách khác — đúng
+# loại sai mà không ai kiểm lại vì nó trông hợp lý.
+#
+# Đo từng cụm ứng viên trên **847 câu hỏi của 8 tập**: 13/14 cụm không đổi ca nào, cụm `trong do`
+# đổi đúng một ca — *"Món nào trong đó không cay?"* — và đổi theo chiều ĐÚNG.
+_add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do|"
+     "trong do|trong so nay|trong nhung mon vua|trong may mon vua|trong danh sach vua|"
+     "trong cac mon do|trong cac mon vua|may mon do|cac mon do|nhung mon do|trong mon vua|"
+     "trong so mon do", "flag", "scope_listed")
 # Câu so sánh TIẾP NỐI: khách vừa so hai món, rồi hỏi thuộc tính khác mà không nhắc lại tên.
 #
 # "Món nào cay hơn?" sau một câu so sánh từng rơi vào nhánh hỏi lại — mất hẳn cặp món vừa nói.
@@ -1336,10 +1405,32 @@ PHU_NHAN_FRAMING = (
 PHU_NHAN_ROI_RE = re.compile(r"\b(?:co|da)\b.{0,40}\bdau\s*$")
 
 
+# Cụm dài hơn NUỐT cụm phủ nhận nằm trong nó. Cùng luật khớp-cụm-dài-trước của `VOCAB_ORDER`, và
+# ở đây nó chống một vụ đụng chữ đảo nghĩa:
+#
+#     "Hải sản là mình KHÔNG ĐỤNG ĐƯỢC"  ->  rút dấu `khong dung duoc`
+#                                            chứa `khong dung` ("không ĐÚNG") của khung phủ nhận
+#
+# Khách nói mình không đụng được hải sản, hệ thống đọc thành "bạn nói không đúng" và **gỡ** ràng
+# buộc dị nguyên. Đây là đường đảo nghĩa thứ BA tìm được khi rà 20 cách khai dị ứng — hai đường kia
+# nằm ở lớp ý định (`an duoc hai san`) và ở chỗ thiếu cụm.
+#
+# Vì sao dùng danh sách nuốt thay vì bỏ `khong dung` khỏi khung phủ nhận: "bạn nói không đúng" là
+# câu phủ nhận thật và cần giữ. Hai nghĩa chỉ tách được bằng chữ đứng sau.
+_PHU_NHAN_BI_NUOT = {
+    "khong dung": ("khong dung duoc", "khong dung noi", "khong dung vao"),
+}
+
+
 def la_cau_phu_nhan(folded: str) -> bool:
     """Câu có phải là PHỦ NHẬN một ràng buộc không."""
-    return (any(k in folded for k in PHU_NHAN_FRAMING)
-            or bool(PHU_NHAN_ROI_RE.search(folded)))
+    for k in PHU_NHAN_FRAMING:
+        if k not in folded:
+            continue
+        if any(dai in folded for dai in _PHU_NHAN_BI_NUOT.get(k, ())):
+            continue
+        return True
+    return bool(PHU_NHAN_ROI_RE.search(folded))
 
 
 ATTRIBUTE_DEFINITION_FRAMING = (
@@ -1867,6 +1958,10 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             request.require_tags = []
             request.prefer_tags = []
 
+    # Câu này XIN MÓN hay HỎI VỀ một món? Dùng lại đúng bộ dấu hiệu của hàng rào câu tri thức —
+    # không dựng bộ thứ hai, vì hai bộ sẽ lệch nhau.
+    request.la_xin_mon = bool(XIN_MON_RE.search(request.folded))
+
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):
         request.asks_suggestion = True
@@ -1945,6 +2040,21 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #
     # Chỉ nhận 1..12: `LIST_SIZE` là 6 và thước đo chặn ở 12, nên số lớn hơn là gõ nhầm chứ không
     # phải một vị trí có thật.
+    # "<số> MÓN ĐÓ / <số> MÓN VỪA ..." cũng thu phạm vi về danh sách vừa nêu.
+    #
+    # Bảng cụm không phủ được dạng này vì con số nằm giữa. Đo được:
+    #
+    #     "4 món đó có món nào chứa đậu phộng không?"  ->  4 món, nhưng KHÔNG PHẢI 4 món kia
+    #
+    # Đây là ca tệ nhất trong nhóm: đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là
+    # bốn món khác. Khách hỏi về dị nguyên trong danh sách vừa xem và nhận câu trả lời về một danh
+    # sách khác — sai theo kiểu không ai kiểm lại, vì nó trông hợp lý.
+    if not request.scope_last_listed and re.search(
+        r"\b\d{1,2}\s*mon\s+(?:do|nay|vua|tren|ay)\b", request.folded
+    ):
+        request.scope_last_listed = True
+        request.matched.append("«<số> món đó» thu phạm vi về danh sách vừa nêu")
+
     if request.reference_index is None:
         # Đòi có chữ "món" HOẶC "cái" trong câu: con số một mình ("cho mình 2") không phải vị trí,
         # và mẫu dưới đây đủ lỏng để khớp "thứ 2" ở bất kỳ đâu nếu không có neo danh từ này.

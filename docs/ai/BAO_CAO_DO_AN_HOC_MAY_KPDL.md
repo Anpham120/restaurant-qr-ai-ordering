@@ -195,7 +195,7 @@ thẻ giỏ → giỏ hàng.
 | Golden đầu-cuối, đường sinh TẮT (mặc định) | 103 lượt | **103/103** |
 | Golden đầu-cuối, đường sinh BẬT | 103 lượt | **103/103** |
 | Tập ca trả lời một lượt | 147 ca | **147/147** |
-| Bộ nhớ phiên nhiều lượt | 160 lượt | **160/160**, 0 lỗi an toàn |
+| Bộ nhớ phiên nhiều lượt | 163 lượt | **163/163**, 0 lỗi an toàn |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76 |
 
 ## Hạn chế
@@ -326,7 +326,7 @@ TV4  PHIÊN & TÍCH HỢP
       |   -> câu trả lời đã ghép ngữ cảnh, gửi qua backend
       v
 TV5  ĐÁNH GIÁ
-          147 ca · 160 lượt phiên · 103 lượt golden
+          147 ca · 163 lượt phiên · 103 lượt golden
           100 câu hai chiều · 17 cổng CI
 ```
 
@@ -356,7 +356,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 2. Từ điển **85 nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
 3. Kho tri thức **109 tài liệu / 452 đoạn** (85 `synthesize`, 24 `verbatim`)
 4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
-5. Từ vựng tất định **563 cụm**, khớp trên chuỗi đã rút dấu
+5. Từ vựng tất định **575 cụm**, khớp trên chuỗi đã rút dấu
 6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
 
 > **Nghiệm thu:** hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**;
@@ -395,13 +395,13 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **147 ca trả lời**, **160 lượt phiên**, **222 ca truy hồi**, **168 ca chọn mục**
+1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **222 ca truy hồi**, **168 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
 5. **17 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
 
-> **Nghiệm thu:** 147/147 ca; 160/160 lượt phiên;
+> **Nghiệm thu:** 147/147 ca; 163/163 lượt phiên;
 > 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
 > khớp cấu hình đang bật.
 
@@ -906,7 +906,7 @@ chứ không nới hàng rào xuống mức nguyên liệu.
 | | |
 |---|---|
 | **Phương án đã bỏ** | để mô hình đọc câu và tự sinh nhãn lọc |
-| **Nghe hợp lý vì** | 563 cụm từ vựng viết tay là rất nhiều công |
+| **Nghe hợp lý vì** | 575 cụm từ vựng viết tay là rất nhiều công |
 | **Đã chọn** | mã tất định chạy trước; mô hình chỉ được hỏi khi mã không chắc |
 
 **Ba lý do, và lý do thứ ba mới là lý do thật:**
@@ -1192,7 +1192,7 @@ hỏi khác nhau:
 **Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
 nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
 
-**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 563 cụm từ khóa. Khớp được cụm nào thì
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 575 cụm từ khóa. Khớp được cụm nào thì
 lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
 
 **Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
@@ -1200,7 +1200,7 @@ lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** tro
 riêng.
 
 **Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 147 ca trả lời và
-160 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
+163 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
 hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
 các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
 
@@ -1214,7 +1214,7 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | 147 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 59 kịch bản / 160 lượt | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | 60 kịch bản / 163 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1242,7 +1242,7 @@ hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt
 món viết tay** mà là **điều kiện chọn**, ví dụ `{"kind": "list", "forbid": {"tags_any":
 ["allergen:seafood"]}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
 
-**2. Kịch bản phiên — 59 kịch bản / 160 lượt.**
+**2. Kịch bản phiên — 60 kịch bản / 163 lượt.**
 Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
 dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
 được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
@@ -1309,7 +1309,7 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
 làm lộ **17 lỗi** mà tập 147 ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
-mở rộng lên **160 lượt** mới bắt được lớp lỗi đó.
+mở rộng lên **163 lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -1394,7 +1394,7 @@ Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm t
 `fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
 chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
 
-**Bước 2 — Khớp cụm từ vựng.** Một bảng **563 cụm** ánh xạ chữ khách dùng sang nhãn:
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **575 cụm** ánh xạ chữ khách dùng sang nhãn:
 
 ```
 "khong cay | it cay | khong an duoc cay"   -> spice:none
@@ -1433,7 +1433,7 @@ Ghi đè theo **NHÓM** chứ không theo nhãn: `spice:none` phải đẩy `spi
 
 Đây là câu trả lời cho *"cơ chế nào quyết định dùng mã tất định hay truy hồi"*.
 
-Hệ thống có **17 nhánh trả lời**, và chúng **loại trừ
+Hệ thống có **18 nhánh trả lời**, và chúng **loại trừ
 nhau** — một câu hỏi đi đúng một nhánh. Việc chọn nhánh là một **chuỗi điều kiện theo thứ tự ưu tiên**,
 không phải một mô hình phân loại:
 
@@ -1458,7 +1458,7 @@ không phải một mô hình phân loại:
 Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
-**Hệ quả đo được:** trên tập 147 ca và 160 lượt phiên, nhánh truy hồi chạy
+**Hệ quả đo được:** trên tập 147 ca và 163 lượt phiên, nhánh truy hồi chạy
 **0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
 nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
 
@@ -2144,7 +2144,7 @@ Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở c
 | tập | bộ xếp hạng chạy |
 |---|---:|
 | 147 ca trả lời | **0** |
-| 160 lượt phiên | **0** |
+| 163 lượt phiên | **0** |
 | 222 ca truy hồi | 36% |
 
 Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói "truy hồi
@@ -3139,7 +3139,7 @@ python ai/evaluation/run_so_doan.py --csv    # bảng đánh đổi số đoạn
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 147 ca, đường tất định | **147/147** |
-| Bộ nhớ phiên 160 lượt | **160/160**, 0 lỗi an toàn |
+| Bộ nhớ phiên 163 lượt | **163/163**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **60,87%** so với bm25 39,13% |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **86,36%** so với bm25 75,00% |
@@ -3316,7 +3316,7 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | 147/147, và sàn để so là 8/147 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 160/160, **0 lỗi an toàn** |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 163/163, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |

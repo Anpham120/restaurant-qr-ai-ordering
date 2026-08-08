@@ -414,9 +414,25 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
     # Lùi về món thứ nhất của danh sách khi chưa có tiêu điểm — đúng hành vi cũ ở lượt đầu, nên
     # không ca nào tụt. Chuỗi "món thứ hai có cay không?" rồi "món đó bao nhiêu tiền?" nay trả lời
     # về món thứ hai, vì lượt trước đã đặt tiêu điểm vào đó.
+    mo_ho = False
     if request.refers_to_focus and not named:
         if state.last_focus_id:
             named = [state.last_focus_id]
+        elif len(state.last_listed_ids) >= 2 and request.la_xin_mon:
+            # XIN MÓN + tham chiếu mơ hồ + chưa có tiêu điểm -> HỎI LẠI, không đoán.
+            #
+            # Nhánh `elif` dưới lùi về món THỨ NHẤT của danh sách, và với câu HỎI thì đó là hành vi
+            # đúng đã chốt: đoán nhưng nêu tên món đã đoán, để khách sửa được ngay. 12 lượt đánh
+            # giá dựa vào nó ("Món đó bao nhiêu tiền?", "Cái đó có cay không?"), và hỏi lại ở
+            # những câu đó là bước lùi — khách hỏi một câu đơn giản.
+            #
+            # Câu XIN MÓN thì khác: "cho mình món vừa rồi" với bốn món trên màn hình là **ý định
+            # lấy một món cụ thể**, và đoán ở đây nghĩa là chọn hộ khách. Phân loại bằng đúng bộ
+            # dấu hiệu `XIN_MON_RE` đã có — đo trên 13 lượt đang dùng tiêu điểm thì nó tách sạch
+            # 12 câu hỏi khỏi 1 câu xin, không cần luật mới.
+            #
+            # Đòi >= 2 món: danh sách một món thì không có gì mơ hồ để hỏi.
+            mo_ho = True
         elif state.last_listed_ids:
             named = [state.last_listed_ids[0]]
 
@@ -453,6 +469,7 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
         budget_strict=budget_strict,
         wants=wants,
         named_items=named,
+        mo_ho_tieu_diem=mo_ho,
         # Hai cơ chế còn lại của tham chiếu ngược đi qua HAI tập món, không qua nhãn:
         #
         #   scope_item_ids    "món rẻ nhất TRONG SỐ ĐÓ" -> chỉ xét danh sách vừa nêu
@@ -461,7 +478,10 @@ def merge_into_request(request: Request, state: SessionState) -> Request:
         # Đặt ở đây chứ không ở `answer.py` vì cả hai chỉ có nghĩa khi biết bộ nhớ phiên. `answer`
         # nhận chúng như một tập id và không cần biết chúng từ đâu ra.
         scope_item_ids=(
-            list(state.last_listed_ids) if request.scope_last_listed and state.last_listed_ids
+            # Khi tham chiếu MƠ HỒ, phạm vi chính là danh sách đang gây mơ hồ — `answer` cần đúng
+            # tập đó để liệt kê ứng viên kèm số thứ tự trong câu hỏi lại.
+            list(state.last_listed_ids)
+            if (request.scope_last_listed or mo_ho) and state.last_listed_ids
             else []
         ),
         # Loại CẢ tập đã gợi trong phiên, không chỉ lượt cuối.

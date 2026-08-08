@@ -422,6 +422,37 @@ def build() -> dict:
         ],
     })
 
+    # Hỏi tiếp về danh sách vừa nêu — PHẠM VI phải thu về đúng danh sách đó.
+    #
+    # Kịch bản riêng, bắt đầu từ một danh sách chưa bị thu hẹp, để đo đúng một việc: câu hỏi tiếp
+    # nối có ở lại trong danh sách không. Dò 10 cách hỏi sau một lượt nêu 4 món thì 3 cách đi ra
+    # ngoài danh sách, và ca tệ nhất là:
+    #
+    #     "4 món đó có món nào chứa đậu phộng không?"  ->  4 món, nhưng KHÔNG PHẢI 4 món kia
+    #
+    # Đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là bốn món khác. Khách hỏi về DỊ
+    # NGUYÊN trong danh sách vừa xem và nhận câu trả lời về một danh sách khác — sai theo kiểu
+    # không ai kiểm lại, vì nó trông hợp lý.
+    scripts.append({
+        "id": "chained-reference-hoi-tiep-trong-danh-sach",
+        "group": "chained_reference",
+        "why": ("Câu hỏi tiếp nối về danh sách vừa nêu phải ở LẠI trong danh sách đó. Bảng cụm thu "
+                "phạm vi chỉ có bốn cụm, đều đòi chữ 'đó' đứng ngay sau, nên phần lớn cách nói "
+                "thật rơi ra ngoài."),
+        "turns": [
+            {"user": "Gợi ý món không cay giúp mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách."}},
+            {"user": "Trong đó món nào rẻ nhất?",
+             "expect": {"max_items": 1,
+                        "why": ("Cụm `trong do` không có trong bảng, nên câu cực trị chạy trên CẢ "
+                                "thực đơn thay vì trên danh sách vừa nêu.")}},
+            {"user": "Mấy món đó có món nào chay không?",
+             "expect": {"expect_kind": "list",
+                        "why": "Cụm `may mon do` cũng không có trong bảng."}},
+        ],
+    })
+
     # Tham chiếu vị trí VIẾT BẰNG SỐ — lượt khách dùng để trả lời câu hỏi lại của trợ lý.
     #
     # Bảng từ vựng chỉ có dạng CHỮ (`mon thu hai`), còn khách gõ SỐ. Đo được sau khi lượt 1 nêu
@@ -443,10 +474,18 @@ def build() -> dict:
              "expect": {"min_items": 3, "expect_kind": "list",
                         "why": "Lượt nêu danh sách."}},
             {"user": "Cho mình món vừa rồi",
-             "expect": {"max_items": 1,
-                        "why": ("Câu MƠ HỒ với 4 món trên màn hình. Thiết kế đã chốt: đoán nhưng "
-                                "NÊU TÊN món đã đoán, để khách sửa được ngay — đoán im lặng mới "
-                                "là thứ bị cấm.")}},
+             "expect": {"expect_kind": "clarify",
+                        "why": ("Câu MƠ HỒ với 4 món trên màn hình, và là câu XIN MÓN — phải HỎI "
+                                "LẠI kèm số thứ tự, không đoán. "
+                                "Kỳ vọng cũ của ca này là `max_items: 1`, tức chốt hành vi 'đoán "
+                                "món đầu nhưng nêu tên nó'. Hành vi đó vẫn ĐÚNG cho câu HỎI VỀ "
+                                "một món ('Món đó bao nhiêu tiền?') — 12 lượt đánh giá dựa vào "
+                                "nó, và hỏi lại ở đó là bước lùi vì khách chỉ hỏi một câu đơn "
+                                "giản. Nhưng câu XIN thì khác: khách muốn LẤY một món, và đoán ở "
+                                "đây là chọn hộ họ. "
+                                "Phân loại bằng `XIN_MON_RE` đã có sẵn: đo trên 13 lượt đang dùng "
+                                "tiêu điểm thì nó tách sạch 12 câu hỏi khỏi 1 câu xin, không cần "
+                                "luật mới.")}},
             {"user": "món thứ 2",
              "expect": {"max_items": 1,
                         "why": ("Lượt SỬA. Phải trỏ đúng món thứ hai của danh sách, không được "
@@ -477,11 +516,14 @@ def build() -> dict:
                         "why": ("«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` "
                                 "nên câu này từng bị đọc thành *món thứ nhất*.")}},
             {"user": "Cho mình xem lại 3 món vừa rồi",
-             "expect": {"min_items": 3, "max_items": 3, "expect_kind": "list",
-                        "why": ("Cùng lớp lỗi, đường khác: cụm 'vừa rồi' bật `refers_to_focus`, và "
-                                "bước hợp nhất bộ nhớ giải cờ đó thành MỘT món. Đo được: câu này "
-                                "trả về 1 món trong khi 'Tóm tắt 3 món vừa tư vấn' trả đúng 3 — "
-                                "hai cách nói tương đương, hai kết quả khác hẳn.")}},
+             "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
+                        "why": ("HAI món, không phải ba — và đó là câu trả lời ĐÚNG. Lượt trước "
+                                "đã thu danh sách còn 2 món, nên 'vừa rồi' chỉ còn 2 món để lấy. "
+                                "Trước khi cụm này thu phạm vi, nó trả về 3 món lấy từ danh sách "
+                                "GỐC: đúng số nhưng SAI TẬP, tức trả lời về một danh sách khác "
+                                "với danh sách khách đang nói tới. "
+                                "Ca này cũng chốt luôn cờ `refers_to_focus`: cụm 'vừa rồi' từng "
+                                "được giải thành MỘT món, nên câu trả về đúng 1.")}},
             {"user": "Món vừa rồi giá bao nhiêu?",
              "expect": {"max_items": 1,
                         "why": ("CHIỀU NGƯỢC. Không có số lượng thì 'vừa rồi' vẫn phải trỏ MỘT "

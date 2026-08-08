@@ -270,6 +270,46 @@ _LA_CAU_HOI_AN_DUOC = (
 )
 
 
+# PHỦ ĐỊNH đứng trước "ăn được" đảo ngược hoàn toàn nghĩa của câu.
+#
+# Lỗi an toàn nặng nhất tìm được khi rà 20 cách khai dị ứng:
+#
+#     "Mình KHÔNG ăn được hải sản"       ->  ý định `xoa_rang_buoc`, cụm khớp `an duoc hai san`
+#     "Cả nhà KHÔNG AI ăn được hải sản"  ->  như trên
+#
+# Khách nói mình **không** ăn được, hệ thống đọc thành **có** ăn được và **gỡ** ràng buộc dị
+# nguyên. Đây không phải bỏ sót — bỏ sót thì ràng buộc không được ghi; đây là **đảo nghĩa**, tức
+# ràng buộc đang có cũng bị xóa.
+#
+# Và *"Mình không ăn được hải sản"* là một trong những cách khai dị ứng phổ biến nhất.
+#
+# Phủ định phải là ĐÚNG một hoặc hai từ liền ngay trước, không phải "ở đâu đó phía trước".
+#
+# Bản đầu của hàm này dùng cửa sổ 20 ký tự, và nó bắt nhầm ngay:
+#
+#     "bạn nói KHÔNG ĐÚNG, mình ăn được hải sản"
+#         `khong` cách `an duoc hai san` 16 ký tự -> lọt cửa sổ -> chặn nhầm
+#
+# Câu đó là câu KHẲNG ĐỊNH mình ăn được, và chữ "không" thuộc mệnh đề khác. Chặn nó nghĩa là khách
+# nói rõ mình hết kiêng mà hệ thống vẫn giữ ràng buộc — hướng an toàn, nhưng vẫn là hiểu sai.
+#
+# Đếm TỪ thay vì đếm ký tự thì ranh giới mệnh đề tự hiện ra: phủ định của một cụm động từ đứng
+# ngay cạnh nó, không cách hai từ.
+_PHU_DINH_TRUOC = ("khong", "chang", "chua", "chang the", "khong the", "khong ai", "chua bao gio")
+
+
+def _co_phu_dinh_ngay_truoc(folded_padded: str, cum: str) -> bool:
+    """Có từ phủ định đứng NGAY trước cụm `cum` không — xét đúng hai từ liền kề."""
+    vt = folded_padded.find(f" {cum} ")
+    if vt < 0:
+        return False
+    tu = folded_padded[:vt].split()
+    if not tu:
+        return False
+    # "không ăn được" (1 từ) và "không ai ăn được" (2 từ) đều phải bắt.
+    return tu[-1] in _PHU_DINH_TRUOC or " ".join(tu[-2:]) in _PHU_DINH_TRUOC
+
+
 def _la_cau_hoi_chu_khong_phai_khang_dinh(folded_padded: str) -> bool:
     """Câu chứa "ăn được" nhưng đang HỎI, không phải khai mình hết kiêng."""
     return any(f" {c} " in folded_padded for c in _LA_CAU_HOI_AN_DUOC)
@@ -310,6 +350,11 @@ def doc_y_dinh_tu_chuoi_dem(folded_padded: str) -> YDinh:
         if hoi_an_duoc and nhom == "allergen":
             continue
         c = _khop(f, cum)
+        # PHỦ ĐỊNH đứng trước đảo ngược nghĩa: "KHÔNG ăn được hải sản" là câu KHAI dị ứng, không
+        # phải câu gỡ. Chỉ áp cho nhóm dị nguyên — nhóm nới bộ lọc không có cụm nào dạng khẳng
+        # định-về-khả-năng-ăn nên không cần, và áp bừa sẽ chặn cả "bỏ hết điều kiện" hợp lệ.
+        if c and nhom == "allergen" and _co_phu_dinh_ngay_truoc(f, c):
+            continue
         if c and len(c) > tot_nhat[0]:
             tot_nhat = (len(c), c, ten, nhom)
 

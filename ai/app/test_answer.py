@@ -1015,3 +1015,49 @@ class SO_MON_KHACH_XIN(unittest.TestCase):
         """
         r = understand("mình dị ứng hải sản, cho 1 món chính 1 nước 1 tráng miệng", ITEMS)
         self.assertIsNone(r.so_mon_muon)
+
+
+class HOI_LAI_KHI_THAM_CHIEU_MO_HO(unittest.TestCase):
+    """Câu XIN MÓN trỏ "món vừa rồi" khi danh sách có nhiều món — hỏi lại, không đoán.
+
+    Hệ thống vẫn trả lời được bằng cách lùi về món thứ nhất, và với câu HỎI thì đó là hành vi đúng
+    đã chốt: đoán nhưng NÊU TÊN món đã đoán, để khách sửa được ngay. **12 lượt đánh giá** dựa vào
+    nó ("Món đó bao nhiêu tiền?", "Cái đó có cay không?"), và hỏi lại ở đó là bước lùi.
+
+    Câu XIN thì khác: khách muốn LẤY một món, và đoán ở đây là chọn hộ họ.
+
+    Phân loại bằng `XIN_MON_RE` đã có sẵn — đo trên 13 lượt đang dùng tiêu điểm thì nó tách sạch
+    12 câu hỏi khỏi 1 câu xin, nên không cần luật mới.
+    """
+
+    def _sau_danh_sach(self, luot2: str, luot1: str = "Gợi ý 4 món ăn cho mình"):
+        import session as S
+
+        st = S.SessionState.from_payload({})
+        for q in (luot1, luot2):
+            m = S.merge_into_request(understand(q, ITEMS), st)
+            p = respond(m, ITEMS)
+            st = S.update_state(st, m, p.items, p.kind, p.branch)
+        return p
+
+    def test_XIN_MON_mo_ho_thi_hoi_lai_kem_so_thu_tu(self):
+        p = self._sau_danh_sach("Cho mình món vừa rồi")
+        self.assertEqual(p.kind, "clarify")
+        self.assertTrue(p.asks_back)
+        # Câu hỏi lại phải nêu SỐ THỨ TỰ — đó là thứ khách trả lời được bằng một từ, và dạng số
+        # ("món thứ 2") đã được nhận ra. Thiếu nó thì hỏi lại là ngõ cụt.
+        for so in ("1.", "2.", "3.", "4."):
+            self.assertIn(so, p.text)
+
+    def test_HOI_VE_mot_mon_van_doan_va_neu_ten(self):
+        """Chiều ngược — chiều mà nới quy tắc sẽ phá 12 lượt đang xanh."""
+        for cau in ("Món đó bao nhiêu tiền?", "Cái đó có cay không?", "Món vừa rồi làm từ gì?"):
+            with self.subTest(cau=cau):
+                p = self._sau_danh_sach(cau)
+                self.assertNotEqual(p.kind, "clarify", "câu HỎI không được hỏi lại")
+                self.assertEqual(len(p.items), 1)
+
+    def test_danh_sach_MOT_mon_thi_khong_co_gi_mo_ho(self):
+        """Một món thì không có gì để hỏi — đòi >= 2 ứng viên."""
+        p = self._sau_danh_sach("Cho mình món vừa rồi", luot1="Phở bò tái nạm giá bao nhiêu?")
+        self.assertNotEqual(p.kind, "clarify")
