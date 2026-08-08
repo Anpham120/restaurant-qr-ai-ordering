@@ -2741,6 +2741,42 @@ cho qua: các nhánh trả `no_data` và `refuse` thật đều sinh câu **mộ
 đọc đoạn đầu không làm lỏng chúng — kiểm được bằng ba lượt còn lại của chính hội thoại đó,
 cả ba vẫn chấm đúng.
 
+**Hybrid với `bge-m3` — hòa tuyệt đối, và lần này biết được vì sao.** Câu hỏi tự nhiên tiếp
+theo là: bộ nhúng mạnh hơn có làm hybrid đáng dùng lên không? Đo trên cả 148 câu, ghép cặp:
+
+| bộ | Hit@1 | KTC 95% | chiều A | phủ dạng A | phủ dạng B | p50 |
+|---|---:|---|---:|---:|---:|---:|
+| `bm25` | 29,73% | 22,95–37,53% | 26,00% | 48,98% | 14,29% | **0,7 ms** |
+| `bge-m3` dense | **73,65%** | 66,02–80,08% | 58,00% | 81,63% | **81,63%** | 292,2 ms |
+| hybrid RRF | **73,65%** | 66,02–80,08% | 60,00% | **87,76%** | 73,47% | 291,4 ms |
+
+**109/148 ở cả hai — hòa đúng bằng nhau.** McNemar: **18 ca sửa được, 18 ca làm hỏng,
+p = 1,0000.** Khó có kết quả nào sạch hơn thế.
+
+Và tách theo dạng câu thì thấy phép đổi diễn ra ở đâu:
+
+| | hybrid so với dense |
+|---|---|
+| câu dùng **đúng nhãn** trong tài liệu | **+6,13 điểm** (87,76% so với 81,63%) |
+| câu **diễn đạt kiểu khác** | **−8,16 điểm** (73,47% so với 81,63%) |
+
+Tín hiệu từ khóa của BM25 giúp khi khách gõ đúng chữ trong tài liệu, và hại khi khách nói
+kiểu khác. Hai chiều triệt tiêu nhau gần như hoàn hảo.
+
+Điều đáng nói là **cơ chế này đã được ghi trong tài liệu của chính `rag/hybrid.py` từ trước**,
+chứ không phải suy ra sau khi thấy số:
+
+> *RRF bỏ hết thông tin về khoảng cách. […] nên RRF mạnh khi hai bộ truy hồi có thang điểm
+> không so được, và **yếu khi một bộ chắc chắn hơn bộ kia rất nhiều**.*
+
+Ở đây `bge-m3` đạt 73,65% còn BM25 chỉ 29,73% — chênh **43,92 điểm** — mà RRF vẫn cho hai bên
+quyền bỏ phiếu ngang nhau. Đó chính là điều kiện mà tài liệu nói RRF sẽ yếu.
+
+Cộng với hai lần đo trước (`e5-small`: p = 0,2891 rồi p = 0,8238), **hybrid đã được đo ba lần
+với hai mô hình nhúng khác nhau và chưa lần nào cho cải thiện đo được**. Kết luận giữ nguyên:
+dùng dense thuần. Và vì khách thật diễn đạt theo kiểu của họ chứ không gõ tên nhãn, chiều
+hybrid thua (−8,16) mới là chiều hay gặp.
+
 **Bộ XẾP HẠNG LẠI — cách sửa đúng sách vở, và nó không chạy.** Chẩn đoán nói lỗi nằm ở xếp
 hạng, nên công cụ chuẩn cho việc đó là *cross-encoder*: thay vì mã hóa câu hỏi và đoạn văn
 riêng rẽ rồi so vector, nó đọc **cặp** (câu hỏi, đoạn) trong một lượt nên bắt được quan hệ mà
@@ -2760,12 +2796,13 @@ xuống 76,53%. Nó đổi bộ này lấy bộ kia, đúng như phép gộp đi
 Chi phí đóng lại hoàn toàn khả năng dùng: **38.561 ms mỗi câu** trên CPU cho 10 cặp. Ngay cả
 khi nó thắng, con số đó cũng không triển khai được ở một trợ lý đặt món.
 
-Đây là kết quả âm tính thứ **ba** của riêng mục này, và cả ba đều là cách sửa nghe hợp lý:
+Đây là kết quả âm tính thứ **tư** của riêng mục này, và cả bốn đều là cách sửa nghe hợp lý:
 
 | cách thử | kết quả |
 |---|---|
 | gộp điểm theo tài liệu | chiều A +4 đến +8, phủ kho **−8** ở k cao — đổi bộ này lấy bộ kia |
 | ngưỡng thích ứng cho đoạn 2 | hai phân bố **chồng lấn**, không ngưỡng nào tách được |
+| hybrid RRF với `bge-m3` | **hòa tuyệt đối** — 18 sửa được, 18 làm hỏng, p = 1,0000 |
 | xếp hạng lại bằng cross-encoder | **p = 0,8318**, và 38.561 ms mỗi câu |
 
 Cách duy nhất thắng được là cách đơn giản nhất — **trích 2 đoạn thay vì 1** — và nó không
