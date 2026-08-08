@@ -384,6 +384,69 @@ def build() -> dict:
             ],
         })
 
+    # Câu HỎI "ăn được gì" bị đọc thành lời KHAI "tôi ăn được" — và nó XÓA dị nguyên.
+    #
+    # Khác ba kịch bản trên ở chỗ chúng lo chiều "câu hỏi THÊM nhãn vào bộ nhớ"; kịch bản này lo
+    # chiều ngược lại và nặng hơn: câu hỏi **GỠ** nhãn đã có. Đo trên mã trước bản sửa:
+    #
+    #     lượt 1  "Con mình dị ứng hải sản"      ->  avoid = [allergen:seafood]     đúng
+    #     lượt 2  "Bé nhà mình ăn được món gì?"  ->  avoid = []                     XÓA MẤT
+    #     lượt 3  "Cho mình món khai vị"         ->  Gỏi cuốn tôm thịt, Súp măng cua,
+    #                                                Nem rán Hà Nội, Bánh xèo miền Tây
+    #
+    # Cụm `minh an duoc` trong danh sách xóa dị nguyên khớp đoạn "bé nhà MÌNH ĂN ĐƯỢC món gì".
+    # Lỗi im lặng: lượt 2 không mời món nào nên câu trả lời trông vô hại, chỉ lượt 3 mới lộ — nên
+    # nó cần đúng ba lượt, và bộ một lượt không thể bắt được.
+    scripts.append({
+        "id": "question-not-declaration-di-ung-tre-em",
+        "group": "question_not_declaration",
+        "why": ("Câu HỎI 'ăn được gì' bị đọc thành lời KHAI hết dị ứng và XÓA nhãn khỏi bộ nhớ. "
+                "Trước bản sửa, lượt 3 mời bốn món hải sản cho phụ huynh vừa khai con dị ứng."),
+        "turns": [
+            {"user": "Con mình dị ứng hải sản",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "Lượt khai. Phải vào bộ nhớ ngay."}},
+            {"user": "Bé nhà mình ăn được món gì?",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": ("Câu HỎI, không phải lời khai hết dị ứng. Kiểm BỘ NHỚ chứ không "
+                                "chỉ kiểm câu trả lời: lượt này không mời món nào nên câu trả "
+                                "lời trông vô hại kể cả khi ràng buộc đã mất.")}},
+            {"user": "Cho mình món khai vị",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "min_items": 1,
+                        "why": ("Lượt LỘ LỖI: bốn món khai vị mang nhãn hải sản, nên mất ràng "
+                                "buộc là khách nhận đúng thứ vừa nói không ăn được.")}},
+        ],
+    })
+
+    # Tham chiếu ngược có SỐ LƯỢNG — phạm vi đúng nhưng con số bị bỏ.
+    #
+    # `LIST_SIZE = 6` là hằng số, và con số trong câu chỉ dùng để bật một cờ. Sau khi lượt 1 nêu
+    # 6 món: xin 3 món nhận 6, xin 4 món nhận 6, xin "2 món đầu" nhận **1** (cụm `mon dau` trỏ
+    # *món thứ nhất*). Không phải trả lời sai, nhưng là KHÔNG NGHE.
+    scripts.append({
+        "id": "chained-reference-so-mon",
+        "group": "chained_reference",
+        "why": ("Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước; chỉ con số bị bỏ "
+                "vì cỡ danh sách là hằng số."),
+        "turns": [
+            {"user": "Gợi ý món không cay giúp mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách. Các lượt sau tham chiếu vào đây."}},
+            {"user": "Liệt kê 3 món vừa tư vấn bên trên",
+             "expect": {"min_items": 3, "max_items": 3, "expect_kind": "list",
+                        "why": ("Xin ĐÚNG 3. Kiểm cả cận trên lẫn cận dưới — chỉ kiểm `min_items` "
+                                "thì trả về 6 vẫn qua.")}},
+            {"user": "Liệt kê cho tôi 2 món đầu vừa tư vấn",
+             "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
+                        "why": ("«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` "
+                                "nên câu này từng bị đọc thành *món thứ nhất*.")}},
+        ],
+    })
+
     # --- Nhóm `extreme_scope`: câu cực trị phải nói ra PHẠM VI của nó -------------------
     #
     # Cả nhóm sinh ra từ một lỗi đo được khi CHẠY THẬT qua backend và mô hình: câu "Món đắt nhất
