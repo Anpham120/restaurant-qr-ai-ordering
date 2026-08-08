@@ -1053,6 +1053,35 @@
       ]
     },
     {
+      "id": "context-reference-vi-tri-viet-so",
+      "group": "context_reference",
+      "why": "Tham chiếu vị trí viết bằng SỐ. Trợ lý đoán món đầu và NÊU TÊN nó, nên khách sửa bằng cách chỉ số thứ tự — đó là đường sửa duy nhất, và nó từng hỏng.",
+      "turns": [
+        {
+          "user": "Gợi ý 4 món ăn cho mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Cho mình món vừa rồi",
+          "expect": {
+            "max_items": 1,
+            "why": "Câu MƠ HỒ với 4 món trên màn hình. Thiết kế đã chốt: đoán nhưng NÊU TÊN món đã đoán, để khách sửa được ngay — đoán im lặng mới là thứ bị cấm."
+          }
+        },
+        {
+          "user": "món thứ 2",
+          "expect": {
+            "max_items": 1,
+            "why": "Lượt SỬA. Phải trỏ đúng món thứ hai của danh sách, không được trả về cả bảng."
+          }
+        }
+      ]
+    },
+    {
       "id": "chained-reference-so-mon",
       "group": "chained_reference",
       "why": "Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước; chỉ con số bị bỏ vì cỡ danh sách là hằng số.",
