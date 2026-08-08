@@ -237,11 +237,11 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 563 cụm từ vựng và 91 tên món: **83 cụm bị chứa trong cụm khác**, **47 cụm nằm
-    trong tên món**, và hợp lại là **103 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 575 cụm từ vựng và 91 tên món: **86 cụm bị chứa trong cụm khác**, **47 cụm nằm
+    trong tên món**, và hợp lại là **106 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả các chỗ đó.
 
-    Đợt tăng gần nhất (+41 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
+    Đợt tăng gần nhất (+53 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
     48/85 nhãn không rút ra được từ tên tiếng Việt của nó. Bốn cụm mới có nguy cơ, và cả bốn đều
     vô hại vì lý do KHÁC NHAU — nên chúng minh họa được cả hai lớp bảo vệ:
 
@@ -273,7 +273,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 563, "trong_cum_khac": 83, "trong_ten_mon": 47, "co_rui_ro": 103},
+            {"tu_vung": 575, "trong_cum_khac": 86, "trong_ten_mon": 47, "co_rui_ro": 106},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -1048,3 +1048,63 @@ class ThamChieuViTriVietBangSo(unittest.TestCase):
                     "Đi 4 người ăn gì"):
             with self.subTest(cau=cau):
                 self.assertIsNone(ask(cau).reference_index)
+
+
+class KHAI_DI_UNG_BA_DUONG_HONG(unittest.TestCase):
+    """Rà 20 cách khai dị ứng hải sản: chỉ **7/20 = 35,00%** được nhận ra.
+
+    Con số đó đánh thẳng vào câu mạnh nhất của báo cáo. "0 lỗi an toàn" ĐÚNG trên bộ đánh giá và
+    SAI với khách thật, vì bộ đo và hệ thống **cùng một tác giả, cùng một vốn từ**.
+
+    Ba đường hỏng, và hai trong ba là ĐẢO NGHĨA chứ không phải bỏ sót — bỏ sót thì ràng buộc không
+    được ghi, còn đảo nghĩa thì ràng buộc **đang có cũng bị xóa**.
+    """
+
+    def test_duong_1_thieu_cum(self):
+        """Khai bằng HẬU QUẢ hoặc bằng MỆNH LỆNH, không dùng chữ "dị ứng"."""
+        for cau in ("Ăn hải sản là tôi phải đi cấp cứu",
+                    "Tuyệt đối không được có hải sản nhé",
+                    "Mình mà ăn tôm là nổi mề đay",
+                    "Xin đừng cho hải sản vào",
+                    "Loại hết hải sản giúp mình"):
+            with self.subTest(cau=cau):
+                self.assertIn("allergen:seafood", ask(cau).avoid_tags)
+
+    def test_duong_2_dao_nghia_o_lop_Y_DINH(self):
+        """"KHÔNG ăn được hải sản" khớp `an duoc hai san` của danh sách XÓA dị nguyên.
+
+        Khách nói mình **không** ăn được, hệ thống đọc thành **có** và gỡ ràng buộc.
+        """
+        for cau in ("Mình không ăn được hải sản", "Cả nhà không ai ăn được hải sản"):
+            with self.subTest(cau=cau):
+                r = ask(cau)
+                self.assertIn("allergen:seafood", r.avoid_tags)
+                self.assertNotEqual(r.y_dinh, "xoa_rang_buoc")
+
+    def test_duong_3_dao_nghia_o_KHUNG_PHU_NHAN(self):
+        """"KHÔNG ĐỤNG được" rút dấu thành `khong dung`, trùng "không ĐÚNG".
+
+        Khung phủ nhận đọc câu khai dị ứng thành "bạn nói không đúng" rồi gỡ ràng buộc.
+        """
+        self.assertIn("allergen:seafood", ask("Hải sản là mình không đụng được").avoid_tags)
+
+    def test_chieu_nguoc_phu_nhan_THAT_van_go_duoc(self):
+        """Ba hàng rào trên không được chặn câu gỡ thật — khách hết kiêng phải gỡ được.
+
+        Ca thứ hai là ca bản đầu của hàng rào phủ định làm hỏng: cửa sổ 20 ký tự bắt cả chữ
+        "không" của mệnh đề khác. Đếm TỪ thay vì đếm ký tự thì ranh giới mệnh đề tự hiện ra.
+        """
+        for cau in ("mình đâu có dị ứng hải sản",
+                    "bạn nói không đúng, mình ăn được hải sản",
+                    "tôi ăn được hải sản hãy tư vấn hải sản cho tôi",
+                    "Mình hết dị ứng rồi"):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).y_dinh, "xoa_rang_buoc")
+
+    def test_GIOI_HAN_da_biet_khong_giau(self):
+        """Hai cụm BỊ BỎ dù phép đo trên 849 câu nói an toàn — vì hình dạng đụng chữ.
+
+        `cu` ("cữ") trùng "cũ", "củ", "cụ"; `khong dinh` ("không dính") trùng "không định". Phép đo
+        im lặng KHÔNG đủ để kết luận an toàn khi tập chưa có câu nào dạng ấy.
+        """
+        self.assertNotIn("allergen:seafood", ask("Mình cữ hải sản").avoid_tags)

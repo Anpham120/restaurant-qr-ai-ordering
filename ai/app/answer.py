@@ -1474,6 +1474,32 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
             branch="clarify",
         )
 
+    # THAM CHIẾU NGƯỢC MƠ HỒ trong câu XIN MÓN — hỏi lại thay vì chọn hộ khách.
+    #
+    # "Cho mình món vừa rồi" với bốn món trên màn hình không trỏ vào món nào cả. Hệ thống vẫn trả
+    # lời được bằng cách lùi về món thứ nhất, và với câu HỎI thì đó là hành vi đúng đã chốt — đoán
+    # nhưng nêu tên món đã đoán. Với câu XIN thì khác: khách đang muốn LẤY một món, và đoán ở đây
+    # là chọn hộ họ.
+    #
+    # Câu hỏi lại nêu ĐÚNG danh sách kèm số thứ tự, vì đó là thứ khách trả lời được bằng một từ
+    # ("món thứ 2") — và dạng số đó vừa được nhận ra ở bản trước. Không có nó thì hỏi lại là ngõ
+    # cụt: khách trả lời mà hệ thống không hiểu.
+    #
+    # Đặt TRƯỚC nhánh combo và nhánh lọc vì nó thay hẳn hình dạng câu trả lời.
+    if request.mo_ho_tieu_diem and request.scope_item_ids:
+        _ten = {m["id"]: m for m in items}
+        _ds = [_ten[i] for i in request.scope_item_ids if i in _ten]
+        if len(_ds) >= 2:
+            _dong = "\n".join(f"{n}. {phrase(m)}" for n, m in enumerate(_ds, 1))
+            return Reply(
+                text=("Bạn muốn món nào trong số này ạ? Bạn nhắn số thứ tự giúp mình nhé.\n"
+                      + _dong),
+                kind="clarify",
+                asks_back=True,
+                items=[m["id"] for m in _ds],
+                branch="clarify_tham_chieu_mo_ho",
+            )
+
     # COMBO — khách xin một BỘ món, mỗi loại một suất. Đặt TRƯỚC nhánh lọc phẳng vì nó thay hẳn
     # hình dạng câu trả lời: không phải "6 món để bạn chọn" mà "đây là bộ của bạn, tổng bấy nhiêu".
     if request.combo:

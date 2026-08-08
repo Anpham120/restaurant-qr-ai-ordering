@@ -202,7 +202,7 @@ python -m unittest test_chunker            # trong ai/app
 *Câu khách vừa gõ nêu ra những ràng buộc gì, và cái gì hệ thống KHÔNG hiểu?*
 
 ### Kiến thức phải nắm
-- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **103 cụm có nguy cơ** (83 bị
+- **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **106 cụm có nguy cơ** (86 bị
   chứa trong cụm khác, 47 nằm trong tên món, 27 thuộc cả hai). Số này do
   `test_understand.collision_census()` tính, và **có test chốt giá trị** — nên nó không lệch âm
   thầm được. Nhưng dòng bạn đang đọc thì **viết tay**: bản trước ghi 89/70/40/21 và tự nhận là

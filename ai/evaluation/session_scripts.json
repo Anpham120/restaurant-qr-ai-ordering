@@ -1053,6 +1053,35 @@
       ]
     },
     {
+      "id": "chained-reference-hoi-tiep-trong-danh-sach",
+      "group": "chained_reference",
+      "why": "Câu hỏi tiếp nối về danh sách vừa nêu phải ở LẠI trong danh sách đó. Bảng cụm thu phạm vi chỉ có bốn cụm, đều đòi chữ 'đó' đứng ngay sau, nên phần lớn cách nói thật rơi ra ngoài.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Trong đó món nào rẻ nhất?",
+          "expect": {
+            "max_items": 1,
+            "why": "Cụm `trong do` không có trong bảng, nên câu cực trị chạy trên CẢ thực đơn thay vì trên danh sách vừa nêu."
+          }
+        },
+        {
+          "user": "Mấy món đó có món nào chay không?",
+          "expect": {
+            "expect_kind": "list",
+            "why": "Cụm `may mon do` cũng không có trong bảng."
+          }
+        }
+      ]
+    },
+    {
       "id": "context-reference-vi-tri-viet-so",
       "group": "context_reference",
       "why": "Tham chiếu vị trí viết bằng SỐ. Trợ lý đoán món đầu và NÊU TÊN nó, nên khách sửa bằng cách chỉ số thứ tự — đó là đường sửa duy nhất, và nó từng hỏng.",
@@ -1068,8 +1097,8 @@
         {
           "user": "Cho mình món vừa rồi",
           "expect": {
-            "max_items": 1,
-            "why": "Câu MƠ HỒ với 4 món trên màn hình. Thiết kế đã chốt: đoán nhưng NÊU TÊN món đã đoán, để khách sửa được ngay — đoán im lặng mới là thứ bị cấm."
+            "expect_kind": "clarify",
+            "why": "Câu MƠ HỒ với 4 món trên màn hình, và là câu XIN MÓN — phải HỎI LẠI kèm số thứ tự, không đoán. Kỳ vọng cũ của ca này là `max_items: 1`, tức chốt hành vi 'đoán món đầu nhưng nêu tên nó'. Hành vi đó vẫn ĐÚNG cho câu HỎI VỀ một món ('Món đó bao nhiêu tiền?') — 12 lượt đánh giá dựa vào nó, và hỏi lại ở đó là bước lùi vì khách chỉ hỏi một câu đơn giản. Nhưng câu XIN thì khác: khách muốn LẤY một món, và đoán ở đây là chọn hộ họ. Phân loại bằng `XIN_MON_RE` đã có sẵn: đo trên 13 lượt đang dùng tiêu điểm thì nó tách sạch 12 câu hỏi khỏi 1 câu xin, không cần luật mới."
           }
         },
         {
@@ -1115,10 +1144,10 @@
         {
           "user": "Cho mình xem lại 3 món vừa rồi",
           "expect": {
-            "min_items": 3,
-            "max_items": 3,
+            "min_items": 2,
+            "max_items": 2,
             "expect_kind": "list",
-            "why": "Cùng lớp lỗi, đường khác: cụm 'vừa rồi' bật `refers_to_focus`, và bước hợp nhất bộ nhớ giải cờ đó thành MỘT món. Đo được: câu này trả về 1 món trong khi 'Tóm tắt 3 món vừa tư vấn' trả đúng 3 — hai cách nói tương đương, hai kết quả khác hẳn."
+            "why": "HAI món, không phải ba — và đó là câu trả lời ĐÚNG. Lượt trước đã thu danh sách còn 2 món, nên 'vừa rồi' chỉ còn 2 món để lấy. Trước khi cụm này thu phạm vi, nó trả về 3 món lấy từ danh sách GỐC: đúng số nhưng SAI TẬP, tức trả lời về một danh sách khác với danh sách khách đang nói tới. Ca này cũng chốt luôn cờ `refers_to_focus`: cụm 'vừa rồi' từng được giải thành MỘT món, nên câu trả về đúng 1."
           }
         },
         {
