@@ -2160,6 +2160,83 @@
         "kind": "refuse",
         "why": "Câu tính toán. Ca này tồn tại vì cách nhận diện đầu tiên SAI LOẠI: cụm từ khóa \"cong bang may\" khớp \"2 cộng bằng mấy?\" mà không khớp \"2 cộng 2 bằng mấy?\" — có con số ở giữa. Phép thử cục bộ dùng câu không số nên nó xanh; phép thử qua backend dùng câu có số nên nó đỏ. Nay nhận bằng mẫu \"số - phép tính - số\", và ca dùng đúng dạng câu đã trượt."
       }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-01",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có bao nhiêu món cho trẻ em?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "children",
+        "why": "Tài liệu ĐẾM: 43 món hợp trẻ em, 29 món người lớn tuổi, 68 món không cay. Trước bản này câu hỏi rơi vào `menu_size` — khách hỏi về trẻ em, nhận con số của TOÀN thực đơn."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-02",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Số điện thoại nhà hàng là gì?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "contact",
+        "why": "Dữ liệu liên hệ phải trả nguyên văn, không diễn đạt lại — một chữ số lệch là sai sự thật."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-03",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Nhà hàng ở đâu?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "location",
+        "why": "Địa chỉ, cùng lý do với liên hệ."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-04",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Khoảng giá của nhà hàng thế nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "price_range",
+        "why": "Hỏi DẢI giá của cả thực đơn, khác hẳn hỏi giá một món — đáp án là 12.000đ–890.000đ chứ không phải một danh sách."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-05",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có chỗ hút thuốc không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "smoking",
+        "why": "Câu hỏi về CƠ SỞ, không về món. Nhánh lọc trả danh sách món ở đây là sai loại đáp án."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-06",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Món nào mang về được?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "takeaway_items",
+        "why": "Tài liệu nêu chính sách mang về; danh sách món mang về được nằm trong đó."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-07",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có bao nhiêu món chay?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "vegetarian",
+        "why": "Hỏi SỐ LƯỢNG, không xin danh sách. `bao nhieu mon chay` phải thắng `bao nhieu mon` nhờ khớp cụm dài — cùng cơ chế mà `children` vừa được bổ sung."
+      }
     }
   ]
 }

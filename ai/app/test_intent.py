@@ -292,3 +292,43 @@ class CumYDinhPhaiAnCHU(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class HoiAnDuocGiKHONGphaiKhaiHetDiUng(unittest.TestCase):
+    """Câu HỎI "ăn được gì" bị đọc thành câu KHẲNG ĐỊNH "tôi ăn được" và xóa dị nguyên.
+
+    Đo trên mã trước bản sửa, ba lượt liên tiếp:
+
+        lượt 1  "Con mình dị ứng hải sản"      ->  avoid = [allergen:seafood]     đúng
+        lượt 2  "Bé nhà mình ăn được món gì?"  ->  avoid = []                     XÓA MẤT
+        lượt 3  "Cho mình món khai vị"         ->  Gỏi cuốn tôm thịt, Súp măng cua,
+                                                   Nem rán Hà Nội, Bánh xèo miền Tây
+
+    Bốn món hải sản mời cho phụ huynh vừa khai con dị ứng hải sản. Cụm `minh an duoc` khớp đoạn
+    "bé nhà **mình ăn được** món gì" — cùng chuỗi chữ với câu khai hết dị ứng, nghĩa ngược nhau.
+
+    Lỗi im lặng ở chỗ **lượt 2 không mời món nào**, nên không có dấu hiệu gì; chỉ lượt 3 mới lộ.
+    Đó là lý do chốt an toàn nằm ở bộ đa lượt, và ca ở đây chỉ chốt phần ý định.
+    """
+
+    def test_cau_HOI_khong_xoa_di_nguyen(self):
+        for cau in ("Bé nhà mình ăn được món gì?",
+                    "Con mình ăn được những món nào?",
+                    "Mình ăn được gì ở đây?",
+                    "Bé ăn được bao nhiêu món?"):
+            with self.subTest(cau=cau):
+                y = doc_y_dinh_tat_dinh(cau)
+                self.assertNotEqual(y.ten, XOA_RANG_BUOC, "câu HỎI không được xóa ràng buộc")
+
+    def test_cau_KHANG_DINH_van_xoa_duoc(self):
+        """Chiều ngược — chiều mà hàng rào quá rộng sẽ phá.
+
+        Khách thật sự hết kiêng thì phải gỡ được, nếu không họ mắc kẹt: giao của "phải là hải sản"
+        và "không được là hải sản" ra rỗng và không có đường nào thoát.
+        """
+        for cau in ("tôi ăn được hải sản hãy tư vấn hải sản cho tôi",
+                    "Mình hết dị ứng rồi",
+                    "mình ăn được bình thường",
+                    "giờ ăn được rồi"):
+            with self.subTest(cau=cau):
+                self.assertEqual(doc_y_dinh_tat_dinh(cau).ten, XOA_RANG_BUOC)

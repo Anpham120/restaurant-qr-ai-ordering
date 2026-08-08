@@ -1832,6 +1832,83 @@
           }
         }
       ]
+    },
+    {
+      "id": "question-not-declaration-di-ung-tre-em",
+      "group": "question_not_declaration",
+      "why": "Câu HỎI 'ăn được gì' bị đọc thành câu KHẲNG ĐỊNH 'tôi ăn được' và XÓA dị nguyên khỏi bộ nhớ. Đo trên mã đã commit: lượt 3 mời Gỏi cuốn tôm thịt, Súp măng cua, Nem rán Hà Nội, Bánh xèo miền Tây cho phụ huynh vừa khai con dị ứng hải sản. Đây là lỗi an toàn nặng nhất tìm được khi rà độ phủ bộ đánh giá, và nó im lặng: lượt 2 không mời món nào nên không có dấu hiệu gì, chỉ lượt 3 mới lộ. Kịch bản một lượt không thể bắt được lớp lỗi này.",
+      "turns": [
+        {
+          "user": "Con mình dị ứng hải sản",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai. Phải vào bộ nhớ ngay."
+          }
+        },
+        {
+          "user": "Bé nhà mình ăn được món gì?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Câu HỎI, không phải câu khai hết dị ứng. Cụm `minh an duoc` nằm trong 'bé nhà MÌNH ĂN ĐƯỢC món gì' — cùng chuỗi chữ, nghĩa ngược nhau. Kiểm BỘ NHỚ chứ không chỉ kiểm câu trả lời: lượt này không mời món nào nên câu trả lời trông vô hại kể cả khi bộ nhớ đã mất ràng buộc."
+          }
+        },
+        {
+          "user": "Cho mình món khai vị",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "min_items": 1,
+            "why": "Lượt LỘ LỖI. Bốn món khai vị mang nhãn hải sản, nên bộ nhớ mất ràng buộc là khách nhận đúng thứ mình vừa nói không ăn được."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-so-mon",
+      "group": "chained_reference",
+      "why": "Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước, nhưng con số bị bỏ: `LIST_SIZE = 6` cố định nên xin 2 món, 3 món hay 4 món đều nhận về 6. Không phải trả lời sai, nhưng là KHÔNG NGHE — khách nói lại lần nữa cũng vẫn thế.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách. Các lượt sau tham chiếu vào đây."
+          }
+        },
+        {
+          "user": "Liệt kê 3 món vừa tư vấn bên trên",
+          "expect": {
+            "min_items": 3,
+            "max_items": 3,
+            "expect_kind": "list",
+            "why": "Xin ĐÚNG 3. Kiểm cả cận trên lẫn cận dưới — chỉ kiểm `min_items` thì trả về 6 vẫn qua."
+          }
+        },
+        {
+          "user": "Liệt kê cho tôi 2 món đầu vừa tư vấn",
+          "expect": {
+            "min_items": 2,
+            "max_items": 2,
+            "expect_kind": "list",
+            "why": "«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` nên câu này từng bị đọc thành *món thứ nhất* và trả về đúng một món."
+          }
+        }
+      ]
     }
   ]
 }

@@ -1655,7 +1655,12 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                     da_co.add(i["id"])
         picked = xen + [i for i in picked if i["id"] not in da_co]
 
-    shown = picked[:LIST_SIZE]
+    # Khách nêu SỐ MÓN thì nghe theo, không thì dùng cỡ mặc định.
+    #
+    # `request.so_mon_muon` chỉ được đặt khi câu có ĐÚNG MỘT cụm "<số> món" — câu combo có nhiều
+    # cụm và đi nhánh khác. Xem chỗ đặt cờ trong `understand.py` cho ba ca đo được.
+    _cỡ = request.so_mon_muon or LIST_SIZE
+    shown = picked[:_cỡ]
     lead = "Mời bạn tham khảo" if not request.avoid_tags else \
         "Thực đơn không ghi nhận thành phần bạn cần tránh ở những món này"
     # Danh sách xuống dòng, phần chữ đứng riêng — xem `listing()`.

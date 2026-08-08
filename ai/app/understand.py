@@ -153,6 +153,8 @@ class Request:
     # vẫn trả lời sai dạng, chỉ khác là danh sách dài hơn.
     hoi_ve_su_viec: bool = False
     asks_suggestion: bool = False
+    # Số món khách xin, khi họ nêu rõ ("cho mình 2 món"). None nghĩa là để hệ thống tự chọn.
+    so_mon_muon: int | None = None
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
     asks_difference: bool = False
@@ -890,7 +892,25 @@ _add("mon nao can dat truoc|dat truoc bao lau|co mon nao lau khong", "policy", "
 _add("mon nao mang di duoc|mon nao mang ve duoc", "policy", "takeaway_items")
 _add("co may muc cay|muc cay the nao|chia may muc cay|do cay tinh the nao", "policy", "spice_levels")
 _add("co bao nhieu mon chay|bao nhieu mon chay|menu chay co may mon", "policy", "vegetarian")
-_add("co menu tre em|menu cho tre em|phan an tre em", "policy", "children")
+# `children` là tài liệu ĐẾM — "43 món phù hợp trẻ em, 29 món người lớn tuổi, 68 món không cay".
+#
+# Ba cụm đầu đều đòi chữ "menu" hoặc "phần ăn", nên cách hỏi thường ngày nhất rơi ra ngoài:
+#
+#     "Quán có bao nhiêu món cho trẻ em?"  ->  policy:menu_size   (tài liệu ĐẾM CẢ THỰC ĐƠN)
+#     "Trẻ em ăn được bao nhiêu món?"      ->  policy:menu_size
+#
+# `bao nhieu mon` khớp và thắng vì không cụm nào của `children` khớp cả. Khách hỏi về trẻ em và
+# nhận về con số của toàn thực đơn — sai tài liệu, và sai theo kiểu nghe vẫn trôi.
+#
+# Đây là hố mà kiểm kê độ phủ bộ đánh giá tìm ra: tài liệu có trong kho, có cụm từ vựng, mà **không
+# câu hỏi tự nhiên nào tới được nó**. Nhóm `vegetarian` không dính vì nó đã có `bao nhieu mon chay`
+# — cụm DÀI HƠN nên thắng `bao nhieu mon`. Bản sửa dưới đây làm đúng điều đó cho `children`.
+#
+# Chỉ nhận cụm báo hiệu câu ĐẾM. KHÔNG có `mon cho tre em` trần: "cho mình món cho trẻ em" là câu
+# XIN MÓN, và đáp án đúng của nó là danh sách món chứ không phải một con số.
+_add("co menu tre em|menu cho tre em|phan an tre em|"
+     "bao nhieu mon cho tre em|bao nhieu mon tre em|tre em an duoc bao nhieu",
+     "policy", "children")
 _add("bao nhieu calo|calo|natri|dinh duong|bao nhieu duong", "policy", "nutrition")
 # Cách nói bằng ĐƠN VỊ. Golden bắt được: "Phở bò tái nạm có mấy gam đường?" rơi vào nhánh
 # dữ kiện món và trả về giá cùng độ cay — không trả lời câu hỏi, và còn sinh thẻ giỏ.
@@ -1850,6 +1870,45 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):
         request.asks_suggestion = True
+
+    # SỐ MÓN KHÁCH XIN — nhận con số, không chỉ nhận rằng "có một con số".
+    #
+    # Trước bản này hệ thống chỉ bật cờ `asks_suggestion` rồi vẫn trả về đúng `LIST_SIZE = 6` món.
+    # Đo trên ba lượt liên tiếp:
+    #
+    #     "Liệt kê cho tôi 2 món đầu vừa tư vấn"   ->  6 món
+    #     "Liệt kê 3 món vừa tư vấn bên trên"      ->  6 món
+    #     "Cho mình 4 món vừa tư vấn ở trên"       ->  6 món
+    #
+    # Phạm vi tham chiếu ngược thì ĐÚNG — cả ba lượt trả về đúng danh sách đã nêu, đúng thứ tự.
+    # Chỉ con số bị bỏ. Khách xin hai món và nhận sáu món thì đó không phải trả lời sai, nhưng nó
+    # là không nghe — và khách nói lại lần nữa cũng vẫn thế.
+    #
+    # HAI ĐIỀU KIỆN, và điều kiện thứ hai là bản sửa của một hồi quy mà chính bước này sẽ gây ra:
+    #
+    #   đúng MỘT cụm     nhiều cụm số là câu ghép, không phải một yêu cầu về số lượng
+    #   KHÔNG combo      "1 món chính 1 nước 1 tráng miệng" chỉ có MỘT cụm khớp `<số> món` (hai
+    #                    cụm kia không mang chữ "món"), nên đếm cụm một mình KHÔNG đủ. Nhánh combo
+    #                    chạy trước nhánh lọc phẳng nên nó không bị cắt trên thực tế — nhưng để cờ
+    #                    mang giá trị sai là để lại một quả mìn cho lần sửa sau.
+    #   trong 1..12      thước đo chặn ở 12 món; số ngoài dải là gõ nhầm chứ không phải yêu cầu
+    so = re.findall(r"(\d+)\s*mon\b", request.folded)
+    if len(so) == 1 and 1 <= int(so[0]) <= 12 and not doc_suat_combo(request.folded):
+        request.so_mon_muon = int(so[0])
+        request.matched.append(f"số món khách xin: {so[0]}")
+
+    # "<số> MÓN ĐẦU" là một LÁT CẮT, không phải một món.
+    #
+    # Cụm `mon dau` trỏ `reference_index = 1` ("món đầu tiên"), nên "2 món đầu vừa tư vấn" bị đọc
+    # thành *món thứ nhất* và trả về đúng MỘT món — đo được:
+    #
+    #     "Liệt kê cho tôi 2 món đầu vừa tư vấn"  ->  item_detail, 1 món
+    #
+    # Hai cách nói chồng chữ mà khác hẳn nghĩa: "món đầu" là một món, "2 món đầu" là hai món. Con
+    # số đứng trước là dấu hiệu phân biệt, và nó không mơ hồ.
+    if request.so_mon_muon and re.search(r"\d+\s*mon dau\b", request.folded):
+        request.reference_index = None
+        request.matched.append("«<số> món đầu» là lát cắt, không phải món thứ nhất")
 
     # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
     #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.

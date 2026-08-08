@@ -87,6 +87,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
   - 4.10 So sánh công bằng, quyết định kiến trúc, trần thật của truy hồi, và đổi mô hình nhúng
+  - 4.11 Độ phủ của bộ đánh giá, và ba lỗi phép rà tìm ra
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần
@@ -193,8 +194,8 @@ thẻ giỏ → giỏ hàng.
 |---|---:|---|
 | Golden đầu-cuối, đường sinh TẮT (mặc định) | 103 lượt | **103/103** |
 | Golden đầu-cuối, đường sinh BẬT | 103 lượt | **103/103** |
-| Tập ca trả lời một lượt | 140 ca | **140/140** |
-| Bộ nhớ phiên nhiều lượt | 149 lượt | **149/149**, 0 lỗi an toàn |
+| Tập ca trả lời một lượt | 147 ca | **147/147** |
+| Bộ nhớ phiên nhiều lượt | 155 lượt | **155/155**, 0 lỗi an toàn |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76 |
 
 ## Hạn chế
@@ -325,7 +326,7 @@ TV4  PHIÊN & TÍCH HỢP
       |   -> câu trả lời đã ghép ngữ cảnh, gửi qua backend
       v
 TV5  ĐÁNH GIÁ
-          140 ca · 149 lượt phiên · 103 lượt golden
+          147 ca · 155 lượt phiên · 103 lượt golden
           100 câu hai chiều · 17 cổng CI
 ```
 
@@ -355,7 +356,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 2. Từ điển **85 nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
 3. Kho tri thức **109 tài liệu / 452 đoạn** (85 `synthesize`, 24 `verbatim`)
 4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
-5. Từ vựng tất định **560 cụm**, khớp trên chuỗi đã rút dấu
+5. Từ vựng tất định **563 cụm**, khớp trên chuỗi đã rút dấu
 6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
 
 > **Nghiệm thu:** hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**;
@@ -394,13 +395,13 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **140 ca trả lời**, **149 lượt phiên**, **222 ca truy hồi**, **168 ca chọn mục**
+1. Bốn tập: **147 ca trả lời**, **155 lượt phiên**, **222 ca truy hồi**, **168 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
 5. **17 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
 
-> **Nghiệm thu:** 140/140 ca; 149/149 lượt phiên;
+> **Nghiệm thu:** 147/147 ca; 155/155 lượt phiên;
 > 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
 > khớp cấu hình đang bật.
 
@@ -433,17 +434,17 @@ lời nhắc mô hình?**
 
 ## 1.2 Ba loại câu hỏi, và vì sao phân loại chúng là quyết định kiến trúc
 
-Tập đánh giá 140 ca được gán nhãn theo ba loại, và tỷ lệ của chúng quyết định kiến trúc:
+Tập đánh giá 147 ca được gán nhãn theo ba loại, và tỷ lệ của chúng quyết định kiến trúc:
 
 | Loại | Số ca | Bản chất | Mô hình sinh |
 |---|---:|---|---|
 | A | 56 | tra cứu thực đơn — giá, thành phần, khẩu phần | **cấm** |
-| B | 45 | tri thức nhà hàng — chính sách, cách gọi món, vùng miền | **cấm** |
+| B | 52 | tri thức nhà hàng — chính sách, cách gọi món, vùng miền | **cấm** |
 | C | 39 | suy luận và diễn đạt — nhiều ràng buộc, so sánh | **được** |
 
 Loại A cấm sinh vì có đáp án xác định: một mô hình viết lại nó chỉ thêm cơ hội sai. Loại B cấm sinh vì
 nội dung là **chữ của người viết tài liệu**, và một chữ số lệch trong câu chính sách là sai sự thật về
-nhà hàng. Chỉ loại C — **39/140 ca** — là chỗ mô hình có việc thật.
+nhà hàng. Chỉ loại C — **39/147 ca** — là chỗ mô hình có việc thật.
 
 Phân loại này không phải nhãn cho vui: nó thành **danh sách trắng nhánh được phép sinh** trong mã, nên
 mô hình *không có đường* ghi chữ cho khách ở loại A và B. Đó là khác biệt giữa "bảo mô hình đừng làm"
@@ -905,7 +906,7 @@ chứ không nới hàng rào xuống mức nguyên liệu.
 | | |
 |---|---|
 | **Phương án đã bỏ** | để mô hình đọc câu và tự sinh nhãn lọc |
-| **Nghe hợp lý vì** | 560 cụm từ vựng viết tay là rất nhiều công |
+| **Nghe hợp lý vì** | 563 cụm từ vựng viết tay là rất nhiều công |
 | **Đã chọn** | mã tất định chạy trước; mô hình chỉ được hỏi khi mã không chắc |
 
 **Ba lý do, và lý do thứ ba mới là lý do thật:**
@@ -1191,15 +1192,15 @@ hỏi khác nhau:
 **Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
 nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
 
-**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 560 cụm từ khóa. Khớp được cụm nào thì
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 563 cụm từ khóa. Khớp được cụm nào thì
 lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
 
 **Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
 đoạn `synthesize` và lấy 5 đoạn đầu. Đây là đường **duy nhất** tới những tài liệu không có cụm từ vựng
 riêng.
 
-**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 140 ca trả lời và
-149 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
+**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 147 ca trả lời và
+155 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
 hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
 các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
 
@@ -1212,8 +1213,8 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
-| `cases.json` | 140 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 56 kịch bản / 149 lượt | + bộ nhớ nhiều lượt |
+| `cases.json` | 147 ca | `understand()` + `respond()` gọi trực tiếp |
+| `session_scripts.json` | 58 kịch bản / 155 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1235,13 +1236,13 @@ lý do từng ca**. Mỗi ca viết tay đều có trường `why` nêu ca đó 
 
 #### Nguồn gốc từng tập
 
-**1. Tập ca trả lời — 140 ca / 45 họ.**
+**1. Tập ca trả lời — 147 ca / 46 họ.**
 Viết tay, theo ba loại câu của phát biểu bài toán (mục 1.2). Với mỗi nhánh trả lời, nhóm viết ít nhất
 hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt khác. Khóa đáp án **không phải danh sách
 món viết tay** mà là **điều kiện chọn**, ví dụ `{"kind": "list", "forbid": {"tags_any":
 ["allergen:seafood"]}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
 
-**2. Kịch bản phiên — 56 kịch bản / 149 lượt.**
+**2. Kịch bản phiên — 58 kịch bản / 155 lượt.**
 Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
 dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
 được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
@@ -1306,9 +1307,9 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
    nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
 
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
-làm lộ **17 lỗi** mà tập 140 ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+làm lộ **17 lỗi** mà tập 147 ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
-mở rộng lên **149 lượt** mới bắt được lớp lỗi đó.
+mở rộng lên **155 lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -1393,7 +1394,7 @@ Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm t
 `fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
 chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
 
-**Bước 2 — Khớp cụm từ vựng.** Một bảng **560 cụm** ánh xạ chữ khách dùng sang nhãn:
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **563 cụm** ánh xạ chữ khách dùng sang nhãn:
 
 ```
 "khong cay | it cay | khong an duoc cay"   -> spice:none
@@ -1457,7 +1458,7 @@ không phải một mô hình phân loại:
 Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
-**Hệ quả đo được:** trên tập 140 ca và 149 lượt phiên, nhánh truy hồi chạy
+**Hệ quả đo được:** trên tập 147 ca và 155 lượt phiên, nhánh truy hồi chạy
 **0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
 nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
 
@@ -2142,8 +2143,8 @@ Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở c
 
 | tập | bộ xếp hạng chạy |
 |---|---:|
-| 140 ca trả lời | **0** |
-| 149 lượt phiên | **0** |
+| 147 ca trả lời | **0** |
+| 155 lượt phiên | **0** |
 | 222 ca truy hồi | 36% |
 
 Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói "truy hồi
@@ -2993,6 +2994,130 @@ Tái lập:
 python ai/evaluation/run_chunk_selection_comparison.py
 ```
 
+## 4.11 Bộ đánh giá phủ được bao nhiêu kho tri thức, và hai lỗi phép rà tìm ra
+
+Mọi con số ở Chương 4 đều đo trên bộ đánh giá, nên có một câu hỏi phải trả lời trước khi
+tin chúng: **bộ đánh giá chạm tới bao nhiêu phần của hệ thống?** Mục này rà điều đó.
+
+### 4.11.1 Bảy bộ đánh giá, 980 câu hỏi
+
+| bộ | quy mô | đo cái gì |
+|---|---:|---|
+| `cases.json` | **147 ca** | chất lượng câu trả lời, một lượt |
+| `session_scripts.json` | 58 kịch bản / **155 lượt** | bộ nhớ phiên, đa lượt |
+| `golden_e2e.json` | 29 hội thoại / **103 lượt** | qua **stack thật**, có backend và giỏ hàng |
+| `retrieval_cases.json` | **222 ca** | truy hồi toàn kho |
+| `chunk_selection_cases.json` | **168 ca** | chọn **mục trong** một tài liệu |
+| `ca_phu_kho.json` | **98 ca** | phủ 49 tài liệu `derived` từng bị bỏ sót |
+| `run_hai_chieu.py` (trong mã) | **100 câu** | 50 câu tri thức + 50 câu chọn món |
+
+Ba bộ nữa **ghép lại từ những bộ trên**, không có dữ liệu mới: `run_dinh_tuyen` (198 câu),
+`run_so_doan` (50), `run_phu_tu_vung` (50).
+
+### 4.11.2 Độ phủ kho tri thức
+
+| mức | trước khi rà | sau |
+|---|---:|---:|
+| **tài liệu** | 102/109 = 93,58% | **109/109 = 100,00%** |
+| **đoạn** (có khóa đáp án mức đoạn) | 84/372 = 22,58% | 84/372 = 22,58% |
+
+Con số đoạn thấp cần nói rõ để không bị đọc sai: **chỉ bộ chọn mục có khóa đáp án ở mức
+đoạn**, sáu bộ còn lại chấm ở mức tài liệu vì đó là bài toán của chúng. Nên 22,58% không có
+nghĩa "78% kho không được đo" — nhưng nó đúng là phần lớn đoạn chưa có ca nào chỉ đích danh,
+và đó là giới hạn phải ghi ra.
+
+Bảy tài liệu chưa có ca **đều là `kb.policy.*`** — nhóm `verbatim` đi bằng tra khóa. Đó không
+phải ngẫu nhiên: sáu bộ được xây quanh **đường truy hồi**, còn **đường tra khóa** chỉ được bộ
+147 ca đụng tới một phần. Lỗ hổng nằm đúng chỗ không bộ nào có nhiệm vụ canh.
+
+### 4.11.3 Lỗi thứ nhất — tài liệu có trong kho mà khách không tới được
+
+Thử hỏi từng tài liệu trong bảy tài liệu đó bằng câu tự nhiên. Sáu tài liệu tới được; một
+thì không:
+
+```
+hỏi     "Quán có bao nhiêu món cho trẻ em?"
+  đi     policy:menu_size   -> trả lời SỐ MÓN CỦA TOÀN THỰC ĐƠN
+  cần     policy:children   -> 43 món hợp trẻ em, 29 món người lớn tuổi, 68 món không cay
+```
+
+`children` chỉ có ba cụm từ vựng, cả ba đều đòi chữ "menu" hoặc "phần ăn", nên cách hỏi
+thường ngày nhất rơi ra ngoài và `bao nhieu mon` của `menu_size` thắng. Nhóm `vegetarian`
+không dính vì nó đã có `bao nhieu mon chay` — cụm **dài hơn** nên thắng theo luật khớp cụm
+dài. Bản sửa làm đúng điều đó cho `children`.
+
+> Đây là lớp lỗi mà dự án đã đặt tên từ sớm: **nội dung có trong kho, có cụm từ vựng, mà
+> không câu hỏi tự nhiên nào tới được nó** — im lặng, không lỗi, không ai biết.
+
+Trong lúc thử, hai kết luận đầu của nhóm **sai** và phải rút lại: `price_range` và
+`vegetarian` ban đầu bị chấm là không tới được, nhưng đó là do **câu hỏi thử không khớp nội
+dung tài liệu** (hỏi về chỗ ngồi trong khi tài liệu nói về số lượng món). Hỏi đúng thì cả hai
+tới được ngay. Ghi lại vì nó lặp lại đúng bài học của Chương 4: kiểm hành vi thật trước khi
+kết luận hệ thống hỏng.
+
+### 4.11.4 Lỗi thứ hai — câu HỎI bị đọc thành lời khai, và nó xóa ràng buộc dị nguyên
+
+Lỗi nặng nhất tìm được trong cả đợt, và nó không nằm trong bảy tài liệu kia — nó lộ ra khi
+thử một câu hỏi phụ huynh hay hỏi:
+
+| lượt | câu | `avoid` sau lượt | kết quả |
+|---:|---|---|---|
+| 1 | *"Con mình dị ứng hải sản"* | `[allergen:seafood]` | đúng |
+| 2 | *"Bé nhà mình ăn được món gì?"* | **`[]`** | **XÓA MẤT** |
+| 3 | *"Cho mình món khai vị"* | `[]` | **Gỏi cuốn tôm thịt, Súp măng cua, Nem rán Hà Nội, Bánh xèo miền Tây** |
+
+Bốn món mang nhãn hải sản, mời cho phụ huynh vừa khai con dị ứng hải sản.
+
+Nguyên nhân là một cụm trong danh sách xóa dị nguyên: `minh an duoc`, thêm vào để xử lý câu
+**khẳng định** *"tôi ăn được hải sản, tư vấn hải sản đi"* — một bản sửa đúng ở thời điểm đó.
+Nhưng cùng chuỗi chữ ấy nằm trong câu **hỏi**: "bé nhà **mình ăn được** món gì". Hai loại câu
+ngược nhau hoàn toàn — một bên nói ràng buộc không còn, một bên hỏi ràng buộc cho phép ăn gì.
+
+**Điều làm lỗi này nguy hiểm là nó im lặng.** Lượt 2 không mời món nào, nên câu trả lời trông
+hoàn toàn vô hại; chỉ lượt 3 mới lộ. Không bộ đánh giá **một lượt** nào bắt được lớp lỗi này,
+và trước bản sửa thì cả 415 test đơn vị, 147 ca trả lời và 103 lượt golden đều xanh.
+
+Hàng rào đặt ở hàm khớp cụm chứ không vá từng cụm: mọi cụm xóa dị nguyên đều dính lớp lỗi
+này, và vá từng cụm là bỏ sót cụm sẽ thêm sau.
+
+Chốt bằng một kịch bản phiên ba lượt. Kịch bản đó **đỏ 2 lượt trên mã trước bản sửa** và xanh
+sau — một cổng chưa bao giờ đỏ thì không chứng minh được gì.
+
+### 4.11.5 Lỗi thứ ba — hệ thống không nghe số lượng khách xin
+
+Thử tham chiếu ngược có số lượng, sau khi lượt đầu đã nêu 6 món:
+
+| câu | trước | sau |
+|---|---:|---:|
+| *"Liệt kê 3 món vừa tư vấn bên trên"* | 6 món | **3 món** |
+| *"Cho mình 4 món vừa tư vấn ở trên"* | 6 món | **4 món** |
+| *"Liệt kê cho tôi 2 món đầu vừa tư vấn"* | **1 món** | **2 món** |
+
+**Phạm vi tham chiếu ngược vốn đã đúng** — cả ba lượt trả về đúng danh sách đã nêu, đúng thứ
+tự. Chỉ con số bị bỏ: `LIST_SIZE = 6` là hằng số, và con số trong câu chỉ dùng để bật một cờ.
+Khách xin hai món và nhận sáu món thì đó không phải trả lời sai, nhưng nó là **không nghe** —
+và nói lại lần nữa cũng vẫn thế.
+
+Dòng thứ ba là một lỗi khác chồng lên: cụm `mon dau` trỏ *món thứ nhất*, nên "2 món đầu" bị
+đọc thành một món. `mon dau` và `<số> mon dau` chồng chữ mà khác hẳn nghĩa, và con số đứng
+trước là dấu hiệu phân biệt không mơ hồ.
+
+Bản sửa có hai hàng rào, và hàng rào thứ hai là bản sửa của một hồi quy mà chính bước này gây
+ra: câu **combo** (*"1 món chính 1 nước 1 tráng miệng"*) chỉ có **một** cụm khớp `<số> món`
+vì hai cụm kia không mang chữ "món" — nên phép đếm cụm một mình không đủ, phải hỏi thêm
+`doc_suat_combo()`.
+
+> **Điều rút ra chung của mục 4.11:** ba lỗi này không do bộ đánh giá bắt — chúng do phép **rà
+> độ phủ** của chính bộ đánh giá bắt. Một bộ test toàn xanh chỉ chứng minh điều nó có hỏi;
+> đo xem nó **không hỏi gì** là một phép kiểm khác, và ở đây nó đắt hơn.
+
+Tái lập:
+
+```bash
+python ai/evaluation/validate_cases.py
+python ai/evaluation/run_session_eval.py
+```
+
 Tái lập:
 
 ```bash
@@ -3013,8 +3138,8 @@ python ai/evaluation/run_so_doan.py --csv    # bảng đánh đổi số đoạn
 |---|---|
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
-| Tập trả lời 140 ca, đường tất định | **140/140** |
-| Bộ nhớ phiên 149 lượt | **149/149**, 0 lỗi an toàn |
+| Tập trả lời 147 ca, đường tất định | **147/147** |
+| Bộ nhớ phiên 155 lượt | **155/155**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **60,87%** so với bm25 39,13% |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **86,36%** so với bm25 75,00% |
@@ -3190,8 +3315,8 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
 
 | Việc | Bằng chứng |
 |---|---|
-| Trả lời đúng trên tập ca một lượt | 140/140, và sàn để so là 8/140 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 149/149, **0 lỗi an toàn** |
+| Trả lời đúng trên tập ca một lượt | 147/147, và sàn để so là 8/147 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 155/155, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |
@@ -3235,7 +3360,7 @@ Nên thứ tự kiểm phải là: **kiểm giả thuyết "thước đo sai" TR
 Một trường hợp cụ thể: phép đo **cho điểm cao với hành vi sai** — nó đòi câu trả lời tri thức phải
 *chứa nguyên văn* một đoạn của tài liệu — mà đoạn thô cũng chứa cả nhan đề tài liệu. Nên **dán đoạn thô
 là cách chắc chắn nhất để QUA**, còn câu trình bày sạch thì đỏ. Khi phần làm sạch trình bày được thêm,
-tập trả lời tụt từ 140/140 xuống 130/140 và **cả 10 ca
+tập trả lời tụt từ 147/147 xuống 130/147 và **cả 10 ca
 đỏ là câu trả lời đúng**.
 
 ### Bài học 2 — một bất biến MỘT CHIỀU chỉ canh một nửa
@@ -3264,7 +3389,7 @@ Sau khi ghim bản CPU: **2,74GB**.
 
 Đây là một trong sáu lần dự án có số viết tay rồi trôi. Năm lần kia: `"hơn 90 món"` khi thực đơn có
 91; một bản kiểm kê ghi `32/90` khi thật là `53/40`; notebook in `122/122` khi tập đã
-140 ca; `84 tài liệu / 303 đoạn` khi kho đã 109/452; và một chỉ số
+147 ca; `84 tài liệu / 303 đoạn` khi kho đã 109/452; và một chỉ số
 truy hồi của kho nhỏ hơn được trích cho kho hiện tại.
 
 **Và lần thứ bảy là chính báo cáo này.** Bản trước viết tay 1587 dòng và đã trôi hoàn toàn: nó mô tả một
