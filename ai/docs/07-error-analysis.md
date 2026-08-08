@@ -227,7 +227,7 @@ Bảng đúng:
 
 Hai kết quả trái với chú thích đã viết trong mã:
 
-- **Chuẩn hóa L2 không mất gì.** Vector của `multilingual-e5-small` đã gần chuẩn đơn vị, nên phép
+- **Chuẩn hóa L2 không mất gì.** Vector của mô hình nhúng đã gần chuẩn đơn vị, nên phép
   chuẩn hóa không đổi thứ tự. Chú thích ghi "không chuẩn hóa thì đoạn DÀI được lợi thế" — đúng về
   lý thuyết, **sai với mô hình này**.
 - **Tắt tiền tố E5 làm Hit@5 TĂNG.** Chú thích ghi "thiếu tiền tố thì vẫn chạy, chỉ kém đi". Sai.

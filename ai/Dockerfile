@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # `HF_HOME` trỏ vào chỗ người dùng `app` đọc được. Đặt TRƯỚC khi tạo user để lớp này cache được.
 ENV HF_HOME=/opt/hf
 ENV SENTENCE_TRANSFORMERS_HOME=/opt/hf
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small')"     && chmod -R a+rX /opt/hf
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"     && chmod -R a+rX /opt/hf
 
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --create-home app \

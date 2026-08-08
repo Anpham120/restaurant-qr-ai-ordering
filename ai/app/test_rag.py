@@ -191,10 +191,24 @@ class EmbeddingSuyGiamEmChuKhongSAP(unittest.TestCase):
         if not co:
             self.assertTrue(E.why_unavailable())
 
-    def test_tien_to_E5_duoc_them(self):
-        """Thiếu tiền tố thì mô hình VẪN CHẠY, chỉ kém đi — lỗi không có thông báo nào."""
-        self.assertEqual(E.QUERY_PREFIX, "query: ")
-        self.assertEqual(E.PASSAGE_PREFIX, "passage: ")
+    def test_tien_to_KHOP_HO_MO_HINH_dang_dung(self):
+        """Sai tiền tố thì mô hình VẪN CHẠY, chỉ kém đi — lỗi không có thông báo nào.
+
+        Và nó hỏng theo CẢ HAI chiều: họ E5 thiếu tiền tố thì kém, họ BGE thừa tiền tố thì cũng
+        kém. Nên phép kiểm không chốt một chuỗi cố định mà chốt **quan hệ giữa mô hình và tiền tố**
+        — có vậy thì đổi mô hình mới không âm thầm giữ lại tiền tố của mô hình cũ.
+        """
+        self.assertIn(E.MODEL_NAME, E.TIEN_TO, "mô hình chưa khai trong bảng tiền tố")
+        self.assertEqual((E.QUERY_PREFIX, E.PASSAGE_PREFIX), E.TIEN_TO[E.MODEL_NAME])
+
+    def test_ho_BGE_khong_dung_tien_to_ho_E5_thi_co(self):
+        """Chốt nội dung bảng, không chỉ chốt tính nhất quán của nó.
+
+        Không có ca này thì một bảng sai đều (mọi mô hình đều `("", "")`) vẫn qua test trên.
+        """
+        self.assertEqual(E.TIEN_TO["BAAI/bge-m3"], ("", ""))
+        for ten in ("intfloat/multilingual-e5-small", "intfloat/multilingual-e5-base"):
+            self.assertEqual(E.TIEN_TO[ten], ("query: ", "passage: "))
 
     def test_chuan_hoa_L2_dung(self):
         vec = E.EmbeddingIndex._l2([3.0, 4.0])

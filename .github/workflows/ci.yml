@@ -354,9 +354,10 @@ jobs:
     # cần mô hình thật, và một job CI không có mô hình mà bật đường sinh chỉ đo phần lùi về khuôn mẫu.
     #
     # CHI PHÍ ĐÃ ĐỔI: ảnh AI nay có tầng embedding, nên bước dựng tải `torch` bản CPU (~200MB) và mô
-    # hình `multilingual-e5-small` (~500MB), rồi tính sẵn vector cho 370 đoạn. Đo tại máy: build 108s
-    # -> ~700s cho lần đầu chưa có cache lớp. Job vẫn trong hạn mặc định của GitHub Actions, nhưng
-    # con số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
+    # hình `BAAI/bge-m3` (~2,2GB), rồi tính sẵn vector cho 372 đoạn. Con số mô hình vừa tăng từ
+    # ~500MB của `multilingual-e5-small` sau khi phép đo ghép cặp trên 148 câu cho `bge-m3` hơn có ý
+    # nghĩa thống kê (McNemar p = 0,0351). Job vẫn trong hạn mặc định của GitHub Actions, nhưng con
+    # số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
     env:
       DEPLOY_ENV: ci
       COMPOSE_PROJECT_NAME: cmc-restaurant-golden

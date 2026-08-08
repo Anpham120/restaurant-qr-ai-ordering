@@ -257,7 +257,7 @@ python ai/evaluation/run_ablation.py
 
 ### Kiến thức phải nắm
 - **BM25** (`k1=1.5`, `b=0.75`, tách từ dùng `understand.fold`), **embedding**
-  (`intfloat/multilingual-e5-small`, 384 chiều, cosine), **hybrid RRF** (`k=60`).
+  (`BAAI/bge-m3`, 1024 chiều, cosine), **hybrid RRF** (`k=60`).
 - **Chỉ số**: Hit@1, Hit@5, MRR@5, nDCG@5, và **forbidden@5** — chỉ số cuối quan trọng nhất, vì nó
   đo việc trích đoạn **sai chủ đề**. Con số phải kèm `n`: 120 ca thì một ca lệch là 0,8%.
 - **Giao thức đo độ trễ**: screening 1 lần và release 7 lần là hai giao thức khác nhau. Bản cũ trộn
