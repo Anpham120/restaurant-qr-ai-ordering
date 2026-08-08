@@ -175,7 +175,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 20s
+      # `start_period` 90s, không phải 20s — con số này ĐO chứ không đoán.
+      #
+      # Đổi mô hình nhúng sang `BAAI/bge-m3` làm thời gian nạp lên **20,6 giây**, cộng **4,8 giây**
+      # cho lần mã hóa đầu (torch khởi tạo nhân tính toán ở lần chạy đầu tiên). Tổng ~25,4 giây chỉ
+      # riêng phần mô hình, chưa tính đọc đệm vector và dựng ứng dụng.
+      #
+      # Với `start_period: 20s` cũ thì lần thăm dò đầu rơi ĐÚNG vào lúc mô hình còn đang nạp: nó
+      # thất bại, và `depends_on: service_healthy` giữ dịch vụ phụ thuộc chờ thêm một chu kỳ 30 giây
+      # nữa. Không hỏng hẳn, nhưng chậm mà không có lý do nhìn thấy được — đúng loại lỗi chỉ lộ ra
+      # khi triển khai chứ không lộ khi chạy test.
+      start_period: 90s
 
   frontend:
     image: ${FRONTEND_IMAGE:-cmc-restaurant-frontend:${DEPLOY_ENV:-local}}

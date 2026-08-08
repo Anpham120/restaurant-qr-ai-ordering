@@ -396,7 +396,60 @@ def inspect(problems: list[str]) -> tuple[int, int, Counter, Counter]:
     if tiny:
         problems.append(f"đoạn quá ngắn (<12 từ): {tiny[:5]}")
 
+    problems.extend(kiem_so_tien(docs))
+
     return len(docs), len(chunks), sources, modes
+
+
+# Ngưỡng ngân sách tròn — số dùng để NÓI VỀ mức chi, không phải giá của món nào.
+#
+# Danh sách này hẹp và viết tay có chủ ý: mỗi con số ở đây là một lần ai đó quyết định rằng nó
+# KHÔNG cần bám giá món. Để trống danh sách thì tám câu tư vấn ngân sách hỏng; để nó rộng thì phép
+# kiểm mất tác dụng. Thêm số vào đây phải là một hành động có ý thức.
+NGUONG_NGAN_SACH = {90_000, 100_000, 200_000, 300_000, 500_000, 62_500}
+
+
+def kiem_so_tien(docs) -> list[str]:
+    """Mọi số tiền trong kho phải truy được về `menu-dataset.json`.
+
+    Vì sao bất biến này tồn tại
+    ---------------------------
+    36 tài liệu `written` là văn xuôi VIẾT TAY, và nhiều đoạn trong đó nêu số tiền: "giá trung vị
+    của thực đơn là 65.000đ", "lẩu đều từ 250.000đ trở lên". Những con số ấy đúng lúc viết, và
+    **không có gì buộc chúng đúng sau khi thực đơn đổi giá**. Một tài liệu `derived` thì không trôi
+    được vì nó sinh lại từ dữ liệu; một tài liệu `written` thì trôi được, và trôi im lặng.
+
+    Đây là hố mà đường sinh KHÔNG che: `build_knowledge.py` chỉ sinh lại phần `derived`.
+
+    Lỗ này lộ ra khi đổi mô hình nhúng sang `bge-m3`. Mô hình mới chọn một MỤC KHÁC của tài liệu
+    `meal_sets` cho câu "Có set bữa trưa nào không?", và mục đó có hai con số. Thước đo 140 ca báo
+    đỏ vì nó không có nguồn hợp lệ nào cho "số tiền suy từ tổng thể thực đơn".
+
+    Kiểm lại thì **cả hai con số đều đúng** — trung vị đúng 65.000đ, lẩu rẻ nhất đúng 250.000đ. Nên
+    việc phải làm không phải nới thước đo mà là **bảo đảm chúng luôn đúng**, rồi mới cho thước đo
+    tin vào chữ trong kho.
+
+    Đo trên kho hiện tại: **1.031 lần nêu tiền, 1.023 khớp giá món thật hoặc trung vị (99,22%)**,
+    8 lần còn lại là ngưỡng ngân sách tròn trong `NGUONG_NGAN_SACH`.
+    """
+    import json
+    import re
+    import statistics
+
+    duong = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
+    items = json.loads(duong.read_text(encoding="utf-8-sig"))["items"]
+    hop_le = {i["price"] for i in items}
+    hop_le.add(int(statistics.median(i["price"] for i in items)))
+    hop_le |= NGUONG_NGAN_SACH
+
+    mau = re.compile(r"(\d{1,3}(?:\.\d{3})+)\s*đ")
+    la: list[str] = []
+    for d in docs:
+        for m in mau.findall(d.title + " " + getattr(d, "body", "")):
+            v = int(m.replace(".", ""))
+            if v not in hop_le:
+                la.append(f"{d.doc_id}: {m}đ không phải giá món, trung vị, hay ngưỡng đã khai")
+    return sorted(set(la))[:8]
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -346,11 +346,14 @@ def chu_cho_khach(chunk) -> str:
     return " ".join(ra.split())
 
 
-def _chon_muc(co_muc: list, question: str):
-    """Mục sát nhất trong MỘT tài liệu. Embedding khi được, BM25 khi không.
+def _chon_muc(co_muc: list, question: str, so_muc: int = 1) -> list:
+    """`so_muc` mục sát nhất trong MỘT tài liệu. Embedding khi được, BM25 khi không.
 
     Không dựng chỉ mục mới: dùng lại vector của chỉ mục TOÀN KHO, vốn đã nạp sẵn lúc khởi động. Xem
     docstring của `_knowledge_chunk` cho lý do đầy đủ và cho hai trường hợp lùi về BM25.
+
+    Trả về DANH SÁCH theo thứ tự điểm giảm dần, kể cả khi `so_muc` là 1 — một kiểu trả về cho mọi
+    trường hợp thì chỗ gọi không cần rẽ nhánh.
     """
     from rag.bm25 import Bm25Index
 
@@ -367,10 +370,12 @@ def _chon_muc(co_muc: list, question: str):
             # (`sorted(..., key=lambda kv: (-kv[1], kv[0]))`). Dùng `max` với khóa `(điểm, chunk_id)`
             # sẽ chọn id LỚN nhất khi hòa, tức hai đường xếp hạng phá thế ngược nhau — và một hệ
             # thống có hai luật phá thế là hệ thống không lặp lại được kết quả của chính nó.
-            return min(co_muc, key=lambda c: (-diem.get(c.chunk_id, 0.0), c.chunk_id))
+            xep = sorted(co_muc, key=lambda c: (-diem.get(c.chunk_id, 0.0), c.chunk_id))
+            return xep[:so_muc]
 
-    hits = Bm25Index.build(co_muc).search(question, k=1)
-    return theo_id[hits[0].chunk_id] if hits else co_muc[0]
+    hits = Bm25Index.build(co_muc).search(question, k=so_muc)
+    ra = [theo_id[h.chunk_id] for h in hits if h.chunk_id in theo_id]
+    return ra or co_muc[:so_muc]
 
 
 def _knowledge_chunk(topic: str, question: str) -> str | None:
@@ -450,8 +455,35 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     # "chưa có dữ liệu" khi tài liệu có nội dung.
     co_muc = [c for c in cua_tai_lieu if c.heading] or cua_tai_lieu
 
-    chon = _chon_muc(co_muc, question)
-    return chu_cho_khach(chon)
+    # Lấy `SO_DOAN_TRI_THUC` mục, cùng số với đường truy hồi toàn kho — và cùng lý do, nhưng đây là
+    # phép đo RIÊNG trên bộ 168 ca chọn mục, không phải suy từ kết quả của đường kia:
+    #
+    #     1 mục   75,60%    72 từ
+    #     2 mục   90,48%   138 từ     McNemar so với 1 mục: p = 0,0000
+    #     3 mục   94,64%   208 từ     p = 0,0000
+    #
+    # +14,88 điểm cho +66 từ. Bài toán này còn hưởng lợi rõ hơn đường toàn kho, và lý do thì hợp lý:
+    # các mục của CÙNG một tài liệu nói về cùng chủ đề và khác nhau ở khía cạnh, nên hai mục liền
+    # nhau hiếm khi lạc đề — cái giá "đoạn lạc" ở đây nhỏ hơn hẳn.
+    #
+    # Ca bắt được lỗi này là một lượt golden: "Mình nên nói với nhà hàng thế nào về việc dị ứng?"
+    # chọn mục #4 (dị ứng nằm ngoài năm loại) thay vì #3 ("Khi gọi món, NÓI VỚI NHÂN VIÊN về dị
+    # ứng") — mục #3 là câu trả lời, và nó đứng ngay sau trong bảng xếp hạng.
+    chon = _chon_muc(co_muc, question, so_muc=SO_DOAN_TRI_THUC)
+
+    # Ghép theo THỨ TỰ TRONG TÀI LIỆU, không theo thứ tự điểm.
+    #
+    # Hai mục ở đây là hai phần của CÙNG một bài văn xuôi, tác giả viết chúng nối tiếp nhau. Xếp
+    # theo điểm thì văn đọc ngược logic — đo được trên chính lượt golden đã bắt lỗi này:
+    #
+    #     theo điểm     #4 "Nếu dị nguyên của bạn không nằm trong năm loại…"
+    #                   #3 "Vì vậy hãy làm thêm một việc: khi gọi món, nói với nhân viên…"
+    #
+    # "Vì vậy" đứng sau tiền đề của nó thì thành câu cụt. Theo thứ tự tài liệu thì #3 trước #4, và
+    # đoạn trả lời đúng câu hỏi cũng lên đầu — nhưng lý do sắp xếp là MẠCH VĂN, không phải để một
+    # ca đi qua: `chunk_id` mang số thứ tự nên đây là thứ tự tác giả, không phải thứ tự tôi chọn.
+    chon = sorted(chon, key=lambda c: c.chunk_id)
+    return "\n\n".join(chu_cho_khach(c) for c in chon)
 
 
 def _bo_truy_hoi_toan_kho():

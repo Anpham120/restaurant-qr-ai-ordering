@@ -86,7 +86,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
-  - 4.10 Bốn bước so sánh công bằng, quyết định kiến trúc, thi hành, và trần thật của truy hồi
+  - 4.10 So sánh công bằng, quyết định kiến trúc, trần thật của truy hồi, và đổi mô hình nhúng
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần
@@ -363,7 +363,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV2 — Truy hồi
 
-1. Cài **BM25**, **embedding** (`multilingual-e5-small`), **hybrid RRF**
+1. Cài **BM25**, **embedding** (`bge-m3`), **hybrid RRF**
 2. So trên **hai bài toán** (truy hồi tri thức / chọn món) và **hai tập** (phát triển / niêm phong)
 3. Tính sẵn vector lúc build ảnh Docker, không tải mô hình lúc chạy
 4. Chốt bộ cho production kèm **giá phải trả** — ảnh Docker, độ trễ, thời gian khởi động
@@ -641,17 +641,32 @@ là lý do `cấm@5` quan trọng hơn Hit@5.
 
 ## 2.2 Truy hồi ngữ nghĩa — biểu diễn nhúng
 
-Mô hình `intfloat/multilingual-e5-small` — 384 chiều, có tiếng Việt. Họ E5 đòi **tiền tố** phân biệt
-vai trò:
+Mô hình `BAAI/bge-m3` — 1024 chiều, mạnh ở tiếng Việt.
+
+Bản trước dùng `intfloat/multilingual-e5-small` (384 chiều). Nhóm đổi sau khi đo ghép cặp trên 148
+câu của hai bộ đánh giá (chi tiết ở mục 4.10.7):
+
+| mô hình | chiều | Hit@1 | p50 | McNemar so với bản trước |
+|---|---:|---:|---:|---|
+| `e5-small` | 384 | 64,86% | 44,7 ms | — |
+| `e5-base` | 768 | 68,92% | 143,1 ms | p = 0,3616 — **chưa đủ ý nghĩa** |
+| **`bge-m3`** | **1024** | **73,65%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |
+
+Điều đáng ghi là `e5-base` **không chứng minh được gì dù to gấp đôi**. Nên căn cứ để đổi không phải
+"mô hình lớn hơn thì tốt hơn" — nếu vậy `e5-base` đã thắng — mà là chất lượng huấn luyện cho tiếng
+Việt, thứ chỉ biết được bằng cách đo.
+
+**Tiền tố đi theo họ mô hình.** Họ E5 đòi tiền tố phân biệt vai trò:
 
 ```
 "query: {câu hỏi}"     cho truy vấn
 "passage: {đoạn}"      cho đoạn trong kho
 ```
 
-Thiếu tiền tố thì mô hình vẫn chạy và vẫn trả về vector, chỉ giảm chất lượng. Đây là lỗi **không có
-triệu chứng quan sát được**: hệ thống không báo lỗi, chỉ cho điểm thấp hơn. Nhóm bổ sung một ca kiểm
-thử xác nhận tiền tố được thêm đúng.
+Họ BGE thì **không dùng tiền tố** — thêm vào là nhét hai từ vô nghĩa vào mọi câu. Cả hai chiều đều
+hỏng **không có triệu chứng quan sát được**: hệ thống không báo lỗi, chỉ cho điểm thấp hơn. Vì vậy
+tiền tố được tra từ một bảng theo tên mô hình thay vì viết thành hằng số rời, và có ca kiểm thử chốt
+cả nội dung bảng lẫn tính nhất quán giữa bảng với mô hình đang dùng.
 
 Vector được chuẩn hoá L2, nhờ vậy `cosine(a,b) = a·b` và phép so chỉ còn một phép nhân vô hướng. Chuẩn
 hoá cũng là điều **bắt buộc về mặt đúng đắn**: không chuẩn hoá mà vẫn lấy tích vô hướng thì đoạn **dài**
@@ -1472,7 +1487,7 @@ Khi chín nhánh đầu không khớp, hệ thống xếp hạng **372 đoạn**
 
 ```
 1. CHUẨN HÓA   câu hỏi -> thêm tiền tố "query: " (yêu cầu của họ mô hình E5)
-2. MÃ HÓA      câu hỏi -> vector 384 chiều
+2. MÃ HÓA      câu hỏi -> vector 1024 chiều
 3. SO SÁNH     tính cosine với vector của từng đoạn (đã tính sẵn lúc build)
 4. XẾP HẠNG    sắp theo điểm giảm dần
 5. CẮT         lấy 5 đoạn đầu làm ngữ cảnh
@@ -2650,9 +2665,9 @@ thuyết, nên ba kết quả âm tính kia không phải là thất bại của
 
 | mô hình | chiều | Hit@1 | chiều A | phủ kho | p50 | McNemar so với bản đang dùng |
 |---|---:|---:|---:|---:|---:|---|
-| `e5-small` (đang dùng) | 384 | 64,86% | 48,00% | 73,47% | 44,7 ms | — |
+| `e5-small` (bản trước) | 384 | 64,86% | 48,00% | 73,47% | 44,7 ms | — |
 | `e5-base` | 768 | 68,92% | 58,00% | 74,49% | 143,1 ms | p = 0,3616 — **chưa đủ ý nghĩa** |
-| `bge-m3` | 1024 | **73,65%** | 58,00% | **81,63%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |
+| **`bge-m3`** (đã đổi sang) | 1024 | **73,65%** | 58,00% | **81,63%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |
 
 Hai điều rút ra, và điều thứ hai quan trọng hơn:
 
@@ -2812,6 +2827,171 @@ thêm một mô hình nào, không thêm một byte nào vào ảnh Docker.
 > đã áp dụng nhất quán: khi một thay đổi làm đỏ đúng một ca, **đọc câu trả lời thật trước khi
 > sửa hệ thống** — và nếu sửa thước đo thì phải nêu được lý do đứng vững độc lập với thay đổi
 > vừa làm.
+
+### 4.10.8 Đổi sang `bge-m3` — chi phí triển khai, đo chứ không ước
+
+Quyết định đổi dựa trên phép đo chất lượng ở mục trên. Nhưng một mô hình gấp gần **năm lần**
+về kích thước không chỉ đổi con số Hit@1, nên nhóm đo luôn phần chi phí trước khi đổi.
+
+| | `e5-small` (bản trước) | `bge-m3` (bản này) |
+|---|---:|---:|
+| số chiều vector | 384 | **1024** |
+| trọng số mô hình | ~470 MB | **2.271 MB** |
+| RAM khi chạy (đo thật) | — | **1.234 MB** |
+| thời gian nạp mô hình | — | **20,6 s** |
+| lần mã hóa đầu tiên | — | **4,8 s** |
+| độ trễ mỗi truy vấn (p50) | 44,7 ms | **271,7 ms** |
+| mã hóa lại toàn kho | 53 s | **492 s** |
+
+Ba con số trong bảng dẫn tới ba thay đổi cấu hình, và cả ba đều là thay đổi mà **chỉ phép đo
+mới chỉ ra được**:
+
+**1. `start_period` của healthcheck: 20s → 90s.** Đây là con số suýt gây một lỗi triển khai.
+Mô hình nạp mất 20,6 giây cộng 4,8 giây cho lần mã hóa đầu — tổng ~25,4 giây, trong khi lần
+thăm dò sức khỏe đầu tiên rơi vào giây thứ 20. Nó thất bại, và `depends_on: service_healthy`
+giữ dịch vụ phụ thuộc chờ thêm một chu kỳ 30 giây nữa. Không hỏng hẳn, nhưng chậm mà không
+có lý do nhìn thấy được — đúng loại lỗi chỉ lộ ra khi triển khai chứ không lộ khi chạy test.
+
+**2. `mem_limit: 3g` giữ nguyên.** RAM đo thật sau khi nạp mô hình và mã hóa là **1.234 MB**,
+còn dư gần 1,8 GB. Đây là chỗ nhóm **đo trước rồi mới quyết giữ**, thay vì nâng giới hạn cho
+chắc — nâng một giới hạn mà không biết mức dùng thật là cách đẩy vấn đề sang chỗ khác.
+
+**3. Chi phí mã hóa lại toàn kho không rơi vào lúc khởi động.** 492 giây là con số đáng lo
+nếu nó xảy ra mỗi lần container bật. Nó không: `rag/precompute.py` chạy lúc **dựng ảnh**, và
+khóa của bộ đệm có chứa tên mô hình nên đổi mô hình làm đệm cũ tự động bị từ chối thay vì bị
+dùng nhầm. Đó là thiết kế có sẵn, và lần đổi này là lần đầu nó được thử thật.
+
+Độ trễ **271,7 ms** mỗi truy vấn chỉ rơi vào **câu tri thức** — câu chọn món đi nhánh lọc
+nhãn và không chạm truy hồi. Đặt cạnh 8,6 giây của một lần gọi mô hình sinh, nó nhỏ.
+
+> **Điều rút ra:** phần khó của việc đổi mô hình không nằm ở dòng `MODEL_NAME`. Nó nằm ở ba
+> con số cấu hình mà mô hình cũ vừa vặn còn mô hình mới thì không — và cả ba chỉ lộ ra khi
+> chịu khó đo, chứ không lộ ra trong bất kỳ bộ test nào.
+
+**Kết quả sau khi đổi, đo lại toàn bộ:**
+
+| bộ đánh giá | `e5-small` | **`bge-m3`** |
+|---|---:|---:|
+| chiều A — truy hồi tìm đúng tài liệu | 44,00% | **56,00%** |
+| câu trả lời chứa tài liệu đúng, 1 đoạn | 48,00% | **58,00%** |
+| câu trả lời chứa tài liệu đúng, **2 đoạn** | 64,00% | **82,00%** |
+| chiều B — số món vi phạm ràng buộc (truy hồi) | 116 | **92** |
+| 140 ca trả lời | 140/140 | **140/140** |
+| 149 lượt phiên | 149/149 | **149/149** |
+| định tuyến | 87,88% | **87,88%** |
+
+Hai lớp cải tiến **cộng dồn**: trích 2 đoạn đưa 48,00% lên 64,00% với mô hình cũ, và đổi mô
+hình đưa tiếp lên **82,00%**. Tổng cộng **+34,00 điểm** so với điểm xuất phát 48,00%, và cả
+hai bước đều có kiểm định ghép cặp (p = 0,0078 và p = 0,0005).
+
+**Một ca đỏ khi đổi mô hình, và cách xử lý nó là phần đáng đọc nhất của mục này.**
+
+Đổi xong, 411 test đơn vị và 149/149 lượt phiên vẫn xanh, nhưng bộ 140 ca báo **139/140**:
+
+```
+K-multi-05  "Có set bữa trưa nào không?"
+ĐỎ: nêu số tiền không phải giá món nào được nhắc: [65000, 250000]
+```
+
+Nguyên nhân: `_knowledge_chunk()` dùng bộ nhúng để chọn **mục nào của tài liệu** sẽ trả lời,
+nên đổi mô hình làm nó chọn một mục khác — mục đó nêu *"giá trung vị của thực đơn là
+65.000đ"* và *"lẩu đều từ 250.000đ trở lên"*. Thước đo có bốn nguồn số tiền hợp lệ, và không
+nguồn nào nhận **số suy từ tổng thể thực đơn**.
+
+Kiểm lại dữ liệu thì **cả hai con số đều đúng**: trung vị đúng 65.000đ, lẩu rẻ nhất (Lẩu nấm
+chay) đúng 250.000đ. Nên đây không phải hệ thống sai.
+
+Nhưng cũng **không được nới thước đo cho qua** — phép kiểm neo giá là một trong những bất
+biến chống bịa quan trọng nhất. Rà lại thì thấy nó đang che một hố thật:
+
+> 36 tài liệu `written` là văn xuôi **viết tay**, và nhiều đoạn nêu số tiền của thực đơn. Tài
+> liệu `derived` không trôi được vì nó sinh lại từ dữ liệu; tài liệu `written` thì trôi được,
+> và trôi **im lặng**. Đường sinh không che hố này vì nó chỉ sinh lại phần `derived`.
+
+Nên thứ tự xử lý là: **dựng cổng dữ liệu trước, rồi mới cho thước đo tin vào kho.**
+
+1. `build_knowledge.py --check` nhận thêm một bất biến: **mọi số tiền trong kho phải truy
+   được về `menu-dataset.json`** — giá món, trung vị, hoặc một ngưỡng ngân sách đã khai tên.
+   Rà kho hiện tại: **1.031 lần nêu tiền, 1.023 khớp giá món thật (99,22%)**, 8 lần còn lại
+   là ngưỡng tròn dùng để nói về mức chi.
+2. Cổng được **thử bằng đột biến** trước khi tin: sửa `65.000đ` thành `77.000đ` trong tài
+   liệu, cổng báo đỏ đúng dòng đó; khôi phục, cổng xanh lại. Một cổng chưa bao giờ đỏ thì
+   không chứng minh được điều gì.
+3. Chỉ sau đó thước đo mới nhận thêm nguồn số tiền thứ năm: **số có sẵn trong kho tri thức**.
+
+Kết quả: **140/140** trở lại, và kho có thêm một bất biến mà trước đó không ai canh. Việc đổi
+mô hình vì thế phát hiện ra một lỗ hổng **không liên quan gì tới mô hình** — nó vốn đã ở đó.
+
+### 4.10.9 Một mô hình cho HAI bài toán truy hồi — nó có tốt cho cả hai không?
+
+Hệ thống dùng bộ nhúng ở hai chỗ khác hẳn nhau, và điều đó dễ bị bỏ qua khi đổi mô hình:
+
+| | bài toán | ứng viên |
+|---|---|---|
+| A | **toàn kho** — `doan_tri_thuc_lien_quan()` | 1 trong **372 đoạn** của 85 tài liệu |
+| B | **trong tài liệu** — `_knowledge_chunk()` | 1 trong **3–8 mục** của MỘT tài liệu |
+
+Bài toán B dễ hơn ở chỗ chủ đề đã biết, nhưng **khó hơn** ở chỗ mọi ứng viên đều cùng chủ
+đề — chúng khác nhau ở *khía cạnh*, không ở *chủ đề*. Không có gì bảo đảm mô hình tốt cho A
+cũng tốt cho B, và phép đo ở mục trên chỉ đo A.
+
+**Suýt kết luận sai.** Con số đầu tiên nhìn thấy là `bge-m3` đạt 0,729 trên bộ chọn mục,
+trong khi tài liệu cũ ghi `e5-small` đạt 0,864 — nghe như tụt 13,5 điểm. Nhưng hai con số đó
+đo trên **hai tập khác nhau** (48 ca niêm phong so với tập đầy đủ), nên chúng không so được.
+Đo lại ghép cặp trên đúng 168 ca:
+
+| mô hình | Top-1 | KTC 95% |
+|---|---:|---|
+| `e5-small` | 73,81% | 66,68–79,87% |
+| `bge-m3` | 75,60% | 68,58–81,47% |
+
+McNemar **p = 0,6476** — hai mô hình **hòa** ở bài toán B (11 ca sửa được, 8 ca làm hỏng).
+Nên không có hồi quy hệ thống, và không cần dùng hai mô hình khác nhau cho hai đường.
+
+> Đây là lần thứ hai trong ngày một con số nghe đáng báo động hóa ra là **so hai thứ khác
+> nhau**. Quy tắc rút ra: trước khi tin một mức tụt, kiểm xem hai con số có cùng tập, cùng
+> giao thức đo hay không.
+
+**Nhưng phép đo lại mở ra một cải tiến lớn hơn.** Cùng câu hỏi đã đặt cho đường toàn kho —
+*lấy một hay nhiều?* — đặt cho đường trong tài liệu:
+
+| số mục | Top-1 | số từ | McNemar so với 1 mục |
+|---:|---:|---:|---|
+| 1 | 75,60% | 72 | — |
+| **2** | **90,48%** | 138 | **p = 0,0000** |
+| 3 | 94,64% | 208 | p = 0,0000 |
+
+**+14,88 điểm cho +66 từ** — lợi hơn hẳn đường toàn kho (+16,00 điểm cho +62 từ ở mô hình
+cũ), và lý do hợp lý: các mục của cùng một tài liệu nói về cùng chủ đề, nên mục thứ hai hiếm
+khi lạc đề. Cái giá "đoạn lạc" ở đây nhỏ hơn.
+
+Ca phát hiện ra điều này là một lượt golden, và nó minh họa đúng cơ chế:
+
+```
+hỏi  "Mình nên nói với nhà hàng thế nào về việc dị ứng?"
+  chọn  #4  "Nếu dị nguyên của bạn không nằm trong năm loại…"      <- liên quan, không trả lời
+  bỏ    #3  "Khi gọi món, NÓI VỚI NHÂN VIÊN về dị ứng…"            <- CÂU TRẢ LỜI, hạng 2
+```
+
+**Và thứ tự ghép hai mục là theo TÀI LIỆU, không theo điểm.** Hai mục ở đây là hai phần của
+cùng một bài văn xuôi mà tác giả viết nối tiếp nhau; xếp theo điểm thì đoạn mở đầu bằng
+*"Vì vậy hãy làm thêm một việc"* đứng **trước** tiền đề của nó và câu trả lời thành câu cụt.
+`chunk_id` mang số thứ tự nên sắp theo nó là theo thứ tự tác giả — lý do là **mạch văn**, và
+việc nó đồng thời làm đoạn trả lời đúng lên đầu chỉ là hệ quả.
+
+Kết quả cuối, hai đường cùng trích 2 phần:
+
+| | trước cả đợt | sau |
+|---|---:|---:|
+| toàn kho — câu trả lời chứa tài liệu đúng | 48,00% | **82,00%** |
+| trong tài liệu — Top-1 chọn đúng mục | 75,60% | **90,48%** |
+| chiều B — số món vi phạm ràng buộc (truy hồi) | 116 | **92** |
+
+Tái lập:
+
+```bash
+python ai/evaluation/run_chunk_selection_comparison.py
+```
 
 Tái lập:
 
@@ -3161,7 +3341,7 @@ nói thì người đọc sẽ tưởng nó không tồn tại**.
 1. Robertson, S., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.*
    Foundations and Trends in Information Retrieval, 3(4), 333–389.
 2. Wang, L., Yang, N., Huang, X., et al. (2022). *Text Embeddings by Weakly-Supervised Contrastive
-   Pre-training.* arXiv:2212.03533. (Họ mô hình E5, gồm `multilingual-e5-small` dùng trong đồ án.)
+   Pre-training.* arXiv:2212.03533. (Họ mô hình E5, dùng ở bản trước của đồ án.)
 3. Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). *Reciprocal Rank Fusion Outperforms Condorcet
    and Individual Rank Learning Methods.* SIGIR '09, 758–759.
 4. Lewis, P., Perez, E., Piktus, A., et al. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive
@@ -3308,17 +3488,17 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | chọn món | 8 ca | `hybrid` | 50 | 66,00% | 90,00% | — | — | 40 |
 | chọn món | 8 ca | `lọc nhãn` | 50 | 100,00% | 100,00% | — | — | 0 |
 | chọn mục `written|*` | phát triển | `bm25` | 76 | 80,26% | — | 87,32% | — | — |
-| chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 95,11% | — | — |
-| chọn mục `written|*` | phát triển | `hybrid` | 76 | 90,79% | — | 94,63% | — | — |
+| chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 96,05% | — | — |
+| chọn mục `written|*` | phát triển | `hybrid` | 76 | 90,79% | — | 94,74% | — | — |
 | chọn mục `written|A` | phát triển | `bm25` | 38 | 92,11% | — | 95,61% | — | — |
 | chọn mục `written|A` | phát triển | `embedding` | 38 | 97,37% | — | 98,68% | — | — |
 | chọn mục `written|A` | phát triển | `hybrid` | 38 | 97,37% | — | 98,68% | — | — |
 | chọn mục `written|B` | phát triển | `bm25` | 38 | 68,42% | — | 79,04% | — | — |
-| chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 91,54% | — | — |
-| chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,57% | — | — |
+| chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 93,42% | — | — |
+| chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,79% | — | — |
 | chọn mục `derived|*` | phát triển | `bm25` | 48 | 54,17% | — | 69,97% | — | — |
-| chọn mục `derived|*` | phát triển | `embedding` | 48 | 58,33% | — | 73,44% | — | — |
-| chọn mục `derived|*` | phát triển | `hybrid` | 48 | 54,17% | — | 71,35% | — | — |
+| chọn mục `derived|*` | phát triển | `embedding` | 48 | 72,92% | — | 81,42% | — | — |
+| chọn mục `derived|*` | phát triển | `hybrid` | 48 | 58,33% | — | 74,65% | — | — |
 | chọn mục `written|*` | niêm phong | `bm25` | 44 | 75,00% | — | 85,04% | — | — |
 | chọn mục `written|*` | niêm phong | `embedding` | 44 | 86,36% | — | 92,80% | — | — |
 | chọn mục `written|*` | niêm phong | `hybrid` | 44 | 88,64% | — | 93,56% | — | — |
@@ -3342,7 +3522,7 @@ Mọi phép đo cần stack hoặc mô hình thật đều được **ghi ra t�
 | `golden_e2e_sinh.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
 | `llm_rag_loai_c.json` | 2026-07-31 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://localhost:20128/v1 |
 | `truy_hoi_so_sanh.json` | 2026-08-02 | so_doan=428 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
-| `chon_muc_phat_trien.json` | 2026-07-31 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
+| `chon_muc_phat_trien.json` | 2026-08-08 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 | `chon_muc_niem_phong.json` | 2026-07-31 | tap=niem_phong · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 
 Thiếu một tệp trong bảng này là **sinh báo cáo thất bại**, không phải một ô trống trong

@@ -191,6 +191,26 @@ _MONEY_RE = re.compile(
 )
 
 
+_TIEN_KHO: set[int] | None = None
+
+
+def _tien_trong_kho() -> set[int]:
+    """Mọi số tiền xuất hiện trong kho tri thức, đọc một lần rồi nhớ.
+
+    Tập này chỉ dùng được vì `build_knowledge.py --check` buộc mọi số tiền trong kho phải truy được
+    về `menu-dataset.json`. Không có cổng đó thì đây là một lỗ: nó sẽ hợp thức hóa bất kỳ con số nào
+    ai đó gõ vào một tệp markdown.
+    """
+    global _TIEN_KHO
+    if _TIEN_KHO is None:
+        kho = REPO_ROOT / "ai" / "knowledge"
+        ra: set[int] = set()
+        for tep in kho.rglob("*.md"):
+            ra |= extract_prices(tep.read_text(encoding="utf-8"))
+        _TIEN_KHO = ra
+    return _TIEN_KHO
+
+
 def extract_prices(text: str) -> set[int]:
     """Các số tiền nêu trong phần chữ, quy về đồng.
 
@@ -326,6 +346,21 @@ def score(case: dict, answer: Answer, menu: dict, named: dict) -> Verdict:
     }
     if len(cited_prices) > 1:
         allowed_money.add(sum(cited_prices))
+    # 5. số tiền có sẵn TRONG KHO TRI THỨC — và chỉ hợp lệ vì có cổng riêng bảo lãnh.
+    #
+    # Câu tri thức trả lời bằng đoạn văn NGUYÊN VĂN, và vài đoạn nêu số suy từ tổng thể thực đơn
+    # thay vì giá một món: "giá trung vị của thực đơn là 65.000đ", "lẩu đều từ 250.000đ trở lên".
+    # Bốn nguồn trên không có chỗ cho loại số đó, nên ca `K-multi-05` bị chấm đỏ dù **cả hai con số
+    # đều đúng** — kiểm lại dữ liệu: trung vị đúng 65.000đ, lẩu rẻ nhất đúng 250.000đ.
+    #
+    # Vì sao nới ở đây KHÔNG làm yếu phép kiểm: `build_knowledge.py --check` nay có bất biến buộc
+    # **mọi** số tiền trong kho phải truy được về `menu-dataset.json` — giá món, trung vị, hoặc một
+    # ngưỡng ngân sách đã khai tên. Nên tập số hợp lệ rộng thêm đúng bằng phần đã được cổng khác
+    # kiểm, chứ không rộng ra một vùng không ai canh.
+    #
+    # Thứ tự này quan trọng: cổng dữ liệu được dựng và thử bằng đột biến TRƯỚC, rồi thước đo mới
+    # được phép tin vào kho. Làm ngược lại là nới cho ca đỏ đi qua.
+    allowed_money |= _tien_trong_kho()
     invented = stated - allowed_money
     add(
         "prices_grounded",

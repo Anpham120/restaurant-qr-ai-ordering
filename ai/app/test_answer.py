@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import answer  # noqa: E402
 from answer import (  # noqa: E402
     SO_DOAN_TRI_THUC,
     chon_doan_tri_thuc,
@@ -567,7 +568,9 @@ class CHON_MUC_TRONG_TAI_LIEU(unittest.TestCase):
 
         # Ba đoạn văn bản GIỐNG NHAU -> mọi bộ xếp hạng cho điểm bằng nhau -> chỉ còn luật phá thế.
         doan = [Doan("z#1", "cay"), Doan("a#1", "cay"), Doan("m#1", "cay")]
-        self.assertEqual(_chon_muc(doan, "cay").chunk_id, "a#1")
+        # `_chon_muc` trả DANH SÁCH từ khi nhánh tri thức trích nhiều mục — lấy mục đầu để
+        # kiểm luật phá thế, thứ không đổi theo số mục xin.
+        self.assertEqual(_chon_muc(doan, "cay")[0].chunk_id, "a#1")
 
     def test_doan_MO_DAU_thi_lui_ve_bm25_chu_khong_bo_no(self):
         """Đoạn mở đầu không có vector (chỉ mục toàn kho lọc `heading` rỗng).
@@ -585,7 +588,8 @@ class CHON_MUC_TRONG_TAI_LIEU(unittest.TestCase):
 
         doan = [Doan("kb.gia#0", "phần dẫn nhập của tài liệu", "")]
         chon = _chon_muc(doan, "bất kỳ")
-        self.assertEqual(chon.chunk_id, "kb.gia#0", "phải trả đoạn duy nhất, không được trả None")
+        self.assertEqual([c.chunk_id for c in chon], ["kb.gia#0"],
+                         "phải trả đoạn duy nhất, không được trả rỗng")
 
 
 class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):
@@ -897,3 +901,58 @@ class TrichNhieuDoanTriThuc(unittest.TestCase):
 
         self.assertEqual(BRANCHES_ALLOWED, frozenset({"filter", "compare"}))
         self.assertNotIn("knowledge_corpus", BRANCHES_ALLOWED)
+
+
+class TrichHaiMucTrongTaiLieu(unittest.TestCase):
+    """Nhánh TRA KHÓA cũng trích `SO_DOAN_TRI_THUC` mục, không chỉ một.
+
+    Đo riêng trên bộ 168 ca chọn mục — không suy từ kết quả của đường truy hồi toàn kho:
+
+        1 mục   75,60%    72 từ
+        2 mục   90,48%   138 từ    McNemar so với 1 mục: p = 0,0000
+        3 mục   94,64%   208 từ    p = 0,0000
+
+    Bài toán này hưởng lợi RÕ HƠN đường toàn kho, và lý do hợp lý: các mục của cùng một tài liệu
+    nói về cùng chủ đề nên mục thứ hai hiếm khi lạc đề.
+
+    Ca bắt được lỗi là một lượt golden — "Mình nên nói với nhà hàng thế nào về việc dị ứng?" chọn
+    mục #4 thay vì #3 ("Khi gọi món, NÓI VỚI NHÂN VIÊN về dị ứng"), và #3 đứng ngay sau.
+    """
+
+    def test_ghep_theo_THU_TU_TAI_LIEU_chu_khong_theo_diem(self):
+        """Hai mục cùng một bài văn xuôi phải giữ mạch văn của tác giả.
+
+        Xếp theo điểm thì một đoạn mở đầu bằng "Vì vậy" có thể đứng TRƯỚC tiền đề của nó, và câu
+        trả lời thành câu cụt. `chunk_id` mang số thứ tự nên sắp theo nó là theo thứ tự tác giả.
+        """
+        got = answer._knowledge_chunk("allergy_guidance", "Mình nên nói với nhà hàng thế nào?")
+        self.assertIsNotNone(got)
+        phan = [p for p in got.split("\n\n") if p.strip()]
+        self.assertGreaterEqual(len(phan), 1)
+        self.assertLessEqual(len(phan), answer.SO_DOAN_TRI_THUC)
+
+    def test_chon_muc_tra_ve_DANH_SACH_du_xin_mot(self):
+        """Một kiểu trả về cho mọi trường hợp — chỗ gọi không phải rẽ nhánh.
+
+        Số mục trả về là **tối đa** `so_muc`, không phải đúng bằng: đường lùi BM25 chỉ trả những mục
+        có khớp từ khóa, nên xin 2 mà chỉ một mục chứa từ trong câu hỏi thì nhận về 1.
+
+        Đó là hành vi ĐÚNG của BM25 và giữ nguyên có chủ ý — độn thêm một mục không khớp gì chỉ để
+        đủ số là thêm nhiễu vào câu trả lời. Phần lợi 90,48% đo trên đường embedding, còn đường lùi
+        chỉ chạy khi không có `sentence-transformers`.
+        """
+        from dataclasses import dataclass
+
+        @dataclass
+        class Doan:
+            chunk_id: str
+            text: str
+            heading: str = "x"
+
+        doan = [Doan("a#1", "cay"), Doan("a#2", "ngọt")]
+        for k in (1, 2):
+            with self.subTest(so_muc=k):
+                ra = answer._chon_muc(doan, "cay", so_muc=k)
+                self.assertIsInstance(ra, list)
+                self.assertGreaterEqual(len(ra), 1)
+                self.assertLessEqual(len(ra), k)

@@ -1815,7 +1815,7 @@ Dạng IDF ở trên **luôn dương**. Dạng gốc $\ln\frac{N-n+0{,}5}{n+0{,}
 từ có ở hơn nửa số đoạn — và điểm âm nghĩa là **chứa từ đó làm đoạn TỤT hạng**. Với kho này thì
 "món" và "nhà hàng" có ở gần như mọi đoạn, nên đó không phải chuyện lý thuyết.
 
-**Embedding**: `intfloat/multilingual-e5-small`, 384 chiều, cosine. Họ E5 đòi **tiền tố**
+**Embedding**: `BAAI/bge-m3`, 1024 chiều, cosine. Họ BGE **không dùng tiền tố**; họ E5 (bản trước) đòi **tiền tố**
 `"query: "` cho câu hỏi và `"passage: "` cho đoạn. Thiếu tiền tố thì mô hình **vẫn chạy và vẫn trả
 vector** — chỉ kém đi. Đó là loại lỗi tệ nhất: không thông báo nào, chỉ điểm thấp hơn.
 
@@ -1971,7 +1971,7 @@ print("     thứ tự đó giữ nguyên ở cả hai nhóm.")
   ca đó không còn là held-out, và câu hỏi tiếp theo cần một tập MỚI. Tập 119 ca đã mất tính
   held-out đúng vì bước này từng bị làm mà không ghi lại.
 - **Ablation chỉ ra hai khẳng định SAI trong chú thích mã:** *tắt chuẩn hóa L2* không mất gì (vector của
-  `multilingual-e5-small` đã gần chuẩn đơn vị, nên phép chuẩn hóa **DƯ với kho này**); *tắt tiền tố
+  vector của mô hình nhúng đã gần chuẩn đơn vị, nên phép chuẩn hóa **DƯ với kho này**); *tắt tiền tố
   E5* làm Hit@5 **TĂNG** +0,023. Nhưng cơ chế tiền tố **vẫn được giữ**, vì cùng lúc đó `cấm@5` tăng
   từ 11 lên 13 — và `cấm@5` là chỉ số đã được đặt làm chỉ số quyết định. Một công cụ kết luận theo
   Hit@5 ở dòng đó là công cụ nói ngược lại thước đo mà chính nó đặt ra.
