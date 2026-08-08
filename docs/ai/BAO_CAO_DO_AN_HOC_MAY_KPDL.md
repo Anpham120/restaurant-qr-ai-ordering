@@ -86,7 +86,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
   - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu
-  - 4.10 Bốn bước so sánh công bằng, quyết định kiến trúc, thi hành, trần thật, và đổi mô hình nhúng
+  - 4.10 So sánh công bằng, quyết định kiến trúc, trần thật của truy hồi, và đổi mô hình nhúng
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần
@@ -2922,6 +2922,77 @@ Nên thứ tự xử lý là: **dựng cổng dữ liệu trước, rồi mới 
 Kết quả: **140/140** trở lại, và kho có thêm một bất biến mà trước đó không ai canh. Việc đổi
 mô hình vì thế phát hiện ra một lỗ hổng **không liên quan gì tới mô hình** — nó vốn đã ở đó.
 
+### 4.10.9 Một mô hình cho HAI bài toán truy hồi — nó có tốt cho cả hai không?
+
+Hệ thống dùng bộ nhúng ở hai chỗ khác hẳn nhau, và điều đó dễ bị bỏ qua khi đổi mô hình:
+
+| | bài toán | ứng viên |
+|---|---|---|
+| A | **toàn kho** — `doan_tri_thuc_lien_quan()` | 1 trong **372 đoạn** của 85 tài liệu |
+| B | **trong tài liệu** — `_knowledge_chunk()` | 1 trong **3–8 mục** của MỘT tài liệu |
+
+Bài toán B dễ hơn ở chỗ chủ đề đã biết, nhưng **khó hơn** ở chỗ mọi ứng viên đều cùng chủ
+đề — chúng khác nhau ở *khía cạnh*, không ở *chủ đề*. Không có gì bảo đảm mô hình tốt cho A
+cũng tốt cho B, và phép đo ở mục trên chỉ đo A.
+
+**Suýt kết luận sai.** Con số đầu tiên nhìn thấy là `bge-m3` đạt 0,729 trên bộ chọn mục,
+trong khi tài liệu cũ ghi `e5-small` đạt 0,864 — nghe như tụt 13,5 điểm. Nhưng hai con số đó
+đo trên **hai tập khác nhau** (48 ca niêm phong so với tập đầy đủ), nên chúng không so được.
+Đo lại ghép cặp trên đúng 168 ca:
+
+| mô hình | Top-1 | KTC 95% |
+|---|---:|---|
+| `e5-small` | 73,81% | 66,68–79,87% |
+| `bge-m3` | 75,60% | 68,58–81,47% |
+
+McNemar **p = 0,6476** — hai mô hình **hòa** ở bài toán B (11 ca sửa được, 8 ca làm hỏng).
+Nên không có hồi quy hệ thống, và không cần dùng hai mô hình khác nhau cho hai đường.
+
+> Đây là lần thứ hai trong ngày một con số nghe đáng báo động hóa ra là **so hai thứ khác
+> nhau**. Quy tắc rút ra: trước khi tin một mức tụt, kiểm xem hai con số có cùng tập, cùng
+> giao thức đo hay không.
+
+**Nhưng phép đo lại mở ra một cải tiến lớn hơn.** Cùng câu hỏi đã đặt cho đường toàn kho —
+*lấy một hay nhiều?* — đặt cho đường trong tài liệu:
+
+| số mục | Top-1 | số từ | McNemar so với 1 mục |
+|---:|---:|---:|---|
+| 1 | 75,60% | 72 | — |
+| **2** | **90,48%** | 138 | **p = 0,0000** |
+| 3 | 94,64% | 208 | p = 0,0000 |
+
+**+14,88 điểm cho +66 từ** — lợi hơn hẳn đường toàn kho (+16,00 điểm cho +62 từ ở mô hình
+cũ), và lý do hợp lý: các mục của cùng một tài liệu nói về cùng chủ đề, nên mục thứ hai hiếm
+khi lạc đề. Cái giá "đoạn lạc" ở đây nhỏ hơn.
+
+Ca phát hiện ra điều này là một lượt golden, và nó minh họa đúng cơ chế:
+
+```
+hỏi  "Mình nên nói với nhà hàng thế nào về việc dị ứng?"
+  chọn  #4  "Nếu dị nguyên của bạn không nằm trong năm loại…"      <- liên quan, không trả lời
+  bỏ    #3  "Khi gọi món, NÓI VỚI NHÂN VIÊN về dị ứng…"            <- CÂU TRẢ LỜI, hạng 2
+```
+
+**Và thứ tự ghép hai mục là theo TÀI LIỆU, không theo điểm.** Hai mục ở đây là hai phần của
+cùng một bài văn xuôi mà tác giả viết nối tiếp nhau; xếp theo điểm thì đoạn mở đầu bằng
+*"Vì vậy hãy làm thêm một việc"* đứng **trước** tiền đề của nó và câu trả lời thành câu cụt.
+`chunk_id` mang số thứ tự nên sắp theo nó là theo thứ tự tác giả — lý do là **mạch văn**, và
+việc nó đồng thời làm đoạn trả lời đúng lên đầu chỉ là hệ quả.
+
+Kết quả cuối, hai đường cùng trích 2 phần:
+
+| | trước cả đợt | sau |
+|---|---:|---:|
+| toàn kho — câu trả lời chứa tài liệu đúng | 48,00% | **82,00%** |
+| trong tài liệu — Top-1 chọn đúng mục | 75,60% | **90,48%** |
+| chiều B — số món vi phạm ràng buộc (truy hồi) | 116 | **92** |
+
+Tái lập:
+
+```bash
+python ai/evaluation/run_chunk_selection_comparison.py
+```
+
 Tái lập:
 
 ```bash
@@ -3417,17 +3488,17 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | chọn món | 8 ca | `hybrid` | 50 | 66,00% | 90,00% | — | — | 40 |
 | chọn món | 8 ca | `lọc nhãn` | 50 | 100,00% | 100,00% | — | — | 0 |
 | chọn mục `written|*` | phát triển | `bm25` | 76 | 80,26% | — | 87,32% | — | — |
-| chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 95,11% | — | — |
-| chọn mục `written|*` | phát triển | `hybrid` | 76 | 90,79% | — | 94,63% | — | — |
+| chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 96,05% | — | — |
+| chọn mục `written|*` | phát triển | `hybrid` | 76 | 90,79% | — | 94,74% | — | — |
 | chọn mục `written|A` | phát triển | `bm25` | 38 | 92,11% | — | 95,61% | — | — |
 | chọn mục `written|A` | phát triển | `embedding` | 38 | 97,37% | — | 98,68% | — | — |
 | chọn mục `written|A` | phát triển | `hybrid` | 38 | 97,37% | — | 98,68% | — | — |
 | chọn mục `written|B` | phát triển | `bm25` | 38 | 68,42% | — | 79,04% | — | — |
-| chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 91,54% | — | — |
-| chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,57% | — | — |
+| chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 93,42% | — | — |
+| chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,79% | — | — |
 | chọn mục `derived|*` | phát triển | `bm25` | 48 | 54,17% | — | 69,97% | — | — |
-| chọn mục `derived|*` | phát triển | `embedding` | 48 | 58,33% | — | 73,44% | — | — |
-| chọn mục `derived|*` | phát triển | `hybrid` | 48 | 54,17% | — | 71,35% | — | — |
+| chọn mục `derived|*` | phát triển | `embedding` | 48 | 72,92% | — | 81,42% | — | — |
+| chọn mục `derived|*` | phát triển | `hybrid` | 48 | 58,33% | — | 74,65% | — | — |
 | chọn mục `written|*` | niêm phong | `bm25` | 44 | 75,00% | — | 85,04% | — | — |
 | chọn mục `written|*` | niêm phong | `embedding` | 44 | 86,36% | — | 92,80% | — | — |
 | chọn mục `written|*` | niêm phong | `hybrid` | 44 | 88,64% | — | 93,56% | — | — |
@@ -3451,7 +3522,7 @@ Mọi phép đo cần stack hoặc mô hình thật đều được **ghi ra t�
 | `golden_e2e_sinh.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
 | `llm_rag_loai_c.json` | 2026-07-31 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://localhost:20128/v1 |
 | `truy_hoi_so_sanh.json` | 2026-08-02 | so_doan=428 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
-| `chon_muc_phat_trien.json` | 2026-07-31 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
+| `chon_muc_phat_trien.json` | 2026-08-08 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 | `chon_muc_niem_phong.json` | 2026-07-31 | tap=niem_phong · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 
 Thiếu một tệp trong bảng này là **sinh báo cáo thất bại**, không phải một ô trống trong
