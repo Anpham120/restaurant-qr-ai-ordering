@@ -444,6 +444,17 @@ def build() -> dict:
              "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
                         "why": ("«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` "
                                 "nên câu này từng bị đọc thành *món thứ nhất*.")}},
+            {"user": "Cho mình xem lại 3 món vừa rồi",
+             "expect": {"min_items": 3, "max_items": 3, "expect_kind": "list",
+                        "why": ("Cùng lớp lỗi, đường khác: cụm 'vừa rồi' bật `refers_to_focus`, và "
+                                "bước hợp nhất bộ nhớ giải cờ đó thành MỘT món. Đo được: câu này "
+                                "trả về 1 món trong khi 'Tóm tắt 3 món vừa tư vấn' trả đúng 3 — "
+                                "hai cách nói tương đương, hai kết quả khác hẳn.")}},
+            {"user": "Món vừa rồi giá bao nhiêu?",
+             "expect": {"max_items": 1,
+                        "why": ("CHIỀU NGƯỢC. Không có số lượng thì 'vừa rồi' vẫn phải trỏ MỘT "
+                                "món — nới quy tắc quá tay ở đây làm câu hỏi giá của một món trả "
+                                "về nửa danh sách.")}},
         ],
     })
 

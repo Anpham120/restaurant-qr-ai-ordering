@@ -3648,7 +3648,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "| bộ | quy mô | đo cái gì |",
         "|---|---:|---|",
         "| `cases.json` | **147 ca** | chất lượng câu trả lời, một lượt |",
-        "| `session_scripts.json` | 58 kịch bản / **155 lượt** | bộ nhớ phiên, đa lượt |",
+        "| `session_scripts.json` | 58 kịch bản / **157 lượt** | bộ nhớ phiên, đa lượt |",
         "| `golden_e2e.json` | 29 hội thoại / **103 lượt** | qua **stack thật**, có backend và giỏ hàng |",
         "| `retrieval_cases.json` | **222 ca** | truy hồi toàn kho |",
         "| `chunk_selection_cases.json` | **168 ca** | chọn **mục trong** một tài liệu |",
