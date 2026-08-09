@@ -106,8 +106,8 @@ tắc trên:
 | `party` | **91/91** | solo 68 · family 32 · friends 31 · share 24 · two_three 11 · three_five 9 | **lọc** |
 | `meal` | **91/91** | dinner 64 · lunch 39 · breakfast 22 · late_night 4 | **lọc** |
 | `season` | **91/91** | all_year 69 · hot_season 15 · cooling 14 · cold_season 7 | **lọc** |
-| `spice` 🔒 | **91/91** | none 68 · mild 14 · medium 6 · hot 3 | **lọc** |
-| `price` 🔒 | **91/91** | budget 54 · mid 26 · high 10 · premium 1 | **lọc** |
+| `spice` **(độc quyền)** | **91/91** | none 68 · mild 14 · medium 6 · hot 3 | **lọc** |
+| `price` **(độc quyền)** | **91/91** | budget 54 · mid 26 · high 10 · premium 1 | **lọc** |
 | `occasion` | 79/91 | everyday 53 · drinking 17 · business 12 · banquet 11 · date 4 · birthday 3 | **sắp thứ tự** |
 | `flavour` | 72/91 | sweet 43 · rich 29 · fatty 20 · sour 13 · salty 10 · smoky 7 | sắp thứ tự |
 | `health` | 67/91 | light 39 · high_protein 30 · healthy 25 · low_calorie 19 · low_fat 8 · no_msg 4 | sắp thứ tự |
@@ -120,7 +120,7 @@ tắc trên:
 | `diet` | 17/91 | vegetarian 17 · vegan 17 | lọc |
 | `promo` | 4/91 | popular 3 · signature 2 | sắp thứ tự |
 
-🔒 = **họ độc quyền**: một món chỉ mang đúng một giá trị.
+**(độc quyền)** = một món chỉ mang đúng một giá trị của họ nhãn đó.
 
 Ba quan sát rút ra từ bảng này, và cả ba ảnh hưởng tới thiết kế:
 
