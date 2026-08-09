@@ -1447,6 +1447,20 @@ _HOI_MANH = (
     r"the nao", r"nhu the nao", r"ra sao", r"lam sao", r"cach nao",
     r"vi sao", r"tai sao", r"sao lai", r"ma sao", r"sao ma", r"tinh sao",
     r"sao cho", r"sao gio", r"khac nhau", r"khac gi",
+    # Bốn khung ĐÒI BẢO ĐẢM / HỎI NGUỒN GỐC. Chúng phải nằm ở nhóm MẠNH, không phải nhóm yếu.
+    #
+    # Vì sao: chúng gần như luôn đi kèm một nhãn, và nhóm yếu bị chính nhãn đó vô hiệu hoá.
+    # "Đồ chay ở đây CÓ THẬT SỰ chay không" có `diet:vegetarian`, nên dấu hiệu yếu thua và câu rơi
+    # vào nhánh lọc — khách nhận về một danh sách món chay cho một câu hỏi **có nên tin nhãn chay
+    # hay không**. Danh sách ấy không trả lời gì, và tệ hơn, nó ngầm khẳng định điều khách đang nghi.
+    #
+    # Bốn khung này không bao giờ là lời xin món: không ai nói "cho tôi món có thật sự chay" hay
+    # "lấy từ đâu" để gọi đồ ăn. Nên đưa lên nhóm mạnh là an toàn.
+    #
+    # Đo từng mẫu trên 710 câu của mọi tập: mỗi mẫu đổi ĐÚNG một câu, đúng câu nó nhắm, 0 câu khác.
+    # `thi sao` bị LOẠI dù cũng là khung hỏi: nó đổi 6 câu, trong đó "Món đặc sản vùng miền thì sao?"
+    # mất `cat_regional` — đó là câu xin món, và nhánh lọc mới đúng.
+    r"co that su", r"lay tu dau", r"co tien khong", r"co an duoc",
     # `la gi` và `nghia la` KHÔNG nằm ở đây, dù chúng là câu hỏi định nghĩa.
     #
     # Lý do đo được: ca `A-promo-02` "Món đặc trưng của nhà hàng là gì?" — đây là câu HỎI THỰC ĐƠN,

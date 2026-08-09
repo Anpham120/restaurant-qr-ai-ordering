@@ -104,20 +104,36 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
                 self.assertTrue(ask(cau).hoi_ve_su_viec, "phải nhận là câu HỎI VỀ")
 
     def test_GIOI_HAN_da_biet_cua_hang_rao_HOI_VE(self):
-        """Hai giới hạn còn lại, ghi ra thay vì giấu — chúng là đánh đổi có ý thức.
+        """Giới hạn còn lại, ghi ra thay vì giấu — nó là đánh đổi có ý thức.
 
-        1. Câu vừa HỎI VỀ vừa mang RÀNG BUỘC, với dấu hiệu YẾU: "Đồ chay ở đây có thật sự chay
-           không?" mang `diet:vegetarian`, nên hàng rào không áp dụng và câu vào nhánh lọc. Nới quy
-           tắc cho dấu hiệu yếu sẽ nuốt cả "Có món chay nào không?" — một nhánh đang đúng.
+        Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này vẫn
+        tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
 
-        2. Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này
-           vẫn tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
+        MỘT GIỚI HẠN ĐÃ GỠ — và cách gỡ đáng ghi lại
+        --------------------------------------------
+        Bản trước liệt kê thêm giới hạn thứ hai: câu vừa HỎI VỀ vừa mang RÀNG BUỘC với dấu hiệu
+        YẾU. "Đồ chay ở đây có thật sự chay không?" mang `diet:vegetarian`, nên hàng rào không áp
+        dụng và khách nhận về một DANH SÁCH MÓN CHAY cho câu hỏi **có nên tin nhãn chay hay không**.
+        Danh sách ấy không trả lời gì, và tệ hơn, nó ngầm khẳng định đúng điều khách đang nghi.
 
-        Ca này chốt HÀNH VI HIỆN TẠI. Nếu ai đó nới hàng rào, ca này đỏ và buộc họ đọc lý do.
+        Lý do ghi khi đó là: "nới quy tắc cho dấu hiệu yếu sẽ nuốt cả 'Có món chay nào không?'".
+        Lý do ấy ĐÚNG — và cách gỡ là **không nới quy tắc yếu**. Thay vào đó đưa đúng khung
+        `co that su` lên nhóm MẠNH: nó không bao giờ là lời xin món, nên nó thắng được ràng buộc
+        mà không chạm tới câu hỏi thực đơn.
+
+        Đo trên 710 câu của mọi tập: mẫu đổi ĐÚNG một câu. Bốn câu chốt bên dưới xác nhận chiều
+        ngược vẫn nguyên.
         """
         r1 = ask("Đồ chay ở đây có thật sự chay không?")
-        self.assertFalse(r1.hoi_ve_su_viec, "dấu hiệu YẾU + có ràng buộc -> không áp dụng")
+        self.assertTrue(r1.hoi_ve_su_viec, "khung ĐÒI BẢO ĐẢM là dấu hiệu MẠNH, thắng ràng buộc")
         self.assertIn("diet:vegetarian", r1.require_tags)
+
+        # Chiều ngược: khung mạnh mới KHÔNG được nuốt câu hỏi thực đơn.
+        for cau in ("Có món chay nào không?",
+                    "Cho mình món chay",
+                    "Món chay nào dưới 100 nghìn có cay không?"):
+            with self.subTest(cau=cau):
+                self.assertFalse(ask(cau).hoi_ve_su_viec, f"{cau!r} là câu XIN MÓN, không phải HỎI VỀ")
 
         r2 = ask("Phở với bún với hủ tiếu thì khác nhau chỗ nào?")
         self.assertFalse(r2.hoi_ve_su_viec, "có tên món -> hàng rào không áp dụng")
