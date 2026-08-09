@@ -745,6 +745,23 @@ def mo_theo_mau(meta: dict) -> Document:
             cu = t.split("Giảng viên hướng dẫn:")[1].split("\n")[0].strip()
             if cu and cu != meta["gv"] and thay_mot_cum(p, cu, meta["gv"]):
                 doi.append("giảng viên")
+        elif t.startswith("Dự án:") and meta["de_tai"]:
+            # Mẫu bìa ghi cứng tên dự án dùng chung cho ba báo cáo, nên trước
+            # đây trường `Đề tài` của tệp Markdown KHÔNG lên tới bìa DOCX — đặt
+            # tên đề tài xong mà bìa vẫn giữ tên cũ. Nay bìa lấy theo Markdown.
+            #
+            # Hai báo cáo kia khai `Đề tài` đúng bằng tên dự án đang ghi ở mẫu,
+            # nên bìa của chúng không đổi một chữ nào; chỉ báo cáo nào khai tên
+            # khác mới thấy khác.
+            cu = t.split("Dự án:")[1].strip()
+            # So sau khi gộp khoảng trắng: mẫu bìa xuống dòng giữa tên dự án,
+            # còn `_lay()` đã gộp về một dòng. Không gộp thì hai chuỗi "khác
+            # nhau" chỉ vì một ký tự xuống dòng, và bìa của hai báo cáo kia bị
+            # viết lại — mất đúng chỗ ngắt dòng người ta đã căn.
+            _gon = lambda x: re.sub(r"\s+", " ", x).strip()
+            if (cu and _gon(cu) != _gon(meta["de_tai"])
+                    and thay_mot_cum(p, cu, meta["de_tai"])):
+                doi.append("tên đề tài")
     # Đóng băng những thuộc tính mà trang bìa đang thừa kế từ kiểu Normal, vì
     # dung_kieu() chạy ngay sau đây sẽ sửa Normal (giãn đoạn 6pt, căn đều) và
     # làm xô lệch bố cục bìa. Giá trị đóng băng đúng bằng giá trị đang có:

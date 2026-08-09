@@ -6,7 +6,8 @@
 # BÁO CÁO ĐỒ ÁN MÔN HỌC
 # MÔN: HỌC MÁY VÀ KHAI PHÁ DỮ LIỆU
 
-**Đề tài:** Ứng dụng truy hồi thông tin và học máy xây dựng trợ lý tư vấn thực đơn qua mã QR
+**Đề tài:** Xây dựng chatbot gọi món cho nhà hàng sử dụng LLM và RAG
+*(Building a Restaurant Food-Ordering Chatbot using LLM and RAG)*
 
 **Khoa/Ngành:** CNTT&TT — Công nghệ Thông tin
 
