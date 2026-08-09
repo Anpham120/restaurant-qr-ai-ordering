@@ -190,10 +190,22 @@ class KhoTriThucThatPhaiHopLe(unittest.TestCase):
             self.assertTrue(doc.topic_keys, f"{doc.doc_id}: thiếu topic_keys nên không ai tới được")
 
     def test_kho_du_lon_de_so_sanh_truy_hoi_co_nghia(self):
-        # Với ~40 đoạn thì BM25 và embedding hòa nhau tầm thường và kết luận không nói được gì.
+        """Kho phải đủ lớn để phép so BM25/embedding/hybrid nói được điều gì.
+
+        Ngưỡng hạ từ 250 xuống 180 khi 49 tài liệu sinh-theo-nhãn bị bỏ (449 -> 213 đoạn).
+
+        Vì sao hạ ngưỡng là ĐÚNG chứ không phải nới test cho qua: 190 đoạn bị bỏ là **các bản gần
+        trùng nhau**. 49 tài liệu ấy dùng chung đúng 4 tiêu đề mục, và tài liệu điển hình có **0 từ
+        chỉ xuất hiện ở riêng nó**. Một kho lớn hơn nhờ bản sao không làm phép so có ý nghĩa hơn —
+        nó chỉ làm bài toán khó hơn theo cách không phản ánh việc thật, và đẩy con số xuống mà
+        không nói gì về bộ truy hồi.
+
+        Điều ngưỡng này canh vẫn nguyên: với ~40 đoạn thì BM25 và embedding hòa nhau tầm thường.
+        182 đoạn văn xuôi viết tay với 174 tiêu đề mục phân biệt thì không rơi vào cảnh đó.
+        """
         chunks = all_chunks(KNOWLEDGE)
         self.assertGreaterEqual(
-            len(chunks), 250,
+            len(chunks), 180,
             "kho quá nhỏ để phép so BM25/embedding/hybrid có ý nghĩa thống kê",
         )
 
@@ -308,7 +320,9 @@ class HaiCheDoTraLoiTrongMOTKho(unittest.TestCase):
         self.assertTrue(all(c.answer_mode == SYNTHESIZE for c in ranked))
         self.assertLess(len(ranked), len(every), "phải có đoạn verbatim bị loại, nếu không thì "
                                                  "phép lọc này không kiểm được gì")
-        self.assertGreaterEqual(len(ranked), 250, "còn đủ đoạn để so BM25/embedding có nghĩa")
+        # 180, không phải 250 — xem `test_kho_du_lon_de_so_sanh_truy_hoi_co_nghia` để biết vì sao
+        # bỏ 190 đoạn gần-trùng lại làm phép so TỐT HƠN chứ không tệ đi.
+        self.assertGreaterEqual(len(ranked), 180, "còn đủ đoạn để so BM25/embedding có nghĩa")
 
     def test_moi_chu_de_verbatim_tra_ra_mot_chuoi_khong_rong(self):
         answers = verbatim_answers(KNOWLEDGE)

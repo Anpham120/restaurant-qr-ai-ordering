@@ -18,21 +18,13 @@
     "kb-verbatim-topic"
   ],
   "dev_families": [
-    "kb-health",
+    "kb-collision",
     "kb-longtail",
-    "kb-method",
-    "kb-multi-topic",
-    "kb-occasion",
-    "kb-region",
-    "kb-section",
-    "kb-written",
+    "kb-paraphrase",
     "kb-written-new"
   ],
   "test_families": [
-    "kb-collision",
-    "kb-flavour",
-    "kb-ingredient",
-    "kb-paraphrase",
-    "kb-vague"
+    "kb-vague",
+    "kb-written"
   ]
 }

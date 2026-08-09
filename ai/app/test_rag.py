@@ -394,7 +394,9 @@ class ChayThatTrenKhoTriThuc(unittest.TestCase):
 
     def test_chi_muc_phu_het_doan(self):
         self.assertEqual(len(self.index.chunk_ids), len(self.chunks))
-        self.assertGreater(len(self.chunks), 250, "kho nhỏ hơn kỳ vọng — kiểm bộ nạp")
+        # 180 sau khi bỏ 49 tài liệu sinh-theo-nhãn (chúng đóng góp 190 đoạn gần-trùng nhau).
+        # Lý do đầy đủ ở `test_chunker.test_kho_du_lon_de_so_sanh_truy_hoi_co_nghia`.
+        self.assertGreater(len(self.chunks), 180, "kho nhỏ hơn kỳ vọng — kiểm bộ nạp")
 
     def test_cau_hoi_dung_tu_cua_tai_lieu_thi_BM25_lay_dung(self):
         """Chiều BM25 mạnh nhất: câu hỏi dùng ĐÚNG từ của tài liệu."""

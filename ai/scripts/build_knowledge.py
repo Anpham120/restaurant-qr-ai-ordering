@@ -393,21 +393,33 @@ def build_policy_derived(menu: dict, dictionary: dict) -> dict[Path, str]:
 
 
 def generate(menu: dict, dictionary: dict) -> dict[Path, str]:
-    items = menu["items"]
-    cats = {c["categoryId"]: c["name"] for c in menu["categories"]}
-    out: dict[Path, str] = {}
-    for group, (group_label, group_note) in DERIVED_GROUPS.items():
-        values = sorted(
-            (k, e["label_vi"]) for k, e in dictionary["tags"].items() if e["group"] == group
-        )
-        for tag, label in values:
-            value = tag.split(":", 1)[1]
-            path = DERIVED_DIR / f"{group}-{value}.md"
-            out[path] = build_derived_doc(
-                group, tag, label, items, cats, group_label, group_note
-            )
-    out.update(build_policy_derived(menu, dictionary))
-    return out
+    """Chỉ còn sinh tài liệu CHÍNH SÁCH. 49 tài liệu theo nhãn đã bị bỏ — xem bên dưới.
+
+    VÌ SAO BỎ 49 TÀI LIỆU SINH THEO NHÃN
+    ------------------------------------
+    Chúng chiếm **190/372 = 51% chỉ mục truy hồi** và không phục vụ ai.
+
+    1. Nhánh lọc nhãn KHÔNG đọc chúng. `select(request, items)` chỉ nhận thực đơn — không có
+       đường nào để nó mở kho tri thức.
+    2. Tra khóa KHÔNG tới được chúng: 0/49 `topic_keys` có mặt trong từ vựng.
+    3. Nên chỉ truy hồi toàn kho đọc chúng — và 106 ca từng nhắm vào chúng đều là **câu chọn
+       món** ("Món Hà Nội có gì?"), tức câu của nhánh lọc. Sau khi thêm 36 cụm từ vựng,
+       **99,1% (105/106)** số ca ấy đi thẳng nhánh lọc và không còn chạm truy hồi.
+
+    Và chúng làm HỎNG phần truy hồi còn lại: 49 tài liệu dùng chung đúng 4 tiêu đề mục, tài liệu
+    điển hình có **0 từ chỉ xuất hiện ở riêng nó** (văn xuôi viết tay: 2, nhiều nhất 18), vì danh
+    sách món rò rỉ từ vựng của mọi nhóm khác. Bộ nhúng phải chọn giữa 190 đoạn gần trùng nhau.
+
+    Ba cách chữa đã đo, cả ba đều không thắng — xếp lại bằng cross-encoder (p = 0,8238), gộp
+    thành 6 tài liệu theo họ (p = 0,5488), cắt bớt mục (0 từ riêng lên 1). Thứ trùng lặp là chính
+    cái khuôn, nên cách duy nhất còn lại là **bỏ hẳn**.
+
+    Kết quả: chỉ mục còn **182 đoạn văn xuôi viết tay đồng nhất** — đúng thứ bài toán RAG cần.
+    Nội dung mất đi không mất thật: mọi thứ 49 tài liệu ấy nói (danh sách món mang nhãn X, dị
+    nguyên trong nhóm, dải giá) đều tính được từ nhãn, và nhánh lọc làm việc đó **chính xác
+    100,00%** thay vì 54,40%.
+    """
+    return build_policy_derived(menu, dictionary)
 
 
 def inspect(problems: list[str]) -> tuple[int, int, Counter, Counter]:

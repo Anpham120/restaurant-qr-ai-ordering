@@ -110,7 +110,7 @@ Hà Nội, ngày 01 tháng 08 năm 2026
 hỏi bằng tiếng Việt tự nhiên; hệ thống trả lời và đề xuất món để khách thêm vào giỏ hàng.
 
 Dữ liệu gồm thực đơn thật **91 món** được gán **85 nhãn** thuộc 16 nhóm
-thuộc tính, và kho tri thức **109 tài liệu** được chia thành **452 đoạn**.
+thuộc tính, và kho tri thức **60 tài liệu** được chia thành **213 đoạn**.
 
 Câu hỏi của khách chia thành hai loại có bản chất khác nhau:
 
@@ -310,11 +310,11 @@ hệ thống: không có nhãn thì không lọc được món, không có kho t
 
 ```
 TV1  DỮ LIỆU + LỚP HIỂU CÂU HỎI
-      |   91 món · 85 nhãn · 109 tài liệu / 452 đoạn
+      |   91 món · 85 nhãn · 60 tài liệu / 213 đoạn
       |   -> Request(nhãn lọc, ràng buộc, ý định)
       v
 TV2  TRUY HỒI
-      |   222 ca · BM25 / embedding / hybrid
+      |   114 ca · BM25 / embedding / hybrid
       |   -> đoạn tri thức cho câu ngoài thực đơn
       v
 TV3  CHỌN MÓN & AN TOÀN
@@ -354,7 +354,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 1. Hợp nhất hai nguồn thực đơn (JSON của AI và CSDL của backend) về **một** bộ nhãn
 2. Từ điển **85 nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
-3. Kho tri thức **109 tài liệu / 452 đoạn** (85 `synthesize`, 24 `verbatim`)
+3. Kho tri thức **60 tài liệu / 213 đoạn** (36 `synthesize`, 24 `verbatim`)
 4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
 5. Từ vựng tất định **611 cụm**, khớp trên chuỗi đã rút dấu
 6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
@@ -369,7 +369,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 3. Tính sẵn vector lúc build ảnh Docker, không tải mô hình lúc chạy
 4. Chốt bộ cho production kèm **giá phải trả** — ảnh Docker, độ trễ, thời gian khởi động
 
-> **Nghiệm thu:** 222 ca chạy trên cả ba bộ; bảng so có `cấm@5`; quyết định chốt
+> **Nghiệm thu:** 114 ca chạy trên cả ba bộ; bảng so có `cấm@5`; quyết định chốt
 > **có số đi kèm**, không chọn theo cảm giác.
 
 ### TV3 — Chọn món & an toàn
@@ -395,7 +395,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **222 ca truy hồi**, **500 ca chọn mục**
+1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **114 ca truy hồi**, **120 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
@@ -604,7 +604,7 @@ RAG rất mạnh cho câu **văn xuôi**. Nhưng đồ án này chứng minh b�
 | Tiếng Anh | Tiếng Việt | Nghĩa đơn giản |
 |---|---|---|
 | **chunk** | **đoạn** | một mẩu tài liệu đủ nhỏ để đưa vào lời nhắc; kho này cắt theo tiêu đề mục |
-| **corpus** | **kho ngữ liệu** | toàn bộ tài liệu dùng để truy hồi — ở đây 109 tài liệu / 452 đoạn |
+| **corpus** | **kho ngữ liệu** | toàn bộ tài liệu dùng để truy hồi — ở đây 60 tài liệu / 213 đoạn |
 | **index** | **chỉ mục** | cấu trúc dữ liệu dựng sẵn để tìm nhanh, như mục lục sách |
 | **query** | **truy vấn** | câu hỏi sau khi đã xử lý để đem đi tìm |
 | **token** | **từ tố** | đơn vị nhỏ nhất máy đọc — thường là một từ |
@@ -1064,12 +1064,12 @@ Bộ nhớ phiên hợp nhất theo **ba quy tắc**, và sự khác nhau giữa
 
 ## 3.2 Kho tri thức: một kho, hai chế độ trả lời
 
-**109 tài liệu / 452 đoạn**, markdown có frontmatter, chia đoạn theo tiêu đề `##`.
+**60 tài liệu / 213 đoạn**, markdown có frontmatter, chia đoạn theo tiêu đề `##`.
 
 | Chế độ | Tài liệu | Cách trả lời | Mô hình chạm chữ? |
 |---|---:|---|---|
 | `verbatim` | 24 | TRA KHÓA, trả **nguyên văn** | **0%** |
-| `synthesize` | 85 | truy hồi, xếp hạng | không — chỉ trình bày lại |
+| `synthesize` | 36 | truy hồi, xếp hạng | không — chỉ trình bày lại |
 
 `verbatim` là chế độ tin mô hình **0%**: giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng — một
 chữ số lệch ở đây là sai sự thật về nhà hàng. Truy hồi ở đó là **tra khóa**, không xếp hạng, nên không
@@ -1084,14 +1084,14 @@ Hai quy tắc chia đoạn đáng ghi:
    là từ chối — để không ai thêm được nội dung hướng dẫn nội bộ vào kho khách đọc. Bản cũ của dự án có
    5/27 tệp `audience: ai` nằm cùng chỉ mục, và 47/221 đoạn bị trích cho khách đọc.
 
-Số đoạn được xếp hạng là **372**, không phải 452: bỏ đoạn `verbatim`
+Số đoạn được xếp hạng là **182**, không phải 213: bỏ đoạn `verbatim`
 (chúng đã có đường riêng) và bỏ đoạn **mở đầu** — một mục không có tiêu đề là phần dẫn nhập của tài
 liệu, nó mô tả TÀI LIỆU chứ không trả lời câu nào.
 
 ### 3.2.1 Bộ nhãn được xây dựng như thế nào
 
 Bộ nhãn là **nền của cả hệ thống**: lớp hiểu câu hỏi ánh xạ chữ khách gõ vào nhãn, lớp chọn món lọc
-theo nhãn, và 85 tài liệu tri thức được sinh từ nhãn. Nhãn sai thì cả
+theo nhãn, và 36 tài liệu tri thức được sinh từ nhãn. Nhãn sai thì cả
 bốn chặng sau sai theo.
 
 **Quy trình bốn bước:**
@@ -1138,14 +1138,14 @@ liệu**, không sửa được bằng mã — và nó là lý do hệ thống c
 
 ### 3.2.2 Kho tri thức gồm những gì
 
-Kho có **109 tài liệu / 452 đoạn**, ở dạng markdown có phần đầu YAML. Nó chia theo
+Kho có **60 tài liệu / 213 đoạn**, ở dạng markdown có phần đầu YAML. Nó chia theo
 **hai trục độc lập**, và hiểu hai trục này là hiểu cả kiến trúc tri thức.
 
 **Trục thứ nhất — nguồn gốc nội dung:**
 
 | Nguồn | Số tài liệu | Nội dung | Ai viết |
 |---|---:|---|---|
-| `derived` | 57 | Danh sách món theo từng nhãn, đếm số món, dải giá | **Sinh tự động** từ thực đơn bởi `build_knowledge.py` |
+| `derived` | 8 | Danh sách món theo từng nhãn, đếm số món, dải giá | **Sinh tự động** từ thực đơn bởi `build_knowledge.py` |
 | `demo` | 52 | Chính sách quán, cách kết hợp món, hướng dẫn gọi món | Nhóm viết tay |
 
 Tài liệu `derived` **không thể lệch khỏi thực đơn**, vì chúng được sinh lại từ thực đơn và CI có cổng
@@ -1156,7 +1156,7 @@ Tài liệu `derived` **không thể lệch khỏi thực đơn**, vì chúng đ
 | Chế độ | Số tài liệu | Dùng cho câu hỏi | Cách trả lời |
 |---|---:|---|---|
 | `verbatim` | 24 | giờ mở cửa, cách thanh toán, phụ phí, cách khai dị ứng | **Trả NGUYÊN VĂN**, không qua mô hình |
-| `synthesize` | 85 | tư vấn, so sánh, giải thích | Làm **ngữ cảnh** cho mô hình viết |
+| `synthesize` | 36 | tư vấn, so sánh, giải thích | Làm **ngữ cảnh** cho mô hình viết |
 
 **Vì sao phải tách hai chế độ.** Câu *"mấy giờ đóng cửa?"* có **một đáp án đúng duy nhất**. Đưa nó qua
 mô hình sinh là tạo cơ hội cho mô hình diễn đạt lại và làm sai — trong khi việc cần làm chỉ là đọc ra
@@ -1195,7 +1195,7 @@ nội dung tài liệu. Không có mô hình, không có xếp hạng, không c�
 **Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 611 cụm từ khóa. Khớp được cụm nào thì
 lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
 
-**Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
+**Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 182
 đoạn `synthesize` và lấy 5 đoạn đầu. Đây là đường **duy nhất** tới những tài liệu không có cụm từ vựng
 riêng.
 
@@ -1215,8 +1215,8 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 |---|---:|---|
 | `cases.json` | 147 ca | `understand()` + `respond()` gọi trực tiếp |
 | `session_scripts.json` | 60 kịch bản / 163 lượt | + bộ nhớ nhiều lượt |
-| `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
-| `chunk_selection_cases.json` | 500 ca | chọn mục **trong một tài liệu** |
+| `retrieval_cases.json` | 114 ca | truy hồi trên **toàn kho** |
+| `chunk_selection_cases.json` | 120 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
 
 ### 3.3.1 Bộ đánh giá được xây dựng như thế nào
@@ -1248,7 +1248,7 @@ dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi
 được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
 CI nên tập không thể bị sửa tay.
 
-**3. Tập truy hồi — 222 ca / 17 họ.**
+**3. Tập truy hồi — 114 ca / 9 họ.**
 Sinh bởi `ai/scripts/build_retrieval_cases.py`. Phần lớn ca sinh từ **khóa chủ đề thật của kho tri
 thức**: với mỗi giá trị nhãn, bộ sinh tạo hai câu hỏi — một câu dùng đúng từ có trong tài liệu (BM25
 nên thắng), một câu diễn đạt khác hoàn toàn (embedding nên thắng). Cách này giúp tập **phân biệt được
@@ -1265,7 +1265,7 @@ Ba họ **viết tay** vì không suy được từ dữ liệu, và chúng đo 
 Không có ba họ này thì một bộ truy hồi **luôn trả về 5 đoạn** sẽ đạt điểm cao, trong khi nó mời khách
 đọc một đoạn không liên quan.
 
-**4. Tập chọn mục — 500 ca.**
+**4. Tập chọn mục — 120 ca.**
 Sinh bởi `ai/scripts/build_chunk_selection_cases.py` từ chính cấu trúc tài liệu: mỗi ca là một câu hỏi
 kèm danh sách **mục trong cùng một tài liệu**, đáp án là mục đúng. Tập tách hai nhóm báo cáo riêng —
 nhóm `written` (mỗi tài liệu một cấu trúc riêng) là con số chính, nhóm `derived` (khuôn lặp lại) báo
@@ -1323,8 +1323,8 @@ Ba nhóm, không phải hai:
 | Nhóm | Số họ | Vai trò |
 |---|---:|---|
 | chốt | 3 | **luôn phải đạt**; một ca đỏ ở đây là CHẶN, không phải số liệu |
-| phát triển | 9 | được xem, được sửa theo |
-| niêm phong | 5 | **chỉ mở MỘT lần** |
+| phát triển | 4 | được xem, được sửa theo |
+| niêm phong | 2 | **chỉ mở MỘT lần** |
 
 Nhóm chốt của tập truy hồi gồm ba họ đo việc **biết khi nào KHÔNG trả lời**. Vì sao chúng là chốt chứ
 không phải số liệu: một bộ truy hồi **luôn trả về 5 đoạn** đạt điểm cao trên mọi họ khác, và chỉ ba họ
@@ -1364,13 +1364,13 @@ Lúc chạy, truy hồi được gọi ở hai chỗ, và chúng là hai bài to
 
 | Chỗ gọi | Bài toán | Ứng viên | `k` |
 |---|---|---:|---:|
-| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 372 | 1 |
+| `doan_tri_thuc_lien_quan()` | đoạn nào **trong cả kho** trả lời câu này | 182 | 1 |
 | `_knowledge_chunk()` → `_chon_muc()` | mục nào **trong tài liệu này** đúng ý | 3–8 | 1 |
 
 Cả hai dùng `k=1`, nên **Top-1 là chỉ số quyết định** ở cả hai. Và cả hai chạy **embedding** — quyết
 định này đến từ số liệu ở mục 4.2 và 4.3.
 
-Đường thứ hai **không dựng chỉ mục mới**: chỉ mục toàn kho đã có vector của cả 372
+Đường thứ hai **không dựng chỉ mục mới**: chỉ mục toàn kho đã có vector của cả 182
 đoạn, nên xếp hạng trong một tài liệu chỉ là giới hạn phép chấm điểm vào tập con — hợp lệ vì vector đã
 chuẩn hoá L2 (mục 2.2). Chi phí thật là **một** lần mã hoá câu hỏi. Cách hiển nhiên — dựng một chỉ mục
 cho mỗi tài liệu — mất **~91ms mỗi lượt**, và có một test **đếm số lần dựng chỉ mục rồi đòi 0**.
@@ -1484,7 +1484,7 @@ tiếp chứ không ước lượng.
 
 ### 3.7.5 Lớp 4b — TRUY HỒI xử lý thế nào (`rag/`)
 
-Khi chín nhánh đầu không khớp, hệ thống xếp hạng **372 đoạn** `synthesize`:
+Khi chín nhánh đầu không khớp, hệ thống xếp hạng **182 đoạn** `synthesize`:
 
 ```
 1. CHUẨN HÓA   câu hỏi -> thêm tiền tố "query: " (yêu cầu của họ mô hình E5)
@@ -1768,7 +1768,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
 |---|---|
 | Ngày đo | 2026-08-02 |
 | Thực đơn | 91 món, 85 nhãn |
-| Kho tri thức | 109 tài liệu / 452 đoạn, 372 đoạn được xếp hạng |
+| Kho tri thức | 60 tài liệu / 213 đoạn, 182 đoạn được xếp hạng |
 | Bộ truy hồi đã so | `bm25`, `embedding`, `hybrid` |
 | Mô hình sinh | `cx/gpt-5.6-luna-review` |
 | Giao thức đo độ trễ | screening |
@@ -1779,7 +1779,7 @@ kiện của lần chạy. Báo cáo này **không** chứa số nào do ngườ
 ## 4.2 So ba phương pháp truy hồi trên hai tập
 
 Bài toán: **đoạn nào trong cả kho trả lời câu hỏi này.** Đây là chỗ RAG *đúng là* câu trả lời,
-vì 85 chủ đề `synthesize` phần lớn **không có cụm từ vựng** nên
+vì 36 chủ đề `synthesize` phần lớn **không có cụm từ vựng** nên
 truy hồi là đường **duy nhất** tới chúng.
 
 **Nhóm CHỐT** — 20 ca
@@ -1898,7 +1898,7 @@ cảnh kích thước kho là nói quá.
 ## 4.3 Chọn mục trong tài liệu — bài toán mà hệ thống thật sự chạy
 
 Bài toán: **mục nào trong MỘT tài liệu đã biết đúng ý khách.** Đây là đường chạy nhiều hơn, và
-tập ca của nó lớn hơn: **500 ca**.
+tập ca của nó lớn hơn: **120 ca**.
 
 Số ứng viên mỗi ca chỉ 3–8, nên **sàn ngẫu nhiên khoảng 20%** — một phương pháp đạt 60% nghe
 cao nhưng chỉ hơn sàn ba lần. Bảng dưới in cả sàn.
@@ -2079,9 +2079,9 @@ Hai quy tắc của công cụ, và cả hai đến từ lỗi đã mắc:
 Ba trong bốn lớp **dẫn ra được từ dữ liệu**, không dán tay từng ca: họ của ca cho lớp `number`,
 phép giao tập từ cho lớp `no_overlap`, tiêu đề mục cho lớp `twin_section`.
 
-**Trần đa dạng của kho** là phát hiện đáng nói nhất: 178
-tiêu đề mục phân biệt trên 452 đoạn — trung bình
-2,5 đoạn dùng chung một
+**Trần đa dạng của kho** là phát hiện đáng nói nhất: 174
+tiêu đề mục phân biệt trên 213 đoạn — trung bình
+1,2 đoạn dùng chung một
 tiêu đề. Khi bốn tài liệu vùng miền đều có mục *"Món tiêu biểu"*, **không tín hiệu nào** trong
 câu *"Ăn gì đặc trưng phố cổ?"* phân biệt được chúng — trừ khi câu hỏi nêu tên tài liệu. Đổi bộ
 xếp hạng không chữa được; **viết lại tiêu đề mục** thì chữa được, vì đó là sửa **dữ liệu**.
@@ -2115,7 +2115,7 @@ Nếu chốt phương án bằng con số dự đoán thì báo cáo **sai gấp
 | `import torch` | 1,8s |
 | `import sentence_transformers` | 6,3s |
 | nạp mô hình | 10,6–12,2s |
-| **mã hoá 372 đoạn** | **61,7s** |
+| **mã hoá 182 đoạn** | **61,7s** |
 | **khởi động thật** | **97,3s** |
 
 `HEALTHCHECK` có `start-period=15s`, `interval=30s`, `retries=3`, nên lần kiểm thứ ba rơi vào
@@ -2145,7 +2145,7 @@ Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở c
 |---|---:|
 | 147 ca trả lời | **0** |
 | 163 lượt phiên | **0** |
-| 222 ca truy hồi | 36% |
+| 114 ca truy hồi | 36% |
 
 Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói "truy hồi
 vô dụng". Tập thứ ba thì ngược lại — nó chỉ hỏi câu tri thức, nên không nói được gì về
@@ -3343,7 +3343,7 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
    có trong thực đơn dưới bất kỳ dạng nào thì lọt. Giới hạn này được ghi thành **một test có tên nói rõ
    nó là giới hạn**.
 7. **Phần lớn ca truy hồi còn sai KHÔNG sửa được bằng đổi bộ xếp hạng.** Trần đa dạng của kho:
-   178 tiêu đề mục phân biệt trên 452 đoạn. Chữa được bằng sửa **dữ liệu**, và việc đó
+   174 tiêu đề mục phân biệt trên 213 đoạn. Chữa được bằng sửa **dữ liệu**, và việc đó
    chưa làm.
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
@@ -3421,7 +3421,7 @@ Sau khi ghim bản CPU: **2,74GB**.
 
 Đây là một trong sáu lần dự án có số viết tay rồi trôi. Năm lần kia: `"hơn 90 món"` khi thực đơn có
 91; một bản kiểm kê ghi `32/90` khi thật là `53/40`; notebook in `122/122` khi tập đã
-147 ca; `84 tài liệu / 303 đoạn` khi kho đã 109/452; và một chỉ số
+147 ca; `84 tài liệu / 303 đoạn` khi kho đã 60/213; và một chỉ số
 truy hồi của kho nhỏ hơn được trích cho kho hiện tại.
 
 **Và lần thứ bảy là chính báo cáo này.** Bản trước viết tay 1587 dòng và đã trôi hoàn toàn: nó mô tả một
@@ -3614,7 +3614,7 @@ nên nó biến `--check` thành một phép kiểm quá nhạy, và một phép
 | `ai/app` | mã lúc chạy — không tệp nào ở đây phụ thuộc bộ đo | `understand.py`, `answer.py`, `generate.py`, `cart.py`, `session.py`, `llm_understand.py`, `service.py` |
 | `ai/app/rag` | ba bộ truy hồi và tầng chia đoạn | `bm25.py`, `embedding.py`, `hybrid.py`, `chunker.py`, `precompute.py` |
 | `ai/evaluation` | bốn tập đánh giá, thước đo, bộ so, phân tích nguyên nhân | `cases.json`, `session_scripts.json`, `retrieval_cases.json`, `chunk_selection_cases.json`, `golden_e2e.json`, `answer_metric.py`, `run_baseline.py`, `run_session_eval.py`, `run_retrieval_comparison.py`, `run_chunk_selection_comparison.py`, `run_llm_rag_eval.py`, `run_golden_e2e.py`, `analyze_failures.py`, `results.py`, `verify_deploy_config.py` |
-| `ai/knowledge` | kho tri thức markdown — nguồn của mọi câu trả lời tri thức | 109 tài liệu markdown |
+| `ai/knowledge` | kho tri thức markdown — nguồn của mọi câu trả lời tri thức | 60 tài liệu markdown |
 | `ai/scripts` | bộ sinh dữ liệu, tất cả có `--check` trong CI | `build_tag_dictionary.py`, `build_knowledge.py`, `build_retrieval_cases.py`, `build_chunk_selection_cases.py` |
 | `ai/notebooks` | notebook giảng dạy + báo cáo, mọi ô tự tính lại | `build_teaching_notebook.py` |
 | `ai/docs` | tài liệu từng bước, và bộ sinh của báo cáo này | `build_bao_cao_do_an.py` |
