@@ -6,8 +6,7 @@
 
 **Trường Đại học CMC — Khoa Công nghệ thông tin & Truyền thông**
 
-**Đề tài:** Trợ lý AI tư vấn thực đơn qua mã QR — dùng phép đo để xác định
-câu hỏi nào nên trả lời bằng tra cứu chính xác, câu hỏi nào cần truy hồi
+**Đề tài:** Ứng dụng truy hồi thông tin và học máy xây dựng trợ lý tư vấn thực đơn qua mã QR
 
 **Repository:** [github.com/Anpham120/restaurant-qr-ai-ordering](https://github.com/Anpham120/restaurant-qr-ai-ordering)
 
