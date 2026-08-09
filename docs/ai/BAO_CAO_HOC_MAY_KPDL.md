@@ -6,8 +6,8 @@
 # BÁO CÁO ĐỒ ÁN MÔN HỌC
 # MÔN: HỌC MÁY VÀ KHAI PHÁ DỮ LIỆU
 
-**Đề tài:** Trợ lý AI tư vấn thực đơn qua mã QR — phân định bằng phép đo ranh giới giữa suy luận
-tất định và truy hồi xác suất
+**Đề tài:** Trợ lý AI tư vấn thực đơn qua mã QR — dùng phép đo để xác định câu hỏi nào nên trả lời
+bằng tra cứu chính xác, câu hỏi nào cần truy hồi
 
 **Khoa/Ngành:** CNTT&TT — Công nghệ Thông tin
 
@@ -64,6 +64,7 @@ Hà Nội, ngày 09 tháng 08 năm 2026
   - 3.6 Bốn tập đánh giá, và kỷ luật chia tập
   - 3.7 Điều kiện kiểm soát thực nghiệm
 - **[CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ](#chương-4-thực-nghiệm-và-kết-quả)**
+  - 4.0 Cách đọc chương này
   - 4.1 Thiết lập
   - 4.2 Chất lượng câu trả lời
   - 4.3 So ba phương pháp truy hồi
@@ -225,111 +226,125 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 
 # PHÂN CÔNG CÔNG VIỆC
 
-## Cách chia: nhóm trưởng làm NỀN TẢNG DỮ LIỆU, một người làm ĐÁNH GIÁ
+## Cách chia: theo THỨ TỰ XÂY DỰNG
 
-Phân công theo **khâu của pipeline**, cộng một vai đo lường tách riêng. Lý do nằm ở ràng buộc phụ
-thuộc rất chặt của hệ thống: không có nhãn thì không lọc được món, không có kho tri thức thì không
-truy hồi được, và **không có tập đánh giá thì không ai biết mình đúng hay sai**.
+Hệ thống này có ràng buộc phụ thuộc rất chặt. Không có nhãn thì không lọc được món. Không có kho
+tri thức thì không truy hồi được. Và **không có tập đánh giá thì không ai biết mình làm đúng hay
+sai**.
+
+Vì vậy nhóm không chia theo module. Chia theo module thì năm người khởi động cùng lúc rồi ba người
+ngồi chờ. Nhóm chia theo **chặng xây dựng**: mỗi người bàn giao một thứ mà người sau **dùng được
+ngay**.
 
 ```
-                          khách quét QR, gõ một câu
-                                     |
-   +---------------------------------v---------------------------------+
-   | TV4  CỔNG VÀO & PHIÊN            service.py · session.py          |
-   |      nhận HTTP, xác thực, NẠP bộ nhớ phiên                        |
-   +---------------------------------+---------------------------------+
-                                     |  ChatTurn(question, session_state)
-   +---------------------------------v---------------------------------+
-   | TV1  DỮ LIỆU + HIỂU CÂU HỎI      knowledge/* · understand.py      |
-   |      (nhóm trưởng)               91 món · 85 nhãn · 629 cụm       |
-   +---------------------------------+---------------------------------+
-                                     |  Request
-   +---------------------------------v---------------------------------+
-   | TV2  TRUY HỒI                    rag/bm25 · embedding · hybrid    |
-   |      câu này cần đoạn nào?       182 đoạn · giữ 2                 |
-   +---------------------------------+---------------------------------+
-                                     |  Evidence
-   +---------------------------------v---------------------------------+
-   | TV3  CHỌN MÓN & GIỎ HÀNG         answer.py · cart.py              |
-   |      món nào thỏa? thẻ giỏ nào?  4 lớp an toàn                    |
-   +---------------------------------+---------------------------------+
-                                     |  Reply + Cart
-   +---------------------------------v---------------------------------+
-   | TV4  GHI bộ nhớ phiên, trả JSON cho backend                       |
-   +-------------------------------------------------------------------+
-
-   +-------------------------------------------------------------------+
-   | TV5  ĐÁNH GIÁ — không xây gì trong pipeline; nó CHẤM cả bốn khâu  |
-   |      147 ca · 163 lượt phiên · 103 lượt golden · 14 cổng CI       |
-   +-------------------------------------------------------------------+
+CHẶNG 1    Phạm Duy An        DỮ LIỆU              91 món · 85 nhãn · 60 tài liệu
+              |                (nhóm trưởng)
+              |  giao bộ nhãn và kho cho chặng 2, rồi làm tiếp phần hiểu câu hỏi
+              v
+CHẶNG 2    Nguyễn Quang Hiếu  ĐÁNH GIÁ             147 ca · 163 lượt · 114 ca truy hồi
+              |                                     120 ca chọn mục
+              |  viết được NGAY, không phải chờ ai — xem lý do ngay dưới
+              v
+CHẶNG 1b   Phạm Duy An        HIỂU CÂU HỎI         629 cụm -> Request
+              |                                     (chạy song song với chặng 2)
+              v
+CHẶNG 3    Bùi Đào Đức Anh    TRUY HỒI             -> Evidence, tối đa 2 đoạn
+              |                                     đo ngay bằng 114 ca
+              v
+CHẶNG 4    Đỗ Tuấn Anh        CHỌN MÓN & GIỎ HÀNG  -> Reply + thẻ giỏ
+              |                                     đo ngay bằng 147 ca
+              v
+CHẶNG 5    Lê Anh             PHIÊN & TÍCH HỢP     -> dịch vụ HTTP chạy thật
+              |                                     đo ngay bằng 163 lượt
+              v
+CHẶNG 6    Nguyễn Quang Hiếu  ĐÓNG VÒNG            golden 103 lượt qua stack thật
 ```
 
 ## Bảng phân công
 
-| # | Họ và tên | MSSV | Khâu | Bàn giao cho người sau | Mục báo cáo | % |
+| # | Họ và tên | MSSV | Chặng | Bàn giao cho người sau | Mục báo cáo | % |
 |:-:|---|---|---|---|---|:-:|
 | 1 | Phạm Duy An | BIT240002 | **Dữ liệu & hiểu câu hỏi** *(nhóm trưởng)* | Bộ nhãn, kho tri thức, và `Request` đã hiểu | 2.5, 3.2, 3.3, 3.5 | 20% |
-| 2 | Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn | 2.1–2.4, 4.3, 4.4 | 20% |
-| 3 | Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, bốn lớp an toàn | 2.6, 4.8, 4.9 | 20% |
-| 4 | Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend | 3.1, 3.7, 4.10 | 20% |
-| 5 | Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập đánh giá, thước đo, golden, cổng CI | 2.7, 3.6, 4.1–4.2, 4.6 | 20% |
+| 2 | Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập ca có khoá đáp án, thước đo, cổng CI | 2.7, 3.6, 4.1–4.2, 4.6 | 20% |
+| 3 | Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn | 2.1–2.4, 4.3, 4.4 | 20% |
+| 4 | Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, bốn lớp an toàn | 2.6, 4.8, 4.9 | 20% |
+| 5 | Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend | 3.1, 3.7, 4.10 | 20% |
 
-## Vì sao tách ĐÁNH GIÁ khỏi DỮ LIỆU
+## Vì sao khâu đánh giá đứng thứ HAI chứ không đứng cuối
 
-Một bản phân công trước gộp hai việc này vào một người, với lý do: cả hai đều không phải chặng
-runtime, và cả hai đều là thứ mọi khâu khác dựa vào. Lý do đó **vẫn đúng**. Cái đổi là **trọng số**
-so với hai lý do ngược chiều, và cả hai đều nặng hơn:
+Đây là điểm khác biệt lớn nhất so với cách chia thông thường, và nó dựa trên một tính chất cụ thể
+của tập đánh giá: **khoá đáp án là một ĐIỀU KIỆN, không phải một danh sách kết quả.**
 
-**Thứ nhất — người viết dữ liệu không nên là người viết ca chấm dữ liệu đó.** Đây là lý do phương
-pháp, không phải lý do tổ chức. Đồ án này ghi nhận rằng **thước đo sai nhiều lần hơn hệ thống sai**.
-Khi cùng một người vừa soạn kho tri thức vừa viết ca đo truy hồi trên kho đó, họ vô thức viết ca mà
-họ biết kho trả lời được. Tách ra là cách rẻ nhất để có tính độc lập.
+Mở bất kỳ tập nào cũng thấy điều đó:
 
-**Thứ hai — vai gộp nằm trên đường tới hạn của hai người khác.** TV2 không đo được phép so truy hồi
-trước khi có tập ca truy hồi; TV4 không đo được bộ nhớ phiên trước khi có kịch bản đa lượt. Tách đôi
-thì phần dữ liệu chạy song song với phần đánh giá.
-
-## Vì sao GỘP dữ liệu với hiểu câu hỏi
-
-Không phải để cho nhóm trưởng nhiều việc, mà vì **một bất biến chạy vắt qua đúng hai phần đó**:
-
-```
-test_understand.KhoTriThucVaTuVungPhaiKhopNhau
+```json
+cases.json            "expect": {"kind": "fact", "facts": {"m_008": {"price": 75000}}}
+retrieval_cases.json  "expected": [{"topic_keys_any": ["combo_pairing"]}]
+session_scripts.json  "expect": {"forbid_tags_any": ["allergen:seafood"]}
 ```
 
-Mọi `topic_keys` trong kho tri thức phải có cụm từ vựng nhận ra được, và ngược lại. Hai người sở hữu
-hai đầu của một bất biến thì mỗi lần thêm tài liệu là một lần phải hẹn nhau. Một người sở hữu cả hai
-thì không.
+Không khoá nào nhắc tới mã nguồn. Chúng chỉ nhắc tới **thực đơn**, **bộ nhãn** và **siêu dữ liệu của
+kho tri thức** — đúng ba thứ mà chặng 1 giao ra.
 
-**Cái giá của việc gộp, nói trước:** một người nắm cả hai đầu bất biến có thể làm **sai cả hai đầu
-theo cùng một hướng**, và test so hai đầu với nhau nên nó không thấy gì. Thứ bù lại là TV5 viết ca
-đánh giá **độc lập với kho**.
+Nghĩa là người làm đánh giá viết được **toàn bộ** tập ca trước khi ba người sau viết dòng mã đầu
+tiên. Nhờ vậy ba chặng sau có thước đo **trước khi bắt đầu**, và điều kiện nghiệm thu của họ là một
+con số chứ không phải một lời hứa.
 
-## Điều kiện nghiệm thu từng khâu
+Nếu để đánh giá đứng cuối thì bốn chặng trước **xây mà không đo** — và đó đúng là bệnh mà đồ án này
+đã mắc một lần: mỗi đường xử lý đều "chạy đúng" theo người viết ra nó, nhưng không ai đo cả hệ
+thống.
 
-Mỗi khâu có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ tránh
-được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em" rồi ba tuần sau người
-khác mới phát hiện nó sai.
+**Người làm đánh giá là người duy nhất xuất hiện hai lần trong chuỗi**, vì một lý do có thật: bộ
+golden phải chạy qua stack thật, nên nó buộc phải nằm sau chặng tích hợp. Mọi phần còn lại của khâu
+đánh giá thì không cần chờ.
 
-| TV | Điều kiện nghiệm thu |
+## Một chi tiết bàn giao dễ bỏ sót
+
+Chặng 1 phải giao **đúng thứ tự: dữ liệu trước, hiểu câu hỏi sau**. Người làm đánh giá chỉ cần dữ
+liệu để viết tập ca; họ không dùng tới `understand.py`. Giao ngược thứ tự thì họ ngồi chờ 2.417 dòng
+mã mà mình không cần.
+
+## Điều kiện nghiệm thu từng chặng
+
+Mỗi chặng có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ
+tránh được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em", rồi ba tuần
+sau người khác mới phát hiện nó sai.
+
+| Chặng | Điều kiện nghiệm thu |
 |---|---|
-| **1** | hai nguồn thực đơn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**; kiểm kê đụng chữ khớp con số đã ghi |
-| **2** | 114 ca chạy trên cả ba bộ; bảng so có `cấm@5`; quyết định chốt **có số đi kèm**, không chọn theo cảm giác |
-| **3** | **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị BỎ**, không sửa; thẻ giỏ không bao giờ chứa món ngoài danh sách đã lọc |
-| **4** | dịch vụ trả lời được khi mô hình **không** cấu hình; bộ nhớ giữ dị nguyên qua mọi lượt; hợp đồng với backend không đổi ngoài kế hoạch |
-| **5** | 147/147 ca; 163 lượt phiên không lượt nào đỏ; 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không khớp cấu hình đang bật |
+| **1 · Dữ liệu** | hai nguồn thực đơn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ** |
+| **2 · Đánh giá** | bốn tập có khoá đáp án dạng điều kiện; bộ dò lỗ của chính thước đo báo **0 lỗ** |
+| **1b · Hiểu câu hỏi** | kiểm kê đụng chữ khớp con số đã ghi; đo bằng cách **chạy `understand()` thật** |
+| **3 · Truy hồi** | 114 ca chạy trên cả ba bộ; bảng so có cột `cấm@5`; quyết định chốt **có số đi kèm** |
+| **4 · Chọn món** | **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị bỏ**, không sửa |
+| **5 · Tích hợp** | dịch vụ trả lời được **khi mô hình không cấu hình**; bộ nhớ giữ dị nguyên qua mọi lượt |
+| **6 · Đóng vòng** | 103/103 lượt golden; mọi cổng CI xanh |
+
+## Đường tới hạn, và chỗ chạy song song được miễn phí
+
+```
+tới hạn:    dữ liệu -> tập ca -> truy hồi -> chọn món -> tích hợp -> golden
+song song:  chặng 1b (hiểu câu hỏi) chạy cùng lúc với chặng 2 (tập ca)
+            chặng 4 dựng select() bằng Request, chưa cần Evidence tới nhánh tri thức
+```
+
+Chỉ **hai người đầu** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai phải chờ quá một
+chặng.
 
 ## Vì sao chia đều 20%
 
-Không phải để "cho công bằng". Bốn khâu TV1–TV4 mỗi khâu là một mắt xích **bắt buộc** trên đường một
-câu hỏi đi qua — bỏ khâu nào thì hệ thống không chạy. Khâu TV5 không nằm trên đường chạy, nhưng
-**không có nó thì bốn khâu kia không chứng minh được mình đúng** — và trong một đồ án học máy, một
-hệ thống không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng.
+Không phải để "cho công bằng". Năm chặng đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống
+không chạy, hoặc chạy mà không ai chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống
+không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá
+nặng ngang bốn khâu kia.
 
 ---
 ---
 
 # CHƯƠNG 1: GIỚI THIỆU
+
+> **Chương này trả lời:** bài toán là gì, vì sao nó khó, và nhóm định đóng góp điều gì.
+> Chưa có công thức nào ở đây — công thức nằm ở Chương 2.
 
 ## 1.1 Bối cảnh và động lực
 
@@ -420,10 +435,25 @@ truy hồi"*. Mục 4.7 đo chính câu đó.
 4. **Bốn tập đánh giá** phủ bốn chặng khác nhau của chuỗi gọi, tới tận giỏ hàng thật.
 5. **Ghi lại mọi lần đo sai** — kể cả những lần thước đo sai trước khi hệ thống sai.
 
+### Cầu nối sang Chương 2
+
+Chương 1 đã nói **bài toán là gì**: khách hỏi hai loại câu khác hẳn nhau, và loại thứ nhất có đáp án
+tra được nên không nên giao cho mô hình sinh.
+
+Chương 2 nói về **những công cụ có sẵn** để giải hai loại câu đó — cách máy đo "hai câu giống nhau
+tới đâu", RAG là gì, và quan trọng nhất: **chỗ nào RAG không dùng được, và vì sao đó là giới hạn
+của chính phương pháp chứ không phải lỗi cài đặt.**
+
 ---
 ---
 
 # CHƯƠNG 2: CƠ SỞ LÝ THUYẾT
+
+> **Chương này trả lời:** máy đo "giống nhau" bằng cách nào, RAG hoạt động ra sao, và vì sao có
+> những câu hỏi mà mọi phương pháp xếp hạng đều **không thể** trả lời đúng.
+>
+> Chương có công thức, nhưng **mỗi công thức đều có một câu tiếng Việt giải thích nó làm gì** ở
+> ngay trước hoặc ngay sau.
 
 ## 2.0 Giải thích bằng lời — đọc mục này trước khi vào công thức
 
@@ -449,7 +479,7 @@ Câu hỏi loại hai **không có cột nào để lọc**. Đáp án nằm tro
 **Truy hồi** = cho một câu hỏi, tìm trong kho tài liệu những đoạn **liên quan nhất**, xếp theo thứ tự
 từ liên quan nhất trở xuống.
 
-Điểm quan trọng nhất, và là điều quyết định cả đồ án này: truy hồi **không trả lời** câu hỏi. Nó chỉ
+Đây là điểm quan trọng nhất của cả đồ án: truy hồi **không trả lời** câu hỏi. Nó chỉ
 **đưa cho bạn đoạn văn** mà nó cho là liên quan. Nó cũng **không biết** đoạn đó có đúng không — nó
 chỉ biết đoạn đó **giống** câu hỏi tới mức nào.
 
@@ -572,8 +602,8 @@ khớp BM25 — tức phép so **không so gì cả**.
 | `hải sản ∉ nhãn(d)` | phép **bù** trên tập | không tồn tại truy vấn `q` nào để `sim(q,d)` **giảm** khi `d` chứa hải sản; nhắc tới thứ cần tránh chỉ làm nó giống HƠN |
 | `A ∧ B` | phép **giao** | `sim` trả một số vô hướng đã trộn; không tách lại được thành hai điều kiện để ép cả hai cùng đúng |
 
-Lập luận: một bộ truy hồi là một **hàm xếp hạng** `rank(q, d) = sim(q, d)` — nó trả về **thứ tự** các
-tài liệu theo **độ giống** với truy vấn. Nó không có khái niệm *thoả* hay *không thoả* — chỉ có *giống
+Nói cách khác: một bộ truy hồi chỉ là một **hàm xếp hạng** `rank(q, d) = sim(q, d)`. Nó sắp các tài
+liệu theo **độ giống** với câu hỏi, chấm hết. Nó không có khái niệm *thoả* hay *không thoả* — chỉ có *giống
 hơn* và *giống ít hơn*. Trong khi ba dạng ràng buộc trên là những **vị từ** trên tập món, và chúng cần
 một phép toán mà quan hệ giống nhau không mang.
 
@@ -669,10 +699,23 @@ chạy trên cùng tập ca, chỉ xét những ca hai bên cho kết quả khá
 Wilson**, vì công thức chuẩn `p ± 1,96·√(p(1−p)/n)` cho khoảng rộng bằng **0** khi tỷ lệ đạt 100%, và
 nhiều phép đo trong đồ án này đạt đúng 100%.
 
+### Cầu nối sang Chương 3
+
+Chương 2 đã nói **các phương pháp có sẵn trên đời**, và đã chỉ ra một giới hạn quan trọng: một hàm
+xếp hạng theo độ giống **không biểu diễn được** phép so sánh số, phép loại trừ và phép "và".
+
+Chương 3 nói **nhóm ghép các phương pháp đó lại thành hệ thống như thế nào** — cụ thể là làm sao để
+những câu hỏi cần ba phép toán trên không bao giờ đi vào đường xếp hạng.
+
 ---
 ---
 
 # CHƯƠNG 3: PHƯƠNG PHÁP
+
+> **Chương này trả lời:** hệ thống được dựng ra sao. Bốn đường trả lời, bộ nhãn được gán thế nào,
+> kho tri thức gồm những gì, câu hỏi được định tuyến bằng cơ chế nào, và nhóm đo bằng tập ca nào.
+>
+> Chưa có kết quả ở đây — kết quả nằm ở Chương 4.
 
 ## 3.1 Kiến trúc — bốn đường trả lời phân theo mức tin cậy
 
@@ -704,8 +747,8 @@ flowchart TB
 | Chọn mục | 3–8 đoạn trong 1 tài liệu | có | thấp |
 | Truy hồi toàn kho | 182 đoạn | có | cao nhất |
 
-Thiết kế này đặt **rủi ro tỷ lệ nghịch với tần suất**: đường không rủi ro phục vụ phần lớn lượt, còn
-đường rủi ro nhất phục vụ phần đuôi dài.
+Cách sắp này có chủ ý: **đường càng hay dùng thì càng ít rủi ro**. Đường không có rủi ro nào phục vụ
+phần lớn câu hỏi, còn đường rủi ro nhất chỉ phục vụ phần hiếm gặp.
 
 **Sơ đồ 3.2 — Luồng một lượt hỏi**
 
@@ -1172,10 +1215,33 @@ khóa thật và không phụ thuộc mạng.
 nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả giá một lần cho việc thiếu nó — một lần chạy
 được báo là "qua mô hình thật" trong khi `LLM_API_KEY` rỗng nên **mọi lượt đi đường tất định**.
 
----
----
+### Cầu nối sang Chương 4
+
+Chương 3 đã mô tả **hệ thống làm gì**. Nhưng một mô tả không chứng minh được điều gì: mọi thiết kế
+đều nghe hợp lý cho tới khi có số.
+
+Chương 4 chạy hệ thống đó trên bốn tập đánh giá và báo lại **nó ra bao nhiêu** — kể cả những chỗ nó
+sai, và kể cả bốn thí nghiệm mà nhóm làm rồi **không thu được gì**.
 
 # CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ
+
+> **Chương này trả lời:** hệ thống chạy ra số bao nhiêu, sai ở đâu, và vì sao sai ở đó.
+
+## 4.0 Cách đọc chương này
+Ba điều nên nắm trước khi vào bảng số:
+
+**Thứ nhất — `Hit@2` mới là chỉ số quyết định, không phải `Hit@5`.** Hệ thống lúc chạy trích đúng
+2 đoạn. Chấm ở `k = 5` là chấm một hệ thống không tồn tại.
+
+**Thứ hai — `cấm@5` quan trọng hơn mọi chỉ số Hit.** Nó đếm số lần hệ thống lấy phải đoạn thuộc chủ
+đề mà câu hỏi **không được chạm**. Một bộ truy hồi trả 1 đoạn đúng cộng 4 đoạn lạc đề vẫn đạt
+`Hit@5 = 1,0` tuyệt đối — nhưng 4 đoạn lạc đề là 4 cơ hội để khách đọc nhầm.
+
+**Thứ ba — báo cáo giữ nguyên cả kết quả âm tính.** Có những bảng cho thấy một thay đổi **không cải
+thiện gì**. Chúng ở lại trong báo cáo, vì một thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi
+là làm hỏng chính phép đo.
+
+---
 
 ## 4.1 Thiết lập
 
@@ -1474,7 +1540,7 @@ món trả về — để người chấm tự phán xét thay vì tin một t�
 
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
-Đây là phép đo đổi cách đọc mọi con số phía trên. Chạy 163 lượt kịch bản **như một phiên thật, có bộ
+Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 163 lượt kịch bản **như một phiên thật, có bộ
 nhớ**, cộng 147 ca tập trả lời.
 
 **Bảng 4.9 — Phân bố đường đi**
@@ -1619,10 +1685,20 @@ khách. `DeploymentConfigurationTests` canh đúng quan hệ đó.
 | chủ nhà hàng coi câu văn tự nhiên đáng giá thêm ~9 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |
 | có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do nhóm viết |
 
+### Cầu nối sang Chương 5
+
+Chương 4 đã đưa ra số. Chương 5 rút lại **điều gì học được từ những con số đó** — làm được gì, còn
+hạn chế nào, và nếu làm tiếp thì nên làm gì trước.
+
+Phần đáng đọc nhất của chương này là mục 5.2: mỗi thành viên tự viết về khâu mình phụ trách, và cố
+ý giữ lại **cả những chỗ mình làm sai**.
+
 ---
 ---
 
 # CHƯƠNG 5: KẾT LUẬN
+
+> **Chương này trả lời:** nhóm làm được gì, chưa làm được gì, học được gì, và nên làm gì tiếp.
 
 ## 5.1 Tổng kết
 
