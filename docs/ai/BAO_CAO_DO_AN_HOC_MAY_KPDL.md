@@ -195,7 +195,7 @@ thẻ giỏ → giỏ hàng.
 | Golden đầu-cuối, đường sinh TẮT (mặc định) | 103 lượt | **103/103** |
 | Golden đầu-cuối, đường sinh BẬT | 103 lượt | **103/103** |
 | Tập ca trả lời một lượt | 161 ca | **161/161** |
-| Bộ nhớ phiên nhiều lượt | 175 lượt | **175/175**, 0 lỗi an toàn |
+| Bộ nhớ phiên nhiều lượt | 178 lượt | **178/178**, 0 lỗi an toàn |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76 |
 
 ## Hạn chế
@@ -326,7 +326,7 @@ TV4  PHIÊN & TÍCH HỢP
       |   -> câu trả lời đã ghép ngữ cảnh, gửi qua backend
       v
 TV5  ĐÁNH GIÁ
-          161 ca · 175 lượt phiên · 103 lượt golden
+          161 ca · 178 lượt phiên · 103 lượt golden
           100 câu hai chiều · 21 cổng CI
 ```
 
@@ -395,13 +395,13 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **161 ca trả lời**, **175 lượt phiên**, **114 ca truy hồi**, **120 ca chọn mục**
+1. Bốn tập: **161 ca trả lời**, **178 lượt phiên**, **114 ca truy hồi**, **120 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
 5. **21 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
 
-> **Nghiệm thu:** 161/161 ca; 175/175 lượt phiên;
+> **Nghiệm thu:** 161/161 ca; 178/178 lượt phiên;
 > 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
 > khớp cấu hình đang bật.
 
@@ -1204,7 +1204,7 @@ lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** tro
 riêng.
 
 **Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 161 ca trả lời và
-175 lượt phiên, đường C chạy **14 lần** và **3 lần**. Con số này từng là
+178 lượt phiên, đường C chạy **14 lần** và **3 lần**. Con số này từng là
 **0 trên cả hai tập** — không phải vì truy hồi vô dụng, mà vì **hai tập khi đó được viết quanh các
 nhánh tất định** và không tiêu chí nào hỏi tới nhánh C. Bộ hai chiều ở mục 4.9 được xây chính vì lý do
 đó, và họ ca `knowledge_corpus` được thêm sau để lấp đúng lỗ này.
@@ -1219,7 +1219,7 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | 161 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 63 kịch bản / 175 lượt | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | 64 kịch bản / 178 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 114 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 120 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1247,7 +1247,7 @@ hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt
 món viết tay** mà là **điều kiện chọn**, ví dụ `{"kind": "list", "forbid": {"tags_any":
 ["allergen:seafood"]}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
 
-**2. Kịch bản phiên — 63 kịch bản / 175 lượt.**
+**2. Kịch bản phiên — 64 kịch bản / 178 lượt.**
 Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
 dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
 được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
@@ -1314,7 +1314,7 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
 làm lộ **17 lỗi** mà tập ca và 111 lượt phiên **khi đó** không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
-mở rộng lên **175 lượt** mới bắt được lớp lỗi đó.
+mở rộng lên **178 lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -1463,7 +1463,7 @@ không phải một mô hình phân loại:
 Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
-**Hệ quả đo được:** trên tập 161 ca và 175 lượt phiên, nhánh truy hồi chạy
+**Hệ quả đo được:** trên tập 161 ca và 178 lượt phiên, nhánh truy hồi chạy
 **14 lần** và **3 lần**. Con số này từng là 0 trên cả hai tập — mọi câu đều khớp một
 trong chín nhánh trước, vì hai tập đó được viết quanh các nhánh tất định chứ không vì truy hồi vô dụng.
 Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
@@ -2150,7 +2150,7 @@ Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở c
 | tập | bộ xếp hạng chạy |
 |---|---:|
 | 161 ca trả lời | **0** |
-| 175 lượt phiên | **0** |
+| 178 lượt phiên | **0** |
 | 114 ca truy hồi | 36% |
 
 Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói "truy hồi
@@ -3154,7 +3154,7 @@ python ai/evaluation/run_so_doan.py --csv    # bảng đánh đổi số đoạn
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
 | Tập trả lời 161 ca, đường tất định | **161/161** |
-| Bộ nhớ phiên 175 lượt | **175/175**, 0 lỗi an toàn |
+| Bộ nhớ phiên 178 lượt | **178/178**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
 | Truy hồi toàn kho, niêm phong | Hit@1 embedding **83,33%** so với bm25 50,00% |
 | Chọn mục trong tài liệu, niêm phong | Top-1 embedding **90,91%** so với bm25 75,00% |
@@ -3331,7 +3331,7 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | 161/161, và sàn để so là 8/161 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 175/175, **0 lỗi an toàn** |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 178/178, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |
