@@ -17,11 +17,11 @@ tất định và truy hồi xác suất
 
 | STT | Họ và tên | MSSV | Vai trò |
 |:---:|---|---|---|
-| 1 | Nguyễn Quang Hiếu | BIT240091 | **Nhóm trưởng** — Dữ liệu & Hiểu câu hỏi |
+| 1 | Phạm Duy An | BIT240002 | **Nhóm trưởng** — Dữ liệu & Hiểu câu hỏi |
 | 2 | Bùi Đào Đức Anh | BIT240025 | Truy hồi |
 | 3 | Đỗ Tuấn Anh | BIT240015 | Chọn món & Giỏ hàng |
 | 4 | Lê Anh | BIT240017 | Cổng vào & Phiên |
-| 5 | Phạm Duy An | BIT240002 | Đánh giá |
+| 5 | Nguyễn Quang Hiếu | BIT240091 | Đánh giá |
 
 Hà Nội, ngày 09 tháng 08 năm 2026
 
@@ -268,11 +268,11 @@ truy hồi được, và **không có tập đánh giá thì không ai biết m�
 
 | # | Họ và tên | MSSV | Khâu | Bàn giao cho người sau | Mục báo cáo | % |
 |:-:|---|---|---|---|---|:-:|
-| 1 | Nguyễn Quang Hiếu | BIT240091 | **Dữ liệu & hiểu câu hỏi** *(nhóm trưởng)* | Bộ nhãn, kho tri thức, và `Request` đã hiểu | 2.5, 3.2, 3.3, 3.5 | 20% |
+| 1 | Phạm Duy An | BIT240002 | **Dữ liệu & hiểu câu hỏi** *(nhóm trưởng)* | Bộ nhãn, kho tri thức, và `Request` đã hiểu | 2.5, 3.2, 3.3, 3.5 | 20% |
 | 2 | Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn | 2.1–2.4, 4.3, 4.4 | 20% |
 | 3 | Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, bốn lớp an toàn | 2.6, 4.8, 4.9 | 20% |
 | 4 | Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend | 3.1, 3.7, 4.10 | 20% |
-| 5 | Phạm Duy An | BIT240002 | **Đánh giá** | Bốn tập đánh giá, thước đo, golden, cổng CI | 2.7, 3.6, 4.1–4.2, 4.6 | 20% |
+| 5 | Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập đánh giá, thước đo, golden, cổng CI | 2.7, 3.6, 4.1–4.2, 4.6 | 20% |
 
 ## Vì sao tách ĐÁNH GIÁ khỏi DỮ LIỆU
 
@@ -1652,7 +1652,7 @@ Mỗi thành viên tự viết nhận xét về khâu mình phụ trách: **đi�
 và **giới hạn còn lại**. Phần này viết ở ngôi thứ nhất, và cố ý giữ cả những chỗ nhóm làm sai — một báo
 cáo chỉ kể phần thành công thì không cho người đọc biết gì về cách nhóm làm việc.
 
-### 5.2.1 Nhận xét — Nguyễn Quang Hiếu (BIT240091), nhóm trưởng
+### 5.2.1 Nhận xét — Phạm Duy An (BIT240002), nhóm trưởng
 
 **Phụ trách:** Dữ liệu, bộ nhãn, kho tri thức, và lớp hiểu câu hỏi
 
@@ -1773,7 +1773,7 @@ cáo chỉ kể phần thành công thì không cho người đọc biết gì v
 - **Giới hạn:** độ trễ khi bật mô hình là **~8,6 giây mỗi lượt**. Em chưa giải được, và nó là lý do chính
   khiến nhóm để đường sinh **bật/tắt được bằng biến môi trường** thay vì bật cứng.
 
-### 5.2.5 Nhận xét — Phạm Duy An (BIT240002)
+### 5.2.5 Nhận xét — Nguyễn Quang Hiếu (BIT240091)
 
 **Phụ trách:** Bốn tập đánh giá, thước đo, golden đầu-cuối, cổng CI
 

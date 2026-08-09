@@ -176,8 +176,8 @@ chỉ mục mà không phục vụ đường nào. Từ điển **85 nhãn / 16 
 1. Mở rộng kho **khi có nhu cầu thật**. Tiêu chí: *nhóm này có câu hỏi nào mà lớp tra khóa không
    trả lời được không?* Thêm tài liệu cho nhóm đã đúng 100% là tạo **đường thứ hai cho cùng một
    việc** — và khi câu trả lời sai thì không ai biết đường nào sai.
-2. Nhận `session_state` từ TV4 và hợp nhất theo **ba quy tắc** (phối hợp với TV4 về hình dạng —
-   TV1 chủ động nhận phần này vì quy tắc đọc và ghi vào chính `Request` mà TV1 sở hữu).
+2. **Bảo trì hình dạng `Request`** khi thêm ràng buộc mới, và báo TV4 mỗi lần đổi. TV1 KHÔNG
+   sở hữu `session.py` — xem ghi chú "Một tệp, hai chủ" ở cuối mục này.
 3. Nối thêm tên món tới nhóm dị nguyên khi gặp cách nói chưa phủ — **luôn kèm ca nhóm CHỐT của
    TV5**, và đo bằng cách **chạy `understand()` thật**, không phân tích chuỗi con.
 
@@ -187,6 +187,25 @@ chỉ mục mà không phục vụ đường nào. Từ điển **85 nhãn / 16 
 `backend/data/menu-tags.json` ·
 `ai/app/understand.py` · `llm_understand.py` · `test_understand.py` · `test_llm_understand.py` ·
 `test_source_hygiene.py`
+
+### Một tệp, hai chủ — chỗ ranh giới mỏng nhất của bảng phân công
+
+`session.py` thuộc **TV4**. Nhưng hàm `merge_into_request()` bên trong nó **đọc và ghi vào
+`Request`** — cấu trúc TV1 sở hữu. Một bản trước của tài liệu này bảo TV1 "chủ động nhận phần hợp
+nhất", trong khi vẫn liệt kê `session.py` dưới tệp của TV4. Hai câu đó mâu thuẫn nhau.
+
+Ranh giới đúng, và nó chạy **theo dữ liệu** chứ không theo tệp:
+
+| Ai | Sở hữu cái gì | Cụ thể |
+|---|---|---|
+| **TV1** | **hình dạng** `Request` | có trường nào, mỗi trường nghĩa gì, nhóm nhãn nào ghi đè nhóm nào |
+| **TV4** | **ba quy tắc hợp nhất** và toàn bộ `session.py` | dị nguyên cộng dồn · ràng buộc cứng ghi đè · ngữ cảnh giữ 5 |
+
+Nói cách khác: TV1 quyết định **cái gì được nhớ**, TV4 quyết định **nhớ như thế nào qua các lượt**.
+
+Hệ quả thực hành: TV1 thêm một trường ràng buộc mới thì phải nói cho TV4 biết nó thuộc nhóm nào
+trong ba nhóm trên — thiếu bước đó thì trường mới **im lặng không được nhớ**, và không test nào đỏ
+vì test của TV4 chỉ phủ các trường TV4 biết.
 
 ### Tự đo bằng
 ```bash
