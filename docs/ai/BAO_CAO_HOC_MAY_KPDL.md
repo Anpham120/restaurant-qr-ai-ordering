@@ -380,7 +380,8 @@ trong kho.
 2, rồi tra giá món đầu trong danh sách đó.
 
 Không có bộ nhớ phiên thì câu này rơi vào truy hồi và lấy về một đoạn hoàn toàn không liên quan.
-Nhóm đo được: bỏ bộ nhớ đi thì **34 trong 163 lượt** hỏng đúng kiểu này.
+Nhóm đo được: bỏ bộ nhớ đi thì **51 trong 175 lượt** hỏng — 39 lượt hỏng đúng kiểu này, và 12
+lượt nặng hơn: mời lại đúng món khách đã khai dị ứng.
 
 #### Lượt 5 — khách bấm thêm vào giỏ
 
@@ -862,9 +863,11 @@ Bộ nhớ phiên bị xóa ở **cả ba lối thoát**. Không có đường n
 Ghi đè theo **NHÓM** chứ không theo nhãn: `spice:none` phải **đẩy** `spice:hot` ra, không nằm cạnh nó.
 Đây chính là lý do khoá nhãn phải có không gian tên (mục 3.2).
 
-**Bộ nhớ là hàng rào chống trả lời lạc, không chỉ là tiện ích.** Đo được: chạy 163 lượt kịch bản *không
-có* bộ nhớ thì **34 lượt (20,9%)** rơi xuống truy hồi và lấy về đoạn hoàn toàn không liên quan —
-*"Món đầu tiên giá bao nhiêu?"* lấy về tài liệu `first_visit`. Có bộ nhớ, cả 34 lượt về nhánh đúng.
+**Bộ nhớ là hàng rào AN TOÀN, không chỉ là tiện ích.** Đo được: chạy 175 lượt kịch bản *không có*
+bộ nhớ thì **51 lượt (29,1%)** hỏng, và chúng chia hai loại. **39 lượt** rơi xuống truy hồi rồi lấy
+về đoạn hoàn toàn lạc — *"Món đầu tiên giá bao nhiêu?"* lấy về tài liệu `first_visit`. **12 lượt còn
+lại là lỗi an toàn thật**: khách khai dị ứng hải sản ở lượt 1, tới lượt 4 hỏi *"Món nào bán chạy
+nhất?"* thì được mời Gỏi cuốn tôm thịt. Có bộ nhớ: **175/175 lượt đạt, 0 lỗi**.
 
 ## 3.2 Hệ thống nhãn: quá trình gán và giới hạn
 
@@ -1684,10 +1687,10 @@ Trên một phiên trộn có câu tri thức thật, RAG chạy **3/8 lượt**
 
 Ràng buộc dị ứng khai ở lượt 1 giữ nguyên suốt cả 8 lượt.
 
-**Một cái bẫy trong chính phép đo:** chạy 163 lượt *không có* bộ nhớ thì **34 lượt (20,9%)** trông như đi
-truy hồi. Chúng là câu tham chiếu ngược — *"Món đầu tiên giá bao nhiêu?"* — không có gì để trỏ tới nên
-rơi xuống truy hồi và lấy về đoạn hoàn toàn lạc. **Đo hội thoại từng lượt rời là đo một hệ thống không
-tồn tại.**
+**Một cái bẫy trong chính phép đo:** chạy 175 lượt *không có* bộ nhớ thì **39 lượt** trông như đi truy
+hồi. Chúng là câu tham chiếu ngược — *"Món đầu tiên giá bao nhiêu?"* — không có gì để trỏ tới nên rơi
+xuống truy hồi và lấy về đoạn hoàn toàn lạc. Nghĩa là phân bố nhánh đo trên lượt rời **cao giả** ở cột
+truy hồi. **Đo hội thoại từng lượt rời là đo một hệ thống không tồn tại.**
 
 ## 4.8 Đường sinh bằng mô hình ngôn ngữ
 
@@ -2075,10 +2078,10 @@ cáo chỉ kể phần thành công thì không cho người đọc biết gì v
   ở lượt 1, hỏi tiếp ở lượt 5 **mà không nhắc lại**. Nếu bộ nhớ ghi đè thì "dị ứng hải sản" bị "không ăn
   được sữa" xoá mất.
 
-- **Bộ nhớ hóa ra không chỉ là tiện ích mà là hàng rào chống trả lời lạc.** Em đo thử: chạy 163 lượt
-  *không có* bộ nhớ thì **34 lượt (20,9%)** rơi xuống truy hồi và lấy về đoạn hoàn toàn không liên quan.
-  Con số đó làm em đổi cách nghĩ về khâu mình — nó không phải lớp tiện nghi ở ngoài, nó là một phần của
-  cơ chế định tuyến.
+- **Bộ nhớ hóa ra không chỉ là tiện ích mà là một hàng rào an toàn.** Em đo thử: chạy 175 lượt *không
+  có* bộ nhớ thì **51 lượt (29,1%)** hỏng — 39 lượt rơi xuống truy hồi và lấy về đoạn lạc, nhưng **12
+  lượt là mời lại đúng món khách đã khai dị ứng**. Con số thứ hai làm em đổi hẳn cách nghĩ về khâu
+  mình: bộ nhớ không phải lớp tiện nghi ở ngoài, nó nằm trong chính chuỗi bảo vệ dị nguyên.
 
 - **Dịch vụ phải trả lời được KHI MÔ HÌNH HỎNG.** Em thiết kế để mã tất định chạy trước, mô hình chỉ được
   gọi ở nhánh cần diễn đạt. Nhờ vậy khi khoá API hết hạn hoặc nhà cung cấp lỗi, khách vẫn nhận được câu
@@ -2138,7 +2141,7 @@ cáo chỉ kể phần thành công thì không cho người đọc biết gì v
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | **161/161**, và sàn để so là **8/161** — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 163 lượt, **0 lỗi an toàn** |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | **175/175 lượt**, 0 lỗi an toàn |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden **103/103** ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên chỉ số hệ thống thực sự dùng | mục 4.3 — Hit@2, không phải Hit@5 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.7 — 96,9% lượt không chạm kho |
