@@ -4006,6 +4006,38 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
    chưa làm.
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
+9. **Chỉ hiểu tiếng Việt, và giới hạn này chạm tới an toàn.** Câu tiếng Anh cho bước hiểu **rỗng hoàn
+   toàn** — đo trực tiếp qua `understand()`:
+
+   | câu vào | `require_tags` | `avoid_tags` | `wants` |
+   |---|---|---|---|
+   | `give me a vegetarian dish` | rỗng | rỗng | `any` |
+   | `I am allergic to seafood` | rỗng | **rỗng** | `any` |
+   | `cho tôi món chay` | rỗng | rỗng | **`food`** |
+
+   Ô in đậm là chỗ đáng lo: **lời khai dị ứng bằng tiếng Anh không bật hàng rào dị nguyên**, trong khi
+   câu tiếng Việt tương đương thì bật. Việc đúng là dịch **cả ba tầng** dữ liệu — nhãn, tên món, kho tri
+   thức — chứ không phải nhận vài từ khóa tiếng Anh: một hệ thống trả lời được câu dễ và im lặng ở câu
+   khó thì nguy hiểm hơn một hệ thống nói rõ nó không hỗ trợ.
+10. **Kho `derived` truy hồi kém, và đó là hạn chế CẤU TRÚC.** Tài liệu `derived` điển hình có **0 từ chỉ
+   xuất hiện ở riêng nó** (văn xuôi viết tay: 2, nhiều nhất 18), vì danh sách món rò rỉ từ vựng của mọi
+   nhóm khác — *"Canh chua cá lóc"* nằm trong tài liệu vùng miền, cách chế biến và dịp ăn cùng lúc. Cắt
+   bớt mục nào cũng chỉ đưa con số 0 lên 1: thứ trùng lặp là **chính cái khuôn**. Ba cách chữa đều đã đo
+   và đều không thắng — xếp hạng lại bằng cross-encoder (p = 0,8238), gộp 49 tài liệu thành 6 theo họ
+   nhãn (p = 0,5488), và bỏ hẳn `derived` (p = 0,0000 **theo hướng xấu**). Muốn khá hơn thì phải **viết
+   tay** nội dung khác nhau thật, và khi đó mất bảo đảm `--check` chống lệch khỏi thực đơn. Đây là một
+   đánh đổi có thật, không phải một việc chưa làm xong.
+11. **Câu tri thức là mắt xích yếu nhất, và điểm nghẽn nằm ở ĐỊNH TUYẾN chứ không ở mô hình.** Tách theo
+   loại câu hỏi: câu chọn món đạt trần 100,00% với định tuyến đúng 100,00%; câu tri thức chỉ đạt trần
+   44,00% với định tuyến đúng **58,00%**, nên đóng góp thật chỉ **25,52%**. Trần oracle của cả hệ là
+   72,73% còn ước lượng thật 68,06% — chi phí sai định tuyến **4,67 điểm**. Hệ quả cho hướng đi: cải
+   thiện bộ truy hồi đang bị định tuyến sai thì không cứu được gì.
+12. **Hai tồn đọng cụ thể ở lớp hiểu, đã khoanh vùng nhưng chưa sửa.** *"Món nào có đậu hũ?"* bị bộ khớp
+   **tên món** ăn trước (*"Đậu hũ sốt cà chua"*) nên không cụm từ vựng nào tới lượt — tên món thắng câu
+   hỏi nguyên liệu, và không thêm cụm nào chữa được. *"Mình không dùng bột ngọt"* chưa nhận ra, vì cụm
+   hiện có là `khong bot ngot` còn câu có chữ *dùng* chen giữa; ba cách nói thay thế đã thử nhưng **đổi 0
+   câu trên 1.106 câu đánh giá**, tức thêm chúng là thêm mã không phép đo nào phủ — nên chúng không được
+   thêm.
 
 ## 5.5 Bài học kinh nghiệm
 

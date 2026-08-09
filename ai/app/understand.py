@@ -1506,8 +1506,16 @@ PHU_NHAN_ROI_RE = re.compile(r"\b(?:co|da)\b.{0,40}\bdau\s*$")
 #
 # Vì sao dùng danh sách nuốt thay vì bỏ `khong dung` khỏi khung phủ nhận: "bạn nói không đúng" là
 # câu phủ nhận thật và cần giữ. Hai nghĩa chỉ tách được bằng chữ đứng sau.
+# Đường đảo nghĩa THỨ TƯ, cùng một chữ `khong dung` nhưng nghĩa khác cả ba đường trên:
+#
+#     "Mình KHÔNG DÙNG mì chính"  ->  rút dấu `khong dung mi chinh`
+#
+# Đây là lời KHAI TRÁNH ("tôi không ăn thứ này"), không phải lời rút lại ("bạn nói không đúng").
+# Không nuốt thì khung phủ nhận bật, và hệ thống **gỡ** đúng ràng buộc khách vừa đặt ra — nó nhận
+# ra `health:no_msg` rồi tự bỏ đi.
 _PHU_NHAN_BI_NUOT = {
-    "khong dung": ("khong dung duoc", "khong dung noi", "khong dung vao"),
+    "khong dung": ("khong dung duoc", "khong dung noi", "khong dung vao",
+                   "khong dung mi chinh", "khong dung bot ngot"),
 }
 
 
