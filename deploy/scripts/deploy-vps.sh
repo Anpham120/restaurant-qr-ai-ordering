@@ -76,8 +76,23 @@ tar -C "$root_dir" \
   -czf "$tarball" .
 
 remote_root="/opt/cmc-restaurant/${DEPLOY_ENV}"
-ssh_base=(ssh -i "$key_file" -o UserKnownHostsFile="$known_hosts_file" -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}")
-scp_base=(scp -i "$key_file" -o UserKnownHostsFile="$known_hosts_file" -o StrictHostKeyChecking=yes)
+
+# Giữ kết nối sống trong lúc build im lặng.
+#
+# Deploy staging ngày 08/08 hỏng với `client_loop: send disconnect: Broken pipe`
+# ngay giữa bước `RUN python -m rag.precompute` — bước tính trước vector nhúng,
+# chạy vài phút mà không in gì. Không có gì đi qua kết nối trong khoảng đó, nên
+# nó bị coi là chết và bị cắt; build trên VPS vẫn chạy tiếp nhưng workflow đã
+# thoát với mã 255.
+#
+# Đây là hỏng do IM LẶNG, không do lỗi. Nó sẽ quay lại mỗi khi có một bước build
+# đủ lâu — và bước đó thì càng ngày càng lâu khi kho tri thức lớn lên.
+#
+# 30 giây × 20 lần = chịu được 10 phút im lặng trước khi thật sự bỏ cuộc.
+keepalive=(-o ServerAliveInterval=30 -o ServerAliveCountMax=20)
+
+ssh_base=(ssh -i "$key_file" -o UserKnownHostsFile="$known_hosts_file" -o StrictHostKeyChecking=yes "${keepalive[@]}" "${SSH_USER}@${SSH_HOST}")
+scp_base=(scp -i "$key_file" -o UserKnownHostsFile="$known_hosts_file" -o StrictHostKeyChecking=yes "${keepalive[@]}")
 
 "${ssh_base[@]}" "mkdir -p '${remote_root}' '${remote_root}/reports' '${remote_root}/backups'"
 "${scp_base[@]}" "$tarball" "${SSH_USER}@${SSH_HOST}:${remote_root}/release.tgz"
