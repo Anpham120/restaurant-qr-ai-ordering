@@ -152,8 +152,9 @@ Chúng cũng đòi **cùng một loại kỷ luật**: *số phải tính đư�
   khóa đáp án ghi `allowed: savoury` trong khi câu hỏi không nói "món ăn".
 
 ### Đã xong
-Kho tri thức **109 tài liệu / 452 đoạn** (24 `verbatim` + 85 `synthesize`; 57 `derived` + 52 `demo`),
-372 đoạn được xếp hạng. Từ điển **85 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
+Kho tri thức **60 tài liệu / 213 đoạn** (24 `verbatim` + 36 `synthesize`; 8 `derived` + 52 `demo`),
+**182 đoạn được xếp hạng** — 49 tài liệu sinh-theo-nhãn đã bị bỏ sau khi đo được chúng chiếm 51%
+chỉ mục mà không phục vụ đường nào. Từ điển **85 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
 **140 ca / 45 họ**, chia theo họ thành chốt / phát triển / niêm phong. Thước đo có bộ dò lỗ tìm
 **0 lỗ**.
 
@@ -534,9 +535,9 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 
 | TV | Đã xong | Bằng chứng |
 |---|---|---|
-| **1** | Dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho 109 tài liệu / 452 đoạn · bộ rà nhãn 0 lỗ |
-| **2** | Truy hồi — BM25, embedding, hybrid RRF | 222 ca truy hồi · chốt embedding, Hit@1 niêm phong 60,87% so với BM25 39,13% (McNemar p = 0,0020) |
-| **3** | Chọn món và ba lớp an toàn | 168 ca chọn mục · 10 phép kiểm xác minh · **0 lỗi an toàn** trên mọi tập |
+| **1** | Dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho 60 tài liệu / 213 đoạn · bộ rà nhãn 0 lỗ |
+| **2** | Truy hồi — BM25, embedding, hybrid RRF | 114 ca truy hồi · chốt embedding, Hit@1 niêm phong 60,87% so với BM25 39,13% (McNemar p = 0,0020) |
+| **3** | Chọn món và ba lớp an toàn | 120 ca chọn mục · 10 phép kiểm xác minh · **0 lỗi an toàn** trên mọi tập |
 | **4** | Dịch vụ HTTP, bộ nhớ phiên, tích hợp backend | 5 endpoint · 3 quy tắc hợp nhất · hợp đồng schema · **đã chạy thật qua `docker compose`** |
 | **5** | Bốn tập đánh giá, thước đo, golden, cổng CI | 140/140 ca · 149/149 lượt phiên · 103/103 lượt golden · 100 câu hai chiều |
 

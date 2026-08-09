@@ -2318,6 +2318,12 @@ cả ba theo đúng thứ tự — mỗi bước là một thí nghiệm riêng,
 Cặp tệ nhất `occasion.birthday` ↔ `occasion.date` đạt **0,921** — chúng dùng chung **82/89
 từ**. Và **103/109 tài liệu có dưới 5 từ riêng**, trung vị bằng **0**.
 
+> **Con số này về sau quyết định số phận của 49 tài liệu.** Lúc đo nó chỉ được đọc là "kho
+> khó truy hồi". Đọc lại kèm câu hỏi thật thì nó nói điều mạnh hơn: 49 tài liệu sinh theo
+> nhãn **không phân biệt được bằng từ**, và không cách xếp hạng nào chữa được thứ không có
+> tín hiệu. Ba cách chữa đã thử đều hoà (p = 0,8238 · 0,5488 · cắt mục), nên chúng bị bỏ —
+> kho còn **60 tài liệu / 182 đoạn** văn xuôi viết tay đồng nhất.
+
 Nguyên nhân: phần văn xuôi của tài liệu `derived` là **một khuôn** với tên giá trị thay vào.
 Chỉ tên nhóm và danh sách món là khác.
 
@@ -2929,7 +2935,7 @@ Hệ thống dùng bộ nhúng ở hai chỗ khác hẳn nhau, và điều đó 
 
 | | bài toán | ứng viên |
 |---|---|---|
-| A | **toàn kho** — `doan_tri_thuc_lien_quan()` | 1 trong **372 đoạn** của 85 tài liệu |
+| A | **toàn kho** — `doan_tri_thuc_lien_quan()` | 1 trong **182 đoạn** của 36 tài liệu |
 | B | **trong tài liệu** — `_knowledge_chunk()` | 1 trong **3–8 mục** của MỘT tài liệu |
 
 Bài toán B dễ hơn ở chỗ chủ đề đã biết, nhưng **khó hơn** ở chỗ mọi ứng viên đều cùng chủ

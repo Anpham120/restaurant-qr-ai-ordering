@@ -15,8 +15,12 @@ Nên kho tri thức chia hai loại, và phân biệt này là quyết định t
     derived  — SINH từ menu-dataset.json. Không thể lệch, vì nó LÀ thực đơn diễn đạt lại.
     demo     — người viết. Chính sách nhà hàng, gợi ý kết hợp — dữ liệu không suy ra được.
 
-30 tài liệu `derived` được sinh ở đây: 10 cách chế biến, 10 vùng miền, 10 nguyên liệu. Mỗi câu
-trong đó truy được về một con số cụ thể của thực đơn.
+Script này sinh **8 tài liệu chính sách** có số tính từ thực đơn (khoảng giá, món chay, món cho
+trẻ em...). Mỗi câu trong đó truy được về một con số cụ thể.
+
+Nó TỪNG sinh thêm 49 tài liệu, mỗi giá trị nhãn một tài liệu. Chúng đã bị bỏ sau khi đo — xem
+`generate()`. Bài học đáng giữ: `derived` bảo đảm tài liệu **không lệch khỏi dữ liệu**, nhưng
+không bảo đảm tài liệu ấy **có ai đọc**.
 
     python ai/scripts/build_knowledge.py --check   # kiểm, không ghi
     python ai/scripts/build_knowledge.py           # sinh lại tài liệu derived
@@ -41,64 +45,16 @@ DERIVED_DIR = KNOWLEDGE_ROOT / "derived"
 WRITTEN_DIR = KNOWLEDGE_ROOT / "written"
 POLICY_DIR = KNOWLEDGE_ROOT / "policy"
 
-# Nhóm nhãn nào sinh một tài liệu cho mỗi giá trị, và giải thích nhóm đó là gì.
+# Bảng `DERIVED_GROUPS` (6 nhóm nhãn) đã bị xoá cùng 49 tài liệu nó sinh.
 #
-# Tiêu chí chọn nhóm — và đây là tiêu chí thật, không phải "thêm cho đủ số đoạn":
+# Tiêu chí chọn nhóm khi đó nghe rất hợp lý: "nhóm này có câu hỏi nào mà LỚP TRA KHÓA không trả
+# lời được không?". Nó sai ở chỗ không ai ngờ — 106 ca nhắm vào chúng đều là câu CHỌN MÓN, tức
+# việc của nhánh lọc nhãn, không phải của truy hồi. Xem `generate()`.
 #
-#     Nhóm này có câu hỏi nào mà LỚP TRA KHÓA không trả lời được không?
-#
-# CÓ, nên sinh tài liệu:
-#   method     "món nướng có gì đặc trưng"      cần mô tả, không chỉ danh sách
-#   region     "đặc sản miền Trung là gì"        cần bối cảnh vùng miền
-#   ingredient "món nào có bò"                   cần phân biệt với dị ứng
-#   occasion   "đi hẹn hò nên gọi gì"            cần lời khuyên, không chỉ lọc
-#   flavour    "món đậm đà đưa cơm"              cần diễn giải cảm giác vị
-#   health     "mình đang giảm cân"               cần lời khuyên kèm cảnh báo
-#
-# KHÔNG, nên bỏ qua:
-#   spice, price, party, season   lớp lọc theo nhãn đã đúng 100% (phủ 91/91 món)
-#   diet, audience, serving, promo  đã có tài liệu chính sách trong `knowledge/policy/`
-#
-# Thêm tài liệu cho nhóm đã được xử lý tốt là tạo **đường thứ hai cho cùng một việc** — đúng
-# bệnh 8 đường chồng nhau của bản cũ, nơi 2 đường bị tắt mà hệ thống vẫn chạy đúng.
-DERIVED_GROUPS = {
-    "method": (
-        "cách chế biến",
-        "Cách chế biến quyết định kết cấu và vị của món. Khách hay hỏi theo cách này khi họ "
-        "biết mình muốn gì về kết cấu — giòn, mềm, hay nước.",
-    ),
-    "region": (
-        "vùng miền",
-        "Ẩm thực Việt khác nhau rõ theo vùng. Khách hỏi theo vùng khi muốn ăn đúng đặc sản "
-        "một nơi, hoặc khi nhớ món quê.",
-    ),
-    "ingredient": (
-        "nguyên liệu chính",
-        "Khách hỏi theo nguyên liệu khi họ có sở thích hoặc tránh một loại đạm nào đó. Lưu ý "
-        "đây KHÁC với dị ứng: dị ứng dùng nhãn allergen và luôn fail-closed.",
-    ),
-    "occasion": (
-        "dịp ăn",
-        "Dịp ăn là NGỮ CẢNH, không phải ràng buộc: món không mang nhãn dịp này vẫn có thể phù "
-        "hợp. Nhóm occasion chỉ phủ 79/91 món, nên dùng nó để sắp thứ tự chứ không để loại "
-        "món.",
-    ),
-    "flavour": (
-        "hương vị",
-        "Khách thường mô tả vị bằng cảm giác chứ không bằng tên nhãn — 'chua chua', 'đậm đà "
-        "đưa cơm', 'thanh thanh'. Nhóm flavour phủ 72/91 món nên chỉ dùng theo chiều khẳng "
-        "định.",
-    ),
-    "health": (
-        "sức khỏe",
-        "QUAN TRỌNG: các nhãn này là ĐÁNH GIÁ CẢM QUAN của người nhập liệu, KHÔNG phải kết "
-        "quả phân tích dinh dưỡng. Thực đơn không có số calo hay natri nào. Dùng chúng để gợi "
-        "ý được, dùng để khẳng định về sức khỏe thì không.",
-    ),
-}
+# Ghi ra thay vì xoá lặng: cùng lập luận ấy đã đúng khi KHÔNG sinh cho `spice`/`price`/`party`/
+# `season` ngay từ đầu. Lần đó nhìn ra ngay; lần này phải đo trên câu hỏi thật mới thấy.
 
 
-# Danh mục đồ uống — giữ khớp với `understand.DRINK_CATEGORIES`.
 DANH_MUC_DO_UONG = ("cat_drink", "cat_juice", "cat_alcohol")
 
 
@@ -106,159 +62,13 @@ def money(value: int) -> str:
     return f"{value:,}".replace(",", ".") + "đ"
 
 
-def spice_label(item: dict) -> str:
-    return {
-        "spice:none": "không cay",
-        "spice:mild": "cay nhẹ",
-        "spice:medium": "cay vừa",
-        "spice:hot": "cay đậm",
-    }.get(next((t for t in item["tags"] if t.startswith("spice:")), ""), "")
-
-
-def build_derived_doc(
-    group: str, tag: str, label: str, items: list[dict], cats: dict[str, str],
-    group_label: str, group_note: str,
-) -> str:
-    """Một tài liệu cho một giá trị nhãn. Mọi con số tính từ `items`."""
-    matched = sorted(
-        (m for m in items if tag in m["tags"]), key=lambda m: (m["price"], m["id"])
-    )
-    value = tag.split(":", 1)[1]
-    doc_id = f"kb.{group}.{value}.v1"
-
-    by_cat = Counter(cats[m["categoryId"]] for m in matched)
-    prices = [m["price"] for m in matched]
-    allergens = Counter(
-        t.split(":", 1)[1] for m in matched for t in m["tags"] if t.startswith("allergen:")
-    )
-    vi_allergen = {"seafood": "hải sản", "peanut": "đậu phộng", "egg": "trứng",
-                   "dairy": "sữa", "gluten": "gluten"}
-
-    # TIÊU ĐỀ phải khớp thứ tài liệu THẬT SỰ liệt kê.
-    #
-    # Nhãn `flavour`, `region`, `occasion`, `health` áp cho CẢ món ăn lẫn đồ uống, nên 19/49 tài
-    # liệu `derived` có đồ uống trong danh sách. Nhưng tiêu đề luôn là "Món {nhãn}", nên khách đọc
-    # tài liệu **Món chua** và thấy Cocktail chanh đào mật ong, Rượu mơ Hà Nội, Sinh tố dâu tây.
-    #
-    # Danh sách KHÔNG sai — cocktail chanh đào đúng là vị chua. Cái sai là chữ "Món", và nó sai
-    # theo kiểu làm khách nghi ngờ cả phần đúng.
-    #
-    # Tiêu đề tính từ nội dung thật, nên nó không thể lệch: có đồ uống thì nói có đồ uống.
-    co_uong = any(m.get("categoryId") in DANH_MUC_DO_UONG for m in matched)
-    co_mon = any(m.get("categoryId") not in DANH_MUC_DO_UONG for m in matched)
-    if co_uong and co_mon:
-        tieu_de = f"Món và đồ uống {label.lower()}"
-    elif co_uong:
-        tieu_de = f"Đồ uống {label.lower()}"
-    else:
-        tieu_de = f"Món {label.lower()}"
-
-    lines = [
-        "---",
-        f"id: {doc_id}",
-        f"title: {tieu_de}",
-        f"topic_keys: [{group}_{value}]",
-        "source: derived",
-        "audience: guest",
-        "answer_mode: synthesize",
-        "---",
-        "",
-        f"# {tieu_de}",
-        "",
-        f"Tài liệu này nói về nhóm {group_label} **{label}**. {group_note}",
-        "",
-        # Tiêu đề mục dùng CHUNG một khuôn cho cả 57 tài liệu `derived`.
-        #
-        # Đã thử đổi sang tiêu đề đặc thù theo tài liệu ("Gợi ý chọn" -> "Gợi ý chọn món gà") vì
-        # `analyze_failures.py` xếp 19/43 ca hỏng vào lớp `retrieval_twin_section`. Kho cải thiện
-        # rõ — 179 -> 365 tiêu đề khác nhau, 283/452 -> 93/452 đoạn dùng chung — nhưng **truy hồi
-        # KHÔNG khá hơn**:
-        #
-        #     Hit@1 niêm phong  0,609 -> 0,609   (không đổi)
-        #     Hit@5 niêm phong  0,674 -> 0,630   (tụt)
-        #     tổng ca hỏng         43 -> 46      (tăng)
-        #
-        # 19 ca kia không được sửa — chúng ĐỔI TÊN LỖI từ `twin_section` sang `retrieval_rank`.
-        # Trần không nằm ở tiêu đề. Và việc đổi còn xoá mất tiền đề của họ `derived` trong
-        # `build_chunk_selection_cases.py`, vốn tồn tại CHÍNH VÌ các tài liệu này dùng chung khuôn.
-        #
-        # Giữ khuôn chung, và ghi kết quả thí nghiệm ở đây để không ai phải chạy lại.
-        "## Tổng quan",
-        "",
-        f"Thực đơn có **{len(matched)} món** {label.lower()}"
-        + (f", giá từ {money(min(prices))} đến {money(max(prices))}." if prices else "."),
-    ]
-
-    if by_cat:
-        spread = ", ".join(f"{name} ({n} món)" for name, n in by_cat.most_common())
-        lines += ["", f"Chúng nằm ở các nhóm: {spread}."]
-
-    lines += ["", "## Danh sách món", ""]
-    for m in matched:
-        spice = spice_label(m)
-        note = f" — {spice}" if spice else ""
-        lines.append(f"- **{m['name']}** ({money(m['price'])}){note}")
-
-    # Mục dị nguyên: nói cả điều biết VÀ điều không biết. Đây là chỗ dễ sai nhất.
-    lines += ["", "## Dị nguyên trong nhóm này", ""]
-    if allergens:
-        listed = ", ".join(
-            f"{vi_allergen.get(k, k)} ({n} món)" for k, n in allergens.most_common()
-        )
-        lines.append(f"Thực đơn ghi nhận: {listed}.")
-    else:
-        lines.append("Thực đơn không ghi nhận dị nguyên nào ở nhóm món này.")
-    unlabelled = sum(
-        1 for m in matched if not any(t.startswith("allergen:") for t in m["tags"])
-    )
-    lines += [
-        "",
-        f"Trong {len(matched)} món này, **{unlabelled} món chưa có ghi nhận dị nguyên nào**. "
-        "Chưa ghi nhận KHÔNG có nghĩa là không chứa — thực đơn chỉ ghi phần đã được ghi. Khi "
-        "khách có dị ứng, luôn nhắc xác nhận lại với nhân viên và bếp trước khi gọi.",
-    ]
-
-    if len(matched) >= 3:
-        # GỢI Ý phải lấy ví dụ CÙNG LOẠI với thứ câu gợi ý đang nói.
-        #
-        # Bản trước lấy `matched[0]` (rẻ nhất) và `no_spice[0]` (rẻ nhất trong nhóm không cay).
-        # Danh sách sắp theo giá, và **đồ uống là thứ rẻ nhất thực đơn** (bia hơi 12.000đ), nên
-        # chúng thắng ở mọi nhóm có đồ uống. Kết quả in ra 18 tài liệu:
-        #
-        #     - Muốn thử nhẹ ví: **Bia Hà Nội** (18.000đ).
-        #     - Không ăn được cay: có 10 món không cay, ví dụ **Bia Hà Nội**.
-        #
-        # Dòng thứ hai là dòng tệ nhất trong cả kho: khách nói **không ăn được cay** — một câu về
-        # MÓN ĂN — và nhận về một chai bia. Nó không sai về dữ liệu (bia đúng là không cay) mà sai
-        # về việc trả lời đúng câu hỏi, và nó lặp ở 18/49 tài liệu.
-        #
-        # "Bia hơi Hà Nội" xuất hiện ở 8 tài liệu, "Nước rau má" ở 6 — nên lỗi này còn nhân bản
-        # cùng một tên món khắp kho.
-        #
-        # Quy tắc: ưu tiên MÓN ĂN làm ví dụ; chỉ dùng đồ uống khi nhóm KHÔNG có món ăn nào (tài
-        # liệu về chính nhóm đồ uống), và khi đó gọi đúng tên là "đồ uống".
-        mon_an = [m for m in matched if m.get("categoryId") not in DANH_MUC_DO_UONG]
-        vi_du = mon_an or matched
-        tu = "món" if mon_an else "đồ uống"
-        cheapest, priciest = vi_du[0], vi_du[-1]
-        lines += [
-            "",
-            "## Gợi ý chọn",
-            "",
-            f"- Muốn thử nhẹ ví: **{cheapest['name']}** ({money(cheapest['price'])}).",
-            f"- Muốn {tu} đáng nhớ nhất nhóm: **{priciest['name']}** "
-            f"({money(priciest['price'])}).",
-        ]
-        no_spice = [m for m in vi_du if "spice:none" in m["tags"]]
-        if no_spice and mon_an:
-            # Chỉ nêu dòng độ cay khi nhóm CÓ món ăn — độ cay không áp dụng cho đồ uống, và
-            # đếm cả đồ uống vào "10 món không cay" là thổi phồng con số bằng thứ không liên quan.
-            lines.append(
-                f"- Không ăn được cay: có {len(no_spice)} món không cay, ví dụ "
-                f"**{no_spice[0]['name']}**."
-            )
-
-    return "\n".join(lines) + "\n"
+# `build_derived_doc` (146 dòng) và bảng `DERIVED_GROUPS` đã bị xoá cùng 49 tài liệu chúng sinh.
+#
+# Chúng sinh một tài liệu cho mỗi giá trị nhãn — 190/372 đoạn của chỉ mục — và không đường nào
+# tới chúng ngoài truy hồi toàn kho. Xem `generate()` bên dưới để biết vì sao bỏ.
+#
+# Giữ lại phần sinh CHÍNH SÁCH: tám tài liệu có SỐ tính từ thực đơn nên chúng phải do máy sinh,
+# nếu không con số sẽ trôi khi thực đơn đổi giá.
 
 
 def _policy_doc(topic: str, title: str, answer: str) -> str:

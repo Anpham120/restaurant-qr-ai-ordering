@@ -276,12 +276,19 @@ def _khong_rut_dau(chunks):
     return [_KhongRutDau(c) for c in chunks]
 
 
-# Sáu nhóm nhãn sinh ra tài liệu `derived`. Giữ khớp với `build_knowledge.py`.
+# Sáu nhóm nhãn TỪNG sinh tài liệu riêng. Kho không còn chúng — xem `build_knowledge.generate`.
+#
+# Phép phân loại giữ lại nhánh `derived` chứ không xoá: nếu ai đó sinh lại nhóm tài liệu ấy, bảng
+# này phải TÁCH chúng ra ngay chứ không lặng lẽ gộp vào `written`. Gộp hai bài toán khác độ khó
+# vào một con số là đúng thứ hàm này được viết ra để chặn.
 NHOM_DERIVED = ("flavour", "health", "ingredient", "method", "occasion", "region")
 
 
 def _loai_tai_lieu() -> dict:
-    """doc_id -> 'written' | 'derived' | 'policy'."""
+    """doc_id -> 'written' | 'derived' | 'policy'.
+
+    `derived` hiện luôn rỗng. `in_bang` bỏ qua nhóm không có ca nào, nên bảng tự gọn lại.
+    """
     from rag.chunker import load_all
 
     ra = {}

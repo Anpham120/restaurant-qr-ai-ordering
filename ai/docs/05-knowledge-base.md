@@ -15,14 +15,22 @@ Nên câu trả lời là: **cần nội dung, không cần hệ truy hồi.** P
 | Tệp | Việc |
 |---|---|
 | `ai/knowledge/policy/` | 24 tài liệu `verbatim` — chính sách, trả nguyên văn |
-| `ai/knowledge/derived/` | 48 tài liệu `synthesize` — sinh từ nhãn thực đơn |
-| `ai/knowledge/written/` | 12 tài liệu `synthesize` — người viết |
-| `ai/scripts/build_knowledge.py` | sinh 56 tài liệu `derived`, kiểm cả kho |
+| `ai/knowledge/policy/` | 24 tài liệu `verbatim` — tra khóa, trả nguyên văn |
+| `ai/knowledge/written/` | 36 tài liệu `synthesize` — người viết, đây là kho RAG thật |
+| `ai/scripts/build_knowledge.py` | sinh 8 tài liệu chính sách có SỐ, kiểm cả kho |
 | `ai/app/rag/chunker.py` | nạp, chia đoạn, ép `audience` và `answer_mode` |
 | `app/answer.py` → `load_facts()` | tra khóa trên tài liệu `verbatim` |
 
-**Trạng thái hiện tại: 109 tài liệu / 452 đoạn** — 24 `verbatim` + 85 `synthesize`; theo nguồn
-56 `derived` + 52 `demo`. Bộ truy hồi chỉ xếp hạng **425 đoạn `synthesize`**.
+**Trạng thái hiện tại: 60 tài liệu / 213 đoạn** — 24 `verbatim` + 36 `synthesize`; theo nguồn
+8 `derived` + 52 `demo`. Bộ truy hồi chỉ xếp hạng **182 đoạn `synthesize`**.
+
+> **Cập nhật: bỏ 49 tài liệu sinh-theo-nhãn.** Chúng chiếm 190/372 = 51% chỉ mục và không đường
+> nào tới chúng ngoài truy hồi toàn kho — nhánh lọc nhãn không đọc kho, và 0/49 khóa tra được.
+> 106 ca nhắm vào chúng đều là **câu chọn món**, và 99,1% giờ đi thẳng nhánh lọc. Ba cách chữa
+> đã đo và đều hoà: cross-encoder p=0,8238 · gộp thành 6 tài liệu p=0,5488 · cắt bớt mục.
+> Nguyên nhân là cấu trúc: 49 tài liệu dùng chung đúng 4 tiêu đề mục, tài liệu điển hình có
+> **0 từ chỉ xuất hiện ở riêng nó**. Sau khi bỏ, nhóm `written` lên Hit@2 0,879 và `cấm@5` giảm
+> từ 9 xuống 6.
 
 > Cập nhật 2026-07-30: thêm 24 tài liệu `written` có cấu trúc RIÊNG. Nút cổ chai trước đó là 45/60
 > tài liệu dùng chung MỘT khuôn, nên mọi tập đánh giá về chọn đoạn đều bị trần bởi kho chứ không
@@ -74,12 +82,11 @@ tri thức không ai biết tin phần nào. Nên mỗi mục khai rõ nguồn:
 
 | Nguồn | Số tài liệu | Tin được đến đâu |
 |---|---|---|
-| `derived` | 56 | tính từ `menu-dataset.json` mỗi lần sinh lại, **không thể lệch khỏi thực đơn** |
-| `demo` | 28 | chính sách nhà hàng và lời khuyên, giá trị mẫu cho dự án demo |
+| `derived` | 8 | tính từ `menu-dataset.json` mỗi lần sinh lại, **không thể lệch khỏi thực đơn** |
+| `demo` | 52 | chính sách nhà hàng và lời khuyên, giá trị mẫu cho dự án demo |
 
-Phần `derived` là chỗ đáng giá nhất, vì nó **không thể sai**: nó *là* thực đơn được diễn
-đạt lại. Trong 56 tài liệu `derived` thì 48 là tài liệu nhóm nhãn (`synthesize`), còn **8 là
-tài liệu chính sách `verbatim`** — chúng chứa con số nên tuyệt đối không được viết tay:
+Phần `derived` còn lại **8 tài liệu chính sách `verbatim`** — chúng chứa con số nên tuyệt đối
+không được viết tay:
 
 `menu_size` (91 món / 13 nhóm) · `price_range` (12.000–890.000đ) · `preorder` (12 món) ·
 `takeaway_items` (11 món) · `children` (43 món trẻ em, 29 món người lớn tuổi) ·
@@ -211,7 +218,7 @@ mọi món được nhắc, và tiêu chí thay thế chặt hơn.
 
 ```
 python ai/scripts/build_knowledge.py --check   # kiểm tài liệu derived khớp kết quả sinh lại
-python ai/scripts/build_knowledge.py           # sinh lại 56 tài liệu derived
+python ai/scripts/build_knowledge.py           # sinh lại 8 tài liệu chính sách có số
 python ai/evaluation/run_baseline.py --all            # chỉ mã tất định
 python ai/evaluation/run_with_model.py               # có mô hình
 ```
