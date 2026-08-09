@@ -170,51 +170,23 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 
 ## PHÂN CÔNG CÔNG VIỆC
 
-## Cách chia: theo THỨ TỰ XÂY DỰNG
+## Cách chia
 
-Hệ thống này có ràng buộc phụ thuộc rất chặt. Không có nhãn thì không lọc được món. Không có kho
-tri thức thì không truy hồi được. Và **không có tập đánh giá thì không ai biết mình làm đúng hay
-sai**.
+Hệ thống có ràng buộc phụ thuộc rất chặt. Không có nhãn thì không lọc được món. Không có kho tri
+thức thì không truy hồi được. Và **không có tập đánh giá thì không ai biết mình làm đúng hay sai**.
 
-Vì vậy nhóm không chia theo module. Chia theo module thì năm người khởi động cùng lúc rồi ba người
-ngồi chờ. Nhóm chia theo **chặng xây dựng**: mỗi người bàn giao một thứ mà người sau **dùng được
-ngay**.
+Vì vậy nhóm không chia theo module — chia theo module thì năm người khởi động cùng lúc rồi ba người
+ngồi chờ. Mỗi người nhận một khâu và bàn giao cho người sau một thứ **dùng được ngay**.
 
-```
-CHẶNG 1    Phạm Duy An        DỮ LIỆU              91 món · 85 nhãn · 60 tài liệu
-              |                (nhóm trưởng)
-              |  giao bộ nhãn và kho cho chặng 2, rồi làm tiếp phần hiểu câu hỏi
-              v
-CHẶNG 2    Nguyễn Quang Hiếu  ĐÁNH GIÁ             147 ca · 163 lượt · 114 ca truy hồi
-              |                                     120 ca chọn mục
-              |  viết được NGAY, không phải chờ ai — xem lý do ngay dưới
-              v
-CHẶNG 1b   Phạm Duy An        HIỂU CÂU HỎI         629 cụm -> Request
-              |                                     (chạy song song với chặng 2)
-              v
-CHẶNG 3    Bùi Đào Đức Anh    TRUY HỒI             -> Evidence, tối đa 2 đoạn
-              |                                     đo ngay bằng 114 ca
-              v
-CHẶNG 4    Đỗ Tuấn Anh        CHỌN MÓN & GIỎ HÀNG  -> Reply + thẻ giỏ
-              |                                     đo ngay bằng 147 ca
-              v
-CHẶNG 5    Lê Anh             PHIÊN & TÍCH HỢP     -> dịch vụ HTTP chạy thật
-              |                                     đo ngay bằng 163 lượt
-              v
-CHẶNG 6    Nguyễn Quang Hiếu  ĐÓNG VÒNG            golden 103 lượt qua stack thật
-```
+| Họ và tên | MSSV | Khâu phụ trách | Bàn giao cho người sau |
+|---|---|---|---|
+| Phạm Duy An *(nhóm trưởng)* | BIT240002 | **Dữ liệu & hiểu câu hỏi** | Bộ nhãn, kho tri thức, và `Request` đã hiểu |
+| Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập ca có khoá đáp án, thước đo, cổng CI |
+| Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn |
+| Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, bốn lớp an toàn |
+| Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend |
 
-## Bảng phân công
-
-| # | Họ và tên | MSSV | Chặng | Bàn giao cho người sau | Mục báo cáo | % |
-|:-:|---|---|---|---|---|:-:|
-| 1 | Phạm Duy An | BIT240002 | **Dữ liệu & hiểu câu hỏi** *(nhóm trưởng)* | Bộ nhãn, kho tri thức, và `Request` đã hiểu | 2.5, 3.2, 3.3, 3.5 | 20% |
-| 2 | Nguyễn Quang Hiếu | BIT240091 | **Đánh giá** | Bốn tập ca có khoá đáp án, thước đo, cổng CI | 2.7, 3.6, 4.1–4.2, 4.6 | 20% |
-| 3 | Bùi Đào Đức Anh | BIT240025 | **Truy hồi** | Đoạn tri thức cho câu ngoài thực đơn | 2.1–2.4, 4.3, 4.4 | 20% |
-| 4 | Đỗ Tuấn Anh | BIT240015 | **Chọn món & an toàn** | Danh sách món, thẻ giỏ, bốn lớp an toàn | 2.6, 4.8, 4.9 | 20% |
-| 5 | Lê Anh | BIT240017 | **Phiên & tích hợp** | Dịch vụ HTTP, bộ nhớ phiên, ghép với backend | 3.1, 3.7, 4.10 | 20% |
-
-## Vì sao khâu đánh giá đứng thứ HAI chứ không đứng cuối
+## Vì sao khâu đánh giá làm SỚM chứ không làm cuối
 
 Đây là điểm khác biệt lớn nhất so với cách chia thông thường, và nó dựa trên một tính chất cụ thể
 của tập đánh giá: **khoá đáp án là một ĐIỀU KIỆN, không phải một danh sách kết quả.**
@@ -228,56 +200,55 @@ session_scripts.json  "expect": {"forbid_tags_any": ["allergen:seafood"]}
 ```
 
 Không khoá nào nhắc tới mã nguồn. Chúng chỉ nhắc tới **thực đơn**, **bộ nhãn** và **siêu dữ liệu của
-kho tri thức** — đúng ba thứ mà chặng 1 giao ra.
+kho tri thức** — đúng ba thứ mà khâu dữ liệu giao ra.
 
 Nghĩa là người làm đánh giá viết được **toàn bộ** tập ca trước khi ba người sau viết dòng mã đầu
-tiên. Nhờ vậy ba chặng sau có thước đo **trước khi bắt đầu**, và điều kiện nghiệm thu của họ là một
+tiên. Nhờ vậy ba khâu sau có thước đo **trước khi bắt đầu**, và điều kiện nghiệm thu của họ là một
 con số chứ không phải một lời hứa.
 
-Nếu để đánh giá đứng cuối thì bốn chặng trước **xây mà không đo** — và đó đúng là bệnh mà đồ án này
-đã mắc một lần: mỗi đường xử lý đều "chạy đúng" theo người viết ra nó, nhưng không ai đo cả hệ
-thống.
+Nếu để đánh giá làm cuối thì bốn khâu trước **xây mà không đo** — và đó đúng là bệnh mà đồ án này đã
+mắc một lần: mỗi đường xử lý đều "chạy đúng" theo người viết ra nó, nhưng không ai đo cả hệ thống.
 
-**Người làm đánh giá là người duy nhất xuất hiện hai lần trong chuỗi**, vì một lý do có thật: bộ
-golden phải chạy qua stack thật, nên nó buộc phải nằm sau chặng tích hợp. Mọi phần còn lại của khâu
-đánh giá thì không cần chờ.
+Riêng bộ golden phải chạy qua stack thật nên nó buộc phải làm sau khâu tích hợp. Mọi phần còn lại của
+khâu đánh giá thì không cần chờ.
 
 ## Một chi tiết bàn giao dễ bỏ sót
 
-Chặng 1 phải giao **đúng thứ tự: dữ liệu trước, hiểu câu hỏi sau**. Người làm đánh giá chỉ cần dữ
-liệu để viết tập ca; họ không dùng tới `understand.py`. Giao ngược thứ tự thì họ ngồi chờ 2.417 dòng
-mã mà mình không cần.
+Khâu dữ liệu phải giao **đúng thứ tự: dữ liệu trước, lớp hiểu câu hỏi sau**. Người làm đánh giá chỉ
+cần dữ liệu để viết tập ca; họ không dùng tới `understand.py`. Giao ngược thứ tự thì họ ngồi chờ
+2.417 dòng mã mà mình không cần.
 
-## Điều kiện nghiệm thu từng chặng
+## Điều kiện nghiệm thu từng khâu
 
-Mỗi chặng có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ
-tránh được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em", rồi ba tuần
-sau người khác mới phát hiện nó sai.
+Mỗi khâu có **điều kiện nghiệm thu bằng số** — người sau chỉ bắt đầu khi số đó đạt. Đây là chỗ tránh
+được lỗi hay gặp nhất của đồ án nhóm: bàn giao một thứ "chạy được trên máy em", rồi ba tuần sau người
+khác mới phát hiện nó sai.
 
-| Chặng | Điều kiện nghiệm thu |
+| Khâu | Điều kiện nghiệm thu |
 |---|---|
-| **1 · Dữ liệu** | hai nguồn thực đơn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ** |
-| **2 · Đánh giá** | bốn tập có khoá đáp án dạng điều kiện; bộ dò lỗ của chính thước đo báo **0 lỗ** |
-| **1b · Hiểu câu hỏi** | kiểm kê đụng chữ khớp con số đã ghi; đo bằng cách **chạy `understand()` thật** |
-| **3 · Truy hồi** | 114 ca chạy trên cả ba bộ; bảng so có cột `cấm@5`; quyết định chốt **có số đi kèm** |
-| **4 · Chọn món** | **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị bỏ**, không sửa |
-| **5 · Tích hợp** | dịch vụ trả lời được **khi mô hình không cấu hình**; bộ nhớ giữ dị nguyên qua mọi lượt |
-| **6 · Đóng vòng** | 103/103 lượt golden; mọi cổng CI xanh |
+| **Dữ liệu** | hai nguồn thực đơn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ** |
+| **Đánh giá** | bốn tập có khoá đáp án dạng điều kiện; bộ dò lỗ của chính thước đo báo **0 lỗ** |
+| **Hiểu câu hỏi** | kiểm kê đụng chữ khớp con số đã ghi; đo bằng cách **chạy `understand()` thật** |
+| **Truy hồi** | 114 ca chạy trên cả ba bộ; bảng so có cột `cấm@5`; quyết định chốt **có số đi kèm** |
+| **Chọn món** | **0 lỗi an toàn** trên mọi tập; câu sinh vi phạm thì **bị bỏ**, không sửa |
+| **Tích hợp** | dịch vụ trả lời được **khi mô hình không cấu hình**; bộ nhớ giữ dị nguyên qua mọi lượt |
+| **Golden** | 103/103 lượt golden; mọi cổng CI xanh |
 
 ## Đường tới hạn, và chỗ chạy song song được miễn phí
 
 ```
 tới hạn:    dữ liệu -> tập ca -> truy hồi -> chọn món -> tích hợp -> golden
-song song:  chặng 1b (hiểu câu hỏi) chạy cùng lúc với chặng 2 (tập ca)
-            chặng 4 dựng select() bằng Request, chưa cần Evidence tới nhánh tri thức
+song song:  lớp hiểu câu hỏi làm cùng lúc với tập ca
+            khâu chọn món dựng select() bằng Request, chưa cần Evidence
+            cho tới khi làm nhánh tri thức
 ```
 
-Chỉ **hai người đầu** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai phải chờ quá một
-chặng.
+Chỉ **khâu dữ liệu và khâu đánh giá** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai
+phải chờ quá một khâu.
 
 ## Vì sao chia đều 20%
 
-Không phải để "cho công bằng". Năm chặng đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống
+Không phải để "cho công bằng". Năm khâu đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống
 không chạy, hoặc chạy mà không ai chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống
 không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá
 nặng ngang bốn khâu kia.
@@ -789,14 +760,13 @@ những câu hỏi cần ba phép toán trên không bao giờ đi vào đườn
 ```mermaid
 flowchart TB
   Q["Câu hỏi của khách"] --> R{{"Bộ định tuyến"}}
-  R -->|"loại A"| F["LỌC NHÃN<br/>đọc thẳng tags của thực đơn<br/>KHÔNG đọc kho tri thức"]
-  R -->|"loại B"| K["TRA KHÓA<br/>24 tài liệu verbatim<br/>trả NGUYÊN VĂN"]
-  R -->|"loại B'"| S["CHỌN MỤC<br/>trong 1 tài liệu<br/>phạm vi 3–8 đoạn"]
-  R -->|"loại C"| T["TRUY HỒI TOÀN KHO<br/>182 đoạn · giữ 2"]
-
-  F --> X["Tin mô hình 0% — đáp án đúng/sai rõ ràng"]
+  R -->|"loại A"| F["LỌC NHÃN<br/>đọc thẳng tags<br/>KHÔNG đọc kho"]
+  R -->|"loại B"| K["TRA KHÓA<br/>24 tài liệu<br/>trả NGUYÊN VĂN"]
+  R -->|"loại B'"| S["CHỌN MỤC<br/>trong 1 tài liệu<br/>3–8 đoạn"]
+  R -->|"loại C"| T["TRUY HỒI TOÀN KHO<br/>182 đoạn<br/>giữ 2"]
+  F --> X["Tin mô hình 0%<br/>đáp án đúng/sai rõ ràng"]
   K --> X
-  S --> Y["Mô hình được viết, KHÔNG được chọn dữ kiện"]
+  S --> Y["Mô hình được VIẾT<br/>không được CHỌN dữ kiện"]
   T --> Y
 
   classDef exact fill:#e6f2f0,stroke:#0a6b6b,color:#0a4f4f;
@@ -1181,12 +1151,12 @@ hay còn lái xe. Đây là **xếp hạng, không phải lọc**: khách xin bi
 này **không dùng mô hình** và chạy bốn bước:
 
 ```mermaid
-flowchart LR
+flowchart TB
   Q["Cho mình món<br/>không cay, dưới 100k"] --> F["1 · fold()<br/>rút dấu, bỏ dấu câu"]
-  F --> P["cho minh mon khong cay duoi 100k"]
+  F --> P["cho minh mon<br/>khong cay duoi 100k"]
   P --> M["2 · Khớp 629 cụm<br/>DÀI trước NGẮN"]
-  M --> T1["'khong cay' → spice:none"]
-  M --> T2["'duoi 100k' → budget_max 100000"]
+  M --> T1["'khong cay'<br/>→ spice:none"]
+  M --> T2["'duoi 100k'<br/>→ budget_max 100000"]
   T1 --> RQ["3 · Tách RÀNG BUỘC khỏi NGỮ CẢNH<br/>4 · Nhận diện ý định"]
   T2 --> RQ
   RQ --> OUT["Request"]
@@ -1333,6 +1303,11 @@ lớn chủ đề `synthesize` **không có cụm từ vựng** nên truy hồi 
 | **Embedding `bge-m3`** | 0,697 | **0,879** | **0,939** | **0,806** | **0,636** | **6** | 302 ms | 480 ms |
 | Hybrid RRF | **0,712** | 0,803 | 0,864 | 0,774 | 0,563 | 7 | 300 ms | 481 ms |
 
+![Biểu đồ 4.1 — So ba phương pháp truy hồi trên nhóm written](_bieu_do/bd1-truy-hoi.png)
+
+**Biểu đồ 4.1** — Hybrid cao hơn ở `Hit@1`, nhưng thua ở ba cột còn lại. Vùng tô là cột hệ thống
+thật sự dùng.
+
 **Chốt embedding.** Hybrid nhỉnh hơn ở Hit@1 nhưng thua ở **Hit@2, Hit@5, MRR@5, nDCG@5 và cấm@5** —
 tức thua ở đúng chỉ số hệ thống dùng. Chốt theo Hit@1 là chốt theo con số của một hệ thống trích 1
 đoạn, mà hệ thống này trích 2.
@@ -1420,17 +1395,9 @@ Lợi **biên** trả lời rõ:
 | 2 → 3 | +5,93 | +2,63 | 2,25 |
 | **3 → 5** | +4,60 | **+5,92** | **0,78** |
 
-```mermaid
-flowchart LR
-  K1["k=1<br/>trúng 53,95%<br/>CẤM 1,97%"] -->|"lãi 3,12×"| K2["k=2<br/>trúng 70,39%<br/>CẤM 7,24%"]
-  K2 -->|"lãi 2,25×"| K3["k=3<br/>trúng 76,32%<br/>CẤM 9,87%"]
-  K3 -->|"LỖ 0,78×"| K5["k=5<br/>trúng 80,92%<br/>CẤM 15,79%"]
+![Biểu đồ 4.2 — Đánh đổi giữa tỉ lệ trúng và tỉ lệ nhiễm khi tăng số đoạn trích](_bieu_do/bd2-so-doan.png)
 
-  classDef ok fill:#e6f2f0,stroke:#0a6b6b,color:#0a4f4f;
-  classDef bad fill:#f9e8e5,stroke:#962f24,color:#962f24;
-  class K1,K2,K3 ok;
-  class K5 bad;
-```
+**Biểu đồ 4.2** — Hai đường cắt nhau ở đâu quyết định chọn `k` nào.
 
 Từ 3 lên 5 là **lỗ**: được 4,60 điểm đúng, trả 5,92 điểm nhiễm chủ đề cấm, và số từ khách phải đọc tăng
 từ 271 lên 396. Chốt **k = 2**.
@@ -1476,9 +1443,11 @@ khỏi **lỗi của bộ định tuyến**.
 **Bảng 4.7 — Chi phí sai định tuyến**
 
 ```mermaid
-flowchart LR
-  A["Câu chọn món<br/>50 câu"] --> A1["trần 100,00%"] --> A2["định tuyến 100,00%"] --> A3["= 100,00%"]
-  C["Câu tri thức<br/>50 câu"] --> C1["trần 44,00%"] --> C2["định tuyến 64,00%"] --> C3["= 28,16%"]
+flowchart TB
+  A["Câu chọn món · 50 câu"] --> A1["trần 100,00%"]
+  A1 --> A2["định tuyến đúng 100,00%"] --> A3["đóng góp thật = 100,00%"]
+  C["Câu tri thức · 50 câu"] --> C1["trần 44,00%"]
+  C1 --> C2["định tuyến đúng 64,00%"] --> C3["đóng góp thật = 28,16%"]
   classDef ok fill:#e6f2f0,stroke:#0a6b6b,color:#0a4f4f;
   classDef bad fill:#f9e8e5,stroke:#962f24,color:#962f24;
   class A,A1,A2,A3 ok;
@@ -1600,6 +1569,10 @@ nhớ**, cộng 147 ca tập trả lời.
 | **Truy hồi toàn kho** | **0,0%** | **0,0%** |
 | Xã giao / ngoài phạm vi / hỏi lại | 10,2% | 2,5% |
 
+![Biểu đồ 4.3 — Đường nào thật sự chạy trong một phiên hội thoại](_bieu_do/bd4-duong-di.png)
+
+**Biểu đồ 4.3** — Cột đáng nhìn nhất là cột bằng 0.
+
 **Truy hồi toàn kho chạy 0/310 lượt.** Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai
 tập đó được viết quanh các nhánh tất định**, và mọi câu tri thức trong chúng thuộc các chủ đề **đã có
 khóa** — mà tra khóa chính xác hơn xếp hạng.
@@ -1669,6 +1642,10 @@ Tắt từng cơ chế của lớp hiểu câu hỏi, chạy lại 147 ca:
 | danh sách món nhà hàng không bán | 145/147 | −2 | 0 |
 | nhận tên món rút gọn | 146/147 | −1 | 0 |
 | dịp ăn là ngữ cảnh, không phải ràng buộc | 146/147 | −1 | 0 |
+
+![Biểu đồ 4.4 — Ablation, số ca mất khi tắt từng cơ chế](_bieu_do/bd3-ablation.png)
+
+**Biểu đồ 4.4** — Phần đỏ là lỗi an toàn, và nó không tỉ lệ với chiều dài cột.
 
 **Cả chín cơ chế đều có ít nhất một ca chứng minh giá trị**, và năm trong đó ngăn được lỗi an toàn. Cột
 lỗi an toàn quan trọng hơn cột "mất": một cơ chế chỉ cứu một ca nhưng ngăn được lỗi dị ứng thì vẫn phải
