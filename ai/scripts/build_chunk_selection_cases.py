@@ -78,7 +78,7 @@ KHUON_DERIVED = ("Tổng quan", "Danh sách món", "Dị nguyên trong nhóm nà
 # Bản trước lấy sáu tài liệu đại diện, với lý lẽ: 49 tài liệu `derived` dùng chung MỘT khuôn, nên
 # kiểm cả 49 là kiểm cùng một việc 49 lần. Lý lẽ đó nghe đúng, và chính dự án đã đo được là nó SAI.
 #
-# Bước 2 của mục 4.10 dựng bộ `ca_phu_kho` vì đúng lý do ngược lại: bộ truy hồi 222 ca phủ 36/85 tài
+# Bước 2 của mục 4.10 từng dựng bộ `ca_phu_kho` vì đúng lý do ngược lại: bộ truy hồi phủ 36/85 tài
 # liệu, và 49 tài liệu bị bỏ hóa ra là **phần khó nhất** — nhóm `derived` có mức trùng lặp cao nhất
 # (Jaccard trung bình 0,490, cặp tệ nhất 0,878). Cùng khuôn KHÔNG có nghĩa là cùng độ khó: khuôn
 # giống nhau, còn nội dung thì mỗi tài liệu một nhãn, một danh sách món, một tập dị nguyên.

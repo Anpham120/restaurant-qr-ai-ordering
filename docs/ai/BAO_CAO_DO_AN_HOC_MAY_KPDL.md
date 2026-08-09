@@ -327,7 +327,7 @@ TV4  PHIÊN & TÍCH HỢP
       v
 TV5  ĐÁNH GIÁ
           147 ca · 163 lượt phiên · 103 lượt golden
-          100 câu hai chiều · 17 cổng CI
+          100 câu hai chiều · 21 cổng CI
 ```
 
 ## Bảng phân công
@@ -399,7 +399,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
-5. **17 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
+5. **21 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
 
 > **Nghiệm thu:** 147/147 ca; 163/163 lượt phiên;
 > 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
@@ -2358,6 +2358,12 @@ lặp cao nhất — tức **phần khó nhất**. Đo phần dễ rồi kết l
 
 `build_ca_phu_kho.py` sinh **98 ca phủ 49 tài liệu còn lại**, mỗi tài liệu hai câu:
 
+> **Bước này về sau bị hủy cùng thứ nó đo.** 49 tài liệu `derived` đã bị bỏ khỏi kho, nên
+> 98/98 ca của bộ phủ trỏ vào tài liệu không còn tồn tại và bộ `run_dau_loai.py` mất luôn
+> đối tượng đo. Cả ba tệp đã xoá. Độ phủ KHÔNG mất: chiều A giờ phủ **36/36 tài liệu**
+> `synthesize` — đúng cái lỗ mà bước này được dựng ra để lấp. Mục dưới giữ nguyên vì nó
+> ghi lại một phương pháp đúng, và vì con số 32,47 điểm mà nó tìm ra là bài học riêng.
+
 | Dạng | Cách viết | Kỳ vọng |
 |---|---|---|
 | **A** | dùng đúng nhãn tiếng Việt của giá trị | BM25 nên thắng |
@@ -2487,9 +2493,7 @@ nhánh khác** để làm đẹp một chỉ số dựa trên ý kiến của ch
 Tái lập bốn bước:
 
 ```bash
-python ai/evaluation/build_ca_phu_kho.py      # sinh 98 ca phủ kho
 python ai/evaluation/run_phu_tu_vung.py --csv # tất định với từ vựng đủ
-python ai/evaluation/run_dau_loai.py --csv    # đấu loại ba bộ truy hồi
 python ai/evaluation/run_dinh_tuyen.py --csv  # chất lượng định tuyến
 ```
 
@@ -3012,9 +3016,8 @@ tin chúng: **bộ đánh giá chạm tới bao nhiêu phần của hệ thống
 | `cases.json` | **147 ca** | chất lượng câu trả lời, một lượt |
 | `session_scripts.json` | 58 kịch bản / **157 lượt** | bộ nhớ phiên, đa lượt |
 | `golden_e2e.json` | 29 hội thoại / **103 lượt** | qua **stack thật**, có backend và giỏ hàng |
-| `retrieval_cases.json` | **222 ca** | truy hồi toàn kho |
-| `chunk_selection_cases.json` | **168 ca** | chọn **mục trong** một tài liệu |
-| `ca_phu_kho.json` | **98 ca** | phủ 49 tài liệu `derived` từng bị bỏ sót |
+| `retrieval_cases.json` | **114 ca** | truy hồi toàn kho |
+| `chunk_selection_cases.json` | **120 ca** | chọn **mục trong** một tài liệu |
 | `run_hai_chieu.py` (trong mã) | **100 câu** | 50 câu tri thức + 50 câu chọn món |
 
 Ba bộ nữa **ghép lại từ những bộ trên**, không có dữ liệu mới: `run_dinh_tuyen` (198 câu),
