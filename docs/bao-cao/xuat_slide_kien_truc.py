@@ -50,7 +50,7 @@ RONG = W - 2 * LE
 FONT = "Times New Roman"
 
 Y_ND = Cm(3.5)                          # mép trên vùng nội dung
-Y_PB = Cm(15.75)                        # mép trên dải phản biện
+Y_PB = Cm(17.9)                         # (dải phản biện đã bỏ khỏi slide)
 MAX_Y = 17.9                            # đáy cho phép, tính bằng cm
 
 # ── đo chữ bằng chính font slide dùng ────────────────────────────────
@@ -298,42 +298,17 @@ def bang(sl, cot, hang, y=Y_ND, co=15, x=LE, w=None, cao_min=Cm(1.15)):
 
 
 def phan_bien(sl, hoi, dap):
-    """Dải câu hỏi phản biện, đặt cố định ở đáy slide.
+    """Đã BỎ khỏi slide — giữ hàm để nội dung phản biện còn nằm trong mã.
 
-    Gọi hàm này CUỐI CÙNG trên mỗi slide, vì nó cũng là chốt: nó kiểm mọi hình
-    đã đặt xem có hình nào thò xuống vùng của dải không. Chốt `bang()` chỉ canh
-    đáy slide, nên một bảng cao 4,2cm đặt ở 12,3cm vẫn "vừa khung" trong khi nó
-    đè lên dải phản biện — đúng lỗi đã xảy ra ở slide 6 bản đầu.
+    Câu hỏi phản biện và câu trả lời chuyển xuống KỊCH BẢN NÓI: người trình bày
+    cần chúng, người ngồi dưới thì không — in lên slide là chiếm một phần năm
+    chiều cao trang cho thứ chỉ dùng khi bị hỏi.
+
+    Hàm vẫn nhận đủ hai tham số để nội dung không bị xoá khỏi mã nguồn, và vẫn
+    giữ phép kiểm độ dài. Muốn bật lại thì chỉ cần bỏ `return` đầu hàm.
     """
     assert len(hoi) <= 96 and len(dap) <= 190, "câu phản biện quá dài"
-    gioi_han = Y_PB / 360000
-    for s in sl.shapes:
-        day = ((s.top or 0) + (s.height or 0)) / 360000
-        if day > gioi_han + 0.05:
-            ten_ = (s.text_frame.text.split("\n")[0][:34]
-                    if s.has_text_frame and s.text_frame.text.strip() else "<hình>")
-            raise AssertionError(
-                f"«{ten_}» xuống tới {day:.1f}cm, đè lên dải phản biện "
-                f"(bắt đầu ở {gioi_han:.1f}cm)")
-    o = sl.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, LE, Y_PB, RONG, Cm(2.15))
-    o.fill.solid(); o.fill.fore_color.rgb = CAM_NHAT
-    o.line.color.rgb = CAM; o.line.width = Pt(1.0)
-    o.shadow.inherit = False; o.adjustments[0] = 0.10
-    tf = o.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf.margin_left = tf.margin_right = Cm(0.3)
-    p = tf.paragraphs[0]; p.line_spacing = 1.18
-    r = p.add_run(); r.text = "Phản biện:  "
-    r.font.size = Pt(12.5); r.font.bold = True; r.font.color.rgb = CAM; r.font.name = FONT
-    r = p.add_run(); r.text = hoi
-    r.font.size = Pt(13.5); r.font.italic = True; r.font.color.rgb = XANH; r.font.name = FONT
-    q = tf.add_paragraph(); q.line_spacing = 1.18
-    r = q.add_run(); r.text = "Trả lời:  "
-    r.font.size = Pt(12.5); r.font.bold = True; r.font.color.rgb = CAM; r.font.name = FONT
-    r = q.add_run(); r.text = dap
-    r.font.size = Pt(13.5); r.font.color.rgb = DEN; r.font.name = FONT
-    return o
+    return
 
 
 def noi(sl, chu):
@@ -363,7 +338,53 @@ def dung() -> Path:
     prs.slide_width, prs.slide_height = W, H
     s = SO
 
-    # ── 1 ─────────────────────────────────── bài toán và mục tiêu
+    # ── 1 ──────────────────────────────────────────── BÌA
+    #
+    # Trang bìa tách RIÊNG khỏi trang mục tiêu. Bản trước gộp cả hai: tên đề tài,
+    # tên nhóm, năm gạch đầu dòng và một khối trích dẫn cùng nằm trên một trang —
+    # người xem không biết nhìn vào đâu trước, và người trình bày phải nói ba việc
+    # trong ba mươi giây đầu.
+    sl = prs.slides.add_slide(prs.slide_layouts[6])
+    o = sl.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(0), Cm(0), W, H)
+    o.fill.solid(); o.fill.fore_color.rgb = XANH
+    o.line.fill.background(); o.shadow.inherit = False
+
+    txt(sl, LE, Cm(2.2), RONG, Cm(0.9), "TRƯỜNG ĐẠI HỌC CMC  ·  KHOA CÔNG NGHỆ THÔNG TIN",
+        15, True, RGBColor(0xB9, 0xC8, 0xDA), PP_ALIGN.CENTER)
+    txt(sl, LE, Cm(3.3), RONG, Cm(0.9), "ĐỒ ÁN MÔN HỌC MÁY VÀ KHAI PHÁ DỮ LIỆU",
+        15, False, RGBColor(0x8F, 0xA6, 0xC0), PP_ALIGN.CENTER)
+
+    v = sl.shapes.add_shape(MSO_SHAPE.RECTANGLE, (W - Cm(5)) // 2, Cm(5.1), Cm(5), Cm(0.09))
+    v.fill.solid(); v.fill.fore_color.rgb = CAM
+    v.line.fill.background(); v.shadow.inherit = False
+
+    txt(sl, LE, Cm(6.1), RONG, Cm(3.2),
+        "Hệ thống AI tư vấn gọi món cho nhà hàng",
+        46, True, TRANG, PP_ALIGN.CENTER, gian=1.15)
+    txt(sl, LE, Cm(9.6), RONG, Cm(1.0),
+        "Kiến trúc AI Chatbot tư vấn món ăn an toàn và có kiểm soát",
+        19, False, RGBColor(0xF3, 0xC5, 0x94), PP_ALIGN.CENTER)
+
+    hop(sl, (W - Cm(15)) // 2, Cm(11.4), Cm(15), Cm(3.5),
+        "NHÓM 05\n"
+        "Phạm Duy An (nhóm trưởng)  ·  Bùi Đào Đức Anh  ·  Đỗ Tuấn Anh\n"
+        "Lê Anh  ·  Nguyễn Quang Hiếu",
+        XANH, CAM, TRANG, 17, True)
+
+    txt(sl, LE, Cm(15.6), RONG, Cm(0.9),
+        "Giảng viên hướng dẫn:  Phạm Ngọc Đông",
+        15, False, RGBColor(0xB9, 0xC8, 0xDA), PP_ALIGN.CENTER)
+    txt(sl, LE, Cm(16.6), RONG, Cm(0.9), "Hà Nội, tháng 8 năm 2026",
+        13, False, RGBColor(0x8F, 0xA6, 0xC0), PP_ALIGN.CENTER)
+    noi(sl, """
+Em chào thầy cô và các bạn. Em là Phạm Duy An, nhóm trưởng nhóm 05. Hôm nay
+nhóm em xin trình bày đồ án môn Học máy và Khai phá dữ liệu, đề tài Hệ thống AI
+tư vấn gọi món cho nhà hàng. Bài trình bày gồm ba phần: bài toán đặt ra, kiến
+trúc hệ thống, và kết quả đo được. Em xin bắt đầu bằng bài toán, vì chính bài
+toán quyết định vì sao nhóm em không dùng một mô hình ngôn ngữ cho mọi thứ.
+""")
+
+    # ── 2 ─────────────────────────────────── bài toán và mục tiêu
     sl = prs.slides.add_slide(prs.slide_layouts[6])
     o = sl.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(0), Cm(0), W, Cm(6.6))
     o.fill.solid(); o.fill.fore_color.rgb = XANH
@@ -401,6 +422,49 @@ còn giá tiền, dị nguyên và chính sách thì bắt buộc chính xác tu
 nhóm em chọn hướng rule-first, AI-assisted: luật nắm quyền kiểm soát, mô hình
 chỉ hỗ trợ ở vị trí có giới hạn. Nguyên tắc xuyên suốt là AI tư vấn chứ không
 nắm quyền đặt món; khách luôn tự xác nhận trước khi món vào giỏ.
+""")
+
+    # ── 3 ──────────────────────────────────────── BÀI TOÁN
+    #
+    # Trang riêng cho bài toán, đặt TRƯỚC kiến trúc. Lý do: kiến trúc của đồ án
+    # này chỉ hợp lý khi người nghe đã thấy hai loại câu hỏi cần hai cách giải
+    # khác hẳn nhau. Trình bày kiến trúc trước rồi giải thích sau thì người nghe
+    # phải nhớ ngược.
+    sl = trang(prs, "Bài toán: hai câu hỏi nghe giống nhau, giải khác hẳn nhau",
+               "BÀI TOÁN",
+               "Chính chỗ này quyết định vì sao hệ thống không dùng một mô hình cho mọi câu")
+    bang(sl,
+         ["Khách hỏi", "Đáp án nằm ở đâu", "Cách giải đúng"],
+         [['"Món nào dưới 100 nghìn, không cay?"',
+           "Ở cột giá và cột nhãn của món",
+           "LỌC BẢNG — đúng 100%"],
+          ['"Gọi khai vị trước có làm no bụng không?"',
+           "Trong một đoạn văn do người viết",
+           "ĐI TÌM đúng đoạn văn đó"]],
+         y=Cm(4.0), co=16, cao_min=Cm(1.9))
+
+    txt(sl, LE, Cm(9.4), RONG, Cm(0.7), "BA RÀNG BUỘC KHÔNG ĐƯỢC VI PHẠM", 13, True, CAM)
+    for i, (t_, m_) in enumerate([
+            ("Giá và dị nguyên", "sai một lần là khách ăn nhầm hoặc trả nhầm tiền"),
+            ("Khách tự quyết", "AI gợi ý, nút thêm vào giỏ do khách bấm"),
+            ("Mô hình lỗi vẫn chạy", "mất mạng hay hết hạn mức thì vẫn phải trả lời")]):
+        hop(sl, LE + i * Cm(10.4), Cm(10.1), Cm(10.0), Cm(2.5), f"{t_}\n{m_}",
+            CAM_NHAT, CAM, CAM, 16)
+
+    hop(sl, LE, Cm(13.1), RONG, Cm(1.7),
+        "Một mô hình ngôn ngữ trả lời được câu thứ hai, nhưng KHÔNG bảo đảm được câu thứ nhất",
+        XANH, XANH, TRANG, 17)
+    txt(sl, LE, Cm(15.1), RONG, Cm(1.4),
+        "“Giá nhỏ hơn 100 nghìn” là một phép SO SÁNH trên dữ liệu, không phải một phép TÌM KIẾM. "
+        "Đưa nó cho mô hình là đổi một đáp án chắc chắn lấy một ước lượng.",
+        14.5, False, XAM)
+    noi(sl, """
+Em xin trình bày bài toán bằng hai câu khách hỏi thật. Câu thứ nhất hỏi món dưới
+một trăm nghìn, không cay — đáp án nằm ở cột giá và cột nhãn, lọc bảng là đúng
+tuyệt đối. Câu thứ hai hỏi gọi khai vị có làm no không — không có cột nào để
+lọc, đáp án nằm trong một đoạn văn. Hai câu nghe giống nhau nhưng cần hai cách
+giải khác hẳn. Thêm ba ràng buộc: giá và dị nguyên phải đúng, khách tự quyết, và
+mô hình lỗi thì hệ thống vẫn trả lời được.
 """)
 
     # ── 2 ────────────────────────────── kiến trúc và luồng xử lý
