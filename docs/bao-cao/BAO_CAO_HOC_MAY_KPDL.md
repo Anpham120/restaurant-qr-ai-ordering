@@ -6,8 +6,8 @@
 
 **Trường Đại học CMC — Khoa Công nghệ thông tin & Truyền thông**
 
-**Đề tài:** Xây dựng chatbot gọi món cho nhà hàng sử dụng LLM và RAG
-*(Building a Restaurant Food-Ordering Chatbot using LLM and RAG)*
+**Đề tài:** Hệ thống AI tư vấn gọi món cho nhà hàng
+*(Tên đăng ký: Building a Restaurant Food-Ordering Chatbot using LLM and RAG)*
 
 **Repository:** [github.com/Anpham120/restaurant-qr-ai-ordering](https://github.com/Anpham120/restaurant-qr-ai-ordering)
 
