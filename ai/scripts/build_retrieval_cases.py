@@ -112,10 +112,15 @@ OCCASION = {
     "banquet": ("Tiệc đông người nên gọi gì?", "Mình đặt bàn cho hai chục người"),
 }
 
-DERIVED_GROUPS = {
-    "region": REGION, "method": METHOD, "ingredient": INGREDIENT,
-    "flavour": FLAVOUR, "health": HEALTH, "occasion": OCCASION,
-}
+# RỖNG kể từ khi 49 tài liệu sinh theo nhãn bị bỏ khỏi kho.
+#
+# Sáu bảng câu hỏi bên trên được GIỮ LẠI nguyên vẹn chứ không xoá, vì chúng ghi lại một kết luận
+# đáng nhớ: 106 ca sinh từ chúng đều là **câu chọn món** ("Món Hà Nội có gì?", "Món nào có bò?"),
+# không ca nào hỏi tri thức. Chúng bị chấm như bài toán truy hồi suốt một thời gian dài trong khi
+# 99,1% trong số đó thuộc về nhánh lọc nhãn — nơi chúng đúng theo định nghĩa.
+#
+# Đọc bảng REGION/METHOD/... bên trên là thấy ngay: không câu nào trong đó cần một đoạn văn.
+DERIVED_GROUPS: dict = {}
 
 # Tài liệu người viết: một câu dùng đúng từ, một câu diễn đạt khác.
 WRITTEN = {
@@ -372,13 +377,38 @@ ADVERSARIAL = [
 ]
 
 
+# Sáu họ nhãn từng có tài liệu sinh riêng. Kho không còn chúng — xem `build_knowledge.generate`.
+HO_NHAN_DA_BO = ("region", "method", "ingredient", "flavour", "health", "occasion")
+
+
+def _tro_vao_tai_lieu_da_bo(selectors) -> bool:
+    """Điều kiện chọn có trỏ vào tài liệu sinh-theo-nhãn đã bị bỏ không."""
+    for sel in selectors or []:
+        for k in sel.get("topic_keys_any", []):
+            if k.split("_", 1)[0] in HO_NHAN_DA_BO:
+                return True
+    return False
+
+
 def build() -> dict:
     docs = {d.topic_keys[0]: d for d in load_all(KNOWLEDGE) if d.answer_mode == "synthesize"}
     cases: list[dict] = []
     thieu: list[str] = []   # khóa trong bảng câu hỏi mà kho KHÔNG có
+    da_bo: list[str] = []   # ca bị bỏ vì nhắm vào tài liệu không còn tồn tại
 
     def add(family: str, cid: str, query: str, expected, forbidden, why: str,
             expect_nothing: bool = False) -> None:
+        # Ca nhắm vào 49 tài liệu sinh-theo-nhãn đã bỏ thì KHÔNG còn đích để chấm.
+        #
+        # Bỏ ở đây và ĐẾM, không lọc im lặng ở bước kiểm: một tập nhỏ đi mà không ai biết vì sao
+        # là đúng cách để con số sau này bị đọc sai. Số ca bị bỏ được in ra mỗi lần sinh.
+        #
+        # Chúng không được viết lại cho kho mới: đọc lại câu hỏi của chúng thì thấy tất cả đều là
+        # câu CHỌN MÓN ("Món nào có bò?", "Đặc sản miền Trung có gì?"), tức việc của nhánh lọc
+        # nhãn — nơi chúng đúng 100,00% thay vì 54,40% qua truy hồi.
+        if _tro_vao_tai_lieu_da_bo(expected) or _tro_vao_tai_lieu_da_bo(forbidden):
+            da_bo.append(cid)
+            return
         cases.append({
             "id": cid,
             "family": family,
@@ -481,6 +511,9 @@ def build() -> dict:
     # Kiểm khóa chủ đề TỒN TẠI, cùng lý do với khối trên: một ca trỏ vào khóa không có thì nó không
     # bao giờ đạt được, và số thấp sẽ bị đọc thành "truy hồi kém" thay vì "ca viết sai".
     for c in ca_duoi_dai():
+        if _tro_vao_tai_lieu_da_bo(c.get("expected")):
+            da_bo.append(c["id"])
+            continue
         for k in c["expected"][0]["topic_keys_any"]:
             if k not in docs:
                 thieu.append(f"{c['id']} -> {k}")
@@ -491,6 +524,10 @@ def build() -> dict:
             "Bảng câu hỏi nhắc khóa chủ đề không tồn tại trong kho tri thức:\n  "
             + "\n  ".join(thieu)
         )
+
+    if da_bo:
+        print(f"  bỏ {len(da_bo)} ca nhắm vào tài liệu sinh-theo-nhãn đã xoá khỏi kho —"
+              f" chúng là câu CHỌN MÓN, thuộc nhánh lọc nhãn chứ không thuộc truy hồi")
 
     return {
         "schema_version": 1,
@@ -589,16 +626,26 @@ def ca_duoi_dai() -> list[dict]:
             "family": "kb-longtail",
             "query": c["q"],
             "expected": [{"topic_keys_any": c["keys"]}],
-            # `forbidden` = tài liệu SINH TỪ THỰC ĐƠN (`kb.region.*`, `kb.method.*`...).
+            # `forbidden` = chủ đề của những câu `longtail` KHÁC.
             #
-            # Chọn đúng nhóm đó vì nó là kiểu trả lời sai ĐẶC TRƯNG của chiều này: khách hỏi "gọi
-            # khai vị trước có no bụng không" mà bộ truy hồi đưa về một tài liệu liệt kê món khai
-            # vị thì nó trả lời sai câu hỏi — đúng lỗi mà cả họ ca này được viết ra để đo.
+            # Bản trước cấm nhóm tài liệu sinh từ thực đơn (`kb.region.*`, `kb.method.*`...), vì
+            # kiểu sai đặc trưng khi đó là: khách hỏi "gọi khai vị trước có no bụng không" mà bộ
+            # truy hồi đưa về một tài liệu LIỆT KÊ món khai vị. Nhóm tài liệu ấy đã bị bỏ khỏi kho,
+            # nên điều kiện cấm cũ **giải ra 0 đoạn** — tức nó không còn cấm gì.
+            #
+            # Một điều kiện cấm vô nghĩa còn tệ hơn không có: nó làm bảng số trông như đang canh
+            # một thứ mà thật ra không canh gì. Bộ kiểm ngay-lúc-sinh bắt đúng chỗ này.
+            #
+            # Thay bằng chủ đề của các câu `longtail` khác. Đó mới là chỗ dễ lẫn còn lại: cả họ
+            # này đều là câu tri thức văn xuôi, cùng một kho, nên vơ nhầm tài liệu của câu bên cạnh
+            # là kiểu sai thật và đo được.
             #
             # Không để `forbidden` rỗng: `test_moi_ca_co_forbidden_HOAC_la_ca_rong` chặn điều đó,
             # và nó đúng — một ca không có điều kiện cấm thì Hit@5 = 1,0 vẫn đạt khi 4/5 đoạn lạc đề.
-            "forbidden": [{"doc_id_prefix": f"kb.{n}."}
-                          for n in ("region", "method", "ingredient", "flavour")],
+            "forbidden": [{"topic_keys_any": [
+                k for j, other in enumerate(CA_DUOI_DAI) if j != i - 1
+                for k in other["keys"] if k not in c["keys"]
+            ][:4]}],
             "expect_nothing": False,
             "why": f"{c['why']} Từ KHÔNG có trong đoạn đích: {c['tu_khac']}.",
         })

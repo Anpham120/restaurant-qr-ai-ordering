@@ -238,6 +238,18 @@ jobs:
       - name: Kiểm phép chia tập truy hồi
         run: python ai/evaluation/build_retrieval_split.py --check
 
+      # Hai cổng dưới đây TỒN TẠI TỪ LÂU nhưng CI chưa bao giờ gọi — và đó là lý do một bộ ca
+      # chết nằm trong repo mà không ai biết: `ca_phu_kho.json` có 98/98 ca trỏ vào tài liệu đã
+      # bị xoá, và cổng `--check` lẽ ra bắt được thì không chạy.
+      #
+      # Một cổng không được gọi thì không phải cổng. Rà toàn bộ: 3/16 cổng `--check` ở tình trạng
+      # đó; một cái đã bỏ cùng bộ ca của nó, hai cái còn lại thêm ở đây.
+      - name: Kiểm bộ ca chọn mục sinh lại được
+        run: python ai/scripts/build_chunk_selection_cases.py --check
+
+      - name: Kiểm phép chia tập chọn mục
+        run: python ai/evaluation/build_chunk_selection_split.py --check
+
       # Kịch bản ĐA LƯỢT — đo BỘ NHỚ PHIÊN, thứ 119 ca một lượt không thể đo.
       # Lỗi bộ nhớ chỉ hiện từ lượt 2: khách khai dị ứng ở lượt 1, hỏi tiếp ở lượt 5 không nhắc
       # lại, và nếu bộ nhớ quên thì hệ thống mời đúng món khách không ăn được. Bước này trả mã
@@ -354,9 +366,10 @@ jobs:
     # cần mô hình thật, và một job CI không có mô hình mà bật đường sinh chỉ đo phần lùi về khuôn mẫu.
     #
     # CHI PHÍ ĐÃ ĐỔI: ảnh AI nay có tầng embedding, nên bước dựng tải `torch` bản CPU (~200MB) và mô
-    # hình `multilingual-e5-small` (~500MB), rồi tính sẵn vector cho 370 đoạn. Đo tại máy: build 108s
-    # -> ~700s cho lần đầu chưa có cache lớp. Job vẫn trong hạn mặc định của GitHub Actions, nhưng
-    # con số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
+    # hình `BAAI/bge-m3` (~2,2GB), rồi tính sẵn vector cho 372 đoạn. Con số mô hình vừa tăng từ
+    # ~500MB của `multilingual-e5-small` sau khi phép đo ghép cặp trên 148 câu cho `bge-m3` hơn có ý
+    # nghĩa thống kê (McNemar p = 0,0351). Job vẫn trong hạn mặc định của GitHub Actions, nhưng con
+    # số này đáng biết trước khi ai đó hỏi vì sao CI chậm hơn.
     env:
       DEPLOY_ENV: ci
       COMPOSE_PROJECT_NAME: cmc-restaurant-golden

@@ -75,6 +75,23 @@ from rag.hybrid import HybridRetriever  # noqa: E402
 CASES_PATH = HERE / "retrieval_cases.json"
 SPLIT_PATH = HERE / "retrieval_split.json"
 MENU_PATH = REPO_ROOT / "backend" / "data" / "menu-dataset.json"
+KNOWLEDGE_PATH = REPO_ROOT / "ai" / "knowledge"
+
+# SỐ ĐOẠN hệ thống thật sự trích cho một câu trả lời tri thức.
+#
+# Đọc từ `answer.py` chứ không viết lại con số: thước đo chấm ở k khác k hệ thống dùng thì nó đo
+# một hệ thống KHÔNG TỒN TẠI.
+#
+# Đây đúng là chuyện vừa xảy ra. `SO_DOAN_TRI_THUC` đổi từ 1 lên 2 sau khi đo được nó đưa tỷ lệ
+# câu trả lời chứa tài liệu đúng từ 48,00% lên 64,00% (McNemar p = 0,0078) — nhưng bảng truy hồi
+# vẫn chấm Hit@1, nên nó báo `written` 67,86% trong khi hệ thống vận hành ở **85,71%**.
+#
+# Chênh 17,85 điểm, và chênh theo hướng làm hệ thống trông tệ hơn thực tế.
+try:
+    import answer as _ANSWER  # noqa: E402
+    SO_DOAN_VAN_HANH = _ANSWER.SO_DOAN_TRI_THUC
+except Exception:  # pragma: no cover - chỉ xảy ra khi `ai/app` không nạp được
+    SO_DOAN_VAN_HANH = 1
 
 K = 5
 
@@ -123,6 +140,9 @@ class Ketqua:
     # Ca `expect_nothing` mà tầng truy hồi KHÔNG đo được (không có đoạn cấm để tránh). Đếm riêng và
     # in ra, chứ không cộng vào `abstain_ok` — cộng vào là tự cho điểm.
     abstain_khong_do_duoc: int = 0
+    # Hit tại k HỆ THỐNG DÙNG — xem `SO_DOAN_VAN_HANH`. Hit@1 vẫn được giữ vì nó là con số
+    # so sánh chuẩn giữa các bộ truy hồi; con số này là con số VẬN HÀNH.
+    hit_vh: float = 0.0
     scored_cases: int = 0     # ca có `expected`, dùng làm mẫu số cho Hit/MRR/nDCG
     latencies_ms: list[float] = None
     # Hit@1 của TỪNG ca, theo đúng thứ tự ca. Cần cho kiểm định GHÉP CẶP (McNemar): hai bộ chạy
@@ -166,6 +186,7 @@ class Ketqua:
         self.hit1_theo_ca.append(bool(h1))
         self.ma_ca.append(ma)
         self.hit1 += h1
+        self.hit_vh += hit_at(lay, dung, SO_DOAN_VAN_HANH)
         self.hit5 += hit_at(lay, dung, K)
         self.mrr5 += mrr_at(lay, dung, K)
         self.ndcg5 += ndcg_at(lay, dung, K)
@@ -189,10 +210,11 @@ class Ketqua:
         else:
             ab = f"{self.abstain_ok}/{self.abstain_cases}"
         if m:
-            diem = (f"{self.hit1 / m:>8.3f}{self.hit5 / m:>8.3f}"
+            diem = (f"{self.hit1 / m:>8.3f}{self.hit_vh / m:>8.3f}"
+                    f"{self.hit5 / m:>8.3f}"
                     f"{self.mrr5 / m:>8.3f}{self.ndcg5 / m:>8.3f}")
         else:
-            diem = f"{'-':>8}{'-':>8}{'-':>8}{'-':>8}"
+            diem = f"{'-':>8}{'-':>8}{'-':>8}{'-':>8}{'-':>8}"
         return (
             f"{ten:12}{self.n:>5}{diem}"
             f"{self.forbidden_hits:>10}{ab:>9}{p50:>9.1f}{p95:>8.1f}"
@@ -200,7 +222,8 @@ class Ketqua:
 
 
 HEADER = (
-    f"{'phương pháp':12}{'ca':>5}{'Hit@1':>8}{'Hit@5':>8}{'MRR@5':>8}{'nDCG@5':>8}"
+    f"{'phương pháp':12}{'ca':>5}{'Hit@1':>8}{'Hit@' + str(SO_DOAN_VAN_HANH) + '*':>8}"
+    f"{'Hit@5':>8}{'MRR@5':>8}{'nDCG@5':>8}"
     f"{'cấm@5':>10}{'abstain':>9}{'p50 ms':>9}{'p95':>8}"
 )
 
@@ -251,6 +274,104 @@ class _KhongRutDau:
 
 def _khong_rut_dau(chunks):
     return [_KhongRutDau(c) for c in chunks]
+
+
+# Sáu nhóm nhãn TỪNG sinh tài liệu riêng. Kho không còn chúng — xem `build_knowledge.generate`.
+#
+# Phép phân loại giữ lại nhánh `derived` chứ không xoá: nếu ai đó sinh lại nhóm tài liệu ấy, bảng
+# này phải TÁCH chúng ra ngay chứ không lặng lẽ gộp vào `written`. Gộp hai bài toán khác độ khó
+# vào một con số là đúng thứ hàm này được viết ra để chặn.
+NHOM_DERIVED = ("flavour", "health", "ingredient", "method", "occasion", "region")
+
+
+def _loai_tai_lieu() -> dict:
+    """doc_id -> 'written' | 'derived' | 'policy'.
+
+    `derived` hiện luôn rỗng. `in_bang` bỏ qua nhóm không có ca nào, nên bảng tự gọn lại.
+    """
+    from rag.chunker import load_all
+
+    ra = {}
+    for d in load_all(KNOWLEDGE_PATH):
+        if d.answer_mode == "verbatim":
+            ra[d.doc_id] = "policy"
+        elif d.doc_id.count(".") >= 2 and d.doc_id.split(".")[1] in NHOM_DERIVED:
+            ra[d.doc_id] = "derived"
+        else:
+            ra[d.doc_id] = "written"
+    return ra
+
+
+def _nhom_cua_ca(case: dict, theo_khoa: dict, loai: dict) -> str:
+    """Ca này nhắm vào loại tài liệu nào."""
+    dich = set()
+    for sel in case.get("expected", []):
+        for k in sel.get("topic_keys_any", []):
+            dich |= theo_khoa.get(k, set())
+    ten = {loai.get(d) for d in dich}
+    if len(ten) == 1:
+        return ten.pop() or "?"
+    return "trộn" if ten else "?"
+
+
+def theo_loai_tai_lieu(retrievers, cases: list[dict], runs: int) -> None:
+    """Tách con số truy hồi theo LOẠI TÀI LIỆU, không chỉ theo split.
+
+    Vì sao phép tách này cần thiết
+    ------------------------------
+    Bảng theo split (chốt / phát triển / niêm phong) trộn hai bài toán khác hẳn nhau vào một con
+    số. Kho có ba loại tài liệu, và chỉ hai loại nằm trong chỉ mục xếp hạng:
+
+        policy   24 tài liệu, KHÔNG xếp hạng — tới bằng tra khóa, khớp chính xác
+        written  36 tài liệu, văn xuôi viết tay — 174 tiêu đề mục khác nhau
+        derived  49 tài liệu, sinh từ nhãn qua MỘT khuôn — đúng 4 tiêu đề mục cho cả 49
+
+    Hai loại trong chỉ mục có độ khó khác nhau rất xa. Đo trên bộ chọn mục:
+
+        written  Top-1 0,921
+        derived  Top-1 0,674
+
+    Và tài liệu `derived` điển hình có **0 từ riêng** — không từ nào mà tài liệu `derived` khác
+    không có. Bộ nhúng không có gì bám vào ngoài tên nhãn, nên nó phải chọn giữa 4 mục gần giống
+    hệt nhau, nhân 49 lần.
+
+    Bộ 222 ca trộn **101 ca `written` với 110 ca `derived`**, nên con số tổng là trung bình cộng
+    của hai bài toán khác độ khó — và tỷ lệ trộn 101:110 là ngẫu nhiên, không phản ánh gì. Đổi tỷ
+    lệ đó là đổi con số mà hệ thống không đổi một dòng.
+
+    Đây KHÔNG phải lý do bỏ `derived`: đo thật cho thấy bỏ nó khỏi chỉ mục làm 55/198 ca hỏng
+    (60,10% -> 33,84%, McNemar p = 0,0000). Nó gánh phần lớn câu hỏi theo nhãn — chỉ là gánh kém.
+    Việc phải làm là **tách con số**, không phải xóa tài liệu.
+    """
+    from rag.chunker import load_all
+
+    loai = _loai_tai_lieu()
+    theo_khoa: dict = {}
+    for d in load_all(KNOWLEDGE_PATH):
+        for k in d.topic_keys:
+            theo_khoa.setdefault(k, set()).add(d.doc_id)
+
+    theo_nhom: dict = {}
+    for c in cases:
+        theo_nhom.setdefault(_nhom_cua_ca(c, theo_khoa, loai), []).append(c)
+
+    print("\n" + "=" * 78)
+    print("TRUY HỒI TÁCH THEO LOẠI TÀI LIỆU — hai bài toán, không phải một")
+    print("=" * 78)
+    for ten_nhom in ("written", "derived", "trộn", "?"):
+        cs = theo_nhom.get(ten_nhom)
+        if not cs:
+            continue
+        nhan = {
+            "written": "văn xuôi viết tay — BÀI TOÁN RAG THẬT",
+            "derived": "sinh từ nhãn qua một khuôn — dữ liệu có cấu trúc",
+            "trộn": "ca nhắm vào CẢ hai loại — không tách được",
+            "?": "không tra được đích",
+        }[ten_nhom]
+        in_bang(f"nhóm `{ten_nhom}` ({len(cs)} ca) — {nhan}",
+                do_bai_toan_1(retrievers, cs, runs))
+    print("  Không gộp bốn bảng trên thành một con số: chúng đo những việc khác nhau, và tỷ lệ")
+    print("  trộn giữa chúng là tính chất của TẬP CA chứ không phải của hệ thống.")
 
 
 def do_bai_toan_1(retrievers, cases: list[dict], runs: int) -> dict[str, Ketqua]:
@@ -482,6 +603,12 @@ def do_bai_toan_2(retrievers, items: list[dict], runs: int) -> dict[str, Ketqua]
 
 # ------------------------------------------------------------------------- in ấn
 def in_bang(tieu_de: str, kq: dict[str, Ketqua], ghi_chu: str = "") -> None:
+    """In một bảng kết quả.
+
+    Cột `Hit@N*` là con số VẬN HÀNH — N lấy từ `answer.SO_DOAN_TRI_THUC`, tức số đoạn hệ thống
+    thật sự trích. Hit@1 vẫn được in vì nó là con số so sánh chuẩn giữa các bộ truy hồi, nhưng
+    nó KHÔNG phải con số hệ thống chạy ở đó.
+    """
     print(f"\n{tieu_de}")
     if ghi_chu:
         print(f"  {ghi_chu}")
@@ -676,6 +803,10 @@ def main(argv: list[str] | None = None) -> int:
 
     theo_ho(retrievers, [c for c in cases if c["family"] in
                          set(split["gate_families"]) | set(split["dev_families"])])
+
+    theo_loai_tai_lieu(retrievers, [c for c in cases if c["family"] in
+                                    set(split["gate_families"]) | set(split["dev_families"])],
+                       runs)
 
     items = load_menu()
     mon_doan = mon_thanh_doan(items)

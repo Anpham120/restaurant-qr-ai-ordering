@@ -286,6 +286,23 @@ def _thuoc_ho(item: dict, ho_mon: list[str]) -> bool:
 
 
 def _spice_of(item: dict) -> str:
+    """Mức cay của một MÓN ĂN. Chuỗi rỗng với đồ uống — thuộc tính không áp dụng.
+
+    Cả **21/21 đồ uống** trong thực đơn đều mang `spice:none`, và nhãn đó không sai: một ly bia
+    đúng là không cay. Nhưng nêu nó ra thì thành câu vô nghĩa mà khách đọc được:
+
+        "Bia Hà Nội (18.000đ). Món này không cay."
+        "Trà sữa trân châu (45.000đ). Món này không cay."
+
+    Độ cay là thuộc tính của món ăn. Nói một ly bia không cay không sai về dữ liệu, nhưng nó cho
+    khách thấy trợ lý đang đọc nhãn chứ không hiểu mình đang nói về cái gì — và đó là thứ khách
+    nhớ lâu hơn một câu trả lời đúng.
+
+    Lọc ở đây chứ không xóa nhãn khỏi dữ liệu: `spice:none` trên đồ uống vẫn dùng được cho phép
+    lọc ("đồ uống không cay" giao với "món không cay" phải ra kết quả), chỉ là không đáng NÓI RA.
+    """
+    if item.get("categoryId") in DRINK_CATEGORIES:
+        return ""
     tag = next((t for t in item["tags"] if t.startswith("spice:")), "")
     return _SPICE_VI.get(tag, "")
 
@@ -346,11 +363,14 @@ def chu_cho_khach(chunk) -> str:
     return " ".join(ra.split())
 
 
-def _chon_muc(co_muc: list, question: str):
-    """Mục sát nhất trong MỘT tài liệu. Embedding khi được, BM25 khi không.
+def _chon_muc(co_muc: list, question: str, so_muc: int = 1) -> list:
+    """`so_muc` mục sát nhất trong MỘT tài liệu. Embedding khi được, BM25 khi không.
 
     Không dựng chỉ mục mới: dùng lại vector của chỉ mục TOÀN KHO, vốn đã nạp sẵn lúc khởi động. Xem
     docstring của `_knowledge_chunk` cho lý do đầy đủ và cho hai trường hợp lùi về BM25.
+
+    Trả về DANH SÁCH theo thứ tự điểm giảm dần, kể cả khi `so_muc` là 1 — một kiểu trả về cho mọi
+    trường hợp thì chỗ gọi không cần rẽ nhánh.
     """
     from rag.bm25 import Bm25Index
 
@@ -367,10 +387,12 @@ def _chon_muc(co_muc: list, question: str):
             # (`sorted(..., key=lambda kv: (-kv[1], kv[0]))`). Dùng `max` với khóa `(điểm, chunk_id)`
             # sẽ chọn id LỚN nhất khi hòa, tức hai đường xếp hạng phá thế ngược nhau — và một hệ
             # thống có hai luật phá thế là hệ thống không lặp lại được kết quả của chính nó.
-            return min(co_muc, key=lambda c: (-diem.get(c.chunk_id, 0.0), c.chunk_id))
+            xep = sorted(co_muc, key=lambda c: (-diem.get(c.chunk_id, 0.0), c.chunk_id))
+            return xep[:so_muc]
 
-    hits = Bm25Index.build(co_muc).search(question, k=1)
-    return theo_id[hits[0].chunk_id] if hits else co_muc[0]
+    hits = Bm25Index.build(co_muc).search(question, k=so_muc)
+    ra = [theo_id[h.chunk_id] for h in hits if h.chunk_id in theo_id]
+    return ra or co_muc[:so_muc]
 
 
 def _knowledge_chunk(topic: str, question: str) -> str | None:
@@ -393,6 +415,32 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
         Top-1       niêm phong  bm25 0,750  ->  embedding 0,864     +11,4 điểm
                     riêng câu diễn đạt khác từ  0,636 -> 0,818      +18,2 điểm
         ảnh Docker  đã có embedding cho nhánh truy hồi toàn kho, nên phần "thêm 2–3GB" là 0
+
+    CON SỐ 0,864 Ở TRÊN LÀ SỐ CỦA PHẦN DỄ — đo lại sau khi phủ hết kho
+    ------------------------------------------------------------------
+    Bộ 168 ca đó phủ **84/372 đoạn = 22,58%**, và phần được phủ không ngẫu nhiên: mỗi nhóm
+    `derived` đúng 4 đoạn trên 24–40. Nhóm `derived` là nhóm có độ trùng lặp cao nhất kho, tức
+    phần KHÓ nhất gần như không được đo.
+
+    Mở rộng bộ sinh cho toàn bộ 49 tài liệu `derived` (168 -> 500 ca, phủ 250/372 = 67,20%):
+
+        written  (viết tay, như cũ)   n= 76   embedding 0,921
+        derived  (mới phủ 100%)       n=380   embedding 0,674     thấp hơn 19 điểm
+
+    Đây là lần THỨ HAI cùng một sai lầm trong dự án. Bước 2 của mục 4.10 đã bắt nó ở tầng truy hồi
+    toàn kho — bộ 222 ca phủ 36/85 tài liệu, và phần bỏ sót hóa ra là phần khó nhất. Lý lẽ khi đó
+    ("49 tài liệu dùng chung một khuôn nên kiểm cả 49 là thừa") nghe hợp lý y như lần này.
+
+    Và bảng theo DẠNG CÂU trên nhóm `derived` cho thấy vì sao bộ nhỏ không thấy được:
+
+        dạng                    bm25    embedding   hybrid
+        A trùng từ khóa        0,774      0,721     0,774      <- BM25 THẮNG ở đây
+        B diễn đạt khác        0,295      0,626     0,453
+        chênh A->B            -0,479     -0,095    -0,321
+
+    Đo chỉ trên dạng A thì kết luận đúng sẽ là "dùng BM25, rẻ hơn 6.000 lần". Bộ 168 ca cũ có quá
+    ít ca `derived` dạng B để lộ ra điều đó — nên quyết định đổi sang embedding vẫn ĐÚNG, nhưng
+    con số dùng để biện minh cho nó thì đã bị thổi phồng bởi độ phủ.
 
     Đây là chỗ lệch đáng nói nhất còn lại sau khi đổi bộ truy hồi toàn kho: bộ so 168 ca đo ĐÚNG
     đường này, còn đường này vẫn chạy BM25. Tức báo cáo nói một bộ, hệ thống chạy bộ khác — đúng lớp
@@ -450,8 +498,35 @@ def _knowledge_chunk(topic: str, question: str) -> str | None:
     # "chưa có dữ liệu" khi tài liệu có nội dung.
     co_muc = [c for c in cua_tai_lieu if c.heading] or cua_tai_lieu
 
-    chon = _chon_muc(co_muc, question)
-    return chu_cho_khach(chon)
+    # Lấy `SO_DOAN_TRI_THUC` mục, cùng số với đường truy hồi toàn kho — và cùng lý do, nhưng đây là
+    # phép đo RIÊNG trên bộ 168 ca chọn mục, không phải suy từ kết quả của đường kia:
+    #
+    #     1 mục   75,60%    72 từ
+    #     2 mục   90,48%   138 từ     McNemar so với 1 mục: p = 0,0000
+    #     3 mục   94,64%   208 từ     p = 0,0000
+    #
+    # +14,88 điểm cho +66 từ. Bài toán này còn hưởng lợi rõ hơn đường toàn kho, và lý do thì hợp lý:
+    # các mục của CÙNG một tài liệu nói về cùng chủ đề và khác nhau ở khía cạnh, nên hai mục liền
+    # nhau hiếm khi lạc đề — cái giá "đoạn lạc" ở đây nhỏ hơn hẳn.
+    #
+    # Ca bắt được lỗi này là một lượt golden: "Mình nên nói với nhà hàng thế nào về việc dị ứng?"
+    # chọn mục #4 (dị ứng nằm ngoài năm loại) thay vì #3 ("Khi gọi món, NÓI VỚI NHÂN VIÊN về dị
+    # ứng") — mục #3 là câu trả lời, và nó đứng ngay sau trong bảng xếp hạng.
+    chon = _chon_muc(co_muc, question, so_muc=SO_DOAN_TRI_THUC)
+
+    # Ghép theo THỨ TỰ TRONG TÀI LIỆU, không theo thứ tự điểm.
+    #
+    # Hai mục ở đây là hai phần của CÙNG một bài văn xuôi, tác giả viết chúng nối tiếp nhau. Xếp
+    # theo điểm thì văn đọc ngược logic — đo được trên chính lượt golden đã bắt lỗi này:
+    #
+    #     theo điểm     #4 "Nếu dị nguyên của bạn không nằm trong năm loại…"
+    #                   #3 "Vì vậy hãy làm thêm một việc: khi gọi món, nói với nhân viên…"
+    #
+    # "Vì vậy" đứng sau tiền đề của nó thì thành câu cụt. Theo thứ tự tài liệu thì #3 trước #4, và
+    # đoạn trả lời đúng câu hỏi cũng lên đầu — nhưng lý do sắp xếp là MẠCH VĂN, không phải để một
+    # ca đi qua: `chunk_id` mang số thứ tự nên đây là thứ tự tác giả, không phải thứ tự tôi chọn.
+    chon = sorted(chon, key=lambda c: c.chunk_id)
+    return "\n\n".join(chu_cho_khach(c) for c in chon)
 
 
 def _bo_truy_hoi_toan_kho():
@@ -1442,6 +1517,32 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
             branch="clarify",
         )
 
+    # THAM CHIẾU NGƯỢC MƠ HỒ trong câu XIN MÓN — hỏi lại thay vì chọn hộ khách.
+    #
+    # "Cho mình món vừa rồi" với bốn món trên màn hình không trỏ vào món nào cả. Hệ thống vẫn trả
+    # lời được bằng cách lùi về món thứ nhất, và với câu HỎI thì đó là hành vi đúng đã chốt — đoán
+    # nhưng nêu tên món đã đoán. Với câu XIN thì khác: khách đang muốn LẤY một món, và đoán ở đây
+    # là chọn hộ họ.
+    #
+    # Câu hỏi lại nêu ĐÚNG danh sách kèm số thứ tự, vì đó là thứ khách trả lời được bằng một từ
+    # ("món thứ 2") — và dạng số đó vừa được nhận ra ở bản trước. Không có nó thì hỏi lại là ngõ
+    # cụt: khách trả lời mà hệ thống không hiểu.
+    #
+    # Đặt TRƯỚC nhánh combo và nhánh lọc vì nó thay hẳn hình dạng câu trả lời.
+    if request.mo_ho_tieu_diem and request.scope_item_ids:
+        _ten = {m["id"]: m for m in items}
+        _ds = [_ten[i] for i in request.scope_item_ids if i in _ten]
+        if len(_ds) >= 2:
+            _dong = "\n".join(f"{n}. {phrase(m)}" for n, m in enumerate(_ds, 1))
+            return Reply(
+                text=("Bạn muốn món nào trong số này ạ? Bạn nhắn số thứ tự giúp mình nhé.\n"
+                      + _dong),
+                kind="clarify",
+                asks_back=True,
+                items=[m["id"] for m in _ds],
+                branch="clarify_tham_chieu_mo_ho",
+            )
+
     # COMBO — khách xin một BỘ món, mỗi loại một suất. Đặt TRƯỚC nhánh lọc phẳng vì nó thay hẳn
     # hình dạng câu trả lời: không phải "6 món để bạn chọn" mà "đây là bộ của bạn, tổng bấy nhiêu".
     if request.combo:
@@ -1623,7 +1724,12 @@ def _chon_cau_tra_loi(request: Request, items: list[dict]) -> Reply:
                     da_co.add(i["id"])
         picked = xen + [i for i in picked if i["id"] not in da_co]
 
-    shown = picked[:LIST_SIZE]
+    # Khách nêu SỐ MÓN thì nghe theo, không thì dùng cỡ mặc định.
+    #
+    # `request.so_mon_muon` chỉ được đặt khi câu có ĐÚNG MỘT cụm "<số> món" — câu combo có nhiều
+    # cụm và đi nhánh khác. Xem chỗ đặt cờ trong `understand.py` cho ba ca đo được.
+    _cỡ = request.so_mon_muon or LIST_SIZE
+    shown = picked[:_cỡ]
     lead = "Mời bạn tham khảo" if not request.avoid_tags else \
         "Thực đơn không ghi nhận thành phần bạn cần tránh ở những món này"
     # Danh sách xuống dòng, phần chữ đứng riêng — xem `listing()`.

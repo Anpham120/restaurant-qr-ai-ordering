@@ -1,233 +1,147 @@
-# Vận hành AI — production, staging, và runbook
+# Vận hành lớp AI — triển khai, cấu hình, và runbook
 
-> **Một tài liệu cho toàn bộ việc vận hành lớp AI.** Gộp từ ba tệp cũ
-> (`AI_PRODUCTION_OPERATIONS`, `AI_STAGING_READINESS`, `VPS_STAGING_AI_RUNBOOK`)
-> vì chúng cùng trả lời một câu hỏi — *"đưa lớp AI lên máy thật thế nào và canh nó ra sao"* —
-> nhưng nằm ba chỗ nên mỗi lần đổi quy trình phải nhớ sửa ba nơi, và thực tế là chỉ sửa một.
+> **Nguồn sự thật cho cách XÂY lớp AI** là `ai/docs/00`→`07` và
+> [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](BAO_CAO_DO_AN_HOC_MAY_KPDL.md). Tệp này chỉ nói việc **vận hành**.
 >
-> Nguồn sự thật cho **cách xây** lớp AI vẫn là `ai/docs/00`→`07`. Tệp này chỉ nói việc **vận hành**.
-
-
----
-
-## Vận hành production
-
-*(gộp từ `docs/ai/AI_PRODUCTION_OPERATIONS.md`)*
-
-### Feature flag
-
-- `CHAT_AI_PROVIDER=python-rag` (required on .NET backend)
-- `AI_PIPELINE=v2` documents the LLM-first path (prompt lives only in Python)
-- Python AI service LLM via **9router** (OpenAI-compatible):
-  - `LLM_PROVIDER=9router`
-  - `LLM_BASE_URL=http://localhost:20128/v1` (or deployed gateway URL)
-  - `LLM_API_KEY=<9router gateway key>`
-  - `LLM_MODEL=cx/gpt-5.6-luna-review` (production default; see
-    `ai/app/config.py:DEFAULT_LLM_MODEL`)
-  - Alternate quality gate: `LLM_MODEL=cx/gpt-5.5`
-  - DeepSeek (`oc/deepseek-v4-flash-free`) is no longer the default — dropped
-    after the 9router route serving it rejected `response_format:json_object`,
-    which every real chat request requires. Historical research artifacts
-    (`ai/evaluation/approved/pipeline_selection.json`) still reference it as the
-    model tested at that time.
-- `LLM_TIMEOUT_SECONDS=12` (Python-to-9router) and `BACKEND_AI_TIMEOUT_SECONDS=12` (.NET-to-Python)
-- `AI_MAX_RETRY=0`–`1`
-
-### Hard gates before canary
-
-| Gate | Threshold |
-|------|-----------|
-| Menu ID validity | 100% |
-| Unavailable suggestions | 0 |
-| Duplicate auto-recommendations | 0 |
-| Session history restore | 100% |
-| Schema-valid responses | ≥ 99.5% |
-| Fast-path catalog p95 | ≤ 100 ms |
-| LLM TTFT p50 | ≤ 1.5 s |
-
-### Rollout
-
-1. Staging deploy with migration `AddsAiSessionLedgerAndServerCart`
-2. Shadow evaluate Python responses offline for ≥ 1 week
-3. Canary 10% tables via feature flag
-4. Full production; keep rollback to previous image
-
-### Rate limits
-
-- 10 messages / minute / chat session
-- 100 messages / chat session lifetime
-- Max message length 2000 chars
-
-### Observability
-
-Log (no raw PII / message body):
-- stage latency (retrieval, LLM, validate)
-- validator rejection reason
-- duplicate-blocked count
-- fallback reason
-- approximate token usage if provided by the LLM gateway
-
-### Knowledge ownership
-
-Restaurant manager owns KB domains with `expires_at`. Re-run `ai/scripts/build_index.py` after KB edits. Reject deploy if validation errors present.
+> **Bản này viết lại toàn bộ ngày 2026-08-08.** Bản trước mô tả một hệ thống không còn tồn tại: nó
+> nêu `evaluation/approved/pipeline_selection.json`, `evaluation/results/dev_retrieval_summary.v3.json`,
+> `ai/scripts/build_index.py`, `ai/app/config.py` — **không đường dẫn nào trong số đó có thật**. Nó
+> cũng ghi `hybrid_e5_small` Hit@5 99,09% là kết quả hiện hành, trong khi hybrid đã bị loại sau ba
+> phép đo độc lập và `e5-small` đã bị thay.
+>
+> Một tài liệu vận hành sai không im lặng — nó **được tin**. Đó là lý do bản này chỉ ghi điều kiểm
+> lại được bằng cách mở đúng tệp nêu kèm.
 
 ---
 
-## Chuẩn bị lên staging/production
+## 1. Hình dạng triển khai
 
-*(gộp từ `docs/ai/AI_STAGING_READINESS.md`)*
+`deploy/docker-compose.yml` dựng bốn dịch vụ, cộng một `migrate` chạy một lần:
 
-Last updated: 2026-07-27.
+| dịch vụ | vai trò |
+|---|---|
+| `postgres` | dữ liệu đơn, giỏ, và bộ nhớ chat theo phiên bàn |
+| `api` | backend .NET — **chủ sở hữu giỏ hàng và đơn** |
+| `ai-service` | FastAPI, Python — chỉ trả lời và **gợi ý** |
+| `frontend` | giao diện khách quét QR |
 
-**Current release status: NOT READY.** Historical `composite_pass` artifacts are
-retained for provenance only; they do not satisfy the current evidence-first
-release contract.
+`ai-service` và `api` dùng `network_mode: host`.
 
-The release architecture is now selected by
-`evaluation/results/pipeline_selection.json`, generated from a controlled
-single-model comparison of all three pipeline profiles under the runtime's
-primary model (`cx/gpt-5.6-luna-review`; DeepSeek was dropped after its
-9router route rejected `response_format:json_object` — see
-`docs/ai/AI_DECISION_HISTORY.md`). `planner_state_v3` may
-remain in the codebase for research, but it cannot be enabled unless it is the
-artifact winner. A missing winner, profile drift, commit drift, or failed
-post-deploy semantic smoke blocks/rolls back the release.
+**Ranh giới quyền, và đây là điều quan trọng nhất của cả trang này:** AI **không có quyền ghi**. Nó
+không chạm cơ sở dữ liệu, không đặt món, không sửa giỏ. Nó trả về **thẻ gợi ý** với
+`requires_customer_confirmation` luôn `true` — không nhánh nào đặt `false`. Nếu lớp AI hỏng hoàn
+toàn, luồng đặt món vẫn chạy.
 
-### Pre-canary gates
+### Sáu cổng vào
 
-| Gate | Status | Evidence |
-| --- | --- | --- |
-| Critical hallucination = 0 on frozen release set | **CHƯA ĐO** | Frozen test chỉ được mở sau config lock |
-| Retrieval Hit@5 ≥ 95% | **PASS — 109/110 (99,09%)** | `dev_retrieval_summary.v3.json`, `hybrid_e5_small`, dev |
-| Retrieval nDCG@5 ≥ 0,75 | **PASS — 0,8332** | Cùng artifact; 7-method screening. Dense E5 = 0,8401 nhưng chênh với Hybrid E5 chưa có ý nghĩa thống kê |
-| Hybrid E5 p95 retrieval | **PASS CỤC BỘ — 29,34 ms** | `dev_hybrid_e5_release_candidate.v1.json`, 110 case × 7 lần đo/query; staging load test vẫn chưa chạy |
-| Current paired GPT-5.5/DeepSeek run | **PASS PROTOCOL, CHƯA PASS QUALITY RELEASE** | `dual_model/20260723-9router-paired-18-final/comparison.json`: 11/11 exact input hashes khớp, cùng retriever/no fallback; availability 11/11 mỗi model; quality GPT 2/11, DeepSeek 3/11 |
-| Human overall ≥ 95%, safety = 100% | **CHƯA ĐO** | Auto-score không thay human review; cần 50–100 câu, ít nhất 20% chấm đôi |
-| Context retention ≥ 98% | **PASS OFFLINE — 1200/1200** | `session_e2e_eval.json`; deterministic templated regression, không phải bằng chứng free-form LLM |
+`GET /health` · `GET /ready` · `POST /v1/chat` · `POST /v1/chat/stream` ·
+`POST /v1/cache/invalidate` · `POST /v1/model-check`
 
-#### Historical LLM baseline — không dùng làm release headline
-
-- `golden_llm_eval_cx_gpt55_v3_full_v3b.json` và
-  `golden_llm_eval_deepseek_v4_full.json` là artifact trước truth-reset.
-- Có thể trích dẫn chúng như baseline lịch sử nếu nêu rõ availability,
-  faithfulness/adequacy và giới hạn metric; không dùng `composite_pass=100%` để
-  kết luận hệ thống hiện tại không bịa.
-
-### Staging load test
-
-**Requires staging env** — not run locally.
-
-| Target | Threshold | Next steps |
-| --- | --- | --- |
-| p95 retrieval | ≤ 150 ms after warm-up | Deploy AI service to staging; replay the locked retrieval cases after warm-up |
-| p95 E2E | ≤ 6 s with 9router GPT-5.6 Luna | Load-test `/chat` with `LLM_MODEL=cx/gpt-5.6-luna-review`; **sau `AI_LLM_FIRST=true` p95 E2E có thể cao hơn** (mọi lượt gợi ý gọi LLM); report TTFT separately from end-to-end p50/p95 |
-| Fast-path catalog p95 | ≤ 100 ms | Chỉ áp dụng khi `AI_LLM_FIRST=false`; replay catalog/tag/category queries from golden dev subset |
-
-### Rollout
-
-**Requires staging env** — do not fake results.
-
-1. Deploy staging with 9router env (`LLM_PROVIDER=9router`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=cx/gpt-5.6-luna-review`, **`AI_LLM_FIRST=true`**)
-2. Shadow evaluate ≥ 1 week (log queries, compare shadow vs production responses)
-3. Canary 10% tables
-4. Full rollout with rollback image pinned
-
-### Research artifacts
-
-| Artifact | Status |
-| --- | --- |
-| Retrieval ablation | `py -m evaluation.run_retrieval_ablation` → `retrieval_ablation_summary.json` |
-| Dev retrieval comparison | `evaluation/results/dev_retrieval_summary.v3.json` (7 phương pháp; latency screening-only 1 lần/query; `hybrid_e5_small`: Hit@5 109/110 = 99,09%; nDCG@5 0,8332) |
-| Hybrid E5 release-candidate latency | `evaluation/results/dev_hybrid_e5_release_candidate.v1.json` (7 lần/query; p95 29,34 ms) |
-| Workspace audit | `py scripts/audit_ai_workspace.py` — stale_present=0 |
-
-See also [`VPS_STAGING_AI_RUNBOOK.md`](AI_OPERATIONS.md).
+`/ready` báo **bộ truy hồi đang dùng** (`embedding` hay đã lùi về `bm25`), số đoạn đã nạp, và số
+vector lấy từ đệm. Trường đó tồn tại vì hệ thống từng âm thầm lùi về BM25 mà không ai biết.
 
 ---
 
-## Runbook VPS staging
+## 2. Cấu hình
 
-*(gộp từ `docs/ai/VPS_STAGING_AI_RUNBOOK.md`)*
+Xem `ai/.env.example` — nó chỉ liệt kê **biến mà mã thật sự đọc**.
 
-Runbook deploy staging qua `.github/workflows/deploy-staging.yml`. Kiến trúc
-production không được chọn thủ công: workflow phải chạy thí nghiệm ba profile,
-tạo `ai/evaluation/results/pipeline_selection.json`, rồi bind
-`AI_PIPELINE_PROFILE` vào winner.
+| biến | bắt buộc | ghi chú |
+|---|---|---|
+| `AI_INTERNAL_TOKEN` | **có** | backend gửi kèm mọi lượt; thiếu → 401 |
+| `AI_EMBEDDING_CACHE` | nên có | không có mặc định trong mã, có chủ ý |
+| `LLM_BASE_URL` · `LLM_API_KEY` · `LLM_MODEL` | không | thiếu thì dịch vụ **vẫn chạy** bằng đường tất định |
+| `AI_ENABLE_GENERATION` | không | mặc định tắt |
 
-### Điều kiện trước khi deploy
+**`AI_EMBEDDING_CACHE` không có giá trị mặc định là quyết định, không phải thiếu sót.** Mã tự đoán
+một đường dẫn thì lúc chạy đọc chỗ khác, và hậu quả là **im lặng mã hóa lại toàn kho mỗi lần khởi
+động** — 492 giây với `bge-m3`. Ảnh Docker tự đặt biến này và chạy `python -m rag.precompute` lúc
+build.
 
-#### 1. GPT-5.6 Luna qua 9router
+Khóa của bộ đệm chứa **tên mô hình**, nên đổi mô hình làm đệm cũ tự bị từ chối thay vì bị dùng nhầm.
 
-`ai-service` dùng `network_mode: host`. `LLM_BASE_URL` phải trỏ tới 9router trên
-cùng VPS (mặc định `http://127.0.0.1:20128/v1`).
+---
 
-- GitHub secret: `NINE_ROUTER_API_KEY`.
-- Model cố định cho thí nghiệm và runtime:
-  `cx/gpt-5.6-luna-review`.
-- Không cấu hình fallback (single-model; DeepSeek đã bị bỏ vì route của nó
-  trong 9router từ chối `response_format:json_object` — xem
-  `docs/ai/AI_DECISION_HISTORY.md`).
+## 3. Con số cần biết trước khi triển khai
 
-#### 2. GitHub Environment `staging`
+Đo thật, không ước:
 
-| Biến | Nguồn |
-| --- | --- |
-| `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY` | Secrets |
-| `JWT_SIGNING_KEY`, `AI_INTERNAL_TOKEN`, `STAGING_POSTGRES_PASSWORD` | Secrets |
-| `NINE_ROUTER_API_KEY` | Secret |
-| `NINE_ROUTER_BASE_URL` | Variable, tùy chọn |
-| `AI_PIPELINE_PROFILE` | Variable, tùy chọn nhưng nếu đặt phải trùng winner |
-| VietQR `PAYMENTS__VIETQR__*` | Secrets |
+| | giá trị |
+|---|---:|
+| mô hình nhúng | `BAAI/bge-m3`, 1024 chiều |
+| trọng số | 2.271 MB |
+| RAM khi chạy | **1.234 MB** (`mem_limit: 3g`) |
+| nạp mô hình | **20,6 s** |
+| mã hóa lần đầu | 4,8 s |
+| độ trễ mỗi truy vấn | **271,7 ms** — chỉ với câu tri thức |
+| mã hóa lại toàn kho | 492 s — **lúc build**, không lúc khởi động |
 
-Nếu `AI_PIPELINE_PROFILE` đã cấu hình nhưng khác winner, workflow dừng trước
-deploy. Nếu không cấu hình, workflow lấy winner từ artifact và export vào môi
-trường deploy.
+**`start_period` của healthcheck là 90s, không phải 20s.** Nạp mô hình 20,6 s cộng mã hóa lần đầu
+4,8 s là ~25,4 s; với 20s cũ, lần thăm dò đầu rơi đúng lúc mô hình còn đang nạp và
+`depends_on: service_healthy` giữ dịch vụ phụ thuộc chờ thêm một chu kỳ 30 giây. Không hỏng hẳn,
+nhưng chậm mà không có lý do nhìn thấy được.
 
-### Quy trình deploy
+Độ trễ 271,7 ms chỉ rơi vào **câu tri thức** — câu chọn món đi nhánh lọc nhãn và không chạm truy hồi.
 
-1. Push `develop` hoặc chạy **Actions → Deploy Staging**.
-2. CI chạy unit/integration/notebook/golden gates.
-3. Job deploy chạy `run_pipeline_profile_eval.py` trên đúng commit:
-   `llm_first_v1`, `evidence_first_v2`, `planner_state_v3`.
-4. `verify_pipeline_selection.py` kiểm tra model, commit, dataset hash và safety
-   hard gate; không có winner thì dừng.
-5. `deploy-vps.sh` truyền winner thành `AI_PIPELINE_PROFILE`.
-6. `health-check.sh` xác minh readiness và ba câu semantic smoke.
+---
 
-Artifact được upload với tên chứa commit SHA và được đóng gói cùng release.
+## 4. Giới hạn phía backend
 
-### Semantic smoke bắt buộc
+| | |
+|---|---|
+| 10 tin nhắn / phút / phiên chat | `ChatRateLimiter.PerMinuteLimit` |
+| 100 tin nhắn / vòng đời phiên | `ChatRateLimiter.PerSessionLimit` |
+| tối đa 2000 ký tự mỗi tin | `ChatEndpoints.cs` |
 
-Health check gửi menu thật trong `backend/data/menu-dataset.json` và kiểm tra:
+Bộ nhớ chat bị **xóa** khi đóng phiên bàn, khi phiên hết hạn, và khi thanh toán —
+`IChatStore.DeleteSessionsByTableSession`.
 
-1. “Nhà hàng mình có những món phở gì nhỉ?”
-2. “Gợi ý cho mình món phở tại nhà hàng đi”
-3. “Mình có món nhậu không?”
+---
 
-Mỗi response phải:
+## 5. Sửa kho tri thức xong thì chạy gì
 
-- ghi đúng `pipeline_profile` và model `cx/gpt-5.6-luna-review`;
-- không trả fallback “Mình chưa đủ bằng chứng…”;
-- có `resolved_menu_item_ids` và `evidence`;
-- không có claim chưa verify;
-- có `verifier_result != failed`.
+```bash
+python ai/scripts/build_knowledge.py          # sinh lại phần `derived` từ thực đơn
+python ai/scripts/build_knowledge.py --check  # cổng CI: phải khớp, và mọi số tiền phải truy được
+```
 
-Nếu bất kỳ điều kiện nào sai, deployment thất bại. Production workflow sẽ
-dispatch rollback theo cơ chế hiện có.
+Cổng `--check` kiểm ba bất biến: tài liệu `derived` khớp kết quả sinh lại, mọi tài liệu khai
+`audience: guest`, và **mọi số tiền trong kho truy được về `menu-dataset.json`**. Bất biến thứ ba
+đóng một hố thật: 36 tài liệu `written` là văn xuôi viết tay có số tiền của thực đơn, và chúng
+**trôi im lặng** khi thực đơn đổi giá.
 
-### Kiểm tra multi-turn qua UI staging
+Đổi kho xong phải **dựng lại ảnh** để tính lại đệm vector, hoặc chạy `POST /v1/cache/invalidate`.
 
-- “Gợi ý hai món phở” → “Món thứ hai giá bao nhiêu?”
-- “Loại món vừa gợi ý” → món đó không được gợi ý lại.
-- “Gợi ý cho 2 người” → “Đổi thành 4 người”.
-- “Tôi dị ứng đậu phộng” → đổi chủ đề → gợi ý món; dị ứng vẫn phải được duy trì.
-- Mở phiên bàn khác và xác minh state không rò rỉ.
+---
 
-Đối chiếu log nội bộ: `pipeline_profile`, model, route,
-`resolved_menu_item_ids`, `verifier_result`.
+## 6. Cổng phải xanh trước khi phát hành
 
-### Rollback
+```bash
+python -m unittest discover -s ai/app -p "test_*.py"
+python -m unittest discover -s ai/evaluation -p "test_*.py"
+python ai/evaluation/run_baseline.py --all        # ca trả lời
+python ai/evaluation/run_session_eval.py          # bộ nhớ phiên — CÓ chốt an toàn
+python ai/evaluation/run_golden_e2e.py            # qua stack thật, cần GOLDEN_QR_TOKEN
+python ai/evaluation/run_khai_di_ung.py           # nhận diện khai dị ứng
+```
 
-Production tự dispatch `.github/workflows/rollback.yml` khi deploy hoặc smoke
-thất bại. Staging có thể chạy workflow rollback hoặc
-`deploy/scripts/rollback-vps.sh`.
+Và các cổng `--check` của tệp sinh: `build_tag_dictionary` · `build_knowledge` ·
+`build_session_scripts` · `build_chunk_selection_cases` · `build_retrieval_cases` ·
+`build_ca_phu_kho` · `build_bao_cao_do_an` · `build_teaching_notebook` · `build_docs_index` ·
+`build_api_inventory` · `build_system_facts`.
+
+**Chốt an toàn:** một lượt mời món gây dị ứng là **chặn phát hành**, không phải trừ điểm.
+
+---
+
+## 7. Giới hạn đã biết — nói ra thay vì giấu
+
+| | |
+|---|---|
+| **Nhận diện khai dị ứng 75,00%** | đo trên tập niêm phong 20 câu; 5 cách nói vẫn bỏ sót |
+| **Không còn tập held-out** | mọi tập niêm phong đã mở; số liệu là số trên tập đã nhìn thấy |
+| **Không có log khách thật** | mọi bộ đánh giá do nhóm viết |
+| Nhãn dị nguyên phủ 44/91 món | nên câu trả lời **luôn** kèm lời mời hỏi nhân viên |
+
+Ba dòng đầu là giới hạn **phương pháp**, không sửa được bằng mã. Dòng cuối là giới hạn **dữ liệu**,
+và hệ thống đã xử lý bằng cách không bao giờ khẳng định một món an toàn.

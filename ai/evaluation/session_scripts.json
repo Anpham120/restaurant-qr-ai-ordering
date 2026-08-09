@@ -1009,6 +1009,157 @@
       ]
     },
     {
+      "id": "question-not-declaration-di-ung-tre-em",
+      "group": "question_not_declaration",
+      "why": "Câu HỎI 'ăn được gì' bị đọc thành lời KHAI hết dị ứng và XÓA nhãn khỏi bộ nhớ. Trước bản sửa, lượt 3 mời bốn món hải sản cho phụ huynh vừa khai con dị ứng.",
+      "turns": [
+        {
+          "user": "Con mình dị ứng hải sản",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lượt khai. Phải vào bộ nhớ ngay."
+          }
+        },
+        {
+          "user": "Bé nhà mình ăn được món gì?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Câu HỎI, không phải lời khai hết dị ứng. Kiểm BỘ NHỚ chứ không chỉ kiểm câu trả lời: lượt này không mời món nào nên câu trả lời trông vô hại kể cả khi ràng buộc đã mất."
+          }
+        },
+        {
+          "user": "Cho mình món khai vị",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "min_items": 1,
+            "why": "Lượt LỘ LỖI: bốn món khai vị mang nhãn hải sản, nên mất ràng buộc là khách nhận đúng thứ vừa nói không ăn được."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-hoi-tiep-trong-danh-sach",
+      "group": "chained_reference",
+      "why": "Câu hỏi tiếp nối về danh sách vừa nêu phải ở LẠI trong danh sách đó. Bảng cụm thu phạm vi chỉ có bốn cụm, đều đòi chữ 'đó' đứng ngay sau, nên phần lớn cách nói thật rơi ra ngoài.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Trong đó món nào rẻ nhất?",
+          "expect": {
+            "max_items": 1,
+            "why": "Cụm `trong do` không có trong bảng, nên câu cực trị chạy trên CẢ thực đơn thay vì trên danh sách vừa nêu."
+          }
+        },
+        {
+          "user": "Mấy món đó có món nào chay không?",
+          "expect": {
+            "expect_kind": "list",
+            "why": "Cụm `may mon do` cũng không có trong bảng."
+          }
+        }
+      ]
+    },
+    {
+      "id": "context-reference-vi-tri-viet-so",
+      "group": "context_reference",
+      "why": "Tham chiếu vị trí viết bằng SỐ. Trợ lý đoán món đầu và NÊU TÊN nó, nên khách sửa bằng cách chỉ số thứ tự — đó là đường sửa duy nhất, và nó từng hỏng.",
+      "turns": [
+        {
+          "user": "Gợi ý 4 món ăn cho mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách."
+          }
+        },
+        {
+          "user": "Cho mình món vừa rồi",
+          "expect": {
+            "expect_kind": "clarify",
+            "why": "Câu MƠ HỒ với 4 món trên màn hình, và là câu XIN MÓN — phải HỎI LẠI kèm số thứ tự, không đoán. Kỳ vọng cũ của ca này là `max_items: 1`, tức chốt hành vi 'đoán món đầu nhưng nêu tên nó'. Hành vi đó vẫn ĐÚNG cho câu HỎI VỀ một món ('Món đó bao nhiêu tiền?') — 12 lượt đánh giá dựa vào nó, và hỏi lại ở đó là bước lùi vì khách chỉ hỏi một câu đơn giản. Nhưng câu XIN thì khác: khách muốn LẤY một món, và đoán ở đây là chọn hộ họ. Phân loại bằng `XIN_MON_RE` đã có sẵn: đo trên 13 lượt đang dùng tiêu điểm thì nó tách sạch 12 câu hỏi khỏi 1 câu xin, không cần luật mới."
+          }
+        },
+        {
+          "user": "món thứ 2",
+          "expect": {
+            "max_items": 1,
+            "why": "Lượt SỬA. Phải trỏ đúng món thứ hai của danh sách, không được trả về cả bảng."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chained-reference-so-mon",
+      "group": "chained_reference",
+      "why": "Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước; chỉ con số bị bỏ vì cỡ danh sách là hằng số.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "min_items": 3,
+            "expect_kind": "list",
+            "why": "Lượt nêu danh sách. Các lượt sau tham chiếu vào đây."
+          }
+        },
+        {
+          "user": "Liệt kê 3 món vừa tư vấn bên trên",
+          "expect": {
+            "min_items": 3,
+            "max_items": 3,
+            "expect_kind": "list",
+            "why": "Xin ĐÚNG 3. Kiểm cả cận trên lẫn cận dưới — chỉ kiểm `min_items` thì trả về 6 vẫn qua."
+          }
+        },
+        {
+          "user": "Liệt kê cho tôi 2 món đầu vừa tư vấn",
+          "expect": {
+            "min_items": 2,
+            "max_items": 2,
+            "expect_kind": "list",
+            "why": "«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` nên câu này từng bị đọc thành *món thứ nhất*."
+          }
+        },
+        {
+          "user": "Cho mình xem lại 3 món vừa rồi",
+          "expect": {
+            "min_items": 2,
+            "max_items": 2,
+            "expect_kind": "list",
+            "why": "HAI món, không phải ba — và đó là câu trả lời ĐÚNG. Lượt trước đã thu danh sách còn 2 món, nên 'vừa rồi' chỉ còn 2 món để lấy. Trước khi cụm này thu phạm vi, nó trả về 3 món lấy từ danh sách GỐC: đúng số nhưng SAI TẬP, tức trả lời về một danh sách khác với danh sách khách đang nói tới. Ca này cũng chốt luôn cờ `refers_to_focus`: cụm 'vừa rồi' từng được giải thành MỘT món, nên câu trả về đúng 1."
+          }
+        },
+        {
+          "user": "Món vừa rồi giá bao nhiêu?",
+          "expect": {
+            "max_items": 1,
+            "why": "CHIỀU NGƯỢC. Không có số lượng thì 'vừa rồi' vẫn phải trỏ MỘT món — nới quy tắc quá tay ở đây làm câu hỏi giá của một món trả về nửa danh sách."
+          }
+        }
+      ]
+    },
+    {
       "id": "extreme-scope-01",
       "group": "extreme_scope",
       "why": "Câu cực trị SAU khi khách nêu ngân sách. Phải nêu đúng món đắt nhất trong ngân sách, và phải NÓI RA rằng nó đang xét trong phạm vi đó.",
@@ -1829,6 +1980,159 @@
               "đã bỏ"
             ],
             "why": "LƯỢT BẮT LỖI: khách khẳng định mình ăn được thì phải gỡ được hàng rào. Trước đây câu này trả 'chưa tìm được món nào' — ngõ cụt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rag-trong-phien-01",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Mình dị ứng hải sản nhé",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Cùng là gà mà sao món thì mềm món thì dai?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "gà"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rag-trong-phien-02",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Nhà mình có người dị ứng đậu phộng",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Uống cà phê buổi tối có bị mất ngủ không?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "cà phê"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rag-trong-phien-03",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Mình không ăn được sữa",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Đồ chay ở đây có thật sự chay không?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "chay"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
           }
         }
       ]

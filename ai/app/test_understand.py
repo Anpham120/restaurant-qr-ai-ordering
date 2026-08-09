@@ -104,20 +104,36 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
                 self.assertTrue(ask(cau).hoi_ve_su_viec, "phải nhận là câu HỎI VỀ")
 
     def test_GIOI_HAN_da_biet_cua_hang_rao_HOI_VE(self):
-        """Hai giới hạn còn lại, ghi ra thay vì giấu — chúng là đánh đổi có ý thức.
+        """Giới hạn còn lại, ghi ra thay vì giấu — nó là đánh đổi có ý thức.
 
-        1. Câu vừa HỎI VỀ vừa mang RÀNG BUỘC, với dấu hiệu YẾU: "Đồ chay ở đây có thật sự chay
-           không?" mang `diet:vegetarian`, nên hàng rào không áp dụng và câu vào nhánh lọc. Nới quy
-           tắc cho dấu hiệu yếu sẽ nuốt cả "Có món chay nào không?" — một nhánh đang đúng.
+        Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này vẫn
+        tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
 
-        2. Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này
-           vẫn tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
+        MỘT GIỚI HẠN ĐÃ GỠ — và cách gỡ đáng ghi lại
+        --------------------------------------------
+        Bản trước liệt kê thêm giới hạn thứ hai: câu vừa HỎI VỀ vừa mang RÀNG BUỘC với dấu hiệu
+        YẾU. "Đồ chay ở đây có thật sự chay không?" mang `diet:vegetarian`, nên hàng rào không áp
+        dụng và khách nhận về một DANH SÁCH MÓN CHAY cho câu hỏi **có nên tin nhãn chay hay không**.
+        Danh sách ấy không trả lời gì, và tệ hơn, nó ngầm khẳng định đúng điều khách đang nghi.
 
-        Ca này chốt HÀNH VI HIỆN TẠI. Nếu ai đó nới hàng rào, ca này đỏ và buộc họ đọc lý do.
+        Lý do ghi khi đó là: "nới quy tắc cho dấu hiệu yếu sẽ nuốt cả 'Có món chay nào không?'".
+        Lý do ấy ĐÚNG — và cách gỡ là **không nới quy tắc yếu**. Thay vào đó đưa đúng khung
+        `co that su` lên nhóm MẠNH: nó không bao giờ là lời xin món, nên nó thắng được ràng buộc
+        mà không chạm tới câu hỏi thực đơn.
+
+        Đo trên 710 câu của mọi tập: mẫu đổi ĐÚNG một câu. Bốn câu chốt bên dưới xác nhận chiều
+        ngược vẫn nguyên.
         """
         r1 = ask("Đồ chay ở đây có thật sự chay không?")
-        self.assertFalse(r1.hoi_ve_su_viec, "dấu hiệu YẾU + có ràng buộc -> không áp dụng")
+        self.assertTrue(r1.hoi_ve_su_viec, "khung ĐÒI BẢO ĐẢM là dấu hiệu MẠNH, thắng ràng buộc")
         self.assertIn("diet:vegetarian", r1.require_tags)
+
+        # Chiều ngược: khung mạnh mới KHÔNG được nuốt câu hỏi thực đơn.
+        for cau in ("Có món chay nào không?",
+                    "Cho mình món chay",
+                    "Món chay nào dưới 100 nghìn có cay không?"):
+            with self.subTest(cau=cau):
+                self.assertFalse(ask(cau).hoi_ve_su_viec, f"{cau!r} là câu XIN MÓN, không phải HỎI VỀ")
 
         r2 = ask("Phở với bún với hủ tiếu thì khác nhau chỗ nào?")
         self.assertFalse(r2.hoi_ve_su_viec, "có tên món -> hàng rào không áp dụng")
@@ -237,11 +253,22 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 560 cụm từ vựng và 91 tên món: **83 cụm bị chứa trong cụm khác**, **47 cụm nằm
-    trong tên món**, và hợp lại là **103 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 629 cụm từ vựng và 91 tên món: **87 cụm bị chứa trong cụm khác**, **45 cụm nằm
+    trong tên món**, và hợp lại là **107 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả các chỗ đó.
 
-    Đợt tăng gần nhất (+38 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
+    Đợt +36 cụm gần nhất đưa 65,1% -> 98,1% số ca hỏi-theo-nhãn về nhánh lọc. Chín cụm mới chồng
+    lên cụm cũ, và cả chín đều theo chiều AN TOÀN — cụm mới CHỨA cụm cũ, nên nó thắng và tiêu luôn
+    đoạn văn bản đó:
+
+        `mi chinh` ⊃ `mi`      sửa đúng một lỗi đọc sai dị nguyên (bột ngọt bị đọc là gluten)
+        `co tom`   ⊃ `tom`     "Món nào có tôm?" thành câu lọc; "dị ứng tôm" không đổi
+        `so beo`   ⊃ `so`      "sợ béo" -> ít calo, không còn rơi xuống truy hồi
+
+    Chiều ngược lại — cụm mới BỊ chứa trong cụm cũ, tức nó không bao giờ tới lượt — không có cái
+    nào; đã kiểm bằng phép đo chứ không bằng đọc mắt.
+
+    Đợt tăng gần nhất (+53 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
     48/85 nhãn không rút ra được từ tên tiếng Việt của nó. Bốn cụm mới có nguy cơ, và cả bốn đều
     vô hại vì lý do KHÁC NHAU — nên chúng minh họa được cả hai lớp bảo vệ:
 
@@ -273,7 +300,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 560, "trong_cum_khac": 83, "trong_ten_mon": 47, "co_rui_ro": 103},
+            {"tu_vung": 629, "trong_cum_khac": 87, "trong_ten_mon": 45, "co_rui_ro": 107},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 
@@ -1012,3 +1039,99 @@ class HoiDINHNGHIAVeNhanKhongPhaiLocTheoNhan(unittest.TestCase):
         """Câu nêu TÊN MÓN cần nhãn để trả lời được, nên không bị bỏ ràng buộc."""
         r = ask("Phở bò tái nạm có hải sản không?")
         self.assertTrue(r.named_items)
+
+
+class ThamChieuViTriVietBangSo(unittest.TestCase):
+    """Khách gõ "món thứ 2", bảng từ vựng chỉ có "món thứ hai".
+
+    Trợ lý đoán món đầu khi câu mơ hồ và **nêu tên món đã đoán** — thiết kế đã chốt như vậy, vì
+    đoán im lặng mới là thứ bị cấm. Nhưng đường SỬA phỏng đoán đó thì hỏng:
+
+        "món thứ hai"  ->  reference_index = 2      đúng
+        "món thứ 2"    ->  reference_index = None   rơi xuống nhánh lọc, trả về SÁU món
+
+    Khách chỉ vào một món và nhận lại cả bảng. Vì đây đúng là lượt dùng để sửa, hỏng ở đây làm cả
+    vòng hỏi-đáp thành ngõ cụt.
+    """
+
+    def test_dang_so_nhan_ra_nhu_dang_chu(self):
+        for cau, vt in (("món thứ 2", 2), ("món số 3", 3), ("cái thứ 4", 4), ("cái số 2", 2),
+                        ("món thứ 2 giá bao nhiêu", 2)):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).reference_index, vt)
+
+    def test_dang_chu_van_giu(self):
+        for cau, vt in (("món thứ hai", 2), ("món thứ ba", 3), ("món cuối cùng", -1)):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).reference_index, vt)
+
+    def test_cau_xin_SO_LUONG_khong_thanh_vi_tri(self):
+        """Chiều ngược, và là chiều mà mẫu quá lỏng sẽ phá.
+
+        "Cho mình 3 món" là BA món, không phải món thứ ba. Phân biệt bằng `so_mon_muon` — cờ đó
+        chỉ được đặt cho khung đếm, nên nó là dấu hiệu sẵn có chứ không phải luật mới.
+        """
+        for cau in ("Cho mình 3 món", "Gợi ý 4 món ăn cho mình", "cho mình 2 món chay",
+                    "Đi 4 người ăn gì"):
+            with self.subTest(cau=cau):
+                self.assertIsNone(ask(cau).reference_index)
+
+
+class KHAI_DI_UNG_BA_DUONG_HONG(unittest.TestCase):
+    """Rà 20 cách khai dị ứng hải sản: chỉ **7/20 = 35,00%** được nhận ra.
+
+    Con số đó đánh thẳng vào câu mạnh nhất của báo cáo. "0 lỗi an toàn" ĐÚNG trên bộ đánh giá và
+    SAI với khách thật, vì bộ đo và hệ thống **cùng một tác giả, cùng một vốn từ**.
+
+    Ba đường hỏng, và hai trong ba là ĐẢO NGHĨA chứ không phải bỏ sót — bỏ sót thì ràng buộc không
+    được ghi, còn đảo nghĩa thì ràng buộc **đang có cũng bị xóa**.
+    """
+
+    def test_duong_1_thieu_cum(self):
+        """Khai bằng HẬU QUẢ hoặc bằng MỆNH LỆNH, không dùng chữ "dị ứng"."""
+        for cau in ("Ăn hải sản là tôi phải đi cấp cứu",
+                    "Tuyệt đối không được có hải sản nhé",
+                    "Mình mà ăn tôm là nổi mề đay",
+                    "Xin đừng cho hải sản vào",
+                    "Loại hết hải sản giúp mình"):
+            with self.subTest(cau=cau):
+                self.assertIn("allergen:seafood", ask(cau).avoid_tags)
+
+    def test_duong_2_dao_nghia_o_lop_Y_DINH(self):
+        """"KHÔNG ăn được hải sản" khớp `an duoc hai san` của danh sách XÓA dị nguyên.
+
+        Khách nói mình **không** ăn được, hệ thống đọc thành **có** và gỡ ràng buộc.
+        """
+        for cau in ("Mình không ăn được hải sản", "Cả nhà không ai ăn được hải sản"):
+            with self.subTest(cau=cau):
+                r = ask(cau)
+                self.assertIn("allergen:seafood", r.avoid_tags)
+                self.assertNotEqual(r.y_dinh, "xoa_rang_buoc")
+
+    def test_duong_3_dao_nghia_o_KHUNG_PHU_NHAN(self):
+        """"KHÔNG ĐỤNG được" rút dấu thành `khong dung`, trùng "không ĐÚNG".
+
+        Khung phủ nhận đọc câu khai dị ứng thành "bạn nói không đúng" rồi gỡ ràng buộc.
+        """
+        self.assertIn("allergen:seafood", ask("Hải sản là mình không đụng được").avoid_tags)
+
+    def test_chieu_nguoc_phu_nhan_THAT_van_go_duoc(self):
+        """Ba hàng rào trên không được chặn câu gỡ thật — khách hết kiêng phải gỡ được.
+
+        Ca thứ hai là ca bản đầu của hàng rào phủ định làm hỏng: cửa sổ 20 ký tự bắt cả chữ
+        "không" của mệnh đề khác. Đếm TỪ thay vì đếm ký tự thì ranh giới mệnh đề tự hiện ra.
+        """
+        for cau in ("mình đâu có dị ứng hải sản",
+                    "bạn nói không đúng, mình ăn được hải sản",
+                    "tôi ăn được hải sản hãy tư vấn hải sản cho tôi",
+                    "Mình hết dị ứng rồi"):
+            with self.subTest(cau=cau):
+                self.assertEqual(ask(cau).y_dinh, "xoa_rang_buoc")
+
+    def test_GIOI_HAN_da_biet_khong_giau(self):
+        """Hai cụm BỊ BỎ dù phép đo trên 849 câu nói an toàn — vì hình dạng đụng chữ.
+
+        `cu` ("cữ") trùng "cũ", "củ", "cụ"; `khong dinh` ("không dính") trùng "không định". Phép đo
+        im lặng KHÔNG đủ để kết luận an toàn khi tập chưa có câu nào dạng ấy.
+        """
+        self.assertNotIn("allergen:seafood", ask("Mình cữ hải sản").avoid_tags)

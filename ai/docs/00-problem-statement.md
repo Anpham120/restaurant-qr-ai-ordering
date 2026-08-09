@@ -110,8 +110,28 @@ hình thì không đảm bảo cả hai.
 | Thành phần đầy đủ, nguồn gốc nguyên liệu | `description` là câu giới thiệu, không phải danh sách thành phần |
 | Nhân sự (bếp trưởng), nội bộ (doanh thu) | không có dữ liệu, và không nên có |
 | Món còn/hết theo thời gian thực | mọi món đang là `True`, không kiểm chứng được |
+| **Câu hỏi bằng tiếng nước ngoài** | toàn bộ dữ liệu và từ vựng là tiếng Việt — xem bên dưới |
 | Giờ mở cửa, thanh toán, đỗ xe | chưa có kho tri thức — sẽ vào phạm vi ở bước 5 |
 | Bất cứ gì ngoài ăn uống tại nhà hàng này | ngoài bài toán |
+
+**Về giới hạn ngôn ngữ.** Hệ thống hiểu **tiếng Việt**, có dấu hoặc không dấu (phép rút dấu xử lý
+cả hai). Với câu tiếng Anh, bước hiểu trả về **rỗng hoàn toàn** — đo trực tiếp qua `understand()`:
+
+| câu vào | `require_tags` | `avoid_tags` | `wants` |
+|---|---|---|---|
+| `give me a vegetarian dish` | `[]` | `[]` | `any` |
+| `I am allergic to seafood` | `[]` | **`[]`** | `any` |
+| `show me cheap food` | `[]` | `[]` | `any` |
+| `cho tôi món chay` | `[]` | `[]` | **`food`** |
+
+Ô in đậm ở hàng thứ hai là ô đáng lo nhất tài liệu này: **lời khai dị ứng bằng tiếng Anh không
+được nhận**, nên hàng rào dị nguyên không bật. Câu tiếng Việt tương đương thì bật.
+
+Đây là giới hạn được **khai rõ** thay vì làm dở, và lý do là một quyết định chứ không phải sự bỏ
+quên: mọi nhãn, mọi tên món, mọi tài liệu tri thức đều tiếng Việt. Nhận vài từ khóa tiếng Anh sẽ
+tạo ra một hệ thống trả lời được câu dễ và **im lặng ở câu khó** — mà ở đây "câu khó" gồm cả lời
+khai dị ứng, nên nửa vời còn nguy hiểm hơn không hỗ trợ. Với một nhà hàng có khách nước ngoài,
+việc đúng là dịch **cả** ba tầng dữ liệu, và đó là một hạng mục riêng.
 
 **Ba việc AI tuyệt đối không làm** (giới hạn về quyền, không phải về năng lực):
 

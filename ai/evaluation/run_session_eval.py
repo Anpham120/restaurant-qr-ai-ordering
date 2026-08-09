@@ -83,6 +83,7 @@ KHOA_HIEU = frozenset({
     "memory_budget_max",
     "memory_wants",
     "memory_remembers_suggested",
+    "expect_branch_prefix",
 })
 
 # Khóa CHỈ mang chú thích, không phải tiêu chí. Một lượt chỉ có những khóa này thì nó không đo gì.
@@ -177,6 +178,15 @@ def cham_luot(ban_ghi: dict, truoc: list[dict]) -> list[str]:
     """
     exp, reply, state = ban_ghi["expect"], ban_ghi["reply"], ban_ghi["state"]
     do: list[str] = []
+
+    # --- nhánh đã đi ---
+    # Có vì tới trước bản này KHÔNG tiêu chí nào của tập phiên nói được "lượt này
+    # phải đi qua nhánh nào". Hệ quả: nhánh truy hồi chạy 0/163 lượt mà không ca
+    # nào đỏ — tập ca không hỏi tới nó, nên nó vắng mặt một cách hợp lệ.
+    if exp.get("expect_branch_prefix"):
+        can = exp["expect_branch_prefix"]
+        if not (reply.branch or "").startswith(can):
+            do.append(f"đi nhánh `{reply.branch}`, cần nhánh bắt đầu bằng `{can}`")
 
     # --- câu trả lời ---
     for tag in exp.get("forbid_tags_any", []):

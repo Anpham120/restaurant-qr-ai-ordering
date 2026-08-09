@@ -384,6 +384,154 @@ def build() -> dict:
             ],
         })
 
+    # Câu HỎI "ăn được gì" bị đọc thành lời KHAI "tôi ăn được" — và nó XÓA dị nguyên.
+    #
+    # Khác ba kịch bản trên ở chỗ chúng lo chiều "câu hỏi THÊM nhãn vào bộ nhớ"; kịch bản này lo
+    # chiều ngược lại và nặng hơn: câu hỏi **GỠ** nhãn đã có. Đo trên mã trước bản sửa:
+    #
+    #     lượt 1  "Con mình dị ứng hải sản"      ->  avoid = [allergen:seafood]     đúng
+    #     lượt 2  "Bé nhà mình ăn được món gì?"  ->  avoid = []                     XÓA MẤT
+    #     lượt 3  "Cho mình món khai vị"         ->  Gỏi cuốn tôm thịt, Súp măng cua,
+    #                                                Nem rán Hà Nội, Bánh xèo miền Tây
+    #
+    # Cụm `minh an duoc` trong danh sách xóa dị nguyên khớp đoạn "bé nhà MÌNH ĂN ĐƯỢC món gì".
+    # Lỗi im lặng: lượt 2 không mời món nào nên câu trả lời trông vô hại, chỉ lượt 3 mới lộ — nên
+    # nó cần đúng ba lượt, và bộ một lượt không thể bắt được.
+    scripts.append({
+        "id": "question-not-declaration-di-ung-tre-em",
+        "group": "question_not_declaration",
+        "why": ("Câu HỎI 'ăn được gì' bị đọc thành lời KHAI hết dị ứng và XÓA nhãn khỏi bộ nhớ. "
+                "Trước bản sửa, lượt 3 mời bốn món hải sản cho phụ huynh vừa khai con dị ứng."),
+        "turns": [
+            {"user": "Con mình dị ứng hải sản",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": "Lượt khai. Phải vào bộ nhớ ngay."}},
+            {"user": "Bé nhà mình ăn được món gì?",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "why": ("Câu HỎI, không phải lời khai hết dị ứng. Kiểm BỘ NHỚ chứ không "
+                                "chỉ kiểm câu trả lời: lượt này không mời món nào nên câu trả "
+                                "lời trông vô hại kể cả khi ràng buộc đã mất.")}},
+            {"user": "Cho mình món khai vị",
+             "expect": {"forbid_tags_any": ["allergen:seafood"],
+                        "memory_must_have_avoid": ["allergen:seafood"],
+                        "min_items": 1,
+                        "why": ("Lượt LỘ LỖI: bốn món khai vị mang nhãn hải sản, nên mất ràng "
+                                "buộc là khách nhận đúng thứ vừa nói không ăn được.")}},
+        ],
+    })
+
+    # Hỏi tiếp về danh sách vừa nêu — PHẠM VI phải thu về đúng danh sách đó.
+    #
+    # Kịch bản riêng, bắt đầu từ một danh sách chưa bị thu hẹp, để đo đúng một việc: câu hỏi tiếp
+    # nối có ở lại trong danh sách không. Dò 10 cách hỏi sau một lượt nêu 4 món thì 3 cách đi ra
+    # ngoài danh sách, và ca tệ nhất là:
+    #
+    #     "4 món đó có món nào chứa đậu phộng không?"  ->  4 món, nhưng KHÔNG PHẢI 4 món kia
+    #
+    # Đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là bốn món khác. Khách hỏi về DỊ
+    # NGUYÊN trong danh sách vừa xem và nhận câu trả lời về một danh sách khác — sai theo kiểu
+    # không ai kiểm lại, vì nó trông hợp lý.
+    scripts.append({
+        "id": "chained-reference-hoi-tiep-trong-danh-sach",
+        "group": "chained_reference",
+        "why": ("Câu hỏi tiếp nối về danh sách vừa nêu phải ở LẠI trong danh sách đó. Bảng cụm thu "
+                "phạm vi chỉ có bốn cụm, đều đòi chữ 'đó' đứng ngay sau, nên phần lớn cách nói "
+                "thật rơi ra ngoài."),
+        "turns": [
+            {"user": "Gợi ý món không cay giúp mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách."}},
+            {"user": "Trong đó món nào rẻ nhất?",
+             "expect": {"max_items": 1,
+                        "why": ("Cụm `trong do` không có trong bảng, nên câu cực trị chạy trên CẢ "
+                                "thực đơn thay vì trên danh sách vừa nêu.")}},
+            {"user": "Mấy món đó có món nào chay không?",
+             "expect": {"expect_kind": "list",
+                        "why": "Cụm `may mon do` cũng không có trong bảng."}},
+        ],
+    })
+
+    # Tham chiếu vị trí VIẾT BẰNG SỐ — lượt khách dùng để trả lời câu hỏi lại của trợ lý.
+    #
+    # Bảng từ vựng chỉ có dạng CHỮ (`mon thu hai`), còn khách gõ SỐ. Đo được sau khi lượt 1 nêu
+    # 4 món và lượt 2 đoán món đầu:
+    #
+    #     "món thứ hai"  ->  đúng món thứ 2
+    #     "món thứ 2"    ->  KHÔNG nhận ra, rơi xuống nhánh lọc và trả về SÁU món
+    #
+    # Hậu quả nặng hơn "không hiểu": khách chỉ vào một món và nhận lại cả bảng, tức mất luôn phạm
+    # vi danh sách đang nói tới. Và vì đây đúng là lượt dùng để SỬA phỏng đoán của trợ lý, hỏng ở
+    # đây làm cả vòng hỏi-đáp thành ngõ cụt.
+    scripts.append({
+        "id": "context-reference-vi-tri-viet-so",
+        "group": "context_reference",
+        "why": ("Tham chiếu vị trí viết bằng SỐ. Trợ lý đoán món đầu và NÊU TÊN nó, nên khách sửa "
+                "bằng cách chỉ số thứ tự — đó là đường sửa duy nhất, và nó từng hỏng."),
+        "turns": [
+            {"user": "Gợi ý 4 món ăn cho mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách."}},
+            {"user": "Cho mình món vừa rồi",
+             "expect": {"expect_kind": "clarify",
+                        "why": ("Câu MƠ HỒ với 4 món trên màn hình, và là câu XIN MÓN — phải HỎI "
+                                "LẠI kèm số thứ tự, không đoán. "
+                                "Kỳ vọng cũ của ca này là `max_items: 1`, tức chốt hành vi 'đoán "
+                                "món đầu nhưng nêu tên nó'. Hành vi đó vẫn ĐÚNG cho câu HỎI VỀ "
+                                "một món ('Món đó bao nhiêu tiền?') — 12 lượt đánh giá dựa vào "
+                                "nó, và hỏi lại ở đó là bước lùi vì khách chỉ hỏi một câu đơn "
+                                "giản. Nhưng câu XIN thì khác: khách muốn LẤY một món, và đoán ở "
+                                "đây là chọn hộ họ. "
+                                "Phân loại bằng `XIN_MON_RE` đã có sẵn: đo trên 13 lượt đang dùng "
+                                "tiêu điểm thì nó tách sạch 12 câu hỏi khỏi 1 câu xin, không cần "
+                                "luật mới.")}},
+            {"user": "món thứ 2",
+             "expect": {"max_items": 1,
+                        "why": ("Lượt SỬA. Phải trỏ đúng món thứ hai của danh sách, không được "
+                                "trả về cả bảng.")}},
+        ],
+    })
+
+    # Tham chiếu ngược có SỐ LƯỢNG — phạm vi đúng nhưng con số bị bỏ.
+    #
+    # `LIST_SIZE = 6` là hằng số, và con số trong câu chỉ dùng để bật một cờ. Sau khi lượt 1 nêu
+    # 6 món: xin 3 món nhận 6, xin 4 món nhận 6, xin "2 món đầu" nhận **1** (cụm `mon dau` trỏ
+    # *món thứ nhất*). Không phải trả lời sai, nhưng là KHÔNG NGHE.
+    scripts.append({
+        "id": "chained-reference-so-mon",
+        "group": "chained_reference",
+        "why": ("Tham chiếu ngược có SỐ LƯỢNG. Phạm vi được giữ đúng từ trước; chỉ con số bị bỏ "
+                "vì cỡ danh sách là hằng số."),
+        "turns": [
+            {"user": "Gợi ý món không cay giúp mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách. Các lượt sau tham chiếu vào đây."}},
+            {"user": "Liệt kê 3 món vừa tư vấn bên trên",
+             "expect": {"min_items": 3, "max_items": 3, "expect_kind": "list",
+                        "why": ("Xin ĐÚNG 3. Kiểm cả cận trên lẫn cận dưới — chỉ kiểm `min_items` "
+                                "thì trả về 6 vẫn qua.")}},
+            {"user": "Liệt kê cho tôi 2 món đầu vừa tư vấn",
+             "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
+                        "why": ("«2 món đầu» là LÁT CẮT. Cụm `mon dau` trỏ `reference_index = 1` "
+                                "nên câu này từng bị đọc thành *món thứ nhất*.")}},
+            {"user": "Cho mình xem lại 3 món vừa rồi",
+             "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
+                        "why": ("HAI món, không phải ba — và đó là câu trả lời ĐÚNG. Lượt trước "
+                                "đã thu danh sách còn 2 món, nên 'vừa rồi' chỉ còn 2 món để lấy. "
+                                "Trước khi cụm này thu phạm vi, nó trả về 3 món lấy từ danh sách "
+                                "GỐC: đúng số nhưng SAI TẬP, tức trả lời về một danh sách khác "
+                                "với danh sách khách đang nói tới. "
+                                "Ca này cũng chốt luôn cờ `refers_to_focus`: cụm 'vừa rồi' từng "
+                                "được giải thành MỘT món, nên câu trả về đúng 1.")}},
+            {"user": "Món vừa rồi giá bao nhiêu?",
+             "expect": {"max_items": 1,
+                        "why": ("CHIỀU NGƯỢC. Không có số lượng thì 'vừa rồi' vẫn phải trỏ MỘT "
+                                "món — nới quy tắc quá tay ở đây làm câu hỏi giá của một món trả "
+                                "về nửa danh sách.")}},
+        ],
+    })
+
     # --- Nhóm `extreme_scope`: câu cực trị phải nói ra PHẠM VI của nó -------------------
     #
     # Cả nhóm sinh ra từ một lỗi đo được khi CHẠY THẬT qua backend và mô hình: câu "Món đắt nhất
@@ -960,6 +1108,60 @@ def build() -> dict:
                                "rào. Trước đây câu này trả 'chưa tìm được món nào' — ngõ cụt."}},
         ],
     })
+
+
+    # ------------------------------------------------------------------------
+    # Nhóm `rag_trong_phien` — nhánh TRUY HỒI chạy giữa một phiên có bộ nhớ.
+    #
+    # Vì sao nhóm này tồn tại. Trước nó, nhánh truy hồi toàn kho chạy **0/163
+    # lượt** của tập phiên, và không ca nào đỏ — vì không tiêu chí nào hỏi tới
+    # nó. Đường tri thức là đường duy nhất của hệ thống chưa từng được chứng
+    # minh chạy trong một hội thoại thật, và "chưa ai hỏi" không phải "đã đúng".
+    #
+    # Mỗi kịch bản đặt câu tri thức Ở GIỮA phiên, sau một lời khai dị ứng. Nhờ
+    # vậy nó đo hai thứ cùng lúc mà bộ một lượt không đo được:
+    #
+    #     1. truy hồi có chạy khi bộ nhớ đang giữ ràng buộc hay không
+    #     2. ràng buộc dị nguyên có sống qua lượt tri thức hay không
+    #
+    # Điều 2 là chốt an toàn: một lượt tri thức đi đường khác hẳn nhánh lọc, nên
+    # nếu bộ nhớ rơi ở đó thì lượt chọn món ngay sau sẽ mời món khách cần tránh.
+    for i, (khai, nhan, cau_tri_thuc, phai_noi) in enumerate((
+        ("Mình dị ứng hải sản nhé", "allergen:seafood",
+         "Cùng là gà mà sao món thì mềm món thì dai?", "gà"),
+        ("Nhà mình có người dị ứng đậu phộng", "allergen:peanut",
+         "Uống cà phê buổi tối có bị mất ngủ không?", "cà phê"),
+        ("Mình không ăn được sữa", "allergen:dairy",
+         "Đồ chay ở đây có thật sự chay không?", "chay"),
+    ), start=1):
+        scripts.append({
+            "id": f"rag-trong-phien-{i:02d}",
+            "group": "rag_trong_phien",
+            "why": ("Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: "
+                    "nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có "
+                    "sống qua lượt tri thức hay không."),
+            "turns": [
+                {"user": khai,
+                 "expect": {"memory_must_have_avoid": [nhan],
+                            "why": "Lời khai phải vào bộ nhớ ngay lượt này."}},
+                {"user": "Có món nào không cay dưới 100k không?",
+                 "expect": {"forbid_tags_any": [nhan], "min_items": 3,
+                            "expect_branch_prefix": "filter",
+                            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."}},
+                {"user": cau_tri_thuc,
+                 "expect": {"expect_branch_prefix": "knowledge_corpus",
+                            "must_say_any": [phai_noi],
+                            "memory_must_have_avoid": [nhan],
+                            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi "
+                                   "TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."}},
+                {"user": "Vậy gợi ý mình vài món đi",
+                 "expect": {"forbid_tags_any": [nhan], "min_items": 3,
+                            "expect_branch_prefix": "filter",
+                            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 "
+                                   "vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt "
+                                   "trước đó đi một nhánh hoàn toàn khác."}},
+            ],
+        })
 
     return {
         "schema_version": 1,

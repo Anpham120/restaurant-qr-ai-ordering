@@ -2160,6 +2160,245 @@
         "kind": "refuse",
         "why": "Câu tính toán. Ca này tồn tại vì cách nhận diện đầu tiên SAI LOẠI: cụm từ khóa \"cong bang may\" khớp \"2 cộng bằng mấy?\" mà không khớp \"2 cộng 2 bằng mấy?\" — có con số ở giữa. Phép thử cục bộ dùng câu không số nên nó xanh; phép thử qua backend dùng câu có số nên nó đỏ. Nay nhận bằng mẫu \"số - phép tính - số\", và ca dùng đúng dạng câu đã trượt."
       }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-01",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có bao nhiêu món cho trẻ em?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "children",
+        "why": "Tài liệu ĐẾM: 43 món hợp trẻ em, 29 món người lớn tuổi, 68 món không cay. Trước bản này câu hỏi rơi vào `menu_size` — khách hỏi về trẻ em, nhận con số của TOÀN thực đơn."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-02",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Số điện thoại nhà hàng là gì?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "contact",
+        "why": "Dữ liệu liên hệ phải trả nguyên văn, không diễn đạt lại — một chữ số lệch là sai sự thật."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-03",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Nhà hàng ở đâu?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "location",
+        "why": "Địa chỉ, cùng lý do với liên hệ."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-04",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Khoảng giá của nhà hàng thế nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "price_range",
+        "why": "Hỏi DẢI giá của cả thực đơn, khác hẳn hỏi giá một món — đáp án là 12.000đ–890.000đ chứ không phải một danh sách."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-05",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có chỗ hút thuốc không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "smoking",
+        "why": "Câu hỏi về CƠ SỞ, không về món. Nhánh lọc trả danh sách món ở đây là sai loại đáp án."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-06",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Món nào mang về được?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "takeaway_items",
+        "why": "Tài liệu nêu chính sách mang về; danh sách món mang về được nằm trong đó."
+      }
+    },
+    {
+      "id": "B-policy_meta_chua_phu-07",
+      "type": "B",
+      "family": "policy_meta_chua_phu",
+      "question": "Quán có bao nhiêu món chay?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_topic": "vegetarian",
+        "why": "Hỏi SỐ LƯỢNG, không xin danh sách. `bao nhieu mon chay` phải thắng `bao nhieu mon` nhờ khớp cụm dài — cùng cơ chế mà `children` vừa được bổ sung."
+      }
+    },
+    {
+      "id": "KC-corpus-01",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Cùng là gà mà sao món thì mềm món thì dai vậy?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "chicken_dishes",
+        "why": "Câu hỏi VỀ một sự việc, không xin món. Không nhãn nào trả lời được 'vì sao mềm hay dai' — đáp án nằm trong đoạn nói về cách chế biến. Lọc nhãn mà nhận câu này thì trả về danh sách món gà, và không món nào trả lời điều được hỏi."
+      }
+    },
+    {
+      "id": "KC-corpus-02",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Uống cà phê buổi tối có bị mất ngủ không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "coffee_and_tea",
+        "why": "Câu về TÁC ĐỘNG của món, không phải thuộc tính của món. Thực đơn không có cột nào cho việc này."
+      }
+    },
+    {
+      "id": "KC-corpus-03",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Đồ chay ở đây có thật sự chay không hay chỉ là không thịt?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "vegetarian_reality",
+        "why": "Câu chất vấn chính cái nhãn. Trả về danh sách món chay là né câu hỏi bằng một thứ trông giống câu trả lời — nhãn `diet:vegetarian` không nói được gì về nước dùng."
+      }
+    },
+    {
+      "id": "KC-corpus-04",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Phở với bún với hủ tiếu thì khác nhau chỗ nào?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "noodle_soups",
+        "why": "Câu SO SÁNH ba nhóm món, không so hai món cụ thể nên không đi nhánh compare. Đáp án là một đoạn văn giải thích, không phải một danh sách."
+      }
+    },
+    {
+      "id": "KC-corpus-05",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Gọi khai vị trước có làm no bụng không ăn được món chính không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "appetizer_role",
+        "why": "Ca kinh điển của đồ án: bản trước trả về 6 món khai vị — mọi món có thật, mọi giá đúng, và KHÔNG món nào trả lời điều được hỏi. Cụm 'khai vị' là cụm nhóm món nên nhánh lọc khớp trước."
+      }
+    },
+    {
+      "id": "KC-corpus-06",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Mình ăn cay kém, làm sao biết món nào chịu được?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "spice_ladder",
+        "why": "Khách hỏi CÁCH đọc thang cay, không xin món cụ thể. Trả danh sách món không cay là trả lời một câu khác."
+      }
+    },
+    {
+      "id": "KC-corpus-07",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Mấy chữ ghi dưới tên món có tin được hết không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "reading_labels",
+        "why": "Câu hỏi về ĐỘ TIN CẬY của chính bộ nhãn. Đây là câu mà không nhãn nào tự trả lời được, và tài liệu đích nói thẳng nhãn sức khoẻ là đánh giá cảm quan."
+      }
+    },
+    {
+      "id": "KC-corpus-08",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Cả nhà ăn chung một mâm thì nên gọi thế nào cho hợp lý?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "sharing_etiquette",
+        "why": "Câu về CÁCH gọi món, không phải về món nào. Lọc theo `party:share` cho ra danh sách món chia được, nhưng khách hỏi cách phối, không hỏi món."
+      }
+    },
+    {
+      "id": "KC-corpus-09",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Đi có một mình mà gọi nhiều thì phí, làm sao giờ?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "eating_alone",
+        "why": "Câu nêu một TÌNH HUỐNG và xin cách xử, không nêu ràng buộc lọc được."
+      }
+    },
+    {
+      "id": "KC-corpus-10",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Mấy món này ra cùng lúc hay ra dần vậy?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "portion_timing",
+        "why": "Câu về quy trình phục vụ. Không món nào là câu trả lời."
+      }
+    },
+    {
+      "id": "KC-corpus-11",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Đồ biển ở đây có tươi không, lấy từ đâu?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "seafood_caution",
+        "why": "Câu về nguồn gốc — thứ hệ thống KHÔNG có dữ liệu. Tài liệu đích nói rõ giới hạn đó, nên trả lời đúng ở đây là trích ra lời nói giới hạn chứ không phải né."
+      }
+    },
+    {
+      "id": "KC-corpus-12",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Tiền nào của nấy hay có món rẻ mà vẫn ngon?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "value_for_money",
+        "why": "Câu hỏi về QUAN HỆ giữa giá và chất lượng. Lọc theo `price:budget` cho ra món rẻ, nhưng không trả lời được vế 'mà vẫn ngon'."
+      }
+    },
+    {
+      "id": "KC-corpus-13",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Bé nhà mình mới hai tuổi, ăn ở đây có tiện không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "children_elderly",
+        "why": "Chữ 'tiện' hỏi về CƠ SỞ VẬT CHẤT và cách phục vụ, không hỏi món. Lọc theo `audience:child` là hiểu sai câu."
+      }
+    },
+    {
+      "id": "KC-corpus-14",
+      "type": "B",
+      "family": "knowledge_corpus",
+      "question": "Quán có nói được món này nấu bao lâu không?",
+      "expect": {
+        "kind": "fact",
+        "knowledge_chunk_topic": "cannot_help",
+        "why": "Câu hệ thống KHÔNG trả lời được, và tài liệu `cannot_help` tồn tại đúng để nó biết mình không biết gì. Trả lời đúng ở đây là nói ra giới hạn, không phải đoán."
+      }
     }
+  ],
+  "_ghi_chu": [
+    "",
+    "Họ `knowledge_corpus` (14 ca) thêm sau khi đo được rằng 0/147 ca của tập này đi qua",
+    "nhánh truy hồi toàn kho — tức tập ca chính KHÔNG phủ một trong bốn đường trả lời.",
+    "Một đường không bị hỏi tới thì vắng mặt một cách hợp lệ: 147/147 vẫn xanh trong khi",
+    "cả một nhánh chưa từng được chấm. Mười bốn câu này đều đã xác minh đi vào nhánh",
+    "`knowledge_corpus` qua `respond()` thật, và phủ đủ sáu nhóm chủ đề của kho."
   ]
 }

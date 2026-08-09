@@ -246,6 +246,75 @@ _MOI_NHOM = (
 )
 
 
+# HỎI "ăn được gì" KHÁC KHẲNG ĐỊNH "tôi ăn được".
+#
+# Lỗi an toàn nặng nhất tìm được trong đợt rà độ phủ bộ đánh giá, và nó tồn tại im lặng:
+#
+#     lượt 1  "Con mình dị ứng hải sản"       ->  avoid = [allergen:seafood]        đúng
+#     lượt 2  "Bé nhà mình ăn được món gì?"   ->  avoid = []                        XÓA MẤT
+#     lượt 3  "Cho mình món khai vị"          ->  Gỏi cuốn tôm thịt, Súp măng cua,
+#                                                 Nem rán Hà Nội, Bánh xèo miền Tây
+#
+# Bốn món hải sản mời cho phụ huynh vừa khai con dị ứng hải sản. Nguyên nhân: cụm `minh an duoc`
+# trong `_XOA_DI_NGUYEN` khớp đoạn "bé nhà **mình ăn được** món gì".
+#
+# Cụm đó được thêm cho câu KHẲNG ĐỊNH ("tôi ăn được hải sản, tư vấn hải sản đi") — một bản sửa
+# đúng. Nhưng cùng chuỗi chữ ấy nằm trong câu HỎI, và hai loại câu ngược nhau hoàn toàn: một bên
+# nói ràng buộc không còn, một bên hỏi ràng buộc cho phép ăn gì.
+#
+# Hàng rào đặt ở `_khop` chứ không sửa từng cụm: mọi cụm xóa dị nguyên đều dính lớp lỗi này, và
+# vá từng cụm là bỏ sót cụm sẽ thêm sau.
+_LA_CAU_HOI_AN_DUOC = (
+    "an duoc gi", "an duoc mon gi", "an duoc nhung gi", "an duoc mon nao",
+    "an duoc nhung mon nao", "an duoc bao nhieu", "an duoc khong", "an duoc mon gi khong",
+)
+
+
+# PHỦ ĐỊNH đứng trước "ăn được" đảo ngược hoàn toàn nghĩa của câu.
+#
+# Lỗi an toàn nặng nhất tìm được khi rà 20 cách khai dị ứng:
+#
+#     "Mình KHÔNG ăn được hải sản"       ->  ý định `xoa_rang_buoc`, cụm khớp `an duoc hai san`
+#     "Cả nhà KHÔNG AI ăn được hải sản"  ->  như trên
+#
+# Khách nói mình **không** ăn được, hệ thống đọc thành **có** ăn được và **gỡ** ràng buộc dị
+# nguyên. Đây không phải bỏ sót — bỏ sót thì ràng buộc không được ghi; đây là **đảo nghĩa**, tức
+# ràng buộc đang có cũng bị xóa.
+#
+# Và *"Mình không ăn được hải sản"* là một trong những cách khai dị ứng phổ biến nhất.
+#
+# Phủ định phải là ĐÚNG một hoặc hai từ liền ngay trước, không phải "ở đâu đó phía trước".
+#
+# Bản đầu của hàm này dùng cửa sổ 20 ký tự, và nó bắt nhầm ngay:
+#
+#     "bạn nói KHÔNG ĐÚNG, mình ăn được hải sản"
+#         `khong` cách `an duoc hai san` 16 ký tự -> lọt cửa sổ -> chặn nhầm
+#
+# Câu đó là câu KHẲNG ĐỊNH mình ăn được, và chữ "không" thuộc mệnh đề khác. Chặn nó nghĩa là khách
+# nói rõ mình hết kiêng mà hệ thống vẫn giữ ràng buộc — hướng an toàn, nhưng vẫn là hiểu sai.
+#
+# Đếm TỪ thay vì đếm ký tự thì ranh giới mệnh đề tự hiện ra: phủ định của một cụm động từ đứng
+# ngay cạnh nó, không cách hai từ.
+_PHU_DINH_TRUOC = ("khong", "chang", "chua", "chang the", "khong the", "khong ai", "chua bao gio")
+
+
+def _co_phu_dinh_ngay_truoc(folded_padded: str, cum: str) -> bool:
+    """Có từ phủ định đứng NGAY trước cụm `cum` không — xét đúng hai từ liền kề."""
+    vt = folded_padded.find(f" {cum} ")
+    if vt < 0:
+        return False
+    tu = folded_padded[:vt].split()
+    if not tu:
+        return False
+    # "không ăn được" (1 từ) và "không ai ăn được" (2 từ) đều phải bắt.
+    return tu[-1] in _PHU_DINH_TRUOC or " ".join(tu[-2:]) in _PHU_DINH_TRUOC
+
+
+def _la_cau_hoi_chu_khong_phai_khang_dinh(folded_padded: str) -> bool:
+    """Câu chứa "ăn được" nhưng đang HỎI, không phải khai mình hết kiêng."""
+    return any(f" {c} " in folded_padded for c in _LA_CAU_HOI_AN_DUOC)
+
+
 def _khop(folded_padded: str, cum: tuple[str, ...]) -> str:
     """Cụm DÀI NHẤT khớp, hoặc chuỗi rỗng.
 
@@ -274,9 +343,18 @@ def doc_y_dinh_tu_chuoi_dem(folded_padded: str) -> YDinh:
     một vụ khác.
     """
     f = folded_padded
+    # Câu HỎI "ăn được gì" không bao giờ là câu xóa dị nguyên — xem `_LA_CAU_HOI_AN_DUOC`.
+    hoi_an_duoc = _la_cau_hoi_chu_khong_phai_khang_dinh(f)
     tot_nhat: tuple[int, str, str, str] = (0, "", HOI_MON, "")
     for cum, ten, nhom in _MOI_NHOM:
+        if hoi_an_duoc and nhom == "allergen":
+            continue
         c = _khop(f, cum)
+        # PHỦ ĐỊNH đứng trước đảo ngược nghĩa: "KHÔNG ăn được hải sản" là câu KHAI dị ứng, không
+        # phải câu gỡ. Chỉ áp cho nhóm dị nguyên — nhóm nới bộ lọc không có cụm nào dạng khẳng
+        # định-về-khả-năng-ăn nên không cần, và áp bừa sẽ chặn cả "bỏ hết điều kiện" hợp lệ.
+        if c and nhom == "allergen" and _co_phu_dinh_ngay_truoc(f, c):
+            continue
         if c and len(c) > tot_nhat[0]:
             tot_nhat = (len(c), c, ten, nhom)
 

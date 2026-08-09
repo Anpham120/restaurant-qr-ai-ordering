@@ -745,6 +745,55 @@ def mo_theo_mau(meta: dict) -> Document:
             cu = t.split("Giảng viên hướng dẫn:")[1].split("\n")[0].strip()
             if cu and cu != meta["gv"] and thay_mot_cum(p, cu, meta["gv"]):
                 doi.append("giảng viên")
+        elif t.startswith("Dự án:") and meta["de_tai"]:
+            # Mẫu bìa ghi cứng tên dự án dùng chung cho ba báo cáo, nên trước
+            # đây trường `Đề tài` của tệp Markdown KHÔNG lên tới bìa DOCX — đặt
+            # tên đề tài xong mà bìa vẫn giữ tên cũ. Nay bìa lấy theo Markdown.
+            #
+            # Hai báo cáo kia khai `Đề tài` đúng bằng tên dự án đang ghi ở mẫu,
+            # nên bìa của chúng không đổi một chữ nào; chỉ báo cáo nào khai tên
+            # khác mới thấy khác.
+            cu = t.split("Dự án:")[1].strip()
+            # So sau khi gộp khoảng trắng: mẫu bìa xuống dòng giữa tên dự án,
+            # còn `_lay()` đã gộp về một dòng. Không gộp thì hai chuỗi "khác
+            # nhau" chỉ vì một ký tự xuống dòng, và bìa của hai báo cáo kia bị
+            # viết lại — mất đúng chỗ ngắt dòng người ta đã căn.
+            _gon = lambda x: re.sub(r"\s+", " ", x).strip()
+            if (cu and _gon(cu) != _gon(meta["de_tai"])
+                    and thay_mot_cum(p, cu, meta["de_tai"])):
+                doi.append("tên đề tài")
+    # Đầu trang của mẫu ghi tên học phần CỦA MẪU ("Công nghệ phần mềm") và nằm
+    # ở phần header của section, không nằm trong doc.paragraphs — nên vòng lặp
+    # trên không chạm tới. Hậu quả: mọi báo cáo xuất từ mẫu đều mang tên học
+    # phần sai ở đầu MỌI trang, trong khi bìa thì đúng.
+    if meta["hoc_phan"]:
+        moi_hp = meta["hoc_phan"].replace("Học phần:", "").strip()
+        da_doi_hp = False
+
+        def _moi_doan_cua(phan):
+            """Mọi đoạn trong header, KỂ CẢ đoạn nằm trong bảng.
+
+            Mẫu đặt tên học phần trong một bảng một ô, nên `header.paragraphs`
+            chỉ trả về đúng một đoạn rỗng ở ngoài bảng — quét theo nó thì không
+            bao giờ chạm tới chữ cần đổi, và lỗi trôi qua im lặng.
+            """
+            yield from phan.paragraphs
+            for bang in phan.tables:
+                for dong in bang.rows:
+                    for o in dong.cells:
+                        yield from o.paragraphs
+
+        for sec in doc.sections:
+            for phan in (sec.header, sec.first_page_header, sec.even_page_header):
+                if phan is None:
+                    continue
+                for p in _moi_doan_cua(phan):
+                    if p.text.strip() and p.text.strip() != moi_hp:
+                        thay_ca_doan(p, moi_hp)
+                        da_doi_hp = True
+        if da_doi_hp:
+            doi.append("học phần ở đầu trang")
+
     # Đóng băng những thuộc tính mà trang bìa đang thừa kế từ kiểu Normal, vì
     # dung_kieu() chạy ngay sau đây sẽ sửa Normal (giãn đoạn 6pt, căn đều) và
     # làm xô lệch bố cục bìa. Giá trị đóng băng đúng bằng giá trị đang có:

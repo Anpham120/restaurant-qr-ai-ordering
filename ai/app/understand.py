@@ -153,6 +153,14 @@ class Request:
     # vẫn trả lời sai dạng, chỉ khác là danh sách dài hơn.
     hoi_ve_su_viec: bool = False
     asks_suggestion: bool = False
+    # Số món khách xin, khi họ nêu rõ ("cho mình 2 món"). None nghĩa là để hệ thống tự chọn.
+    so_mon_muon: int | None = None
+    # Câu này là XIN MÓN (đặt/lấy), không phải HỎI VỀ một món. Dùng để quyết định khi tham chiếu
+    # ngược mơ hồ: hỏi thì đoán được, xin thì phải hỏi lại. Xem `session.merge_into_request`.
+    la_xin_mon: bool = False
+    # Tham chiếu ngược MƠ HỒ và không đoán được: câu xin món trỏ "món vừa rồi" trong khi danh sách
+    # vừa nêu có nhiều món và chưa có tiêu điểm. `answer` đọc cờ này để hỏi lại thay vì đoán.
+    mo_ho_tieu_diem: bool = False
     # Khách hỏi hai LOẠI món khác nhau thế nào. Câu tri thức, nên tên loại món trong câu KHÔNG được
     # đọc thành ràng buộc lọc — xem `DIFFERENCE_FRAMING`.
     asks_difference: bool = False
@@ -269,7 +277,23 @@ _add("gluten|bot mi", "allergen_topic", ("allergen:gluten", None))
 # 9/9 câu khai hiểu được, 0/20 câu thường bị sai.
 #
 # Bài học: đo một cơ chế thì phải CHẠY nó, không phân tích chuỗi thay cho nó.
-_add("tom|tom su|tom hum|cua|ghe|muc|ca|ca bien|ca hoi|nghieu|so|oc|hau",
+# `so` (sò) ĐÃ BỎ khỏi danh sách này. Nó rút dấu về cùng chuỗi với **số**, **sợ**, **so**:
+#
+#     "Mình không ăn được món SỐ 2"    -> avoid=['allergen:seafood']   ẩn 26 món hải sản
+#     "Mình dị ứng, không ăn được SỐ 3" -> như trên
+#     "Mình SỢ cay" / "SO sánh hai món" -> khớp nhưng chưa thành ràng buộc
+#
+# Khách chọn món theo số thứ tự rồi nói không ăn được, và hệ thống giấu toàn bộ hải sản. Sai theo
+# chiều fail-closed nên không nguy hiểm, nhưng khách mất lựa chọn mà không biết vì sao.
+#
+# Bỏ được vì nó KHÔNG TỐN GÌ: đo trên 627 câu -> **0 câu đổi**, và không món nào trong 91 món có
+# chữ "sò" đứng riêng thành một từ. Cụm này chưa từng bắt được ca thật nào.
+#
+# `ca` (cá) thì PHẢI GIỮ dù nó cũng đụng "cả": bỏ nó làm "Mình dị ứng cá" mất hàng rào dị nguyên —
+# đo được, 1 câu đổi và đúng câu quan trọng nhất. Nên "Có CẢ ông bà, mình không ăn được cay" vẫn
+# ẩn nhầm hải sản. Ghi ra thay vì sửa liều: hai chữ ấy sau khi rút dấu là MỘT, và phân biệt chúng
+# cần ngữ cảnh mà lớp khớp cụm không có.
+_add("tom|tom su|tom hum|cua|ghe|muc|ca|ca bien|ca hoi|nghieu|oc|hau",
      "allergen_topic", ("allergen:seafood", None))
 _add("pho mai|kem", "allergen_topic", ("allergen:dairy", None))
 _add("trung ga|long do", "allergen_topic", ("allergen:egg", None))
@@ -289,6 +313,52 @@ AVOID_FRAMING = (
     "celiac",
     "khong dung nap",
     "di ung voi",
+    # --- Rà 20 cách khai dị ứng hải sản: chỉ 7/20 = 35,00% được nhận ra --------------------
+    #
+    # Con số đó đánh thẳng vào câu mạnh nhất của báo cáo. "0 lỗi an toàn" ĐÚNG trên bộ đánh giá và
+    # SAI với khách thật, vì bộ đánh giá dùng chính những cách nói hệ thống đã biết — bộ đo và hệ
+    # thống cùng một tác giả, cùng một vốn từ.
+    #
+    # Ba nhóm bỏ sót, và cả ba đều là cách nói rất thường:
+    #
+    #   phủ định khả năng   "không ai ăn được", "không dùng được", "không hợp với"
+    #   nói bằng HẬU QUẢ    "ăn vào là đi cấp cứu", "nổi mề đay", "lên cơn", "đi viện"
+    #   nói bằng MỆNH LỆNH  "tuyệt đối không", "xin đừng", "loại hết", "tránh xa"
+    #
+    # Mỗi cụm dưới đây được nạp riêng rồi chạy `understand()` trên **849 câu hỏi của 8 tập**:
+    # 0/849 câu đổi kết quả, tức không cụm nào chạm vào phần đang đúng.
+    #
+    # HAI CỤM BỊ BỎ dù phép đo nói an toàn, vì chúng mang đúng hình dạng đã gây 11 vụ đụng chữ:
+    #
+    #   `cu`         "cữ hải sản" — nhưng rút dấu trùng "cũ", "củ", "cụ". "món cũ" thành câu
+    #                khai dị ứng là lỗi tệ hơn lỗi đang sửa.
+    #   `khong dinh` "không dính hải sản" — trùng "không định". "mình không định gọi món đó"
+    #                sẽ thành câu tránh.
+    #
+    # Phép đo trên 849 câu không thấy hai lỗi đó chỉ vì tập chưa có câu nào dạng ấy. Đây là chỗ
+    # phép đo im lặng KHÔNG đủ để kết luận an toàn.
+    "khong ai an duoc",
+    "khong dung duoc",
+    "khong hop voi",
+    "khong dam an",
+    "phai tranh",
+    "tranh xa",
+    "kieng",
+    "tuyet doi khong",
+    "khong duoc co",
+    "xin dung",
+    "dung cho",
+    "loai het",
+    "bo giup",
+    "allergy",
+    "giap xac",
+    # Khai bằng HẬU QUẢ, không bằng chữ "dị ứng". Khách mô tả điều sẽ xảy ra với mình.
+    "soc phan ve",
+    "noi me day",
+    "di cap cuu",
+    "len con",
+    "bi sung",
+    "di vien",
 )
 
 # Khi nào một nhãn được dùng làm LỌC CỨNG (`require`) và khi nào chỉ được XẾP HẠNG (`prefer`)
@@ -474,6 +544,95 @@ _add("thanh thanh|thanh dam|nhe bung", "require", "health:light")
 # nói của khách. Sửa ở từ vựng (tất định) chứ không chờ mô hình đoán.
 _add("kieng dau mo|it dau mo|khong dau mo|it beo|khong beo|it mo", "require", "health:low_fat")
 
+# ---------------------------------------------------------------------------------------------
+# 36 cụm dưới đây đến từ một phép đo về KIẾN TRÚC, không phải từ việc rà thêm ca đỏ.
+#
+# Kho `derived` (49 tài liệu sinh từ nhãn) truy hồi rất kém — Hit@2 0,544 so với 0,845 của văn
+# xuôi viết tay. Đo nguyên nhân thì ra điều bất ngờ: **tài liệu `derived` điển hình có 0 từ chỉ
+# xuất hiện ở riêng nó** (văn xuôi viết tay: 2, nhiều nhất 18). Danh sách món rò rỉ từ vựng của
+# mọi nhóm khác — "Canh chua cá lóc" nằm trong tài liệu vùng miền, cách chế biến, dịp ăn — nên
+# 49 tài liệu gần như không phân biệt được bằng từ. Cắt bớt mục nào cũng chỉ đưa con số 0 lên 1:
+# thứ trùng lặp là CHÍNH CÁI KHUÔN.
+#
+# Nhưng câu hỏi thật thì mới là điều đáng nói. 106 ca của tập truy hồi nhắm hoàn toàn vào
+# `derived`, và **không ca nào hỏi tri thức** — tất cả đều là câu chọn món ("Món Hà Nội có gì?",
+# "Món nào có bò?"). Trong đó 69/106 = 65,1% ĐÃ sinh ra ràng buộc nhãn, tức đã đi nhánh lọc và
+# không hề chạm truy hồi.
+#
+# 37 ca còn lại rơi xuống truy hồi vì THIẾU CỤM, không vì thiếu tài liệu. Mỗi câu đều có sẵn một
+# nhãn chính xác trong thực đơn. Nên cách sửa đúng không phải viết lại `derived` cho dễ truy hồi
+# — đó là tối ưu đường dự phòng cho câu đã có đáp án đúng ở đường chính — mà là đưa chúng về
+# nhánh lọc, nơi chúng đúng theo định nghĩa.
+#
+# Giao thức đo giữ nguyên như các nhóm trên: nạp TỪNG cụm một rồi chạy `understand()` trên
+# **1.106 câu hỏi của mọi tập đánh giá**, và đọc từng câu đổi chữ ký. Chữ ký gồm cả `avoid_tags`
+# và các cờ chứ không chỉ `require_tags` — một cụm mới có thể nuốt cụm dị ứng nằm trong nó theo
+# luật khớp-cụm-dài-trước, và đó là hỏng an toàn chứ không phải hỏng độ chính xác.
+#
+# Phép đo loại hai ứng viên, và cả hai đều đáng ghi lại:
+#
+#   "co ca"     -> LOẠI. Nó khớp "Có cả ông bà đi cùng nữa" (rút dấu: "co ca ong ba") và gắn
+#                  `ingredient:fish` vào một câu về người đi cùng. Thay bằng "nao co ca".
+#   "co dau hu" -> LOẠI vì đổi 0 câu. "Món nào có đậu hũ?" bị bộ khớp TÊN MÓN ăn trước ở bước 2
+#                  ("Đậu hũ sốt cà chua"), nên không cụm từ vựng nào tới lượt. Đây là lớp lỗi
+#                  khác — tên món thắng câu hỏi nguyên liệu — và phải sửa ở chỗ khác.
+_add("co bo|thit do", "require", "ingredient:beef")
+_add("thit gia cam", "require", "ingredient:chicken")
+_add("nao co ca|loai song duoi nuoc co vay", "require", "ingredient:fish")
+_add("co tom|giap xac nho mau hong", "require", "ingredient:shrimp")
+_add("co cua|loai tam chan co cang", "require", "ingredient:crab")
+_add("co muc|loai than mem bien", "require", "ingredient:squid")
+_add("dau nanh ep", "require", "ingredient:tofu")
+_add("vi dat dai dai", "require", "ingredient:mushroom")
+_add("nhieu chat xanh", "require", "ingredient:vegetable")
+
+# Cách chế biến khách TẢ LẠI thay vì gọi tên. `method` phủ 61/91 món.
+_add("chin trong nuoc", "require", "method:boiled")
+_add("dao nhanh tren chao lua lon", "require", "method:stir_fried")
+_add("de lua nho cho mem", "require", "method:simmered")
+_add("goi lai roi cham", "require", "method:rolled")
+_add("dao kho tren chao", "require", "method:roasted")
+
+_add("vi thanh hoi gat luoi", "require", "flavour:sour")
+_add("nao ngot|vi diu hoi co duong", "require", "flavour:sweet")
+_add("nao man|vi dam muoi", "require", "flavour:salty")
+_add("nao beo|ngay nhieu dau mo", "require", "flavour:fatty")
+_add("mui khoi than", "require", "flavour:smoky")
+
+_add("nao lanh manh|an sach it dau", "require", "health:healthy")
+_add("khong ngay", "require", "health:low_fat")
+_add("so beo", "require", "health:low_calorie")
+
+# BỘT NGỌT KHÔNG PHẢI GLUTEN — đây là một lỗi đọc sai dị nguyên, không phải một cụm thiếu.
+#
+# Trước khi có hai cụm này, "mì chính" rút dấu thành "mi chinh", và cụm dị nguyên **"mi"** khớp
+# vào đó. Hậu quả đo được:
+#
+#     "Mình dị ứng mì chính"         -> avoid=['allergen:gluten']
+#     "Mình không ăn được mì chính"  -> avoid=['allergen:gluten']
+#
+# Sai theo cả hai chiều cùng lúc. Nó ẩn mất những món có gluten mà khách ăn được bình thường, VÀ
+# nó không hề bảo vệ khách khỏi thứ họ vừa nói là không dùng được. Một hàng rào dựng nhầm chỗ còn
+# tệ hơn không dựng, vì nó làm cả hai bên tin rằng đã có hàng rào.
+#
+# "mi chinh" dài hơn "mi" nên luật khớp-cụm-dài-trước tự xử lý, không cần chạm vào cụm dị nguyên.
+# Đã kiểm: "Mình dị ứng mì" và "Mình dị ứng gluten" vẫn ra `allergen:gluten`, "món mì xào" vẫn ra
+# `method:stir_fried`.
+#
+# Dùng "khong bot ngot" chứ không dùng "bot ngot" trần: cụm trần biến "Món này có bột ngọt không?"
+# — một câu HỎI VỀ MÓN — thành một câu lọc. Cùng ranh giới KHAI/HỎI như `declared_avoidance`.
+#
+# Còn tồn: "Mình không dùng mì chính" vẫn ra rỗng, vì `la_cau_phu_nhan()` đọc "không dùng X" là
+# RÚT LẠI ràng buộc X (đúng cho "mình đâu có dị ứng hải sản", sai cho một lời khai tránh). Sửa
+# việc đó phải chạm vào bộ xử lý phủ định — nơi va chạm nhiều nhất tệp này — nên nó là một thay
+# đổi riêng, có phép đo riêng. Trạng thái hiện tại là rỗng, tức KHÔNG có hàng rào sai: an toàn
+# hơn hẳn `allergen:gluten`, chỉ là chưa đầy đủ.
+_add("mi chinh|khong bot ngot", "require", "health:no_msg")
+
+_add("chat thu do", "require", "region:hanoi")
+_add("di voi nguoi thuong", "require", "occasion:date")
+_add("dat ban cho hai chuc nguoi", "require", "occasion:banquet")
+
 # Thời tiết. Khách nói thời tiết chứ không nói mùa, nên cụm được tách theo ĐÚNG nghĩa của nhãn:
 #
 #   "trời nóng"                  -> season:hot_season  (nhãn "Mùa nóng")
@@ -494,6 +653,22 @@ _add("kieng dau mo|it dau mo|khong dau mo|it beo|khong beo|it mo", "require", "h
 # `exclusive_groups` nên một món mang được cả hai, và đó là lý do phép AND ở đây không triệt tiêu.
 _add("troi nong", "require", "season:hot_season")
 _add("cho mat|mat nguoi|giai nhiet", "require", "season:cooling")
+# `gi mat` và `ma re` — hai cụm đến từ một ca hỏng cụ thể, không từ việc rà thêm.
+#
+#     "Muốn cái gì mát mà rẻ, không phải trà sữa"  ->  Bánh mì pate · Cháo lòng · Gỏi cuốn chay
+#
+# Khách xin đồ uống mát và rẻ; hệ thống không đọc ra "mát" lẫn "rẻ" nên `select()` trả về CẢ thực
+# đơn rồi liệt kê 6 món đầu. Bốn lớp kiểm soát đều xanh — chúng kiểm "kết quả có thoả ràng buộc đã
+# đọc không", mà ở đây chưa đọc ra ràng buộc nào.
+#
+# Đo từng cụm trên 627 câu: `gi mat` đổi 3 câu (cả ba đều là câu xin đồ mát), `ma re` đổi 1. Hai
+# ứng viên `gia re` và `re tien` bị LOẠI vì đổi 0 câu — thêm cụm không phép đo nào phủ là thêm mã
+# không ai canh.
+#
+# Nhãn là `price:budget`, không phải `price:low`: bản đầu tôi viết `price:low` và nó không tồn tại
+# trong từ điển nhãn. Cụm trỏ vào nhãn ma thì im lặng không lọc gì.
+_add("gi mat", "require", "season:cooling")
+_add("ma re", "require", "price:budget")
 _add("troi lanh|cho am|an cho am", "require", "season:cold_season")
 
 # Ngân sách nói bằng lời, không bằng số. `price` nằm trong `exclusive_groups` nên mỗi món đúng
@@ -690,7 +865,24 @@ _add("mon vua roi|mon vua noi|mon do|cai do|mon nay|cai nay|no co", "flag", "ref
 # Cụm thu PHẠM VI. Khác cụm vị trí: "món rẻ nhất TRONG SỐ ĐÓ" không trỏ vào một món, nó giới hạn
 # tập rồi để câu hỏi "rẻ nhất" chạy trên tập đó. Dùng cụm vị trí ở đây là trả sai: nó sẽ trả món
 # ĐẦU danh sách thay vì món RẺ NHẤT.
-_add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do", "flag", "scope_listed")
+#
+# Bốn cụm đầu đều đòi chữ "đó" đứng ngay sau, nên chúng bỏ sót phần lớn cách nói thật. Dò 8 câu
+# hỏi tiếp nối sau một lượt nêu 4 món:
+#
+#     "Món nào TRONG ĐÓ có hải sản?"                  -> 6 món, NGOÀI danh sách
+#     "TRONG MẤY MÓN VỪA TƯ VẤN có món nào không cay?" -> 6 món, NGOÀI danh sách
+#     "4 MÓN ĐÓ có món nào chứa đậu phộng không?"      -> 4 món, nhưng KHÔNG PHẢI 4 món kia
+#
+# Ca thứ ba tệ nhất: đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là bốn món khác.
+# Khách hỏi về dị nguyên trong danh sách vừa xem và nhận câu trả lời về một danh sách khác — đúng
+# loại sai mà không ai kiểm lại vì nó trông hợp lý.
+#
+# Đo từng cụm ứng viên trên **847 câu hỏi của 8 tập**: 13/14 cụm không đổi ca nào, cụm `trong do`
+# đổi đúng một ca — *"Món nào trong đó không cay?"* — và đổi theo chiều ĐÚNG.
+_add("trong so do|trong nhung mon do|trong danh sach do|trong may mon do|"
+     "trong do|trong so nay|trong nhung mon vua|trong may mon vua|trong danh sach vua|"
+     "trong cac mon do|trong cac mon vua|may mon do|cac mon do|nhung mon do|trong mon vua|"
+     "trong so mon do", "flag", "scope_listed")
 # Câu so sánh TIẾP NỐI: khách vừa so hai món, rồi hỏi thuộc tính khác mà không nhắc lại tên.
 #
 # "Món nào cay hơn?" sau một câu so sánh từng rơi vào nhánh hỏi lại — mất hẳn cặp món vừa nói.
@@ -723,7 +915,24 @@ _add("mon khac|cai khac|mon nao khac|thu khac|mon gi khac", "flag", "similar")
 # Trẻ nhỏ nêu bằng TUỔI. Golden bắt được: "Đi cùng bé 4 tuổi, gợi ý món giúp mình" rơi vào nhánh
 # hỏi lại vì không cụm nào nhận ra đó là câu về trẻ em. Cụm "be" một mình quá ngắn và đụng nhiều
 # chữ, nên nhận theo cách khách thật nói: "bé N tuổi", "con N tuổi", "cháu N tuổi".
-_add("tuoi|em nho|chau nho|be nho|di cung be|co be", "require", "audience:child")
+#
+# CỤM `tuoi` MỘT MÌNH ĐÃ BỊ BỎ — nó vi phạm đúng nguyên tắc mà chú thích trên vừa nêu.
+#
+# "tươi" và "tuổi" rút dấu về CÙNG một chuỗi `tuoi`. Hậu quả đo được:
+#
+#   "Đồ biển ở đây có tươi không, lấy từ đâu?"   -> require audience:child, rồi bộ xử lý phủ định
+#                                                   đọc tiếp thành "bỏ ràng buộc" và trả lời
+#                                                   "Anh/chị muốn em gợi ý món gì tiếp ạ?"
+#   "Đi với bà ngoại tám mươi tuổi..."           -> require audience:child (bà ngoại 80 tuổi!)
+#
+# Thay bằng `<số> tuổi` cho 1–9, cả chữ lẫn số. Con số đứng trước là thứ phân biệt "tuổi" với
+# "tươi" — không ai nói "cá 4 tươi". Dừng ở 9 có chủ ý: `muoi tuoi` sẽ khớp "tám mươi TUỔI" và
+# lặp lại đúng lỗi vừa sửa, chỉ đổi chiều.
+_add("em nho|chau nho|be nho|di cung be|co be", "require", "audience:child")
+_add("mot tuoi|hai tuoi|ba tuoi|bon tuoi|nam tuoi|sau tuoi|bay tuoi|tam tuoi|chin tuoi",
+     "require", "audience:child")
+_add("1 tuoi|2 tuoi|3 tuoi|4 tuoi|5 tuoi|6 tuoi|7 tuoi|8 tuoi|9 tuoi",
+     "require", "audience:child")
 
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")
@@ -890,7 +1099,25 @@ _add("mon nao can dat truoc|dat truoc bao lau|co mon nao lau khong", "policy", "
 _add("mon nao mang di duoc|mon nao mang ve duoc", "policy", "takeaway_items")
 _add("co may muc cay|muc cay the nao|chia may muc cay|do cay tinh the nao", "policy", "spice_levels")
 _add("co bao nhieu mon chay|bao nhieu mon chay|menu chay co may mon", "policy", "vegetarian")
-_add("co menu tre em|menu cho tre em|phan an tre em", "policy", "children")
+# `children` là tài liệu ĐẾM — "43 món phù hợp trẻ em, 29 món người lớn tuổi, 68 món không cay".
+#
+# Ba cụm đầu đều đòi chữ "menu" hoặc "phần ăn", nên cách hỏi thường ngày nhất rơi ra ngoài:
+#
+#     "Quán có bao nhiêu món cho trẻ em?"  ->  policy:menu_size   (tài liệu ĐẾM CẢ THỰC ĐƠN)
+#     "Trẻ em ăn được bao nhiêu món?"      ->  policy:menu_size
+#
+# `bao nhieu mon` khớp và thắng vì không cụm nào của `children` khớp cả. Khách hỏi về trẻ em và
+# nhận về con số của toàn thực đơn — sai tài liệu, và sai theo kiểu nghe vẫn trôi.
+#
+# Đây là hố mà kiểm kê độ phủ bộ đánh giá tìm ra: tài liệu có trong kho, có cụm từ vựng, mà **không
+# câu hỏi tự nhiên nào tới được nó**. Nhóm `vegetarian` không dính vì nó đã có `bao nhieu mon chay`
+# — cụm DÀI HƠN nên thắng `bao nhieu mon`. Bản sửa dưới đây làm đúng điều đó cho `children`.
+#
+# Chỉ nhận cụm báo hiệu câu ĐẾM. KHÔNG có `mon cho tre em` trần: "cho mình món cho trẻ em" là câu
+# XIN MÓN, và đáp án đúng của nó là danh sách món chứ không phải một con số.
+_add("co menu tre em|menu cho tre em|phan an tre em|"
+     "bao nhieu mon cho tre em|bao nhieu mon tre em|tre em an duoc bao nhieu",
+     "policy", "children")
 _add("bao nhieu calo|calo|natri|dinh duong|bao nhieu duong", "policy", "nutrition")
 # Cách nói bằng ĐƠN VỊ. Golden bắt được: "Phở bò tái nạm có mấy gam đường?" rơi vào nhánh
 # dữ kiện món và trả về giá cùng độ cay — không trả lời câu hỏi, và còn sinh thẻ giỏ.
@@ -1269,6 +1496,20 @@ _HOI_MANH = (
     r"the nao", r"nhu the nao", r"ra sao", r"lam sao", r"cach nao",
     r"vi sao", r"tai sao", r"sao lai", r"ma sao", r"sao ma", r"tinh sao",
     r"sao cho", r"sao gio", r"khac nhau", r"khac gi",
+    # Bốn khung ĐÒI BẢO ĐẢM / HỎI NGUỒN GỐC. Chúng phải nằm ở nhóm MẠNH, không phải nhóm yếu.
+    #
+    # Vì sao: chúng gần như luôn đi kèm một nhãn, và nhóm yếu bị chính nhãn đó vô hiệu hoá.
+    # "Đồ chay ở đây CÓ THẬT SỰ chay không" có `diet:vegetarian`, nên dấu hiệu yếu thua và câu rơi
+    # vào nhánh lọc — khách nhận về một danh sách món chay cho một câu hỏi **có nên tin nhãn chay
+    # hay không**. Danh sách ấy không trả lời gì, và tệ hơn, nó ngầm khẳng định điều khách đang nghi.
+    #
+    # Bốn khung này không bao giờ là lời xin món: không ai nói "cho tôi món có thật sự chay" hay
+    # "lấy từ đâu" để gọi đồ ăn. Nên đưa lên nhóm mạnh là an toàn.
+    #
+    # Đo từng mẫu trên 710 câu của mọi tập: mỗi mẫu đổi ĐÚNG một câu, đúng câu nó nhắm, 0 câu khác.
+    # `thi sao` bị LOẠI dù cũng là khung hỏi: nó đổi 6 câu, trong đó "Món đặc sản vùng miền thì sao?"
+    # mất `cat_regional` — đó là câu xin món, và nhánh lọc mới đúng.
+    r"co that su", r"lay tu dau", r"co tien khong", r"co an duoc",
     # `la gi` và `nghia la` KHÔNG nằm ở đây, dù chúng là câu hỏi định nghĩa.
     #
     # Lý do đo được: ca `A-promo-02` "Món đặc trưng của nhà hàng là gì?" — đây là câu HỎI THỰC ĐƠN,
@@ -1316,10 +1557,40 @@ PHU_NHAN_FRAMING = (
 PHU_NHAN_ROI_RE = re.compile(r"\b(?:co|da)\b.{0,40}\bdau\s*$")
 
 
+# Cụm dài hơn NUỐT cụm phủ nhận nằm trong nó. Cùng luật khớp-cụm-dài-trước của `VOCAB_ORDER`, và
+# ở đây nó chống một vụ đụng chữ đảo nghĩa:
+#
+#     "Hải sản là mình KHÔNG ĐỤNG ĐƯỢC"  ->  rút dấu `khong dung duoc`
+#                                            chứa `khong dung` ("không ĐÚNG") của khung phủ nhận
+#
+# Khách nói mình không đụng được hải sản, hệ thống đọc thành "bạn nói không đúng" và **gỡ** ràng
+# buộc dị nguyên. Đây là đường đảo nghĩa thứ BA tìm được khi rà 20 cách khai dị ứng — hai đường kia
+# nằm ở lớp ý định (`an duoc hai san`) và ở chỗ thiếu cụm.
+#
+# Vì sao dùng danh sách nuốt thay vì bỏ `khong dung` khỏi khung phủ nhận: "bạn nói không đúng" là
+# câu phủ nhận thật và cần giữ. Hai nghĩa chỉ tách được bằng chữ đứng sau.
+# Đường đảo nghĩa THỨ TƯ, cùng một chữ `khong dung` nhưng nghĩa khác cả ba đường trên:
+#
+#     "Mình KHÔNG DÙNG mì chính"  ->  rút dấu `khong dung mi chinh`
+#
+# Đây là lời KHAI TRÁNH ("tôi không ăn thứ này"), không phải lời rút lại ("bạn nói không đúng").
+# Không nuốt thì khung phủ nhận bật, và hệ thống **gỡ** đúng ràng buộc khách vừa đặt ra — nó nhận
+# ra `health:no_msg` rồi tự bỏ đi.
+_PHU_NHAN_BI_NUOT = {
+    "khong dung": ("khong dung duoc", "khong dung noi", "khong dung vao",
+                   "khong dung mi chinh", "khong dung bot ngot"),
+}
+
+
 def la_cau_phu_nhan(folded: str) -> bool:
     """Câu có phải là PHỦ NHẬN một ràng buộc không."""
-    return (any(k in folded for k in PHU_NHAN_FRAMING)
-            or bool(PHU_NHAN_ROI_RE.search(folded)))
+    for k in PHU_NHAN_FRAMING:
+        if k not in folded:
+            continue
+        if any(dai in folded for dai in _PHU_NHAN_BI_NUOT.get(k, ())):
+            continue
+        return True
+    return bool(PHU_NHAN_ROI_RE.search(folded))
 
 
 ATTRIBUTE_DEFINITION_FRAMING = (
@@ -1847,9 +2118,114 @@ def understand(question: str, menu_items: list[dict]) -> Request:
             request.require_tags = []
             request.prefer_tags = []
 
+    # Câu này XIN MÓN hay HỎI VỀ một món? Dùng lại đúng bộ dấu hiệu của hàng rào câu tri thức —
+    # không dựng bộ thứ hai, vì hai bộ sẽ lệch nhau.
+    request.la_xin_mon = bool(XIN_MON_RE.search(request.folded))
+
     # 5c. "<số> món" — câu xin gợi ý món bằng số lượng.
     if SO_MON_RE.search(request.folded):
         request.asks_suggestion = True
+
+    # SỐ MÓN KHÁCH XIN — nhận con số, không chỉ nhận rằng "có một con số".
+    #
+    # Trước bản này hệ thống chỉ bật cờ `asks_suggestion` rồi vẫn trả về đúng `LIST_SIZE = 6` món.
+    # Đo trên ba lượt liên tiếp:
+    #
+    #     "Liệt kê cho tôi 2 món đầu vừa tư vấn"   ->  6 món
+    #     "Liệt kê 3 món vừa tư vấn bên trên"      ->  6 món
+    #     "Cho mình 4 món vừa tư vấn ở trên"       ->  6 món
+    #
+    # Phạm vi tham chiếu ngược thì ĐÚNG — cả ba lượt trả về đúng danh sách đã nêu, đúng thứ tự.
+    # Chỉ con số bị bỏ. Khách xin hai món và nhận sáu món thì đó không phải trả lời sai, nhưng nó
+    # là không nghe — và khách nói lại lần nữa cũng vẫn thế.
+    #
+    # HAI ĐIỀU KIỆN, và điều kiện thứ hai là bản sửa của một hồi quy mà chính bước này sẽ gây ra:
+    #
+    #   đúng MỘT cụm     nhiều cụm số là câu ghép, không phải một yêu cầu về số lượng
+    #   KHÔNG combo      "1 món chính 1 nước 1 tráng miệng" chỉ có MỘT cụm khớp `<số> món` (hai
+    #                    cụm kia không mang chữ "món"), nên đếm cụm một mình KHÔNG đủ. Nhánh combo
+    #                    chạy trước nhánh lọc phẳng nên nó không bị cắt trên thực tế — nhưng để cờ
+    #                    mang giá trị sai là để lại một quả mìn cho lần sửa sau.
+    #   trong 1..12      thước đo chặn ở 12 món; số ngoài dải là gõ nhầm chứ không phải yêu cầu
+    so = re.findall(r"(\d+)\s*mon\b", request.folded)
+    if len(so) == 1 and 1 <= int(so[0]) <= 12 and not doc_suat_combo(request.folded):
+        request.so_mon_muon = int(so[0])
+        request.matched.append(f"số món khách xin: {so[0]}")
+
+    # "<số> MÓN ĐẦU" là một LÁT CẮT, không phải một món.
+    #
+    # Cụm `mon dau` trỏ `reference_index = 1` ("món đầu tiên"), nên "2 món đầu vừa tư vấn" bị đọc
+    # thành *món thứ nhất* và trả về đúng MỘT món — đo được:
+    #
+    #     "Liệt kê cho tôi 2 món đầu vừa tư vấn"  ->  item_detail, 1 món
+    #
+    # Hai cách nói chồng chữ mà khác hẳn nghĩa: "món đầu" là một món, "2 món đầu" là hai món. Con
+    # số đứng trước là dấu hiệu phân biệt, và nó không mơ hồ.
+    if request.so_mon_muon and re.search(r"\d+\s*mon dau\b", request.folded):
+        request.reference_index = None
+        request.matched.append("«<số> món đầu» là lát cắt, không phải món thứ nhất")
+
+    # "<số ≥ 2> MÓN vừa rồi / vừa nói" cũng là LÁT CẮT, không phải món đang nói tới.
+    #
+    # Cùng lớp lỗi với «<số> món đầu» ở trên, nhưng qua một đường khác: cụm "vừa rồi", "vừa nói"
+    # bật `refers_to_focus`, và bước hợp nhất bộ nhớ giải cờ đó thành MỘT món cụ thể. Đo được sau
+    # khi lượt đầu đã nêu 6 món:
+    #
+    #     "Cho mình xem lại 3 món vừa rồi"  ->  item_detail, 1 món
+    #     "Kể lại 5 món vừa nói"            ->  item_detail, 1 món
+    #
+    # Trong khi "Tóm tắt 3 món vừa tư vấn" đúng 3 món — chỉ khác ở cụm cuối câu. Khách gõ hai cách
+    # nói tương đương và nhận hai kết quả khác hẳn nhau.
+    #
+    # NGƯỠNG ≥ 2, không phải ≥ 1: "cho mình 1 món vừa rồi" thì "một món đang nói tới" và "lát cắt
+    # dài 1" ra cùng một món, nhưng dạng đáp án khác nhau — `item_detail` mô tả một món là câu trả
+    # lời đúng hơn cho câu hỏi số ít, nên chiều đó giữ nguyên.
+    if request.so_mon_muon and request.so_mon_muon >= 2 and request.refers_to_focus:
+        request.refers_to_focus = False
+        request.matched.append("«<số> món vừa rồi» là lát cắt, không phải món đang nói tới")
+
+    # THAM CHIẾU VỊ TRÍ VIẾT BẰNG SỐ — "món thứ 2", "món số 3", "cái thứ 4".
+    #
+    # Bảng từ vựng chỉ có dạng CHỮ (`mon thu hai`, `cai thu ba`), còn khách gõ SỐ. Đo được:
+    #
+    #     "món thứ hai"  ->  reference_index = 2      đúng
+    #     "món thứ 2"    ->  reference_index = None   không nhận ra
+    #     "món số 2"     ->  reference_index = None
+    #
+    # Và hậu quả nặng hơn "không hiểu": câu rơi xuống nhánh lọc và trả về SÁU món, tức mất luôn cả
+    # phạm vi danh sách đang nói tới. Khách chỉ vào một món và nhận lại cả bảng.
+    #
+    # Đây đúng là lượt khách dùng để TRẢ LỜI câu hỏi lại của trợ lý, nên hỏng ở đây làm cả vòng
+    # hỏi-đáp thành ngõ cụt.
+    #
+    # Chỉ nhận 1..12: `LIST_SIZE` là 6 và thước đo chặn ở 12, nên số lớn hơn là gõ nhầm chứ không
+    # phải một vị trí có thật.
+    # "<số> MÓN ĐÓ / <số> MÓN VỪA ..." cũng thu phạm vi về danh sách vừa nêu.
+    #
+    # Bảng cụm không phủ được dạng này vì con số nằm giữa. Đo được:
+    #
+    #     "4 món đó có món nào chứa đậu phộng không?"  ->  4 món, nhưng KHÔNG PHẢI 4 món kia
+    #
+    # Đây là ca tệ nhất trong nhóm: đúng số lượng nên nhìn như trả lời đúng, mà bốn món trả về là
+    # bốn món khác. Khách hỏi về dị nguyên trong danh sách vừa xem và nhận câu trả lời về một danh
+    # sách khác — sai theo kiểu không ai kiểm lại, vì nó trông hợp lý.
+    if not request.scope_last_listed and re.search(
+        r"\b\d{1,2}\s*mon\s+(?:do|nay|vua|tren|ay)\b", request.folded
+    ):
+        request.scope_last_listed = True
+        request.matched.append("«<số> món đó» thu phạm vi về danh sách vừa nêu")
+
+    if request.reference_index is None:
+        # Đòi có chữ "món" HOẶC "cái" trong câu: con số một mình ("cho mình 2") không phải vị trí,
+        # và mẫu dưới đây đủ lỏng để khớp "thứ 2" ở bất kỳ đâu nếu không có neo danh từ này.
+        _vt = re.search(r"(?:mon|cai)\s*(?:thu|so)\s*(\d{1,2})\b", request.folded)
+        _co_neo = " mon " in f" {request.folded} " or " cai " in f" {request.folded} "
+        if _vt and _co_neo and 1 <= int(_vt.group(1)) <= 12:
+            # KHÔNG áp khi câu đang xin một SỐ LƯỢNG: "cho mình 3 món" là ba món, không phải món
+            # thứ ba. Phân biệt bằng chính `so_mon_muon` — nó chỉ được đặt cho khung đếm.
+            if not request.so_mon_muon:
+                request.reference_index = int(_vt.group(1))
+                request.matched.append(f"tham chiếu vị trí (viết số): {_vt.group(1)}")
 
     # 5b. Câu số học. Đặt sau bước ngân sách vì cả hai đọc `request.folded`, và trước các bước
     #     suy ra ý muốn — một câu số học không có ý muốn nào để suy.
@@ -1945,6 +2321,39 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # PHỦ ĐỊNH DANH MỤC — chuyển từ "lọc ra" sang "loại bỏ". Xem `_danh_muc_bi_phu_dinh`.
     _cum_dm = {p: v for p, (k, v) in VOCAB.items() if k == "category"}
     _bi_phu_dinh, _cum_bi_phu_dinh = _danh_muc_bi_phu_dinh(request.folded, _cum_dm)
+
+    # KHÁCH PHỦ ĐỊNH MỘT MÓN, KHÔNG PHẢI CẢ DANH MỤC.
+    #
+    #     "Muốn cái gì mát mà rẻ, KHÔNG PHẢI TRÀ SỮA"
+    #
+    # Cụm danh mục khớp ở đây là `tra` (5 món mang chữ đó), nên phủ định nó loại **cả danh mục đồ
+    # uống**. Khách xin đồ uống mát và nhận về bánh mì pate với cháo lòng.
+    #
+    # Nhưng bộ khớp TÊN MÓN đã bắt đúng rồi: `exclude_item_ids=['m_062']` — Trà sữa trân châu. Khi
+    # đã có loại trừ ở mức MÓN, loại thêm cả danh mục là làm quá điều khách nói.
+    #
+    # Ranh giới: **có loại trừ theo tên món hay không.** Đo trên bốn cách nói:
+    #
+    #     "không phải trà sữa"      exclude=['m_062']  -> khách nêu MỘT MÓN   -> giữ danh mục
+    #     "tôi không uống bia"      exclude=[]         -> khách nêu DANH MỤC  -> loại danh mục
+    #     "mình không ăn được phở"  exclude=[]         -> như trên
+    #     "không phải lẩu nhé"      exclude=[]         -> như trên
+    #
+    # Tên món đủ cụ thể để khớp duy nhất thì mới sinh `exclude_item_ids`; "bia" khớp 4 món nên nó
+    # không khớp duy nhất, và câu đó giữ nguyên hành vi cũ.
+    if _bi_phu_dinh and request.exclude_item_ids:
+        _ten = {i["id"]: fold(i["name"]) for i in menu_items}
+        _cat = {i["id"]: i.get("categoryId") for i in menu_items}
+        _bo_qua = {
+            _cat[mid] for mid in request.exclude_item_ids
+            if mid in _ten and any(p in _ten[mid] for p in _cum_bi_phu_dinh)
+        }
+        if _bo_qua:
+            _giu = [c for c in _bi_phu_dinh if c not in _bo_qua]
+            request.matched.append(
+                f"phủ định TÊN MÓN chứ không phải danh mục: giữ lại {sorted(_bo_qua)}")
+            _bi_phu_dinh = _giu
+
     if _bi_phu_dinh:
         request.avoid_categories = list(
             dict.fromkeys([*request.avoid_categories, *_bi_phu_dinh])

@@ -1,68 +1,60 @@
-*.csproj.user
 
+!.env.example
 # .NET build output
-bin/
-obj/
+# Agent/skills libraries and local agent settings (not part of the app)
+# Frontend build output and dependencies
+# IDE/OS local metadata
+# Local environment and generated artifacts
+# Local scratch files created while preparing GitHub evidence
+# Loose source assets and binary deliverables kept out of the app repo
+# Playwright E2E local artifacts (scripts e2e-*.js are tracked)
+# Python AI service cache
 **/bin/
 **/obj/
-
-# Frontend build output and dependencies
-node_modules/
-dist/
-frontend/node_modules/
-frontend/dist/
-*.tsbuildinfo
-coverage/
-frontend/coverage/
-
-# Python AI service cache
-__pycache__/
-*.py[cod]
-.pytest_cache/
-ai/.venv/
-ai/_list_sections.py
-ai/evaluation/results/
-
-# Local environment and generated artifacts
-.env
-.env.*
-!.env.example
+*.csproj.user
+*.docx
 *.log
+*.py[cod]
 *.tmp
-tmp/
-.playwright-cli/
-output/
-site-demo/
-coursework/
-tools/
-
-# Playwright E2E local artifacts (scripts e2e-*.js are tracked)
-e2e-screenshots/
-e2e-*-report.md
-
-# Local scratch files created while preparing GitHub evidence
-commit_msg.txt
-issue_comment.txt
-pr_body.txt
-pr_dev_body.txt
-pr_*_body.txt
-
-# IDE/OS local metadata
-.vs/
-.idea/
-.vscode/
+*.tsbuildinfo
 .DS_Store
-
-# Agent/skills libraries and local agent settings (not part of the app)
-antigravity-awesome-skills/
+.agents/
+.cache/
 .claude/
 .codex/
-.agents/
+.env
+.env.*
+.idea/
+.playwright-cli/
+.pytest_cache/
 .tabnine/
-/skills/
+.vs/
+.vscode/
 /skills-lock.json
-
-# Loose source assets and binary deliverables kept out of the app repo
-frontend/91_anh_menu_theo_ten_mon/
-*.docx
+/skills/
+__pycache__/
+ai/.venv/
+ai/_list_sections.py
+antigravity-awesome-skills/
+bin/
+commit_msg.txt
+coursework/
+coverage/
+dist/
 docs/reports/
+e2e-*-report.md
+e2e-screenshots/
+frontend/91_anh_menu_theo_ten_mon/
+frontend/coverage/
+frontend/dist/
+frontend/node_modules/
+issue_comment.txt
+node_modules/
+obj/
+output/
+pr_*_body.txt
+pr_body.txt
+pr_dev_body.txt
+site-demo/
+tmp/
+tools/

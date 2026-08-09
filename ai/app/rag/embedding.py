@@ -16,14 +16,39 @@ phương pháp còn lại, có ghi rõ là đã bỏ qua. **Bỏ qua âm thầm 
 
 Mô hình nào, và vì sao
 ---------------------
-`intfloat/multilingual-e5-small` — 384 chiều, có tiếng Việt, ~120MB. Họ E5 đòi **tiền tố**:
+`BAAI/bge-m3` — 1024 chiều, ~2,2GB, mạnh ở tiếng Việt.
 
-    "query: ..."     cho câu hỏi
-    "passage: ..."   cho đoạn trong kho
+Bản trước dùng `intfloat/multilingual-e5-small` (384 chiều, ~470MB). Đổi sau khi đo ghép cặp trên
+148 câu của hai bộ đánh giá:
 
-Thiếu tiền tố thì mô hình vẫn chạy và vẫn trả vector — chỉ kém đi. Đây là loại lỗi tệ nhất của
-phần này: không có thông báo nào, chỉ có điểm thấp hơn mà không ai biết vì sao. Nên `test_rag.py`
-có ca chốt rằng tiền tố được thêm.
+    e5-small  (384)   64,86%    p50  44,7 ms    <- bản trước
+    e5-base   (768)   68,92%    p50 143,1 ms    McNemar p = 0,3616 — CHƯA đủ ý nghĩa
+    bge-m3   (1024)   73,65%    p50 271,7 ms    McNemar p = 0,0351 — CÓ ý nghĩa
+
+Điều đáng ghi là **`e5-base` không chứng minh được gì dù to gấp đôi**. Nên lý do đổi không phải
+"mô hình lớn hơn thì tốt hơn" — nếu vậy `e5-base` đã thắng. Lý do là chất lượng huấn luyện cho
+tiếng Việt, và nó chỉ biết được bằng cách đo chứ không suy ra từ số chiều.
+
+Chỗ `bge-m3` hơn rõ nhất là câu khách **diễn đạt kiểu khác** thay vì gõ đúng tên nhãn — tức đúng
+cách khách thật hỏi. Trên bộ phủ kho, khoảng cách giữa hai dạng câu biến mất hẳn:
+
+    dạng A (dùng đúng nhãn)       81,63%
+    dạng B (diễn đạt tình huống)  81,63%     chênh 0,00
+
+so với BM25 chênh −34,69 và `e5-small` chênh −4,08.
+
+Cái giá, ghi ra để không ai tưởng là bữa trưa miễn phí: ảnh Docker **+1,8GB** và độ trễ mỗi truy
+vấn **×5,5**. Độ trễ đó chỉ rơi vào câu tri thức — câu chọn món không chạm truy hồi.
+
+Tiền tố đi theo HỌ MÔ HÌNH, không viết rời
+------------------------------------------
+Họ E5 đòi tiền tố `"query: "` / `"passage: "`; họ BGE thì **không dùng tiền tố** — thêm vào là
+nhét hai từ vô nghĩa vào mọi câu.
+
+Cả hai chiều đều hỏng **âm thầm**: mô hình vẫn chạy, vẫn trả vector, chỉ kém đi mà không có thông
+báo nào. Đây là lỗi tệ nhất của phần này, nên tiền tố được tra từ bảng theo tên mô hình thay vì
+viết thành hằng rời — đổi mô hình mà quên đổi tiền tố thì không còn là chuyện có thể xảy ra.
+`test_rag.py` chốt cả bảng lẫn việc tiền tố được áp đúng.
 
 Chuẩn hóa vector là bắt buộc với cosine
 --------------------------------------
@@ -38,9 +63,17 @@ from dataclasses import dataclass, field
 
 from .base import Hit
 
-MODEL_NAME = "intfloat/multilingual-e5-small"
-QUERY_PREFIX = "query: "
-PASSAGE_PREFIX = "passage: "
+MODEL_NAME = "BAAI/bge-m3"
+
+# Tiền tố theo HỌ MÔ HÌNH. Tra bảng chứ không viết rời, để đổi mô hình không thể quên đổi tiền tố.
+TIEN_TO = {
+    "BAAI/bge-m3": ("", ""),
+    "intfloat/multilingual-e5-small": ("query: ", "passage: "),
+    "intfloat/multilingual-e5-base": ("query: ", "passage: "),
+    "intfloat/multilingual-e5-large": ("query: ", "passage: "),
+}
+
+QUERY_PREFIX, PASSAGE_PREFIX = TIEN_TO[MODEL_NAME]
 
 _LOAD_ERROR: str | None = None
 

@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import answer  # noqa: E402
 from answer import (  # noqa: E402
     SO_DOAN_TRI_THUC,
     chon_doan_tri_thuc,
@@ -34,10 +35,15 @@ from answer import (  # noqa: E402
 from understand import DRINK_CATEGORIES, FOOD_CATEGORIES, understand  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ITEMS = json.loads(
+_MENU = json.loads(
     (REPO_ROOT / "backend" / "data" / "menu-dataset.json").read_text(encoding="utf-8-sig")
-)["items"]
+)
+ITEMS = _MENU["items"]
 BY_ID = {i["id"]: i for i in ITEMS}
+# Tên DANH MỤC cũng là danh từ riêng viết hoa hợp lệ giữa câu — "rẻ hơn nhóm Món
+# gà và Hải sản". Đọc từ thực đơn chứ không liệt kê tay, để thêm danh mục mới
+# không làm đỏ một phép kiểm chính tả.
+TEN_DANH_MUC = [c["name"] for c in _MENU.get("categories", [])]
 
 
 def reply_for(question: str):
@@ -268,8 +274,12 @@ class CauChuKHACHDOCTHAY(unittest.TestCase):
                 while vi_tri >= 0:
                     sau = text[vi_tri + len(noi):]
                     if sau[:1].isupper() and not sau.startswith(("Mình", "Bạn nhé")):
-                        # Tên món viết hoa là hợp lệ — bỏ qua nếu ngay sau đó là một tên món.
-                        if not any(sau.startswith(i["name"]) for i in ITEMS):
+                        # Danh từ riêng viết hoa giữa câu là hợp lệ: tên MÓN và tên
+                        # DANH MỤC. Bản đầu chỉ miễn tên món, nên câu đúng "rẻ hơn
+                        # nhóm Món gà và Hải sản" bị chấm sai — thước đo sai chứ
+                        # không phải câu sai.
+                        rieng = [i["name"] for i in ITEMS] + TEN_DANH_MUC
+                        if not any(sau.startswith(t) for t in rieng):
                             xau.append(f"{cid}: …{noi}{sau[:34]}…")
                             break
                     vi_tri = text.find(noi, vi_tri + 1)
@@ -567,7 +577,9 @@ class CHON_MUC_TRONG_TAI_LIEU(unittest.TestCase):
 
         # Ba đoạn văn bản GIỐNG NHAU -> mọi bộ xếp hạng cho điểm bằng nhau -> chỉ còn luật phá thế.
         doan = [Doan("z#1", "cay"), Doan("a#1", "cay"), Doan("m#1", "cay")]
-        self.assertEqual(_chon_muc(doan, "cay").chunk_id, "a#1")
+        # `_chon_muc` trả DANH SÁCH từ khi nhánh tri thức trích nhiều mục — lấy mục đầu để
+        # kiểm luật phá thế, thứ không đổi theo số mục xin.
+        self.assertEqual(_chon_muc(doan, "cay")[0].chunk_id, "a#1")
 
     def test_doan_MO_DAU_thi_lui_ve_bm25_chu_khong_bo_no(self):
         """Đoạn mở đầu không có vector (chỉ mục toàn kho lọc `heading` rỗng).
@@ -585,7 +597,8 @@ class CHON_MUC_TRONG_TAI_LIEU(unittest.TestCase):
 
         doan = [Doan("kb.gia#0", "phần dẫn nhập của tài liệu", "")]
         chon = _chon_muc(doan, "bất kỳ")
-        self.assertEqual(chon.chunk_id, "kb.gia#0", "phải trả đoạn duy nhất, không được trả None")
+        self.assertEqual([c.chunk_id for c in chon], ["kb.gia#0"],
+                         "phải trả đoạn duy nhất, không được trả rỗng")
 
 
 class HOI_VE_THUOC_TINH_KHAC_LOC_THEO_THUOC_TINH(unittest.TestCase):
@@ -897,3 +910,163 @@ class TrichNhieuDoanTriThuc(unittest.TestCase):
 
         self.assertEqual(BRANCHES_ALLOWED, frozenset({"filter", "compare"}))
         self.assertNotIn("knowledge_corpus", BRANCHES_ALLOWED)
+
+
+class TrichHaiMucTrongTaiLieu(unittest.TestCase):
+    """Nhánh TRA KHÓA cũng trích `SO_DOAN_TRI_THUC` mục, không chỉ một.
+
+    Đo riêng trên bộ 168 ca chọn mục — không suy từ kết quả của đường truy hồi toàn kho:
+
+        1 mục   75,60%    72 từ
+        2 mục   90,48%   138 từ    McNemar so với 1 mục: p = 0,0000
+        3 mục   94,64%   208 từ    p = 0,0000
+
+    Bài toán này hưởng lợi RÕ HƠN đường toàn kho, và lý do hợp lý: các mục của cùng một tài liệu
+    nói về cùng chủ đề nên mục thứ hai hiếm khi lạc đề.
+
+    Ca bắt được lỗi là một lượt golden — "Mình nên nói với nhà hàng thế nào về việc dị ứng?" chọn
+    mục #4 thay vì #3 ("Khi gọi món, NÓI VỚI NHÂN VIÊN về dị ứng"), và #3 đứng ngay sau.
+    """
+
+    def test_ghep_theo_THU_TU_TAI_LIEU_chu_khong_theo_diem(self):
+        """Hai mục cùng một bài văn xuôi phải giữ mạch văn của tác giả.
+
+        Xếp theo điểm thì một đoạn mở đầu bằng "Vì vậy" có thể đứng TRƯỚC tiền đề của nó, và câu
+        trả lời thành câu cụt. `chunk_id` mang số thứ tự nên sắp theo nó là theo thứ tự tác giả.
+        """
+        got = answer._knowledge_chunk("allergy_guidance", "Mình nên nói với nhà hàng thế nào?")
+        self.assertIsNotNone(got)
+        phan = [p for p in got.split("\n\n") if p.strip()]
+        self.assertGreaterEqual(len(phan), 1)
+        self.assertLessEqual(len(phan), answer.SO_DOAN_TRI_THUC)
+
+    def test_chon_muc_tra_ve_DANH_SACH_du_xin_mot(self):
+        """Một kiểu trả về cho mọi trường hợp — chỗ gọi không phải rẽ nhánh.
+
+        Số mục trả về là **tối đa** `so_muc`, không phải đúng bằng: đường lùi BM25 chỉ trả những mục
+        có khớp từ khóa, nên xin 2 mà chỉ một mục chứa từ trong câu hỏi thì nhận về 1.
+
+        Đó là hành vi ĐÚNG của BM25 và giữ nguyên có chủ ý — độn thêm một mục không khớp gì chỉ để
+        đủ số là thêm nhiễu vào câu trả lời. Phần lợi 90,48% đo trên đường embedding, còn đường lùi
+        chỉ chạy khi không có `sentence-transformers`.
+        """
+        from dataclasses import dataclass
+
+        @dataclass
+        class Doan:
+            chunk_id: str
+            text: str
+            heading: str = "x"
+
+        doan = [Doan("a#1", "cay"), Doan("a#2", "ngọt")]
+        for k in (1, 2):
+            with self.subTest(so_muc=k):
+                ra = answer._chon_muc(doan, "cay", so_muc=k)
+                self.assertIsInstance(ra, list)
+                self.assertGreaterEqual(len(ra), 1)
+                self.assertLessEqual(len(ra), k)
+
+
+class SO_MON_KHACH_XIN(unittest.TestCase):
+    """Khách nêu số món thì phải nhận đúng bấy nhiêu món.
+
+    Trước bản này `LIST_SIZE = 6` là cố định và con số trong câu chỉ dùng để bật một cờ. Đo trên
+    ba lượt tham chiếu ngược, sau khi lượt 1 đã nêu 6 món:
+
+        "Liệt kê cho tôi 2 món đầu vừa tư vấn"   ->  6 món
+        "Liệt kê 3 món vừa tư vấn bên trên"      ->  6 món
+        "Cho mình 4 món vừa tư vấn ở trên"       ->  6 món
+
+    PHẠM VI tham chiếu ngược thì đúng — cả ba trả về đúng danh sách đã nêu, đúng thứ tự. Chỉ con
+    số bị bỏ. Đây không phải trả lời sai, nhưng nó là **không nghe**: khách nói lại lần nữa cũng
+    vẫn nhận sáu món.
+    """
+
+    def _hai_luot(self, luot1: str, luot2: str):
+        import session as S
+
+        st = S.SessionState.from_payload({})
+        for q in (luot1, luot2):
+            m = S.merge_into_request(understand(q, ITEMS), st)
+            p = respond(m, ITEMS)
+            st = S.update_state(st, m, p.items, p.kind, p.branch)
+        return p
+
+    def test_nghe_dung_so_mon(self):
+        for cau, mong in (("Liệt kê 3 món vừa tư vấn bên trên", 3),
+                          ("Cho mình 4 món vừa tư vấn ở trên", 4),
+                          ("Liệt kê cho tôi 2 món đầu vừa tư vấn", 2),
+                          # "vừa rồi"/"vừa nói" bật `refers_to_focus`, và bước hợp nhất bộ nhớ
+                          # giải cờ đó thành MỘT món — cùng lớp lỗi với `mon dau`, đường khác.
+                          ("Cho mình xem lại 3 món vừa rồi", 3),
+                          ("Kể lại 5 món vừa nói", 5)):
+            with self.subTest(cau=cau):
+                p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
+                self.assertEqual(len(p.items), mong)
+
+    def test_MOT_mon_theo_vi_tri_van_la_MOT_mon(self):
+        """Chiều ngược: "món đầu tiên" là MỘT món, không phải một lát cắt.
+
+        `mon dau` và `2 mon dau` chồng chữ mà khác hẳn nghĩa, nên phép phân biệt phải giữ được cả
+        hai chiều — nới nhầm ở đây thì câu hỏi giá của một món trả về nửa danh sách.
+        """
+        for cau in ("Món đầu tiên giá bao nhiêu?", "Món cuối cùng có cay không?",
+                    "Món vừa rồi giá bao nhiêu?"):
+            with self.subTest(cau=cau):
+                p = self._hai_luot("Gợi ý món không cay giúp mình", cau)
+                self.assertEqual(len(p.items), 1)
+
+    def test_cau_COMBO_nhieu_cum_so_KHONG_bi_cat(self):
+        """"1 món chính 1 nước 1 tráng miệng" có BA cụm số — đó là combo, không phải xin 1 món.
+
+        Không có điều kiện "đúng một cụm", câu này bị cắt còn 1 món và hai kịch bản phiên đang
+        xanh sẽ đỏ.
+        """
+        r = understand("mình dị ứng hải sản, cho 1 món chính 1 nước 1 tráng miệng", ITEMS)
+        self.assertIsNone(r.so_mon_muon)
+
+
+class HOI_LAI_KHI_THAM_CHIEU_MO_HO(unittest.TestCase):
+    """Câu XIN MÓN trỏ "món vừa rồi" khi danh sách có nhiều món — hỏi lại, không đoán.
+
+    Hệ thống vẫn trả lời được bằng cách lùi về món thứ nhất, và với câu HỎI thì đó là hành vi đúng
+    đã chốt: đoán nhưng NÊU TÊN món đã đoán, để khách sửa được ngay. **12 lượt đánh giá** dựa vào
+    nó ("Món đó bao nhiêu tiền?", "Cái đó có cay không?"), và hỏi lại ở đó là bước lùi.
+
+    Câu XIN thì khác: khách muốn LẤY một món, và đoán ở đây là chọn hộ họ.
+
+    Phân loại bằng `XIN_MON_RE` đã có sẵn — đo trên 13 lượt đang dùng tiêu điểm thì nó tách sạch
+    12 câu hỏi khỏi 1 câu xin, nên không cần luật mới.
+    """
+
+    def _sau_danh_sach(self, luot2: str, luot1: str = "Gợi ý 4 món ăn cho mình"):
+        import session as S
+
+        st = S.SessionState.from_payload({})
+        for q in (luot1, luot2):
+            m = S.merge_into_request(understand(q, ITEMS), st)
+            p = respond(m, ITEMS)
+            st = S.update_state(st, m, p.items, p.kind, p.branch)
+        return p
+
+    def test_XIN_MON_mo_ho_thi_hoi_lai_kem_so_thu_tu(self):
+        p = self._sau_danh_sach("Cho mình món vừa rồi")
+        self.assertEqual(p.kind, "clarify")
+        self.assertTrue(p.asks_back)
+        # Câu hỏi lại phải nêu SỐ THỨ TỰ — đó là thứ khách trả lời được bằng một từ, và dạng số
+        # ("món thứ 2") đã được nhận ra. Thiếu nó thì hỏi lại là ngõ cụt.
+        for so in ("1.", "2.", "3.", "4."):
+            self.assertIn(so, p.text)
+
+    def test_HOI_VE_mot_mon_van_doan_va_neu_ten(self):
+        """Chiều ngược — chiều mà nới quy tắc sẽ phá 12 lượt đang xanh."""
+        for cau in ("Món đó bao nhiêu tiền?", "Cái đó có cay không?", "Món vừa rồi làm từ gì?"):
+            with self.subTest(cau=cau):
+                p = self._sau_danh_sach(cau)
+                self.assertNotEqual(p.kind, "clarify", "câu HỎI không được hỏi lại")
+                self.assertEqual(len(p.items), 1)
+
+    def test_danh_sach_MOT_mon_thi_khong_co_gi_mo_ho(self):
+        """Một món thì không có gì để hỏi — đòi >= 2 ứng viên."""
+        p = self._sau_danh_sach("Cho mình món vừa rồi", luot1="Phở bò tái nạm giá bao nhiêu?")
+        self.assertNotEqual(p.kind, "clarify")

@@ -128,6 +128,11 @@ class Bang:
         self.m_truy_hoi = results.doc("truy_hoi_so_sanh")
         self.m_chon_dev = results.doc("chon_muc_phat_trien")
         self.m_chon_np = results.doc("chon_muc_niem_phong")
+        # Phân bố đường đi. Trước bản này ba câu trong báo cáo viết CỨNG "đường truy
+        # hồi chạy 0 lần", còn số ca thì thay động — nên sau khi tập ca mở rộng, bộ
+        # sinh in ra câu "trên 161 ca … chạy 0 lần" trong khi số thật là 14/161.
+        # Câu nào nói về một phép đo thì con số của nó phải ĐỌC từ phép đo ấy.
+        self.m_duong = results.doc("phan_bo_duong")
 
         # Bộ HAI CHIỀU — 100 câu, đo VÌ SAO hệ thống cần cả hai lớp. Đọc CSV vì đó cũng là tệp đưa
         # cho người đọc mở Excel; giữ MỘT nguồn thay vì sinh thêm một JSON song song.
@@ -148,6 +153,16 @@ class Bang:
     @property
     def luot_golden(self) -> int:
         return sum(len(c["turns"]) for c in self.golden)
+
+    @property
+    def tr_ca(self) -> int:
+        """Số ca một lượt đi qua nhánh truy hồi toàn kho — ĐỌC từ phép đo."""
+        return self.m_duong["so"]["tap_ca"]["dem"].get("truy_hoi", 0)
+
+    @property
+    def tr_phien(self) -> int:
+        """Số lượt phiên đi qua nhánh truy hồi toàn kho — ĐỌC từ phép đo."""
+        return self.m_duong["so"]["tap_phien"]["dem"].get("truy_hoi", 0)
 
     def ktc_truy_hoi(self, tap: str) -> dict:
         """Khoảng tin cậy Wilson 95% cho Hit@1 của từng bộ truy hồi trên một tập."""
@@ -636,7 +651,7 @@ def muc_luc() -> str:
   - 4.6 Golden 103 lượt qua chuỗi gọi đầy đủ
   - 4.7 Phân tích nguyên nhân sai — và case nào KHÔNG sửa được nữa
   - 4.8 Chốt phương án triển khai, kèm giá đã đo
-  - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu\n  - 4.10 Bốn bước so sánh công bằng, quyết định kiến trúc, thi hành, và trần thật của truy hồi
+  - 4.9 Vì sao hệ thống cần CẢ hai lớp — bộ đo hai chiều 100 câu\n  - 4.10 So sánh công bằng, quyết định kiến trúc, trần thật của truy hồi, và đổi mô hình nhúng\n  - 4.11 Độ phủ của bộ đánh giá, và ba lỗi phép rà tìm ra
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Phân tích chi tiết theo từng thành phần\n    - 5.2.1 → 5.2.5 Nhận xét của từng thành viên\n  - 5.3 Làm được
@@ -945,7 +960,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV2 — Truy hồi
 
-1. Cài **BM25**, **embedding** (`multilingual-e5-small`), **hybrid RRF**
+1. Cài **BM25**, **embedding** (`bge-m3`), **hybrid RRF**
 2. So trên **hai bài toán** (truy hồi tri thức / chọn món) và **hai tập** (phát triển / niêm phong)
 3. Tính sẵn vector lúc build ảnh Docker, không tải mô hình lúc chạy
 4. Chốt bộ cho production kèm **giá phải trả** — ảnh Docker, độ trễ, thời gian khởi động
@@ -1100,7 +1115,7 @@ Câu hỏi loại một trả lời được bằng **lọc**: duyệt 91 món, 
 đối, vì "giá < 100.000" là một phép so sánh có đáp án đúng/sai rõ ràng.
 
 Câu hỏi loại hai **không có cột nào để lọc**. Đáp án nằm trong một đoạn văn, và việc phải làm là
-**tìm đúng đoạn văn đó** trong 452 đoạn. Đó là bài toán **truy hồi thông tin**.
+**tìm đúng đoạn văn đó** trong 182 đoạn của chỉ mục. Đó là bài toán **truy hồi thông tin**.
 
 ### Truy hồi thông tin (Information Retrieval — IR) là gì
 
@@ -1230,17 +1245,32 @@ là lý do `cấm@5` quan trọng hơn Hit@5.
 
 ## 2.2 Truy hồi ngữ nghĩa — biểu diễn nhúng
 
-Mô hình `intfloat/multilingual-e5-small` — 384 chiều, có tiếng Việt. Họ E5 đòi **tiền tố** phân biệt
-vai trò:
+Mô hình `BAAI/bge-m3` — 1024 chiều, mạnh ở tiếng Việt.
+
+Bản trước dùng `intfloat/multilingual-e5-small` (384 chiều). Nhóm đổi sau khi đo ghép cặp trên 148
+câu của hai bộ đánh giá (chi tiết ở mục 4.10.7):
+
+| mô hình | chiều | Hit@1 | p50 | McNemar so với bản trước |
+|---|---:|---:|---:|---|
+| `e5-small` | 384 | 64,86% | 44,7 ms | — |
+| `e5-base` | 768 | 68,92% | 143,1 ms | p = 0,3616 — **chưa đủ ý nghĩa** |
+| **`bge-m3`** | **1024** | **73,65%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |
+
+Điều đáng ghi là `e5-base` **không chứng minh được gì dù to gấp đôi**. Nên căn cứ để đổi không phải
+"mô hình lớn hơn thì tốt hơn" — nếu vậy `e5-base` đã thắng — mà là chất lượng huấn luyện cho tiếng
+Việt, thứ chỉ biết được bằng cách đo.
+
+**Tiền tố đi theo họ mô hình.** Họ E5 đòi tiền tố phân biệt vai trò:
 
 ```
 "query: {{câu hỏi}}"     cho truy vấn
 "passage: {{đoạn}}"      cho đoạn trong kho
 ```
 
-Thiếu tiền tố thì mô hình vẫn chạy và vẫn trả về vector, chỉ giảm chất lượng. Đây là lỗi **không có
-triệu chứng quan sát được**: hệ thống không báo lỗi, chỉ cho điểm thấp hơn. Nhóm bổ sung một ca kiểm
-thử xác nhận tiền tố được thêm đúng.
+Họ BGE thì **không dùng tiền tố** — thêm vào là nhét hai từ vô nghĩa vào mọi câu. Cả hai chiều đều
+hỏng **không có triệu chứng quan sát được**: hệ thống không báo lỗi, chỉ cho điểm thấp hơn. Vì vậy
+tiền tố được tra từ một bảng theo tên mô hình thay vì viết thành hằng số rời, và có ca kiểm thử chốt
+cả nội dung bảng lẫn tính nhất quán giữa bảng với mô hình đang dùng.
 
 Vector được chuẩn hoá L2, nhờ vậy `cosine(a,b) = a·b` và phép so chỉ còn một phép nhân vô hướng. Chuẩn
 hoá cũng là điều **bắt buộc về mặt đúng đắn**: không chuẩn hoá mà vẫn lấy tích vô hướng thì đoạn **dài**
@@ -1509,6 +1539,10 @@ vốn đã có cấu trúc đó, không dùng thì phí.
 dùng chung một khuôn tiêu đề, nên **283/452 đoạn dùng chung tiêu đề** với đoạn khác. Nhóm đã thử
 sửa (đưa lên 365 tiêu đề khác nhau) và đo lại: **Hit@1 không đổi**. Xem mục 2.4.1.
 
+> Hai con số 452 và 283 là của **kho lúc đó**. Chúng được giữ nguyên vì chúng là bằng chứng dẫn
+> tới quyết định bỏ 49 tài liệu `derived`. Kho hiện tại còn **60 tài liệu / 182 đoạn xếp hạng**,
+> với 174 tiêu đề mục phân biệt — chính là điều mục 2.4.1 nói không sửa được bằng cách đổi tiêu đề.
+
 ---
 
 ## 2.7 Các chỉ số đánh giá, và chỉ số nào QUYẾT ĐỊNH
@@ -1776,9 +1810,10 @@ lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** tro
 riêng.
 
 **Một con số đáng chú ý và báo cáo nêu rõ:** trên tập {len(b.ca_tra_loi)} ca trả lời và
-{b.luot_phien} lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
-hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
-các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
+{b.luot_phien} lượt phiên, đường C chạy **{b.tr_ca} lần** và **{b.tr_phien} lần**. Con số này từng là
+**0 trên cả hai tập** — không phải vì truy hồi vô dụng, mà vì **hai tập khi đó được viết quanh các
+nhánh tất định** và không tiêu chí nào hỏi tới nhánh C. Bộ hai chiều ở mục 4.9 được xây chính vì lý do
+đó, và họ ca `knowledge_corpus` được thêm sau để lấp đúng lỗ này.
 
 **Cửa `audience: guest`.** Mọi tài liệu trong kho phải khai `audience: guest`, và bộ nạp **từ chối**
 tệp không khai đúng giá trị này — từ chối chứ không phải lọc. Lý do: bản kho trước có 5/27 tệp là
@@ -1883,7 +1918,7 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
    nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
 
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
-làm lộ **17 lỗi** mà tập {len(b.ca_tra_loi)} ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+làm lộ **17 lỗi** mà tập ca và 111 lượt phiên **khi đó** không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
 mở rộng lên **{b.luot_phien} lượt** mới bắt được lớp lỗi đó.
 
@@ -2035,8 +2070,9 @@ Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác 
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
 **Hệ quả đo được:** trên tập {len(b.ca_tra_loi)} ca và {b.luot_phien} lượt phiên, nhánh truy hồi chạy
-**0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
-nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
+**{b.tr_ca} lần** và **{b.tr_phien} lần**. Con số này từng là 0 trên cả hai tập — mọi câu đều khớp một
+trong chín nhánh trước, vì hai tập đó được viết quanh các nhánh tất định chứ không vì truy hồi vô dụng.
+Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
 
 ### 3.7.4 Lớp 4a — MÃ TẤT ĐỊNH xử lý thế nào (`answer.select()`)
 
@@ -2064,7 +2100,7 @@ Khi chín nhánh đầu không khớp, hệ thống xếp hạng **{len(b.doan_x
 
 ```
 1. CHUẨN HÓA   câu hỏi -> thêm tiền tố "query: " (yêu cầu của họ mô hình E5)
-2. MÃ HÓA      câu hỏi -> vector 384 chiều
+2. MÃ HÓA      câu hỏi -> vector 1024 chiều
 3. SO SÁNH     tính cosine với vector của từng đoạn (đã tính sẵn lúc build)
 4. XẾP HẠNG    sắp theo điểm giảm dần
 5. CẮT         lấy 5 đoạn đầu làm ngữ cảnh
@@ -2947,6 +2983,12 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "Cặp tệ nhất `occasion.birthday` ↔ `occasion.date` đạt **0,921** — chúng dùng chung **82/89",
         "từ**. Và **103/109 tài liệu có dưới 5 từ riêng**, trung vị bằng **0**.",
         "",
+        "> **Con số này về sau quyết định số phận của 49 tài liệu.** Lúc đo nó chỉ được đọc là \"kho",
+        "> khó truy hồi\". Đọc lại kèm câu hỏi thật thì nó nói điều mạnh hơn: 49 tài liệu sinh theo",
+        "> nhãn **không phân biệt được bằng từ**, và không cách xếp hạng nào chữa được thứ không có",
+        "> tín hiệu. Ba cách chữa đã thử đều hoà (p = 0,8238 · 0,5488 · cắt mục), nên chúng bị bỏ —",
+        "> kho còn **60 tài liệu / 182 đoạn** văn xuôi viết tay đồng nhất.",
+        "",
         "Nguyên nhân: phần văn xuôi của tài liệu `derived` là **một khuôn** với tên giá trị thay vào.",
         "Chỉ tên nhóm và danh sách món là khác.",
         "",
@@ -2980,6 +3022,12 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "lặp cao nhất — tức **phần khó nhất**. Đo phần dễ rồi kết luận cho cả kho là tự cho điểm.",
         "",
         "`build_ca_phu_kho.py` sinh **98 ca phủ 49 tài liệu còn lại**, mỗi tài liệu hai câu:",
+        "",
+        "> **Bước này về sau bị hủy cùng thứ nó đo.** 49 tài liệu `derived` đã bị bỏ khỏi kho, nên",
+        "> 98/98 ca của bộ phủ trỏ vào tài liệu không còn tồn tại và bộ `run_dau_loai.py` mất luôn",
+        "> đối tượng đo. Cả ba tệp đã xoá. Độ phủ KHÔNG mất: chiều A giờ phủ **36/36 tài liệu**",
+        "> `synthesize` — đúng cái lỗ mà bước này được dựng ra để lấp. Mục dưới giữ nguyên vì nó",
+        "> ghi lại một phương pháp đúng, và vì con số 32,47 điểm mà nó tìm ra là bài học riêng.",
         "",
         "| Dạng | Cách viết | Kỳ vọng |",
         "|---|---|---|",
@@ -3110,9 +3158,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "Tái lập bốn bước:",
         "",
         "```bash",
-        "python ai/evaluation/build_ca_phu_kho.py      # sinh 98 ca phủ kho",
         "python ai/evaluation/run_phu_tu_vung.py --csv # tất định với từ vựng đủ",
-        "python ai/evaluation/run_dau_loai.py --csv    # đấu loại ba bộ truy hồi",
         "python ai/evaluation/run_dinh_tuyen.py --csv  # chất lượng định tuyến",
         "```",
         "",
@@ -3295,9 +3341,9 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "",
         "| mô hình | chiều | Hit@1 | chiều A | phủ kho | p50 | McNemar so với bản đang dùng |",
         "|---|---:|---:|---:|---:|---:|---|",
-        "| `e5-small` (đang dùng) | 384 | 64,86% | 48,00% | 73,47% | 44,7 ms | — |",
+        "| `e5-small` (bản trước) | 384 | 64,86% | 48,00% | 73,47% | 44,7 ms | — |",
         "| `e5-base` | 768 | 68,92% | 58,00% | 74,49% | 143,1 ms | p = 0,3616 — **chưa đủ ý nghĩa** |",
-        "| `bge-m3` | 1024 | **73,65%** | 58,00% | **81,63%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |",
+        "| **`bge-m3`** (đã đổi sang) | 1024 | **73,65%** | 58,00% | **81,63%** | 271,7 ms | **p = 0,0351 — có ý nghĩa** |",
         "",
         "Hai điều rút ra, và điều thứ hai quan trọng hơn:",
         "",
@@ -3457,6 +3503,294 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
         "> đã áp dụng nhất quán: khi một thay đổi làm đỏ đúng một ca, **đọc câu trả lời thật trước khi",
         "> sửa hệ thống** — và nếu sửa thước đo thì phải nêu được lý do đứng vững độc lập với thay đổi",
         "> vừa làm.",
+        "",
+        "### 4.10.8 Đổi sang `bge-m3` — chi phí triển khai, đo chứ không ước",
+        "",
+        "Quyết định đổi dựa trên phép đo chất lượng ở mục trên. Nhưng một mô hình gấp gần **năm lần**",
+        "về kích thước không chỉ đổi con số Hit@1, nên nhóm đo luôn phần chi phí trước khi đổi.",
+        "",
+        "| | `e5-small` (bản trước) | `bge-m3` (bản này) |",
+        "|---|---:|---:|",
+        "| số chiều vector | 384 | **1024** |",
+        "| trọng số mô hình | ~470 MB | **2.271 MB** |",
+        "| RAM khi chạy (đo thật) | — | **1.234 MB** |",
+        "| thời gian nạp mô hình | — | **20,6 s** |",
+        "| lần mã hóa đầu tiên | — | **4,8 s** |",
+        "| độ trễ mỗi truy vấn (p50) | 44,7 ms | **271,7 ms** |",
+        "| mã hóa lại toàn kho | 53 s | **492 s** |",
+        "",
+        "Ba con số trong bảng dẫn tới ba thay đổi cấu hình, và cả ba đều là thay đổi mà **chỉ phép đo",
+        "mới chỉ ra được**:",
+        "",
+        "**1. `start_period` của healthcheck: 20s → 90s.** Đây là con số suýt gây một lỗi triển khai.",
+        "Mô hình nạp mất 20,6 giây cộng 4,8 giây cho lần mã hóa đầu — tổng ~25,4 giây, trong khi lần",
+        "thăm dò sức khỏe đầu tiên rơi vào giây thứ 20. Nó thất bại, và `depends_on: service_healthy`",
+        "giữ dịch vụ phụ thuộc chờ thêm một chu kỳ 30 giây nữa. Không hỏng hẳn, nhưng chậm mà không",
+        "có lý do nhìn thấy được — đúng loại lỗi chỉ lộ ra khi triển khai chứ không lộ khi chạy test.",
+        "",
+        "**2. `mem_limit: 3g` giữ nguyên.** RAM đo thật sau khi nạp mô hình và mã hóa là **1.234 MB**,",
+        "còn dư gần 1,8 GB. Đây là chỗ nhóm **đo trước rồi mới quyết giữ**, thay vì nâng giới hạn cho",
+        "chắc — nâng một giới hạn mà không biết mức dùng thật là cách đẩy vấn đề sang chỗ khác.",
+        "",
+        "**3. Chi phí mã hóa lại toàn kho không rơi vào lúc khởi động.** 492 giây là con số đáng lo",
+        "nếu nó xảy ra mỗi lần container bật. Nó không: `rag/precompute.py` chạy lúc **dựng ảnh**, và",
+        "khóa của bộ đệm có chứa tên mô hình nên đổi mô hình làm đệm cũ tự động bị từ chối thay vì bị",
+        "dùng nhầm. Đó là thiết kế có sẵn, và lần đổi này là lần đầu nó được thử thật.",
+        "",
+        "Độ trễ **271,7 ms** mỗi truy vấn chỉ rơi vào **câu tri thức** — câu chọn món đi nhánh lọc",
+        "nhãn và không chạm truy hồi. Đặt cạnh 8,6 giây của một lần gọi mô hình sinh, nó nhỏ.",
+        "",
+        "> **Điều rút ra:** phần khó của việc đổi mô hình không nằm ở dòng `MODEL_NAME`. Nó nằm ở ba",
+        "> con số cấu hình mà mô hình cũ vừa vặn còn mô hình mới thì không — và cả ba chỉ lộ ra khi",
+        "> chịu khó đo, chứ không lộ ra trong bất kỳ bộ test nào.",
+        "",
+        "**Kết quả sau khi đổi, đo lại toàn bộ:**",
+        "",
+        "| bộ đánh giá | `e5-small` | **`bge-m3`** |",
+        "|---|---:|---:|",
+        "| chiều A — truy hồi tìm đúng tài liệu | 44,00% | **56,00%** |",
+        "| câu trả lời chứa tài liệu đúng, 1 đoạn | 48,00% | **58,00%** |",
+        "| câu trả lời chứa tài liệu đúng, **2 đoạn** | 64,00% | **82,00%** |",
+        "| chiều B — số món vi phạm ràng buộc (truy hồi) | 116 | **92** |",
+        "| 140 ca trả lời | 140/140 | **140/140** |",
+        "| 149 lượt phiên | 149/149 | **149/149** |",
+        "| định tuyến | 87,88% | **87,88%** |",
+        "",
+        "Hai lớp cải tiến **cộng dồn**: trích 2 đoạn đưa 48,00% lên 64,00% với mô hình cũ, và đổi mô",
+        "hình đưa tiếp lên **82,00%**. Tổng cộng **+34,00 điểm** so với điểm xuất phát 48,00%, và cả",
+        "hai bước đều có kiểm định ghép cặp (p = 0,0078 và p = 0,0005).",
+        "",
+        "**Một ca đỏ khi đổi mô hình, và cách xử lý nó là phần đáng đọc nhất của mục này.**",
+        "",
+        "Đổi xong, 411 test đơn vị và 149/149 lượt phiên vẫn xanh, nhưng bộ 140 ca báo **139/140**:",
+        "",
+        "```",
+        "K-multi-05  \"Có set bữa trưa nào không?\"",
+        "ĐỎ: nêu số tiền không phải giá món nào được nhắc: [65000, 250000]",
+        "```",
+        "",
+        "Nguyên nhân: `_knowledge_chunk()` dùng bộ nhúng để chọn **mục nào của tài liệu** sẽ trả lời,",
+        "nên đổi mô hình làm nó chọn một mục khác — mục đó nêu *\"giá trung vị của thực đơn là",
+        "65.000đ\"* và *\"lẩu đều từ 250.000đ trở lên\"*. Thước đo có bốn nguồn số tiền hợp lệ, và không",
+        "nguồn nào nhận **số suy từ tổng thể thực đơn**.",
+        "",
+        "Kiểm lại dữ liệu thì **cả hai con số đều đúng**: trung vị đúng 65.000đ, lẩu rẻ nhất (Lẩu nấm",
+        "chay) đúng 250.000đ. Nên đây không phải hệ thống sai.",
+        "",
+        "Nhưng cũng **không được nới thước đo cho qua** — phép kiểm neo giá là một trong những bất",
+        "biến chống bịa quan trọng nhất. Rà lại thì thấy nó đang che một hố thật:",
+        "",
+        "> 36 tài liệu `written` là văn xuôi **viết tay**, và nhiều đoạn nêu số tiền của thực đơn. Tài",
+        "> liệu `derived` không trôi được vì nó sinh lại từ dữ liệu; tài liệu `written` thì trôi được,",
+        "> và trôi **im lặng**. Đường sinh không che hố này vì nó chỉ sinh lại phần `derived`.",
+        "",
+        "Nên thứ tự xử lý là: **dựng cổng dữ liệu trước, rồi mới cho thước đo tin vào kho.**",
+        "",
+        "1. `build_knowledge.py --check` nhận thêm một bất biến: **mọi số tiền trong kho phải truy",
+        "   được về `menu-dataset.json`** — giá món, trung vị, hoặc một ngưỡng ngân sách đã khai tên.",
+        "   Rà kho hiện tại: **1.031 lần nêu tiền, 1.023 khớp giá món thật (99,22%)**, 8 lần còn lại",
+        "   là ngưỡng tròn dùng để nói về mức chi.",
+        "2. Cổng được **thử bằng đột biến** trước khi tin: sửa `65.000đ` thành `77.000đ` trong tài",
+        "   liệu, cổng báo đỏ đúng dòng đó; khôi phục, cổng xanh lại. Một cổng chưa bao giờ đỏ thì",
+        "   không chứng minh được điều gì.",
+        "3. Chỉ sau đó thước đo mới nhận thêm nguồn số tiền thứ năm: **số có sẵn trong kho tri thức**.",
+        "",
+        "Kết quả: **140/140** trở lại, và kho có thêm một bất biến mà trước đó không ai canh. Việc đổi",
+        "mô hình vì thế phát hiện ra một lỗ hổng **không liên quan gì tới mô hình** — nó vốn đã ở đó.",
+        "",
+        "### 4.10.9 Một mô hình cho HAI bài toán truy hồi — nó có tốt cho cả hai không?",
+        "",
+        "Hệ thống dùng bộ nhúng ở hai chỗ khác hẳn nhau, và điều đó dễ bị bỏ qua khi đổi mô hình:",
+        "",
+        "| | bài toán | ứng viên |",
+        "|---|---|---|",
+        "| A | **toàn kho** — `doan_tri_thuc_lien_quan()` | 1 trong **182 đoạn** của 36 tài liệu |",
+        "| B | **trong tài liệu** — `_knowledge_chunk()` | 1 trong **3–8 mục** của MỘT tài liệu |",
+        "",
+        "Bài toán B dễ hơn ở chỗ chủ đề đã biết, nhưng **khó hơn** ở chỗ mọi ứng viên đều cùng chủ",
+        "đề — chúng khác nhau ở *khía cạnh*, không ở *chủ đề*. Không có gì bảo đảm mô hình tốt cho A",
+        "cũng tốt cho B, và phép đo ở mục trên chỉ đo A.",
+        "",
+        "**Suýt kết luận sai.** Con số đầu tiên nhìn thấy là `bge-m3` đạt 0,729 trên bộ chọn mục,",
+        "trong khi tài liệu cũ ghi `e5-small` đạt 0,864 — nghe như tụt 13,5 điểm. Nhưng hai con số đó",
+        "đo trên **hai tập khác nhau** (48 ca niêm phong so với tập đầy đủ), nên chúng không so được.",
+        "Đo lại ghép cặp trên đúng 168 ca:",
+        "",
+        "| mô hình | Top-1 | KTC 95% |",
+        "|---|---:|---|",
+        "| `e5-small` | 73,81% | 66,68–79,87% |",
+        "| `bge-m3` | 75,60% | 68,58–81,47% |",
+        "",
+        "McNemar **p = 0,6476** — hai mô hình **hòa** ở bài toán B (11 ca sửa được, 8 ca làm hỏng).",
+        "Nên không có hồi quy hệ thống, và không cần dùng hai mô hình khác nhau cho hai đường.",
+        "",
+        "> Đây là lần thứ hai trong ngày một con số nghe đáng báo động hóa ra là **so hai thứ khác",
+        "> nhau**. Quy tắc rút ra: trước khi tin một mức tụt, kiểm xem hai con số có cùng tập, cùng",
+        "> giao thức đo hay không.",
+        "",
+        "**Nhưng phép đo lại mở ra một cải tiến lớn hơn.** Cùng câu hỏi đã đặt cho đường toàn kho —",
+        "*lấy một hay nhiều?* — đặt cho đường trong tài liệu:",
+        "",
+        "| số mục | Top-1 | số từ | McNemar so với 1 mục |",
+        "|---:|---:|---:|---|",
+        "| 1 | 75,60% | 72 | — |",
+        "| **2** | **90,48%** | 138 | **p = 0,0000** |",
+        "| 3 | 94,64% | 208 | p = 0,0000 |",
+        "",
+        "**+14,88 điểm cho +66 từ** — lợi hơn hẳn đường toàn kho (+16,00 điểm cho +62 từ ở mô hình",
+        "cũ), và lý do hợp lý: các mục của cùng một tài liệu nói về cùng chủ đề, nên mục thứ hai hiếm",
+        "khi lạc đề. Cái giá \"đoạn lạc\" ở đây nhỏ hơn.",
+        "",
+        "Ca phát hiện ra điều này là một lượt golden, và nó minh họa đúng cơ chế:",
+        "",
+        "```",
+        "hỏi  \"Mình nên nói với nhà hàng thế nào về việc dị ứng?\"",
+        "  chọn  #4  \"Nếu dị nguyên của bạn không nằm trong năm loại…\"      <- liên quan, không trả lời",
+        "  bỏ    #3  \"Khi gọi món, NÓI VỚI NHÂN VIÊN về dị ứng…\"            <- CÂU TRẢ LỜI, hạng 2",
+        "```",
+        "",
+        "**Và thứ tự ghép hai mục là theo TÀI LIỆU, không theo điểm.** Hai mục ở đây là hai phần của",
+        "cùng một bài văn xuôi mà tác giả viết nối tiếp nhau; xếp theo điểm thì đoạn mở đầu bằng",
+        "*\"Vì vậy hãy làm thêm một việc\"* đứng **trước** tiền đề của nó và câu trả lời thành câu cụt.",
+        "`chunk_id` mang số thứ tự nên sắp theo nó là theo thứ tự tác giả — lý do là **mạch văn**, và",
+        "việc nó đồng thời làm đoạn trả lời đúng lên đầu chỉ là hệ quả.",
+        "",
+        "Kết quả cuối, hai đường cùng trích 2 phần:",
+        "",
+        "| | trước cả đợt | sau |",
+        "|---|---:|---:|",
+        "| toàn kho — câu trả lời chứa tài liệu đúng | 48,00% | **82,00%** |",
+        "| trong tài liệu — Top-1 chọn đúng mục | 75,60% | **90,48%** |",
+        "| chiều B — số món vi phạm ràng buộc (truy hồi) | 116 | **92** |",
+        "",
+        "Tái lập:",
+        "",
+        "```bash",
+        "python ai/evaluation/run_chunk_selection_comparison.py",
+        "```",
+        "",
+        "## 4.11 Bộ đánh giá phủ được bao nhiêu kho tri thức, và hai lỗi phép rà tìm ra",
+        "",
+        "Mọi con số ở Chương 4 đều đo trên bộ đánh giá, nên có một câu hỏi phải trả lời trước khi",
+        "tin chúng: **bộ đánh giá chạm tới bao nhiêu phần của hệ thống?** Mục này rà điều đó.",
+        "",
+        "### 4.11.1 Bảy bộ đánh giá, 980 câu hỏi",
+        "",
+        "| bộ | quy mô | đo cái gì |",
+        "|---|---:|---|",
+        "| `cases.json` | **147 ca** | chất lượng câu trả lời, một lượt |",
+        "| `session_scripts.json` | 58 kịch bản / **157 lượt** | bộ nhớ phiên, đa lượt |",
+        "| `golden_e2e.json` | 29 hội thoại / **103 lượt** | qua **stack thật**, có backend và giỏ hàng |",
+        "| `retrieval_cases.json` | **114 ca** | truy hồi toàn kho |",
+        "| `chunk_selection_cases.json` | **120 ca** | chọn **mục trong** một tài liệu |",
+        "| `run_hai_chieu.py` (trong mã) | **100 câu** | 50 câu tri thức + 50 câu chọn món |",
+        "",
+        "Ba bộ nữa **ghép lại từ những bộ trên**, không có dữ liệu mới: `run_dinh_tuyen` (198 câu),",
+        "`run_so_doan` (50), `run_phu_tu_vung` (50).",
+        "",
+        "### 4.11.2 Độ phủ kho tri thức",
+        "",
+        "| mức | trước khi rà | sau |",
+        "|---|---:|---:|",
+        "| **tài liệu** | 102/109 = 93,58% | **109/109 = 100,00%** |",
+        "| **đoạn** (có khóa đáp án mức đoạn) | 84/372 = 22,58% | 84/372 = 22,58% |",
+        "",
+        "Con số đoạn thấp cần nói rõ để không bị đọc sai: **chỉ bộ chọn mục có khóa đáp án ở mức",
+        "đoạn**, sáu bộ còn lại chấm ở mức tài liệu vì đó là bài toán của chúng. Nên 22,58% không có",
+        "nghĩa \"78% kho không được đo\" — nhưng nó đúng là phần lớn đoạn chưa có ca nào chỉ đích danh,",
+        "và đó là giới hạn phải ghi ra.",
+        "",
+        "Bảy tài liệu chưa có ca **đều là `kb.policy.*`** — nhóm `verbatim` đi bằng tra khóa. Đó không",
+        "phải ngẫu nhiên: sáu bộ được xây quanh **đường truy hồi**, còn **đường tra khóa** chỉ được bộ",
+        "147 ca đụng tới một phần. Lỗ hổng nằm đúng chỗ không bộ nào có nhiệm vụ canh.",
+        "",
+        "### 4.11.3 Lỗi thứ nhất — tài liệu có trong kho mà khách không tới được",
+        "",
+        "Thử hỏi từng tài liệu trong bảy tài liệu đó bằng câu tự nhiên. Sáu tài liệu tới được; một",
+        "thì không:",
+        "",
+        "```",
+        "hỏi     \"Quán có bao nhiêu món cho trẻ em?\"",
+        "  đi     policy:menu_size   -> trả lời SỐ MÓN CỦA TOÀN THỰC ĐƠN",
+        "  cần     policy:children   -> 43 món hợp trẻ em, 29 món người lớn tuổi, 68 món không cay",
+        "```",
+        "",
+        "`children` chỉ có ba cụm từ vựng, cả ba đều đòi chữ \"menu\" hoặc \"phần ăn\", nên cách hỏi",
+        "thường ngày nhất rơi ra ngoài và `bao nhieu mon` của `menu_size` thắng. Nhóm `vegetarian`",
+        "không dính vì nó đã có `bao nhieu mon chay` — cụm **dài hơn** nên thắng theo luật khớp cụm",
+        "dài. Bản sửa làm đúng điều đó cho `children`.",
+        "",
+        "> Đây là lớp lỗi mà dự án đã đặt tên từ sớm: **nội dung có trong kho, có cụm từ vựng, mà",
+        "> không câu hỏi tự nhiên nào tới được nó** — im lặng, không lỗi, không ai biết.",
+        "",
+        "Trong lúc thử, hai kết luận đầu của nhóm **sai** và phải rút lại: `price_range` và",
+        "`vegetarian` ban đầu bị chấm là không tới được, nhưng đó là do **câu hỏi thử không khớp nội",
+        "dung tài liệu** (hỏi về chỗ ngồi trong khi tài liệu nói về số lượng món). Hỏi đúng thì cả hai",
+        "tới được ngay. Ghi lại vì nó lặp lại đúng bài học của Chương 4: kiểm hành vi thật trước khi",
+        "kết luận hệ thống hỏng.",
+        "",
+        "### 4.11.4 Lỗi thứ hai — câu HỎI bị đọc thành lời khai, và nó xóa ràng buộc dị nguyên",
+        "",
+        "Lỗi nặng nhất tìm được trong cả đợt, và nó không nằm trong bảy tài liệu kia — nó lộ ra khi",
+        "thử một câu hỏi phụ huynh hay hỏi:",
+        "",
+        "| lượt | câu | `avoid` sau lượt | kết quả |",
+        "|---:|---|---|---|",
+        "| 1 | *\"Con mình dị ứng hải sản\"* | `[allergen:seafood]` | đúng |",
+        "| 2 | *\"Bé nhà mình ăn được món gì?\"* | **`[]`** | **XÓA MẤT** |",
+        "| 3 | *\"Cho mình món khai vị\"* | `[]` | **Gỏi cuốn tôm thịt, Súp măng cua, Nem rán Hà Nội, Bánh xèo miền Tây** |",
+        "",
+        "Bốn món mang nhãn hải sản, mời cho phụ huynh vừa khai con dị ứng hải sản.",
+        "",
+        "Nguyên nhân là một cụm trong danh sách xóa dị nguyên: `minh an duoc`, thêm vào để xử lý câu",
+        "**khẳng định** *\"tôi ăn được hải sản, tư vấn hải sản đi\"* — một bản sửa đúng ở thời điểm đó.",
+        "Nhưng cùng chuỗi chữ ấy nằm trong câu **hỏi**: \"bé nhà **mình ăn được** món gì\". Hai loại câu",
+        "ngược nhau hoàn toàn — một bên nói ràng buộc không còn, một bên hỏi ràng buộc cho phép ăn gì.",
+        "",
+        "**Điều làm lỗi này nguy hiểm là nó im lặng.** Lượt 2 không mời món nào, nên câu trả lời trông",
+        "hoàn toàn vô hại; chỉ lượt 3 mới lộ. Không bộ đánh giá **một lượt** nào bắt được lớp lỗi này,",
+        "và trước bản sửa thì cả 415 test đơn vị, 147 ca trả lời và 103 lượt golden đều xanh.",
+        "",
+        "Hàng rào đặt ở hàm khớp cụm chứ không vá từng cụm: mọi cụm xóa dị nguyên đều dính lớp lỗi",
+        "này, và vá từng cụm là bỏ sót cụm sẽ thêm sau.",
+        "",
+        "Chốt bằng một kịch bản phiên ba lượt. Kịch bản đó **đỏ 2 lượt trên mã trước bản sửa** và xanh",
+        "sau — một cổng chưa bao giờ đỏ thì không chứng minh được gì.",
+        "",
+        "### 4.11.5 Lỗi thứ ba — hệ thống không nghe số lượng khách xin",
+        "",
+        "Thử tham chiếu ngược có số lượng, sau khi lượt đầu đã nêu 6 món:",
+        "",
+        "| câu | trước | sau |",
+        "|---|---:|---:|",
+        "| *\"Liệt kê 3 món vừa tư vấn bên trên\"* | 6 món | **3 món** |",
+        "| *\"Cho mình 4 món vừa tư vấn ở trên\"* | 6 món | **4 món** |",
+        "| *\"Liệt kê cho tôi 2 món đầu vừa tư vấn\"* | **1 món** | **2 món** |",
+        "",
+        "**Phạm vi tham chiếu ngược vốn đã đúng** — cả ba lượt trả về đúng danh sách đã nêu, đúng thứ",
+        "tự. Chỉ con số bị bỏ: `LIST_SIZE = 6` là hằng số, và con số trong câu chỉ dùng để bật một cờ.",
+        "Khách xin hai món và nhận sáu món thì đó không phải trả lời sai, nhưng nó là **không nghe** —",
+        "và nói lại lần nữa cũng vẫn thế.",
+        "",
+        "Dòng thứ ba là một lỗi khác chồng lên: cụm `mon dau` trỏ *món thứ nhất*, nên \"2 món đầu\" bị",
+        "đọc thành một món. `mon dau` và `<số> mon dau` chồng chữ mà khác hẳn nghĩa, và con số đứng",
+        "trước là dấu hiệu phân biệt không mơ hồ.",
+        "",
+        "Bản sửa có hai hàng rào, và hàng rào thứ hai là bản sửa của một hồi quy mà chính bước này gây",
+        "ra: câu **combo** (*\"1 món chính 1 nước 1 tráng miệng\"*) chỉ có **một** cụm khớp `<số> món`",
+        "vì hai cụm kia không mang chữ \"món\" — nên phép đếm cụm một mình không đủ, phải hỏi thêm",
+        "`doc_suat_combo()`.",
+        "",
+        "> **Điều rút ra chung của mục 4.11:** ba lỗi này không do bộ đánh giá bắt — chúng do phép **rà",
+        "> độ phủ** của chính bộ đánh giá bắt. Một bộ test toàn xanh chỉ chứng minh điều nó có hỏi;",
+        "> đo xem nó **không hỏi gì** là một phép kiểm khác, và ở đây nó đắt hơn.",
+        "",
+        "Tái lập:",
+        "",
+        "```bash",
+        "python ai/evaluation/validate_cases.py",
+        "python ai/evaluation/run_session_eval.py",
+        "```",
         "",
         "Tái lập:",
         "",
@@ -3702,6 +4036,38 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
    chưa làm.
 8. **Ảnh Docker 2,74GB**, gấp hơn 11 lần bản không có embedding. Giá đã đo và đã chấp nhận, nhưng nó làm
    deploy chậm hơn và tốn đĩa hơn.
+9. **Chỉ hiểu tiếng Việt, và giới hạn này chạm tới an toàn.** Câu tiếng Anh cho bước hiểu **rỗng hoàn
+   toàn** — đo trực tiếp qua `understand()`:
+
+   | câu vào | `require_tags` | `avoid_tags` | `wants` |
+   |---|---|---|---|
+   | `give me a vegetarian dish` | rỗng | rỗng | `any` |
+   | `I am allergic to seafood` | rỗng | **rỗng** | `any` |
+   | `cho tôi món chay` | rỗng | rỗng | **`food`** |
+
+   Ô in đậm là chỗ đáng lo: **lời khai dị ứng bằng tiếng Anh không bật hàng rào dị nguyên**, trong khi
+   câu tiếng Việt tương đương thì bật. Việc đúng là dịch **cả ba tầng** dữ liệu — nhãn, tên món, kho tri
+   thức — chứ không phải nhận vài từ khóa tiếng Anh: một hệ thống trả lời được câu dễ và im lặng ở câu
+   khó thì nguy hiểm hơn một hệ thống nói rõ nó không hỗ trợ.
+10. **Kho `derived` truy hồi kém, và đó là hạn chế CẤU TRÚC.** Tài liệu `derived` điển hình có **0 từ chỉ
+   xuất hiện ở riêng nó** (văn xuôi viết tay: 2, nhiều nhất 18), vì danh sách món rò rỉ từ vựng của mọi
+   nhóm khác — *"Canh chua cá lóc"* nằm trong tài liệu vùng miền, cách chế biến và dịp ăn cùng lúc. Cắt
+   bớt mục nào cũng chỉ đưa con số 0 lên 1: thứ trùng lặp là **chính cái khuôn**. Ba cách chữa đều đã đo
+   và đều không thắng — xếp hạng lại bằng cross-encoder (p = 0,8238), gộp 49 tài liệu thành 6 theo họ
+   nhãn (p = 0,5488), và bỏ hẳn `derived` (p = 0,0000 **theo hướng xấu**). Muốn khá hơn thì phải **viết
+   tay** nội dung khác nhau thật, và khi đó mất bảo đảm `--check` chống lệch khỏi thực đơn. Đây là một
+   đánh đổi có thật, không phải một việc chưa làm xong.
+11. **Câu tri thức là mắt xích yếu nhất, và điểm nghẽn nằm ở ĐỊNH TUYẾN chứ không ở mô hình.** Tách theo
+   loại câu hỏi: câu chọn món đạt trần 100,00% với định tuyến đúng 100,00%; câu tri thức chỉ đạt trần
+   44,00% với định tuyến đúng **58,00%**, nên đóng góp thật chỉ **25,52%**. Trần oracle của cả hệ là
+   72,73% còn ước lượng thật 68,06% — chi phí sai định tuyến **4,67 điểm**. Hệ quả cho hướng đi: cải
+   thiện bộ truy hồi đang bị định tuyến sai thì không cứu được gì.
+12. **Hai tồn đọng cụ thể ở lớp hiểu, đã khoanh vùng nhưng chưa sửa.** *"Món nào có đậu hũ?"* bị bộ khớp
+   **tên món** ăn trước (*"Đậu hũ sốt cà chua"*) nên không cụm từ vựng nào tới lượt — tên món thắng câu
+   hỏi nguyên liệu, và không thêm cụm nào chữa được. *"Mình không dùng bột ngọt"* chưa nhận ra, vì cụm
+   hiện có là `khong bot ngot` còn câu có chữ *dùng* chen giữa; ba cách nói thay thế đã thử nhưng **đổi 0
+   câu trên 1.106 câu đánh giá**, tức thêm chúng là thêm mã không phép đo nào phủ — nên chúng không được
+   thêm.
 
 ## 5.5 Bài học kinh nghiệm
 
@@ -3823,7 +4189,7 @@ def tai_lieu_tham_khao() -> str:
 1. Robertson, S., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.*
    Foundations and Trends in Information Retrieval, 3(4), 333–389.
 2. Wang, L., Yang, N., Huang, X., et al. (2022). *Text Embeddings by Weakly-Supervised Contrastive
-   Pre-training.* arXiv:2212.03533. (Họ mô hình E5, gồm `multilingual-e5-small` dùng trong đồ án.)
+   Pre-training.* arXiv:2212.03533. (Họ mô hình E5, dùng ở bản trước của đồ án.)
 3. Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). *Reciprocal Rank Fusion Outperforms Condorcet
    and Individual Rank Learning Methods.* SIGIR '09, 758–759.
 4. Lewis, P., Perez, E., Piktus, A., et al. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive

@@ -173,8 +173,11 @@ class HealthVaReadyKhacNhau(unittest.TestCase):
         body = self.client.get("/ready").json()
         self.assertTrue(body["ready"])
         self.assertEqual(body["menu_items"], 91)
-        self.assertEqual(body["knowledge_docs"], 109)
-        self.assertEqual(body["knowledge_chunks"], 452)
+        # 60 tài liệu, không phải 109: 49 tài liệu sinh-theo-nhãn đã bị bỏ khỏi kho vì chúng chiếm
+        # 51% chỉ mục mà không phục vụ ai — nhánh lọc không đọc kho, tra khóa không tới được chúng,
+        # và 99,1% câu từng nhắm vào chúng giờ đi thẳng nhánh lọc nhãn.
+        self.assertEqual(body["knowledge_docs"], 60)
+        self.assertEqual(body["knowledge_chunks"], 213)
         self.assertEqual(body["verbatim_topics"], 24)
 
     def test_model_configured_PHAI_kiem_ca_khoa(self):
