@@ -1,75 +1,131 @@
 # Phân công 5 thành viên
 
-## Cách chia: một người làm NỀN TẢNG, bốn người làm bốn khâu của pipeline
+## Cách chia: theo THỨ TỰ XÂY DỰNG, không theo module
+
+Ràng buộc phụ thuộc của hệ thống rất chặt: không có nhãn thì không lọc được món, không có kho tri
+thức thì không truy hồi được, và **không có tập đánh giá thì không ai biết mình đúng hay sai**.
+
+Chia theo module thì năm người khởi động cùng lúc rồi ba người ngồi chờ. Chia theo **chặng xây
+dựng** thì mỗi người bàn giao một thứ người sau **dùng được ngay**.
 
 ```
-        ┌──────────────────────────────────────────────────────────────┐
-        │  TV1  NỀN TẢNG — dữ liệu & đo lường                          │
-        │  kho tri thức · từ điển nhãn · tập đánh giá · thước đo        │
-        │  KHÔNG phải một chặng runtime: mọi khâu DÙNG nó, không đi qua │
-        └──────────────────────────────────────────────────────────────┘
-                 │ cung cấp dữ liệu và tiêu chí cho cả 4 khâu dưới
-                 ▼
-khách quét QR, gõ một câu
-        │
-   ┌────▼──────────────────────────────────────────┐
-   │ TV5  CỔNG VÀO & PHIÊN                         │  service.py · session.py
-   │      nhận HTTP, xác thực, NẠP bộ nhớ phiên    │
-   └────┬──────────────────────────────────────────┘
-        │  ChatTurn(question, session_state)
-   ┌────▼──────────────────────────────────────────┐
-   │ TV2  HIỂU CÂU HỎI                             │  understand.py · llm_understand.py
-   │      câu này ràng buộc gì?                    │
-   └────┬──────────────────────────────────────────┘
-        │  Request
-   ┌────▼──────────────────────────────────────────┐
-   │ TV3  TRUY HỒI                                 │  rag/bm25.py · embedding.py · hybrid.py
-   │      câu này cần đoạn tri thức nào?           │
-   └────┬──────────────────────────────────────────┘
-        │  Evidence
-   ┌────▼──────────────────────────────────────────┐
-   │ TV4  CHỌN MÓN & GIỎ HÀNG                      │  answer.py · cart.py
-   │      món nào thỏa? thẻ giỏ nào?               │
-   └────┬──────────────────────────────────────────┘
-        │  Reply + Cart
-   ┌────▼──────────────────────────────────────────┐
-   │ TV5  GHI bộ nhớ phiên, trả JSON cho backend   │
-   └───────────────────────────────────────────────┘
+CHẶNG 1   TV1  DỮ LIỆU                          knowledge/* · menu-tags.json
+          |    91 món · 85 nhãn / 16 họ · 60 tài liệu / 213 đoạn
+          |
+          +--> giao BỘ NHÃN và KHO cho TV5, rồi TV1 làm tiếp phần hiểu câu hỏi
+          v
+CHẶNG 2   TV5  ĐÁNH GIÁ                         ai/evaluation/* toàn bộ
+          |    147 ca · 60 kịch bản / 163 lượt · 114 ca truy hồi · 120 ca chọn mục
+          |    viết được NGAY vì khoá đáp án là ĐIỀU KIỆN trên dữ liệu, không phải
+          |    danh sách kết quả — nên KHÔNG cần chờ TV2/TV3/TV4 viết dòng nào
+          v
+CHẶNG 1b  TV1  HIỂU CÂU HỎI                     understand.py · 629 cụm
+          |    -> Request(require/avoid/prefer · budget · wants · ~20 cờ)
+          v
+CHẶNG 3   TV2  TRUY HỒI                         rag/bm25 · embedding · hybrid
+          |    -> Evidence, tối đa 2 đoạn      đo ngay bằng 114 ca của TV5
+          v
+CHẶNG 4   TV3  CHỌN MÓN & GIỎ HÀNG              answer.py · cart.py · generate.py
+          |    -> Reply + thẻ giỏ               đo ngay bằng 147 ca của TV5
+          v
+CHẶNG 5   TV4  PHIÊN & TÍCH HỢP                 service.py · session.py · Docker
+          |    -> dịch vụ HTTP chạy thật        đo ngay bằng 163 lượt của TV5
+          v
+CHẶNG 6   TV5  ĐÓNG VÒNG                        golden_e2e · cổng CI
+               103 lượt qua stack thật — phần DUY NHẤT của TV5 phải chờ tới cuối
 ```
 
-### Vì sao cách chia này đúng hơn hai cách trước
+### Điều làm chuỗi này tuần tự được: khoá đáp án là ĐIỀU KIỆN, không phải kết quả
 
-Dự án đã thử hai cách, và cả hai đều có một chỗ gãy:
+Đây là tính chất quyết định, và nó kiểm được bằng cách mở bất kỳ tập nào:
 
-| Cách | Chỗ gãy |
-|---|---|
-| chia theo **thứ tự dựng** | TV5 ngồi chờ TV1–TV4; TV1 xong sớm rồi rảnh |
-| chia **thuần pipeline** | dữ liệu và đo lường **không phải chặng runtime**, phải gửi vào các khâu → TV phụ trách truy hồi gánh cả nội dung kho, tức **hai nền kiến thức** |
+```json
+cases.json            "expect": {"kind": "fact", "facts": {"m_008": {"price": 75000}}}
+retrieval_cases.json  "expected": [{"topic_keys_any": ["combo_pairing"]}]
+session_scripts.json  "expect": {"forbid_tags_any": ["allergen:seafood"]}
+```
 
-Cách hiện tại sửa đúng chỗ gãy thứ hai: **gom dữ liệu và đo lường thành một vai riêng (TV1)**, rồi
-bốn người còn lại nhận bốn khâu runtime thuần. Nhờ vậy:
+Không khoá nào tham chiếu tới mã. Chúng chỉ tham chiếu **thực đơn**, **bộ nhãn** và **siêu dữ liệu
+của kho** — tức đúng ba thứ TV1 giao ở chặng 1.
 
-- **TV3 chỉ làm truy hồi**, không phải soạn nội dung kho → một nền kiến thức, không phải hai.
-- **Đo lường có tên**, không thành "việc chung". Nếu mỗi người tự chấm phần mình thì đó đúng bệnh
-  bản cũ: 8 đường xử lý đều "chạy đúng" theo người viết chúng, không ai đo cả hệ thống, và **thước
-  đo sai 3 lần trước khi hệ thống sai**.
-- **Bốn khâu runtime chạy song song** ngay từ ngày 1, vì giao diện chốt trước.
+Hệ quả: **TV5 viết được toàn bộ tập đánh giá trước khi TV2, TV3, TV4 viết dòng mã đầu tiên.** Ba
+người đó có số đo **ngay lúc code chạy được**, không phải chờ tới cuối.
+
+### Vì sao TV5 đứng thứ HAI chứ không đứng cuối
+
+Đây là điểm khác biệt lớn nhất so với cách chia theo pipeline.
+
+Nếu đánh giá đứng cuối thì bốn chặng trước **xây mà không đo** — và đó đúng bệnh mà dự án này đã
+mắc: mỗi đường xử lý đều "chạy đúng" theo người viết chúng, không ai đo cả hệ thống. Đặt TV5 ở chặng
+2 thì mỗi chặng sau có thước đo **trước khi bắt đầu**, và điều kiện nghiệm thu là một con số chứ
+không phải một lời.
+
+**TV5 là người duy nhất xuất hiện hai lần**, và lý do có thật: `golden_e2e` cần stack chạy được nên
+nó buộc phải nằm sau TV4. Mọi phần khác của khâu đánh giá thì không.
+
+### Đường tới hạn, và chỗ chạy song song được miễn phí
+
+```
+tới hạn:     TV1 dữ liệu -> TV5 tập ca -> TV2 -> TV3 -> TV4 -> TV5 golden
+song song:   TV1 làm HIỂU CÂU HỎI trong lúc TV5 viết tập ca
+             TV2 và TV3 chồng lấn được: TV3 dựng select() bằng Request,
+             chưa cần Evidence cho tới nhánh tri thức
+```
+
+Chỉ **TV1 và TV5** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai phải chờ quá một
+chặng.
+
+
+### Vì sao tách ĐÁNH GIÁ khỏi DỮ LIỆU
+
+Bản trước gộp hai việc này vào một người, với lý do: cả hai đều không phải chặng runtime, và cả
+hai đều là thứ mọi khâu khác dựa vào. Lý do đó **vẫn đúng**. Cái đổi là **trọng số** so với hai lý
+do ngược chiều, và cả hai đều nặng hơn:
+
+**1. Người viết dữ liệu không nên là người viết ca chấm dữ liệu đó.** Đây là lý do phương pháp,
+không phải lý do tổ chức. Dự án này đã ghi lại rằng **thước đo sai nhiều lần hơn hệ thống sai** —
+riêng đợt gần nhất có ba lần một "kết quả" hoá ra là lỗi bộ đo. Khi cùng một người vừa soạn kho tri
+thức vừa viết ca đo truy hồi trên kho đó, họ vô thức viết ca mà họ biết kho trả lời được. Tách ra
+là cách rẻ nhất để có tính độc lập.
+
+**2. TV1 cũ nằm trên đường tới hạn của hai người.** Chính tài liệu này đã ghi: TV3 không đo được
+trước khi TV1 xong ca truy hồi, TV5 không đo được trước khi TV1 xong kịch bản đa lượt. Tách đôi thì
+phần dữ liệu chạy song song với phần đánh giá.
+
+### Vì sao GỘP dữ liệu với hiểu câu hỏi
+
+Không phải để cho nhóm trưởng nhiều việc, mà vì **một bất biến chạy vắt qua đúng hai phần đó**:
+
+    test_understand.KhoTriThucVaTuVungPhaiKhopNhau
+
+Mọi `topic_keys` trong kho tri thức phải có cụm từ vựng nhận ra được, và ngược lại. Hai người sở
+hữu hai đầu của một bất biến thì mỗi lần thêm tài liệu là một lần phải hẹn nhau. Một người sở hữu
+cả hai thì không.
+
+**Cái giá của việc gộp, nói trước:** một người nắm cả hai đầu bất biến có thể làm **sai cả hai đầu
+theo cùng một hướng**, và test so hai đầu với nhau nên nó không thấy gì. Thứ bù lại là TV5 viết ca
+đánh giá **độc lập với kho** — đó chính là lý do thứ nhất ở trên.
 
 ### Cái giá phải biết trước
 
-**TV1 nằm trên đường tới hạn của hai người, và điều đó đã đúng.** TV3 không đo được phép so truy
-hồi trước khi TV1 xong ca truy hồi; TV5 không đo được bộ nhớ phiên trước khi TV1 xong kịch bản đa
-lượt. Thứ tự đã làm: **ca đánh giá trước, mở rộng kho sau** — và nó đúng.
+**Tải việc không đều, và nhóm trưởng nhận phần nặng nhất.** TV1 giữ hai khâu; bốn người còn lại
+giữ một khâu mỗi người. Đổi lại, TV1 là người duy nhất không phải hẹn ai để làm việc của mình.
 
-**Một chỗ phụ thuộc mà bảng phân công KHÔNG lường được.** `analyze_failures.py` (TV1) chỉ ra rằng 9
-lượt tham chiếu ngược thuộc lớp `capability_missing` — một khả năng chưa dựng, nằm giữa TV2 (từ vựng
-cụm chỉ vị trí), TV5 (`SessionState.last_listed_ids`) và TV4 (nhánh trả lời). Tức **công cụ phân
-tích lỗi của TV1 sinh ra việc cho ba người khác**, và không ai lường được việc đó khi chia. Bài học:
-phần phân tích lỗi phải xong **trước** khi chốt phân công, không phải sau.
+**TV5 nằm trên đường tới hạn của ba người, và đó là lý do TV5 đứng ở chặng 2.** TV2 không đo được
+phép so truy hồi trước khi có ca truy hồi; TV3 không đo được nhánh chọn món trước khi có tập ca;
+TV4 không đo được bộ nhớ phiên trước khi có kịch bản đa lượt. Đặt TV5 sau cả ba là đảm bảo cả ba
+xây trong bóng tối.
 
-**Tải việc không đều.** TV2 gần như đã xong từ đầu (hiểu câu hỏi đạt 0 lỗi an toàn), còn TV3 và TV5
-xây từ số không. TV2 đã nhận thêm phần hợp nhất bộ nhớ (vì quy tắc hợp nhất đọc và ghi vào chính
-`Request` mà TV2 sở hữu) và cụm chỉ vị trí.
+**Chặng 1 phải giao ĐÚNG THỨ TỰ.** TV1 giao **dữ liệu trước, hiểu câu hỏi sau** — vì TV5 chỉ cần dữ
+liệu để viết tập ca, còn `understand.py` thì TV5 không cần. Giao ngược thứ tự thì TV5 chờ 2.417 dòng
+mã mà họ không dùng tới.
+
+**Một phụ thuộc mà bảng phân công KHÔNG lường được.** `analyze_failures.py` (TV5) chỉ ra rằng 9 lượt
+tham chiếu ngược thuộc lớp `capability_missing` — một khả năng chưa dựng, nằm giữa TV1 (cụm chỉ vị
+trí), TV4 (`SessionState.last_listed_ids`) và TV3 (nhánh trả lời). Tức **công cụ phân tích lỗi của
+TV5 sinh ra việc cho ba người khác**. Bài học: phần phân tích lỗi phải xong **trước** khi chốt phân
+công, không phải sau.
+
 
 ---
 
@@ -80,24 +136,24 @@ khâu runtime làm song song: ai cũng biết mình nhận gì và phải trả 
 trước chưa xong (dùng dữ liệu giả theo đúng hình dạng).
 
 ```python
-# TV5 -> TV2
+# TV4 -> TV1
 ChatTurn(question: str, session_state: SessionState | None)
 
-# TV2 -> TV3  (hình dạng HIỆN CÓ, không đổi)
+# TV1 -> TV2  (hình dạng HIỆN CÓ, không đổi)
 Request(text, folded, require_tags, prefer_tags, avoid_tags, budget_max, budget_strict,
         categories, wants, named_items, policy_topic, asks_price, asks_allergy,
         asks_extreme, is_comparison, off_topic, unparsed_restriction, ...)
 
-# TV3 -> TV4
+# TV2 -> TV3
 Evidence(verbatim: str | None,            # tài liệu answer_mode=verbatim, trả NGUYÊN VĂN
          chunks: list[KnowledgeChunk])    # tài liệu answer_mode=synthesize, cho mô hình đọc
 
-# TV4 -> TV5
+# TV3 -> TV4
 Reply(text, items, kind, asks_back, branch, notes, cart: list[CartAction])
 CartAction(menu_item_id, name, quantity, reason, evidence_ids,
            requires_customer_confirmation=True)   # LUÔN True, không nhánh nào đặt False
 
-# TV1 cung cấp cho tất cả
+# TV5 cung cấp TIÊU CHÍ cho tất cả
 KnowledgeChunk(chunk_id, doc_id, title, heading, topic_keys, source, answer_mode, text)
 cases.json + answer_metric.score(case, answer, menu, named) -> Verdict
 ```
@@ -106,19 +162,21 @@ Ai cần đổi một trong các hợp đồng này thì **nhắn cả nhóm tr�
 
 ---
 
-# TV1 — Nền tảng: dữ liệu & đo lường
+---
+
+# TV1 — Dữ liệu + Hiểu câu hỏi  *(nhóm trưởng)*
 
 ### Câu hỏi khâu này trả lời
-*AI được phép nói gì, dựa vào dữ liệu nào — và làm sao biết câu trả lời đúng hay sai?*
+*AI được phép nói gì và dựa vào dữ liệu nào — và câu khách vừa gõ nêu ra những ràng buộc gì?*
 
 ### Vì sao hai việc này thuộc cùng một người
-Chúng giống nhau ở điểm quan trọng nhất: **cả hai đều không phải chặng runtime, và cả hai đều là
-thứ mọi khâu khác đo dựa vào.** Tách chúng ra thì hoặc chúng bị gửi vào các khâu (và người nhận
-gánh thêm một nền kiến thức lạ), hoặc chúng thành "việc chung" và không ai làm.
+Một bất biến chạy vắt qua đúng hai phần: `KhoTriThucVaTuVungPhaiKhopNhau` đòi mọi `topic_keys`
+trong kho có cụm từ vựng nhận ra được, và ngược lại. Hai chủ sở hữu thì mỗi lần thêm tài liệu là
+một lần phải hẹn nhau; một chủ sở hữu thì không.
 
 Chúng cũng đòi **cùng một loại kỷ luật**: *số phải tính được, không được viết tay*. Dự án đã mắc lỗi
-đó hai lần và cả hai đều ở phần TV1 phụ trách — `"hơn 90 món"` khi thực đơn có đúng 91, và kiểm kê
-đụng chữ ghi `32/90` khi thật là `53/40`.
+đó nhiều lần ở đúng hai phần này — `"hơn 90 món"` khi thực đơn có đúng 91, và kiểm kê đụng chữ ghi
+`32/90` khi thật là con số khác.
 
 ### Kiến thức phải nắm
 
@@ -139,69 +197,7 @@ Chúng cũng đòi **cùng một loại kỷ luật**: *số phải tính đư�
 - **Chunking**: chia theo heading `##`, kèm tiêu đề tài liệu vào mỗi đoạn, `chunk_id` tất định. Cửa
   `audience: guest` **từ chối** tệp không phải nội dung cho khách — không phải lọc bỏ.
 
-**Phần đo lường**
-- **Khóa đáp án là truy vấn, không phải danh sách.** Danh sách viết tay thì không có cách nào kiểm —
-  bản cũ có 96 khóa trỏ sai chỗ suốt nhiều tháng.
-- **Test hai chiều.** Thước đo chỉ có test "bắt được lỗi" thì qua được bằng cách chấm đỏ mọi thứ.
-- **Ba nhóm, không phải hai.** Ca an toàn là **chốt**, không phải số liệu — một ca chốt đỏ là
-  **chặn**, kể cả khi tỷ lệ chung tăng.
-- **Bộ dò lỗ** tìm lỗi *chưa nghĩ tới*. Khi bịt một lỗ, con số nền tụt từ **0,9960 xuống 0,7368** —
-  tức 99,6% kia gần như hoàn toàn ảo.
-- **`criterion_too_strict` là lớp lỗi dễ bỏ qua nhất.** Dấu hiệu: **nhiều ca đỏ cùng MỘT thông báo**
-  thì thường là tiêu chí sai, không phải hệ thống sai. Vừa xảy ra: 7 ca dị ứng mới đỏ đồng loạt vì
-  khóa đáp án ghi `allowed: savoury` trong khi câu hỏi không nói "món ăn".
-
-### Đã xong
-Kho tri thức **109 tài liệu / 452 đoạn** (24 `verbatim` + 85 `synthesize`; 57 `derived` + 52 `demo`),
-372 đoạn được xếp hạng. Từ điển **85 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
-**140 ca / 45 họ**, chia theo họ thành chốt / phát triển / niêm phong. Thước đo có bộ dò lỗ tìm
-**0 lỗ**.
-
-### Việc còn lại — làm theo đúng thứ tự này
-Hai việc đầu từng **chặn người khác**, và cả hai ĐÃ XONG:
-
-1. **138 ca đánh giá truy hồi** (`retrieval_cases.json`), 14 họ, 12 ca `expect_nothing`. Khóa đáp án
-   là *điều kiện chọn* giải ra khi chạy, kèm `forbidden` — chỉ số **forbidden@5** quan trọng nhất vì
-   nó đo việc trích đoạn **sai chủ đề**, thứ mà Hit@5 = 1,0 vẫn cho qua.
-2. **33 kịch bản đa lượt** (`session_scripts.json`), 87 lượt, **7 nhóm**. Bốn nhóm đầu:
-   `allergy_persists` (5, **chốt an toàn**), `constraint_overrides` (6), `no_repeat` (5),
-   `context_reference` (9). Hai nhóm sau **sinh ra từ lỗi tìm được khi CHẠY THẬT**, không từ kế
-   hoạch: `chained_reference` (3 — hai lượt tham chiếu liên tiếp) và `question_not_declaration`
-   (2 — câu HỎI về dị nguyên không được thành lời KHAI). Kết quả: **87/87**, 0 lỗi an toàn.
-3. **6 phép kiểm giỏ hàng**, áp cho **MỌI ca** chứ không viết trong từng ca — chúng là BẤT BIẾN.
-   Cộng chốt `safety_cart_no_allergen`, tách riêng khỏi `safety_forbid` vì hậu quả khác: nêu tên
-   món là một câu nói, đưa vào thẻ giỏ là **một nút bấm được**.
-4. `analyze_failures.py` — **7 lớp** nguyên nhân. Kế hoạch nêu sáu; lớp thứ bảy
-   (`capability_missing`) do PHÉP ĐO chỉ ra, vì gán sai lớp thì công cụ chỉ người sau đi sửa sai
-   chỗ: 9 lượt tham chiếu ngược từng bị xếp `vocab_miss`, mà thêm bao nhiêu cụm cũng không sửa được.
-5. Mở rộng kho **khi có nhu cầu thật**. Tiêu chí: *nhóm này có câu hỏi nào mà lớp tra khóa không trả
-   lời được không?* Thêm tài liệu cho nhóm đã đúng 100% là tạo **đường thứ hai cho cùng một việc**.
-
-### Sở hữu tệp
-`ai/knowledge/*` · `ai/app/rag/chunker.py` · `ai/app/test_chunker.py` ·
-`ai/scripts/build_knowledge.py` · `build_tag_dictionary.py` · `audit_allergen_tags.py` ·
-`backend/data/menu-tags.json` · `ai/evaluation/*` **toàn bộ**
-
-### Tự đo bằng
-```bash
-python ai/scripts/build_knowledge.py --check
-python ai/scripts/build_tag_dictionary.py --check
-python ai/scripts/audit_allergen_tags.py
-python ai/evaluation/validate_cases.py
-python ai/evaluation/build_split.py --check
-python ai/evaluation/probe_metric_holes.py
-python -m unittest discover -s ai/evaluation -p "test_*.py"
-python -m unittest test_chunker            # trong ai/app
-```
-
----
-
-# TV2 — Hiểu câu hỏi
-
-### Câu hỏi khâu này trả lời
-*Câu khách vừa gõ nêu ra những ràng buộc gì, và cái gì hệ thống KHÔNG hiểu?*
-
-### Kiến thức phải nắm
+**Phần hiểu câu hỏi**
 - **Khớp cụm dài trước, rồi ăn hết đoạn đã khớp.** Cơ chế này bảo vệ **106 cụm có nguy cơ** (86 bị
   chứa trong cụm khác, 47 nằm trong tên món, 27 thuộc cả hai). Số này do
   `test_understand.collision_census()` tính, và **có test chốt giá trị** — nên nó không lệch âm
@@ -214,43 +210,62 @@ python -m unittest test_chunker            # trong ai/app
 - **An toàn không được phụ thuộc mô hình sinh.** Proxy chết thì khách mất phần gợi ý tinh, **không
   mất bảo vệ dị ứng**.
 
-### Hai bài học đắt nhất, cả hai đều ở khâu này
-
-**1. Một cơ chế an toàn chưa bao giờ chạy.** Dòng 408 có hai byte `0x08` thật trong chuỗi
-raw-string, nên `\bkhong ...` thực chất là `<backspace>khong ...` và mẫu "không ⟨chủ đề⟩" là **mã
-chết**. Vô hình (không hiện trên màn hình lẫn trong `git diff`), im lặng (regex không lỗi, chỉ không
-khớp), bị che (`AVOID_FRAMING` có sẵn `khong co` nên "không **có** hải sản" vẫn chạy). 112 ca đánh
-giá không bắt được vì không ca nào dùng đúng dạng đó.
-
-→ `test_source_hygiene.py` nay ép: **cơ chế nào được khai là hàng rào an toàn thì phải có ca chứng
-minh nó CHẠY**, không phải chỉ có mặt trong mã.
-
-**2. Đo một cơ chế thì phải CHẠY nó.** Khi nối tên món tới nhóm dị nguyên, bộ dò của tôi phân tích
-*chuỗi con* và loại **17/19** ứng viên (`cua` nằm trong `gio mo cua`, `ca` nằm trong `ca phe`). Tin
-nó thì lỗ an toàn vẫn mở. Nhưng phân tích chuỗi con **không biết** về cơ chế ăn đoạn đang bảo vệ
-đúng mấy chỗ đó. Chạy `understand()` thật: **19/19 an toàn**.
+### Đã xong
+Kho tri thức **60 tài liệu / 213 đoạn** (24 `verbatim` + 36 `synthesize`; 8 `derived` + 52 `demo`),
+**182 đoạn được xếp hạng** — 49 tài liệu sinh-theo-nhãn đã bị bỏ sau khi đo được chúng chiếm 51%
+chỉ mục mà không phục vụ đường nào. Từ điển **85 nhãn / 16 nhóm**, hai nguồn thực đơn khớp 91/91. Tập đánh giá
+**140 ca / 45 họ**, chia theo họ thành chốt / phát triển / niêm phong. Thước đo có bộ dò lỗ tìm
+**0 lỗ**.
 
 ### Việc còn lại
-1. Nhận `session_state` từ TV5 và hợp nhất theo **ba quy tắc** (phối hợp với TV5 về hình dạng —
-   TV2 nên chủ động nhận phần này vì quy tắc đọc và ghi vào chính `Request`).
-2. Mở rộng từ vựng cho `topic_keys` mới khi TV1 thêm tài liệu.
+1. Mở rộng kho **khi có nhu cầu thật**. Tiêu chí: *nhóm này có câu hỏi nào mà lớp tra khóa không
+   trả lời được không?* Thêm tài liệu cho nhóm đã đúng 100% là tạo **đường thứ hai cho cùng một
+   việc** — và khi câu trả lời sai thì không ai biết đường nào sai.
+2. **Bảo trì hình dạng `Request`** khi thêm ràng buộc mới, và báo TV4 mỗi lần đổi. TV1 KHÔNG
+   sở hữu `session.py` — xem ghi chú "Một tệp, hai chủ" ở cuối mục này.
 3. Nối thêm tên món tới nhóm dị nguyên khi gặp cách nói chưa phủ — **luôn kèm ca nhóm CHỐT của
-   TV1**, và đo bằng cách **chạy `understand()` thật**.
+   TV5**, và đo bằng cách **chạy `understand()` thật**, không phân tích chuỗi con.
 
 ### Sở hữu tệp
+`ai/knowledge/*` · `ai/app/rag/chunker.py` · `ai/app/test_chunker.py` ·
+`ai/scripts/build_knowledge.py` · `build_tag_dictionary.py` · `audit_allergen_tags.py` ·
+`backend/data/menu-tags.json` ·
 `ai/app/understand.py` · `llm_understand.py` · `test_understand.py` · `test_llm_understand.py` ·
 `test_source_hygiene.py`
 
+### Một tệp, hai chủ — chỗ ranh giới mỏng nhất của bảng phân công
+
+`session.py` thuộc **TV4**. Nhưng hàm `merge_into_request()` bên trong nó **đọc và ghi vào
+`Request`** — cấu trúc TV1 sở hữu. Một bản trước của tài liệu này bảo TV1 "chủ động nhận phần hợp
+nhất", trong khi vẫn liệt kê `session.py` dưới tệp của TV4. Hai câu đó mâu thuẫn nhau.
+
+Ranh giới đúng, và nó chạy **theo dữ liệu** chứ không theo tệp:
+
+| Ai | Sở hữu cái gì | Cụ thể |
+|---|---|---|
+| **TV1** | **hình dạng** `Request` | có trường nào, mỗi trường nghĩa gì, nhóm nhãn nào ghi đè nhóm nào |
+| **TV4** | **ba quy tắc hợp nhất** và toàn bộ `session.py` | dị nguyên cộng dồn · ràng buộc cứng ghi đè · ngữ cảnh giữ 5 |
+
+Nói cách khác: TV1 quyết định **cái gì được nhớ**, TV4 quyết định **nhớ như thế nào qua các lượt**.
+
+Hệ quả thực hành: TV1 thêm một trường ràng buộc mới thì phải nói cho TV4 biết nó thuộc nhóm nào
+trong ba nhóm trên — thiếu bước đó thì trường mới **im lặng không được nhớ**, và không test nào đỏ
+vì test của TV4 chỉ phủ các trường TV4 biết.
+
 ### Tự đo bằng
 ```bash
+python ai/scripts/build_knowledge.py --check
+python ai/scripts/build_tag_dictionary.py --check
+python ai/scripts/audit_allergen_tags.py
 python -m unittest test_understand test_llm_understand test_source_hygiene   # trong ai/app
 python ai/evaluation/run_baseline.py --all
 python ai/evaluation/run_ablation.py
 ```
 
+
 ---
 
-# TV3 — Truy hồi
+# TV2 — Truy hồi
 
 ### Câu hỏi khâu này trả lời
 *Câu này cần đoạn tri thức nào — và phương pháp lấy nào tốt hơn, đo được?*
@@ -271,7 +286,7 @@ python ai/evaluation/run_ablation.py
 ### Nhận từ TV1
 Kho **425 đoạn `synthesize`** với 4 bất biến đã ép: mọi đoạn kèm tiêu đề tài liệu, `chunk_id` tất
 định và không trùng, dãy mã liên tục từ 0, cửa `audience: guest`. Đây là **hiện vật đã hoàn thành** —
-TV3 không phải soạn nội dung, chỉ làm cách lấy.
+TV2 không phải soạn nội dung, chỉ làm cách lấy.
 
 ### Đã làm, và kết quả
 
@@ -320,7 +335,9 @@ có một số bịa thì mọi số còn lại mất giá trị. Tập niêm ph
 
 ---
 
-# TV4 — Chọn món & giỏ hàng
+---
+
+# TV3 — Chọn món & giỏ hàng
 
 ### Câu hỏi khâu này trả lời
 *Với những ràng buộc đã hiểu, món nào thỏa — và thẻ giỏ gợi ý gồm gì?*
@@ -372,7 +389,9 @@ python -m unittest test_cart                   # trong ai/app
 
 ---
 
-# TV5 — Cổng vào & phiên
+---
+
+# TV4 — Cổng vào & phiên
 
 ### Câu hỏi khâu này trả lời
 *Backend gọi vào thế nào, và bộ nhớ trong một phiên QR sống chết ra sao?*
@@ -421,7 +440,7 @@ vụ mới chỉ cần trả tập trường nhỏ hơn với **đúng tên cũ*
    lặng. Có 3 test chốt, gồm một chiều nghịch.
 
 ### Chặn bởi — đã hết
-Từng cần kịch bản đa lượt của TV1 để đo bộ nhớ; nay có 33 kịch bản / 87 lượt và **87/87 đạt**.
+Từng cần kịch bản đa lượt của TV5 để đo bộ nhớ; nay có 60 kịch bản / 163 lượt và **không lượt nào đỏ**.
 
 Chạy thật qua backend tìm ra **4 lỗi mà 229 test không thấy**, cả bốn là **lệch hợp đồng giữa hai
 bên** — đúng loại lỗi test một phía không thể thấy. Nên điều kiện chấp nhận của khâu này vẫn là
@@ -444,10 +463,68 @@ nhận **bộ nhớ đã mất**.
 
 ---
 
+---
+
+# TV5 — Đánh giá
+
+### Câu hỏi khâu này trả lời
+*Làm sao biết câu trả lời đúng hay sai — và làm sao biết chính thước đo không sai?*
+
+### Vì sao đây là một vai RIÊNG, không phải việc chung
+Nếu mỗi người tự chấm phần mình thì đó đúng bệnh bản cũ: 8 đường xử lý đều "chạy đúng" theo người
+viết chúng, không ai đo cả hệ thống, và **thước đo sai 3 lần trước khi hệ thống sai**.
+
+Và TV5 **không xây gì trong pipeline**. Đó là chủ ý: người chấm không sở hữu thứ bị chấm. Riêng với
+kho tri thức, tách khỏi TV1 còn quan trọng hơn — người soạn kho vô thức viết ca mà họ biết kho trả
+lời được.
+
+### Kiến thức phải nắm
+
+**Phần đo lường**
+- **Khóa đáp án là truy vấn, không phải danh sách.** Danh sách viết tay thì không có cách nào kiểm —
+  bản cũ có 96 khóa trỏ sai chỗ suốt nhiều tháng.
+- **Test hai chiều.** Thước đo chỉ có test "bắt được lỗi" thì qua được bằng cách chấm đỏ mọi thứ.
+- **Ba nhóm, không phải hai.** Ca an toàn là **chốt**, không phải số liệu — một ca chốt đỏ là
+  **chặn**, kể cả khi tỷ lệ chung tăng.
+- **Bộ dò lỗ** tìm lỗi *chưa nghĩ tới*. Khi bịt một lỗ, con số nền tụt từ **0,9960 xuống 0,7368** —
+  tức 99,6% kia gần như hoàn toàn ảo.
+- **`criterion_too_strict` là lớp lỗi dễ bỏ qua nhất.** Dấu hiệu: **nhiều ca đỏ cùng MỘT thông báo**
+  thì thường là tiêu chí sai, không phải hệ thống sai. Vừa xảy ra: 7 ca dị ứng mới đỏ đồng loạt vì
+  khóa đáp án ghi `allowed: savoury` trong khi câu hỏi không nói "món ăn".
+
+### Đã xong
+Bốn tập đánh giá, chia theo **họ** nên câu diễn đạt lại không rơi hai bên. Thước đo có bộ dò lỗ tìm
+**0 lỗ**. `analyze_failures.py` phân 7 lớp nguyên nhân — kế hoạch nêu sáu, lớp thứ bảy
+(`capability_missing`) do **phép đo** chỉ ra.
+
+### Việc còn lại
+1. Giữ bốn tập **khớp kho khi TV1 đổi dữ liệu**. Bộ sinh ca có `--check` trong CI, nên lệch là đỏ
+   chứ không im lặng — nhưng ai đó vẫn phải sinh lại và đọc phần đổi.
+2. **Tập niêm phong đã mở hết.** Muốn có con số held-out lần nữa thì phải viết ca **mới**, chưa
+   từng dùng. Đây là việc chỉ TV5 làm được, và nó là điều kiện để chương kết quả nói được gì.
+3. Giữ `run_chung_cu_dinh_tuyen.py` khớp hành vi: bảng `PHAN_XU` là **phán xử của người**, nên nó
+   phải được đọc lại mỗi khi định tuyến đổi. Bộ chạy tự báo `CHƯA PHÂN XỬ` khi có ca mới.
+
+### Sở hữu tệp
+`ai/evaluation/*` **toàn bộ** · `.github/workflows/ci.yml` (phần cổng đánh giá)
+
+### Tự đo bằng
+```bash
+python ai/evaluation/validate_cases.py
+python ai/evaluation/validate_retrieval_cases.py
+python ai/evaluation/build_split.py --check
+python ai/evaluation/probe_metric_holes.py
+python ai/evaluation/analyze_failures.py
+python -m unittest discover -s ai/evaluation -p "test_*.py"
+```
+
+
+---
+
 ## Trạng thái — cả năm khâu ĐÃ XONG, kèm số và kèm chỗ CHƯA đóng được
 
 Bảng này từng **trôi số**: nó ghi "119 ca / 25 kịch bản / 65 lượt" trong khi thật là 132 / 30 / 82,
-và cột "Còn lại" của TV3 và TV5 nêu hai việc đã làm xong. Đó đúng **điều cấm số 3** của chính tài
+và cột "Còn lại" của hai khâu nêu việc đã làm xong. Đó đúng **điều cấm số 3** của chính tài
 liệu này — *"viết số vào tài liệu thay vì tính nó"* — và là lần thứ ba dự án mắc nó.
 
 Số dưới đây lấy ngày **2026-07-30**, và mọi con số đều **kiểm lại được bằng một lệnh** ghi ở cột
@@ -471,7 +548,7 @@ Ba điều đầu **không ai trong nhóm đóng được** — chúng cần d�
 | Không có log khách thật | 140 ca và 87 lượt đều do người viết. Số đo được hệ thống *có tôn trọng ràng buộc hay không*; nó **không** đo được khách thật hỏi gì | chỉ có sau khi chạy thật với khách |
 | 52/108 tài liệu tri thức là `demo` | không thể sai về **con số** (số lấy từ thực đơn) nhưng có thể sai về **chính sách** | chủ nhà hàng |
 | Tập niêm phong đã dùng hết ở **cả hai** tập | mọi con số hiện tại không còn là held-out | cần tập MỚI, và chỉ mở một lần |
-| Kịch bản đa lượt chưa chấm thẻ giỏ | lỗ đo, nhỏ | TV1 + TV4 |
+| Kịch bản đa lượt chưa chấm thẻ giỏ | lỗ đo, nhỏ | TV5 + TV3 |
 
 ### Một điều phải nói vì nó là bằng chứng
 
@@ -514,10 +591,10 @@ Các hợp đồng ở mục "Giao diện đã chốt" là ngoại lệ: **đổ
 ## Mỗi tuần báo đúng ba dòng
 
 ```
-TV4 — tuần 2
+TV3 — tuần 2
   số đo: run_baseline.py --all -> 111/119 (tuần trước 108/119), 0 lỗi an toàn
   làm được: thẻ giỏ + 5 test bất biến
-  đang vướng: chưa rõ "món khác đi" nên bỏ bao nhiêu món đã gợi ý — cần TV1 viết ca
+  đang vướng: chưa rõ "món khác đi" nên bỏ bao nhiêu món đã gợi ý — cần TV5 viết ca
 ```
 
 Dòng **số đo** bắt buộc và phải là con số chạy được. Bài học đắt nhất của dự án là *thước đo sai 3
@@ -526,30 +603,38 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 ## Ba tài liệu ai cũng phải đọc trước khi bắt đầu
 
 1. **`ai/README.md`** — 5 nguyên tắc của bản dựng lại.
-2. **`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb`** — 66 ô, mỗi ô mã tính lại từ mã sống. Chạy nó
+2. **`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb`** — 92 ô, mỗi ô mã tính lại từ mã sống. Chạy nó
    là hiểu toàn hệ thống bằng **số**, không bằng lời.
 3. **`ai/docs/00-problem-statement.md`** — AI được phép trả lời gì, và tuyệt đối không làm gì.
 
 ## Trạng thái hiện tại
 
-| TV | Đã xong | Bằng chứng |
+| TV | Vai | Bằng chứng |
 |---|---|---|
-| **1** | Dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho 109 tài liệu / 452 đoạn · bộ rà nhãn 0 lỗ |
-| **2** | Truy hồi — BM25, embedding, hybrid RRF | 222 ca truy hồi · chốt embedding, Hit@1 niêm phong 60,87% so với BM25 39,13% (McNemar p = 0,0020) |
-| **3** | Chọn món và ba lớp an toàn | 168 ca chọn mục · 10 phép kiểm xác minh · **0 lỗi an toàn** trên mọi tập |
-| **4** | Dịch vụ HTTP, bộ nhớ phiên, tích hợp backend | 5 endpoint · 3 quy tắc hợp nhất · hợp đồng schema · **đã chạy thật qua `docker compose`** |
-| **5** | Bốn tập đánh giá, thước đo, golden, cổng CI | 140/140 ca · 149/149 lượt phiên · 103/103 lượt golden · 100 câu hai chiều |
+| **1** | **Dữ liệu + Hiểu câu hỏi** *(nhóm trưởng)* | kho **60 tài liệu / 213 đoạn** (182 xếp hạng) · 85 nhãn / 16 nhóm · 91/91 món khớp hai nguồn · **629 cụm** từ vựng · 107 cụm nguy cơ đụng chữ đều bị cơ chế khớp-dài-trước chặn |
+| **2** | Truy hồi | **114 ca** · chốt embedding `bge-m3`, `written` Hit@2 **0,879** · hybrid p=1,0000 và reranker p=0,8238 đều **không thắng** |
+| **3** | Chọn món & giỏ hàng | lọc nhãn **100,00%** · 4 bất biến giỏ hàng · **0 lỗi an toàn** trên mọi tập |
+| **4** | Cổng vào & phiên | 5 endpoint · 3 quy tắc hợp nhất bộ nhớ · hợp đồng schema · **đã chạy thật qua `docker compose`** |
+| **5** | **Đánh giá** | 147 ca trả lời · 60 kịch bản / 163 lượt · 114 ca truy hồi · 120 ca chọn mục · bộ dò lỗ **0 lỗ** · **14 cổng `--check`** |
+
+> **Bảng này đã hai lần gán sai vai.** Lần một: nó lệch một bậc so với chính phần định nghĩa ở đầu
+> tài liệu, vì còn sót từ cách chia cũ. Lần hai: nó vẫn giữ cách chia cũ sau khi nhóm trưởng đổi
+> phân công. Cả hai lần, **số liệu được cập nhật còn nhãn TV thì không ai soát**.
+>
+> Ghi ra vì đây đúng lớp lỗi cả dự án này canh: **một bảng sai âm thầm nguy hiểm hơn một bảng
+> thiếu.** Người đọc tin bảng, và ở đây người đọc là giảng viên chấm.
 
 **Số đo hiện tại:**
 
 | Phép đo | Quy mô | Kết quả |
 |---|---:|---|
-| Tập ca trả lời | 140 ca | **140/140** |
-| Bộ nhớ phiên | 149 lượt | **149/149**, 0 lỗi an toàn |
+| Tập ca trả lời | 147 ca | **147/147** (niêm phong 48/48) |
+| Bộ nhớ phiên | 60 kịch bản / 163 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
-| Truy hồi | 222 ca | embedding thắng BM25 có ý nghĩa thống kê |
-| Chọn món | 50 câu | lọc nhãn **100,00%**, 0 món vi phạm; ba bộ xếp hạng 58–68% |
-| Bộ kiểm | — | **401 test `ai/app`** + **143 test `ai/evaluation`** |
+| Truy hồi | 114 ca | `written` Hit@2 **0,879** · `cấm@5` giảm 9 → 6 sau khi bỏ tài liệu sinh-theo-nhãn |
+| Chọn món | 50 câu | lọc nhãn **100,00%**, 0 món vi phạm |
+| Định tuyến câu tri thức | 50 câu | 64,00% theo khoá nghiêm ngặt · **90,00%** chấm theo câu trả lời dùng được |
+| Bộ kiểm | — | **429 test `ai/app`** + **143 test `ai/evaluation`** · 14 cổng `--check` |
 
 **Đã chạy thật qua `docker compose up`** — quét QR, hỏi, nhận thẻ giỏ, thêm vào giỏ hàng. Phép
 kiểm này **không thay được bằng test** vì nó kiểm

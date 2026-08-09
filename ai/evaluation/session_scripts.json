@@ -1983,6 +1983,159 @@
           }
         }
       ]
+    },
+    {
+      "id": "rag-trong-phien-01",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Mình dị ứng hải sản nhé",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Cùng là gà mà sao món thì mềm món thì dai?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "gà"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:seafood"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:seafood"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rag-trong-phien-02",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Nhà mình có người dị ứng đậu phộng",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Uống cà phê buổi tối có bị mất ngủ không?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "cà phê"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:peanut"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:peanut"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rag-trong-phien-03",
+      "group": "rag_trong_phien",
+      "why": "Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có sống qua lượt tri thức hay không.",
+      "turns": [
+        {
+          "user": "Mình không ăn được sữa",
+          "expect": {
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "Lời khai phải vào bộ nhớ ngay lượt này."
+          }
+        },
+        {
+          "user": "Có món nào không cay dưới 100k không?",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."
+          }
+        },
+        {
+          "user": "Đồ chay ở đây có thật sự chay không?",
+          "expect": {
+            "expect_branch_prefix": "knowledge_corpus",
+            "must_say_any": [
+              "chay"
+            ],
+            "memory_must_have_avoid": [
+              "allergen:dairy"
+            ],
+            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."
+          }
+        },
+        {
+          "user": "Vậy gợi ý mình vài món đi",
+          "expect": {
+            "forbid_tags_any": [
+              "allergen:dairy"
+            ],
+            "min_items": 3,
+            "expect_branch_prefix": "filter",
+            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt trước đó đi một nhánh hoàn toàn khác."
+          }
+        }
+      ]
     }
   ]
 }

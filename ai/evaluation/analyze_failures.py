@@ -225,7 +225,11 @@ def phan_tich_tra_loi(items: list[dict]) -> list[Nguyennhan]:
         chuoi = [
             f"hiểu   : {' '.join(hieu) if hieu else 'KHÔNG hiểu gì'}",
             f"nhánh  : {reply.branch}",
-            f"đỏ     : {'; '.join(v.reasons)}",
+            # `Verdict` khai trường này là `failures`; `reasons` chưa bao giờ tồn
+            # tại. Dòng chỉ chạy khi có ca ĐỎ, nên bộ phân tích nguyên nhân sai
+            # tự hỏng đúng lần đầu nó tìm thấy một cái sai — và im lặng suốt thời
+            # gian mọi ca còn xanh.
+            f"đỏ     : {'; '.join(v.failures)}",
         ]
         if not hieu:
             lop = VOCAB_MISS

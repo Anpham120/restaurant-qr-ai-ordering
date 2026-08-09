@@ -43,8 +43,8 @@ def ca(**kwargs) -> dict:
         "id": "thu-01",
         "family": "kb-thu",
         "query": "Món nướng có những gì?",
-        "expected": [{"topic_keys_any": ["method_grilled"]}],
-        "forbidden": [{"topic_keys_any": ["method_steamed"]}],
+        "expected": [{"topic_keys_any": ["spice_ladder"]}],
+        "forbidden": [{"topic_keys_any": ["noodle_soups"]}],
         "expect_nothing": False,
         "why": "Ca thử, cần đủ tám từ để qua phép kiểm độ dài của lời giải thích này.",
     }
@@ -98,8 +98,8 @@ class BoKiemBatDuocChinLoaiLoi(unittest.TestCase):
         trong ca `kb-collision-02` bản đầu của tôi.
         """
         self._bat(
-            ca(expected=[{"doc_id_prefix": "kb.method."}],
-               forbidden=[{"topic_keys_any": ["method_grilled"]}]),
+            ca(expected=[{"doc_id_prefix": "kb.written.spice"}],
+               forbidden=[{"topic_keys_any": ["spice_ladder"]}]),
             "giao nhau",
         )
 
@@ -120,26 +120,26 @@ class DieuKienChonLaTRUYVANKhongPhaiDanhSach(unittest.TestCase):
         """KHÔNG bỏ qua khóa lạ. `topic_key_any` thiếu chữ `s` mà bị bỏ qua thì ca đó lặng lẽ
         đòi 'mọi đoạn' và nó XANH mãi mãi."""
         with self.assertRaises(SelectorError):
-            validate_selector({"topic_key_any": ["method_grilled"]})
+            validate_selector({"topic_key_any": ["spice_ladder"]})
 
     def test_khoa_ghi_chu_bi_bo_qua(self):
-        a = select_chunk_ids({"topic_keys_any": ["method_grilled"]})
-        b = select_chunk_ids({"topic_keys_any": ["method_grilled"], "_why": "ghi chú"})
+        a = select_chunk_ids({"topic_keys_any": ["spice_ladder"]})
+        b = select_chunk_ids({"topic_keys_any": ["spice_ladder"], "_why": "ghi chú"})
         self.assertEqual(a, b)
 
     def test_cac_khoa_ket_hop_bang_AND(self):
-        ca_tai_lieu = select_chunk_ids({"topic_keys_any": ["method_grilled"]})
+        ca_tai_lieu = select_chunk_ids({"topic_keys_any": ["spice_ladder"]})
         mot_muc = select_chunk_ids(
-            {"topic_keys_any": ["method_grilled"], "heading_any": ["Danh sách món"]}
+            {"topic_keys_any": ["spice_ladder"], "heading_any": ["Sáu món cay vừa"]}
         )
         self.assertTrue(mot_muc < ca_tai_lieu, "thêm điều kiện phải THU HẸP tập")
         self.assertEqual(len(mot_muc), 1)
 
     def test_HOP_cua_nhieu_dieu_kien(self):
-        a = select_chunk_ids({"topic_keys_any": ["method_grilled"]})
-        b = select_chunk_ids({"topic_keys_any": ["region_central"]})
-        self.assertEqual(select_many([{"topic_keys_any": ["method_grilled"]},
-                                      {"topic_keys_any": ["region_central"]}]), a | b)
+        a = select_chunk_ids({"topic_keys_any": ["spice_ladder"]})
+        b = select_chunk_ids({"topic_keys_any": ["hue_and_central"]})
+        self.assertEqual(select_many([{"topic_keys_any": ["spice_ladder"]},
+                                      {"topic_keys_any": ["hue_and_central"]}]), a | b)
 
     def test_chi_muc_KHONG_chua_doan_verbatim(self):
         """Nền tảng của ba họ `expect_nothing`. Nếu đoạn verbatim lọt vào chỉ mục thì ba họ đó

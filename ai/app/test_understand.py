@@ -104,20 +104,36 @@ class BayVuDungChuCuaBanCu(unittest.TestCase):
                 self.assertTrue(ask(cau).hoi_ve_su_viec, "phải nhận là câu HỎI VỀ")
 
     def test_GIOI_HAN_da_biet_cua_hang_rao_HOI_VE(self):
-        """Hai giới hạn còn lại, ghi ra thay vì giấu — chúng là đánh đổi có ý thức.
+        """Giới hạn còn lại, ghi ra thay vì giấu — nó là đánh đổi có ý thức.
 
-        1. Câu vừa HỎI VỀ vừa mang RÀNG BUỘC, với dấu hiệu YẾU: "Đồ chay ở đây có thật sự chay
-           không?" mang `diet:vegetarian`, nên hàng rào không áp dụng và câu vào nhánh lọc. Nới quy
-           tắc cho dấu hiệu yếu sẽ nuốt cả "Có món chay nào không?" — một nhánh đang đúng.
+        Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này vẫn
+        tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
 
-        2. Câu nêu TÊN MÓN: "Phở với bún khác nhau chỗ nào?" bị `named_items` chặn. Nhưng câu này
-           vẫn tới đúng đích bằng đường khác (nhánh so sánh rồi truy hồi), nên không cần sửa.
+        MỘT GIỚI HẠN ĐÃ GỠ — và cách gỡ đáng ghi lại
+        --------------------------------------------
+        Bản trước liệt kê thêm giới hạn thứ hai: câu vừa HỎI VỀ vừa mang RÀNG BUỘC với dấu hiệu
+        YẾU. "Đồ chay ở đây có thật sự chay không?" mang `diet:vegetarian`, nên hàng rào không áp
+        dụng và khách nhận về một DANH SÁCH MÓN CHAY cho câu hỏi **có nên tin nhãn chay hay không**.
+        Danh sách ấy không trả lời gì, và tệ hơn, nó ngầm khẳng định đúng điều khách đang nghi.
 
-        Ca này chốt HÀNH VI HIỆN TẠI. Nếu ai đó nới hàng rào, ca này đỏ và buộc họ đọc lý do.
+        Lý do ghi khi đó là: "nới quy tắc cho dấu hiệu yếu sẽ nuốt cả 'Có món chay nào không?'".
+        Lý do ấy ĐÚNG — và cách gỡ là **không nới quy tắc yếu**. Thay vào đó đưa đúng khung
+        `co that su` lên nhóm MẠNH: nó không bao giờ là lời xin món, nên nó thắng được ràng buộc
+        mà không chạm tới câu hỏi thực đơn.
+
+        Đo trên 710 câu của mọi tập: mẫu đổi ĐÚNG một câu. Bốn câu chốt bên dưới xác nhận chiều
+        ngược vẫn nguyên.
         """
         r1 = ask("Đồ chay ở đây có thật sự chay không?")
-        self.assertFalse(r1.hoi_ve_su_viec, "dấu hiệu YẾU + có ràng buộc -> không áp dụng")
+        self.assertTrue(r1.hoi_ve_su_viec, "khung ĐÒI BẢO ĐẢM là dấu hiệu MẠNH, thắng ràng buộc")
         self.assertIn("diet:vegetarian", r1.require_tags)
+
+        # Chiều ngược: khung mạnh mới KHÔNG được nuốt câu hỏi thực đơn.
+        for cau in ("Có món chay nào không?",
+                    "Cho mình món chay",
+                    "Món chay nào dưới 100 nghìn có cay không?"):
+            with self.subTest(cau=cau):
+                self.assertFalse(ask(cau).hoi_ve_su_viec, f"{cau!r} là câu XIN MÓN, không phải HỎI VỀ")
 
         r2 = ask("Phở với bún với hủ tiếu thì khác nhau chỗ nào?")
         self.assertFalse(r2.hoi_ve_su_viec, "có tên món -> hàng rào không áp dụng")
@@ -237,9 +253,20 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 575 cụm từ vựng và 91 tên món: **86 cụm bị chứa trong cụm khác**, **47 cụm nằm
-    trong tên món**, và hợp lại là **106 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 629 cụm từ vựng và 91 tên món: **87 cụm bị chứa trong cụm khác**, **45 cụm nằm
+    trong tên món**, và hợp lại là **107 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả các chỗ đó.
+
+    Đợt +36 cụm gần nhất đưa 65,1% -> 98,1% số ca hỏi-theo-nhãn về nhánh lọc. Chín cụm mới chồng
+    lên cụm cũ, và cả chín đều theo chiều AN TOÀN — cụm mới CHỨA cụm cũ, nên nó thắng và tiêu luôn
+    đoạn văn bản đó:
+
+        `mi chinh` ⊃ `mi`      sửa đúng một lỗi đọc sai dị nguyên (bột ngọt bị đọc là gluten)
+        `co tom`   ⊃ `tom`     "Món nào có tôm?" thành câu lọc; "dị ứng tôm" không đổi
+        `so beo`   ⊃ `so`      "sợ béo" -> ít calo, không còn rơi xuống truy hồi
+
+    Chiều ngược lại — cụm mới BỊ chứa trong cụm cũ, tức nó không bao giờ tới lượt — không có cái
+    nào; đã kiểm bằng phép đo chứ không bằng đọc mắt.
 
     Đợt tăng gần nhất (+53 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
     48/85 nhãn không rút ra được từ tên tiếng Việt của nó. Bốn cụm mới có nguy cơ, và cả bốn đều
@@ -273,7 +300,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 575, "trong_cum_khac": 86, "trong_ten_mon": 47, "co_rui_ro": 106},
+            {"tu_vung": 629, "trong_cum_khac": 87, "trong_ten_mon": 45, "co_rui_ro": 107},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 

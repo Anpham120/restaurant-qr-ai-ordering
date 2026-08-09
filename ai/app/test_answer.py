@@ -35,10 +35,15 @@ from answer import (  # noqa: E402
 from understand import DRINK_CATEGORIES, FOOD_CATEGORIES, understand  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ITEMS = json.loads(
+_MENU = json.loads(
     (REPO_ROOT / "backend" / "data" / "menu-dataset.json").read_text(encoding="utf-8-sig")
-)["items"]
+)
+ITEMS = _MENU["items"]
 BY_ID = {i["id"]: i for i in ITEMS}
+# Tên DANH MỤC cũng là danh từ riêng viết hoa hợp lệ giữa câu — "rẻ hơn nhóm Món
+# gà và Hải sản". Đọc từ thực đơn chứ không liệt kê tay, để thêm danh mục mới
+# không làm đỏ một phép kiểm chính tả.
+TEN_DANH_MUC = [c["name"] for c in _MENU.get("categories", [])]
 
 
 def reply_for(question: str):
@@ -269,8 +274,12 @@ class CauChuKHACHDOCTHAY(unittest.TestCase):
                 while vi_tri >= 0:
                     sau = text[vi_tri + len(noi):]
                     if sau[:1].isupper() and not sau.startswith(("Mình", "Bạn nhé")):
-                        # Tên món viết hoa là hợp lệ — bỏ qua nếu ngay sau đó là một tên món.
-                        if not any(sau.startswith(i["name"]) for i in ITEMS):
+                        # Danh từ riêng viết hoa giữa câu là hợp lệ: tên MÓN và tên
+                        # DANH MỤC. Bản đầu chỉ miễn tên món, nên câu đúng "rẻ hơn
+                        # nhóm Món gà và Hải sản" bị chấm sai — thước đo sai chứ
+                        # không phải câu sai.
+                        rieng = [i["name"] for i in ITEMS] + TEN_DANH_MUC
+                        if not any(sau.startswith(t) for t in rieng):
                             xau.append(f"{cid}: …{noi}{sau[:34]}…")
                             break
                     vi_tri = text.find(noi, vi_tri + 1)

@@ -32,6 +32,6 @@
     "cs-dietary_limits",
     "cs-faq_extended"
   ],
-  "dev_cases": 124,
+  "dev_cases": 76,
   "test_cases": 44
 }

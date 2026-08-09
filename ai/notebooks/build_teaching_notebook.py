@@ -679,7 +679,7 @@ hours = next(d for d in docs if "hours" in d.topic_keys)
 print(f"   {hours.verbatim_answer}")
 
 print("\n--- Một đoạn `synthesize`: đây là ĐẦU VÀO cho mô hình viết ---")
-ch = next(c for c in retrievable_chunks(KNOWLEDGE) if "region.central" in c.doc_id)
+ch = next(c for c in retrievable_chunks(KNOWLEDGE) if "hue_and_central" in c.doc_id)
 print("   " + ch.text.replace("\n", "\n   ")[:260])
 
 print("\n--- Ranh giới được ÉP, không phải quy ước ---")
@@ -912,13 +912,16 @@ print(f"   đếm trực tiếp trên thực đơn : {len(veg)} món chay")
 print(f"   tài liệu tri thức nói       : {doc.verbatim_answer[:64]}...")
 print(f"   con số {len(veg)} có trong chuỗi     : {str(len(veg)) in doc.verbatim_answer}")
 
-# Tiêu chí chọn nhóm, kiểm bằng độ phủ
+# Sáu nhóm TỪNG có tài liệu riêng — và vì sao cả sáu đã bị bỏ
 d = load("menu-tags.json")
-print(f"\nSáu nhóm ĐƯỢC sinh tài liệu: {sorted(bk.DERIVED_GROUPS)}")
-print("Bốn nhóm KHÔNG sinh, vì lớp lọc theo nhãn đã đúng 100%:")
+DA_BO = ("flavour", "health", "ingredient", "method", "occasion", "region")
+print(f"\nSáu nhóm từng được sinh tài liệu, nay ĐÃ BỎ: {sorted(DA_BO)}")
+print("Bốn nhóm CHƯA BAO GIỜ sinh, vì lớp lọc theo nhãn đã đúng 100%:")
 for g in ["spice", "price", "party", "season"]:
     phu = len({m["id"] for m in items if any(t.startswith(g + ":") for t in m["tags"])})
     print(f"   {g:8} phủ {phu}/{len(items)} món -> lọc dứt khoát, không cần tài liệu")
+print("\nLập luận bỏ sáu nhóm kia GIỐNG HỆT lập luận chưa bao giờ sinh bốn nhóm này —")
+print("chỉ là phải đo mới thấy: 99,1% câu nhắm vào chúng thuộc nhánh lọc nhãn.")
 """))
 
     out.append(plot_code(r"""
@@ -927,12 +930,14 @@ from collections import Counter
 from rag.chunker import load_all
 import sys as _sys
 _sys.path.insert(0, str(ROOT / "ai" / "scripts"))
-import build_knowledge as bk
+import build_knowledge as bk  # noqa: F401  (giữ import để ô này tự đủ khi chạy rời)
 
 items = load("menu-dataset.json")["items"]
 d = load("menu-tags.json")
 groups = sorted({e["group"] for e in d["tags"].values()})
-sinh = set(bk.DERIVED_GROUPS)
+# Sáu nhóm TỪNG có tài liệu sinh riêng. `build_knowledge` không còn sinh chúng — xem
+# `generate()` — nên danh sách nằm ở đây, dưới dạng ghi chép lịch sử chứ không phải cấu hình.
+sinh = {"flavour", "health", "ingredient", "method", "occasion", "region"}
 
 rows = []
 for g in groups:
@@ -950,42 +955,51 @@ ax1.bar_label(b, labels=[f"{p}/91" for p in phu], padding=3, fontsize=8)
 ax1.axvline(len(items), color=DO, linestyle="--", linewidth=1.4)
 ax1.text(len(items) - 1, -0.6, "91/91 = lọc dứt khoát", color=DO, fontsize=8, ha="right")
 ax1.set_xlabel("số món có nhãn thuộc nhóm")
-ax1.set_title("Độ phủ nhãn, và nhóm nào được sinh tài liệu\n"
-              "(xanh = sinh tài liệu, xám = không)", fontsize=11)
+ax1.set_title("Độ phủ nhãn, và nhóm nào TỪNG được sinh tài liệu\n"
+              "(xanh = từng sinh, nay đã bỏ · xám = chưa bao giờ sinh)", fontsize=11)
 ax1.set_xlim(0, len(items) * 1.18)
 
-# Vì sao KHÔNG sinh cho nhóm phủ đủ: sẽ là đường thứ hai cho cùng một việc
+# Kho SAU khi bỏ: chỉ còn hai vai trò
 docs = load_all(KNOWLEDGE)
 thumuc = Counter(d_.path.parent.name for d_ in docs)
-nhan = [f"policy\n(verbatim)", f"derived\n(nhóm nhãn)", f"written\n(người viết)"]
-gia = [thumuc["policy"], thumuc["derived"], thumuc["written"]]
-b2 = ax2.bar(nhan, gia, color=[DO, XANH, CAM])
+nhan = ["policy\n(verbatim)", "written\n(người viết)"]
+gia = [thumuc["policy"] + thumuc["derived"], thumuc["written"]]
+b2 = ax2.bar(nhan, gia, color=[DO, CAM])
 ax2.bar_label(b2, padding=2, fontweight="bold")
 ax2.set_ylabel("số tài liệu")
-ax2.set_title(f"84 tài liệu chia theo vai trò\n"
-              f"(6/16 nhóm nhãn được sinh, không phải 16/16)", fontsize=11)
+ax2.set_title(f"{sum(gia)} tài liệu còn lại, hai vai trò\n"
+              f"(49 tài liệu theo nhãn đã bị bỏ)", fontsize=11)
 ax2.set_ylim(0, max(gia) * 1.2)
 
 plt.tight_layout(); plt.show()
-print(f"Chỉ {len(sinh)}/{len(groups)} nhóm nhãn được sinh tài liệu. Tiêu chí: nhóm đó có câu")
-print("hỏi nào mà LỚP TRA KHÓA không trả lời được không. Bốn nhóm phủ 91/91 bị bỏ qua vì")
-print("lọc theo nhãn đã đúng 100% — thêm tài liệu là tạo đường thứ hai cho cùng một việc.")
+print(f"{len(sinh)}/{len(groups)} nhóm nhãn từng được sinh tài liệu — và cả sáu đã bị bỏ.")
+print("Tiêu chí ban đầu: nhóm đó có câu hỏi nào mà LỚP TRA KHÓA không trả lời được không.")
+print("Đo lại sau khi hệ thống chạy thật cho câu trả lời khác: 106 ca nhắm vào chúng đều là")
+print("câu CHỌN MÓN, và 99,1% trong số đó thuộc nhánh lọc nhãn — nơi chúng đúng 100,00%")
+print("thay vì 54,40% qua truy hồi. Chúng chiếm 51% chỉ mục mà không phục vụ ai.")
 """))
 
     out.append(md(r"""
 #### Nhận xét — Mục 7
 
-- **Quan sát:** 56/84 tài liệu là `derived`, và **56/56 khớp từng byte** khi sinh lại. Con số
-  "17 món chay" trong tài liệu truy được về đúng phép đếm trên thực đơn. Chỉ **6/16** nhóm nhãn
-  được sinh tài liệu.
+- **Quan sát:** tài liệu sinh từ thực đơn **khớp từng byte** khi sinh lại. Con số "17 món chay"
+  truy được về đúng phép đếm trên thực đơn.
 - **Diễn giải:** `--check` trong CI là thứ biến "tài liệu không thể lệch" từ một lời hứa thành
   một **bất biến máy canh**. Không có bước đó thì `derived` chỉ là một cái tên.
-- **Tiêu chí chọn nhóm là tiêu chí thật, không phải "thêm cho đủ số đoạn":** 4 nhóm phủ 91/91
-  bị bỏ qua vì lọc theo nhãn đã đúng 100%. Thêm tài liệu cho chúng là tạo **đường thứ hai cho
-  cùng một việc** — và khi câu trả lời sai thì không ai biết đường nào sai. Bản cũ có 8 đường
-  chồng nhau, 2 trong số đó bị tắt mà hệ thống vẫn chạy đúng.
-- **Giới hạn:** `demo` vẫn là 28 tài liệu người viết. Chúng không thể nói sai về **con số** (số
-  lấy từ thực đơn), nhưng có thể nói sai về **chính sách** — và điều đó chỉ chủ nhà hàng biết.
+- **Và rồi phép đo bác bỏ chính thiết kế này.** Sáu nhóm nhãn từng được sinh tài liệu riêng theo
+  một tiêu chí nghe rất hợp lý: *"nhóm đó có câu hỏi nào mà lớp tra khóa không trả lời được
+  không?"*. Đo lại khi hệ thống chạy thật thì tiêu chí ấy sai ở chỗ không ai ngờ — **106 ca nhắm
+  vào chúng đều là câu CHỌN MÓN**, không ca nào hỏi tri thức. 49 tài liệu chiếm **51% chỉ mục**
+  để phục vụ những câu mà nhánh lọc nhãn trả lời **chính xác 100,00%**.
+- **Ba cách chữa đã thử trước khi bỏ, và cả ba đều hoà:** xếp hạng lại bằng cross-encoder
+  (p = 0,8238), gộp 49 tài liệu thành 6 theo họ (p = 0,5488), cắt bớt mục (0 từ riêng lên 1).
+  Nguyên nhân là **cấu trúc**: 49 tài liệu dùng chung đúng 4 tiêu đề mục, và tài liệu điển hình
+  có **0 từ chỉ xuất hiện ở riêng nó**.
+- **Bài học đáng giữ:** một tiêu chí thiết kế hợp lý vẫn có thể sai, và chỉ **đo trên câu hỏi
+  thật** mới thấy. Lập luận bỏ sáu nhóm này giống hệt lập luận đã dùng để **không** sinh cho
+  `spice`/`price`/`party`/`season` ngay từ đầu — chỉ là lần đó nhìn ra ngay, lần này phải đo.
+- **Giới hạn:** phần `written` vẫn là tài liệu người viết. Chúng không thể nói sai về **con số**
+  (số lấy từ thực đơn), nhưng có thể nói sai về **chính sách** — và điều đó chỉ chủ nhà hàng biết.
 - **Quyết định tiếp theo:** dữ liệu và tri thức đã xong. Nhưng chưa có cách nào biết hệ thống
   trả lời đúng hay sai — đó là Phần II.
 """))

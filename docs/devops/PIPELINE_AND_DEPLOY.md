@@ -16,7 +16,7 @@
 
 ## Workflow và cổng chặn — SINH TỪ CẤU HÌNH
 
-**9 workflow**, **12 cổng `--check`** trong CI.
+**9 workflow**, **14 cổng `--check`** trong CI.
 
 | Workflow | Kích hoạt bởi |
 |---|---|
@@ -38,9 +38,11 @@ tệp dẫn xuất mà không chạy lại bộ sinh — lớp lỗi đã xảy 
 | Bộ sinh |
 |---|
 | `ai/docs/build_bao_cao_do_an.py` |
+| `ai/evaluation/build_chunk_selection_split.py` |
 | `ai/evaluation/build_retrieval_split.py` |
 | `ai/evaluation/build_split.py` |
 | `ai/scripts/audit_method_tags.py` |
+| `ai/scripts/build_chunk_selection_cases.py` |
 | `ai/scripts/build_knowledge.py` |
 | `ai/scripts/build_retrieval_cases.py` |
 | `ai/scripts/build_session_scripts.py` |

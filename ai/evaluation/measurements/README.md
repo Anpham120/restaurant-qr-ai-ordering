@@ -44,10 +44,10 @@ export GOLDEN_QR_TOKEN=$(docker compose -f deploy/docker-compose.yml exec -T pos
   psql -U restaurant_user -d restaurant_qr -t -A \
   -c "select qr_token from restaurant_tables order by table_code limit 1;")
 
-# 3. golden qua HTTP thật -> results/golden_e2e.json
+# 3. golden qua HTTP thật -> measurements/golden_e2e.json
 python ai/evaluation/run_golden_e2e.py
 
-# 4. LLM+RAG loại C -> results/llm_rag_loai_c.json
+# 4. LLM+RAG loại C -> measurements/llm_rag_loai_c.json
 python ai/evaluation/run_llm_rag_eval.py
 ```
 

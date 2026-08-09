@@ -1109,6 +1109,60 @@ def build() -> dict:
         ],
     })
 
+
+    # ------------------------------------------------------------------------
+    # Nhóm `rag_trong_phien` — nhánh TRUY HỒI chạy giữa một phiên có bộ nhớ.
+    #
+    # Vì sao nhóm này tồn tại. Trước nó, nhánh truy hồi toàn kho chạy **0/163
+    # lượt** của tập phiên, và không ca nào đỏ — vì không tiêu chí nào hỏi tới
+    # nó. Đường tri thức là đường duy nhất của hệ thống chưa từng được chứng
+    # minh chạy trong một hội thoại thật, và "chưa ai hỏi" không phải "đã đúng".
+    #
+    # Mỗi kịch bản đặt câu tri thức Ở GIỮA phiên, sau một lời khai dị ứng. Nhờ
+    # vậy nó đo hai thứ cùng lúc mà bộ một lượt không đo được:
+    #
+    #     1. truy hồi có chạy khi bộ nhớ đang giữ ràng buộc hay không
+    #     2. ràng buộc dị nguyên có sống qua lượt tri thức hay không
+    #
+    # Điều 2 là chốt an toàn: một lượt tri thức đi đường khác hẳn nhánh lọc, nên
+    # nếu bộ nhớ rơi ở đó thì lượt chọn món ngay sau sẽ mời món khách cần tránh.
+    for i, (khai, nhan, cau_tri_thuc, phai_noi) in enumerate((
+        ("Mình dị ứng hải sản nhé", "allergen:seafood",
+         "Cùng là gà mà sao món thì mềm món thì dai?", "gà"),
+        ("Nhà mình có người dị ứng đậu phộng", "allergen:peanut",
+         "Uống cà phê buổi tối có bị mất ngủ không?", "cà phê"),
+        ("Mình không ăn được sữa", "allergen:dairy",
+         "Đồ chay ở đây có thật sự chay không?", "chay"),
+    ), start=1):
+        scripts.append({
+            "id": f"rag-trong-phien-{i:02d}",
+            "group": "rag_trong_phien",
+            "why": ("Câu tri thức nằm GIỮA phiên, sau lời khai dị ứng. Đo hai thứ cùng lúc: "
+                    "nhánh truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc có "
+                    "sống qua lượt tri thức hay không."),
+            "turns": [
+                {"user": khai,
+                 "expect": {"memory_must_have_avoid": [nhan],
+                            "why": "Lời khai phải vào bộ nhớ ngay lượt này."}},
+                {"user": "Có món nào không cay dưới 100k không?",
+                 "expect": {"forbid_tags_any": [nhan], "min_items": 3,
+                            "expect_branch_prefix": "filter",
+                            "why": "Câu chọn món — đi nhánh lọc, và đã phải tránh dị nguyên."}},
+                {"user": cau_tri_thuc,
+                 "expect": {"expect_branch_prefix": "knowledge_corpus",
+                            "must_say_any": [phai_noi],
+                            "memory_must_have_avoid": [nhan],
+                            "why": "LƯỢT THEN CHỐT. Câu này không tra bảng được nên phải đi "
+                                   "TRUY HỒI, và bộ nhớ phải còn nguyên sau khi đi đường đó."}},
+                {"user": "Vậy gợi ý mình vài món đi",
+                 "expect": {"forbid_tags_any": [nhan], "min_items": 3,
+                            "expect_branch_prefix": "filter",
+                            "why": "Quay lại nhánh lọc sau lượt tri thức. Ràng buộc từ lượt 1 "
+                                   "vẫn phải chặn — đây là chỗ bộ nhớ dễ rơi nhất, vì lượt "
+                                   "trước đó đi một nhánh hoàn toàn khác."}},
+            ],
+        })
+
     return {
         "schema_version": 1,
         "authored": "Sinh bởi ai/scripts/build_session_scripts.py — đừng sửa tay tệp này.",

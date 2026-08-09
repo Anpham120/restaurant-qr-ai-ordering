@@ -10,7 +10,6 @@ Ba phép đo trước trả lời "lớp nào tốt hơn ở loại câu nào":
 
     câu chọn món     lọc nhãn 100,00%  ·  truy hồi 58–68%      (mục 4.4)
     câu tri thức     tất định 12,00%   ·  truy hồi 44,00%      (mục 4.9.4)
-    câu phân loại    tất định 53,06%   ·  truy hồi 73,47%      (bộ phủ kho)
 
 Ba dòng này nói **khoảng cách giữa hai lớp phụ thuộc LOẠI CÂU HỎI, không phải hằng số**. Và điều đó
 dẫn thẳng tới câu hỏi kiến trúc cuối cùng:
@@ -72,31 +71,30 @@ def lop_cua_nhanh(branch: str) -> str:
 
 
 def nap_ca() -> list[dict]:
-    """Ba tập, mỗi tập biết LỚP ĐÚNG của nó theo thiết kế.
+    """HAI tập, mỗi tập biết LỚP ĐÚNG của nó theo thiết kế.
 
     Lớp đúng KHÔNG suy từ hành vi hệ thống — nó suy từ **bản chất câu hỏi**, đặt lúc viết tập:
 
         chiều B (chọn món có ràng buộc)  -> CHỈ lọc nhãn, vì chỉ nó kiểm được điều kiện
         chiều A (tri thức văn xuôi)      -> CHỈ truy hồi, vì đáp án nằm trong đoạn văn
-        bộ phủ kho (phân loại)           -> CẢ HAI đều hợp lệ
 
-    Vì sao nhóm phân loại chấp nhận CẢ HAI — và đây là chỗ bản đầu của bộ đo này SAI
-    ---------------------------------------------------------------------------------
-    Bản đầu gán nhóm phân loại là "chỉ truy hồi", vì mỗi câu có một tài liệu đích. Đo ra 32,65%
-    định tuyến đúng và 32,47 điểm chi phí — con số nghe rất tệ.
-
-    Nhưng kiểm lại hành vi thật thì câu phân loại đi vào `filter` trả về **đúng món**:
+    Nhóm thứ ba đã bỏ — và bài học của nó đáng giữ
+    ----------------------------------------------
+    Từng có nhóm "phân loại" lấy từ `ca_phu_kho.json`, gán lớp đúng là "CẢ HAI đều hợp lệ". Bản
+    đầu tiên gán nó "chỉ truy hồi" và đo ra 32,65% định tuyến đúng, **32,47 điểm chi phí** — con
+    số nghe rất tệ. Kiểm lại hành vi thật thì câu của nhóm ấy đi vào `filter` và trả về đúng món:
 
         "Món nướng có những gì?"   -> filter, 6 món, 6/6 mang `method:grilled`
-        "Có món Huế nào không?"    -> filter, 3 món, 3/3 mang `region:hue`
 
-    Khách hỏi "món nướng có những gì" thì một danh sách món nướng **là** câu trả lời đúng. Tài liệu
-    `kb.method.grilled` giàu thông tin hơn (tổng quan, dị nguyên, gợi ý chọn), nhưng danh sách món
-    không sai.
+    Khách hỏi "món nướng có những gì" thì một danh sách món nướng **là** câu trả lời đúng. Nên
+    32,47 điểm kia là **tạo tác của khóa đáp án sai**, không phải lỗi hệ thống.
 
-    Nên với nhóm này, **cả hai lớp đều cho câu trả lời hợp lệ**, và gán một lớp làm "đúng" là áp
-    một ý kiến lên phép đo. Bản này chấp nhận cả hai, và con số 32,47 điểm ở bản đầu là **tạo tác
-    của khóa đáp án sai**, không phải lỗi của hệ thống.
+    Nhóm đó nay bỏ hẳn cùng bộ ca của nó: 98/98 ca trỏ vào 49 tài liệu `derived` đã xoá. Mất nó
+    KHÔNG mất độ phủ — chiều A giờ phủ **36/36 tài liệu `synthesize`**, đúng cái lỗ mà nó được
+    dựng ra để lấp.
+
+    Cái đáng giữ lại là bài học: **khóa đáp án sai tạo ra con số trông như kết luận.** Hai nhóm
+    còn lại có lớp đúng rõ ràng, nên phép đo này không còn chỗ cho lớp lỗi ấy.
     """
     ra: list[dict] = []
     import run_hai_chieu as H
@@ -104,11 +102,15 @@ def nap_ca() -> list[dict]:
         ra.append({"cau": cau, "tap": "tri thức", "lop_dung": TRUY, "dich": khoa})
     for cau, loc, dang in H.CHIEU_B:
         ra.append({"cau": cau, "tap": "chọn món", "lop_dung": LOC, "dich": dang})
-    p = REPO_ROOT / "ai" / "evaluation" / "ca_phu_kho.json"
-    if p.exists():
-        for c in json.loads(p.read_text(encoding="utf-8"))["cases"]:
-            ra.append({"cau": c["query"], "tap": "phân loại", "lop_dung": f"{LOC} hoặc {TRUY}",
-                       "dich": c["topic_key"]})
+    # Nhóm "phân loại" (98 ca của `ca_phu_kho.json`) ĐÃ BỎ cùng bộ ca đó.
+    #
+    # Bộ ấy sinh ra để phủ 49 tài liệu `derived`, và 100% ca của nó trỏ vào tài liệu nay không còn.
+    # Sinh lại không được: khuôn câu hỏi của nó dựng quanh GIÁ TRỊ NHÃN, mà tài liệu `written`
+    # không phải tài liệu nhãn.
+    #
+    # Mất nhóm này KHÔNG mất độ phủ: chiều A giờ phủ **36/36 tài liệu `synthesize`**, đúng cái lỗ
+    # mà `ca_phu_kho` được dựng ra để lấp. Hai nhóm còn lại có lớp đúng RÕ RÀNG, còn nhóm này chấp
+    # nhận cả hai lớp — nên bỏ nó cũng bỏ luôn phần mơ hồ nhất của phép đo.
     return ra
 
 
@@ -135,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{'tập':12} {'n':>4}  {'lớp ĐÚNG':12}  {'đi đúng':>9}  {'tỷ lệ':>8}")
     print("-" * 60)
     from thong_ke import khoang_wilson
-    for tap in ("chọn món", "tri thức", "phân loại"):
+    for tap in ("chọn món", "tri thức"):
         g = [h for h in hang if h["tap"] == tap]
         if not g:
             continue
@@ -164,13 +166,11 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\nCHI PHÍ SAI ĐỊNH TUYẾN")
     print("-" * 60)
-    print("  Ba phép đo trước cho biết mỗi lớp làm được bao nhiêu KHI ĐI ĐÚNG LỚP:")
+    print("  Hai phép đo trước cho biết mỗi lớp làm được bao nhiêu KHI ĐI ĐÚNG LỚP:")
     print("     câu chọn món  -> lọc nhãn 100,00%")
     print("     câu tri thức  -> truy hồi  44,00%")
-    print("     câu phân loại -> truy hồi  73,47%")
     print()
-    # Trần của nhóm phân loại lấy theo lớp TỐT HƠN trong hai lớp hợp lệ.
-    tran = {"chọn món": 1.0000, "tri thức": 0.4400, "phân loại": 0.7347}
+    tran = {"chọn món": 1.0000, "tri thức": 0.4400}
     tong_tran = tong_that = 0.0
     for tap, t in tran.items():
         g = [h for h in hang if h["tap"] == tap]

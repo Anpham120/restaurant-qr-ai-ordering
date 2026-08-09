@@ -1,6 +1,6 @@
 # CMC Restaurant — chỉ mục tài liệu
 
-**51 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
+**55 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
 `docs/build_docs_index.py` từ chính các tệp có thật — nên nó không thể trỏ vào tệp không
 tồn tại, và không thể bỏ sót tệp mới.
 
@@ -40,8 +40,11 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 |---|---|
 | [AI_DECISION_HISTORY.md](ai/AI_DECISION_HISTORY.md) | Lịch sử quyết định của hệ thống AI |
 | [AI_NO_TOUCH_BOUNDARY.md](ai/AI_NO_TOUCH_BOUNDARY.md) | AI no-touch boundary |
-| [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành AI — production, staging, và runbook |
+| [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành lớp AI — triển khai, cấu hình, và runbook |
 | [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
+| [BAO_CAO_HOC_MAY_KPDL.md](ai/BAO_CAO_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
+| [GIAI_THICH_CHI_TIET.md](ai/GIAI_THICH_CHI_TIET.md) | Giải thích chuyên sâu hệ thống |
+| [NHOM_TRUONG_ON_TAP.md](ai/NHOM_TRUONG_ON_TAP.md) | Ôn tập cho nhóm trưởng — Phạm Duy An (BIT240002) |
 
 ## Kiến trúc và hợp đồng
 
@@ -53,6 +56,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [BAO_CAO_CONG_NGHE_LAP_TRINH_WEB.md](bao-cao/BAO_CAO_CONG_NGHE_LAP_TRINH_WEB.md) | BÁO CÁO MÔN HỌC |
 | [BAO_CAO_CONG_NGHE_PHAN_MEM.md](bao-cao/BAO_CAO_CONG_NGHE_PHAN_MEM.md) | BÁO CÁO BÀI TẬP LỚN |
 | [BAO_CAO_DO_AN_CHUYEN_NGANH.md](bao-cao/BAO_CAO_DO_AN_CHUYEN_NGANH.md) | BÁO CÁO ĐỒ ÁN CHUYÊN NGÀNH |
+| [BAO_CAO_HOC_MAY_KPDL.md](bao-cao/BAO_CAO_HOC_MAY_KPDL.md) | BÁO CÁO ĐỒ ÁN MÔN HỌC |
 | [CHUAN_BI_VAN_DAP.md](bao-cao/CHUAN_BI_VAN_DAP.md) | CHUẨN BỊ VẤN ĐÁP — CMC RESTAURANT |
 | [HOI_DAP_KY_THUAT.md](bao-cao/HOI_DAP_KY_THUAT.md) | HỎI ĐÁP KỸ THUẬT — CMC RESTAURANT |
 | [HUMAN_PEER_REVIEW.md](bao-cao/HUMAN_PEER_REVIEW.md) | Quy trình và bằng chứng human peer review |

@@ -35,7 +35,6 @@
 __pycache__/
 ai/.venv/
 ai/_list_sections.py
-ai/evaluation/results/
 antigravity-awesome-skills/
 bin/
 commit_msg.txt
