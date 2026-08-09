@@ -223,6 +223,15 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 | Bảng 4.13 | Mỗi đường mạnh ở đúng loại câu nào | 4.11.2 |
 | Bảng 5.1 | Tổng hợp kết quả cuối | 5.1 |
 
+**Biểu đồ số liệu**
+
+| Số hiệu | Nội dung | Mục |
+|---|---|---|
+| Biểu đồ 4.1 | So ba phương pháp truy hồi | 4.3 |
+| Biểu đồ 4.2 | Đánh đổi số đoạn trích | 4.4 |
+| Biểu đồ 4.3 | Đường nào thật sự chạy trong một phiên | 4.7 |
+| Biểu đồ 4.4 | Ablation — mức mất khi tắt từng cơ chế | 4.9 |
+
 ---
 ---
 
@@ -304,12 +313,11 @@ song song:  lớp hiểu câu hỏi làm cùng lúc với tập ca
 Chỉ **khâu dữ liệu và khâu đánh giá** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai
 phải chờ quá một khâu.
 
-## Vì sao chia đều 20%
+## Vì sao năm khâu ngang nhau
 
-Không phải để "cho công bằng". Năm khâu đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống
-không chạy, hoặc chạy mà không ai chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống
-không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá
-nặng ngang bốn khâu kia.
+Năm khâu đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống không chạy, hoặc chạy mà không ai
+chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống không có phương pháp đo thì không có
+căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá nặng ngang bốn khâu kia.
 
 ---
 ---
@@ -1644,7 +1652,7 @@ Chỉ phía "mất" đo được, nên đó là phía quyết định. Ngưỡng
 
 **Bảng 4.10 — Kết quả đường sinh trên 76 ca loại C**
 
-| | |
+| Chỉ số | Giá trị |
 |---|---|
 | Đạt, đường tất định | **76/76** |
 | Đạt, có đường sinh | **76/76** |

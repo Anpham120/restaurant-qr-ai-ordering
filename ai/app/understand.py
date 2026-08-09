@@ -2147,7 +2147,20 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #                    chạy trước nhánh lọc phẳng nên nó không bị cắt trên thực tế — nhưng để cờ
     #                    mang giá trị sai là để lại một quả mìn cho lần sửa sau.
     #   trong 1..12      thước đo chặn ở 12 món; số ngoài dải là gõ nhầm chứ không phải yêu cầu
-    so = re.findall(r"(\d+)\s*mon\b", request.folded)
+    # SỐ VIẾT BẰNG CHỮ cũng phải nhận, không chỉ chữ số.
+    #
+    # Đo được, hai cách nói tương đương cho hai kết quả khác hẳn nhau:
+    #
+    #     "Nhắc lại 2 món đầu"        ->  filter, ĐÚNG 2 món
+    #     "Nhắc lại hai món đầu tiên" ->  item_detail, 1 món
+    #
+    # Vì `so_mon_muon` không được đặt cho dạng chữ, nên phép sửa lát cắt ngay dưới không chạy, và
+    # cụm `mon dau tien` giữ nguyên `reference_index = 1` — câu bị đọc thành *món thứ nhất*.
+    #
+    # Chỉ nhận "mot"/"hai"/"ba" như `_SO_CHU` đã dùng cho nhánh combo: quá số đó thì khách gõ số, và
+    # đoán thêm là mở đường cho dương tính giả. Một bảng, hai chỗ dùng — không viết bảng thứ hai.
+    so = [_SO_CHU.get(x, x) for x in
+          re.findall(r"(\d+|mot|hai|ba)\s*mon\b", request.folded)]
     if len(so) == 1 and 1 <= int(so[0]) <= 12 and not doc_suat_combo(request.folded):
         request.so_mon_muon = int(so[0])
         request.matched.append(f"số món khách xin: {so[0]}")
@@ -2161,7 +2174,8 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     #
     # Hai cách nói chồng chữ mà khác hẳn nghĩa: "món đầu" là một món, "2 món đầu" là hai món. Con
     # số đứng trước là dấu hiệu phân biệt, và nó không mơ hồ.
-    if request.so_mon_muon and re.search(r"\d+\s*mon dau\b", request.folded):
+    # Nhận cả "2 mon dau" lẫn "hai mon dau tien" — cùng lý do với khối số ở trên.
+    if request.so_mon_muon and re.search(r"(?:\d+|mot|hai|ba)\s*mon dau\b", request.folded):
         request.reference_index = None
         request.matched.append("«<số> món đầu» là lát cắt, không phải món thứ nhất")
 

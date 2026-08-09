@@ -2136,6 +2136,38 @@
           }
         }
       ]
+    },
+    {
+      "id": "chained-reference-so-viet-chu",
+      "group": "chained_reference",
+      "why": "Tham chiếu ngược có số lượng viết BẰNG CHỮ. Cùng lớp lỗi với `chained-reference-so-mon` nhưng qua một đường khác: hai regex đọc số lượng chỉ nhận chữ số, nên «hai món đầu» không đặt `so_mon_muon`, phép sửa lát cắt không chạy, và `mon dau tien` giữ nguyên `reference_index = 1` — câu bị đọc thành *món thứ nhất* và trả về ĐÚNG MỘT món. Đo được: «Nhắc lại 2 món đầu» -> 2 món, «Nhắc lại hai món đầu tiên» -> 1 món. Hai cách nói tương đương, hai kết quả khác nhau.",
+      "turns": [
+        {
+          "user": "Gợi ý món không cay giúp mình",
+          "expect": {
+            "expect_kind": "list",
+            "min_items": 6
+          }
+        },
+        {
+          "user": "Nhắc lại hai món đầu tiên",
+          "expect": {
+            "expect_kind": "list",
+            "min_items": 2,
+            "max_items": 2,
+            "why": "«hai món đầu» là LÁT CẮT dài 2, không phải món thứ nhất. Kiểm cả cận trên: chỉ kiểm `min_items` thì trả về 1 vẫn đỏ nhưng trả về 6 lại qua."
+          }
+        },
+        {
+          "user": "Nhắc lại ba món đầu",
+          "expect": {
+            "expect_kind": "list",
+            "min_items": 3,
+            "max_items": 3,
+            "why": "«ba» cũng nằm trong bảng `_SO_CHU`; kiểm để bản sửa không chỉ đúng cho «hai»."
+          }
+        }
+      ]
     }
   ]
 }
