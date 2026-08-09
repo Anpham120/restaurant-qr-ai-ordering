@@ -883,7 +883,24 @@ _add("mon khac|cai khac|mon nao khac|thu khac|mon gi khac", "flag", "similar")
 # Trẻ nhỏ nêu bằng TUỔI. Golden bắt được: "Đi cùng bé 4 tuổi, gợi ý món giúp mình" rơi vào nhánh
 # hỏi lại vì không cụm nào nhận ra đó là câu về trẻ em. Cụm "be" một mình quá ngắn và đụng nhiều
 # chữ, nên nhận theo cách khách thật nói: "bé N tuổi", "con N tuổi", "cháu N tuổi".
-_add("tuoi|em nho|chau nho|be nho|di cung be|co be", "require", "audience:child")
+#
+# CỤM `tuoi` MỘT MÌNH ĐÃ BỊ BỎ — nó vi phạm đúng nguyên tắc mà chú thích trên vừa nêu.
+#
+# "tươi" và "tuổi" rút dấu về CÙNG một chuỗi `tuoi`. Hậu quả đo được:
+#
+#   "Đồ biển ở đây có tươi không, lấy từ đâu?"   -> require audience:child, rồi bộ xử lý phủ định
+#                                                   đọc tiếp thành "bỏ ràng buộc" và trả lời
+#                                                   "Anh/chị muốn em gợi ý món gì tiếp ạ?"
+#   "Đi với bà ngoại tám mươi tuổi..."           -> require audience:child (bà ngoại 80 tuổi!)
+#
+# Thay bằng `<số> tuổi` cho 1–9, cả chữ lẫn số. Con số đứng trước là thứ phân biệt "tuổi" với
+# "tươi" — không ai nói "cá 4 tươi". Dừng ở 9 có chủ ý: `muoi tuoi` sẽ khớp "tám mươi TUỔI" và
+# lặp lại đúng lỗi vừa sửa, chỉ đổi chiều.
+_add("em nho|chau nho|be nho|di cung be|co be", "require", "audience:child")
+_add("mot tuoi|hai tuoi|ba tuoi|bon tuoi|nam tuoi|sau tuoi|bay tuoi|tam tuoi|chin tuoi",
+     "require", "audience:child")
+_add("1 tuoi|2 tuoi|3 tuoi|4 tuoi|5 tuoi|6 tuoi|7 tuoi|8 tuoi|9 tuoi",
+     "require", "audience:child")
 
 # Câu hỏi giá.
 _add("bao nhieu tien|gia bao nhieu|bao nhieu mot|bao nhieu|gia the nao|may tien", "flag", "asks_price")

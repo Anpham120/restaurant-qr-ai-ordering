@@ -112,14 +112,13 @@ Hai điều bất ngờ đáng ghi lại:
   thì "mấy giờ mở cửa**?**" không khớp cụm `mo cua`, và 13 ca đổ — trong đó 5 ca an toàn.
   Sáu test đầu của `test_understand.py` đã đỏ đúng vì lý do này.
 - **Con số của "ăn hết đoạn đã khớp" là chặn dưới, không phải giá trị thật.** Kiểm kê trên
-  611 cụm từ vựng và 91 tên món: **89 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
+  628 cụm từ vựng và 91 tên món: **88 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
   `trung`⊂`mien trung`, `nam`⊂`mien nam`, `nam`⊂`nam nguoi`, `tra`⊂`tra tien`,
-  `trung`⊂`dac trung`, `ga`⊂`mon ga`, `pho`⊂`pho bun`), **47 cụm nằm trong tên món**
+  `trung`⊂`dac trung`, `ga`⊂`mon ga`, `pho`⊂`pho bun`), **46 cụm nằm trong tên món**
   (`lac`⊂"Cơm bò lúc lắc", `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá", `pho`⊂"Phở gà ta"),
-  và hợp lại là **109 cụm có nguy cơ** — 27
-  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 109 chỗ đó. **Đây là phát hiện về
-  tập đánh giá, không phải về cơ chế** — và tôi đã lấp bằng 9 test riêng thay vì để con số
-  ablation nói sai.
+  hợp lại là **108 cụm có nguy cơ**. Tập đánh giá chỉ có ca cho **một** trong 108 chỗ đó.
+  **Đây là phát hiện về tập đánh giá, không phải về cơ chế** — và tôi đã lấp bằng 9 test riêng
+  thay vì để con số ablation nói sai.
 - **Cơ chế đó vừa sửa một lỗi đọc sai dị nguyên.** "mì chính" rút dấu thành `mi chinh`, và cụm
   dị nguyên `mi` khớp vào giữa nó, nên *"Mình dị ứng mì chính"* trả về `allergen:gluten`. Sai cả
   hai chiều: ẩn món có gluten khách ăn được, và không chặn thứ khách vừa nói là không dùng được.
