@@ -161,6 +161,36 @@ def bo_cuc_C(prs, tieu_de, nhan, duong, chu_thich=""):
     return sl
 
 
+def _ty_le_cot(cot, hang, co):
+    """Chia bề rộng cột theo nhu cầu THẬT, nhưng kéo về gần đều.
+
+    Chia đều tuyệt đối thì cột chứa câu dài bị ép xuống bốn dòng trong khi cột
+    chứa hai chữ bỏ trống một nửa. Chia đúng theo nhu cầu thì ngược lại: bảng
+    lệch hẳn, cột to cột bé, nhìn rất xấu.
+
+    Nên trộn: lấy bề rộng cần thật (đo bằng Times), pha 45% với bề rộng đều, rồi
+    KẸP mỗi cột trong khoảng [0,84 · đều , 1,22 · đều]. Cột nào cần rộng thì
+    được rộng, nhưng cột rộng nhất không quá 1,45 lần cột hẹp nhất — mắt đọc ra
+    một bảng cân, không phải một bảng lệch.
+    """
+    n = len(cot)
+    deu = 1.0 / n
+    if not DO_DUOC:
+        return [deu] * n
+    can = []
+    for i in range(n):
+        o = [cot[i]] + [h[i] for h in hang]
+        can.append(max(_font(co, False).getlength(x) for x in o) or 1.0)
+    tong = sum(can) or 1.0
+    tho = [c / tong for c in can]
+    pha = [0.45 * t + 0.55 * deu for t in tho]
+    kep = [min(max(p, 0.84 * deu), 1.22 * deu) for p in pha]
+    s = sum(kep)
+    ty = [k / s for k in kep]
+    assert max(ty) / min(ty) <= 1.5, "cột vẫn lệch quá 1,5 lần"
+    return ty
+
+
 # ─────────────────────────────────────────────── D · bảng ≤ 4 hàng
 def bo_cuc_D(prs, tieu_de, nhan, cot, hang, rong_cot=None, co=17):
     sl = trang(prs, tieu_de, nhan)
@@ -171,9 +201,10 @@ def bo_cuc_D(prs, tieu_de, nhan, cot, hang, rong_cot=None, co=17):
     cao_hang = Cm(2.1)
     t = sl.shapes.add_table(len(hang) + 1, len(cot), LE, Y_ND, RONG,
                             cao_hang * (len(hang) + 1)).table
-    if rong_cot:
-        for i, c in enumerate(rong_cot):
-            t.columns[i].width = int(RONG * c)
+    # `rong_cot` chỉ để ép tay khi thật sự cần; mặc định để phép đo tự chia.
+    rong_cot = rong_cot or _ty_le_cot(cot, hang, co)
+    for i, c in enumerate(rong_cot):
+        t.columns[i].width = int(RONG * c)
 
     # Chốt quan trọng nhất của bố cục này. PowerPoint TỰ NỚI chiều cao hàng lúc
     # dựng hình nếu chữ trong ô cần nhiều dòng hơn — nó không cắt chữ, và nó
@@ -279,7 +310,7 @@ trong tài liệu — nó là một hằng số trong mã, không nhánh nào đ
                    ['"Gọi khai vị trước có làm no bụng không?"',
                     "Trong một đoạn văn người viết",
                     "Đi tìm đúng đoạn văn đó"]],
-                  rong_cot=[0.36, 0.32, 0.32], co=17)
+                  co=17)
     ghi_chu_noi(sl, """
 [~60 giây]
 Đây là bài toán, và em xin trình bày bằng hai câu khách hỏi thật.
@@ -326,7 +357,7 @@ Nhãn biến phép đoán thành phép tra bảng: có hoặc không, và truy �
                     "LỌC BỎ món không hợp"],
                    ["Chỉ một phần", "Chưa ai ghi, không phải là không có",
                     "Chỉ XẾP LÊN TRƯỚC"]],
-                  rong_cot=[0.24, 0.42, 0.34], co=17)
+                  co=17)
     ghi_chu_noi(sl, """
 [~65 giây]
 Đây là nguyên tắc quan trọng nhất của khâu dữ liệu, và nó rất đơn giản.

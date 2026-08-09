@@ -1248,7 +1248,7 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 | Từ vựng tất định | **629 cụm** |
 | Bộ truy hồi đã so | `bm25`, `embedding` (`BAAI/bge-m3`), `hybrid` (RRF k=60) |
 | Số đoạn trích | `SO_DOAN_TRI_THUC = 2` |
-| Bộ kiểm | **429 test `ai/app`** + **143 test `ai/evaluation`** · **14 cổng `--check`** |
+| Bộ kiểm | **429 test `ai/app`** + **146 test `ai/evaluation`** · **14 cổng `--check`** |
 
 ## 4.2 Chất lượng câu trả lời
 
@@ -1556,22 +1556,22 @@ thứ hai là **chưa** — thiếu một bước `--profile migrate` không ai 
 
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
-Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 163 lượt kịch bản **như một phiên thật, có bộ
-nhớ**, cộng 147 ca tập trả lời.
+Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 175 lượt kịch bản **như một phiên thật, có bộ
+nhớ**, cộng 161 ca tập trả lời.
 
 **Bảng 4.9 — Phân bố đường đi**
 
-| Đường đi | 147 ca trả lời | 175 lượt phiên |
+| Đường đi | 161 ca trả lời | 175 lượt phiên |
 |---|---:|---:|
-| Thực đơn / nhãn — **không đọc kho** | 63,3% | **74,9%** |
-| Tra khóa nguyên văn | 19,7% | 0,6% |
-| Chọn mục trong 1 tài liệu | 6,8% | 0,0% |
-| **Truy hồi toàn kho** | **0,0%** | **1,7%** |
-| Còn lại — giá, chi tiết món, xã giao, hỏi lại | 10,2% | 22,8% |
+| Thực đơn / nhãn — **không đọc kho** | 57,8% | 95,4% |
+| Tra khóa nguyên văn | 18,0% | 0,6% |
+| Chọn mục trong 1 tài liệu | 6,2% | 0,0% |
+| **Truy hồi toàn kho** | **8,7%** | **1,7%** |
+| Còn lại — giá, chi tiết món, xã giao, hỏi lại | 9,3% | 2,3% |
 
 ![Biểu đồ 4.3 — Đường nào thật sự chạy trong một phiên hội thoại](_bieu_do/bd4-duong-di.png)
 
-**Biểu đồ 4.3** — Cột đáng nhìn nhất là cột bằng 0.
+**Biểu đồ 4.3** — Cột truy hồi từng bằng 0; nó khác 0 được là nhờ bổ sung ca, không phải nhờ đổi hệ thống.
 
 ### 4.7.1 Con số này từng là 0, và đó là lỗi của TẬP CA chứ không phải của hệ thống
 
@@ -1896,7 +1896,7 @@ trả lời, vì mọi dữ kiện nêu ra đều chính xác.
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76, **0 ca tụt** |
 | Chọn món | 50 câu | lọc nhãn **100,00%**, **0 món vi phạm** |
 | Định tuyến câu tri thức | 50 câu | 64,00% nghiêm ngặt · **90,00%** theo câu trả lời dùng được |
-| Bộ kiểm | — | **429 test `ai/app`** + **143 test `ai/evaluation`** · 14 cổng `--check` |
+| Bộ kiểm | — | **429 test `ai/app`** + **146 test `ai/evaluation`** · 14 cổng `--check` |
 
 Kết quả chính là một hệ thống **đơn giản hơn** thiết kế ban đầu: một mô hình nhúng thay vì ba phương
 pháp truy hồi, không xếp hạng lại, kho tri thức nhỏ đi đáng kể. Mỗi lần bỏ bớt đều có một phép đo nói
@@ -2076,7 +2076,7 @@ cáo chỉ kể phần thành công thì không cho người đọc biết gì v
 
 | Việc | Bằng chứng |
 |---|---|
-| Trả lời đúng trên tập ca một lượt | **147/147**, và sàn để so là **8/147** — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
+| Trả lời đúng trên tập ca một lượt | **161/161**, và sàn để so là **8/161** — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
 | Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 163 lượt, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden **103/103** ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên chỉ số hệ thống thực sự dùng | mục 4.3 — Hit@2, không phải Hit@5 |
@@ -2174,7 +2174,7 @@ Mô hình không nói về chính sách không phải nhờ dặn dò, mà nhờ
 
 | Khó khăn | Cách nhóm xử lý |
 |---|---|
-| **Không có log khách thật** — mọi ca đánh giá do nhóm viết, nên chúng phản ánh cách nhóm nghĩ khách sẽ hỏi | Thử nghiệm trực tiếp với người dùng ngoài nhóm; mở rộng tập phiên lên **60 kịch bản / 163 lượt** để phủ các dạng câu người thật dùng — phủ định, đổi ý, hỏi liên tục |
+| **Không có log khách thật** — mọi ca đánh giá do nhóm viết, nên chúng phản ánh cách nhóm nghĩ khách sẽ hỏi | Thử nghiệm trực tiếp với người dùng ngoài nhóm; mở rộng tập phiên lên **hơn 100 kịch bản** để phủ các dạng câu người thật dùng — phủ định, đổi ý, hỏi liên tục |
 | **Rút dấu tiếng Việt gây va chạm** — `mi chinh`, `số`/`sò`, `cả`/`cá` | Kiểm kê va chạm chạy trong CI: **629 cụm, 107 cụm có nguy cơ**; mỗi lần thêm cụm phải chạy lại và phải **chạy `understand()` thật**, không phân tích chuỗi |
 | **Độ trễ mô hình ~8,6 giây mỗi lượt** | Để đường sinh **bật/tắt được**; mã tất định trả lời trước, mô hình chỉ được gọi ở nhánh cần diễn đạt |
 | **Ảnh Docker lớn vì embedding** | Tính sẵn vector lúc **build ảnh** thay vì lúc chạy — độ trễ mỗi câu không tăng, chỉ thời gian khởi động tăng; và `HF_HUB_OFFLINE=1` để chạy không cần mạng |
@@ -2284,14 +2284,14 @@ python ai/evaluation/validate_cases.py
 python ai/evaluation/probe_metric_holes.py
 python ai/evaluation/build_split.py --check
 python -m unittest discover -s ai/app -p "test_*.py"          # 429 test
-python -m unittest discover -s ai/evaluation -p "test_*.py"   # 143 test
+python -m unittest discover -s ai/evaluation -p "test_*.py"   # 146 test
 ```
 
 **Bước 3 — số liệu, không cần mô hình sinh**
 
 ```bash
-python ai/evaluation/run_baseline.py --all            # 147/147
-python ai/evaluation/run_session_eval.py              # 163 lượt
+python ai/evaluation/run_baseline.py --all            # 161/161
+python ai/evaluation/run_session_eval.py              # 175 lượt
 python ai/evaluation/run_ablation.py                  # bảng 4.11
 ```
 

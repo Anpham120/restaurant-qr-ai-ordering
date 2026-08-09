@@ -160,7 +160,7 @@ def ablation() -> None:
 
     ax.set_yticks(y)
     ax.set_yticklabels(ten, fontsize=9.5)
-    ax.set_xlabel("số ca đỏ trên 147 ca khi TẮT cơ chế")
+    ax.set_xlabel("số ca đỏ khi TẮT cơ chế")
     ax.set_xlim(0, 30)
     ax.set_title("Mỗi cơ chế đều có ít nhất một ca chứng minh giá trị",
                  pad=12, fontweight="bold")
@@ -172,21 +172,37 @@ def ablation() -> None:
 
 # ---------------------------------------------------------------------------
 # 4 · Đường nào thật sự chạy trong một phiên
-#     nguồn: bộ đo phân bố đường đi trên 147 ca và 163 lượt phiên
+#
+#     Hình này ĐỌC TỪ TỆP ĐO, không viết cứng số. Bản trước viết cứng
+#     "147 ca / 163 lượt / truy hồi 0%" ngay trong hàm vẽ, nên sau khi tập ca mở
+#     rộng lên 161 ca / 175 lượt và họ `knowledge_corpus` được thêm vào, hình
+#     vẫn vẽ lại y nguyên con số cũ mỗi lần chạy. Đó là kiểu sai tệ nhất: hình
+#     vẫn dựng lại được, `--check` vẫn xanh, chỉ có nội dung là sai.
+#
+#     Sinh tệp nguồn:  python ai/evaluation/run_phan_bo_duong.py --ghi
 # ---------------------------------------------------------------------------
+DO_PHAN_BO = (HERE.parents[1] / "ai" / "evaluation" / "measurements"
+              / "phan_bo_duong.json")
+
+
 def duong_di() -> None:
-    nhan = ["Lọc nhãn\n(không đọc kho)", "Tra khoá\nnguyên văn",
-            "Chọn mục\ntrong 1 tài liệu", "TRUY HỒI\ntoàn kho",
-            "Xã giao / ngoài\nphạm vi / hỏi lại"]
-    ca = [63.3, 19.7, 6.8, 0.0, 10.2]
-    luot = [96.9, 0.6, 0.0, 0.0, 2.5]
+    import json
+
+    d = json.loads(DO_PHAN_BO.read_text(encoding="utf-8-sig"))
+    khoa = ["loc_nhan", "tra_khoa", "chon_muc", "truy_hoi", "khac"]
+    nhan = [d["nhan"][k] for k in khoa]
+    tc, tp = d["so"]["tap_ca"], d["so"]["tap_phien"]
+    ca = [tc["phan_tram"][k] for k in khoa]
+    luot = [tp["phan_tram"][k] for k in khoa]
+    n1, n2 = tc["n"], tp["n"]
+    tr = tc["dem"].get("truy_hoi", 0) + tp["dem"].get("truy_hoi", 0)
 
     fig, ax = plt.subplots(figsize=(8.4, 4.2))
     x = range(len(nhan))
     r = 0.36
-    ax.bar([i - r / 2 for i in x], ca, r, label="147 ca trả lời", color=XAM)
-    ax.bar([i + r / 2 for i in x], luot, r, label="163 lượt phiên (có bộ nhớ)",
-           color=XANH)
+    ax.bar([i - r / 2 for i in x], ca, r, label=f"{n1} ca trả lời", color=XAM)
+    ax.bar([i + r / 2 for i in x], luot, r,
+           label=f"{n2} lượt phiên (có bộ nhớ)", color=XANH)
 
     for i, (a, b) in enumerate(zip(ca, luot)):
         ax.text(i - r / 2, a + 1.6, f"{a:.1f}".replace(".", ",") + "%",
@@ -194,10 +210,12 @@ def duong_di() -> None:
         ax.text(i + r / 2, b + 1.6, f"{b:.1f}".replace(".", ",") + "%",
                 ha="center", fontsize=9, fontweight="bold" if b > 50 else "normal")
 
-    # Cột đáng nhìn nhất là cột 0% — nó là kết quả trung tâm của đồ án.
-    ax.annotate("RAG chạy 0/310 lượt\ntrên hai tập này",
-                xy=(3, 2), xytext=(3.05, 42), fontsize=9.5, color=DO,
-                ha="center",
+    # Cột truy hồi từng bằng 0 trên cả hai tập — không phải vì hệ thống không có
+    # nhánh đó, mà vì TẬP CA không hỏi tới nó. Chú thích nói ra con số hiện tại
+    # và nhắc lại nó từng là 0, vì chính chỗ đó là bài học đáng kể của đồ án.
+    ax.annotate(f"Truy hồi chạy {tr}/{n1 + n2} lượt\n(trước khi bổ sung ca: 0)",
+                xy=(3, max(ca[3], luot[3]) + 2), xytext=(3.05, 42),
+                fontsize=9.5, color=DO, ha="center",
                 arrowprops=dict(arrowstyle="->", color=DO, lw=1.3))
 
     ax.set_xticks(list(x))
