@@ -1165,7 +1165,7 @@ trong **629 cụm**, **107 cụm có nguy cơ**, và cơ chế này bảo vệ t
 | Tập | Quy mô | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | **147 ca / 46 họ** | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | **60 kịch bản / 163 lượt** | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | **63 kịch bản / 175 lượt** | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | **114 ca** | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | **120 ca** | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | **29 hội thoại / 103 lượt** | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1258,7 +1258,7 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 | Nhóm chốt an toàn | **21/21** |
 | Nhóm phát triển | **78/78** |
 | Nhóm niêm phong | **48/48** |
-| Bộ nhớ phiên (60 kịch bản) | **163 lượt, không lượt nào đỏ**, 0 lỗi an toàn |
+| Bộ nhớ phiên (63 kịch bản) | **175 lượt, không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | **103/103** ở cả hai cấu hình mô hình |
 
 **Sàn để so:** cách lách *"luôn nói chưa có dữ liệu"* qua được **8/147**. Con số 100% chỉ có nghĩa khi
@@ -1537,21 +1537,53 @@ nhớ**, cộng 147 ca tập trả lời.
 
 **Bảng 4.9 — Phân bố đường đi**
 
-| Đường đi | 147 ca trả lời | 163 lượt phiên |
+| Đường đi | 147 ca trả lời | 175 lượt phiên |
 |---|---:|---:|
-| Thực đơn / nhãn — **không đọc kho** | 63,3% | **96,9%** |
+| Thực đơn / nhãn — **không đọc kho** | 63,3% | **74,9%** |
 | Tra khóa nguyên văn | 19,7% | 0,6% |
 | Chọn mục trong 1 tài liệu | 6,8% | 0,0% |
-| **Truy hồi toàn kho** | **0,0%** | **0,0%** |
-| Xã giao / ngoài phạm vi / hỏi lại | 10,2% | 2,5% |
+| **Truy hồi toàn kho** | **0,0%** | **1,7%** |
+| Còn lại — giá, chi tiết món, xã giao, hỏi lại | 10,2% | 22,8% |
 
 ![Biểu đồ 4.3 — Đường nào thật sự chạy trong một phiên hội thoại](_bieu_do/bd4-duong-di.png)
 
 **Biểu đồ 4.3** — Cột đáng nhìn nhất là cột bằng 0.
 
-**Truy hồi toàn kho chạy 0/310 lượt.** Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai
-tập đó được viết quanh các nhánh tất định**, và mọi câu tri thức trong chúng thuộc các chủ đề **đã có
-khóa** — mà tra khóa chính xác hơn xếp hạng.
+### 4.7.1 Con số này từng là 0, và đó là lỗi của TẬP CA chứ không phải của hệ thống
+
+Trước bản này, truy hồi toàn kho chạy **0/310 lượt** trên hai tập — và **không ca nào đỏ**. Lý do
+không phải hệ thống bỏ nhánh đó, mà là **không tiêu chí nào của tập phiên hỏi tới nó**: bộ chạy
+không có khoá nào nói được "lượt này phải đi qua nhánh nào", nên một nhánh vắng mặt hoàn toàn vẫn
+là trạng thái hợp lệ.
+
+Nói cách khác, đường tri thức là đường duy nhất của hệ thống **chưa từng được chứng minh chạy trong
+một hội thoại thật**. Và "chưa ai hỏi tới" không phải "đã đúng".
+
+Đã sửa hai chỗ:
+
+1. **Bộ chạy phiên nhận thêm khoá `expect_branch_prefix`** — nay một lượt khai báo được nó phải đi
+   qua nhánh nào, và đi sai nhánh là đỏ.
+2. **Thêm nhóm kịch bản `rag_trong_phien`** — ba kịch bản bốn lượt, đặt câu tri thức **ở giữa
+   phiên**, sau một lời khai dị ứng:
+
+```
+lượt 1   "Mình dị ứng hải sản nhé"                       -> bộ nhớ ghi allergen:seafood
+lượt 2   "Có món nào không cay dưới 100k không?"         -> nhánh filter, đã tránh dị nguyên
+lượt 3   "Cùng là gà mà sao món thì mềm món thì dai?"    -> nhánh TRUY HỒI  <- lượt then chốt
+lượt 4   "Vậy gợi ý mình vài món đi"                     -> nhánh filter, VẪN tránh dị nguyên
+```
+
+Lượt 3 đo hai thứ mà bộ một lượt không đo được: **truy hồi có chạy khi bộ nhớ đang giữ ràng buộc**,
+và **ràng buộc có sống qua lượt tri thức**. Lượt 4 là chỗ bộ nhớ dễ rơi nhất, vì lượt ngay trước nó
+đi một nhánh hoàn toàn khác.
+
+**Kết quả: 12/12 lượt của nhóm đạt, 0 lỗi an toàn.** Tập phiên nay là **63 kịch bản / 175 lượt**, và
+truy hồi chạy **3 lượt** trong đó — nhỏ, nhưng khác hẳn 0, vì 3 lượt đó có khoá đáp án và sẽ đỏ nếu
+nhánh hỏng.
+
+**Điều con số 1,7% vẫn nói.** Nó không đổi kết luận của mục này: trong một phiên gọi món thật, phần
+lớn lượt vẫn là câu chọn món, và chúng không cần chạm kho tri thức. Cái đổi là **giờ có bằng chứng
+nhánh tri thức chạy được**, thay vì chỉ có bằng chứng nó không chạy.
 
 Trên một phiên trộn có câu tri thức thật, RAG chạy **3/8 lượt**:
 
@@ -1770,7 +1802,7 @@ python ai/evaluation/run_ma_tran_duong.py --md
 | Phép đo | Quy mô | Kết quả |
 |---|---:|---|
 | Tập ca trả lời | 147 ca | **147/147** (niêm phong 48/48) |
-| Bộ nhớ phiên | 60 kịch bản / 163 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
+| Bộ nhớ phiên | 63 kịch bản / 175 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
 | Truy hồi nhóm `written` | 66 ca | embedding Hit@2 **0,879** · cấm@5 **6** |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76, **0 ca tụt** |
