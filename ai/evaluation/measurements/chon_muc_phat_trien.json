@@ -1,6 +1,6 @@
 {
   "so": {
-    "so_ca": 456,
+    "so_ca": 76,
     "so_ho": 9,
     "nhom": {
       "written|*": {
@@ -65,68 +65,68 @@
       },
       "derived|*": {
         "bm25": {
-          "n": 380,
-          "top1": 0.5342105263157895,
-          "mrr": 0.7037280701754386,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "embedding": {
-          "n": 380,
-          "top1": 0.6736842105263158,
-          "mrr": 0.787280701754386,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "hybrid": {
-          "n": 380,
-          "top1": 0.6131578947368421,
-          "mrr": 0.7559210526315789,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         }
       },
       "derived|A": {
         "bm25": {
-          "n": 190,
-          "top1": 0.7736842105263158,
-          "mrr": 0.8745614035087719,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "embedding": {
-          "n": 190,
-          "top1": 0.7210526315789474,
-          "mrr": 0.8271929824561403,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "hybrid": {
-          "n": 190,
-          "top1": 0.7736842105263158,
-          "mrr": 0.8649122807017544,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         }
       },
       "derived|B": {
         "bm25": {
-          "n": 190,
-          "top1": 0.29473684210526313,
-          "mrr": 0.5328947368421053,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "embedding": {
-          "n": 190,
-          "top1": 0.6263157894736842,
-          "mrr": 0.7473684210526316,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         },
         "hybrid": {
-          "n": 190,
-          "top1": 0.45263157894736844,
-          "mrr": 0.6469298245614036,
-          "san_ngau_nhien": 0.2546916890080429
+          "n": 0,
+          "top1": null,
+          "mrr": null,
+          "san_ngau_nhien": null
         }
       }
     }
   },
   "dieu_kien": {
-    "ngay": "2026-08-08",
+    "ngay": "2026-08-09",
     "tap": "phat_trien",
     "bo_da_so": [
       "bm25",

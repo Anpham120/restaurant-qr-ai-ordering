@@ -43,7 +43,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành lớp AI — triển khai, cấu hình, và runbook |
 | [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
 | [BAO_CAO_HOC_MAY_KPDL.md](ai/BAO_CAO_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
-| [GIAI_THICH_CHI_TIET.md](ai/GIAI_THICH_CHI_TIET.md) | Giải thích chi tiết toàn bộ dự án |
+| [GIAI_THICH_CHI_TIET.md](ai/GIAI_THICH_CHI_TIET.md) | Giải thích chuyên sâu hệ thống |
 
 ## Kiến trúc và hợp đồng
 
