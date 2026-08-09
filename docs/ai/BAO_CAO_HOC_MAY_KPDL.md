@@ -1224,7 +1224,7 @@ trong **629 cụm**, **107 cụm có nguy cơ**, và cơ chế này bảo vệ t
 
 | Tập | Quy mô | Chặng nó đo |
 |---|---:|---|
-| `cases.json` | **147 ca / 46 họ** | `understand()` + `respond()` gọi trực tiếp |
+| `cases.json` | **161 ca / 47 họ** | `understand()` + `respond()` gọi trực tiếp |
 | `session_scripts.json` | **63 kịch bản / 175 lượt** | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | **114 ca** | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | **120 ca** | chọn mục **trong một tài liệu** |
@@ -1314,14 +1314,14 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 
 | Nhóm | Kết quả |
 |---|---|
-| Toàn bộ | **147/147** (100,00%) |
+| Toàn bộ | **161/161** (100,00%) |
 | Nhóm chốt an toàn | **21/21** |
 | Nhóm phát triển | **78/78** |
 | Nhóm niêm phong | **48/48** |
 | Bộ nhớ phiên (63 kịch bản) | **175 lượt, không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | **103/103** ở cả hai cấu hình mô hình |
 
-**Sàn để so:** cách lách *"luôn nói chưa có dữ liệu"* qua được **8/147**. Con số 100% chỉ có nghĩa khi
+**Sàn để so:** cách lách *"luôn nói chưa có dữ liệu"* qua được **8/161**. Con số 100% chỉ có nghĩa khi
 đặt cạnh sàn này.
 
 ## 4.3 So ba phương pháp truy hồi
@@ -1910,6 +1910,33 @@ python ai/evaluation/run_rag_eval.py --csv
 python ai/evaluation/run_ma_tran_duong.py --md
 ```
 
+### 4.11.3 Tập ca chính từng KHÔNG phủ nhánh truy hồi
+
+Đo phân bố nhánh trên `cases.json`: **0/147 ca đi qua `knowledge_corpus`**. Tức tập ca chính — tập
+chạy ở mọi cổng CI và được báo cáo trích nhiều nhất — **không phủ một trong bốn đường trả lời**.
+
+Đây không phải "hệ thống thiếu" mà là **"tập ca không hỏi tới"**. Và một đường không bị hỏi tới thì
+nó vắng mặt một cách **hợp lệ**: 147/147 vẫn xanh trong khi cả một nhánh chưa từng được chấm.
+
+Đã thêm họ `knowledge_corpus` — **14 ca**, mỗi ca đã xác minh đi vào đúng nhánh đó qua `respond()`
+thật, phủ đủ sáu nhóm chủ đề của kho:
+
+| Ca | Câu hỏi | Vì sao lọc nhãn KHÔNG trả lời được |
+|---|---|---|
+| `KC-corpus-01` | *"Cùng là gà mà sao món thì mềm món thì dai?"* | không nhãn nào nói về kết cấu thịt |
+| `KC-corpus-03` | *"Đồ chay ở đây có thật sự chay không?"* | câu **chất vấn chính cái nhãn** |
+| `KC-corpus-05` | *"Gọi khai vị trước có làm no bụng không?"* | cụm "khai vị" là cụm nhóm món nên nhánh lọc khớp trước |
+| `KC-corpus-07` | *"Mấy chữ ghi dưới tên món có tin được hết không?"* | hỏi về **độ tin cậy của bộ nhãn** |
+| `KC-corpus-11` | *"Đồ biển ở đây có tươi không, lấy từ đâu?"* | hỏi thứ hệ thống **không có dữ liệu** |
+| `KC-corpus-14` | *"Quán có nói được món này nấu bao lâu không?"* | hệ thống phải **biết mình không biết** |
+
+**Kết quả: 161/161, và 14 ca đi qua `knowledge_corpus:embedding`.**
+
+Ca `KC-corpus-05` đáng chú ý riêng: bản trước hệ thống trả về 6 món khai vị — mọi món có thật, mọi
+giá đúng, và **không món nào trả lời điều được hỏi**. Đó là dạng lỗi khó phát hiện hơn việc từ chối
+trả lời, vì mọi dữ kiện nêu ra đều chính xác.
+
+
 
 
 ---
@@ -1923,7 +1950,7 @@ python ai/evaluation/run_ma_tran_duong.py --md
 
 | Phép đo | Quy mô | Kết quả |
 |---|---:|---|
-| Tập ca trả lời | 147 ca | **147/147** (niêm phong 48/48) |
+| Tập ca trả lời | 161 ca | **161/161** — trong đó **14 ca đi nhánh TRUY HỒI** |
 | Bộ nhớ phiên | 63 kịch bản / 175 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
 | Truy hồi nhóm `written` | 66 ca | embedding Hit@2 **0,879** · cấm@5 **6** |
