@@ -1,40 +1,80 @@
 # Phân công 5 thành viên
 
-## Cách chia: nhóm trưởng làm DỮ LIỆU + HIỂU CÂU HỎI, một người làm ĐÁNH GIÁ
+## Cách chia: theo THỨ TỰ XÂY DỰNG, không theo module
+
+Ràng buộc phụ thuộc của hệ thống rất chặt: không có nhãn thì không lọc được món, không có kho tri
+thức thì không truy hồi được, và **không có tập đánh giá thì không ai biết mình đúng hay sai**.
+
+Chia theo module thì năm người khởi động cùng lúc rồi ba người ngồi chờ. Chia theo **chặng xây
+dựng** thì mỗi người bàn giao một thứ người sau **dùng được ngay**.
 
 ```
-khách quét QR, gõ một câu
-        │
-   ┌────▼──────────────────────────────────────────┐
-   │ TV4  CỔNG VÀO & PHIÊN                         │  service.py · session.py
-   │      nhận HTTP, xác thực, NẠP bộ nhớ phiên    │
-   └────┬──────────────────────────────────────────┘
-        │  ChatTurn(question, session_state)
-   ┌────▼──────────────────────────────────────────┐
-   │ TV1  DỮ LIỆU + HIỂU CÂU HỎI     (nhóm trưởng) │  knowledge/* · understand.py
-   │      kho tri thức, từ điển nhãn               │  build_knowledge.py
-   │      câu này ràng buộc gì?                    │  llm_understand.py
-   └────┬──────────────────────────────────────────┘
-        │  Request
-   ┌────▼──────────────────────────────────────────┐
-   │ TV2  TRUY HỒI                                 │  rag/bm25.py · embedding.py
-   │      câu này cần đoạn tri thức nào?           │  hybrid.py
-   └────┬──────────────────────────────────────────┘
-        │  Evidence
-   ┌────▼──────────────────────────────────────────┐
-   │ TV3  CHỌN MÓN & GIỎ HÀNG                      │  answer.py · cart.py
-   │      món nào thỏa? thẻ giỏ nào?               │
-   └────┬──────────────────────────────────────────┘
-        │  Reply + Cart
-   ┌────▼──────────────────────────────────────────┐
-   │ TV4  GHI bộ nhớ phiên, trả JSON cho backend   │
-   └───────────────────────────────────────────────┘
-
-        ┌──────────────────────────────────────────────────────────────┐
-        │  TV5  ĐÁNH GIÁ — tập ca · thước đo · golden · cổng CI        │
-        │  KHÔNG xây gì trong pipeline: nó CHẤM tất cả bốn khâu trên   │
-        └──────────────────────────────────────────────────────────────┘
+CHẶNG 1   TV1  DỮ LIỆU                          knowledge/* · menu-tags.json
+          |    91 món · 85 nhãn / 16 họ · 60 tài liệu / 213 đoạn
+          |
+          +--> giao BỘ NHÃN và KHO cho TV5, rồi TV1 làm tiếp phần hiểu câu hỏi
+          v
+CHẶNG 2   TV5  ĐÁNH GIÁ                         ai/evaluation/* toàn bộ
+          |    147 ca · 60 kịch bản / 163 lượt · 114 ca truy hồi · 120 ca chọn mục
+          |    viết được NGAY vì khoá đáp án là ĐIỀU KIỆN trên dữ liệu, không phải
+          |    danh sách kết quả — nên KHÔNG cần chờ TV2/TV3/TV4 viết dòng nào
+          v
+CHẶNG 1b  TV1  HIỂU CÂU HỎI                     understand.py · 629 cụm
+          |    -> Request(require/avoid/prefer · budget · wants · ~20 cờ)
+          v
+CHẶNG 3   TV2  TRUY HỒI                         rag/bm25 · embedding · hybrid
+          |    -> Evidence, tối đa 2 đoạn      đo ngay bằng 114 ca của TV5
+          v
+CHẶNG 4   TV3  CHỌN MÓN & GIỎ HÀNG              answer.py · cart.py · generate.py
+          |    -> Reply + thẻ giỏ               đo ngay bằng 147 ca của TV5
+          v
+CHẶNG 5   TV4  PHIÊN & TÍCH HỢP                 service.py · session.py · Docker
+          |    -> dịch vụ HTTP chạy thật        đo ngay bằng 163 lượt của TV5
+          v
+CHẶNG 6   TV5  ĐÓNG VÒNG                        golden_e2e · cổng CI
+               103 lượt qua stack thật — phần DUY NHẤT của TV5 phải chờ tới cuối
 ```
+
+### Điều làm chuỗi này tuần tự được: khoá đáp án là ĐIỀU KIỆN, không phải kết quả
+
+Đây là tính chất quyết định, và nó kiểm được bằng cách mở bất kỳ tập nào:
+
+```json
+cases.json            "expect": {"kind": "fact", "facts": {"m_008": {"price": 75000}}}
+retrieval_cases.json  "expected": [{"topic_keys_any": ["combo_pairing"]}]
+session_scripts.json  "expect": {"forbid_tags_any": ["allergen:seafood"]}
+```
+
+Không khoá nào tham chiếu tới mã. Chúng chỉ tham chiếu **thực đơn**, **bộ nhãn** và **siêu dữ liệu
+của kho** — tức đúng ba thứ TV1 giao ở chặng 1.
+
+Hệ quả: **TV5 viết được toàn bộ tập đánh giá trước khi TV2, TV3, TV4 viết dòng mã đầu tiên.** Ba
+người đó có số đo **ngay lúc code chạy được**, không phải chờ tới cuối.
+
+### Vì sao TV5 đứng thứ HAI chứ không đứng cuối
+
+Đây là điểm khác biệt lớn nhất so với cách chia theo pipeline.
+
+Nếu đánh giá đứng cuối thì bốn chặng trước **xây mà không đo** — và đó đúng bệnh mà dự án này đã
+mắc: mỗi đường xử lý đều "chạy đúng" theo người viết chúng, không ai đo cả hệ thống. Đặt TV5 ở chặng
+2 thì mỗi chặng sau có thước đo **trước khi bắt đầu**, và điều kiện nghiệm thu là một con số chứ
+không phải một lời.
+
+**TV5 là người duy nhất xuất hiện hai lần**, và lý do có thật: `golden_e2e` cần stack chạy được nên
+nó buộc phải nằm sau TV4. Mọi phần khác của khâu đánh giá thì không.
+
+### Đường tới hạn, và chỗ chạy song song được miễn phí
+
+```
+tới hạn:     TV1 dữ liệu -> TV5 tập ca -> TV2 -> TV3 -> TV4 -> TV5 golden
+song song:   TV1 làm HIỂU CÂU HỎI trong lúc TV5 viết tập ca
+             TV2 và TV3 chồng lấn được: TV3 dựng select() bằng Request,
+             chưa cần Evidence cho tới nhánh tri thức
+```
+
+Chỉ **TV1 và TV5** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai phải chờ quá một
+chặng.
+
 
 ### Vì sao tách ĐÁNH GIÁ khỏi DỮ LIỆU
 
@@ -71,9 +111,14 @@ theo cùng một hướng**, và test so hai đầu với nhau nên nó không t
 **Tải việc không đều, và nhóm trưởng nhận phần nặng nhất.** TV1 giữ hai khâu; bốn người còn lại
 giữ một khâu mỗi người. Đổi lại, TV1 là người duy nhất không phải hẹn ai để làm việc của mình.
 
-**TV5 vẫn nằm trên đường tới hạn, chỉ ngắn hơn.** TV2 không đo được phép so truy hồi trước khi TV5
-xong ca truy hồi; TV4 không đo được bộ nhớ phiên trước khi TV5 xong kịch bản đa lượt. Thứ tự đúng
-vẫn là: **ca đánh giá trước, mở rộng kho sau.**
+**TV5 nằm trên đường tới hạn của ba người, và đó là lý do TV5 đứng ở chặng 2.** TV2 không đo được
+phép so truy hồi trước khi có ca truy hồi; TV3 không đo được nhánh chọn món trước khi có tập ca;
+TV4 không đo được bộ nhớ phiên trước khi có kịch bản đa lượt. Đặt TV5 sau cả ba là đảm bảo cả ba
+xây trong bóng tối.
+
+**Chặng 1 phải giao ĐÚNG THỨ TỰ.** TV1 giao **dữ liệu trước, hiểu câu hỏi sau** — vì TV5 chỉ cần dữ
+liệu để viết tập ca, còn `understand.py` thì TV5 không cần. Giao ngược thứ tự thì TV5 chờ 2.417 dòng
+mã mà họ không dùng tới.
 
 **Một phụ thuộc mà bảng phân công KHÔNG lường được.** `analyze_failures.py` (TV5) chỉ ra rằng 9 lượt
 tham chiếu ngược thuộc lớp `capability_missing` — một khả năng chưa dựng, nằm giữa TV1 (cụm chỉ vị
