@@ -277,7 +277,23 @@ _add("gluten|bot mi", "allergen_topic", ("allergen:gluten", None))
 # 9/9 câu khai hiểu được, 0/20 câu thường bị sai.
 #
 # Bài học: đo một cơ chế thì phải CHẠY nó, không phân tích chuỗi thay cho nó.
-_add("tom|tom su|tom hum|cua|ghe|muc|ca|ca bien|ca hoi|nghieu|so|oc|hau",
+# `so` (sò) ĐÃ BỎ khỏi danh sách này. Nó rút dấu về cùng chuỗi với **số**, **sợ**, **so**:
+#
+#     "Mình không ăn được món SỐ 2"    -> avoid=['allergen:seafood']   ẩn 26 món hải sản
+#     "Mình dị ứng, không ăn được SỐ 3" -> như trên
+#     "Mình SỢ cay" / "SO sánh hai món" -> khớp nhưng chưa thành ràng buộc
+#
+# Khách chọn món theo số thứ tự rồi nói không ăn được, và hệ thống giấu toàn bộ hải sản. Sai theo
+# chiều fail-closed nên không nguy hiểm, nhưng khách mất lựa chọn mà không biết vì sao.
+#
+# Bỏ được vì nó KHÔNG TỐN GÌ: đo trên 627 câu -> **0 câu đổi**, và không món nào trong 91 món có
+# chữ "sò" đứng riêng thành một từ. Cụm này chưa từng bắt được ca thật nào.
+#
+# `ca` (cá) thì PHẢI GIỮ dù nó cũng đụng "cả": bỏ nó làm "Mình dị ứng cá" mất hàng rào dị nguyên —
+# đo được, 1 câu đổi và đúng câu quan trọng nhất. Nên "Có CẢ ông bà, mình không ăn được cay" vẫn
+# ẩn nhầm hải sản. Ghi ra thay vì sửa liều: hai chữ ấy sau khi rút dấu là MỘT, và phân biệt chúng
+# cần ngữ cảnh mà lớp khớp cụm không có.
+_add("tom|tom su|tom hum|cua|ghe|muc|ca|ca bien|ca hoi|nghieu|oc|hau",
      "allergen_topic", ("allergen:seafood", None))
 _add("pho mai|kem", "allergen_topic", ("allergen:dairy", None))
 _add("trung ga|long do", "allergen_topic", ("allergen:egg", None))
