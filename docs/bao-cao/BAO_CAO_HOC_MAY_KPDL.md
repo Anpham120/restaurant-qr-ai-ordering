@@ -1,95 +1,42 @@
-# TRƯỜNG ĐẠI HỌC CMC
-## KHOA CÔNG NGHỆ THÔNG TIN VÀ TRUYỀN THÔNG
-
----
+<div align="center">
+  <img src="../../frontend/src/mocks/images/logo.png" alt="Logo CMC Restaurant" width="150" />
 
 # BÁO CÁO ĐỒ ÁN MÔN HỌC
-# MÔN: HỌC MÁY VÀ KHAI PHÁ DỮ LIỆU
+## Học phần: Học máy và Khai phá dữ liệu
 
-**Đề tài:** Trợ lý AI tư vấn thực đơn qua mã QR — dùng phép đo để xác định câu hỏi nào nên trả lời
-bằng tra cứu chính xác, câu hỏi nào cần truy hồi
+**Trường Đại học CMC — Khoa Công nghệ thông tin & Truyền thông**
 
-**Khoa/Ngành:** CNTT&TT — Công nghệ Thông tin
+**Đề tài:** Trợ lý AI tư vấn thực đơn qua mã QR — dùng phép đo để xác định
+câu hỏi nào nên trả lời bằng tra cứu chính xác, câu hỏi nào cần truy hồi
+
+**Repository:** [github.com/Anpham120/restaurant-qr-ai-ordering](https://github.com/Anpham120/restaurant-qr-ai-ordering)
 
 **Giảng viên hướng dẫn:** Phạm Ngọc Đông
 
-**Nhóm sinh viên thực hiện:**
+**Nhóm thực hiện:** Nhóm 05 — 5 sinh viên
+
+**Thời gian thực hiện:** 04/06/2026 – 09/08/2026
+
+</div>
+
+---
+
+## Nhóm sinh viên thực hiện
 
 | STT | Họ và tên | MSSV | Vai trò |
 |:---:|---|---|---|
 | 1 | Phạm Duy An | BIT240002 | **Nhóm trưởng** — Dữ liệu & Hiểu câu hỏi |
-| 2 | Bùi Đào Đức Anh | BIT240025 | Truy hồi |
-| 3 | Đỗ Tuấn Anh | BIT240015 | Chọn món & Giỏ hàng |
-| 4 | Lê Anh | BIT240017 | Cổng vào & Phiên |
-| 5 | Nguyễn Quang Hiếu | BIT240091 | Đánh giá |
+| 2 | Nguyễn Quang Hiếu | BIT240091 | Đánh giá |
+| 3 | Bùi Đào Đức Anh | BIT240025 | Truy hồi |
+| 4 | Đỗ Tuấn Anh | BIT240015 | Chọn món & Giỏ hàng |
+| 5 | Lê Anh | BIT240017 | Cổng vào & Phiên |
 
-Hà Nội, ngày 09 tháng 08 năm 2026
+Mọi con số trong báo cáo này tính lại được bằng một lệnh ghi ở Phụ lục C. Báo cáo chỉ mô tả
+hệ thống đang có trong mã nguồn.
 
-> **Mọi con số trong báo cáo này tính lại được bằng một lệnh** ghi ở Phụ lục C. Không con số nào
-> được người viết gõ vào từ trí nhớ.
->
-> Báo cáo chỉ mô tả **hệ thống đang có trong mã nguồn**. Những thành phần đã bị gỡ bỏ chỉ được nhắc
-> tới khi cần giải thích một quyết định, và luôn kèm phép đo dẫn tới quyết định đó.
+## Mục lục
 
----
----
-
-# MỤC LỤC
-
-- [TÓM TẮT](#tóm-tắt)
-- [DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT](#danh-mục-thuật-ngữ-và-viết-tắt)
-- [DANH MỤC BẢNG BIỂU VÀ SƠ ĐỒ](#danh-mục-bảng-biểu-và-sơ-đồ)
-- [PHÂN CÔNG CÔNG VIỆC](#phân-công-công-việc)
-- **[CHƯƠNG 1: GIỚI THIỆU](#chương-1-giới-thiệu)**
-  - 1.0 Hệ thống này làm gì — kể bằng một hội thoại
-  - 1.1 Bối cảnh và động lực
-  - 1.2 Ba loại câu hỏi, và vì sao phân loại chúng là quyết định kiến trúc
-  - 1.3 Ràng buộc an toàn — bài toán thật của đồ án
-  - 1.4 Các nghiên cứu liên quan
-  - 1.5 Mục tiêu và đóng góp
-- **[CHƯƠNG 2: CƠ SỞ LÝ THUYẾT](#chương-2-cơ-sở-lý-thuyết)**
-  - 2.0 Hai loại thông tin, và hai cách tra khác nhau
-  - 2.1 Truy hồi từ khoá — BM25
-  - 2.2 Truy hồi ngữ nghĩa — biểu diễn nhúng
-  - 2.3 Hợp nhất thứ hạng — Reciprocal Rank Fusion
-  - 2.4 Kiến trúc RAG và chỗ nó KHÔNG nên dùng
-  - 2.5 Chuẩn hoá văn bản tiếng Việt là phép MẤT thông tin
-  - 2.6 Bốn lớp an toàn
-  - 2.7 Các chỉ số đánh giá, và chỉ số nào QUYẾT ĐỊNH
-- **[CHƯƠNG 3: PHƯƠNG PHÁP](#chương-3-phương-pháp)**
-  - 3.1 Kiến trúc — bốn đường trả lời phân theo mức tin cậy
-  - 3.2 Hệ thống nhãn: quá trình gán và giới hạn
-  - 3.3 Kho tri thức: một kho, hai chế độ trả lời
-  - 3.4 Bộ định tuyến — chuỗi cổng, không phải bộ phân loại
-  - 3.5 Lớp hiểu câu hỏi
-  - 3.6 Bốn tập đánh giá, và kỷ luật chia tập
-  - 3.7 Điều kiện kiểm soát thực nghiệm
-- **[CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ](#chương-4-thực-nghiệm-và-kết-quả)**
-  - 4.1 Thiết lập
-  - 4.2 Chất lượng câu trả lời
-  - 4.3 So ba phương pháp truy hồi
-  - 4.4 Số đoạn trích — bài toán đánh đổi
-  - 4.5 Bốn kết quả âm tính
-  - 4.6 Chất lượng định tuyến, và bằng chứng từng câu
-  - 4.7 RAG chạy bao nhiêu trong một luồng thật
-  - 4.8 Đường sinh bằng mô hình ngôn ngữ
-  - 4.9 Ablation — mỗi cơ chế phải tự chứng minh
-  - 4.10 Chốt phương án triển khai, kèm giá đã đo
-- **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
-  - 5.1 Tổng kết
-  - 5.2 Nhận xét của từng thành viên
-  - 5.3 Làm được
-  - 5.4 Hạn chế của nghiên cứu
-  - 5.5 Bài học kinh nghiệm
-  - 5.6 Khó khăn gặp phải
-  - 5.7 Hướng phát triển tương lai
-- [TÀI LIỆU THAM KHẢO](#tài-liệu-tham-khảo)
-- [PHỤ LỤC](#phụ-lục)
-
----
----
-
-# TÓM TẮT
+## TÓM TẮT
 
 ## Bài toán
 
@@ -158,9 +105,8 @@ BM25; Biểu diễn nhúng đa ngữ; Hợp nhất theo nghịch đảo thứ h�
 nguyên; Xử lý tiếng Việt; Đánh giá hệ thống hội thoại.
 
 ---
----
 
-# DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT
+## DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT
 
 | Viết tắt | Thuật ngữ đầy đủ |
 |---|---|
@@ -187,9 +133,8 @@ nguyên; Xử lý tiếng Việt; Đánh giá hệ thống hội thoại.
 | Wilson | Phương pháp tính khoảng tin cậy dùng được cả khi tỷ lệ đạt 100% |
 
 ---
----
 
-# DANH MỤC BẢNG BIỂU VÀ SƠ ĐỒ
+## DANH MỤC BẢNG BIỂU VÀ SƠ ĐỒ
 
 Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ đo**, từ tệp dữ liệu và từ
 `ai/evaluation/measurements/`. Không con số nào gõ tay.
@@ -222,9 +167,8 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 | Bảng 5.1 | Tổng hợp kết quả cuối | 5.1 |
 
 ---
----
 
-# PHÂN CÔNG CÔNG VIỆC
+## PHÂN CÔNG CÔNG VIỆC
 
 ## Cách chia: theo THỨ TỰ XÂY DỰNG
 
@@ -339,9 +283,8 @@ không có phương pháp đo thì không có căn cứ để khẳng định n�
 nặng ngang bốn khâu kia.
 
 ---
----
 
-# CHƯƠNG 1: GIỚI THIỆU
+## CHƯƠNG 1: GIỚI THIỆU
 
 ## 1.0 Hệ thống này làm gì — kể bằng một hội thoại
 Mục này theo **một hội thoại thật** chạy qua hệ thống, chỉ ra ở mỗi lượt hệ thống đã làm gì.
@@ -537,9 +480,8 @@ tới đâu", RAG là gì, và quan trọng nhất: **chỗ nào RAG không dùn
 của chính phương pháp chứ không phải lỗi cài đặt.**
 
 ---
----
 
-# CHƯƠNG 2: CƠ SỞ LÝ THUYẾT
+## CHƯƠNG 2: CƠ SỞ LÝ THUYẾT
 
 ## 2.0 Hai loại thông tin, và hai cách tra khác nhau
 
@@ -837,9 +779,8 @@ Chương 3 nói **nhóm ghép các phương pháp đó lại thành hệ thống
 những câu hỏi cần ba phép toán trên không bao giờ đi vào đường xếp hạng.
 
 ---
----
 
-# CHƯƠNG 3: PHƯƠNG PHÁP
+## CHƯƠNG 3: PHƯƠNG PHÁP
 
 ## 3.1 Kiến trúc — bốn đường trả lời phân theo mức tin cậy
 
@@ -1347,7 +1288,7 @@ Chương 3 đã mô tả **hệ thống làm gì**. Nhưng một mô tả không
 Chương 4 chạy hệ thống đó trên bốn tập đánh giá và báo lại **nó ra bao nhiêu** — kể cả những chỗ nó
 sai, và kể cả bốn thí nghiệm mà nhóm làm rồi **không thu được gì**.
 
-# CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ
+## CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ
 
 ## 4.1 Thiết lập
 
@@ -1800,9 +1741,8 @@ Phần đáng đọc nhất của chương này là mục 5.2: mỗi thành viê
 ý giữ lại **cả những chỗ mình làm sai**.
 
 ---
----
 
-# CHƯƠNG 5: KẾT LUẬN
+## CHƯƠNG 5: KẾT LUẬN
 
 ## 5.1 Tổng kết
 
@@ -2134,9 +2074,8 @@ Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá tr�
 3. **Không viết số vào tài liệu** — số phải tính được, nếu không nó sẽ trôi.
 
 ---
----
 
-# TÀI LIỆU THAM KHẢO
+## TÀI LIỆU THAM KHẢO
 
 1. Robertson, S., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.*
    Foundations and Trends in Information Retrieval, 3(4), 333–389.
@@ -2158,9 +2097,8 @@ Sáu việc, xếp theo **mức chặn** — việc thứ nhất chặn giá tr�
    the American Statistical Association, 22(158), 209–212.
 
 ---
----
 
-# PHỤ LỤC
+## PHỤ LỤC
 
 ## Phụ lục A: Bản đồ mã nguồn
 
