@@ -1100,7 +1100,7 @@ Câu hỏi loại một trả lời được bằng **lọc**: duyệt 91 món, 
 đối, vì "giá < 100.000" là một phép so sánh có đáp án đúng/sai rõ ràng.
 
 Câu hỏi loại hai **không có cột nào để lọc**. Đáp án nằm trong một đoạn văn, và việc phải làm là
-**tìm đúng đoạn văn đó** trong 452 đoạn. Đó là bài toán **truy hồi thông tin**.
+**tìm đúng đoạn văn đó** trong 182 đoạn của chỉ mục. Đó là bài toán **truy hồi thông tin**.
 
 ### Truy hồi thông tin (Information Retrieval — IR) là gì
 
@@ -1523,6 +1523,10 @@ vốn đã có cấu trúc đó, không dùng thì phí.
 **Bằng chứng chống lại chính lựa chọn này**, ghi ra vì nó là giới hạn thật: 45 tài liệu `derived`
 dùng chung một khuôn tiêu đề, nên **283/452 đoạn dùng chung tiêu đề** với đoạn khác. Nhóm đã thử
 sửa (đưa lên 365 tiêu đề khác nhau) và đo lại: **Hit@1 không đổi**. Xem mục 2.4.1.
+
+> Hai con số 452 và 283 là của **kho lúc đó**. Chúng được giữ nguyên vì chúng là bằng chứng dẫn
+> tới quyết định bỏ 49 tài liệu `derived`. Kho hiện tại còn **60 tài liệu / 182 đoạn xếp hạng**,
+> với 174 tiêu đề mục phân biệt — chính là điều mục 2.4.1 nói không sửa được bằng cách đổi tiêu đề.
 
 ---
 
