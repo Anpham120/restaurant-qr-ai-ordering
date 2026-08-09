@@ -1,6 +1,6 @@
 # CMC Restaurant — chỉ mục tài liệu
 
-**54 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
+**55 tài liệu**, nhóm theo mục đích. Trang này **được SINH RA** bởi
 `docs/build_docs_index.py` từ chính các tệp có thật — nên nó không thể trỏ vào tệp không
 tồn tại, và không thể bỏ sót tệp mới.
 
@@ -44,6 +44,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
 | [BAO_CAO_HOC_MAY_KPDL.md](ai/BAO_CAO_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
 | [GIAI_THICH_CHI_TIET.md](ai/GIAI_THICH_CHI_TIET.md) | Giải thích chuyên sâu hệ thống |
+| [NHOM_TRUONG_ON_TAP.md](ai/NHOM_TRUONG_ON_TAP.md) | Ôn tập cho nhóm trưởng — Phạm Duy An (BIT240002) |
 
 ## Kiến trúc và hợp đồng
 
