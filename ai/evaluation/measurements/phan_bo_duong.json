@@ -76,22 +76,22 @@
    }
   },
   "tap_phien": {
-   "n": 175,
+   "n": 178,
    "dem": {
-    "loc_nhan": 167,
+    "loc_nhan": 170,
     "khac": 4,
     "tra_khoa": 1,
     "truy_hoi": 3
    },
    "phan_tram": {
-    "loc_nhan": 95.42857142857143,
-    "tra_khoa": 0.5714285714285714,
+    "loc_nhan": 95.50561797752809,
+    "tra_khoa": 0.5617977528089888,
     "chon_muc": 0.0,
-    "truy_hoi": 1.7142857142857142,
-    "khac": 2.2857142857142856
+    "truy_hoi": 1.6853932584269662,
+    "khac": 2.247191011235955
    },
    "theo_nhanh": {
-    "filter": 131,
+    "filter": 134,
     "price_lookup": 8,
     "empty_result_offer_drop": 7,
     "allergen_named_dish": 5,
