@@ -637,6 +637,22 @@ _add("dat ban cho hai chuc nguoi", "require", "occasion:banquet")
 # `exclusive_groups` nên một món mang được cả hai, và đó là lý do phép AND ở đây không triệt tiêu.
 _add("troi nong", "require", "season:hot_season")
 _add("cho mat|mat nguoi|giai nhiet", "require", "season:cooling")
+# `gi mat` và `ma re` — hai cụm đến từ một ca hỏng cụ thể, không từ việc rà thêm.
+#
+#     "Muốn cái gì mát mà rẻ, không phải trà sữa"  ->  Bánh mì pate · Cháo lòng · Gỏi cuốn chay
+#
+# Khách xin đồ uống mát và rẻ; hệ thống không đọc ra "mát" lẫn "rẻ" nên `select()` trả về CẢ thực
+# đơn rồi liệt kê 6 món đầu. Bốn lớp kiểm soát đều xanh — chúng kiểm "kết quả có thoả ràng buộc đã
+# đọc không", mà ở đây chưa đọc ra ràng buộc nào.
+#
+# Đo từng cụm trên 627 câu: `gi mat` đổi 3 câu (cả ba đều là câu xin đồ mát), `ma re` đổi 1. Hai
+# ứng viên `gia re` và `re tien` bị LOẠI vì đổi 0 câu — thêm cụm không phép đo nào phủ là thêm mã
+# không ai canh.
+#
+# Nhãn là `price:budget`, không phải `price:low`: bản đầu tôi viết `price:low` và nó không tồn tại
+# trong từ điển nhãn. Cụm trỏ vào nhãn ma thì im lặng không lọc gì.
+_add("gi mat", "require", "season:cooling")
+_add("ma re", "require", "price:budget")
 _add("troi lanh|cho am|an cho am", "require", "season:cold_season")
 
 # Ngân sách nói bằng lời, không bằng số. `price` nằm trong `exclusive_groups` nên mỗi món đúng
@@ -2289,6 +2305,39 @@ def understand(question: str, menu_items: list[dict]) -> Request:
     # PHỦ ĐỊNH DANH MỤC — chuyển từ "lọc ra" sang "loại bỏ". Xem `_danh_muc_bi_phu_dinh`.
     _cum_dm = {p: v for p, (k, v) in VOCAB.items() if k == "category"}
     _bi_phu_dinh, _cum_bi_phu_dinh = _danh_muc_bi_phu_dinh(request.folded, _cum_dm)
+
+    # KHÁCH PHỦ ĐỊNH MỘT MÓN, KHÔNG PHẢI CẢ DANH MỤC.
+    #
+    #     "Muốn cái gì mát mà rẻ, KHÔNG PHẢI TRÀ SỮA"
+    #
+    # Cụm danh mục khớp ở đây là `tra` (5 món mang chữ đó), nên phủ định nó loại **cả danh mục đồ
+    # uống**. Khách xin đồ uống mát và nhận về bánh mì pate với cháo lòng.
+    #
+    # Nhưng bộ khớp TÊN MÓN đã bắt đúng rồi: `exclude_item_ids=['m_062']` — Trà sữa trân châu. Khi
+    # đã có loại trừ ở mức MÓN, loại thêm cả danh mục là làm quá điều khách nói.
+    #
+    # Ranh giới: **có loại trừ theo tên món hay không.** Đo trên bốn cách nói:
+    #
+    #     "không phải trà sữa"      exclude=['m_062']  -> khách nêu MỘT MÓN   -> giữ danh mục
+    #     "tôi không uống bia"      exclude=[]         -> khách nêu DANH MỤC  -> loại danh mục
+    #     "mình không ăn được phở"  exclude=[]         -> như trên
+    #     "không phải lẩu nhé"      exclude=[]         -> như trên
+    #
+    # Tên món đủ cụ thể để khớp duy nhất thì mới sinh `exclude_item_ids`; "bia" khớp 4 món nên nó
+    # không khớp duy nhất, và câu đó giữ nguyên hành vi cũ.
+    if _bi_phu_dinh and request.exclude_item_ids:
+        _ten = {i["id"]: fold(i["name"]) for i in menu_items}
+        _cat = {i["id"]: i.get("categoryId") for i in menu_items}
+        _bo_qua = {
+            _cat[mid] for mid in request.exclude_item_ids
+            if mid in _ten and any(p in _ten[mid] for p in _cum_bi_phu_dinh)
+        }
+        if _bo_qua:
+            _giu = [c for c in _bi_phu_dinh if c not in _bo_qua]
+            request.matched.append(
+                f"phủ định TÊN MÓN chứ không phải danh mục: giữ lại {sorted(_bo_qua)}")
+            _bi_phu_dinh = _giu
+
     if _bi_phu_dinh:
         request.avoid_categories = list(
             dict.fromkeys([*request.avoid_categories, *_bi_phu_dinh])

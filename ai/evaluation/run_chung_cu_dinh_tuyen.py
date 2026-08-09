@@ -83,6 +83,9 @@ PHAN_XU: dict[str, tuple[str, str]] = {
         ("SAI THẬT", "câu về xử lý dị ứng, nhận về ba món không liên quan"),
     "Mình chỉ có ba mươi phút, kịp ăn gì không?":
         ("SAI THẬT", "không ràng buộc nào đọc ra được; ba món trả về là danh sách MẶC ĐỊNH"),
+    "Ăn xong muốn cái gì mát mát tự nhiên thì có không?":
+        ("CHẤP NHẬN", "lọc `season:cooling` trả món mát — 'có không?' là câu hỏi thực đơn, "
+                      "và danh sách trả lời đúng nó"),
 }
 
 
