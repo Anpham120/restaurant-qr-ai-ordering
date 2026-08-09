@@ -223,6 +223,15 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 | Bảng 4.13 | Mỗi đường mạnh ở đúng loại câu nào | 4.11.2 |
 | Bảng 5.1 | Tổng hợp kết quả cuối | 5.1 |
 
+**Biểu đồ số liệu**
+
+| Số hiệu | Nội dung | Mục |
+|---|---|---|
+| Biểu đồ 4.1 | So ba phương pháp truy hồi | 4.3 |
+| Biểu đồ 4.2 | Đánh đổi số đoạn trích | 4.4 |
+| Biểu đồ 4.3 | Đường nào thật sự chạy trong một phiên | 4.7 |
+| Biểu đồ 4.4 | Ablation — mức mất khi tắt từng cơ chế | 4.9 |
+
 ---
 ---
 
@@ -304,12 +313,11 @@ song song:  lớp hiểu câu hỏi làm cùng lúc với tập ca
 Chỉ **khâu dữ liệu và khâu đánh giá** nằm trên đường tới hạn ở đoạn đầu. Ba người còn lại không ai
 phải chờ quá một khâu.
 
-## Vì sao chia đều 20%
+## Vì sao năm khâu ngang nhau
 
-Không phải để "cho công bằng". Năm khâu đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống
-không chạy, hoặc chạy mà không ai chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống
-không có phương pháp đo thì không có căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá
-nặng ngang bốn khâu kia.
+Năm khâu đều là mắt xích **bắt buộc**: bỏ chặng nào thì hệ thống không chạy, hoặc chạy mà không ai
+chứng minh được nó đúng. Trong một đồ án học máy, một hệ thống không có phương pháp đo thì không có
+căn cứ để khẳng định nó hoạt động đúng — nên khâu đánh giá nặng ngang bốn khâu kia.
 
 ---
 ---
@@ -380,7 +388,7 @@ trong kho.
 2, rồi tra giá món đầu trong danh sách đó.
 
 Không có bộ nhớ phiên thì câu này rơi vào truy hồi và lấy về một đoạn hoàn toàn không liên quan.
-Nhóm đo được: bỏ bộ nhớ đi thì **51 trong 175 lượt** hỏng — 39 lượt hỏng đúng kiểu này, và 12
+Nhóm đo được: bỏ bộ nhớ đi thì **53 trong 178 lượt** hỏng — 41 lượt hỏng đúng kiểu này, và 12
 lượt nặng hơn: mời lại đúng món khách đã khai dị ứng.
 
 #### Lượt 5 — khách bấm thêm vào giỏ
@@ -852,11 +860,11 @@ Bộ nhớ phiên bị xóa ở **cả ba lối thoát**. Không có đường n
 Ghi đè theo **NHÓM** chứ không theo nhãn: `spice:none` phải **đẩy** `spice:hot` ra, không nằm cạnh nó.
 Đây chính là lý do khoá nhãn phải có không gian tên (mục 3.2).
 
-**Bộ nhớ là hàng rào AN TOÀN, không chỉ là tiện ích.** Đo được: chạy 175 lượt kịch bản *không có*
-bộ nhớ thì **51 lượt (29,1%)** hỏng, và chúng chia hai loại. **39 lượt** rơi xuống truy hồi rồi lấy
+**Bộ nhớ là hàng rào AN TOÀN, không chỉ là tiện ích.** Đo được: chạy 178 lượt kịch bản *không có*
+bộ nhớ thì **53 lượt (29,8%)** hỏng, và chúng chia hai loại. **41 lượt** rơi xuống truy hồi rồi lấy
 về đoạn hoàn toàn lạc — *"Món đầu tiên giá bao nhiêu?"* lấy về tài liệu `first_visit`. **12 lượt còn
 lại là lỗi an toàn thật**: khách khai dị ứng hải sản ở lượt 1, tới lượt 4 hỏi *"Món nào bán chạy
-nhất?"* thì được mời Gỏi cuốn tôm thịt. Có bộ nhớ: **175/175 lượt đạt, 0 lỗi**.
+nhất?"* thì được mời Gỏi cuốn tôm thịt. Có bộ nhớ: **178/178 lượt đạt, 0 lỗi**.
 
 ## 3.2 Hệ thống nhãn: quá trình gán và giới hạn
 
@@ -1217,7 +1225,7 @@ trong **629 cụm**, **107 cụm có nguy cơ**, và cơ chế này bảo vệ t
 | Tập | Quy mô | Chặng nó đo |
 |---|---:|---|
 | `cases.json` | **161 ca / 47 họ** | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | **63 kịch bản / 175 lượt** | + bộ nhớ nhiều lượt |
+| `session_scripts.json` | **64 kịch bản / 178 lượt** | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | **114 ca** | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | **120 ca** | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | **29 hội thoại / 103 lượt** | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1310,7 +1318,7 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 | Nhóm chốt an toàn | **21/21** |
 | Nhóm phát triển | **78/78** |
 | Nhóm niêm phong | **48/48** |
-| Bộ nhớ phiên (63 kịch bản) | **175 lượt, không lượt nào đỏ**, 0 lỗi an toàn |
+| Bộ nhớ phiên (64 kịch bản) | **178 lượt, không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | **103/103** ở cả hai cấu hình mô hình |
 
 **Sàn để so:** cách lách *"luôn nói chưa có dữ liệu"* qua được **8/161**. Con số 100% chỉ có nghĩa khi
@@ -1595,14 +1603,14 @@ backend crash-loop với `relation "restaurant_tables" does not exist`.
 
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
-Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 175 lượt kịch bản **như một phiên thật, có bộ
+Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 178 lượt kịch bản **như một phiên thật, có bộ
 nhớ**, cộng 161 ca tập trả lời.
 
 **Bảng 4.9 — Phân bố đường đi**
 
-| Đường đi | 161 ca trả lời | 175 lượt phiên |
+| Đường đi | 161 ca trả lời | 178 lượt phiên |
 |---|---:|---:|
-| Thực đơn / nhãn — **không đọc kho** | 57,8% | 95,4% |
+| Thực đơn / nhãn — **không đọc kho** | 57,8% | 95,5% |
 | Tra khóa nguyên văn | 18,0% | 0,6% |
 | Chọn mục trong 1 tài liệu | 6,2% | 0,0% |
 | **Truy hồi toàn kho** | **8,7%** | **1,7%** |
@@ -1644,7 +1652,7 @@ Chỉ phía "mất" đo được, nên đó là phía quyết định. Ngưỡng
 
 **Bảng 4.10 — Kết quả đường sinh trên 76 ca loại C**
 
-| | |
+| Chỉ số | Giá trị |
 |---|---|
 | Đạt, đường tất định | **76/76** |
 | Đạt, có đường sinh | **76/76** |
@@ -1892,7 +1900,7 @@ trả lời, vì mọi dữ kiện nêu ra đều chính xác.
 | Phép đo | Quy mô | Kết quả |
 |---|---:|---|
 | Tập ca trả lời | 161 ca | **161/161** — trong đó **14 ca đi nhánh TRUY HỒI** |
-| Bộ nhớ phiên | 63 kịch bản / 175 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
+| Bộ nhớ phiên | 64 kịch bản / 178 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
 | Truy hồi nhóm `written` | 66 ca | embedding Hit@2 **0,879** · cấm@5 **6** |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76, **0 ca tụt** |
@@ -1935,7 +1943,7 @@ lớp hiểu chưa đặt nhãn cho vế thứ hai.
 
 **Lê Anh (BIT240017) — dịch vụ HTTP, bộ nhớ phiên, tích hợp backend.** Bộ nhớ cần **ba** quy tắc hợp nhất
 khác nhau, không phải một: dị nguyên cộng dồn, ràng buộc cứng ghi đè theo nhóm, ngữ cảnh giữ năm mục gần
-nhất. Em đo thử tắt bộ nhớ: **51/175 lượt hỏng, trong đó 12 là lỗi an toàn** — mời lại đúng món khách đã
+nhất. Em đo thử tắt bộ nhớ: **53/178 lượt hỏng, trong đó 12 là lỗi an toàn** — mời lại đúng món khách đã
 khai dị ứng. Con số đó làm em đổi cách nghĩ: bộ nhớ không phải lớp tiện nghi, nó nằm trong chuỗi bảo vệ dị
 nguyên. Giới hạn: độ trễ khi bật mô hình còn ~8,6 giây mỗi lượt.
 
@@ -1951,7 +1959,7 @@ nhất của cả đồ án: **không có log khách thật**, nên mọi tập 
 | Việc | Bằng chứng |
 |---|---|
 | Trả lời đúng trên tập ca một lượt | **161/161**, và sàn để so là **8/161** — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | **175/175 lượt**, 0 lỗi an toàn |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | **178/178 lượt**, 0 lỗi an toàn |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden **103/103** ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên chỉ số hệ thống thực sự dùng | mục 4.3 — Hit@2, không phải Hit@5 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.7 — 96,9% lượt không chạm kho |
@@ -2142,7 +2150,7 @@ python -m unittest discover -s ai/evaluation -p "test_*.py"   # 146 test
 
 ```bash
 python ai/evaluation/run_baseline.py --all            # 161/161
-python ai/evaluation/run_session_eval.py              # 175 lượt
+python ai/evaluation/run_session_eval.py              # 178 lượt
 python ai/evaluation/run_ablation.py                  # bảng 4.11
 ```
 

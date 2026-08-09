@@ -2,20 +2,20 @@
  "dieu_kien": {
   "ngay": "2026-08-10",
   "sinh_boi": "ai/evaluation/run_ablation_bo_nho.py --ghi",
-  "so_kich_ban": 63,
+  "so_kich_ban": 64,
   "ghi_chu": "Ablation bỏ ĐÚNG bước merge_into_request; state vẫn cập nhật."
  },
  "so": {
   "co_bo_nho": {
-   "tong": 175,
+   "tong": 178,
    "do": 0
   },
   "khong_bo_nho": {
-   "tong": 175,
-   "do": 51
+   "tong": 178,
+   "do": 53
   },
-  "mat": 51,
-  "mat_phan_tram": 29.1
+  "mat": 53,
+  "mat_phan_tram": 29.8
  },
  "luot_hong_khi_tat": [
   "allergy-persists-01 · \"Nhóm mình 4 người thì gọi gì\" → AN TOÀN: câu trả lời có món mang `allergen:seafood`: ['Lẩu chua ",
@@ -46,6 +46,8 @@
   "chained-reference-so-mon · \"Liệt kê 3 món vừa tư vấn bên trên\" → nêu 0 món, cần ít nhất 3",
   "chained-reference-so-mon · \"Liệt kê cho tôi 2 món đầu vừa tư vấn\" → nêu 0 món, cần ít nhất 2",
   "chained-reference-so-mon · \"Cho mình xem lại 3 món vừa rồi\" → nêu 0 món, cần ít nhất 2",
+  "chained-reference-so-viet-chu · \"Nhắc lại hai món đầu tiên\" → nêu 0 món, cần ít nhất 2",
+  "chained-reference-so-viet-chu · \"Nhắc lại ba món đầu\" → nêu 0 món, cần ít nhất 2",
   "extreme-scope-01 · \"Món đắt nhất giá bao nhiêu?\" → thiếu cụm 'trong phạm vi' trong câu trả lời",
   "social-intent-02 · \"nhà hàng có cháo không\" → nêu 0 món, cần ít nhất 1",
   "ask-for-more-01 · \"còn gì nữa không\" → dạng đáp án `fact`, cần `clarify`",

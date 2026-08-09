@@ -484,8 +484,20 @@ def cau_tra_loi_xa_giao(request) -> str | None:
 
 # Tên tiếng Việt của nhãn, để câu xác nhận NÓI RA thứ vừa bỏ.
 #
-# Chỉ nhóm nào khách có thể tự khai mới cần ở đây. Nhãn không có trong bảng thì nêu nguyên khóa —
-# xấu nhưng thật, và tốt hơn là im lặng bỏ qua nó.
+# Bảng này chỉ còn là lớp ƯU TIÊN, không còn là nguồn duy nhất. Nó giữ cách nói tự nhiên cho những
+# nhãn khách hay tự khai ("hải sản" chứ không phải "Dị nguyên: Hải sản"); phần còn lại tra
+# `menu-tags.json` qua `_ten_nhan()` bên dưới.
+#
+# Vì sao đổi: bảng có 13 nhãn trên tổng 85, và bản trước rơi về NGUYÊN KHÓA khi thiếu, nên khách đọc
+# được chữ nội bộ:
+#
+#     "Dạ em đã bỏ điều kiện health:light theo yêu cầu của anh/chị."
+#
+# Đo được từ câu "cho tôi món thanh thanh mát mát" — cụm `thanh thanh` map sang `health:light`, nhãn
+# không nằm trong 13 cái này. 72/85 nhãn còn lại đều lộ theo đúng đường đó.
+#
+# Đây là lỗi ĐÃ VÁ MỘT NỬA: `answer._TEN_RANG_BUOC_VI` từng đọc chính bảng này, bị đúng lỗi này, và
+# đã chuyển sang `menu-tags.json`. Hàm ở đây thì bị bỏ sót — vá tại chỗ một hàm, quên hàm bên cạnh.
 _TEN_VI = {
     "allergen:seafood": "hải sản",
     "allergen:peanut": "đậu phộng",
@@ -503,6 +515,32 @@ _TEN_VI = {
 }
 
 
+def _ten_nhan(tag: str) -> str:
+    """`health:light` -> "món thanh đạm". KHÔNG BAO GIỜ trả về khóa nhãn thô.
+
+    Ba nấc, theo thứ tự:
+
+        1. `_TEN_VI`            cách nói tự nhiên cho 13 nhãn khách hay tự khai
+        2. `menu-tags.json`     85 nhãn, `label_vi` — cùng nguồn `answer._TEN_RANG_BUOC_VI` dùng
+        3. "bạn nêu"            không dịch được thì nói chung chung
+
+    Nấc 3 là điều bản trước không có: nó rơi về `tag` nên in nguyên `health:light` cho khách đọc.
+    Một chuỗi chung chung thì mơ hồ; một khóa nhãn nội bộ thì vừa mơ hồ vừa để lộ cách hệ thống
+    biểu diễn dữ liệu, và nó làm khách mất tin vào phần còn lại của câu.
+
+    Nhập trong hàm để không tạo phụ thuộc vòng: `generate` đã import `intent`.
+    """
+    if tag in _TEN_VI:
+        return _TEN_VI[tag]
+    try:
+        from generate import _nhan_tieng_viet
+
+        ten = _nhan_tieng_viet().get(tag, "")
+    except Exception:                                    # noqa: BLE001
+        ten = ""
+    return ten.lower() if ten else "bạn nêu"
+
+
 def cau_xac_nhan_da_bo(da_bo: list[str]) -> str:
     """Câu NÓI RA những ràng buộc vừa bị bỏ, ghép vào đầu câu trả lời.
 
@@ -512,7 +550,7 @@ def cau_xac_nhan_da_bo(da_bo: list[str]) -> str:
     """
     if not da_bo:
         return ""
-    ten = [_TEN_VI.get(t, t) for t in da_bo]
+    ten = [_ten_nhan(t) for t in da_bo]
     if len(ten) == 1:
         return f"Dạ em đã bỏ điều kiện {ten[0]} theo yêu cầu của anh/chị. "
     return f"Dạ em đã bỏ các điều kiện: {', '.join(ten)}. "
