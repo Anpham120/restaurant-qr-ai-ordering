@@ -237,9 +237,20 @@ def collision_census() -> dict[str, int]:
 class DungChuTimDuocBangKiemKe(unittest.TestCase):
     """Các chỗ đụng chữ tìm ra bằng cách kiểm kê, không phải bằng cách chờ lỗi xảy ra.
 
-    Kiểm kê trên 575 cụm từ vựng và 91 tên món: **86 cụm bị chứa trong cụm khác**, **47 cụm nằm
-    trong tên món**, và hợp lại là **106 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
+    Kiểm kê trên 611 cụm từ vựng và 91 tên món: **89 cụm bị chứa trong cụm khác**, **47 cụm nằm
+    trong tên món**, và hợp lại là **109 cụm có nguy cơ** (27 cụm thuộc cả hai). Cơ chế khớp cụm
     dài trước rồi ăn hết đoạn đã khớp bảo vệ tất cả các chỗ đó.
+
+    Đợt +36 cụm gần nhất đưa 65,1% -> 98,1% số ca hỏi-theo-nhãn về nhánh lọc. Chín cụm mới chồng
+    lên cụm cũ, và cả chín đều theo chiều AN TOÀN — cụm mới CHỨA cụm cũ, nên nó thắng và tiêu luôn
+    đoạn văn bản đó:
+
+        `mi chinh` ⊃ `mi`      sửa đúng một lỗi đọc sai dị nguyên (bột ngọt bị đọc là gluten)
+        `co tom`   ⊃ `tom`     "Món nào có tôm?" thành câu lọc; "dị ứng tôm" không đổi
+        `so beo`   ⊃ `so`      "sợ béo" -> ít calo, không còn rơi xuống truy hồi
+
+    Chiều ngược lại — cụm mới BỊ chứa trong cụm cũ, tức nó không bao giờ tới lượt — không có cái
+    nào; đã kiểm bằng phép đo chứ không bằng đọc mắt.
 
     Đợt tăng gần nhất (+53 cụm) là nhóm lấy CHÍNH NHÃN TIẾNG VIỆT làm cụm, sau khi đo được
     48/85 nhãn không rút ra được từ tên tiếng Việt của nó. Bốn cụm mới có nguy cơ, và cả bốn đều
@@ -273,7 +284,7 @@ class DungChuTimDuocBangKiemKe(unittest.TestCase):
         """
         self.assertEqual(
             collision_census(),
-            {"tu_vung": 575, "trong_cum_khac": 86, "trong_ten_mon": 47, "co_rui_ro": 106},
+            {"tu_vung": 611, "trong_cum_khac": 89, "trong_ten_mon": 47, "co_rui_ro": 109},
             "kiểm kê đụng chữ đã đổi — cập nhật con số ở docstring, tài liệu, và notebook",
         )
 

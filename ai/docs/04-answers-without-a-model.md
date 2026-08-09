@@ -112,14 +112,19 @@ Hai điều bất ngờ đáng ghi lại:
   thì "mấy giờ mở cửa**?**" không khớp cụm `mo cua`, và 13 ca đổ — trong đó 5 ca an toàn.
   Sáu test đầu của `test_understand.py` đã đỏ đúng vì lý do này.
 - **Con số của "ăn hết đoạn đã khớp" là chặn dưới, không phải giá trị thật.** Kiểm kê trên
-  575 cụm từ vựng và 91 tên món: **86 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
+  611 cụm từ vựng và 91 tên món: **89 cụm bị chứa trong cụm từ vựng khác** (ví dụ khác nghĩa:
   `trung`⊂`mien trung`, `nam`⊂`mien nam`, `nam`⊂`nam nguoi`, `tra`⊂`tra tien`,
   `trung`⊂`dac trung`, `ga`⊂`mon ga`, `pho`⊂`pho bun`), **47 cụm nằm trong tên món**
   (`lac`⊂"Cơm bò lúc lắc", `bo`⊂"Sinh tố bơ Đắk Lắk", `sua`⊂"Cà phê sữa đá", `pho`⊂"Phở gà ta"),
-  và hợp lại là **106 cụm có nguy cơ** — 27
-  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 106 chỗ đó. **Đây là phát hiện về
+  và hợp lại là **109 cụm có nguy cơ** — 27
+  cụm thuộc cả hai. Tập đánh giá chỉ có ca cho **một** trong 109 chỗ đó. **Đây là phát hiện về
   tập đánh giá, không phải về cơ chế** — và tôi đã lấp bằng 9 test riêng thay vì để con số
   ablation nói sai.
+- **Cơ chế đó vừa sửa một lỗi đọc sai dị nguyên.** "mì chính" rút dấu thành `mi chinh`, và cụm
+  dị nguyên `mi` khớp vào giữa nó, nên *"Mình dị ứng mì chính"* trả về `allergen:gluten`. Sai cả
+  hai chiều: ẩn món có gluten khách ăn được, và không chặn thứ khách vừa nói là không dùng được.
+  Thêm cụm `mi chinh` là đủ — luật khớp-cụm-dài-trước tự lo phần còn lại, không phải chạm vào
+  cụm dị ứng nào.
 
   Ba con số trên do `test_understand.collision_census()` **tính**, và có test chốt giá trị — nhưng
   dòng bạn đang đọc thì **viết tay**, nên nó vẫn trôi được và đã trôi bốn lần. Bản trước của mục này ghi

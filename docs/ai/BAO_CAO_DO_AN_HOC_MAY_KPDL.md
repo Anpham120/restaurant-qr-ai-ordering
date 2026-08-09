@@ -356,7 +356,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 2. Từ điển **85 nhãn / 16 nhóm**, khóa có không gian tên (`spice:none`)
 3. Kho tri thức **109 tài liệu / 452 đoạn** (85 `synthesize`, 24 `verbatim`)
 4. Chuỗi **migration** để nhãn đổi thì CSDL production đổi theo
-5. Từ vựng tất định **575 cụm**, khớp trên chuỗi đã rút dấu
+5. Từ vựng tất định **611 cụm**, khớp trên chuỗi đã rút dấu
 6. Tách **ràng buộc** (lọc cứng) khỏi **ngữ cảnh** (chỉ xếp thứ tự), và lớp **ý định**
 
 > **Nghiệm thu:** hai nguồn khớp **91/91 món**; mọi tệp dẫn xuất `--check` xanh; bộ rà nhãn **0 lỗ**;
@@ -395,7 +395,7 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **222 ca truy hồi**, **168 ca chọn mục**
+1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **222 ca truy hồi**, **500 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
@@ -906,7 +906,7 @@ chứ không nới hàng rào xuống mức nguyên liệu.
 | | |
 |---|---|
 | **Phương án đã bỏ** | để mô hình đọc câu và tự sinh nhãn lọc |
-| **Nghe hợp lý vì** | 575 cụm từ vựng viết tay là rất nhiều công |
+| **Nghe hợp lý vì** | 611 cụm từ vựng viết tay là rất nhiều công |
 | **Đã chọn** | mã tất định chạy trước; mô hình chỉ được hỏi khi mã không chắc |
 
 **Ba lý do, và lý do thứ ba mới là lý do thật:**
@@ -1192,7 +1192,7 @@ hỏi khác nhau:
 **Đường A — tra khóa chủ đề.** Câu hỏi khớp một khóa chủ đề `verbatim` thì hệ thống trả về nguyên văn
 nội dung tài liệu. Không có mô hình, không có xếp hạng, không có khả năng sai.
 
-**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 575 cụm từ khóa. Khớp được cụm nào thì
+**Đường B — cụm từ vựng.** Lớp hiểu câu hỏi có 611 cụm từ khóa. Khớp được cụm nào thì
 lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** trong vận hành thật.
 
 **Đường C — truy hồi.** Khi hai đường trên không khớp, hệ thống xếp hạng toàn bộ 372
@@ -1216,7 +1216,7 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 | `cases.json` | 147 ca | `understand()` + `respond()` gọi trực tiếp |
 | `session_scripts.json` | 60 kịch bản / 163 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 222 ca | truy hồi trên **toàn kho** |
-| `chunk_selection_cases.json` | 168 ca | chọn mục **trong một tài liệu** |
+| `chunk_selection_cases.json` | 500 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
 
 ### 3.3.1 Bộ đánh giá được xây dựng như thế nào
@@ -1265,7 +1265,7 @@ Ba họ **viết tay** vì không suy được từ dữ liệu, và chúng đo 
 Không có ba họ này thì một bộ truy hồi **luôn trả về 5 đoạn** sẽ đạt điểm cao, trong khi nó mời khách
 đọc một đoạn không liên quan.
 
-**4. Tập chọn mục — 168 ca.**
+**4. Tập chọn mục — 500 ca.**
 Sinh bởi `ai/scripts/build_chunk_selection_cases.py` từ chính cấu trúc tài liệu: mỗi ca là một câu hỏi
 kèm danh sách **mục trong cùng một tài liệu**, đáp án là mục đúng. Tập tách hai nhóm báo cáo riêng —
 nhóm `written` (mỗi tài liệu một cấu trúc riêng) là con số chính, nhóm `derived` (khuôn lặp lại) báo
@@ -1394,7 +1394,7 @@ Rút dấu là phép **mất thông tin** và đã gây mười vụ va chạm t
 `fold("có con")`, nên câu *"mình có con 5 tuổi"* từng trả về danh sách rượu bia. Vì vậy chuỗi rút dấu
 chỉ dùng để **khớp cụm từ vựng**, không dùng để so tên món.
 
-**Bước 2 — Khớp cụm từ vựng.** Một bảng **575 cụm** ánh xạ chữ khách dùng sang nhãn:
+**Bước 2 — Khớp cụm từ vựng.** Một bảng **611 cụm** ánh xạ chữ khách dùng sang nhãn:
 
 ```
 "khong cay | it cay | khong an duoc cay"   -> spice:none
@@ -1898,7 +1898,7 @@ cảnh kích thước kho là nói quá.
 ## 4.3 Chọn mục trong tài liệu — bài toán mà hệ thống thật sự chạy
 
 Bài toán: **mục nào trong MỘT tài liệu đã biết đúng ý khách.** Đây là đường chạy nhiều hơn, và
-tập ca của nó lớn hơn: **168 ca**.
+tập ca của nó lớn hơn: **500 ca**.
 
 Số ứng viên mỗi ca chỉ 3–8, nên **sàn ngẫu nhiên khoảng 20%** — một phương pháp đạt 60% nghe
 cao nhưng chỉ hơn sàn ba lần. Bảng dưới in cả sàn.
@@ -3621,9 +3621,9 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | chọn mục `written|B` | phát triển | `bm25` | 38 | 68,42% | — | 79,04% | — | — |
 | chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 93,42% | — | — |
 | chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,79% | — | — |
-| chọn mục `derived|*` | phát triển | `bm25` | 48 | 54,17% | — | 69,97% | — | — |
-| chọn mục `derived|*` | phát triển | `embedding` | 48 | 72,92% | — | 81,42% | — | — |
-| chọn mục `derived|*` | phát triển | `hybrid` | 48 | 58,33% | — | 74,65% | — | — |
+| chọn mục `derived|*` | phát triển | `bm25` | 380 | 53,42% | — | 70,37% | — | — |
+| chọn mục `derived|*` | phát triển | `embedding` | 380 | 67,37% | — | 78,73% | — | — |
+| chọn mục `derived|*` | phát triển | `hybrid` | 380 | 61,32% | — | 75,59% | — | — |
 | chọn mục `written|*` | niêm phong | `bm25` | 44 | 75,00% | — | 85,04% | — | — |
 | chọn mục `written|*` | niêm phong | `embedding` | 44 | 86,36% | — | 92,80% | — | — |
 | chọn mục `written|*` | niêm phong | `hybrid` | 44 | 88,64% | — | 93,56% | — | — |

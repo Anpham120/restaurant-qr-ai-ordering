@@ -528,6 +528,95 @@ _add("thanh thanh|thanh dam|nhe bung", "require", "health:light")
 # nói của khách. Sửa ở từ vựng (tất định) chứ không chờ mô hình đoán.
 _add("kieng dau mo|it dau mo|khong dau mo|it beo|khong beo|it mo", "require", "health:low_fat")
 
+# ---------------------------------------------------------------------------------------------
+# 36 cụm dưới đây đến từ một phép đo về KIẾN TRÚC, không phải từ việc rà thêm ca đỏ.
+#
+# Kho `derived` (49 tài liệu sinh từ nhãn) truy hồi rất kém — Hit@2 0,544 so với 0,845 của văn
+# xuôi viết tay. Đo nguyên nhân thì ra điều bất ngờ: **tài liệu `derived` điển hình có 0 từ chỉ
+# xuất hiện ở riêng nó** (văn xuôi viết tay: 2, nhiều nhất 18). Danh sách món rò rỉ từ vựng của
+# mọi nhóm khác — "Canh chua cá lóc" nằm trong tài liệu vùng miền, cách chế biến, dịp ăn — nên
+# 49 tài liệu gần như không phân biệt được bằng từ. Cắt bớt mục nào cũng chỉ đưa con số 0 lên 1:
+# thứ trùng lặp là CHÍNH CÁI KHUÔN.
+#
+# Nhưng câu hỏi thật thì mới là điều đáng nói. 106 ca của tập truy hồi nhắm hoàn toàn vào
+# `derived`, và **không ca nào hỏi tri thức** — tất cả đều là câu chọn món ("Món Hà Nội có gì?",
+# "Món nào có bò?"). Trong đó 69/106 = 65,1% ĐÃ sinh ra ràng buộc nhãn, tức đã đi nhánh lọc và
+# không hề chạm truy hồi.
+#
+# 37 ca còn lại rơi xuống truy hồi vì THIẾU CỤM, không vì thiếu tài liệu. Mỗi câu đều có sẵn một
+# nhãn chính xác trong thực đơn. Nên cách sửa đúng không phải viết lại `derived` cho dễ truy hồi
+# — đó là tối ưu đường dự phòng cho câu đã có đáp án đúng ở đường chính — mà là đưa chúng về
+# nhánh lọc, nơi chúng đúng theo định nghĩa.
+#
+# Giao thức đo giữ nguyên như các nhóm trên: nạp TỪNG cụm một rồi chạy `understand()` trên
+# **1.106 câu hỏi của mọi tập đánh giá**, và đọc từng câu đổi chữ ký. Chữ ký gồm cả `avoid_tags`
+# và các cờ chứ không chỉ `require_tags` — một cụm mới có thể nuốt cụm dị ứng nằm trong nó theo
+# luật khớp-cụm-dài-trước, và đó là hỏng an toàn chứ không phải hỏng độ chính xác.
+#
+# Phép đo loại hai ứng viên, và cả hai đều đáng ghi lại:
+#
+#   "co ca"     -> LOẠI. Nó khớp "Có cả ông bà đi cùng nữa" (rút dấu: "co ca ong ba") và gắn
+#                  `ingredient:fish` vào một câu về người đi cùng. Thay bằng "nao co ca".
+#   "co dau hu" -> LOẠI vì đổi 0 câu. "Món nào có đậu hũ?" bị bộ khớp TÊN MÓN ăn trước ở bước 2
+#                  ("Đậu hũ sốt cà chua"), nên không cụm từ vựng nào tới lượt. Đây là lớp lỗi
+#                  khác — tên món thắng câu hỏi nguyên liệu — và phải sửa ở chỗ khác.
+_add("co bo|thit do", "require", "ingredient:beef")
+_add("thit gia cam", "require", "ingredient:chicken")
+_add("nao co ca|loai song duoi nuoc co vay", "require", "ingredient:fish")
+_add("co tom|giap xac nho mau hong", "require", "ingredient:shrimp")
+_add("co cua|loai tam chan co cang", "require", "ingredient:crab")
+_add("co muc|loai than mem bien", "require", "ingredient:squid")
+_add("dau nanh ep", "require", "ingredient:tofu")
+_add("vi dat dai dai", "require", "ingredient:mushroom")
+_add("nhieu chat xanh", "require", "ingredient:vegetable")
+
+# Cách chế biến khách TẢ LẠI thay vì gọi tên. `method` phủ 61/91 món.
+_add("chin trong nuoc", "require", "method:boiled")
+_add("dao nhanh tren chao lua lon", "require", "method:stir_fried")
+_add("de lua nho cho mem", "require", "method:simmered")
+_add("goi lai roi cham", "require", "method:rolled")
+_add("dao kho tren chao", "require", "method:roasted")
+
+_add("vi thanh hoi gat luoi", "require", "flavour:sour")
+_add("nao ngot|vi diu hoi co duong", "require", "flavour:sweet")
+_add("nao man|vi dam muoi", "require", "flavour:salty")
+_add("nao beo|ngay nhieu dau mo", "require", "flavour:fatty")
+_add("mui khoi than", "require", "flavour:smoky")
+
+_add("nao lanh manh|an sach it dau", "require", "health:healthy")
+_add("khong ngay", "require", "health:low_fat")
+_add("so beo", "require", "health:low_calorie")
+
+# BỘT NGỌT KHÔNG PHẢI GLUTEN — đây là một lỗi đọc sai dị nguyên, không phải một cụm thiếu.
+#
+# Trước khi có hai cụm này, "mì chính" rút dấu thành "mi chinh", và cụm dị nguyên **"mi"** khớp
+# vào đó. Hậu quả đo được:
+#
+#     "Mình dị ứng mì chính"         -> avoid=['allergen:gluten']
+#     "Mình không ăn được mì chính"  -> avoid=['allergen:gluten']
+#
+# Sai theo cả hai chiều cùng lúc. Nó ẩn mất những món có gluten mà khách ăn được bình thường, VÀ
+# nó không hề bảo vệ khách khỏi thứ họ vừa nói là không dùng được. Một hàng rào dựng nhầm chỗ còn
+# tệ hơn không dựng, vì nó làm cả hai bên tin rằng đã có hàng rào.
+#
+# "mi chinh" dài hơn "mi" nên luật khớp-cụm-dài-trước tự xử lý, không cần chạm vào cụm dị nguyên.
+# Đã kiểm: "Mình dị ứng mì" và "Mình dị ứng gluten" vẫn ra `allergen:gluten`, "món mì xào" vẫn ra
+# `method:stir_fried`.
+#
+# Dùng "khong bot ngot" chứ không dùng "bot ngot" trần: cụm trần biến "Món này có bột ngọt không?"
+# — một câu HỎI VỀ MÓN — thành một câu lọc. Cùng ranh giới KHAI/HỎI như `declared_avoidance`.
+#
+# Còn tồn: "Mình không dùng mì chính" vẫn ra rỗng, vì `la_cau_phu_nhan()` đọc "không dùng X" là
+# RÚT LẠI ràng buộc X (đúng cho "mình đâu có dị ứng hải sản", sai cho một lời khai tránh). Sửa
+# việc đó phải chạm vào bộ xử lý phủ định — nơi va chạm nhiều nhất tệp này — nên nó là một thay
+# đổi riêng, có phép đo riêng. Trạng thái hiện tại là rỗng, tức KHÔNG có hàng rào sai: an toàn
+# hơn hẳn `allergen:gluten`, chỉ là chưa đầy đủ.
+_add("mi chinh|khong bot ngot", "require", "health:no_msg")
+
+_add("chat thu do", "require", "region:hanoi")
+_add("di voi nguoi thuong", "require", "occasion:date")
+_add("dat ban cho hai chuc nguoi", "require", "occasion:banquet")
+
 # Thời tiết. Khách nói thời tiết chứ không nói mùa, nên cụm được tách theo ĐÚNG nghĩa của nhãn:
 #
 #   "trời nóng"                  -> season:hot_season  (nhãn "Mùa nóng")
