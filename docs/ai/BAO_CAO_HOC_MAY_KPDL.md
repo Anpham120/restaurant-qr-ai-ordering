@@ -34,8 +34,133 @@ Hà Nội, ngày 09 tháng 08 năm 2026
 ---
 ---
 
+# ĐỌC BÁO CÁO NÀY THẾ NÀO
+
+Báo cáo dài, nên phần này nói trước **nên đọc gì tuỳ theo bạn cần gì**.
+
+| Bạn muốn | Đọc | Khoảng |
+|---|---|---|
+| Hiểu nhanh hệ thống làm gì | **Mục 0** ngay dưới, rồi **Tóm tắt** | 10 phút |
+| Hiểu nhóm quyết định thế nào | thêm **Chương 1** và **mục 2.0** | 30 phút |
+| Xem kết quả và bằng chứng | thêm **Chương 4** | 1 giờ |
+| Đọc kỹ toàn bộ | tuần tự từ đầu | — |
+
+**Ba từ sẽ gặp rất nhiều, nên nói nghĩa trước:**
+
+> **Tất định** — cùng một câu hỏi thì **luôn** cho cùng một câu trả lời, mọi lúc, không phụ thuộc
+> may rủi. Ngược lại với mô hình AI sinh chữ: hỏi hai lần có thể ra hai câu khác nhau.
+>
+> **Truy hồi** — cho một câu hỏi, đi tìm trong kho tài liệu xem **đoạn văn nào liên quan nhất**. Nó
+> chỉ đưa ra đoạn văn, **không trả lời** câu hỏi.
+>
+> **Nhãn** — một thuộc tính đã gắn sẵn cho món, viết dạng `nhóm:giá_trị`. Ví dụ `spice:none` nghĩa
+> là *không cay*, `allergen:seafood` nghĩa là *có hải sản*.
+
+---
+---
+
+# MỤC 0 — HỆ THỐNG NÀY LÀM GÌ
+
+Trước khi vào lý thuyết, mục này kể **một hội thoại thật** chạy qua hệ thống, và chỉ ra ở mỗi lượt
+hệ thống đã làm gì. Đọc xong mục này là hiểu được phần lớn báo cáo.
+
+Bối cảnh: khách ngồi xuống bàn, quét mã QR, mở giao diện chat.
+
+### Lượt 1 — khách khai dị ứng
+
+> **Khách:** *"Mình dị ứng hải sản nhé"*
+
+Hệ thống làm ba việc:
+
+1. **Đọc câu** và nhận ra cụm *"dị ứng hải sản"* → ghi ra một ràng buộc: `tránh allergen:seafood`
+2. **Ghi vào bộ nhớ phiên** — ràng buộc này sẽ còn hiệu lực tới hết bữa
+3. **Trả lời** xác nhận đã ghi nhận
+
+Điều quan trọng: từ giây phút này, **26 món hải sản trong thực đơn bị loại khỏi mọi câu trả lời sau
+đó**, kể cả khi khách không nhắc lại.
+
+### Lượt 2 — khách hỏi món
+
+> **Khách:** *"Có món nào không cay dưới 100k không?"*
+
+Hệ thống **không** hỏi AI câu này. Nó làm một phép lọc trên bảng:
+
+```
+91 món
+  → bỏ món có nhãn allergen:seafood   (ràng buộc từ lượt 1)
+  → giữ món có nhãn spice:none        ("không cay")
+  → giữ món có giá < 100.000          ("dưới 100k")
+  → sắp thứ tự, lấy 6 món đầu
+```
+
+Kết quả **chính xác 100%**, vì `giá < 100.000` là một phép so sánh có đáp án đúng/sai rõ ràng — không
+có chỗ nào để đoán sai.
+
+> **Đây là luận điểm chính của cả đồ án.** Nhiều hệ thống trợ lý sẽ đưa câu này cho AI xử lý. Nhóm
+> đo được rằng làm vậy **kém hơn hẳn**: cách của AI là tìm món có mô tả *nghe giống* câu hỏi, mà
+> "nghe giống" không phải "thoả điều kiện". Chi tiết ở mục 2.4 và 4.7.
+
+### Lượt 3 — khách hỏi một câu KHÔNG tra bảng được
+
+> **Khách:** *"Cùng là gà mà sao món thì mềm món thì dai?"*
+
+Câu này **không có cột nào để lọc**. Đáp án nằm trong một đoạn văn do người viết — nói về cách chế
+biến ảnh hưởng tới kết cấu thịt.
+
+Đây là lúc **truy hồi** vào việc:
+
+```
+câu hỏi → so với 182 đoạn văn trong kho → lấy 2 đoạn liên quan nhất
+        → trích NGUYÊN VĂN cho khách đọc
+```
+
+Chú ý chữ **nguyên văn**: hệ thống không để AI viết lại đoạn đó. Mỗi chữ khách đọc đều là chữ có sẵn
+trong kho.
+
+### Lượt 4 — khách hỏi ngược lại lượt trước
+
+> **Khách:** *"Món đầu tiên giá bao nhiêu?"*
+
+*"Món đầu tiên"* không có nghĩa gì nếu đứng một mình. Hệ thống phải **nhớ** danh sách vừa đưa ở lượt
+2, rồi tra giá món đầu trong danh sách đó.
+
+Không có bộ nhớ phiên thì câu này rơi vào truy hồi và lấy về một đoạn hoàn toàn không liên quan.
+Nhóm đo được: bỏ bộ nhớ đi thì **34 trong 163 lượt** hỏng đúng kiểu này.
+
+### Lượt 5 — khách bấm thêm vào giỏ
+
+Kèm mỗi câu trả lời có món là một **thẻ giỏ hàng** — nút bấm để khách tự thêm món vào giỏ.
+
+**AI không bao giờ tự đặt món.** Thẻ chỉ là gợi ý, và nó được dựng từ **danh sách món mà phép lọc đã
+chọn**, không phải từ chữ mà AI viết ra. Nên kể cả khi AI viết sai một cái tên, khách cũng không đặt
+được món không tồn tại.
+
+### Kết thúc — khách thanh toán
+
+Bộ nhớ phiên **bị xoá sạch**. Bàn tiếp theo bắt đầu từ số không, không thấy gì của bàn trước.
+
+---
+
+## Tóm lại, hệ thống có bốn đường trả lời
+
+| Đường | Dùng cho câu | Ví dụ | AI có được viết chữ không? |
+|---|---|---|---|
+| **Lọc nhãn** | chọn món theo điều kiện | *"món nào dưới 100k?"* | không — chỉ tra bảng |
+| **Tra khoá** | chính sách nhà hàng | *"mấy giờ đóng cửa?"* | không — trả nguyên văn |
+| **Chọn mục** | tri thức đã biết chủ đề | *"bốn mức cay khác nhau sao?"* | không — trích nguyên văn |
+| **Truy hồi** | tri thức chưa biết chủ đề | *"cùng là gà sao món mềm món dai?"* | không — trích nguyên văn |
+
+Và đây là điều nhiều người ngạc nhiên: **cả bốn đường đều không để AI tự viết dữ kiện.** AI chỉ được
+diễn đạt lại cho tự nhiên hơn, ở **hai** nhánh, và câu nó viết phải qua **mười phép kiểm** trước khi
+gửi cho khách.
+
+---
+---
+
 # MỤC LỤC
 
+- [ĐỌC BÁO CÁO NÀY THẾ NÀO](#đọc-báo-cáo-này-thế-nào)
+- [MỤC 0 — HỆ THỐNG NÀY LÀM GÌ](#mục-0--hệ-thống-này-làm-gì) *(đọc trước nếu mới tiếp cận)*
 - [TÓM TẮT](#tóm-tắt)
 - [DANH MỤC THUẬT NGỮ VÀ VIẾT TẮT](#danh-mục-thuật-ngữ-và-viết-tắt)
 - [DANH MỤC BẢNG BIỂU VÀ SƠ ĐỒ](#danh-mục-bảng-biểu-và-sơ-đồ)
@@ -174,13 +299,13 @@ nguyên; Xử lý tiếng Việt; Đánh giá hệ thống hội thoại.
 | cấm@k | Số ca lấy phải đoạn **bị cấm** trong k đoạn đầu — đo việc trả lời SAI, không phải kém |
 | MRR | Mean Reciprocal Rank — trung bình nghịch đảo thứ hạng |
 | nDCG | normalized Discounted Cumulative Gain |
-| Đoạn (chunk) | Một mục của tài liệu tri thức, đã cắt theo tiêu đề `##` |
-| Fail-closed | Thiếu bằng chứng thì TỪ CHỐI, không đoán. Áp cho ràng buộc dị nguyên |
+| Đoạn (chunk) | Một mẩu tài liệu đủ nhỏ để đưa cho mô hình đọc; kho này cắt theo tiêu đề mục |
+| Fail-closed | Không chắc thì **từ chối**, không đoán. Thà nói "không có món phù hợp" còn hơn mời nhầm món gây dị ứng |
 | Đường tất định | Đường trả lời không gọi mô hình sinh — giống nhau mọi lần chạy |
 | Đường sinh | Nhánh mô hình VIẾT câu trả lời, qua mười phép kiểm xác minh |
 | Xác minh (verify) | Kiểm câu mô hình viết trước khi gửi; vi phạm là BỎ cả câu, không sửa |
-| Ablation | Tắt từng cơ chế để đo đóng góp của nó |
-| Tập niêm phong | Tập chỉ mở MỘT lần để chốt kết quả; mở rồi thì hết là held-out |
+| Ablation | Tắt từng cơ chế rồi đo lại, để biết cơ chế đó có thật sự đóng góp gì không |
+| Tập niêm phong | Tập câu hỏi giấu đi, **chỉ mở một lần** khi đã làm xong — như đề thi. Mở rồi thì nó không còn là đề thi nữa |
 | Fold (rút dấu) | Bỏ dấu tiếng Việt để khớp chuỗi — phép **mất thông tin** |
 | p50 / p95 | Phân vị 50 / 95 của phân bố độ trễ |
 | McNemar | Kiểm định ghép cặp cho hai phương pháp chạy trên cùng tập ca |
@@ -477,7 +602,8 @@ Câu hỏi loại hai **không có cột nào để lọc**. Đáp án nằm tro
 ### Truy hồi thông tin là gì
 
 **Truy hồi** = cho một câu hỏi, tìm trong kho tài liệu những đoạn **liên quan nhất**, xếp theo thứ tự
-từ liên quan nhất trở xuống.
+từ liên quan nhất trở xuống. Tiếng Anh gọi là *information retrieval* — cùng một kỹ thuật mà công cụ
+tìm kiếm dùng, chỉ khác là kho ở đây nhỏ và của riêng nhà hàng.
 
 Đây là điểm quan trọng nhất của cả đồ án: truy hồi **không trả lời** câu hỏi. Nó chỉ
 **đưa cho bạn đoạn văn** mà nó cho là liên quan. Nó cũng **không biết** đoạn đó có đúng không — nó
@@ -694,10 +820,54 @@ tại**: Hit@5 = 1,0 vẫn đúng khi đoạn đúng nằm thứ năm và bốn 
 nhất bắt được cách lách quan trọng nhất: một bộ truy hồi **luôn trả về 5 đoạn** đạt điểm cao trên mọi
 chỉ số Hit mà không bao giờ nói "tôi không biết".
 
-**Thống kê.** Mọi so sánh giữa hai phương pháp dùng **kiểm định McNemar ghép cặp** — hai phương pháp
-chạy trên cùng tập ca, chỉ xét những ca hai bên cho kết quả khác nhau. Mọi tỷ lệ kèm **khoảng tin cậy
-Wilson**, vì công thức chuẩn `p ± 1,96·√(p(1−p)/n)` cho khoảng rộng bằng **0** khi tỷ lệ đạt 100%, và
-nhiều phép đo trong đồ án này đạt đúng 100%.
+### 2.7.1 Con số `p` trong báo cáo này nghĩa là gì
+
+Báo cáo dùng con số `p` ở nhiều chỗ (`p = 0,0020`, `p = 1,0000`). Mục này giải thích nó bằng lời
+thường, vì hiểu sai nó là hiểu sai phần lớn Chương 4.
+
+**Vấn đề cần giải.** Phương pháp A đúng 32/50 câu, phương pháp B đúng 29/50. A hơn B — nhưng hơn
+**thật**, hay chỉ do **may rủi** trên đúng 50 câu này? Nếu đổi sang 50 câu khác thì có khi B lại hơn.
+
+**Cách nhóm trả lời — kiểm định McNemar ghép cặp.** Chạy cả hai phương pháp trên **cùng một danh
+sách câu hỏi**, rồi chỉ nhìn những câu mà **hai bên cho kết quả khác nhau**:
+
+```
+câu cả hai cùng đúng   -> bỏ qua, không phân biệt được gì
+câu cả hai cùng sai    -> bỏ qua
+câu A đúng B sai       -> đếm
+câu A sai  B đúng      -> đếm
+```
+
+Nếu hai phương pháp thực sự ngang nhau thì hai con số đếm cuối phải **xấp xỉ bằng nhau** — như tung
+đồng xu. Lệch càng nhiều thì càng khó tin là ngẫu nhiên.
+
+**`p` là xác suất thấy mức lệch đó, GIẢ SỬ hai phương pháp thực ra ngang nhau.**
+
+| `p` | Đọc là |
+|---|---|
+| `p < 0,05` | lệch này **khó mà do may rủi** → kết luận được là một bên hơn |
+| `p ≥ 0,05` | lệch này **giống hệt may rủi** → **không** kết luận được gì |
+
+Hai ví dụ có thật trong báo cáo:
+
+```
+embedding so với BM25    p = 0,0020   -> tin được: embedding hơn thật
+hybrid    so với dense   p = 1,0000   -> 18 câu sửa được, 18 câu làm hỏng
+                                         hoà đúng bằng nhau, không kết luận gì
+```
+
+**Lưu ý quan trọng:** `p ≥ 0,05` **không** có nghĩa "hai bên bằng nhau". Nó chỉ có nghĩa **dữ liệu
+hiện có không đủ để nói bên nào hơn**. Đó là lý do báo cáo viết *"chưa đủ ý nghĩa"* chứ không viết
+*"hai bên như nhau"*.
+
+### 2.7.2 Khoảng tin cậy, và vì sao dùng Wilson
+
+Một tỷ lệ đo trên 50 câu **không phải** tỷ lệ thật. **Khoảng tin cậy 95%** là khoảng mà tỷ lệ thật
+nhiều khả năng nằm trong đó.
+
+Nhóm dùng **phương pháp Wilson** thay vì công thức thông dụng `p ± 1,96·√(p(1−p)/n)`, vì công thức
+kia cho khoảng rộng bằng **0** khi tỷ lệ đạt 100% — tức khẳng định chắc chắn tuyệt đối từ một mẫu
+hữu hạn. Nhiều phép đo trong đồ án này đạt đúng 100%, nên công thức đó không dùng được.
 
 ### Cầu nối sang Chương 3
 
