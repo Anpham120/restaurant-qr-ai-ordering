@@ -1302,7 +1302,7 @@ nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả gi�
 
 | Điều kiện | Giá trị |
 |---|---|
-| Ngày đo | 2026-08-09 |
+| Ngày đo | 2026-08-09 — **mọi tệp bằng chứng cùng ngày** |
 | Thực đơn | 91 món, 85 nhãn / 16 họ |
 | Kho tri thức | 60 tài liệu / 213 đoạn, **182 đoạn được xếp hạng** |
 | Từ vựng tất định | **629 cụm** |
@@ -1590,16 +1590,29 @@ này trả về Canh khổ qua nhồi nấm · Gỏi cuốn tôm thịt · Sươ
 Bộ chạy `run_chung_cu_dinh_tuyen.py` in **dữ liệu thô** — từng câu, nhánh thực tế, ràng buộc đọc ra, ba
 món trả về — để người chấm tự phán xét thay vì tin một tỷ lệ.
 
-### 4.6bis Một lưu ý về ngày đo của con số golden
+### 4.6bis Con số golden đo trên stack dựng lại từ số không
 
-Con số **103/103** ở các bảng trên đo qua stack Docker thật, và **stack đó phải được dựng lại mỗi lần
-mã đổi**. Vì vậy nó là con số duy nhất trong báo cáo **có mốc thời gian riêng**, không tự cập nhật
-theo các phép đo khác.
+Con số **103/103** đo qua stack Docker thật, và **stack đó phải được dựng lại mỗi lần mã đổi** — nên
+nó là con số duy nhất trong báo cáo có mốc thời gian riêng, không tự cập nhật theo các phép đo khác.
 
-Tệp bằng chứng `ai/evaluation/measurements/golden_e2e.json` mang nguyên phản hồi `/ready` của dịch vụ
-lúc đo, nên ngày đo và cấu hình lúc đo luôn tra lại được. Đây là lý do tệp bằng chứng ghi cả cấu hình
-chứ không chỉ ghi kết quả: **một con số không rõ đo lúc nào, trên cấu hình nào, thì tệ hơn không có
-số.**
+Lần đo hiện tại dựng lại **toàn bộ** từ số không: ảnh AI build mới (tải `bge-m3`, tính sẵn vector 182
+đoạn), cơ sở dữ liệu migrate từ trống rỗng, 30 bàn / 91 món seed lại. Cả hai cấu hình đều **103/103**.
+
+Việc dựng lại từ số không tìm ra **ba lỗi triển khai** mà bản dựng cũ che mất — chúng chỉ lộ khi không
+còn gì sẵn:
+
+| Lỗi | Vì sao bản dựng cũ không thấy |
+|---|---|
+| Cơ sở dữ liệu **rỗng**, backend crash-loop `relation "restaurant_tables" does not exist` | service `migrate` nằm trong **profile riêng**, nên `docker compose up -d` không chạy nó. Máy cũ đã có sẵn dữ liệu nên không ai thấy |
+| `network_mode: host` **không mở cổng ra Windows** — "host" là máy ảo WSL2 | bộ đo trước chạy trên máy Linux hoặc trên stack đã lên sẵn |
+| Ổ đĩa đầy giữa lúc tải mô hình 2,3GB | ảnh cũ đã có mô hình trong tầng cache |
+
+Không lỗi nào trong ba lỗi trên là lỗi của **hệ thống** — cả ba là lỗi của **quy trình dựng**. Nhưng
+một hệ thống không dựng lại được từ số không thì con số của nó chỉ đúng trên đúng một máy.
+
+**Điều rút ra:** phép đo end-to-end có hai giá trị, và giá trị thứ hai thường bị bỏ qua. Nó chấm câu
+trả lời, **và** nó kiểm xem quy trình dựng có tự chạy được không. Trước hôm nay, câu trả lời cho vế
+thứ hai là **chưa** — thiếu một bước `--profile migrate` không ai ghi ở đâu.
 
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
@@ -1692,14 +1705,51 @@ Chỉ phía "mất" đo được, nên đó là phía quyết định. Ngưỡng
 
 | | |
 |---|---|
-| Ca tụt khi bật | **0** |
-| Câu sinh được dùng | 68/76 |
-| Lùi về khuôn mẫu | 8 — **cả 8 vì bịa số tiền** |
-| Độ trễ thêm | p50 **8,6 giây** · p95 **13,5 giây** |
+| Đạt, đường tất định | **76/76** |
+| Đạt, có đường sinh | **76/76** |
+| **Ca tụt khi bật** | **0** |
+| Câu sinh được dùng | 47/76 (62%) |
+| Lùi về khuôn mẫu | 29 |
+| Độ trễ thêm | p50 **7,96 giây** · p95 **13,06 giây** |
 
-**Lớp xác minh chặn gì:** 8/76 ca lùi về khuôn mẫu, và **cả 8 đều vì BỊA GIÁ** — mô hình viết ra một con
-số tiền không phải giá của món nào trong danh sách. Đó chính là loại lỗi khách **không thể tự phát
-hiện**: câu văn mượt, món có thật, chỉ con số sai.
+Lý do 29 lần lùi, và phân bố của nó là điều đáng đọc:
+
+```
+27  nhắc lặp cùng một món trong một câu          ← phép kiểm 6b
+ 2  danh sách nhiều món mà không gạch đầu dòng   ← phép kiểm 6c
+ 2  bịa số tiền                                  ← phép kiểm 3
+```
+
+### 4.8.1 Con số này từng là 8/76, và vì sao nó đổi
+
+Bản trước của báo cáo ghi *"8/76 lùi về khuôn mẫu, cả 8 vì bịa giá"*. Con số đó **đo ngày 31/07**, và
+truy git thì lý do rất rõ:
+
+```
+phép kiểm 6b  "nhắc lặp cùng một món"        thêm ngày 01/08
+phép kiểm 6c  "danh sách phải gạch đầu dòng"  thêm ngày 02/08
+phép đo cũ                                    ngày 31/07  ← TRƯỚC cả hai
+```
+
+Con số cũ đo trên bản chỉ có **tám** phép kiểm. Hôm nay đủ **mười**, nên 29 lần lùi là đúng — hai phép
+kiểm mới bắt được thứ phép đo cũ **không thể thấy**.
+
+Đây là ví dụ sạch cho một bài học của mục 5.5: **một kết luận đo đúng vẫn hết hiệu lực khi thứ nó đo
+đã đổi.** Không ai viết sai gì cả; chỉ là hệ thống đã đi tiếp mà con số ở lại.
+
+### 4.8.2 Điều lớp xác minh chặn, và vì sao khách không tự thấy được
+
+Hai loại lỗi bị chặn khác hẳn nhau về mức nguy hiểm:
+
+**Bịa số tiền (2 ca)** — mô hình viết một con số không phải giá của món nào. Đây là loại khách **không
+thể tự phát hiện**: câu văn mượt, món có thật, chỉ con số sai.
+
+**Nhắc lặp một món (27 ca)** — mô hình kể cùng một món hai lần trong một câu. Không nguy hiểm về an
+toàn, nhưng nó làm danh sách trông dài hơn thực tế, và khách đếm nhầm số lựa chọn mình có.
+
+Điều quan trọng nhất của bảng trên vẫn là dòng đầu: **76/76 ở cả hai chiều, 0 ca tụt.** Lớp xác minh
+chặn nhiều hơn trước, và không ca nào vì thế mà sai đi — vì chặn xong thì lùi về câu khuôn mẫu, vốn
+luôn đúng.
 
 **Ba bảo đảm không đổi khi bật:** mô hình **không chọn món** (danh sách do lọc nhãn quyết định), **mười
 phép xác minh** chạy trước khi gửi, và thẻ giỏ dựng từ `reply.items` chứ không từ chữ mô hình viết.
