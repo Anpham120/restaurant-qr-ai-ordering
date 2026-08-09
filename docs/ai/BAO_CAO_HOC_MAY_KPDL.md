@@ -75,6 +75,7 @@ Hà Nội, ngày 09 tháng 08 năm 2026
   - 4.8 Đường sinh bằng mô hình ngôn ngữ
   - 4.9 Ablation — mỗi cơ chế phải tự chứng minh
   - 4.10 Chốt phương án triển khai, kèm giá đã đo
+  - 4.11 Hai tập đánh giá bổ sung, và điều chúng lấp
 - **[CHƯƠNG 5: KẾT LUẬN](#chương-5-kết-luận)**
   - 5.1 Tổng kết
   - 5.2 Nhận xét của từng thành viên
@@ -219,6 +220,7 @@ Mọi con số trong các bảng dưới đây được **tính lúc chạy bộ
 | Bảng 4.10 | Kết quả đường sinh và giá phải trả | 4.8 |
 | Bảng 4.11 | Ablation — chín cơ chế | 4.9 |
 | Bảng 4.12 | Chốt phương án triển khai | 4.10 |
+| Bảng 4.13 | Mỗi đường mạnh ở đúng loại câu nào | 4.11.2 |
 | Bảng 5.1 | Tổng hợp kết quả cuối | 5.1 |
 
 ---
@@ -497,15 +499,6 @@ truy hồi"*. Mục 4.7 đo chính câu đó.
 3. **Xây an toàn thành bốn lớp độc lập**, và chứng minh từng lớp cần thiết bằng ablation.
 4. **Bốn tập đánh giá** phủ bốn chặng khác nhau của chuỗi gọi, tới tận giỏ hàng thật.
 5. **Ghi lại mọi lần đo sai** — kể cả những lần thước đo sai trước khi hệ thống sai.
-
-### Cầu nối sang Chương 2
-
-Chương 1 đã nói **bài toán là gì**: khách hỏi hai loại câu khác hẳn nhau, và loại thứ nhất có đáp án
-tra được nên không nên giao cho mô hình sinh.
-
-Chương 2 nói về **những công cụ có sẵn** để giải hai loại câu đó — cách máy đo "hai câu giống nhau
-tới đâu", RAG là gì, và quan trọng nhất: **chỗ nào RAG không dùng được, và vì sao đó là giới hạn
-của chính phương pháp chứ không phải lỗi cài đặt.**
 
 ---
 ---
@@ -798,14 +791,6 @@ nhiều khả năng nằm trong đó.
 Nhóm dùng **phương pháp Wilson** thay vì công thức thông dụng `p ± 1,96·√(p(1−p)/n)`, vì công thức
 kia cho khoảng rộng bằng **0** khi tỷ lệ đạt 100% — tức khẳng định chắc chắn tuyệt đối từ một mẫu
 hữu hạn. Nhiều phép đo trong đồ án này đạt đúng 100%, nên công thức đó không dùng được.
-
-### Cầu nối sang Chương 3
-
-Chương 2 đã nói **các phương pháp có sẵn trên đời**, và đã chỉ ra một giới hạn quan trọng: một hàm
-xếp hạng theo độ giống **không biểu diễn được** phép so sánh số, phép loại trừ và phép "và".
-
-Chương 3 nói **nhóm ghép các phương pháp đó lại thành hệ thống như thế nào** — cụ thể là làm sao để
-những câu hỏi cần ba phép toán trên không bao giờ đi vào đường xếp hạng.
 
 ---
 ---
@@ -1309,14 +1294,6 @@ khóa thật và không phụ thuộc mạng.
 nguyên phản hồi `/ready` của dịch vụ lúc đo. Lý do: đã trả giá một lần cho việc thiếu nó — một lần chạy
 được báo là "qua mô hình thật" trong khi `LLM_API_KEY` rỗng nên **mọi lượt đi đường tất định**.
 
-### Cầu nối sang Chương 4
-
-Chương 3 đã mô tả **hệ thống làm gì**. Nhưng một mô tả không chứng minh được điều gì: mọi thiết kế
-đều nghe hợp lý cho tới khi có số.
-
-Chương 4 chạy hệ thống đó trên bốn tập đánh giá và báo lại **nó ra bao nhiêu** — kể cả những chỗ nó
-sai, và kể cả bốn thí nghiệm mà nhóm làm rồi **không thu được gì**.
-
 # CHƯƠNG 4: THỰC NGHIỆM VÀ KẾT QUẢ
 
 ## 4.1 Thiết lập
@@ -1768,13 +1745,79 @@ khách. `DeploymentConfigurationTests` canh đúng quan hệ đó.
 | chủ nhà hàng coi câu văn tự nhiên đáng giá thêm ~9 giây mỗi lượt | bật đường sinh mặc định — lý do CHẶN đã hết, chỉ còn là đánh đổi độ trễ |
 | có log khách thật | **mọi** quyết định ở trên — chúng đều dựa trên ca do nhóm viết |
 
-### Cầu nối sang Chương 5
 
-Chương 4 đã đưa ra số. Chương 5 rút lại **điều gì học được từ những con số đó** — làm được gì, còn
-hạn chế nào, và nếu làm tiếp thì nên làm gì trước.
+## 4.11 Hai tập đánh giá bổ sung, và điều chúng lấp
 
-Phần đáng đọc nhất của chương này là mục 5.2: mỗi thành viên tự viết về khâu mình phụ trách, và cố
-ý giữ lại **cả những chỗ mình làm sai**.
+Bốn tập ở mục 3.6 để lại **hai lỗ**, và cả hai chỉ lộ ra khi đọc kỹ chúng đo cái gì.
+
+**Lỗ thứ nhất — không tập nào chạy nhánh truy hồi qua đường sản phẩm.** 147 ca trả lời và 163 lượt
+phiên đi **0 lượt** qua nó (mục 4.7); còn 114 ca truy hồi thì gọi thẳng `search()`, tức chúng đo **bộ
+xếp hạng** chứ không đo **hệ thống**. Đường tri thức vì vậy là đường duy nhất chưa có tập ca nào phủ.
+
+**Lỗ thứ hai — bốn đường chưa bao giờ bị đem ra so trực tiếp.** Báo cáo khẳng định mỗi đường mạnh ở
+đúng một loại câu, nhưng khẳng định đó mới được kiểm ở **một cặp**: lọc nhãn so với truy hồi. Chừng
+nào chưa ép mọi đường chạy mọi loại câu thì "mỗi đường mạnh ở phần của nó" vẫn là một **thiết kế**,
+chưa phải một **kết quả**.
+
+### 4.11.1 Nhánh truy hồi qua đúng đường sản phẩm — 32 ca
+
+`rag_cases.json` gồm 32 câu **thật sự đi vào nhánh `knowledge_corpus`**, chạy qua
+`respond(understand(câu, MENU), MENU)` — cùng hàm mà dịch vụ HTTP gọi. Chấm ba điều:
+
+| Chỉ số | Kết quả |
+|---|---:|
+| Đi đúng nhánh `knowledge_corpus` | **32/32 = 100,00%** |
+| Trích đúng tài liệu đích | **28/32 = 87,50%** |
+| **Chạm tài liệu bị cấm** | **0/32 = 0,00%** |
+| Đạt cả ba điều kiện | **28/32 = 87,50%** |
+
+Tài liệu "bị cấm" của mỗi ca là **tài liệu cùng nhóm chủ đề** — `hue_and_central` bị cấm khi đích là
+`highlands_danang`, `rice_dishes` bị cấm khi đích là `noodle_soups`. Chọn như vậy vì đó là cặp dễ
+nhầm nhất (mục 4.3.2), nên **0/32** là con số đáng kể chứ không phải con số dễ đạt.
+
+Bốn ca chưa đạt đều là **trượt đích**, không ca nào chạm cấm:
+
+```
+RAG-10  "Mình ăn kiêng nhưng không phải dị ứng, có khác gì nhau?"  -> trượt dietary_limits
+RAG-13  "Nhóm sáu người ăn nồi nào cho vừa?"                        -> trượt hotpot_choosing
+RAG-24  "Mình no rồi mà bạn chưa ăn xong, gọi thêm gì cho đỡ nhạt?" -> trượt appetizer_role
+RAG-31  "Gọi hai người mà muốn thử nhiều vị thì làm sao?"           -> trượt sharing_etiquette
+```
+
+Cả bốn đều là **dạng B** — diễn đạt không dùng từ của tài liệu, đúng lớp lỗi đã phân tích ở mục 4.3.1.
+
+### 4.11.2 Ma trận loại câu hỏi × đường trả lời
+
+Ép **cả ba đường chạy cả hai loại câu**, chấm bằng tiêu chí riêng của từng loại.
+
+**Bảng 4.13 — Mỗi đường mạnh ở đúng loại câu nào**
+
+| Đường trả lời | Chọn món: nêu được món | Chọn món: **món vi phạm** | Tri thức: **trích đúng** |
+|---|---:|---:|---:|
+| **lọc nhãn** | 50/50 | **28** | 0/32 = 0,00% |
+| **truy hồi** | 48/50 | 155 | **27/32 = 84,38%** |
+| tra khoá | **0/50** | 0 | 0/32 = 0,00% |
+
+Đọc bảng theo đường chéo: **lọc nhãn thắng ở câu chọn món** (28 món vi phạm so với 155), và **truy
+hồi thắng ở câu tri thức** (84,38% so với 0%). Không đường nào thắng cả hai — đó chính là điều kiện
+để việc chia nhiều đường có nghĩa. Nếu một đường thắng cả hai loại thì những đường còn lại là mã thừa.
+
+**Cột "nêu được món" là cột giữ bảng khỏi nói dối, và nó bắt được một cái bẫy ngay trong lần chạy
+đầu.** Dòng `tra khoá` có **0 món vi phạm** — nhìn qua thì đó là điểm tuyệt đối. Nhưng cột bên cạnh
+cho biết nó nêu được món ở **0/50 câu**: nó không vi phạm gì vì nó **không trả lời gì**.
+
+Đây đúng cách lách mà `probe_metric_holes.py` được viết ra để bắt, và lần này nó xuất hiện trong một
+bảng do chính nhóm vừa viết. Bài học lặp lại lần nữa: **một chỉ số "càng thấp càng tốt" luôn cần một
+cột độ phủ đi kèm**, nếu không thì việc im lặng sẽ thắng.
+
+Tái lập:
+
+```bash
+python ai/evaluation/run_rag_eval.py --csv
+python ai/evaluation/run_ma_tran_duong.py --md
+```
+
+
 
 ---
 ---
