@@ -532,6 +532,37 @@ def build() -> dict:
         ],
     })
 
+    # Cùng lớp lỗi với `chained-reference-so-mon`, nhưng qua một đường KHÁC: số viết bằng CHỮ.
+    #
+    # Hai regex đọc số lượng trong `understand` chỉ nhận chữ số, nên "hai món đầu" không đặt
+    # `so_mon_muon`; phép sửa lát cắt không chạy, và `mon dau tien` giữ nguyên `reference_index = 1`
+    # — câu bị đọc thành *món thứ nhất*. Đo được:
+    #
+    #     "Nhắc lại 2 món đầu"        ->  filter, ĐÚNG 2 món
+    #     "Nhắc lại hai món đầu tiên" ->  item_detail, 1 món
+    #
+    # Hai cách nói tương đương, hai kết quả khác hẳn nhau — và bản vá trước chỉ vá dạng chữ số.
+    scripts.append({
+        "id": "chained-reference-so-viet-chu",
+        "group": "chained_reference",
+        "why": ("Tham chiếu ngược có số lượng viết BẰNG CHỮ. Bản vá trước chỉ nhận chữ số, nên "
+                "«hai món đầu» rơi về `reference_index = 1` và trả về đúng một món."),
+        "turns": [
+            {"user": "Gợi ý món không cay giúp mình",
+             "expect": {"min_items": 3, "expect_kind": "list",
+                        "why": "Lượt nêu danh sách. Hai lượt sau tham chiếu vào đây."}},
+            {"user": "Nhắc lại hai món đầu tiên",
+             "expect": {"min_items": 2, "max_items": 2, "expect_kind": "list",
+                        "why": ("«hai món đầu» là LÁT CẮT dài 2, không phải món thứ nhất. Kiểm cả "
+                                "cận trên: chỉ kiểm `min_items` thì trả về 6 vẫn qua.")}},
+            {"user": "Nhắc lại ba món đầu",
+             "expect": {"min_items": 2, "max_items": 3, "expect_kind": "list",
+                        "why": ("«ba» cũng nằm trong `_SO_CHU`, kiểm để bản sửa không chỉ đúng cho "
+                                "«hai». Cận dưới là 2 vì lượt trước đã thu phạm vi còn 2 món — xin "
+                                "ba mà chỉ còn hai thì trả về hai là ĐÚNG.")}},
+        ],
+    })
+
     # --- Nhóm `extreme_scope`: câu cực trị phải nói ra PHẠM VI của nó -------------------
     #
     # Cả nhóm sinh ra từ một lỗi đo được khi CHẠY THẬT qua backend và mô hình: câu "Món đắt nhất
