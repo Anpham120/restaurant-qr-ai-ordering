@@ -217,10 +217,14 @@ def y_chinh(sl, muc, y=Y_ND, x=LE, w=None, co=16.5):
     assert len(muc) <= 5, f"{len(muc)} ý, đặc tả cho tối đa 5"
     w = w or RONG
     wc = w / 360000 - 0.95
-    cao = sum(_so_dong(m, wc, co) * co * 1.24 / 28.35 + 0.30 for m in muc)
+    cao = sum(_so_dong(m, wc, co) * co * 1.34 / 28.35 + 0.32 for m in muc)
     assert y / 360000 + cao <= MAX_Y, (
         f"khối ý cao {cao:.1f}cm, đáy {y / 360000 + cao:.1f}cm > {MAX_Y}cm")
-    tb = sl.shapes.add_textbox(x, y, w, Cm(0.5))
+    # Hộp mang ĐÚNG chiều cao vừa tính, không phải một con số tượng trưng.
+    # PowerPoint vẫn vẽ chữ tràn ra ngoài hộp chứ không cắt, nên hộp khai báo
+    # 0,5cm vẫn hiện đủ chữ — nhưng khi đó tệp nói dối về chỗ nó chiếm, và mọi
+    # phép kiểm đọc tệp (kể cả phép kiểm của chính tôi) sẽ báo sai.
+    tb = sl.shapes.add_textbox(x, y, w, Cm(cao))
     tf = tb.text_frame
     tf.word_wrap = True
     for k, m in enumerate(muc):
@@ -364,7 +368,7 @@ def dung() -> Path:
     o = sl.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(0), Cm(0), W, Cm(6.6))
     o.fill.solid(); o.fill.fore_color.rgb = XANH
     o.line.fill.background(); o.shadow.inherit = False
-    txt(sl, LE, Cm(1.5), RONG, Cm(1.6), "AI Chatbot tư vấn món ăn",
+    txt(sl, LE, Cm(1.4), RONG, Cm(2.2), "AI Chatbot tư vấn món ăn",
         40, True, TRANG, PP_ALIGN.CENTER)
     txt(sl, LE, Cm(3.5), RONG, Cm(1.0),
         "Rule-first, AI-assisted: luật kiểm soát, AI hỗ trợ",
@@ -448,9 +452,17 @@ trí và đều bị kiểm tra ngay sau đó.
     _tang_du_lieu(prs, s=SO)
     _dinh_tuyen(prs, s=SO)
     _rag_va_ket(prs, s=SO)
+    import os
+    # Nếu tệp đang mở trong PowerPoint thì Windows khoá ghi. Ghi ra bản
+    # `.moi.pptx` thay vì nổ, để lần dựng vẫn dùng được.
     ra = HERE / 'output' / 'SLIDE_KIEN_TRUC_AI.pptx'
     ra.parent.mkdir(exist_ok=True)
-    prs.save(str(ra))
+    try:
+        prs.save(str(ra))
+    except PermissionError:
+        ra = ra.with_suffix('.moi.pptx')
+        prs.save(str(ra))
+        print('  (tệp gốc đang mở trong PowerPoint — ghi ra bản .moi)')
     return ra
 
 
@@ -659,7 +671,7 @@ def _dinh_tuyen(prs, s):
             CAM_NHAT if nb else TRANG, CAM if nb else KE, CAM if nb else XANH, 14.5, nb)
         if i < 2:
             ten(sl, LE + Cm(7.5), y + Cm(1.32), Cm(0.5), mau=KE, doc=True, h=Cm(0.2))
-    txt(sl, LE, Cm(14.4), Cm(15.6), Cm(0.9),
+    txt(sl, LE, Cm(14.3), Cm(15.6), Cm(1.4),
         "Ở lượt 3 khách không nhắc lại gì, nhưng hai ràng buộc trước vẫn còn hiệu lực.",
         13.5, False, XAM)
 

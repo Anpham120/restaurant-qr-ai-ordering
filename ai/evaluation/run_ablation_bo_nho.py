@@ -71,7 +71,7 @@ def _cham(kich_ban: list[dict], co_bo_nho: bool) -> dict:
             tong += 1
             if ly_do:
                 do += 1
-                hong.append(f'{s["script_id"]} · "{bg["user"][:44]}" → {ly_do[0][:64]}')
+                hong.append(f'{s["id"]} · "{bg["user"][:44]}" → {ly_do[0][:64]}')
     return {"tong": tong, "do": do, "hong": hong}
 
 
