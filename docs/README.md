@@ -42,7 +42,7 @@ Thêm tài liệu mới: đặt đúng thư mục rồi chạy `python docs/buil
 | [AI_NO_TOUCH_BOUNDARY.md](ai/AI_NO_TOUCH_BOUNDARY.md) | AI no-touch boundary |
 | [AI_OPERATIONS.md](ai/AI_OPERATIONS.md) | Vận hành lớp AI — triển khai, cấu hình, và runbook |
 | [BAO_CAO_DO_AN_HOC_MAY_KPDL.md](ai/BAO_CAO_DO_AN_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
-| [BAO_CAO_HOC_MAY_KPDL.md](ai/BAO_CAO_HOC_MAY_KPDL.md) | Trợ lý AI tư vấn đặt món cho nhà hàng: kiến trúc lai giữa suy luận tất định và truy hồi xác suất |
+| [BAO_CAO_HOC_MAY_KPDL.md](ai/BAO_CAO_HOC_MAY_KPDL.md) | TRƯỜNG ĐẠI HỌC CMC |
 | [GIAI_THICH_CHI_TIET.md](ai/GIAI_THICH_CHI_TIET.md) | Giải thích chi tiết toàn bộ dự án |
 
 ## Kiến trúc và hợp đồng
