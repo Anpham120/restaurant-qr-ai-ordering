@@ -564,27 +564,16 @@ thẳng thì như cộng mét với ki-lô-gam.
 
 ### RAG là gì, và vì sao đồ án này *không* dùng RAG cho mọi thứ
 
-**RAG** — *Retrieval-Augmented Generation*, **sinh văn bản có tăng cường truy hồi**. Ba bước:
+RAG (Retrieval-Augmented Generation) ghép hai bước: **truy hồi** một số đoạn văn liên quan tới câu hỏi, rồi
+đưa chúng cho mô hình ngôn ngữ **sinh** câu trả lời dựa trên chúng. Mục đích là buộc mô hình nói dựa vào
+văn bản có thật thay vì dựa vào trí nhớ tham số.
 
-```
-1. TRUY HỒI   câu hỏi -> tìm đoạn liên quan trong kho
-2. GHÉP       đưa đoạn đó vào "lời nhắc" (prompt) gửi cho mô hình ngôn ngữ
-3. SINH       mô hình viết câu trả lời DỰA TRÊN đoạn đó
-```
+Nhưng RAG chỉ đúng khi câu trả lời **nằm trong một đoạn văn**. Câu *"món nào dưới 100 nghìn, không cay"*
+không có đoạn văn nào chứa đáp án — đáp án là kết quả của một phép **lọc trên bảng**, và nó đổi mỗi khi
+thực đơn đổi. Đưa câu đó cho RAG là biến một phép so sánh chính xác thành một phép tìm kiếm gần đúng.
 
-Không có bước 2 thì mô hình chỉ có kiến thức chung của nó và sẽ **tự nghĩ ra** thông tin về nhà hàng
-— hiện tượng gọi là **hallucination** (bịa đặt): mô hình viết ra câu nghe rất hợp lý nhưng sai sự
-thật.
-
-RAG rất mạnh cho câu **văn xuôi**. Nhưng đồ án này chứng minh bằng số rằng nó **sai chỗ** ở câu **chọn
-món**:
-
-> Truy hồi chỉ biết *"giống nhau"*. Nó **không có phép so sánh lớn hơn / nhỏ hơn**, **không có phép
-> loại trừ**, và **không có phép và**.
->
-> Khách nói *"tôi dị ứng hải sản"* — câu này **chứa chữ "hải sản"**, nên cả BM25 lẫn embedding đều kéo
-> **món hải sản lên đầu**. Đúng ngược điều khách cần. Không phải vì chúng hỏng, mà **chính vì chúng
-> hoạt động đúng như thiết kế**.
+Đây là lý do đồ án tách bốn đường trả lời thay vì dùng RAG cho mọi thứ. Mục 4.3 đo bằng số: trên bài toán
+chọn món, lọc theo nhãn đạt **50/50**, còn BM25 và embedding chỉ đạt 34/50 và 35/50.
 
 ## 2.1 Truy hồi từ khoá — BM25
 
@@ -1593,29 +1582,16 @@ này trả về Canh khổ qua nhồi nấm · Gỏi cuốn tôm thịt · Sươ
 Bộ chạy `run_chung_cu_dinh_tuyen.py` in **dữ liệu thô** — từng câu, nhánh thực tế, ràng buộc đọc ra, ba
 món trả về — để người chấm tự phán xét thay vì tin một tỷ lệ.
 
-### 4.6bis Con số golden đo trên stack dựng lại từ số không
+### 4.6bis Golden đo trên stack dựng lại từ số không
 
-Con số **103/103** đo qua stack Docker thật, và **stack đó phải được dựng lại mỗi lần mã đổi** — nên
-nó là con số duy nhất trong báo cáo có mốc thời gian riêng, không tự cập nhật theo các phép đo khác.
+Golden **103/103 lượt** ở cả hai cấu hình (có và không có đường sinh), đo trên stack dựng lại từ số không
+— xoá ảnh, xoá thể tích, `docker compose build` lại, chạy migration, rồi mới gọi. Điều này quan trọng vì
+mọi con số khác trong chương đo bằng cách gọi hàm trực tiếp; chỉ bộ này đi đủ chuỗi HTTP → backend → dịch
+vụ AI → giỏ hàng thật.
 
-Lần đo hiện tại dựng lại **toàn bộ** từ số không: ảnh AI build mới (tải `bge-m3`, tính sẵn vector 182
-đoạn), cơ sở dữ liệu migrate từ trống rỗng, 30 bàn / 91 món seed lại. Cả hai cấu hình đều **103/103**.
-
-Việc dựng lại từ số không tìm ra **ba lỗi triển khai** mà bản dựng cũ che mất — chúng chỉ lộ khi không
-còn gì sẵn:
-
-| Lỗi | Vì sao bản dựng cũ không thấy |
-|---|---|
-| Cơ sở dữ liệu **rỗng**, backend crash-loop `relation "restaurant_tables" does not exist` | service `migrate` nằm trong **profile riêng**, nên `docker compose up -d` không chạy nó. Máy cũ đã có sẵn dữ liệu nên không ai thấy |
-| `network_mode: host` **không mở cổng ra Windows** — "host" là máy ảo WSL2 | bộ đo trước chạy trên máy Linux hoặc trên stack đã lên sẵn |
-| Ổ đĩa đầy giữa lúc tải mô hình 2,3GB | ảnh cũ đã có mô hình trong tầng cache |
-
-Không lỗi nào trong ba lỗi trên là lỗi của **hệ thống** — cả ba là lỗi của **quy trình dựng**. Nhưng
-một hệ thống không dựng lại được từ số không thì con số của nó chỉ đúng trên đúng một máy.
-
-**Điều rút ra:** phép đo end-to-end có hai giá trị, và giá trị thứ hai thường bị bỏ qua. Nó chấm câu
-trả lời, **và** nó kiểm xem quy trình dựng có tự chạy được không. Trước hôm nay, câu trả lời cho vế
-thứ hai là **chưa** — thiếu một bước `--profile migrate` không ai ghi ở đâu.
+Hai lỗi chỉ bộ này bắt được, không tập nào khác thấy: `network_mode: host` không mở cổng ra Windows (chữ
+"host" ở đây là máy ảo WSL2), và dịch vụ `migrate` nằm ở profile riêng nên `up -d` không bao giờ chạy nó —
+backend crash-loop với `relation "restaurant_tables" does not exist`.
 
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
@@ -1636,22 +1612,12 @@ nhớ**, cộng 161 ca tập trả lời.
 
 **Biểu đồ 4.3** — Cột truy hồi từng bằng 0; nó khác 0 được là nhờ bổ sung ca, không phải nhờ đổi hệ thống.
 
-### 4.7.1 Con số này từng là 0, và đó là lỗi của TẬP CA chứ không phải của hệ thống
+### 4.7.1 Con số này từng là 0, và đó là lỗi của TẬP CA
 
-Trước bản này, truy hồi toàn kho chạy **0/310 lượt** trên hai tập — và **không ca nào đỏ**. Lý do
-không phải hệ thống bỏ nhánh đó, mà là **không tiêu chí nào của tập phiên hỏi tới nó**: bộ chạy
-không có khoá nào nói được "lượt này phải đi qua nhánh nào", nên một nhánh vắng mặt hoàn toàn vẫn
-là trạng thái hợp lệ.
-
-Nói cách khác, đường tri thức là đường duy nhất của hệ thống **chưa từng được chứng minh chạy trong
-một hội thoại thật**. Và "chưa ai hỏi tới" không phải "đã đúng".
-
-Đã sửa hai chỗ:
-
-1. **Bộ chạy phiên nhận thêm khoá `expect_branch_prefix`** — nay một lượt khai báo được nó phải đi
-   qua nhánh nào, và đi sai nhánh là đỏ.
-2. **Thêm nhóm kịch bản `rag_trong_phien`** — ba kịch bản bốn lượt, đặt câu tri thức **ở giữa
-   phiên**, sau một lời khai dị ứng:
+Trước bản này truy hồi toàn kho chạy **0/310 lượt** trên cả hai tập, và **không ca nào đỏ** — vì không
+tiêu chí nào hỏi tới nhánh đó, nên một nhánh vắng mặt hoàn toàn vẫn là trạng thái hợp lệ (chi tiết ở mục
+4.11.3). Đã sửa hai chỗ: bộ chạy phiên nhận thêm khoá `expect_branch_prefix`, và thêm nhóm kịch bản
+`rag_trong_phien` đặt câu tri thức **ở giữa phiên**, sau một lời khai dị ứng:
 
 ```
 lượt 1   "Mình dị ứng hải sản nhé"                       -> bộ nhớ ghi allergen:seafood
@@ -1660,37 +1626,9 @@ lượt 3   "Cùng là gà mà sao món thì mềm món thì dai?"    -> nhánh 
 lượt 4   "Vậy gợi ý mình vài món đi"                     -> nhánh filter, VẪN tránh dị nguyên
 ```
 
-Lượt 3 đo hai thứ mà bộ một lượt không đo được: **truy hồi có chạy khi bộ nhớ đang giữ ràng buộc**,
-và **ràng buộc có sống qua lượt tri thức**. Lượt 4 là chỗ bộ nhớ dễ rơi nhất, vì lượt ngay trước nó
-đi một nhánh hoàn toàn khác.
-
-**Kết quả: 12/12 lượt của nhóm đạt, 0 lỗi an toàn.** Tập phiên nay là **63 kịch bản / 175 lượt**, và
-truy hồi chạy **3 lượt** trong đó — nhỏ, nhưng khác hẳn 0, vì 3 lượt đó có khoá đáp án và sẽ đỏ nếu
-nhánh hỏng.
-
-**Điều con số 1,7% vẫn nói.** Nó không đổi kết luận của mục này: trong một phiên gọi món thật, phần
-lớn lượt vẫn là câu chọn món, và chúng không cần chạm kho tri thức. Cái đổi là **giờ có bằng chứng
-nhánh tri thức chạy được**, thay vì chỉ có bằng chứng nó không chạy.
-
-Trên một phiên trộn có câu tri thức thật, RAG chạy **3/8 lượt**:
-
-```
-1. Mình dị ứng hải sản nhé                       → filter
-2. Có món nào không cay dưới 100k không?         → filter
-3. Cùng là gà mà sao món thì mềm món thì dai?    → TRUY HỒI TOÀN KHO
-4. Món đầu tiên giá bao nhiêu?                   → price_lookup
-5. Uống cà phê buổi tối có bị mất ngủ không?     → TRUY HỒI TOÀN KHO
-6. Đồ chay ở đây có thật sự chay không?          → TRUY HỒI TOÀN KHO
-7. Mấy giờ quán đóng cửa?                        → facts:hours (tra khóa)
-8. Cho mình món khác đi                          → filter
-```
-
-Ràng buộc dị ứng khai ở lượt 1 giữ nguyên suốt cả 8 lượt.
-
-**Một cái bẫy trong chính phép đo:** chạy 175 lượt *không có* bộ nhớ thì **39 lượt** trông như đi truy
-hồi. Chúng là câu tham chiếu ngược — *"Món đầu tiên giá bao nhiêu?"* — không có gì để trỏ tới nên rơi
-xuống truy hồi và lấy về đoạn hoàn toàn lạc. Nghĩa là phân bố nhánh đo trên lượt rời **cao giả** ở cột
-truy hồi. **Đo hội thoại từng lượt rời là đo một hệ thống không tồn tại.**
+Lượt 3 đo hai thứ bộ một lượt không đo được: truy hồi có chạy khi bộ nhớ đang giữ ràng buộc, và ràng buộc
+có sống qua lượt tri thức. Lượt 4 là chỗ bộ nhớ dễ rơi nhất, vì lượt ngay trước đi một nhánh khác hẳn.
+Kết quả **12/12 lượt đạt**.
 
 ## 4.8 Đường sinh bằng mô hình ngôn ngữ
 
@@ -1971,170 +1909,42 @@ pháp truy hồi, không xếp hạng lại, kho tri thức nhỏ đi đáng k�
 
 ## 5.2 Nhận xét của từng thành viên
 
-Mỗi thành viên tự viết nhận xét về khâu mình phụ trách: **điều đo được**, **điều làm sai rồi phải sửa**,
-và **giới hạn còn lại**. Phần này viết ở ngôi thứ nhất, và cố ý giữ cả những chỗ nhóm làm sai — một báo
-cáo chỉ kể phần thành công thì không cho người đọc biết gì về cách nhóm làm việc.
+Mỗi thành viên nêu **điều đo được**, **điều làm sai rồi phải sửa**, và **giới hạn còn lại** ở khâu mình
+phụ trách.
 
-### 5.2.1 Nhận xét — Phạm Duy An (BIT240002), nhóm trưởng
+**Phạm Duy An (BIT240002), nhóm trưởng — dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi.** Thực đơn tồn
+tại ở hai nơi và ban đầu chúng không khớp; em sinh cả hai từ một nguồn kèm cổng `--check` để không ai sửa
+tay một bên. Rút dấu tiếng Việt là phép mất thông tin — đợt gần nhất có ba va chạm (`mi chinh` bật nhãn
+gluten, `số` và `cả` bật nhãn hải sản), và bài học là phải đo bằng cách chạy `understand()` thật chứ không
+phân tích chuỗi con, vì cách sau cho 17/19 dương tính giả. Quyết định khó nhất là xoá 49 tài liệu chiếm 51%
+chỉ mục, sau khi ba cách chữa độc lập đều hoà (p = 0,8238 · 0,5488 · cắt mục); bỏ đi thì Hit@2 lên 0,879 và
+cấm@5 giảm từ 9 xuống 6. Giới hạn: nhãn dị nguyên chỉ phủ **44/91 món**, và mô tả món không phải bảng thành
+phần nên còn thiếu bao nhiêu thì dữ liệu này không trả lời được.
 
-**Phụ trách:** Dữ liệu, bộ nhãn, kho tri thức, và lớp hiểu câu hỏi
+**Bùi Đào Đức Anh (BIT240025) — truy hồi.** Embedding thắng BM25 rõ rệt trên nhóm `written` (Hit@2 0,879 so
+với 0,712), nhưng nó có một tính chất nguy hiểm: **nó không bao giờ trượt**, luôn trả về đoạn gần nhất kể cả
+khi kho không chứa câu trả lời. Ba thí nghiệm liên tiếp cho kết quả âm tính — hybrid RRF không thắng, xếp
+hạng lại bằng cross-encoder không cải thiện, và gộp tài liệu cũng không — em giữ nguyên cả ba trong báo cáo
+vì một kết quả âm tính đo đúng vẫn là một kết quả.
 
-- **Hai nguồn dữ liệu lệch nhau là vấn đề đầu tiên phải giải.** Thực đơn tồn tại ở hai nơi — tệp JSON cho
-  AI và cơ sở dữ liệu cho backend — và chúng **không khớp**. Em giải bằng cách sinh cả hai từ một nguồn,
-  kèm cổng `--check` trong CI để không ai sửa tay một bên. Nếu không làm việc này trước, mọi con số của
-  bốn chặng sau đều đo trên dữ liệu sai.
+**Đỗ Tuấn Anh (BIT240015) — chọn món và bốn lớp an toàn.** Kết luận thiết kế: cơ chế an toàn không được phụ
+thuộc việc mô hình chịu nghe. Mười phép kiểm xác minh, mỗi phép sinh ra từ một lần mô hình làm sai thật. Câu
+vi phạm thì **bỏ**, không sửa — em từng định viết mã tự sửa câu và bỏ ý đó, vì sửa là che dấu vết. Chỗ em
+phải nhận sai: khách nói *"dị ứng tôm, tư vấn món"* thì bản đầu vẫn lọt món có tôm, vì lớp lọc đọc nhãn mà
+lớp hiểu chưa đặt nhãn cho vế thứ hai.
 
-- **Rút dấu tiếng Việt là phép MẤT thông tin, và em đã trả giá cho nó nhiều lần.** Đợt gần nhất có ba va
-  chạm: `mi chinh` bật nhãn gluten, `số` bật nhãn hải sản, `cả` bật nhãn hải sản. Bài học không phải
-  "cẩn thận hơn" mà là **đo bằng cách chạy `understand()` thật**: một lần em phân tích chuỗi con thay
-  cho việc chạy hàm, và nó cho 17/19 dương tính giả vì nó không biết về luật ăn-hết-đoạn.
+**Lê Anh (BIT240017) — dịch vụ HTTP, bộ nhớ phiên, tích hợp backend.** Bộ nhớ cần **ba** quy tắc hợp nhất
+khác nhau, không phải một: dị nguyên cộng dồn, ràng buộc cứng ghi đè theo nhóm, ngữ cảnh giữ năm mục gần
+nhất. Em đo thử tắt bộ nhớ: **51/175 lượt hỏng, trong đó 12 là lỗi an toàn** — mời lại đúng món khách đã
+khai dị ứng. Con số đó làm em đổi cách nghĩ: bộ nhớ không phải lớp tiện nghi, nó nằm trong chuỗi bảo vệ dị
+nguyên. Giới hạn: độ trễ khi bật mô hình còn ~8,6 giây mỗi lượt.
 
-- **Khóa nhãn phải có không gian tên.** Ban đầu em định dùng khóa phẳng (`none`, `mild`, `hot`), nhưng
-  như vậy không biết `none` thuộc nhóm cay hay nhóm chế độ ăn. Quan trọng hơn: khóa có nhóm cho phép
-  **ghi đè theo NHÓM** ở bộ nhớ phiên — `spice:none` phải **đẩy** `spice:hot` ra, chứ không nằm cạnh nó.
-
-- **Chỗ khó nhất không phải kỹ thuật mà là phân biệt RÀNG BUỘC với NGỮ CẢNH.** *"Không cay"* là ràng
-  buộc — món cay phải bị **loại**. *"Đi hẹn hò"* là ngữ cảnh — món hợp dịp chỉ **xếp lên trước**, không
-  được loại món khác. Em phải tách chúng thành hai trường riêng trong `Request` thay vì gộp làm một danh
-  sách.
-
-- **Quyết định khó nhất của em là xóa 49 tài liệu khỏi kho.** Chúng chiếm 51% chỉ mục, và ba cách chữa
-  độc lập đều không thắng (p = 0,8238 · 0,5488 · cắt mục). Bỏ đi thì Hit@2 lên 0,879 và cấm@5 giảm từ 9
-  xuống 6. Bài học: khi ba cách chữa độc lập cùng hoà, vấn đề không nằm ở cách chữa mà ở **chẩn đoán**.
-
-- **Giới hạn còn lại, và em nói ra thay vì giấu:** nhãn dị nguyên chỉ phủ **44/91 món**. Bản rà em viết
-  tìm ra **7 lỗ thật** và cả 7 đã được lấp, nhưng mô tả món không phải bảng thành phần nên **còn thiếu
-  bao nhiêu thì không biết được từ dữ liệu này**. Đây là việc của bếp, không phải của mã.
-
-### 5.2.2 Nhận xét — Bùi Đào Đức Anh (BIT240025)
-
-**Phụ trách:** Truy hồi — BM25, embedding, hybrid RRF
-
-- **Embedding thắng BM25 rõ rệt trên nhóm `written`: Hit@2 0,879 so với 0,712.** Lý do rất cụ thể và em
-  kiểm được bằng ví dụ: khách gõ *"món chín bằng hơi nước, nhẹ bụng"* trong khi tài liệu viết *"món
-  hấp"* — **không chung một chữ nào**, nên BM25 không có gì để đếm.
-
-- **Nhưng embedding có một tính chất nguy hiểm: nó KHÔNG BAO GIỜ TRƯỢT.** Câu hỏi lạc đề hoàn toàn vẫn
-  nhận về đủ số đoạn với điểm số đàng hoàng. Phát hiện này đổi cách em chọn chỉ số: `cấm@5` quan trọng
-  hơn Hit@5, vì một bộ trả 1 đoạn đúng + 4 đoạn lạc đề vẫn đạt Hit@5 = 1,0 tuyệt đối.
-
-- **Hybrid RRF không thắng như em nghĩ ban đầu, và kết quả sạch đến mức đáng ghi lại: p = 1,0000.** Em kỳ
-  vọng trộn hai phương pháp sẽ tốt hơn cả hai. Tách theo dạng câu thì thấy phép đổi diễn ra ở đâu: hybrid
-  hơn ở câu **dùng đúng nhãn** trong tài liệu, và thua ở câu **diễn đạt kiểu khác**. Hai chiều triệt tiêu
-  nhau gần như hoàn hảo. Mà khách thật thì diễn đạt theo kiểu của họ, nên chiều hybrid thua mới là chiều
-  hay gặp.
-
-- **Xếp hạng lại bằng cross-encoder là cách sửa đúng sách vở, và nó không chạy được.** Chẩn đoán nói lỗi
-  nằm ở xếp hạng, nên công cụ chuẩn cho việc đó là cross-encoder. Đo `bge-reranker-v2-m3`: **p = 0,8238**
-  — không cải thiện — và **chậm 118 lần**, p95 81 giây. Ngay cả khi nó thắng, con số đó cũng không triển
-  khai được ở một trợ lý đặt món.
-
-- **Ba kết quả âm tính liên tiếp, và em giữ nguyên cả ba trong báo cáo.** Giá trị của khâu em không nằm ở
-  việc "làm cho truy hồi tốt hơn" mà ở việc **chứng minh bằng số rằng thêm phức tạp không giúp gì** — và
-  nhờ đó hệ thống giữ được một mô hình duy nhất, một phương pháp duy nhất, một ảnh Docker nhỏ hơn.
-
-### 5.2.3 Nhận xét — Đỗ Tuấn Anh (BIT240015)
-
-**Phụ trách:** Chọn món và bốn lớp an toàn
-
-- **Kết luận thiết kế của chặng này: cơ chế an toàn không được phụ thuộc vào mô hình sinh.** Ban đầu nhóm
-  định dặn mô hình trong lời nhắc rằng "không được nhắc món gây dị ứng". Nhưng lời nhắc là **đề nghị**,
-  không phải **ràng buộc** — mô hình có thể bỏ qua và không có gì báo. Nhóm chuyển sang **lọc trước khi
-  sinh**: mô hình chỉ nhận danh sách món **đã** an toàn, nên nó không có gì để nhắc sai.
-
-- **Mười phép kiểm xác minh, và mỗi phép kiểm sinh ra từ một lần mô hình làm sai thật.** Ví dụ em nhớ
-  nhất: mô hình viết *"Nhà hàng có **6 món lẩu**"* trong khi thực đơn có **7**. Ba phép kiểm đầu không
-  chạm tới lỗi này — nó không phải tên món, không phải giá, không phải nhãn. Phải thêm một phép kiểm
-  riêng **cấm mô hình nêu số lượng**. Bài học: không đoán trước được mô hình sẽ sai kiểu gì; phải đo rồi
-  mới biết.
-
-- **Câu sinh vi phạm thì BỎ, không sửa.** Em từng định viết mã tự sửa câu mô hình viết sai, nhưng bỏ ý
-  đó: sửa một câu sai thành câu đúng đòi hỏi biết đúng là gì, mà nếu đã biết thì đâu cần mô hình.
-
-- **`build_cart` phải `raise`, không được lặng lẽ lọc.** Đây là chi tiết em tranh luận lâu nhất. Khi lớp
-  cuối phát hiện món cấm lọt qua, phản xạ tự nhiên là bỏ món đó đi cho an toàn. Nhưng làm vậy nghĩa là
-  lớp lọc fail-closed đang hỏng mà **không ai biết** — và nó sẽ hỏng tiếp. Nên lớp cuối `raise CartError`.
-
-- **Chỗ em bị bắt lỗi và phải nhận sai:** khách nói *"dị ứng tôm, tư vấn món hải sản khác"*. Em định lọc
-  riêng con tôm ra để vẫn còn món hải sản gợi ý được. Nhưng kiểm dữ liệu thì **hai món mang
-  `allergen:seafood` mà KHÔNG mang `ingredient:shrimp`, dù chúng chứa tôm**: *Bún đậu mắm tôm* và *Bún bò
-  Huế* (mắm ruốc). Mắm tôm và mắm ruốc là **gia vị** nên không được ghi vào nhãn nguyên liệu. Lọc hẹp sẽ
-  mời đúng hai món đó cho người dị ứng tôm. Em giữ chặn rộng ở mức **nhóm** và sửa phần **im lặng**.
-
-- **Đo trên 100 câu chạy sau khi khai dị ứng hải sản, bao gồm cả câu bị định tuyến sai: 0 món vi phạm lọt
-  ra, 0 lần hàng rào cuối phải nổ.** Định tuyến sai tốn **chất lượng**, không tốn **an toàn** — vì hàng
-  rào nằm bên trong nhánh chọn món chứ không nằm ở bộ định tuyến.
-
-### 5.2.4 Nhận xét — Lê Anh (BIT240017)
-
-**Phụ trách:** Dịch vụ HTTP, bộ nhớ phiên, tích hợp với backend
-
-- **Bộ nhớ phiên cần BA quy tắc hợp nhất khác nhau, không phải một.** Đây là chỗ em làm sai lần đầu: em
-  dùng chung một quy tắc "cộng dồn" cho mọi loại ràng buộc. Hậu quả: khách nói *"dưới 200 nghìn"* rồi
-  *"rẻ hơn nữa"* thì hệ thống **giữ cả hai ngân sách** thay vì thay. Sửa xong thành ba quy tắc: dị nguyên
-  **cộng dồn không bao giờ bỏ**, ràng buộc cứng **ghi đè theo nhóm**, ngữ cảnh **tích lũy có trần 5**.
-
-- **Dị nguyên phải cộng dồn — đây là bất biến an toàn quan trọng nhất của chặng em.** Khách khai dị ứng
-  ở lượt 1, hỏi tiếp ở lượt 5 **mà không nhắc lại**. Nếu bộ nhớ ghi đè thì "dị ứng hải sản" bị "không ăn
-  được sữa" xoá mất.
-
-- **Bộ nhớ hóa ra không chỉ là tiện ích mà là một hàng rào an toàn.** Em đo thử: chạy 175 lượt *không
-  có* bộ nhớ thì **51 lượt (29,1%)** hỏng — 39 lượt rơi xuống truy hồi và lấy về đoạn lạc, nhưng **12
-  lượt là mời lại đúng món khách đã khai dị ứng**. Con số thứ hai làm em đổi hẳn cách nghĩ về khâu
-  mình: bộ nhớ không phải lớp tiện nghi ở ngoài, nó nằm trong chính chuỗi bảo vệ dị nguyên.
-
-- **Dịch vụ phải trả lời được KHI MÔ HÌNH HỎNG.** Em thiết kế để mã tất định chạy trước, mô hình chỉ được
-  gọi ở nhánh cần diễn đạt. Nhờ vậy khi khoá API hết hạn hoặc nhà cung cấp lỗi, khách vẫn nhận được câu
-  trả lời đúng — chỉ là câu khuôn mẫu thay vì câu mượt. Một trợ lý im lặng vì mô hình hỏng là một trợ lý
-  hỏng.
-
-- **Tích hợp là chỗ lộ ra lỗi mà không tập đánh giá nào bắt được.** Ba tập đầu đều gọi thẳng hàm Python,
-  không đi qua backend. Khi ghép thật, em phát hiện những lỗi chỉ tồn tại ở lớp nối: lệch tên trường,
-  lệch tên header xác thực, lệch hình dạng `session_state` làm bộ nhớ **mất im lặng** giữa các lượt. Cả
-  bốn đều là **lệch hợp đồng giữa hai bên** — loại lỗi mà test một phía không thể thấy.
-
-- **Giới hạn:** độ trễ khi bật mô hình là **~8,6 giây mỗi lượt**. Em chưa giải được, và nó là lý do chính
-  khiến nhóm để đường sinh **bật/tắt được bằng biến môi trường** thay vì bật cứng.
-
-### 5.2.5 Nhận xét — Nguyễn Quang Hiếu (BIT240091)
-
-**Phụ trách:** Bốn tập đánh giá, thước đo, golden đầu-cuối, cổng CI
-
-- **Bài học lớn nhất của em: kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống sai".** Trong đồ
-  án này, số lần **thước đo** sai nhiều hơn số lần **hệ thống** sai. Ba ví dụ gần nhất:
-
-  | "Kết quả" | Thực chất |
-  |---|---|
-  | Thí nghiệm gộp tài liệu ra 1,89%, p = 0,0000 | bộ chấm so tiêu đề **tiếng Việt** với nhãn **tiếng Anh** → 102/106 ca không có đích |
-  | Bốn mẫu từ vựng báo **"0 câu đổi"** | bộ đo chỉ quét `*.json`, bỏ sót 100 câu nằm trong mã Python |
-  | `test_rag` báo **đỏ** | bộ quét không đọc `working-directory` trong `ci.yml` |
-
-  Cả ba đều sai theo hướng làm em suýt kết luận nhầm, và cả ba đều bị phát hiện bằng cùng một kỷ luật:
-  **in dữ liệu thô kèm tỷ lệ**. Một bảng số không tự tố cáo được nó sai, còn vài dòng ví dụ thì có.
-
-- **Vì lý do đó em viết `run_chung_cu_dinh_tuyen.py`.** Nó in từng câu, nhánh thực tế, ràng buộc đọc ra
-  và ba món trả về, kèm một bảng phán xử của người. Nhờ nó mà con số định tuyến có **hai cách chấm**:
-  64,00% theo khóa nghiêm ngặt và 90,00% theo câu trả lời có dùng được không — và cả hai đều phải nêu.
-
-- **Golden 103 lượt là bộ bắt được nhiều lỗi nhất, và lý do rất cụ thể: nó không mock gì cả.** Nó chạy
-  đúng đường khách đi — quét QR → backend → dịch vụ AI → thẻ giỏ → giỏ hàng. Bốn tập còn lại gọi thẳng
-  hàm Python nên một lỗi ở lớp ghép hai hệ thống sẽ không tập nào thấy.
-
-- **Chia tập theo HỌ, không theo ca.** Nếu chia ngẫu nhiên theo từng ca thì hai ca cùng một họ — ví dụ
-  hai cách hỏi về món nướng — có thể rơi vào hai tập khác nhau, và tập niêm phong không còn "chưa từng
-  thấy". Em cũng bỏ `random.shuffle` có seed để dùng `sha256(tên họ)`: shuffle phụ thuộc phiên bản
-  Python, nên Python đổi thuật toán thì phép chia đổi theo và tập niêm phong lặng lẽ trộn vào tập phát
-  triển.
-
-- **Mỗi tập chỉ đo đúng thứ nó được viết ra để đo, và em học được điều này theo cách khó.** Bộ đo phân bố
-  đường đi cho thấy **truy hồi chạy 0/310 lượt** trên hai tập lớn nhất. Đọc một mình thì con số đó nói
-  "RAG vô dụng". Thực ra nó nói **hai tập đó được viết quanh các nhánh tất định**. Em phải dựng thêm một
-  phiên trộn có câu tri thức thật mới thấy RAG chạy 3/8 lượt.
-
-- **Hạn chế nghiêm trọng nhất của toàn đồ án, và em phải nói rõ:** **không có log khách thật**. Mọi ca
-  đánh giá đều do nhóm viết. Con số đo được hệ thống có tôn trọng ràng buộc hay không; nó **không** đo
-  được khách thật sẽ hỏi gì. Thêm nữa, **tập niêm phong đã được mở**, nên con số trên nó không còn là
-  held-out cho các thay đổi sau đó.
+**Nguyễn Quang Hiếu (BIT240091) — bốn tập đánh giá, thước đo, golden đầu-cuối, cổng CI.** Bài học lớn nhất:
+kiểm giả thuyết *"thước đo sai"* **trước** giả thuyết *"hệ thống sai"*. Bộ đo từng báo nhóm `phân loại` sai
+67,35% — hoá ra là tạo tác của khoá đáp án, những câu bị chấm sai thực ra trả về đúng món. Vì vậy em viết
+`run_chung_cu_dinh_tuyen.py` in ra dữ liệu thô từng câu để người chấm tự phán xét thay vì tin một tỷ lệ. Tập
+được chia theo **họ** chứ không theo ca, để hai ca cùng khuôn không rơi vào hai tập. Hạn chế nghiêm trọng
+nhất của cả đồ án: **không có log khách thật**, nên mọi tập đều phản ánh cách nhóm nghĩ khách sẽ hỏi.
 
 ## 5.3 Làm được
 
@@ -2199,52 +2009,27 @@ cáo chỉ kể phần thành công thì không cho người đọc biết gì v
 
 ## 5.5 Bài học kinh nghiệm
 
-### Bài học 1 — thước đo sai TRƯỚC khi hệ thống sai
-
-Trong toàn bộ đồ án, số lần **thước đo** sai nhiều hơn số lần **hệ thống** sai. Nên thứ tự kiểm phải là:
-**kiểm giả thuyết "thước đo sai" TRƯỚC giả thuyết "hệ thống sai"**.
-
-Thứ phát hiện ra chúng không phải sự cẩn thận mà là kỷ luật **in dữ liệu thô kèm tỷ lệ** — một bảng số
-không tự tố cáo được nó sai, còn vài dòng ví dụ thì có.
-
-### Bài học 2 — một kết luận đo đúng vẫn hết hiệu lực khi thứ nó đo đã đổi
-
-Phép đo giữ nhóm 49 tài liệu được thực hiện **trước** khi bổ sung từ vựng. Sau khi từ vựng đưa 99,1% câu
-của chúng về nhánh lọc, kết luận cũ **hết hiệu lực** — không phải vì nó sai lúc đo, mà vì đối tượng đo đã
-đổi. Bài học: mỗi kết luận cần ghi kèm **điều kiện nó đúng**, không chỉ ghi con số.
-
-### Bài học 3 — chấm ở k khác k hệ thống dùng là đo một hệ thống không tồn tại
-
-Hybrid thắng ở Hit@1 và thua ở Hit@2. Hệ thống trích 2 đoạn. Nếu chốt theo Hit@1 thì nhóm đã chọn phương
-pháp kém hơn cho chính hệ thống của mình, và bảng số vẫn trông đúng.
-
-### Bài học 4 — một số viết tay thì sẽ trôi
-
-Cách chặn duy nhất là **tính lại từ dữ liệu mỗi lần**, và biến việc đó thành một cổng CI thay vì một thói
-quen. Đồ án hiện có **14 cổng `--check`**.
-
-### Bài học 5 — an toàn không được phụ thuộc việc mô hình chịu nghe
-
-Lời nhắc yêu cầu mô hình mời khách hỏi nhân viên khi có ràng buộc dị ứng. Mô hình **bỏ câu đó**. Yêu cầu
-trong lời nhắc là **đề nghị**; chỉ phép kiểm sau khi sinh mới là **bảo đảm**.
-
-### Bài học 6 — sửa lớp lỗi bằng cấu trúc, không bằng ngoại lệ
-
-Va chạm rút dấu không sửa bằng cách vá từng cụm, mà bằng luật **khớp cụm dài trước rồi ăn hết đoạn đã
-khớp**. Tài liệu nội bộ không lọt vào kho không phải nhờ lọc, mà nhờ cửa `audience: guest` **từ chối**.
-Mô hình không nói về chính sách không phải nhờ dặn dò, mà nhờ `BRANCHES_ALLOWED`.
+1. **Thước đo sai TRƯỚC khi hệ thống sai.** Bộ đo từng báo nhóm `phân loại` sai 67,35%; đọc từng câu mới
+   thấy chúng trả về đúng món, con số kia là tạo tác của khoá đáp án. Nay mọi tỷ lệ đều có một bộ in dữ
+   liệu thô đi kèm.
+2. **Một kết luận đo đúng vẫn hết hiệu lực khi thứ nó đo đã đổi.** Số liệu chọn `k` đo trên kho 109 tài
+   liệu không còn đúng cho kho 60 tài liệu, dù phép đo lúc đó không sai chỗ nào.
+3. **Chấm ở `k` khác `k` hệ thống dùng là đo một hệ thống không tồn tại.** Hit@1 nói hybrid thắng; hệ thống
+   lấy 2 đoạn nên cột quyết định là Hit@2, và ở đó embedding thắng.
+4. **Số viết tay thì sẽ trôi.** Biểu đồ 4.3 viết cứng "147 ca / 163 lượt / truy hồi 0%" ngay trong hàm vẽ,
+   nên nó vẽ lại số cũ sau khi tập ca đã mở rộng — hình vẫn dựng được, cổng vẫn xanh, chỉ nội dung là sai.
+   Nay hình đọc từ tệp đo.
+5. **An toàn không được phụ thuộc việc mô hình chịu nghe.** Dặn trong lời nhắc là đề nghị; chỉ phép kiểm
+   chạy sau khi mô hình viết mới là chặn.
+6. **Sửa lớp lỗi bằng cấu trúc, không bằng ngoại lệ.** Ba va chạm rút dấu được sửa bằng luật ăn-hết-đoạn
+   áp cho toàn bộ từ vựng, không bằng ba trường hợp riêng.
 
 ## 5.6 Khó khăn gặp phải
 
-| Khó khăn | Cách nhóm xử lý |
-|---|---|
-| **Không có log khách thật** — mọi ca đánh giá do nhóm viết, nên chúng phản ánh cách nhóm nghĩ khách sẽ hỏi | Thử nghiệm trực tiếp với người dùng ngoài nhóm; mở rộng tập phiên lên **hơn 100 kịch bản** để phủ các dạng câu người thật dùng — phủ định, đổi ý, hỏi liên tục |
-| **Rút dấu tiếng Việt gây va chạm** — `mi chinh`, `số`/`sò`, `cả`/`cá` | Kiểm kê va chạm chạy trong CI: **629 cụm, 107 cụm có nguy cơ**; mỗi lần thêm cụm phải chạy lại và phải **chạy `understand()` thật**, không phân tích chuỗi |
-| **Độ trễ mô hình ~8,6 giây mỗi lượt** | Để đường sinh **bật/tắt được**; mã tất định trả lời trước, mô hình chỉ được gọi ở nhánh cần diễn đạt |
-| **Ảnh Docker lớn vì embedding** | Tính sẵn vector lúc **build ảnh** thay vì lúc chạy — độ trễ mỗi câu không tăng, chỉ thời gian khởi động tăng; và `HF_HUB_OFFLINE=1` để chạy không cần mạng |
-| **Nhãn dị nguyên chỉ phủ 44/91 món** | Chặn rộng ở mức nhóm thay vì lọc hẹp, và **nói ra lý do** cho khách thay vì im lặng. Đây là giới hạn dữ liệu, không sửa được bằng mã |
-| **Thước đo sai trước hệ thống sai** | Viết `probe_metric_holes.py` để dò lỗ của chính thước đo; và đặt thành nếp: **in dữ liệu thô kèm tỷ lệ** |
-| **Ba cách chữa truy hồi đều hoà** | Chấp nhận kết quả âm tính và đổi hướng: chẩn đoán lại và tìm ra vấn đề nằm ở **cấu trúc dữ liệu**, dẫn tới quyết định bỏ 49 tài liệu |
+Ba khó khăn đáng kể. **Không có log khách thật** — mọi tập đánh giá do nhóm viết, nên chúng phản ánh cách
+nhóm nghĩ khách sẽ hỏi. **Độ trễ mô hình ~8,6 giây mỗi lượt** khi bật đường sinh, chưa giải quyết được
+trong phạm vi đồ án. **Môi trường chạy nặng** — ảnh Docker ~3GB vì mô hình nhúng chạy tại runtime, và đây
+là đánh đổi có chủ ý chứ không phải mặc định.
 
 ## 5.7 Hướng phát triển tương lai
 

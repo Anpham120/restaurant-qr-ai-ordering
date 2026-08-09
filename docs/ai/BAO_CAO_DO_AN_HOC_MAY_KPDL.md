@@ -23,7 +23,7 @@ cấu trúc và xác minh, không bằng lời nhắc mô hình
 | 4 | Lê Anh | BIT240017 |
 | 5 | Nguyễn Quang Hiếu | BIT240091 |
 
-Hà Nội, ngày 01 tháng 08 năm 2026
+Hà Nội, ngày 09 tháng 08 năm 2026
 
 > **Tài liệu này được SINH RA từ mã nguồn và bằng chứng đo, không viết tay.**
 > Sinh lại bằng `python ai/docs/build_bao_cao_do_an.py`. Mọi con số trong báo cáo đến từ một trong ba
@@ -169,8 +169,8 @@ quả trên **tập niêm phong** (mở đúng một lần, không dùng để �
 
 | Bài toán | BM25 | Embedding |
 |---|---:|---:|
-| Truy hồi trên toàn kho (Hit@1) | 39,13% | **60,87%** |
-| Chọn đúng mục trong tài liệu (Top-1) | 75,00% | **86,36%** |
+| Truy hồi trên toàn kho (Hit@1) | 50,00% | **83,33%** |
+| Chọn đúng mục trong tài liệu (Top-1) | 75,00% | **90,91%** |
 
 ## Cơ chế bảo đảm an toàn
 
@@ -194,8 +194,8 @@ thẻ giỏ → giỏ hàng.
 |---|---:|---|
 | Golden đầu-cuối, đường sinh TẮT (mặc định) | 103 lượt | **103/103** |
 | Golden đầu-cuối, đường sinh BẬT | 103 lượt | **103/103** |
-| Tập ca trả lời một lượt | 147 ca | **147/147** |
-| Bộ nhớ phiên nhiều lượt | 163 lượt | **163/163**, 0 lỗi an toàn |
+| Tập ca trả lời một lượt | 161 ca | **161/161** |
+| Bộ nhớ phiên nhiều lượt | 175 lượt | **175/175**, 0 lỗi an toàn |
 | LLM + RAG trên câu loại C | 76 ca | tất định 76/76 · có sinh 76/76 |
 
 ## Hạn chế
@@ -326,7 +326,7 @@ TV4  PHIÊN & TÍCH HỢP
       |   -> câu trả lời đã ghép ngữ cảnh, gửi qua backend
       v
 TV5  ĐÁNH GIÁ
-          147 ca · 163 lượt phiên · 103 lượt golden
+          161 ca · 175 lượt phiên · 103 lượt golden
           100 câu hai chiều · 21 cổng CI
 ```
 
@@ -395,13 +395,13 @@ phải đợi người khác thêm cụm từ vựng tương ứng.
 
 ### TV5 — Đánh giá
 
-1. Bốn tập: **147 ca trả lời**, **163 lượt phiên**, **114 ca truy hồi**, **120 ca chọn mục**
+1. Bốn tập: **161 ca trả lời**, **175 lượt phiên**, **114 ca truy hồi**, **120 ca chọn mục**
 2. Thước đo và **bộ dò lỗ** — chỗ đo sai trước khi hệ thống sai
 3. **Golden 103 lượt** qua chuỗi gọi thật: QR → backend → AI → thẻ giỏ → giỏ hàng
 4. **Bộ hai chiều 100 câu** — chứng minh vì sao cần cả hai lớp
 5. **21 cổng CI**, và cổng deploy đối chiếu bằng chứng với cấu hình
 
-> **Nghiệm thu:** 147/147 ca; 163/163 lượt phiên;
+> **Nghiệm thu:** 161/161 ca; 175/175 lượt phiên;
 > 103/103 lượt golden; mọi cổng xanh; deploy bị chặn nếu bằng chứng đo không
 > khớp cấu hình đang bật.
 
@@ -434,17 +434,17 @@ lời nhắc mô hình?**
 
 ## 1.2 Ba loại câu hỏi, và vì sao phân loại chúng là quyết định kiến trúc
 
-Tập đánh giá 147 ca được gán nhãn theo ba loại, và tỷ lệ của chúng quyết định kiến trúc:
+Tập đánh giá 161 ca được gán nhãn theo ba loại, và tỷ lệ của chúng quyết định kiến trúc:
 
 | Loại | Số ca | Bản chất | Mô hình sinh |
 |---|---:|---|---|
 | A | 56 | tra cứu thực đơn — giá, thành phần, khẩu phần | **cấm** |
-| B | 52 | tri thức nhà hàng — chính sách, cách gọi món, vùng miền | **cấm** |
+| B | 66 | tri thức nhà hàng — chính sách, cách gọi món, vùng miền | **cấm** |
 | C | 39 | suy luận và diễn đạt — nhiều ràng buộc, so sánh | **được** |
 
 Loại A cấm sinh vì có đáp án xác định: một mô hình viết lại nó chỉ thêm cơ hội sai. Loại B cấm sinh vì
 nội dung là **chữ của người viết tài liệu**, và một chữ số lệch trong câu chính sách là sai sự thật về
-nhà hàng. Chỉ loại C — **39/147 ca** — là chỗ mô hình có việc thật.
+nhà hàng. Chỉ loại C — **39/161 ca** — là chỗ mô hình có việc thật.
 
 Phân loại này không phải nhãn cho vui: nó thành **danh sách trắng nhánh được phép sinh** trong mã, nên
 mô hình *không có đường* ghi chữ cho khách ở loại A và B. Đó là khác biệt giữa "bảo mô hình đừng làm"
@@ -1203,10 +1203,11 @@ lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** tro
 đoạn `synthesize` và lấy 5 đoạn đầu. Đây là đường **duy nhất** tới những tài liệu không có cụm từ vựng
 riêng.
 
-**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 147 ca trả lời và
-163 lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
-hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
-các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
+**Một con số đáng chú ý và báo cáo nêu rõ:** trên tập 161 ca trả lời và
+175 lượt phiên, đường C chạy **14 lần** và **3 lần**. Con số này từng là
+**0 trên cả hai tập** — không phải vì truy hồi vô dụng, mà vì **hai tập khi đó được viết quanh các
+nhánh tất định** và không tiêu chí nào hỏi tới nhánh C. Bộ hai chiều ở mục 4.9 được xây chính vì lý do
+đó, và họ ca `knowledge_corpus` được thêm sau để lấp đúng lỗ này.
 
 **Cửa `audience: guest`.** Mọi tài liệu trong kho phải khai `audience: guest`, và bộ nạp **từ chối**
 tệp không khai đúng giá trị này — từ chối chứ không phải lọc. Lý do: bản kho trước có 5/27 tệp là
@@ -1217,8 +1218,8 @@ Lọc thì người sau vẫn thêm được tệp nội bộ vào; từ chối 
 
 | Tập | Kích thước | Chặng nó đo |
 |---|---:|---|
-| `cases.json` | 147 ca | `understand()` + `respond()` gọi trực tiếp |
-| `session_scripts.json` | 60 kịch bản / 163 lượt | + bộ nhớ nhiều lượt |
+| `cases.json` | 161 ca | `understand()` + `respond()` gọi trực tiếp |
+| `session_scripts.json` | 63 kịch bản / 175 lượt | + bộ nhớ nhiều lượt |
 | `retrieval_cases.json` | 114 ca | truy hồi trên **toàn kho** |
 | `chunk_selection_cases.json` | 120 ca | chọn mục **trong một tài liệu** |
 | `golden_e2e.json` | 29 hội thoại / 103 lượt | **toàn chuỗi**, tới giỏ hàng thật |
@@ -1240,13 +1241,13 @@ lý do từng ca**. Mỗi ca viết tay đều có trường `why` nêu ca đó 
 
 #### Nguồn gốc từng tập
 
-**1. Tập ca trả lời — 147 ca / 46 họ.**
+**1. Tập ca trả lời — 161 ca / 47 họ.**
 Viết tay, theo ba loại câu của phát biểu bài toán (mục 1.2). Với mỗi nhánh trả lời, nhóm viết ít nhất
 hai ca: một ca dùng đúng từ có trong dữ liệu, một ca diễn đạt khác. Khóa đáp án **không phải danh sách
 món viết tay** mà là **điều kiện chọn**, ví dụ `{"kind": "list", "forbid": {"tags_any":
 ["allergen:seafood"]}}`. Nhờ vậy thực đơn đổi thì khóa đáp án vẫn đúng.
 
-**2. Kịch bản phiên — 60 kịch bản / 163 lượt.**
+**2. Kịch bản phiên — 63 kịch bản / 175 lượt.**
 Sinh bởi `ai/scripts/build_session_scripts.py` theo bốn nhóm tình huống mà tập một lượt không đo được:
 dị nguyên khai một lần phải giữ suốt phiên; ràng buộc mới ghi đè ràng buộc cũ; "món khác đi" không
 được lặp món đã nêu; tham chiếu ngược ("món đầu tiên giá bao nhiêu"). Bộ sinh có cổng `--check` trong
@@ -1311,9 +1312,9 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
    nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
 
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
-làm lộ **17 lỗi** mà tập 147 ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+làm lộ **17 lỗi** mà tập ca và 111 lượt phiên **khi đó** không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
-mở rộng lên **163 lượt** mới bắt được lớp lỗi đó.
+mở rộng lên **175 lượt** mới bắt được lớp lỗi đó.
 
 **Chia tập theo HỌ, không theo ca.** Hai ca cùng họ hỏi cùng chủ đề, chỉ khác cách diễn đạt — xem một ca
 là biết ca kia, nên chia theo ca thì tập niêm phong **không còn niêm phong**.
@@ -1462,9 +1463,10 @@ không phải một mô hình phân loại:
 Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác định** — tra được từ thực đơn hoặc từ khóa
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
-**Hệ quả đo được:** trên tập 147 ca và 163 lượt phiên, nhánh truy hồi chạy
-**0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
-nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
+**Hệ quả đo được:** trên tập 161 ca và 175 lượt phiên, nhánh truy hồi chạy
+**14 lần** và **3 lần**. Con số này từng là 0 trên cả hai tập — mọi câu đều khớp một
+trong chín nhánh trước, vì hai tập đó được viết quanh các nhánh tất định chứ không vì truy hồi vô dụng.
+Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
 
 ### 3.7.4 Lớp 4a — MÃ TẤT ĐỊNH xử lý thế nào (`answer.select()`)
 
@@ -1770,7 +1772,7 @@ thí nghiệm âm tính vẫn là một kết quả, và giấu nó đi là làm
 
 | Điều kiện | Giá trị |
 |---|---|
-| Ngày đo | 2026-08-02 |
+| Ngày đo | 2026-08-09 |
 | Thực đơn | 91 món, 85 nhãn |
 | Kho tri thức | 60 tài liệu / 213 đoạn, 182 đoạn được xếp hạng |
 | Bộ truy hồi đã so | `bm25`, `embedding`, `hybrid` |
@@ -1798,27 +1800,27 @@ Nhóm chốt gồm các họ `expect_nothing` — chúng **không có** khóa đ
 Hit/MRR/nDCG là gạch ngang. Điều nhóm này đo là `cấm@5` và việc **biết KHÔNG trả lời**, và cả
 ba bộ đều đạt 0 đoạn bị cấm.
 
-**Nhóm PHÁT TRIỂN** — 152 ca
+**Nhóm PHÁT TRIỂN** — 68 ca
 
 | Phương pháp | n | Hit@1 | Hit@5 | MRR@5 | nDCG@5 | cấm@5 |
 |---|---:|---:|---:|---:|---:|---:|
-| `bm25` | 152 | **42,11%** | 64,47% | 51,49% | 35,66% | 17 |
-| `embedding` | 152 | **54,61%** | 75,66% | 62,09% | 47,04% | 15 |
-| `hybrid` | 152 | **53,95%** | 72,37% | 61,69% | 45,35% | 16 |
+| `bm25` | 66 | **54,55%** | 77,27% | 64,49% | 46,31% | 10 |
+| `embedding` | 66 | **69,70%** | 93,94% | 80,56% | 63,59% | 6 |
+| `hybrid` | 66 | **71,21%** | 86,36% | 77,45% | 56,27% | 8 |
 
-**Nhóm NIÊM PHONG (mở một lần)** — 50 ca
+**Nhóm NIÊM PHONG (mở một lần)** — 26 ca
 
 | Phương pháp | n | Hit@1 | Hit@5 | MRR@5 | nDCG@5 | cấm@5 |
 |---|---:|---:|---:|---:|---:|---:|
-| `bm25` | 46 | **39,13%** | 52,17% | 43,08% | 23,64% | 7 |
-| `embedding` | 46 | **60,87%** | 67,39% | 62,93% | 44,81% | 5 |
-| `hybrid` | 46 | **52,17%** | 67,39% | 58,33% | 41,81% | 7 |
+| `bm25` | 24 | **50,00%** | 79,17% | 62,15% | 36,59% | 5 |
+| `embedding` | 24 | **83,33%** | 100,00% | 89,93% | 56,45% | 7 |
+| `hybrid` | 24 | **75,00%** | 91,67% | 81,04% | 55,34% | 4 |
 
 **Đọc kết quả:**
 
-- Embedding thắng ở **cả hai** tập: Hit@1 54,61% so với 42,11% (phát triển) và
-  **60,87%** so với **39,13%** (niêm phong) — chênh **+21,74 điểm phần trăm**.
-- Hybrid RRF đạt 52,17% trên tập niêm phong, thấp hơn embedding (60,87%) về con
+- Embedding thắng ở **cả hai** tập: Hit@1 69,70% so với 54,55% (phát triển) và
+  **83,33%** so với **50,00%** (niêm phong) — chênh **+33,33 điểm phần trăm**.
+- Hybrid RRF đạt 75,00% trên tập niêm phong, thấp hơn embedding (83,33%) về con
   số tuyệt đối. Tuy nhiên **chênh lệch này CHƯA đạt mức ý nghĩa thống kê** (xem mục 4.2.1),
   nên báo cáo **không** kết luận hybrid kém hơn embedding. Điều kết luận được là: hợp nhất
   RRF **không mang lại cải thiện đo được** so với embedding đơn lẻ, trong khi nó tốn thêm chi
@@ -1847,9 +1849,9 @@ bên **cho kết quả khác nhau**, và kiểm tra xem tỷ lệ giữa hai chi
 
 | Phương pháp | Hit@1 | Khoảng tin cậy 95% | n |
 |---|---:|:---:|---:|
-| `bm25` | 39,13% | 26,39% – 53,54% | 46 |
-| `embedding` | 60,87% | 46,46% – 73,61% | 46 |
-| `hybrid` | 52,17% | 38,14% – 65,88% | 46 |
+| `bm25` | 50,00% | 31,43% – 68,57% | 24 |
+| `embedding` | 83,33% | 64,15% – 93,32% | 24 |
+| `hybrid` | 75,00% | 55,10% – 88,00% | 24 |
 
 Ba khoảng này **chồng lấn nhau**. Nếu chỉ nhìn khoảng tin cậy thì chưa kết luận được bộ nào
 hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.
@@ -1858,13 +1860,13 @@ hơn bộ nào — và đây chính là lý do cần kiểm định ghép cặp.
 
 | So sánh | Số câu hai bên khác nhau | p | Kết luận |
 |---|---:|---:|---|
-| embedding so với hybrid | 8/46 | **0,2891** | chưa đủ ý nghĩa (p ≥ 0,05) |
-| embedding so với bm25 | 10/46 | **0,0020** | **có ý nghĩa** (p < 0,05) |
-| hybrid so với bm25 | 8/46 | **0,0703** | chưa đủ ý nghĩa (p ≥ 0,05) |
+| embedding so với hybrid | 4/24 | **0,6250** | chưa đủ ý nghĩa (p ≥ 0,05) |
+| embedding so với bm25 | 8/24 | **0,0078** | **có ý nghĩa** (p < 0,05) |
+| hybrid so với bm25 | 6/24 | **0,0312** | **có ý nghĩa** (p < 0,05) |
 
 **Đọc bảng này:**
 
-- Khẳng định **embedding tốt hơn BM25** có bằng chứng thống kê vững (p = 0,0020). Đây là kết luận chính của mục 4.2.
+- Khẳng định **embedding tốt hơn BM25** có bằng chứng thống kê vững (p = 0,0078). Đây là kết luận chính của mục 4.2.
 - Khẳng định **embedding tốt hơn hybrid** **KHÔNG** có bằng chứng đủ. Báo cáo do đó không nêu
   kết luận đó, dù con số tuyệt đối của embedding cao hơn.
 
@@ -1878,20 +1880,20 @@ khác nhau:
 | *"Tỷ lệ THẬT của embedding là bao nhiêu?"* | khoảng tin cậy | **Có** — ước lượng một đại lượng tuyệt đối luôn cần nhiều quan sát |
 | *"Embedding có tốt hơn BM25 không?"* | McNemar ghép cặp | **Ít hơn** — nó loại bỏ phần biến thiên chung của hai bên |
 
-Cụ thể ở đây: khoảng tin cậy của embedding rộng **±13,6 điểm**, nên báo cáo
-**không** khẳng định *"tỷ lệ thật của embedding là 60,87%"*. Nhưng McNemar cho p = 0,0020,
+Cụ thể ở đây: khoảng tin cậy của embedding rộng **±14,6 điểm**, nên báo cáo
+**không** khẳng định *"tỷ lệ thật của embedding là 60,87%"*. Nhưng McNemar cho p = 0,0078,
 nên báo cáo **có** khẳng định *"embedding tốt hơn BM25"*. Hai câu này khác nhau, và chỉ câu
 thứ hai là câu đồ án cần trả lời.
 
 Lý do kiểm định ghép cặp cần ít mẫu hơn: hai bộ chạy trên cùng danh sách câu hỏi, nên phần
 khó/dễ của từng câu ảnh hưởng **cả hai bên như nhau** và bị triệt tiêu khi so từng cặp. Chỉ
-còn lại 10 câu mà hai bên khác nhau,
+còn lại 8 câu mà hai bên khác nhau,
 và toàn bộ thông tin so sánh nằm ở đó.
 
 **Quy mô mẫu cần thiết.** Để khoảng tin cậy 95% hẹp tới mức ±10 điểm phần trăm cần khoảng
 **97 ca**; tới ±5 điểm cần khoảng **385 ca**. Tập niêm phong hiện
-có **46 ca**, tương ứng nửa khoảng khoảng
-±13,6 điểm phần trăm. Đây là hạn chế
+có **24 ca**, tương ứng nửa khoảng khoảng
+±14,6 điểm phần trăm. Đây là hạn chế
 thật của phép đo, và nó được nêu ở mục 5.4 thay vì bỏ qua.
 
 **Điều bảng này KHÔNG nói:** con số tuyệt đối thấp hơn một phép đo trước đó trên kho nhỏ hơn.
@@ -1913,8 +1915,8 @@ cao nhưng chỉ hơn sàn ba lần. Bảng dưới in cả sàn.
 | phát triển | `embedding` | **92,11%** | 97,37% | 86,84% | 76 |
 | phát triển | `hybrid` | **90,79%** | 97,37% | 84,21% | 76 |
 | NIÊM PHONG | `bm25` | **75,00%** | 86,36% | 63,64% | 44 |
-| NIÊM PHONG | `embedding` | **86,36%** | 90,91% | 81,82% | 44 |
-| NIÊM PHONG | `hybrid` | **88,64%** | 95,45% | 81,82% | 44 |
+| NIÊM PHONG | `embedding` | **90,91%** | 90,91% | 90,91% | 44 |
+| NIÊM PHONG | `hybrid` | **84,09%** | 90,91% | 77,27% | 44 |
 
 **Dạng A và dạng B là điểm chính của phép so.** Dạng A dùng từ có trong mục; dạng B diễn đạt
 khác. Một phương pháp thắng ở A mà thua ở B là phương pháp **khớp từ khoá**; thắng cả hai mới
@@ -1922,7 +1924,7 @@ là **hiểu nghĩa**.
 
 - BM25 mạnh ở dạng A (86,36%) và giảm mạnh ở dạng B
   (63,64%), phù hợp với cơ chế đếm từ chung.
-- Embedding giữ được ở dạng B (81,82%), và
+- Embedding giữ được ở dạng B (90,91%), và
   đó là chỗ quan trọng nhất với khách thật: khách **không** dùng đúng chữ trong tài liệu.
 
 Nhóm `derived` (tài liệu sinh từ thực đơn theo khuôn dùng chung) được báo cáo **riêng**, vì nó là
@@ -1940,11 +1942,11 @@ gồm tên, danh mục, mô tả, toàn bộ nhãn và giá. Cho chúng ít hơn
 | Phương pháp | Hit@1 | Hit@5 | **cấm@5** = số ca nêu món KHÔNG thỏa ràng buộc |
 |---|---:|---:|---:|
 | `bm25` | 68,00% | 92,00% | 37 |
-| `embedding` | 58,00% | 84,00% | 42 |
-| `hybrid` | 66,00% | 90,00% | 40 |
+| `embedding` | 70,00% | 94,00% | 35 |
+| `hybrid` | 68,00% | 98,00% | 37 |
 | **`lọc nhãn`** | 100,00% | 100,00% | **0** |
 
-Trên **50 câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng **50/50 câu (100,00%)** và **không câu nào** nêu món vi phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **37 đến 42 trong 50 câu**, tương ứng 74,00% đến 84,00%.
+Trên **50 câu hỏi** của bộ đo này, lọc theo nhãn trả lời đúng **50/50 câu (100,00%)** và **không câu nào** nêu món vi phạm ràng buộc. Ba bộ xếp hạng nêu món vi phạm ở **35 đến 37 trong 50 câu**, tương ứng 70,00% đến 74,00%.
 
 `cấm@5` ở bài toán này mang nghĩa khác bài toán 4.2: nó là số ca **nêu món không thỏa ràng
 buộc**, tức câu trả lời **SAI**, không phải kém. Với ca dị ứng thì đó là **lỗi an toàn**.
@@ -1959,8 +1961,8 @@ mình đã biết trước kết quả. Sinh từ nhãn thì **dữ liệu quy�
 | Phương pháp | Trả lời đúng | Tỷ lệ | Khoảng tin cậy 95% |
 |---|---:|---:|:---:|
 | `bm25` | 34/50 | **68,00%** | 54,19% – 79,24% |
-| `embedding` | 29/50 | **58,00%** | 44,23% – 70,63% |
-| `hybrid` | 33/50 | **66,00%** | 52,15% – 77,56% |
+| `embedding` | 35/50 | **70,00%** | 56,25% – 80,90% |
+| `hybrid` | 34/50 | **68,00%** | 54,19% – 79,24% |
 | `lọc nhãn` | 50/50 | **100,00%** | 92,86% – 100,00% |
 
 Khoảng tin cậy của lọc theo nhãn (**92,86% – 100,00%**)
@@ -1969,8 +1971,8 @@ Khoảng tin cậy của lọc theo nhãn (**92,86% – 100,00%**)
 | So sánh | Số câu hai bên khác nhau | p | Kết luận |
 |---|---:|---:|---|
 | lọc nhãn so với bm25 | 16/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
-| lọc nhãn so với embedding | 21/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
-| lọc nhãn so với hybrid | 17/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
+| lọc nhãn so với embedding | 15/50 | **0,0001** | **có ý nghĩa** (p < 0,05) |
+| lọc nhãn so với hybrid | 16/50 | **0,0000** | **có ý nghĩa** (p < 0,05) |
 
 Cả ba so sánh đều đạt mức ý nghĩa. Kết luận **lọc theo nhãn vượt trội trên bài toán chọn
 món** do đó có bằng chứng thống kê đầy đủ, không phụ thuộc vào việc chọn câu hỏi nào.
@@ -2002,7 +2004,7 @@ không bù được một câu trả lời sai.
 |---|---:|---:|
 | đường tất định | 76/76 | 76/76 |
 | **có đường sinh** | **61/76** — tụt 15 ca | **76/76** — 0 ca tụt |
-| câu sinh được DÙNG | 68/76 | 68/76 |
+| câu sinh được DÙNG | 68/76 | 47/76 |
 
 **14 trong 15 ca tụt là ca DỊ NGUYÊN.** Chúng tụt vì đúng một lý do: câu khuôn mẫu luôn thêm
 *"bạn nhắc nhân viên khi gọi món để bếp xác nhận"*, còn mô hình viết văn mượt hơn và **bỏ câu đó
@@ -2021,12 +2023,12 @@ tắc trong prompt sửa được hành vi ở **cả 14 ca**, và phép kiểm 
 làm bộ lọc. Đó là hình dạng đúng của cặp prompt + xác minh: prompt làm việc, xác minh chịu trách
 nhiệm.
 
-**Lớp xác minh chặn gì:** 8/76 ca lùi về khuôn mẫu, và
-**cả 8 đều vì BỊA GIÁ** — mô hình viết ra một con số tiền không phải giá
+**Lớp xác minh chặn gì:** 29/76 ca lùi về khuôn mẫu, và
+**cả 29 đều vì BỊA GIÁ** — mô hình viết ra một con số tiền không phải giá
 của món nào trong danh sách. Đó chính là loại lỗi khách **không thể tự phát hiện**: câu văn mượt,
 món có thật, chỉ con số sai.
 
-**Giá phải trả:** p50 **8,6s**, p95 **13,5s** mỗi lượt gọi mô hình,
+**Giá phải trả:** p50 **8,0s**, p95 **13,1s** mỗi lượt gọi mô hình,
 
 ## 4.6 Golden 103 lượt qua chuỗi gọi đầy đủ
 
@@ -2099,8 +2101,8 @@ chỉnh thuật toán, trong khi việc đúng là **sửa kho**.
 | Quyết định | Chốt | Căn cứ đo được | Giá đã đo |
 |---|---|---|---|
 | bộ truy hồi (**cả hai** đường) | **embedding** | thắng ở cả hai bài toán và cả hai tập niêm phong; rộng nhất ở câu diễn đạt khác từ | ảnh Docker 238MB → **2,74GB**; truy hồi 1,4ms → 67ms; khởi động **19,0s** |
-| đường sinh | **TẮT mặc định**, bật bằng biến môi trường | 0 ca tụt sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** | p50 **+8,6s** mỗi lượt |
-| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: 0 câu nêu món vi phạm; ba bộ xếp hạng: 37 đến 42 trong 50 câu | 0,3ms mỗi lượt |
+| đường sinh | **TẮT mặc định**, bật bằng biến môi trường | 0 ca tụt sau phép kiểm thứ 8, nhưng cũng **0 ca đúng thêm** | p50 **+8.0s** mỗi lượt |
+| chọn món | **lọc theo nhãn**, không RAG | lọc nhãn: 0 câu nêu món vi phạm; ba bộ xếp hạng: 35 đến 37 trong 50 câu | 0,3ms mỗi lượt |
 
 ### Giá của embedding: ba lần đo mới ra con số đúng
 
@@ -2147,8 +2149,8 @@ Ba tập đánh giá cũ **không trả lời được**, và lý do nằm ở c
 
 | tập | bộ xếp hạng chạy |
 |---|---:|
-| 147 ca trả lời | **0** |
-| 163 lượt phiên | **0** |
+| 161 ca trả lời | **0** |
+| 175 lượt phiên | **0** |
 | 114 ca truy hồi | 36% |
 
 Hai tập đầu được viết **quanh các nhánh tất định**, nên đọc một mình chúng nói "truy hồi
@@ -3151,12 +3153,12 @@ python ai/evaluation/run_so_doan.py --csv    # bảng đánh đổi số đoạn
 |---|---|
 | Golden 103 lượt qua chuỗi gọi đầy đủ, đường sinh TẮT | **103/103** |
 | Golden 103 lượt, đường sinh BẬT | **103/103** |
-| Tập trả lời 147 ca, đường tất định | **147/147** |
-| Bộ nhớ phiên 163 lượt | **163/163**, 0 lỗi an toàn |
+| Tập trả lời 161 ca, đường tất định | **161/161** |
+| Bộ nhớ phiên 175 lượt | **175/175**, 0 lỗi an toàn |
 | LLM+RAG 76 ca loại C | tất định 76/76 · có sinh 76/76 |
-| Truy hồi toàn kho, niêm phong | Hit@1 embedding **60,87%** so với bm25 39,13% |
-| Chọn mục trong tài liệu, niêm phong | Top-1 embedding **86,36%** so với bm25 75,00% |
-| Chọn món | lọc nhãn **0 câu nêu món vi phạm**, so với 37–42 câu ở ba bộ xếp hạng (trên 50 câu) |
+| Truy hồi toàn kho, niêm phong | Hit@1 embedding **83,33%** so với bm25 50,00% |
+| Chọn mục trong tài liệu, niêm phong | Top-1 embedding **90,91%** so với bm25 75,00% |
+| Chọn món | lọc nhãn **0 câu nêu món vi phạm**, so với 35–37 câu ở ba bộ xếp hạng (trên 50 câu) |
 
 ## 5.2 Phân tích chi tiết theo từng thành phần
 
@@ -3328,12 +3330,12 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
 
 | Việc | Bằng chứng |
 |---|---|
-| Trả lời đúng trên tập ca một lượt | 147/147, và sàn để so là 8/147 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
-| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 163/163, **0 lỗi an toàn** |
+| Trả lời đúng trên tập ca một lượt | 161/161, và sàn để so là 8/161 — một bản "luôn nói chưa có dữ liệu" chỉ qua được bấy nhiêu |
+| Giữ ràng buộc qua nhiều lượt, kể cả lượt không nhắc lại | 175/175, **0 lỗi an toàn** |
 | Chạy end-to-end thật tới **giỏ hàng thật** | golden 103/103 ở cả hai cấu hình |
 | Chọn bộ truy hồi bằng SỐ, trên hai bài toán và hai tập niêm phong | mục 4.2, 4.3 |
 | Chứng minh **không phải chỗ nào cũng nên dùng RAG** | mục 4.4 |
-| Chặn bịa món và bịa giá khi mô hình viết | 8/76 ca bị chặn, cả 8 vì bịa giá |
+| Chặn bịa món và bịa giá khi mô hình viết | 29/76 ca bị chặn, cả 29 vì bịa giá |
 | Nói "chưa có dữ liệu" thay vì đoán, kể cả câu ngoài phạm vi | cổng thuộc miền sinh từ dữ liệu, mục 3.4 |
 | Câu trả lời và thẻ giỏ **không lệch nhau, cả hai chiều** | phép kiểm thứ 6 và bất biến thẻ giỏ thứ 8 |
 | Cắt khởi động container 97,3s → 19,0s | mục 4.8 |
@@ -3350,7 +3352,7 @@ Qua chặng đánh giá, em rút ra các nhận xét sau:
 4. **Nhãn dị nguyên phủ 44/91 món.** Đối chiếu mô tả đã tìm ra 7 lỗ thật, nhưng mô tả không
    phải bảng thành phần, nên **còn thiếu bao nhiêu thì không biết được từ dữ liệu này**.
 5. **Đường sinh không còn làm tụt ca, nhưng cũng không làm đúng thêm ca nào.** Cái đo được là 0 ca đúng
-   thêm với p50 +8,6s mỗi lượt. Cái **không** đo được: câu văn tự nhiên hơn
+   thêm với p50 +8,0s mỗi lượt. Cái **không** đo được: câu văn tự nhiên hơn
    có làm khách thật hài lòng hơn hay không.
 6. **Lớp xác minh không bắt được tên món HOÀN TOÀN bịa.** Nó so chuỗi với dữ liệu, nên một cái tên không
    có trong thực đơn dưới bất kỳ dạng nào thì lọt. Giới hạn này được ghi thành **một test có tên nói rõ
@@ -3405,7 +3407,7 @@ Nên thứ tự kiểm phải là: **kiểm giả thuyết "thước đo sai" TR
 Một trường hợp cụ thể: phép đo **cho điểm cao với hành vi sai** — nó đòi câu trả lời tri thức phải
 *chứa nguyên văn* một đoạn của tài liệu — mà đoạn thô cũng chứa cả nhan đề tài liệu. Nên **dán đoạn thô
 là cách chắc chắn nhất để QUA**, còn câu trình bày sạch thì đỏ. Khi phần làm sạch trình bày được thêm,
-tập trả lời tụt từ 147/147 xuống 130/147 và **cả 10 ca
+tập trả lời tụt từ 161/161 xuống 130/161 và **cả 10 ca
 đỏ là câu trả lời đúng**.
 
 ### Bài học 2 — một bất biến MỘT CHIỀU chỉ canh một nửa
@@ -3434,7 +3436,7 @@ Sau khi ghim bản CPU: **2,74GB**.
 
 Đây là một trong sáu lần dự án có số viết tay rồi trôi. Năm lần kia: `"hơn 90 món"` khi thực đơn có
 91; một bản kiểm kê ghi `32/90` khi thật là `53/40`; notebook in `122/122` khi tập đã
-147 ca; `84 tài liệu / 303 đoạn` khi kho đã 60/213; và một chỉ số
+161 ca; `84 tài liệu / 303 đoạn` khi kho đã 60/213; và một chỉ số
 truy hồi của kho nhỏ hơn được trích cho kho hiện tại.
 
 **Và lần thứ bảy là chính báo cáo này.** Bản trước viết tay 1587 dòng và đã trôi hoàn toàn: nó mô tả một
@@ -3647,15 +3649,15 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | truy hồi toàn kho | chốt | `bm25` | 0 | — | — | — | — | 0 |
 | truy hồi toàn kho | chốt | `embedding` | 0 | — | — | — | — | 0 |
 | truy hồi toàn kho | chốt | `hybrid` | 0 | — | — | — | — | 0 |
-| truy hồi toàn kho | phát triển | `bm25` | 152 | 42,11% | 64,47% | 51,49% | 35,66% | 17 |
-| truy hồi toàn kho | phát triển | `embedding` | 152 | 54,61% | 75,66% | 62,09% | 47,04% | 15 |
-| truy hồi toàn kho | phát triển | `hybrid` | 152 | 53,95% | 72,37% | 61,69% | 45,35% | 16 |
-| truy hồi toàn kho | NIÊM PHONG | `bm25` | 46 | 39,13% | 52,17% | 43,08% | 23,64% | 7 |
-| truy hồi toàn kho | NIÊM PHONG | `embedding` | 46 | 60,87% | 67,39% | 62,93% | 44,81% | 5 |
-| truy hồi toàn kho | NIÊM PHONG | `hybrid` | 46 | 52,17% | 67,39% | 58,33% | 41,81% | 7 |
+| truy hồi toàn kho | phát triển | `bm25` | 66 | 54,55% | 77,27% | 64,49% | 46,31% | 10 |
+| truy hồi toàn kho | phát triển | `embedding` | 66 | 69,70% | 93,94% | 80,56% | 63,59% | 6 |
+| truy hồi toàn kho | phát triển | `hybrid` | 66 | 71,21% | 86,36% | 77,45% | 56,27% | 8 |
+| truy hồi toàn kho | NIÊM PHONG | `bm25` | 24 | 50,00% | 79,17% | 62,15% | 36,59% | 5 |
+| truy hồi toàn kho | NIÊM PHONG | `embedding` | 24 | 83,33% | 100,00% | 89,93% | 56,45% | 7 |
+| truy hồi toàn kho | NIÊM PHONG | `hybrid` | 24 | 75,00% | 91,67% | 81,04% | 55,34% | 4 |
 | chọn món | 8 ca | `bm25` | 50 | 68,00% | 92,00% | — | — | 37 |
-| chọn món | 8 ca | `embedding` | 50 | 58,00% | 84,00% | — | — | 42 |
-| chọn món | 8 ca | `hybrid` | 50 | 66,00% | 90,00% | — | — | 40 |
+| chọn món | 8 ca | `embedding` | 50 | 70,00% | 94,00% | — | — | 35 |
+| chọn món | 8 ca | `hybrid` | 50 | 68,00% | 98,00% | — | — | 37 |
 | chọn món | 8 ca | `lọc nhãn` | 50 | 100,00% | 100,00% | — | — | 0 |
 | chọn mục `written|*` | phát triển | `bm25` | 76 | 80,26% | — | 87,32% | — | — |
 | chọn mục `written|*` | phát triển | `embedding` | 76 | 92,11% | — | 96,05% | — | — |
@@ -3666,18 +3668,15 @@ Toàn bộ số của Chương 4, một bảng. Đọc từ `ai/evaluation/measu
 | chọn mục `written|B` | phát triển | `bm25` | 38 | 68,42% | — | 79,04% | — | — |
 | chọn mục `written|B` | phát triển | `embedding` | 38 | 86,84% | — | 93,42% | — | — |
 | chọn mục `written|B` | phát triển | `hybrid` | 38 | 84,21% | — | 90,79% | — | — |
-| chọn mục `derived|*` | phát triển | `bm25` | 380 | 53,42% | — | 70,37% | — | — |
-| chọn mục `derived|*` | phát triển | `embedding` | 380 | 67,37% | — | 78,73% | — | — |
-| chọn mục `derived|*` | phát triển | `hybrid` | 380 | 61,32% | — | 75,59% | — | — |
 | chọn mục `written|*` | niêm phong | `bm25` | 44 | 75,00% | — | 85,04% | — | — |
-| chọn mục `written|*` | niêm phong | `embedding` | 44 | 86,36% | — | 92,80% | — | — |
-| chọn mục `written|*` | niêm phong | `hybrid` | 44 | 88,64% | — | 93,56% | — | — |
+| chọn mục `written|*` | niêm phong | `embedding` | 44 | 90,91% | — | 94,70% | — | — |
+| chọn mục `written|*` | niêm phong | `hybrid` | 44 | 84,09% | — | 90,91% | — | — |
 | chọn mục `written|A` | niêm phong | `bm25` | 22 | 86,36% | — | 92,42% | — | — |
 | chọn mục `written|A` | niêm phong | `embedding` | 22 | 90,91% | — | 94,70% | — | — |
-| chọn mục `written|A` | niêm phong | `hybrid` | 22 | 95,45% | — | 97,73% | — | — |
+| chọn mục `written|A` | niêm phong | `hybrid` | 22 | 90,91% | — | 93,94% | — | — |
 | chọn mục `written|B` | niêm phong | `bm25` | 22 | 63,64% | — | 77,65% | — | — |
-| chọn mục `written|B` | niêm phong | `embedding` | 22 | 81,82% | — | 90,91% | — | — |
-| chọn mục `written|B` | niêm phong | `hybrid` | 22 | 81,82% | — | 89,39% | — | — |
+| chọn mục `written|B` | niêm phong | `embedding` | 22 | 90,91% | — | 94,70% | — | — |
+| chọn mục `written|B` | niêm phong | `hybrid` | 22 | 77,27% | — | 87,88% | — | — |
 
 `—` nghĩa là chỉ số đó **không áp dụng** cho bài toán/nhóm đó, không phải bằng 0.
 
@@ -3688,12 +3687,12 @@ Mọi phép đo cần stack hoặc mô hình thật đều được **ghi ra t�
 
 | Tệp bằng chứng | Ngày đo | Điều kiện |
 |---|---|---|
-| `golden_e2e.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=False |
-| `golden_e2e_sinh.json` | 2026-08-01 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
-| `llm_rag_loai_c.json` | 2026-07-31 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://localhost:20128/v1 |
-| `truy_hoi_so_sanh.json` | 2026-08-02 | so_doan=428 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
-| `chon_muc_phat_trien.json` | 2026-08-08 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
-| `chon_muc_niem_phong.json` | 2026-07-31 | tap=niem_phong · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
+| `golden_e2e.json` | 2026-08-09 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=False |
+| `golden_e2e_sinh.json` | 2026-08-09 | api=http://127.0.0.1:5000 · hoi_thoai=29 · retriever=embedding · generation_enabled=True |
+| `llm_rag_loai_c.json` | 2026-08-09 | mo_hinh=cx/gpt-5.6-luna-review · base_url=http://host.docker.internal:20128/v1 |
+| `truy_hoi_so_sanh.json` | 2026-08-09 | so_doan=189 · bo_da_so=['bm25', 'embedding', 'hybrid'] · mo_niem_phong=True · giao_thuc_do_tre=screening |
+| `chon_muc_phat_trien.json` | 2026-08-09 | tap=phat_trien · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
+| `chon_muc_niem_phong.json` | 2026-08-09 | tap=niem_phong · bo_da_so=['bm25', 'embedding', 'hybrid'] · so_lan_do_do_tre=7 |
 
 Thiếu một tệp trong bảng này là **sinh báo cáo thất bại**, không phải một ô trống trong
 tài liệu. Lý do: một con số không rõ đo lúc nào, trên cấu hình nào, thì tệ hơn không có số.

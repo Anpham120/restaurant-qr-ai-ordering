@@ -128,6 +128,11 @@ class Bang:
         self.m_truy_hoi = results.doc("truy_hoi_so_sanh")
         self.m_chon_dev = results.doc("chon_muc_phat_trien")
         self.m_chon_np = results.doc("chon_muc_niem_phong")
+        # Phân bố đường đi. Trước bản này ba câu trong báo cáo viết CỨNG "đường truy
+        # hồi chạy 0 lần", còn số ca thì thay động — nên sau khi tập ca mở rộng, bộ
+        # sinh in ra câu "trên 161 ca … chạy 0 lần" trong khi số thật là 14/161.
+        # Câu nào nói về một phép đo thì con số của nó phải ĐỌC từ phép đo ấy.
+        self.m_duong = results.doc("phan_bo_duong")
 
         # Bộ HAI CHIỀU — 100 câu, đo VÌ SAO hệ thống cần cả hai lớp. Đọc CSV vì đó cũng là tệp đưa
         # cho người đọc mở Excel; giữ MỘT nguồn thay vì sinh thêm một JSON song song.
@@ -148,6 +153,16 @@ class Bang:
     @property
     def luot_golden(self) -> int:
         return sum(len(c["turns"]) for c in self.golden)
+
+    @property
+    def tr_ca(self) -> int:
+        """Số ca một lượt đi qua nhánh truy hồi toàn kho — ĐỌC từ phép đo."""
+        return self.m_duong["so"]["tap_ca"]["dem"].get("truy_hoi", 0)
+
+    @property
+    def tr_phien(self) -> int:
+        """Số lượt phiên đi qua nhánh truy hồi toàn kho — ĐỌC từ phép đo."""
+        return self.m_duong["so"]["tap_phien"]["dem"].get("truy_hoi", 0)
 
     def ktc_truy_hoi(self, tap: str) -> dict:
         """Khoảng tin cậy Wilson 95% cho Hit@1 của từng bộ truy hồi trên một tập."""
@@ -1795,9 +1810,10 @@ lấy tài liệu tương ứng. Đây là đường **phổ biến nhất** tro
 riêng.
 
 **Một con số đáng chú ý và báo cáo nêu rõ:** trên tập {len(b.ca_tra_loi)} ca trả lời và
-{b.luot_phien} lượt phiên, đường C **chạy 0 lần** — mọi câu tri thức trong hai tập đó đều được đường A
-hoặc B xử lý. Điều này **không** có nghĩa truy hồi vô dụng; nó có nghĩa **hai tập đó được viết quanh
-các nhánh tất định**. Bộ hai chiều ở mục 4.9 được xây chính vì lý do đó.
+{b.luot_phien} lượt phiên, đường C chạy **{b.tr_ca} lần** và **{b.tr_phien} lần**. Con số này từng là
+**0 trên cả hai tập** — không phải vì truy hồi vô dụng, mà vì **hai tập khi đó được viết quanh các
+nhánh tất định** và không tiêu chí nào hỏi tới nhánh C. Bộ hai chiều ở mục 4.9 được xây chính vì lý do
+đó, và họ ca `knowledge_corpus` được thêm sau để lấp đúng lỗ này.
 
 **Cửa `audience: guest`.** Mọi tài liệu trong kho phải khai `audience: guest`, và bộ nạp **từ chối**
 tệp không khai đúng giá trị này — từ chối chứ không phải lọc. Lý do: bản kho trước có 5/27 tệp là
@@ -1902,7 +1918,7 @@ tại thời điểm chạy. Hệ quả: thực đơn thêm một món thì khó
    nên không cần; riêng đường sinh LLM thì con số một lần chạy có phương sai chưa được đo.
 
 Bằng chứng cho giới hạn thứ nhất nằm ngay trong dự án: một phiên thử nghiệm với người dùng ngoài nhóm
-làm lộ **17 lỗi** mà tập {len(b.ca_tra_loi)} ca và 111 lượt phiên khi đó không bắt được — vì mọi ca
+làm lộ **17 lỗi** mà tập ca và 111 lượt phiên **khi đó** không bắt được — vì mọi ca
 trong tập đều **viết đúng kiểu**, còn người thật thì phủ định, đổi ý và hỏi liên tục. Tập phiên phải
 mở rộng lên **{b.luot_phien} lượt** mới bắt được lớp lỗi đó.
 
@@ -2054,8 +2070,9 @@ Lý do thiết kế như vậy: chín nhánh đầu đều có **đáp án xác 
 chủ đề. Đưa chúng qua xếp hạng theo độ tương đồng là bỏ một đáp án chắc chắn để lấy một ước lượng.
 
 **Hệ quả đo được:** trên tập {len(b.ca_tra_loi)} ca và {b.luot_phien} lượt phiên, nhánh truy hồi chạy
-**0 lần** — mọi câu đều khớp một trong chín nhánh trước. Con số này **không** nói truy hồi vô dụng; nó
-nói hai tập đó được viết quanh các nhánh tất định. Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
+**{b.tr_ca} lần** và **{b.tr_phien} lần**. Con số này từng là 0 trên cả hai tập — mọi câu đều khớp một
+trong chín nhánh trước, vì hai tập đó được viết quanh các nhánh tất định chứ không vì truy hồi vô dụng.
+Bộ hai chiều ở mục 4.9 tồn tại vì lý do đó.
 
 ### 3.7.4 Lớp 4a — MÃ TẤT ĐỊNH xử lý thế nào (`answer.select()`)
 
