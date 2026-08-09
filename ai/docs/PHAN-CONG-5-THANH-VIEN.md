@@ -527,30 +527,36 @@ lần trước khi hệ thống sai*, nên "cảm giác đã tốt hơn" không 
 ## Ba tài liệu ai cũng phải đọc trước khi bắt đầu
 
 1. **`ai/README.md`** — 5 nguyên tắc của bản dựng lại.
-2. **`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb`** — 66 ô, mỗi ô mã tính lại từ mã sống. Chạy nó
+2. **`ai/notebooks/he_thong_ai_tu_van_dat_mon.ipynb`** — 92 ô, mỗi ô mã tính lại từ mã sống. Chạy nó
    là hiểu toàn hệ thống bằng **số**, không bằng lời.
 3. **`ai/docs/00-problem-statement.md`** — AI được phép trả lời gì, và tuyệt đối không làm gì.
 
 ## Trạng thái hiện tại
 
-| TV | Đã xong | Bằng chứng |
+| TV | Vai | Bằng chứng |
 |---|---|---|
-| **1** | Dữ liệu, bộ nhãn, kho tri thức, lớp hiểu câu hỏi | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho 60 tài liệu / 213 đoạn · bộ rà nhãn 0 lỗ |
-| **2** | Truy hồi — BM25, embedding, hybrid RRF | 114 ca truy hồi · chốt embedding, Hit@1 niêm phong 60,87% so với BM25 39,13% (McNemar p = 0,0020) |
-| **3** | Chọn món và ba lớp an toàn | 120 ca chọn mục · 10 phép kiểm xác minh · **0 lỗi an toàn** trên mọi tập |
-| **4** | Dịch vụ HTTP, bộ nhớ phiên, tích hợp backend | 5 endpoint · 3 quy tắc hợp nhất · hợp đồng schema · **đã chạy thật qua `docker compose`** |
-| **5** | Bốn tập đánh giá, thước đo, golden, cổng CI | 140/140 ca · 149/149 lượt phiên · 103/103 lượt golden · 100 câu hai chiều |
+| **1** | Nền tảng — dữ liệu & đo lường | 91/91 món khớp hai nguồn · 85 nhãn / 16 nhóm · kho **60 tài liệu / 213 đoạn** (182 xếp hạng) · bốn tập đánh giá · bộ rà nhãn 0 lỗ |
+| **2** | Hiểu câu hỏi | **629 cụm** từ vựng · 107 cụm có nguy cơ đụng chữ, cơ chế khớp-dài-trước chặn hết · 0 lỗi an toàn |
+| **3** | Truy hồi | **114 ca** · chốt embedding `bge-m3`; hybrid p=1,0000 và reranker p=0,8238 đều **không thắng** |
+| **4** | Chọn món & giỏ hàng | lọc nhãn **100,00%** · 4 bất biến giỏ hàng · **0 lỗi an toàn** trên mọi tập |
+| **5** | Cổng vào & phiên | 5 endpoint · 3 quy tắc hợp nhất bộ nhớ · hợp đồng schema · **đã chạy thật qua `docker compose`** |
+
+> **Bảng này từng gán SAI vai.** Bản trước ghi TV2 = truy hồi, TV3 = chọn món, TV5 = tập đánh giá —
+> lệch một bậc so với chính phần định nghĩa vai ở trên, vì nó còn sót từ cách chia cũ. Số liệu thì
+> được cập nhật nhiều lần, nhãn TV thì không ai soát. Ghi ra vì đây đúng lớp lỗi mà cả dự án này
+> canh: **một bảng sai âm thầm nguy hiểm hơn một bảng thiếu.**
 
 **Số đo hiện tại:**
 
 | Phép đo | Quy mô | Kết quả |
 |---|---:|---|
-| Tập ca trả lời | 140 ca | **140/140** |
-| Bộ nhớ phiên | 149 lượt | **149/149**, 0 lỗi an toàn |
+| Tập ca trả lời | 147 ca | **147/147** (niêm phong 48/48) |
+| Bộ nhớ phiên | 60 kịch bản / 163 lượt | **không lượt nào đỏ**, 0 lỗi an toàn |
 | Golden đầu-cuối | 103 lượt | **103/103** ở cả hai cấu hình |
-| Truy hồi | 222 ca | embedding thắng BM25 có ý nghĩa thống kê |
-| Chọn món | 50 câu | lọc nhãn **100,00%**, 0 món vi phạm; ba bộ xếp hạng 58–68% |
-| Bộ kiểm | — | **401 test `ai/app`** + **143 test `ai/evaluation`** |
+| Truy hồi | 114 ca | `written` Hit@2 **0,879** · `cấm@5` giảm 9 → 6 sau khi bỏ tài liệu sinh-theo-nhãn |
+| Chọn món | 50 câu | lọc nhãn **100,00%**, 0 món vi phạm |
+| Định tuyến câu tri thức | 50 câu | 64,00% theo khoá nghiêm ngặt · **90,00%** chấm theo câu trả lời dùng được |
+| Bộ kiểm | — | **429 test `ai/app`** + **143 test `ai/evaluation`** · 14 cổng `--check` |
 
 **Đã chạy thật qua `docker compose up`** — quét QR, hỏi, nhận thẻ giỏ, thêm vào giỏ hàng. Phép
 kiểm này **không thay được bằng test** vì nó kiểm
