@@ -1530,6 +1530,17 @@ này trả về Canh khổ qua nhồi nấm · Gỏi cuốn tôm thịt · Sươ
 Bộ chạy `run_chung_cu_dinh_tuyen.py` in **dữ liệu thô** — từng câu, nhánh thực tế, ràng buộc đọc ra, ba
 món trả về — để người chấm tự phán xét thay vì tin một tỷ lệ.
 
+### 4.6bis Một lưu ý về ngày đo của con số golden
+
+Con số **103/103** ở các bảng trên đo qua stack Docker thật, và **stack đó phải được dựng lại mỗi lần
+mã đổi**. Vì vậy nó là con số duy nhất trong báo cáo **có mốc thời gian riêng**, không tự cập nhật
+theo các phép đo khác.
+
+Tệp bằng chứng `ai/evaluation/measurements/golden_e2e.json` mang nguyên phản hồi `/ready` của dịch vụ
+lúc đo, nên ngày đo và cấu hình lúc đo luôn tra lại được. Đây là lý do tệp bằng chứng ghi cả cấu hình
+chứ không chỉ ghi kết quả: **một con số không rõ đo lúc nào, trên cấu hình nào, thì tệ hơn không có
+số.**
+
 ## 4.7 RAG chạy bao nhiêu trong một luồng thật
 
 Đây là phép đo làm đổi cách hiểu mọi con số ở các mục trên. Chạy 163 lượt kịch bản **như một phiên thật, có bộ
