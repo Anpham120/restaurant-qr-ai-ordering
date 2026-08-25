@@ -49,5 +49,5 @@ pydantic>=2.8,<3.0
 # Dùng `--extra-index-url` chứ không `--index-url`: `--index-url` THAY THẾ PyPI, nên fastapi và
 # uvicorn cũng phải tìm trên index của PyTorch — nơi không có chúng — và build thất bại.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.2,<3.0
+torch>=2.13.0+cpu,<3.0
 sentence-transformers>=6.0.0,<7.0
